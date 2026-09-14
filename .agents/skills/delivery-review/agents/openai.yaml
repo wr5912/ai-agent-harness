@@ -1,0 +1,6 @@
+interface:
+  display_name: "智能体交付审查"
+  short_description: "审查六项交付、候选基线、复核等级与发布准入证据"
+  default_prompt: "使用 $delivery-review 审查该智能体交付包并形成唯一交付结论。"
+policy:
+  allow_implicit_invocation: true

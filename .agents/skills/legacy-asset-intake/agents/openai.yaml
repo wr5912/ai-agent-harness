@@ -1,0 +1,6 @@
+interface:
+  display_name: "旧资产只读接收"
+  short_description: "安全清点旧 Agent/Harness 归档与目录"
+  default_prompt: "使用 $legacy-asset-intake 在不解压、不执行的前提下检查这份旧 Agent/Harness 来源。"
+policy:
+  allow_implicit_invocation: true
