@@ -1,6 +1,6 @@
 # ai-agent-harness
 
-用于管理可被 DSH 等 Agent Runtime 装载的 Agent / Harness 工程资产，并保存这些资产从需求、实验、评估到发布的完整演进证据。
+用于管理可被 DSH Agent Runtime 装载的 Agent / Harness 工程资产，并保存这些资产从需求、实验、评估到发布的完整演进证据。
 
 本仓库管理的是业务能力及其运行支撑配置，不包含 DSH Runtime 源码，也不复制 Runtime 内部目录。DSH 从容器镜像启动时，应通过明确的 Runtime Adapter 和只读卷挂载装载仓库中的不可变 Release；会话、缓存、凭据和其他运行态数据不属于 Release。
 
