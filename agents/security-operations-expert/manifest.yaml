@@ -1,0 +1,8 @@
+schema_version: "1.0"
+agent_id: security-operations-expert
+lifecycle_status: experiment
+runtime_family: dsh
+load_mode: container-only
+active_experiment: EXP-security-operations-expert-001
+delivery_status: returned-for-remediation
+minimum_review_level: R3

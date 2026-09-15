@@ -94,6 +94,39 @@ MAX_ASSET_TOTAL_BYTES = 1024 * 1024 * 1024
 MAX_TEXT_BYTES = 4 * 1024 * 1024
 MAX_YAML_NODES = 50_000
 MAX_YAML_ALIASES = 1_000
+DSH_JS_TAG = "tag:yaml.org,2002:js"
+DSH_CANDIDATE_REQUIRED = (
+    "dsh/workspace/AGENTS.md",
+    "dsh/presets/security-operations-expert/preset.yml",
+    "dsh/presets/security-operations-expert/agent.cordis.yml",
+    "dsh/managed/security-operations-expert.patch.yml",
+    "dsh/managed/security-operations-guard.mjs",
+    "dsh/managed/mcp-servers.yaml",
+    "dsh/managed/role-tool-matrix.yaml",
+    "dsh/managed/control-boundary.yaml",
+    "runtime.lock.json",
+)
+DSH_CREDENTIAL_KEYS = (
+    "SEC_OPS_MCP_URL", "SEC_OPS_MCP_TOKEN",
+    "INSPECTION_MCP_URL", "INSPECTION_MCP_TOKEN",
+    "THREAT_ANALYSIS_MCP_URL", "THREAT_ANALYSIS_MCP_TOKEN",
+)
+DSH_BOOTSTRAP_DENY_TEXT = "# DSH Bootstrap environment is supplied only by the invoking container environment.\n"
+DSH_BOOTSTRAP_DENY_SHA256 = "e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489"
+# 安全关键适配层脚本与构建定义按当前审查基线锁定。合法变更必须重新审查并同步摘要；
+# 文件身份通过不等于 DSH Runtime 装载、业务能力或 Release 验收通过。
+DSH_ADAPTER_PINNED_SHA256 = {
+    "Dockerfile": "3140cd7a3c0bd7b14e7d2670e6d7706c2c201fc11df87291f6f136d9ede38b77",
+    "prepare-verification-home.mjs": "96e5495d29da68d1a106f9cd5462180b898edaf70456de263e3150220be620b4",
+    "verify-load.mjs": "5ce4a4b64f2cb96d0c29847e8e6fd91a80d2cd054a1dc83fd9a22aefa53d6985",
+    "verify-load.sh": "18996126c214eb0a1234ad5ec4f3e770e9a2abe899e786c3b558d661c8bcda8c",
+    "tree-digest.mjs": "ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
+    "mutation-receipt.py": "e1205b070b659f8e8ebc418426f88f8499d7c54812c26f8428dbbd6202e5aecb",
+}
+
+
+class DshJsExpression(str):
+    """只读 YAML 解析保留 DSH !!js 标记，绝不计算表达式。"""
 
 
 def issue(code: str, message: str, path: Optional[str] = None) -> Dict[str, str]:
@@ -146,6 +179,18 @@ def is_nonempty_regular_file(path: Path, root: Optional[Path] = None) -> bool:
         and metadata.st_nlink == 1
         and 0 < metadata.st_size <= MAX_ASSET_FILE_BYTES
     )
+
+
+def is_empty_regular_file(path: Path, root: Path) -> bool:
+    """仅供受控全局 AGENTS.md deny-layer 使用；零字节不得泛化为资产入口。"""
+
+    if not has_real_path_components(root, path):
+        return False
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return False
+    return stat.S_ISREG(metadata.st_mode) and metadata.st_nlink == 1 and metadata.st_size == 0
 
 
 def read_text_limited(root: Path, path: Path, max_bytes: int = MAX_TEXT_BYTES) -> str:
@@ -374,7 +419,7 @@ def yaml_value_is_material(value: object, seen: Optional[Set[int]] = None) -> bo
     return False
 
 
-def load_bounded_yaml(text: str) -> object:
+def load_bounded_yaml(text: str, allow_dsh_js_scalar: bool = False) -> object:
     if yaml is None:
         raise ValueError("缺少 PyYAML；无法安全验证 Harness YAML")
 
@@ -408,6 +453,14 @@ def load_bounded_yaml(text: str) -> object:
                 mapping[key] = self.construct_object(value_node, deep=deep)
             return mapping
 
+    if allow_dsh_js_scalar:
+        def preserve_dsh_js(loader: object, node: object) -> DshJsExpression:
+            if not isinstance(node, yaml.ScalarNode):
+                raise ValueError("DSH !!js 只允许标量表达式")
+            return DshJsExpression(loader.construct_scalar(node))
+
+        BoundedUniqueSafeLoader.add_constructor(DSH_JS_TAG, preserve_dsh_js)
+
     return yaml.load(text, Loader=BoundedUniqueSafeLoader)
 
 
@@ -418,7 +471,8 @@ def structured_yaml_text(root: Path, path: Path) -> Optional[str]:
     if text is None or "\x00" in text or "\t" in text:
         return None
     try:
-        value = load_bounded_yaml(text)
+        dsh_profile_patch = path.name.endswith(".patch.yml") and "/candidate/dsh/managed/" in path.as_posix()
+        value = load_bounded_yaml(text, allow_dsh_js_scalar=dsh_profile_patch)
     except Exception:  # PyYAML 的 Parser/Constructor 异常类型跨版本不同
         return None
     if not isinstance(value, (dict, list)) or not yaml_value_is_material(value):
@@ -572,6 +626,7 @@ TEXT_SUFFIXES = {
     ".json",
     ".jsonl",
     ".md",
+    ".mjs",
     ".py",
     ".sh",
     ".toml",
@@ -993,6 +1048,485 @@ def validate_experiments(root: Path, errors: List[Dict[str, str]], asset_files: 
             ]
             if not target.is_dir() or target.is_symlink() or not material_files:
                 errors.append(issue("EXPERIMENT_STRUCTURE", "Experiment 的 %s 必须包含真实资产" % required_dir, relative(target, root)))
+        candidate_harness = dsh_yaml(root, experiment / "candidate" / "harness.yaml")
+        dsh_declared = (
+            isinstance(candidate_harness, dict)
+            and isinstance(candidate_harness.get("agent"), dict)
+            and candidate_harness["agent"].get("runtime_family") == "dsh"
+        )
+        if path_present(experiment / "candidate" / "dsh") or dsh_declared:
+            validate_dsh_candidate(root, experiment, errors, asset_files)
+
+
+def dsh_yaml(root: Path, path: Path, allow_js: bool = False) -> Optional[object]:
+    """仅解析仓库文件；DSH !!js 被封存为标记字符串，绝不计算。"""
+
+    try:
+        text = read_text_limited(root, path)
+        if "\x00" in text or "\t" in text:
+            return None
+        return load_bounded_yaml(text, allow_dsh_js_scalar=allow_js)
+    except Exception:  # PyYAML 的构造异常类型跨版本不同
+        return None
+
+
+def dsh_js_expressions(value: object) -> List[DshJsExpression]:
+    found: List[DshJsExpression] = []
+    stack = [value]
+    seen: Set[int] = set()
+    while stack:
+        item = stack.pop()
+        if isinstance(item, DshJsExpression):
+            found.append(item)
+        elif isinstance(item, (dict, list)) and id(item) not in seen:
+            seen.add(id(item))
+            if len(seen) > MAX_YAML_NODES:
+                raise ValueError("DSH Profile YAML 容器超过检查上限")
+            stack.extend(item.keys() if isinstance(item, dict) else ())
+            stack.extend(item.values() if isinstance(item, dict) else item)
+    return found
+
+
+def dsh_path_within(candidate: Path, value: object) -> Optional[Path]:
+    if not isinstance(value, str) or not value or "\\" in value:
+        return None
+    parts = Path(value).parts
+    if Path(value).is_absolute() or any(part in {"", ".", ".."} for part in parts):
+        return None
+    return candidate.joinpath(*parts)
+
+
+def validate_dsh_candidate(
+    root: Path,
+    experiment: Path,
+    errors: List[Dict[str, str]],
+    asset_files: Sequence[Path],
+) -> None:
+    """只验证 DSH 迁移候选的装载/权限声明，不推断业务交付通过。"""
+
+    candidate = experiment / "candidate"
+    dsh = candidate / "dsh"
+    agent_id = EXPERIMENT_RE.fullmatch(experiment.name).group(1) if EXPERIMENT_RE.fullmatch(experiment.name) else None
+    if agent_id != "security-operations-expert":
+        errors.append(issue("DSH_CANDIDATE_UNSUPPORTED", "当前 DSH 静态契约只覆盖受控的 security-operations-expert 迁移候选", relative(dsh, root)))
+        return
+
+    harness_path = candidate / "harness.yaml"
+    harness = dsh_yaml(root, harness_path)
+    if not isinstance(harness, dict):
+        errors.append(issue("DSH_CANDIDATE_HARNESS", "候选 Harness 必须是可解析的 YAML mapping", relative(harness_path, root)))
+        return
+    agent = harness.get("agent")
+    experiment_identity = harness.get("experiment")
+    loadable = harness.get("loadable_assets")
+    contract = harness.get("runtime_contract")
+    promotion = harness.get("promotion")
+    if not isinstance(agent, dict) or agent.get("id") != agent_id or agent.get("runtime_family") != "dsh" or agent.get("load_mode") != "container-only":
+        errors.append(issue("DSH_CANDIDATE_IDENTITY", "Harness 必须绑定当前 Agent 与 DSH 容器装载", relative(harness_path, root)))
+    if not isinstance(experiment_identity, dict) or experiment_identity.get("id") != experiment.name:
+        errors.append(issue("DSH_CANDIDATE_IDENTITY", "Harness 必须绑定当前 Experiment", relative(harness_path, root)))
+    expected_paths = {
+        "workspace": "dsh/workspace",
+        "preset_root": "dsh/presets",
+        "managed_root": "dsh/managed",
+        "profile_patch": "dsh/managed/security-operations-expert.patch.yml",
+        "runtime_lock": "runtime.lock.json",
+        "pending_delivery": "delivery/交付记录.md",
+        "pending_cases": "delivery/eval/cases.pending.jsonl",
+    }
+    if not isinstance(loadable, dict) or loadable.get("preset_id") != agent_id:
+        errors.append(issue("DSH_LOADABLE_ASSETS", "loadable_assets 必须绑定当前 Preset", relative(harness_path, root)))
+        loadable = {}
+    for key, expected in expected_paths.items():
+        value = loadable.get(key)
+        target = dsh_path_within(candidate, value)
+        if value != expected or target is None or not path_present(target):
+            errors.append(issue("DSH_LOADABLE_ASSETS", "%s 必须是候选内存在的精确装载路径" % key, relative(harness_path, root)))
+    if not isinstance(contract, dict) or any(
+        contract.get(key) != value for key, value in {
+            "workspace_container_path": "/work/harness/workspace",
+            "preset_container_path": "/opt/dsh-presets",
+            "managed_container_path": "/opt/dsh-managed",
+            "dsh_home_container_path": "/var/lib/dsh",
+            "authoring_workspace_mode": "rw",
+            "authoring_preset_mode": "ro",
+            "authoring_managed_mode": "ro",
+            "verification_candidate_mode": "ro",
+            "release_mode": "ro",
+            "expose_host_port": False,
+        }.items()
+    ):
+        errors.append(issue("DSH_RUNTIME_CONTRACT", "容器路径和 Candidate RW/RO 边界必须与固定契约一致", relative(harness_path, root)))
+    if not isinstance(promotion, dict) or any(promotion.get(key) is not False for key in ("baseline_created", "release_created", "current_created")) or promotion.get("delivery_status") == "pass":
+        errors.append(issue("DSH_PREMATURE_PROMOTION", "待整改迁移候选不得声明 Baseline/Release/current 或通过结论", relative(harness_path, root)))
+    manifest_values, manifest_error = parse_flat_manifest(root, root / "agents" / agent_id / "manifest.yaml")
+    if manifest_error or not manifest_values or manifest_values.get("active_experiment") != experiment.name or manifest_values.get("lifecycle_status") != "experiment" or manifest_values.get("runtime_family") != "dsh" or manifest_values.get("load_mode") != "container-only" or any(key in manifest_values for key in ("current_release", "release_id", "current_version", "release_version")):
+        errors.append(issue("DSH_PREMATURE_PROMOTION", "Agent manifest 必须只指向当前 DSH Experiment，不能提前绑定 Release", relative(root / "agents" / agent_id / "manifest.yaml", root)))
+    try:
+        candidate_lock = load_json_object(root, candidate / "runtime.lock.json")
+    except (OSError, UnicodeError, ValueError, TypeError):
+        candidate_lock = {}
+    if candidate_lock.get("agent_id") != agent_id or candidate_lock.get("experiment_id") != experiment.name or candidate_lock.get("runtime_adapter") != "runtime/adapters/dsh-container" or candidate_lock.get("profile") != "web" or candidate_lock.get("profile_patch") != expected_paths["profile_patch"]:
+        errors.append(issue("DSH_SOURCE_LOCK", "Candidate Runtime lock 必须绑定当前 Agent、Experiment、web Profile 与薄适配层", relative(candidate / "runtime.lock.json", root)))
+
+    for name in DSH_CANDIDATE_REQUIRED:
+        target = candidate / name
+        if not is_nonempty_regular_file(target, root):
+            errors.append(issue("DSH_ENTRYPOINT_MISSING", "缺少 DSH 容器装载必需入口", relative(target, root)))
+    workspace_dotenv = dsh / "workspace" / ".env"
+    try:
+        dotenv_text = read_text_limited(root, workspace_dotenv)
+    except (OSError, UnicodeError, ValueError):
+        dotenv_text = None
+    if dotenv_text != DSH_BOOTSTRAP_DENY_TEXT or (dotenv_text is not None and hashlib.sha256(dotenv_text.encode("utf-8")).hexdigest() != DSH_BOOTSTRAP_DENY_SHA256):
+        errors.append(issue("DSH_WORKSPACE_DOTENV", "Candidate workspace/.env 只能是精确注释挂载目标，不得承载变量或凭据", relative(workspace_dotenv, root)))
+    if not (root / "runtime" / "adapters" / "dsh-container").is_dir():
+        errors.append(issue("DSH_ADAPTER_ENTRYPOINT", "DSH Candidate 必须绑定可检查的容器薄适配层", "runtime/adapters/dsh-container"))
+    for path in files_below(dsh, asset_files):
+        rel = path.relative_to(dsh)
+        if ".claude" in rel.parts or path.name == "CLAUDE.md":
+            errors.append(issue("DSH_LEGACY_ACTIVE_ASSET", "旧宿主活动配置不得进入 DSH 装载树", relative(path, root)))
+        if path.suffix.lower() in TEXT_SUFFIXES:
+            try:
+                text = read_text_limited(root, path)
+            except (OSError, UnicodeError, ValueError):
+                continue
+            if re.search(r"\b(?:dontAsk|allowUnsandboxedCommands|permissionMode)\b", text):
+                errors.append(issue("DSH_LEGACY_PERMISSION", "DSH 装载树不得继承旧宿主权限开关", relative(path, root)))
+
+    skills = dsh / "workspace" / ".agents" / "skills"
+    skill_dirs = list(child_directories(root, skills, errors, "DSH_SKILL_DIRECTORY"))
+    if not skill_dirs:
+        errors.append(issue("DSH_SKILL_DISCOVERY", "DSH 工作区必须包含可直接发现的技能", relative(skills, root)))
+    for skill_dir in skill_dirs:
+        entry = skill_dir / "SKILL.md"
+        name, description = parse_frontmatter(root, entry)
+        if not KEBAB_RE.fullmatch(skill_dir.name) or name != skill_dir.name or not description:
+            errors.append(issue("DSH_SKILL_DISCOVERY", "每个直接子目录的 SKILL.md name/description 必须匹配目录", relative(entry, root)))
+        if not is_nonempty_regular_file(entry, root):
+            errors.append(issue("DSH_SKILL_DISCOVERY", "技能入口必须为非空普通文件", relative(entry, root)))
+
+    preset_path = dsh / "presets" / agent_id / "agent.cordis.yml"
+    preset = dsh_yaml(root, preset_path)
+    if not isinstance(preset, list) or not preset:
+        errors.append(issue("DSH_PRESET_INVALID", "Preset 必须是可装载的插件列表", relative(preset_path, root)))
+    else:
+        required_preset_rows = {
+            "persona": ("@deepseek-ai/dsh-persona", {"id", "name", "disabled", "config"}),
+            "agent-instructions": ("@deepseek-ai/dsh-agent-instructions", {"id", "name", "disabled", "config"}),
+            "security-operations-guard": ("/opt/dsh-managed/security-operations-guard.mjs", {"id", "name", "disabled"}),
+        }
+        if len(preset) != len(required_preset_rows) or {item.get("id") for item in preset if isinstance(item, dict) and isinstance(item.get("id"), str)} != set(required_preset_rows):
+            errors.append(issue("DSH_PRESET_INVALID", "Preset 必须唯一且仅包含身份、指令与 Guard 三行", relative(preset_path, root)))
+        names = [item.get("name") for item in preset if isinstance(item, dict)]
+        if "@deepseek-ai/dsh-persona" not in names or "@deepseek-ai/dsh-agent-instructions" not in names or "/opt/dsh-managed/security-operations-guard.mjs" not in names:
+            errors.append(issue("DSH_PRESET_INVALID", "Preset 必须包含身份、工作区指令和受控 Guard", relative(preset_path, root)))
+        if any(not isinstance(item, dict) or item.get("name") not in {
+            "@deepseek-ai/dsh-persona", "@deepseek-ai/dsh-agent-instructions", "/opt/dsh-managed/security-operations-guard.mjs"
+        } for item in preset):
+            errors.append(issue("DSH_PRESET_SCOPED_TOOLS", "Preset 不得注册可绕过全局 toolFilter 的 scoped 工具", relative(preset_path, root)))
+        for item in preset:
+            if not isinstance(item, dict):
+                continue
+            required_row = required_preset_rows.get(item.get("id")) if isinstance(item.get("id"), str) else None
+            if required_row is None or item.get("name") != required_row[0] or set(item) != required_row[1] or item.get("disabled") is not False:
+                errors.append(issue("DSH_PRESET_DISABLED", "Preset 三行必须精确声明且显式启用；Guard 不得被禁用或重复", relative(preset_path, root)))
+            name = item.get("name")
+            config = item.get("config", {})
+            allowed_config_keys = {
+                "@deepseek-ai/dsh-persona": {"prefix", "suffix"},
+                "@deepseek-ai/dsh-agent-instructions": {"maxBytes"},
+                "/opt/dsh-managed/security-operations-guard.mjs": set(),
+            }
+            if not isinstance(config, dict) or set(config) - allowed_config_keys.get(name, set()):
+                errors.append(issue("DSH_PRESET_SCOPED_TOOLS", "Preset 配置不得扩展为工具注册、脚本或额外 Runtime 能力", relative(preset_path, root)))
+    preset_metadata = dsh_yaml(root, dsh / "presets" / agent_id / "preset.yml")
+    if not isinstance(preset_metadata, dict) or not preset_metadata.get("name") or not preset_metadata.get("description"):
+        errors.append(issue("DSH_PRESET_INVALID", "Preset 元数据缺少名称和说明", relative(dsh / "presets" / agent_id / "preset.yml", root)))
+
+    profile_path = dsh / "managed" / "security-operations-expert.patch.yml"
+    profile = dsh_yaml(root, profile_path, allow_js=True)
+    validate_dsh_profile(root, profile_path, profile, errors)
+    validate_dsh_mcp_manifest(root, dsh / "managed" / "mcp-servers.yaml", errors)
+    validate_dsh_role_matrix(root, dsh / "managed" / "role-tool-matrix.yaml", profile, errors)
+    validate_dsh_public_tool_map(root, dsh / "managed" / "mcp-tool-name-map.json", dsh / "managed" / "role-tool-matrix.yaml", profile, errors)
+    if path_present(candidate / "delivery" / "eval" / "cases.jsonl") or path_present(candidate / "delivery" / "eval" / "results.csv"):
+        errors.append(issue("DSH_PENDING_IS_NOT_FORMAL_EVAL", "迁移 pending Case 不得与正式 Case/Trial 文件混用", relative(candidate / "delivery" / "eval", root)))
+
+
+def validate_dsh_profile(root: Path, path: Path, profile: object, errors: List[Dict[str, str]]) -> None:
+    if not isinstance(profile, list):
+        errors.append(issue("DSH_PROFILE_INVALID", "DSH Profile patch 必须是 YAML patch 列表", relative(path, root)))
+        return
+    ordinary: Dict[str, Dict[str, object]] = {}
+    inserted: Dict[str, Dict[str, object]] = {}
+    for item in profile:
+        if not isinstance(item, dict):
+            errors.append(issue("DSH_PROFILE_INVALID", "Profile patch 行必须是 mapping", relative(path, root)))
+            continue
+        if "insert" in item:
+            children = item.get("insert")
+            if not isinstance(children, list):
+                errors.append(issue("DSH_PROFILE_INVALID", "insert 必须是插件列表", relative(path, root)))
+                continue
+            for child in children:
+                if not isinstance(child, dict) or not isinstance(child.get("id"), str) or child["id"] in inserted:
+                    errors.append(issue("DSH_PROFILE_INVALID", "insert 插件必须拥有唯一 ID", relative(path, root)))
+                else:
+                    inserted[child["id"]] = child
+        elif isinstance(item.get("id"), str) and item["id"] not in ordinary:
+            ordinary[item["id"]] = item
+        else:
+            errors.append(issue("DSH_PROFILE_INVALID", "patch 插件必须拥有唯一 ID", relative(path, root)))
+    expected_patch_ids = {
+        "tool-bash", "tool-pwsh", "tool-jobs", "tool-fs", "tool-fs-search",
+        "skill-filesystem", "tool-skill", "tool-web", "tool-subagent-control",
+        "tool-subagent-list-agents", "tool-subagent", "tool-subagent-fork",
+        "workflow-worker-thread", "tool-workflow", "tool-ralph", "agent-presets",
+    }
+    if set(ordinary) != expected_patch_ids:
+        errors.append(issue("DSH_PROFILE_PATCH_SCOPE", "Profile patch 只能修改已审查的 DSH 核心插件集合", relative(path, root)))
+
+    allowed_js = {"process.env.DSH_HARNESS_MODE === 'authoring'"}
+    allowed_js.update("process.env.%s" % key for key in DSH_CREDENTIAL_KEYS)
+    allowed_js.update("`Bearer ${process.env.%s}`" % key for key in DSH_CREDENTIAL_KEYS if key.endswith("_TOKEN"))
+    expressions = dsh_js_expressions(profile)
+    if len(expressions) != 7 or {str(expression).strip() for expression in expressions} != {
+        "process.env.DSH_HARNESS_MODE === 'authoring'",
+        "process.env.SEC_OPS_MCP_URL", "`Bearer ${process.env.SEC_OPS_MCP_TOKEN}`",
+        "process.env.INSPECTION_MCP_URL", "`Bearer ${process.env.INSPECTION_MCP_TOKEN}`",
+        "process.env.THREAT_ANALYSIS_MCP_URL", "`Bearer ${process.env.THREAT_ANALYSIS_MCP_TOKEN}`",
+    }:
+        errors.append(issue("DSH_PROFILE_JS_UNBOUNDED", "!!js 只能位于固定观察开关及三类 MCP env 配置", relative(path, root)))
+    for expression in expressions:
+        if str(expression).strip() not in allowed_js:
+            errors.append(issue("DSH_PROFILE_JS_UNBOUNDED", "!!js 只允许固定 Runtime env 引用和 authoring 观察开关", relative(path, root)))
+    watched = ordinary.get("skill-filesystem", {}).get("config")
+    allowed_skill_config_keys = {
+        "providerName", "includeDefaultRoots", "customSkillDirs",
+        "watch", "watchFollowSymlinks",
+    }
+    if (
+        not isinstance(watched, dict)
+        or set(watched) != allowed_skill_config_keys
+        or set(ordinary.get("skill-filesystem", {})) != {"id", "disabled", "config"}
+        or ordinary.get("skill-filesystem", {}).get("disabled") is not False
+        or watched.get("providerName") != "security-operations-workspace"
+        or watched.get("includeDefaultRoots") is not False
+        or watched.get("customSkillDirs") != ["/work/harness/workspace/.agents/skills"]
+        or not isinstance(watched.get("watch"), DshJsExpression)
+        or watched.get("watch") != "process.env.DSH_HARNESS_MODE === 'authoring'"
+        or watched.get("watchFollowSymlinks") is not False
+    ):
+        errors.append(issue("DSH_SKILL_DISCOVERY", "Skill provider 只能发现挂载工作区的直接技能目录；禁止显式 bundled root 与符号链接跟随", relative(path, root)))
+    presets = ordinary.get("agent-presets", {}).get("config")
+    if not isinstance(presets, dict) or set(presets) != {"default", "roots", "includeShippedRoot", "includeUserRoot"} or presets.get("default") != "security-operations-expert" or presets.get("roots") != [{"path": "/opt/dsh-presets", "trust": "system"}] or presets.get("includeShippedRoot") is not False or presets.get("includeUserRoot") is not False:
+        errors.append(issue("DSH_PRESET_ROOT", "Preset 必须仅从受控容器挂载根发现", relative(path, root)))
+    if set(ordinary.get("agent-presets", {})) != {"id", "disabled", "config"} or ordinary.get("agent-presets", {}).get("disabled") is not False:
+        errors.append(issue("DSH_PRESET_DISABLED", "Profile 的 agent-presets 必须显式启用，不能落入无 Guard 的 bare Agent", relative(path, root)))
+    for plugin_id in ("tool-fs", "tool-fs-search", "tool-skill"):
+        if ordinary.get(plugin_id, {}).get("disabled") is not False:
+            errors.append(issue("DSH_ENTRYPOINT_DISABLED", "%s 必须显式启用以保持受控工作区装载" % plugin_id, relative(path, root)))
+    for plugin_id in ("tool-fs", "tool-skill"):
+        if set(ordinary.get(plugin_id, {})) != {"id", "disabled"}:
+            errors.append(issue("DSH_ENTRYPOINT_DISABLED", "%s 不得重绑定插件或增加未审查的配置" % plugin_id, relative(path, root)))
+    search_row = ordinary.get("tool-fs-search", {})
+    search_config = search_row.get("config") if isinstance(search_row, dict) else None
+    if set(search_row) != {"id", "disabled", "config"} or not isinstance(search_config, dict) or set(search_config) != {"sampleOverCapGlobResults"} or search_config.get("sampleOverCapGlobResults") is not False:
+        errors.append(issue("DSH_ENTRYPOINT_DISABLED", "文件检索入口只能使用已审查的 DSH 配置", relative(path, root)))
+    for plugin_id in (
+        "tool-bash", "tool-pwsh", "tool-jobs", "tool-web", "tool-subagent",
+        "tool-subagent-control", "tool-subagent-list-agents", "tool-subagent-fork",
+        "workflow-worker-thread", "tool-workflow", "tool-ralph",
+    ):
+        if ordinary.get(plugin_id, {}).get("disabled") is not True:
+            errors.append(issue("DSH_UNSCOPED_TOOL", "%s 必须在受控 Profile 中禁用" % plugin_id, relative(path, root)))
+
+    expected_mcp = {
+        "sec-ops": ("SEC_OPS_MCP_URL", "SEC_OPS_MCP_TOKEN"),
+        "inspection": ("INSPECTION_MCP_URL", "INSPECTION_MCP_TOKEN"),
+        "threat-analysis": ("THREAT_ANALYSIS_MCP_URL", "THREAT_ANALYSIS_MCP_TOKEN"),
+    }
+    mcp_plugins = [item for item in inserted.values() if item.get("name") == "@deepseek-ai/dsh-mcp-client"]
+    if len(mcp_plugins) != len(expected_mcp):
+        errors.append(issue("DSH_MCP_BOUNDARY", "只能注册三类已声明 MCP client", relative(path, root)))
+    seen_servers: Set[str] = set()
+    for item in mcp_plugins:
+        config = item.get("config")
+        if not isinstance(config, dict):
+            errors.append(issue("DSH_MCP_BOUNDARY", "MCP client 缺少配置", relative(path, root)))
+            continue
+        server = config.get("serverName")
+        expected = expected_mcp.get(server) if isinstance(server, str) else None
+        seen_servers.add(str(server))
+        headers = config.get("headers")
+        reconnect = config.get("reconnect")
+        url = config.get("url")
+        authorization = headers.get("Authorization") if isinstance(headers, dict) else None
+        allowed_config_keys = {
+            "serverName", "transport", "url", "headers", "failOnStartupError", "reconnect",
+        }
+        if (
+            not expected
+            or set(item) != {"id", "name", "config"}
+            or item.get("id") != "security-operations-mcp-" + server
+            or set(config) != allowed_config_keys
+            or config.get("transport") != "streamable-http"
+            or not isinstance(url, DshJsExpression)
+            or url != "process.env.%s" % expected[0]
+            or not isinstance(headers, dict)
+            or set(headers) != {"Authorization"}
+            or not isinstance(authorization, DshJsExpression)
+            or authorization != "`Bearer ${process.env.%s}`" % expected[1]
+            or config.get("failOnStartupError") is not True
+            or not isinstance(reconnect, dict)
+            or set(reconnect) != {"enabled"}
+            or reconnect.get("enabled") is not False
+        ):
+            errors.append(issue("DSH_MCP_BOUNDARY", "MCP client 字段与 headers 必须精确白名单；端点/凭据由 Runtime env 注入且启动失败即停止", relative(path, root)))
+    if seen_servers != set(expected_mcp):
+        errors.append(issue("DSH_MCP_BOUNDARY", "MCP serverName 与候选声明不一致", relative(path, root)))
+
+    expected_delegates = {
+        "delegate_inspection", "delegate_fault_analysis", "delegate_response_planning", "delegate_threat_analysis"
+    }
+    delegates = [item for item in inserted.values() if item.get("name") == "@deepseek-ai/dsh-tool-subagent"]
+    if len(delegates) != len(expected_delegates):
+        errors.append(issue("DSH_ROLE_FILTER", "必须仅注册四个受控角色委派工具", relative(path, root)))
+    seen_delegates: Set[str] = set()
+    for item in delegates:
+        config = item.get("config")
+        if not isinstance(config, dict):
+            errors.append(issue("DSH_ROLE_FILTER", "角色工具缺少配置", relative(path, root)))
+            continue
+        if set(item) != {"id", "name", "config"}:
+            errors.append(issue("DSH_ROLE_FILTER", "角色委派行不得通过 disabled、重绑定或额外字段绕过受控入口", relative(path, root)))
+        allowed_delegate_config_keys = {
+            "provider", "toolName", "enableRunInBackground", "backgroundMode",
+            "maxDepth", "persona", "toolFilter",
+        }
+        if set(config) != allowed_delegate_config_keys or config.get("provider") != "spawn" or config.get("backgroundMode") != "one-shot" or not isinstance(config.get("persona"), str) or not config.get("persona", "").strip():
+            errors.append(issue("DSH_ROLE_FILTER", "委派配置只能使用固定 spawn、one-shot、persona 与受控筛选，不得扩展 modelSelectionSettings/agentOptions 等选项", relative(path, root)))
+        tool_name = config.get("toolName")
+        seen_delegates.add(str(tool_name))
+        filter_config = config.get("toolFilter")
+        allow = filter_config.get("allow") if isinstance(filter_config, dict) else None
+        if not isinstance(tool_name, str) or tool_name not in expected_delegates or type(config.get("maxDepth")) is not int or config.get("maxDepth") != 1 or config.get("enableRunInBackground") is not False or not isinstance(filter_config, dict) or set(filter_config) != {"allow"} or not isinstance(allow, list) or any(not isinstance(name, str) for name in allow):
+            errors.append(issue("DSH_ROLE_FILTER", "角色必须深度 1、无后台任务且显式衰减工具集合", relative(path, root)))
+        if isinstance(allow, list) and any(not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name) for name in allow):
+            errors.append(issue("DSH_MCP_PUBLIC_TOOL_NAME", "Profile toolFilter 必须使用 DSH 可公开的至多 64 字符工具名", relative(path, root)))
+        if tool_name == "delegate_response_planning" and allow != []:
+            errors.append(issue("DSH_RESPONSE_NO_TOOLS", "响应规划子 Agent 的 toolFilter.allow 必须是显式空列表", relative(path, root)))
+    if seen_delegates != expected_delegates:
+        errors.append(issue("DSH_ROLE_FILTER", "角色委派 toolName 不完整或重复", relative(path, root)))
+    permitted_insert_names = {"@deepseek-ai/dsh-mcp-client", "@deepseek-ai/dsh-tool-subagent"}
+    if any(item.get("name") not in permitted_insert_names for item in inserted.values()):
+        errors.append(issue("DSH_PROFILE_INSERT_UNBOUNDED", "Profile 不得插入未审查的模型工具或 Plugin", relative(path, root)))
+
+
+def validate_dsh_mcp_manifest(root: Path, path: Path, errors: List[Dict[str, str]]) -> None:
+    value = dsh_yaml(root, path)
+    servers = value.get("servers") if isinstance(value, dict) else None
+    expected = {
+        "sec-ops": ("SEC_OPS_MCP_URL", "SEC_OPS_MCP_TOKEN"),
+        "inspection": ("INSPECTION_MCP_URL", "INSPECTION_MCP_TOKEN"),
+        "threat-analysis": ("THREAT_ANALYSIS_MCP_URL", "THREAT_ANALYSIS_MCP_TOKEN"),
+    }
+    if not isinstance(value, dict) or value.get("startup_policy") != "fail-closed" or not isinstance(servers, list) or len(servers) != 3:
+        errors.append(issue("DSH_MCP_BOUNDARY", "MCP 声明必须仅包含三类启动失败即停止的服务", relative(path, root)))
+        return
+    seen: Set[str] = set()
+    for server in servers:
+        if not isinstance(server, dict):
+            errors.append(issue("DSH_MCP_BOUNDARY", "MCP 声明项必须为 mapping", relative(path, root)))
+            continue
+        name = server.get("server_name")
+        pair = expected.get(name) if isinstance(name, str) else None
+        seen.add(str(name))
+        if pair is None or server.get("transport") != "streamable-http" or server.get("url_env") != pair[0] or server.get("bearer_token_env") != pair[1] or server.get("tool_prefix") != "mcp__%s__" % name or "url" in server or "token" in server:
+            errors.append(issue("DSH_MCP_BOUNDARY", "MCP 声明只能引用 Runtime 环境变量，不得内联端点/凭据", relative(path, root)))
+    if seen != set(expected):
+        errors.append(issue("DSH_MCP_BOUNDARY", "MCP 声明 server_name 不完整或重复", relative(path, root)))
+
+
+def validate_dsh_role_matrix(root: Path, path: Path, profile: object, errors: List[Dict[str, str]]) -> None:
+    matrix = dsh_yaml(root, path)
+    roles = matrix.get("roles") if isinstance(matrix, dict) else None
+    if not isinstance(roles, dict) or set(roles) != {"inspection", "fault-analysis", "response-planning", "threat-analysis"} or matrix.get("max_depth") != 1:
+        errors.append(issue("DSH_ROLE_MATRIX", "角色矩阵必须显式冻结四个角色及深度 1", relative(path, root)))
+        return
+    delegates: Dict[str, object] = {}
+    if isinstance(profile, list):
+        for item in profile:
+            if not isinstance(item, dict) or not isinstance(item.get("insert"), list):
+                continue
+            for plugin in item["insert"]:
+                if isinstance(plugin, dict) and plugin.get("name") == "@deepseek-ai/dsh-tool-subagent":
+                    config = plugin.get("config")
+                    if isinstance(config, dict) and isinstance(config.get("toolName"), str):
+                        delegates[config["toolName"]] = config
+    for role_name, role in roles.items():
+        if not isinstance(role, dict) or not isinstance(role.get("tools"), list) or not isinstance(role.get("tool_name"), str):
+            errors.append(issue("DSH_ROLE_MATRIX", "角色必须绑定工具名和显式工具列表", relative(path, root)))
+            continue
+        names = role["tools"]
+        for name in names:
+            if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", name):
+                errors.append(issue("DSH_MCP_PUBLIC_TOOL_NAME", "toolFilter 必须使用 DSH 实际可公开的至多 64 字符工具名", relative(path, root)))
+                break
+        delegate = delegates.get(role["tool_name"])
+        filter_config = delegate.get("toolFilter") if isinstance(delegate, dict) else None
+        allow = filter_config.get("allow") if isinstance(filter_config, dict) else None
+        if allow != names:
+            errors.append(issue("DSH_ROLE_MATRIX", "角色矩阵和 Profile toolFilter.allow 必须逐项一致", relative(path, root)))
+        if role_name == "response-planning" and names != []:
+            errors.append(issue("DSH_RESPONSE_NO_TOOLS", "响应规划角色不得持有工具", relative(path, root)))
+
+
+def validate_dsh_public_tool_map(root: Path, path: Path, matrix_path: Path, profile: object, errors: List[Dict[str, str]]) -> None:
+    try:
+        manifest = load_json_object(root, path)
+        runtime_lock = load_json_object(root, root / "evolution" / "experiments" / "EXP-security-operations-expert-001" / "candidate" / "runtime.lock.json")
+    except (OSError, UnicodeError, ValueError, TypeError):
+        errors.append(issue("DSH_MCP_PUBLIC_TOOL_NAME", "必须提供可校验的 DSH MCP 公开号映射", relative(path, root)))
+        return
+    mappings = manifest.get("mappings")
+    if manifest.get("schema_version") != "1.0" or manifest.get("runtime_commit") != runtime_lock.get("source_commit") or not isinstance(mappings, list) or len(mappings) != 3:
+        errors.append(issue("DSH_MCP_PUBLIC_TOOL_NAME", "超长旧名必须显式映射为三个 DSH 公开号", relative(path, root)))
+        return
+    matrix = dsh_yaml(root, matrix_path)
+    roles = matrix.get("roles") if isinstance(matrix, dict) else None
+    matrix_names: Set[str] = set()
+    if isinstance(roles, dict):
+        for role in roles.values():
+            if isinstance(role, dict) and isinstance(role.get("tools"), list):
+                matrix_names.update(name for name in role["tools"] if isinstance(name, str))
+    profile_names: Set[str] = set()
+    if isinstance(profile, list):
+        for item in profile:
+            children = item.get("insert") if isinstance(item, dict) else None
+            if isinstance(children, list):
+                for plugin in children:
+                    config = plugin.get("config") if isinstance(plugin, dict) else None
+                    filter_config = config.get("toolFilter") if isinstance(config, dict) else None
+                    allow = filter_config.get("allow") if isinstance(filter_config, dict) else None
+                    if isinstance(allow, list):
+                        profile_names.update(name for name in allow if isinstance(name, str))
+    seen_public: Set[str] = set()
+    for entry in mappings:
+        if not isinstance(entry, dict):
+            errors.append(issue("DSH_MCP_PUBLIC_TOOL_NAME", "公开号映射项必须是完整 mapping", relative(path, root)))
+            continue
+        server, raw, legacy, public = (entry.get(key) for key in ("server_name", "raw_name", "legacy_qualified_name", "dsh_public_name"))
+        if not all(isinstance(value, str) for value in (server, raw, legacy, public)):
+            errors.append(issue("DSH_MCP_PUBLIC_TOOL_NAME", "公开号映射项缺少字符串身份", relative(path, root)))
+            continue
+        qualified = "mcp__%s__%s" % (server, raw)
+        digest = hashlib.sha256((server + "\x00" + raw).encode("utf-8")).hexdigest()[:12]
+        expected = qualified[:51] + "_" + digest
+        if legacy != qualified or len(qualified) <= 64 or public != expected or len(public) != 64 or public in seen_public or public not in matrix_names or public not in profile_names or legacy in matrix_names or legacy in profile_names:
+            errors.append(issue("DSH_MCP_PUBLIC_TOOL_NAME", "角色工具名必须使用按锁定 DSH 算法生成的公开号，不能保留旧超长名", relative(path, root)))
+        seen_public.add(public)
 
 
 def validate_versioned_assets(
@@ -1329,7 +1863,8 @@ def validate_empty_assets(root: Path, errors: List[Dict[str, str]]) -> List[Path
                             errors.append(issue("PLACEHOLDER_ASSET_FILE", "资产目录不得包含占位文件", relative(path, root)))
                         if metadata.st_nlink > 1:
                             errors.append(issue("ASSET_HARDLINK", "资产文件不得使用硬链接", relative(path, root)))
-                        if metadata.st_size == 0:
+                        allowed_empty_global_agents = path == root / "runtime" / "adapters" / "dsh-container" / "verification-home-controls" / "locked-global.AGENTS.md"
+                        if metadata.st_size == 0 and not allowed_empty_global_agents:
                             errors.append(issue("EMPTY_ASSET_FILE", "资产目录不得包含零字节占位文件", relative(path, root)))
                         if metadata.st_size > MAX_ASSET_FILE_BYTES:
                             errors.append(issue("ASSET_FILE_LIMIT", "单个资产文件超过大小上限", relative(path, root)))
@@ -1377,6 +1912,335 @@ def validate_runtime_roots(root: Path, errors: List[Dict[str, str]]) -> None:
     mcp = root / "mcp"
     if mcp.is_dir() and not mcp.is_symlink() and not is_nonempty_regular_file(mcp / "servers.yaml", root):
         errors.append(issue("MCP_SERVERS", "mcp/ 存在时必须提供 servers.yaml", relative(mcp, root)))
+    adapter = runtime / "adapters" / "dsh-container"
+    if adapter.is_dir() and not adapter.is_symlink():
+        validate_dsh_adapter(root, adapter, errors)
+
+
+def validate_dsh_adapter(root: Path, adapter: Path, errors: List[Dict[str, str]]) -> None:
+    required = (
+        "Dockerfile", "source.lock.json", "build-image.sh", "authoring.compose.yaml",
+        "verification.compose.yaml", "prepare-verification-home.mjs",
+        "verify-load.mjs", "verify-load.sh", "tree-digest.mjs", "mutation-receipt.py",
+        "verification-home-controls/locked-user.patch.yml",
+        "verification-home-controls/web-profile.package.json",
+        "verification-home-controls/locked-bootstrap.env",
+        "verification-home-controls/module-deny/POLICY.md",
+    )
+    for name in required:
+        path = adapter / name
+        if not is_nonempty_regular_file(path, root):
+            errors.append(issue("DSH_ADAPTER_ENTRYPOINT", "容器薄适配层缺少必需非空入口", relative(path, root)))
+    for name, expected_digest in DSH_ADAPTER_PINNED_SHA256.items():
+        path = adapter / name
+        try:
+            actual_digest = sha256(path) if is_nonempty_regular_file(path, root) else None
+        except OSError:
+            actual_digest = None
+        if actual_digest != expected_digest:
+            errors.append(issue("DSH_ADAPTER_PINNED_FILE", "安全关键适配文件身份变化；须重新审查并同步门禁摘要，静态身份不代表业务验收", relative(path, root)))
+    try:
+        lock = load_json_object(root, adapter / "source.lock.json")
+        candidate_lock = load_json_object(root, root / "evolution" / "experiments" / "EXP-security-operations-expert-001" / "candidate" / "runtime.lock.json")
+    except (OSError, UnicodeError, ValueError, TypeError):
+        errors.append(issue("DSH_SOURCE_LOCK", "Runtime 与 Candidate source lock 必须是无重复键、可解析的 JSON 对象", relative(adapter / "source.lock.json", root)))
+        return
+    paired = {
+        "repository": "official_source",
+        "commit": "source_commit",
+        "tree": "source_tree",
+        "cli_package": "cli_package",
+        "cli_version": "cli_version",
+        "package_manager": "package_manager",
+        "pnpm_lock_sha256": "pnpm_lock_sha256",
+        "platform": "platform",
+    }
+    if lock.get("schema_version") != "1.0" or candidate_lock.get("schema_version") != "1.0" or any(lock.get(key) != candidate_lock.get(other) for key, other in paired.items()) or lock.get("node_base") != "node:24-bookworm-slim@" + str(candidate_lock.get("node_base_oci_index_digest")) or candidate_lock.get("container_only") is not True or candidate_lock.get("runtime_family") != "dsh":
+        errors.append(issue("DSH_SOURCE_LOCK", "Adapter 和 Candidate 必须锁定同一 DSH 源码、依赖与 Node 镜像身份", relative(adapter / "source.lock.json", root)))
+    commit = lock.get("commit")
+    tree = lock.get("tree")
+    lock_sha = lock.get("pnpm_lock_sha256")
+    image_tag = lock.get("local_image_tag")
+    if not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit) or not isinstance(tree, str) or not re.fullmatch(r"[0-9a-f]{40}", tree) or not isinstance(lock_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", lock_sha) or not isinstance(image_tag, str) or image_tag != "ai-agent-harness/dsh:" + commit[:9]:
+        errors.append(issue("DSH_SOURCE_LOCK", "源码提交、树、依赖摘要和本地镜像标识必须完整且固定", relative(adapter / "source.lock.json", root)))
+        return
+    try:
+        dockerfile = read_text_limited(root, adapter / "Dockerfile")
+        build_script = read_text_limited(root, adapter / "build-image.sh")
+        prepare_script = read_text_limited(root, adapter / "prepare-verification-home.mjs")
+        probe_script = read_text_limited(root, adapter / "verify-load.mjs")
+        probe_invocation = read_text_limited(root, adapter / "verify-load.sh")
+    except (OSError, UnicodeError, ValueError):
+        errors.append(issue("DSH_SOURCE_LOCK", "Dockerfile、构建与 HOME/Probe 脚本必须是可读取的仓库文件", relative(adapter, root)))
+        return
+    for expected in (
+        str(lock.get("node_base")), commit, lock_sha, "COPY --from=dsh_source",
+        "pnpm install --frozen-lockfile",
+        "prepare-verification-home.mjs /opt/dsh-adapter/prepare-verification-home.mjs",
+    ):
+        if expected not in dockerfile:
+            errors.append(issue("DSH_SOURCE_LOCK", "Dockerfile 必须显式锁定官方 DSH 源码和可复现依赖", relative(adapter / "Dockerfile", root)))
+            break
+    docker_safety = (
+        "COPY --chown=node:node verify-load.mjs /opt/dsh-adapter/verify-load.mjs",
+        "COPY --chown=node:node tree-digest.mjs /opt/dsh-adapter/tree-digest.mjs",
+        "COPY --chown=node:node prepare-verification-home.mjs /opt/dsh-adapter/prepare-verification-home.mjs",
+        "RUN mkdir -p /var/lib/dsh/profiles/node_modules",
+        "/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules",
+        "/var/lib/dsh/node_modules /work/harness/workspace",
+        "&& chown -R node:node /var/lib/dsh /work/harness",
+        "ENV DSH_HOME=/var/lib/dsh",
+        "USER node",
+        'ENTRYPOINT ["node", "/opt/dsh/apps/cli/lib/bin.js"]',
+    )
+    if any(marker not in dockerfile for marker in docker_safety):
+        errors.append(issue("DSH_DOCKER_SAFETY", "Dockerfile 必须以 node UID 预建/chown HOME 目录并拷贝同审查基线的初始化和探针脚本", relative(adapter / "Dockerfile", root)))
+    init_safety = (
+        "ensureTarget(join(home, 'AGENTS.md')",
+        "ensureTarget(join(home, '.env')",
+        "ensureDirectory(join(home, 'node_modules'))",
+        "ensureDirectory(join(home, 'profiles', 'web', 'node_modules'))",
+        "validateFallback(fallbackDir, expected, true)",
+        "validateFallback(fallbackDir, expected, false)",
+        "healProfilesModuleFallback",
+    )
+    if any(marker not in prepare_script for marker in init_safety):
+        errors.append(issue("DSH_HOME_INIT_CHECKS", "home-init 必须预备双 .env/全局指令/Node 目标并在官方 healer 前后核对受信 fallback", relative(adapter / "prepare-verification-home.mjs", root)))
+    probe_safety = (
+        "'/var/lib/dsh/AGENTS.md'",
+        "'/var/lib/dsh/.env'",
+        "'/work/harness/workspace/.env'",
+        "'/var/lib/dsh/node_modules'",
+        "'/var/lib/dsh/profiles/node_modules'",
+        "'/var/lib/dsh/profiles/web/node_modules'",
+        "'/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules'",
+        "validateFallback(fallbackPath, closure, false)",
+        "mount.options.includes('ro')",
+    )
+    if any(marker not in probe_script for marker in probe_safety):
+        errors.append(issue("DSH_LOAD_PROBE_CHECKS", "装载探针必须逐处核对 HOME/Workspace deny-layer、Node 解析与只读子挂载", relative(adapter / "verify-load.mjs", root)))
+    invocation_safety = (
+        "docker run --rm --network none --read-only --user 1000:1000",
+        "run --rm --no-deps home-init",
+        "--entrypoint node dsh /opt/dsh-adapter/verify-load.mjs",
+        "DSH_EXPECT_PREPARE_SCRIPT_SHA",
+        "DSH_EXPECT_VERIFY_SCRIPT_SHA",
+        "DSH_EXPECT_TREE_SCRIPT_SHA",
+        DSH_BOOTSTRAP_DENY_SHA256,
+    )
+    if any(marker not in probe_invocation for marker in invocation_safety):
+        errors.append(issue("DSH_PROBE_INVOCATION", "宿主核验脚本必须先核镜像脚本、再运行 home-init 和受控 Probe", relative(adapter / "verify-load.sh", root)))
+    for expected in (commit, tree, lock_sha, image_tag, "--build-context", "--load"):
+        if expected not in build_script:
+            errors.append(issue("DSH_SOURCE_LOCK", "构建脚本必须核对固定源码后再构建本地镜像", relative(adapter / "build-image.sh", root)))
+            break
+
+    compatibility = dsh_yaml(root, root / "runtime" / "compatibility.yaml")
+    if not isinstance(compatibility, dict) or compatibility.get("runtime_source_commit") != commit or compatibility.get("runtime_version") != lock.get("cli_version") or compatibility.get("profile") != "web" or compatibility.get("agent_mount_scope") != "container-only":
+        errors.append(issue("DSH_RUNTIME_COMPATIBILITY", "runtime/compatibility.yaml 必须与锁定的容器 DSH 身份一致", "runtime/compatibility.yaml"))
+    validate_dsh_verification_home_controls(root, adapter, errors)
+    for mode in ("authoring", "verification"):
+        validate_dsh_compose(root, adapter, mode, image_tag, errors)
+
+
+def validate_dsh_verification_home_controls(root: Path, adapter: Path, errors: List[Dict[str, str]]) -> None:
+    patch_path = adapter / "verification-home-controls" / "locked-user.patch.yml"
+    manifest_path = adapter / "verification-home-controls" / "web-profile.package.json"
+    agents_path = adapter / "verification-home-controls" / "locked-global.AGENTS.md"
+    bootstrap_path = adapter / "verification-home-controls" / "locked-bootstrap.env"
+    module_deny = adapter / "verification-home-controls" / "module-deny"
+    expected_patch = (
+        "# Verification deny-layer：固定两处 DSH_HOME 用户 Patch 为无额外条目。\n"
+        "# 保留官方 base + web-app 与显式受控 --patch，不接受 home/profile 私有 Plugin 注入。\n"
+        "[]\n"
+    )
+    try:
+        patch_text = read_text_limited(root, patch_path)
+    except (OSError, UnicodeError, ValueError):
+        patch_text = None
+    if patch_text != expected_patch:
+        errors.append(issue("DSH_VERIFICATION_HOME_PATCH", "核验态 home/profile 用户 patch 必须精确为受控 [] deny-layer", relative(patch_path, root)))
+    expected_manifest = {
+        "name": "dsh-profile-web",
+        "private": True,
+        "dependencies": {},
+        "dsh": {
+            "profile": {
+                "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app"],
+                "patchReload": "startup",
+            },
+        },
+    }
+    try:
+        manifest = load_json_object(root, manifest_path)
+    except (OSError, UnicodeError, ValueError, TypeError):
+        manifest = None
+    if not strict_json_equal(manifest, expected_manifest):
+        errors.append(issue("DSH_VERIFICATION_HOME_MANIFEST", "核验态 web Profile 必须仅由官方 base+web-app、空 dependencies 与 startup patch 组成", relative(manifest_path, root)))
+    if not is_empty_regular_file(agents_path, root):
+        errors.append(issue("DSH_GLOBAL_AGENTS_DENY", "全局 AGENTS.md 必须是唯一允许的零字节受控 deny-layer", relative(agents_path, root)))
+    try:
+        bootstrap_text = read_text_limited(root, bootstrap_path)
+    except (OSError, UnicodeError, ValueError):
+        bootstrap_text = None
+    if bootstrap_text != DSH_BOOTSTRAP_DENY_TEXT or (bootstrap_text is not None and hashlib.sha256(bootstrap_text.encode("utf-8")).hexdigest() != DSH_BOOTSTRAP_DENY_SHA256):
+        errors.append(issue("DSH_BOOTSTRAP_ENV_DENY", "受控 .env 必须仅是精确注释，不得承载任意变量", relative(bootstrap_path, root)))
+    expected_policy = (
+        "# DSH_HOME module deny-layer\n\n"
+        "此目录只作为容器内精确只读覆盖层，不存放 Node 包、Plugin 或可执行代码。不得把 DSH_HOME 中的可写数据用作 Runtime 依赖解析来源。\n"
+    )
+    try:
+        policy_text = read_text_limited(root, module_deny / "POLICY.md")
+        children = {child.name for child in module_deny.iterdir()}
+        module_directory_ok = has_real_path_components(root, module_deny) and stat.S_ISDIR(module_deny.lstat().st_mode)
+    except (OSError, UnicodeError, ValueError):
+        policy_text = None
+        children = set()
+        module_directory_ok = False
+    if not module_directory_ok or children != {"POLICY.md"} or policy_text != expected_policy:
+        errors.append(issue("DSH_MODULE_DENY_CONTENT", "受控 Node deny-layer 目录只能包含固定 POLICY.md，禁止包/Plugin/可执行代码", relative(module_deny, root)))
+
+
+def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str, errors: List[Dict[str, str]]) -> None:
+    path = adapter / (mode + ".compose.yaml")
+    doc = dsh_yaml(root, path)
+    if not isinstance(doc, dict):
+        errors.append(issue("DSH_COMPOSE_INVALID", "Compose 必须是可安全解析的 YAML mapping", relative(path, root)))
+        return
+    services = doc.get("services")
+    service = services.get("dsh") if isinstance(services, dict) else None
+    expected_services = {"home-init", "dsh"}
+    if not isinstance(services, dict) or set(services) != expected_services or not isinstance(service, dict):
+        errors.append(issue("DSH_COMPOSE_INVALID", "Compose 只能定义阶段需要的受控 dsh/home-init 服务", relative(path, root)))
+        return
+    validate_dsh_home_init(root, adapter, mode, services.get("home-init"), image_tag, errors)
+    if service.get("depends_on") != {"home-init": {"condition": "service_completed_successfully"}}:
+        code = "DSH_AUTHORING_HOME_INIT" if mode == "authoring" else "DSH_VERIFICATION_HOME_INIT"
+        errors.append(issue(code, "DSH 必须等待阶段独立的受控 home-init 成功完成", relative(path, root)))
+    expected_service_keys = {
+        "image", "pull_policy", "init", "depends_on", "user", "working_dir",
+        "read_only", "cap_drop", "security_opt", "pids_limit", "stop_grace_period",
+        "tmpfs", "environment", "entrypoint", "command", "volumes",
+    }
+    dangerous = {"ports", "expose", "devices", "privileged", "network_mode", "pid", "ipc", "userns_mode", "docker_socket", "build", "env_file", "extends"}
+    if set(service) != expected_service_keys or any(key in service for key in dangerous) or service.get("read_only") is not True or service.get("cap_drop") != ["ALL"] or service.get("security_opt") != ["no-new-privileges:true"] or service.get("pull_policy") != "never" or service.get("image") != image_tag or service.get("working_dir") != "/work/harness/workspace" or service.get("user") != "1000:1000" or service.get("init") is not True or type(service.get("pids_limit")) is not int or service.get("pids_limit") != 256 or service.get("tmpfs") != ["/tmp:rw,nosuid,nodev,size=64m,mode=1777"]:
+        errors.append(issue("DSH_COMPOSE_ISOLATION", "容器必须无宿主端口/socket/特权，根文件系统只读并锁定本地镜像", relative(path, root)))
+    expected_entrypoint = ["node", "--expose-internals", "/opt/dsh/apps/cli/lib/bin.js"]
+    if service.get("entrypoint") != expected_entrypoint:
+        errors.append(issue("DSH_COMPOSE_ENTRYPOINT", "两种模式的主 DSH 只能以审查过的 node --expose-internals CLI 向量启动，不得省略或增加 Node flag", relative(path, root)))
+    if service.get("command") != ["--profile", "web", "--patch", "/opt/dsh-managed/security-operations-expert.patch.yml", "--no-open"]:
+        errors.append(issue("DSH_COMPOSE_LOAD", "Compose 必须从受控 web Profile patch 装载 Candidate", relative(path, root)))
+    environment = service.get("environment")
+    if isinstance(environment, list) and any(isinstance(value, str) and value.split("=", 1)[0] == "NODE_OPTIONS" for value in environment):
+        errors.append(issue("DSH_COMPOSE_NODE_OPTIONS", "不得通过 NODE_OPTIONS 注入未审查的 Node flag", relative(path, root)))
+    required_env = {
+        "DSH_HOME=/var/lib/dsh",
+        "DSH_HARNESS_MODE=" + mode,
+        "DSH_PERMISSION_MODE=" + ("workspace-write" if mode == "authoring" else "read-only"),
+        "DSH_TELEMETRY_DISABLED=1",
+        "DEEPSEEK_API_KEY",
+        *DSH_CREDENTIAL_KEYS,
+    }
+    if not isinstance(environment, list) or any(not isinstance(value, str) for value in environment) or len(environment) != len(required_env) or set(environment) != required_env:
+        errors.append(issue("DSH_COMPOSE_ENV", "DSH_HOME、模式、MCP 凭据和模型密钥只能由白名单 Runtime 环境注入，不得内联值", relative(path, root)))
+
+    volumes = service.get("volumes")
+    expected_sources = {
+        "/work/harness/workspace": "workspace",
+        "/opt/dsh-presets": "presets",
+        "/opt/dsh-managed": "managed",
+    }
+    candidate_dsh = root / "evolution" / "experiments" / "EXP-security-operations-expert-001" / "candidate" / "dsh"
+    controlled_targets = {
+        "/var/lib/dsh/cordis.patch.yml": "./verification-home-controls/locked-user.patch.yml",
+        "/var/lib/dsh/profiles/web/cordis.patch.yml": "./verification-home-controls/locked-user.patch.yml",
+        "/var/lib/dsh/profiles/web/package.json": "./verification-home-controls/web-profile.package.json",
+        "/var/lib/dsh/AGENTS.md": "./verification-home-controls/locked-global.AGENTS.md",
+        "/var/lib/dsh/.env": "./verification-home-controls/locked-bootstrap.env",
+        "/work/harness/workspace/.env": "./verification-home-controls/locked-bootstrap.env",
+    }
+    module_deny_targets = {
+        "/var/lib/dsh/node_modules",
+        "/var/lib/dsh/profiles/web/node_modules",
+        "/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules",
+    }
+    seen_targets: Set[str] = set()
+    expected_count = 14
+    if not isinstance(volumes, list) or len(volumes) != expected_count:
+        errors.append(issue("DSH_COMPOSE_MOUNTS", "Compose 必须精确挂载 Candidate、独立数据卷和受控 HOME/Bootstrap/Module deny-layer", relative(path, root)))
+        return
+    for volume in volumes:
+        if not isinstance(volume, dict) or not isinstance(volume.get("target"), str):
+            errors.append(issue("DSH_COMPOSE_MOUNTS", "挂载条目必须为完整 mapping", relative(path, root)))
+            continue
+        target = volume["target"]
+        if target in seen_targets:
+            errors.append(issue("DSH_COMPOSE_MOUNTS", "挂载目标不得重复", relative(path, root)))
+        seen_targets.add(target)
+        if target == "/var/lib/dsh":
+            if not strict_json_equal(volume, {"type": "volume", "source": "dsh-" + mode + "-home", "target": "/var/lib/dsh"}):
+                errors.append(issue("DSH_COMPOSE_MOUNTS", "DSH_HOME 必须是独立命名卷而非候选资产", relative(path, root)))
+            continue
+        if target == "/var/lib/dsh/profiles/node_modules":
+            expected_fallback = {"type": "volume", "source": "dsh-" + mode + "-trusted-fallback", "target": target, "read_only": True}
+            if not strict_json_equal(volume, expected_fallback):
+                errors.append(issue("DSH_MODULE_SHADOW_MOUNT", "受信安装 fallback 必须使用阶段独立命名卷，主 DSH 精确只读挂载", relative(path, root)))
+            continue
+        if target in module_deny_targets:
+            expected_deny = {"type": "bind", "source": "./verification-home-controls/module-deny", "target": target, "read_only": True}
+            if not strict_json_equal(volume, expected_deny):
+                errors.append(issue("DSH_MODULE_SHADOW_MOUNT", "三处可写 HOME Node 解析目录必须由受控无包目录精确只读覆盖", relative(path, root)))
+            continue
+        if target in controlled_targets:
+            source = volume.get("source")
+            expected_source = controlled_targets[target]
+            source_ok = (is_empty_regular_file(adapter / expected_source, root) if target == "/var/lib/dsh/AGENTS.md" else is_nonempty_regular_file(adapter / expected_source, root))
+            if not strict_json_equal(volume, {"type": "bind", "source": expected_source, "target": target, "read_only": True}) or not source_ok:
+                code = "DSH_AUTHORING_HOME_MOUNT" if mode == "authoring" else "DSH_VERIFICATION_HOME_MOUNT"
+                errors.append(issue(code, "受控用户 Patch、manifest、全局指令和双 .env 必须精确来源且只读挂载", relative(path, root)))
+            continue
+        component = expected_sources.get(target)
+        source = volume.get("source")
+        if component is None or volume.get("type") != "bind" or not isinstance(source, str) or "docker.sock" in source or (adapter / source).resolve() != candidate_dsh / component or volume.get("read_only") is not (mode == "verification" or component != "workspace"):
+            errors.append(issue("DSH_COMPOSE_MOUNTS", "只允许精确 Candidate 工作区/预设/受控配置挂载及对应 RW/RO", relative(path, root)))
+    expected_targets = set(expected_sources) | {"/var/lib/dsh", "/var/lib/dsh/profiles/node_modules"} | module_deny_targets | set(controlled_targets)
+    if seen_targets != expected_targets:
+        errors.append(issue("DSH_COMPOSE_MOUNTS", "挂载目标必须精确覆盖三类资产、独立 HOME、受信 fallback 与受控遮蔽文件/目录", relative(path, root)))
+    declared_volumes = doc.get("volumes")
+    if not isinstance(declared_volumes, dict) or set(declared_volumes) != {"dsh-" + mode + "-home", "dsh-" + mode + "-trusted-fallback"} or any(value is not None for value in declared_volumes.values()):
+        errors.append(issue("DSH_COMPOSE_MOUNTS", "Compose 顶层只能声明模式独立的 HOME 与受信 fallback 卷", relative(path, root)))
+
+
+def validate_dsh_home_init(root: Path, adapter: Path, mode: str, init: object, image_tag: str, errors: List[Dict[str, str]]) -> None:
+    compose_path = adapter / (mode + ".compose.yaml")
+    code = "DSH_AUTHORING_HOME_INIT" if mode == "authoring" else "DSH_VERIFICATION_HOME_INIT"
+    required_keys = {
+        "image", "pull_policy", "user", "network_mode", "read_only", "cap_drop",
+        "security_opt", "environment", "entrypoint", "volumes",
+    }
+    if not isinstance(init, dict) or set(init) != required_keys or init.get("image") != image_tag or init.get("pull_policy") != "never" or init.get("user") != "1000:1000" or init.get("network_mode") != "none" or init.get("read_only") is not True or init.get("cap_drop") != ["ALL"] or init.get("security_opt") != ["no-new-privileges:true"] or init.get("environment") != ["DSH_HOME=/var/lib/dsh", "DSH_HARNESS_MODE=" + mode] or init.get("entrypoint") != ["node", "/opt/dsh-adapter/prepare-verification-home.mjs"]:
+        errors.append(issue(code, "home-init 必须为无网络、无特权、非 root 的受控一次性准备服务", relative(compose_path, root)))
+        return
+    volumes = init.get("volumes")
+    if not isinstance(volumes, list) or len(volumes) != 3:
+        errors.append(issue(code, "home-init 只能读取受控文件目录并写阶段独立 HOME/fallback 卷", relative(compose_path, root)))
+        return
+    expected = {
+        "/opt/dsh-verification-controls": {"type": "bind", "source": "./verification-home-controls", "target": "/opt/dsh-verification-controls", "read_only": True},
+        "/var/lib/dsh": {"type": "volume", "source": "dsh-" + mode + "-home", "target": "/var/lib/dsh"},
+        "/var/lib/dsh/profiles/node_modules": {"type": "volume", "source": "dsh-" + mode + "-trusted-fallback", "target": "/var/lib/dsh/profiles/node_modules"},
+    }
+    found: Set[str] = set()
+    for volume in volumes:
+        if not isinstance(volume, dict) or not isinstance(volume.get("target"), str):
+            errors.append(issue(code, "home-init 挂载条目必须为完整 mapping", relative(compose_path, root)))
+            continue
+        target = volume["target"]
+        found.add(target)
+        if target not in expected or not strict_json_equal(volume, expected[target]):
+            errors.append(issue(code, "home-init 挂载必须精确隔离受控目录和 DSH_HOME", relative(compose_path, root)))
+    if found != set(expected):
+        errors.append(issue(code, "home-init 缺少受控文件或阶段独立 HOME/fallback 挂载", relative(compose_path, root)))
 
 
 def validate_governance_trees(root: Path, errors: List[Dict[str, str]]) -> None:

@@ -14,7 +14,7 @@ description: 治理 Agent/Harness 从任务与验收标准到 Experiment、候�
 3. 将变更判为 A（普通优化）、B（能力边界）或 C（控制边界）；多类同时适用时叠加要求，无法判断时取更高影响。
 4. 在 Experiment 中保留假设、变更、候选、评估和决定。针对性检查不能替代冻结范围的正式自测。
 5. 冻结完整候选基线，评估并完成交付复核。只有通过的候选才沉淀为稳定 Baseline 和不可变 Release。
-6. DSH 生产挂载具体 Release；`current/` 只能在发布通过后更新为同一 Release 的校验镜像。
+6. DSH 仅在容器中装载本仓库资产。隔离 Authoring 容器可读写当前 Experiment Candidate 的行为工作区并产生待审变更；受控配置、证据与生产 Release 不由模型改写。DSH 生产挂载具体 Release；`current/` 只能在发布通过后更新为同一 Release 的校验镜像。
 
 涉及目录、命名、晋升关系或 Runtime 迁移时，先读 [仓库演进不变量](references/repository-invariants.md)。需要检查仓库时运行：
 
@@ -27,7 +27,7 @@ python3 .agents/skills/harness-evolution/scripts/validate_repository.py [repo-ro
 
 ## 边界
 
-- Agent/Harness 是业务资产，DSH Preset 只是一个 Runtime 表达。
+- Agent/Harness 是仅供容器内 DSH 装载的业务资产；DSH Preset 是其 Runtime 表达之一，不能把旧 Runtime 配置或宿主机 Codex 技能当作 DSH 可装载资产。
 - 不存在或不适用的组件不得用空目录、空文件或虚假制品补齐。
-- Runtime 迁移必须建立新候选基线；配置字段相似不构成行为证据。
+- Runtime 迁移必须建立 Experiment。完成逐条领域复核、正式 Eval Set 和完整冻结组合后才能建立新候选基线；配置字段相似、容器构建或 Mock MCP 不构成行为等价证据。
 - 验证器退出 `0` 只表示其机器不变量通过，不表示交付评估或发布通过。

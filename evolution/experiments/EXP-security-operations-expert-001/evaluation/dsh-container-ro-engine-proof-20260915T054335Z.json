@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-09-15T05:43:35Z",
+  "scope": "isolated Docker Engine mount write-denial test only; not DSH Plugin, MCP, Agent Session or business acceptance",
+  "local_image_id": "sha256:ec49e4fffa068906d752416bb3a683eeca7fbb52b39bcd6adce602fd7f8d4212",
+  "project": "dsh-adapter-engine-ro-20260915054335-508948",
+  "mode": "verification",
+  "test": "runtime/adapters/dsh-container/test_home_submounts.mjs",
+  "test_exit_code": 0,
+  "controlled_file_write_denied_count": 6,
+  "module_directory_write_denied_count": 4,
+  "dsh_home_root_runtime_write_allowed": true,
+  "temporary_volumes_removed": 2,
+  "default_compose_volumes_touched": false,
+  "formal_eval_status": "not-started"
+}

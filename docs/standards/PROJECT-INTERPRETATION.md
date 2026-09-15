@@ -61,6 +61,8 @@ Experiment 的 `development_path` 只能为：
 agents/<agent-id>/delivery/eval/cases.jsonl
 ```
 
+旧材料摄取阶段允许在具体 Experiment 的 `candidate/delivery/eval/cases.pending.jsonl` 保存待复核输入。这是迁移材料，不是第二个正式 Eval Set，也不得在正式 `results.csv` 中引用；只有完成逐条领域质量复核、唯一 `AC-xxx` 绑定和冻结范围后，才可物化正式 Case 事实源。仅有输入条数或旧文档中的 `synthetic_reviewed` 声明，不构成复核通过。
+
 `core`、`boundary`、`safety`、`regression` 是每个 Case 的 `tags` 枚举，可组合使用；同一 Case 无论被多少标签、验收项视图或矩阵格引用，都只计一次。Trial 事实统一写入：
 
 ```text
@@ -104,21 +106,33 @@ Release 是可部署 Harness Artifact，不是 Git Tag。每个 Release 必须�
 
 ## 7. DSH 双平面与挂载契约
 
-Harness Release 说明“运行什么”；DSH Runtime 强制“如何运行、允许做什么”。二者必须同时可核验：
+本项目资产仅供容器内 DSH Agent Runtime 装载。Harness Candidate 或 Release 说明“运行什么”；DSH Runtime 强制“如何运行、允许做什么”。二者必须同时可核验：
 
 | Harness 资产平面 | DSH Runtime 平面 |
 |---|---|
 | Task、AC、Prompt、Skill、Workflow、Policy 声明、Preset/Plugin/MCP 声明、Eval、Release | 镜像、Profile、实际 Plugin/MCP、工具 allowlist、沙箱、网络、凭据、资源限制、挂载和运行态数据 |
 
+开发、验证和发布按阶段隔离：
+
+| 阶段 | 可变行为资产 | 受控配置和凭据 | 挂载/身份规则 |
+|---|---|---|---|
+| Experiment Authoring | 仅当前 Candidate 的 Workspace 可在隔离容器中 RW；DSH 可以自组合、自修改，当前 Session 可实时观察探索行为并生成提案 | Preset、Profile、Guard、MCP 等控制 RO；历史/评估不挂载；凭据仅由受信 Runtime 注入，不作为 Candidate 资产 | 宿主侧记录改动前后摘要、diff 和待审回执；进入核验态或正式评估前，经复核后用新容器、新 Session 重建加载 |
+| Candidate Verification | 冻结用于验证的 Candidate 快照 RO | 受控配置 RO；运行态数据独立 | 核实际镜像/Profile/路径/摘要和局部装载；结果仍是探索或候选技术证据 |
+| Release/生产 | 具体 Release 全部 RO；生产 DSH 不自修改 | 受控配置 RO；凭据只由 Runtime 注入 | 只挂不可变 `releases/<agent-id>-v<semver>/`；反馈回新 Experiment |
+
+Authoring 中的模型写入不能授予执行权限、改变 `AC-xxx` 阈值、修改正式 Eval、冻结候选基线、发布 Release 或覆盖历史。模型外 Runtime/领域服务须独立核验租户、对象、参数、数量、幂等、审批、失败安全和审计；Prompt 和静态文件声明都不等于这些控制已经落实。
+
+正式 Trial 还须冻结并记录 Runtime 的**有效投影**：实际模型/provider/reasoning effort、模型 `baseURL` 与重试参数、Session 采用的 permission preset、Agent preset、Profile 和隔离的新 Session 身份。`DSH_HOME/settings.yaml` 是运行态 typed namespace，不整体当作 Harness 制品，也不能因 Profile/Plugin 名单未变就忽略其中的模型、请求终点或权限默认值变化。环境变量、MCP 端点、凭据标识和网络代理须记录受信来源与有效值的非秘密摘要；不得让工作区或数据卷中的 `.env` 悄悄补齐/覆盖这些输入。运行态凭据和会话历史不进入 Release；一旦有效投影偏离本次候选基线，停止该次正式结论并重新确定冻结组合。
+
 发布时遵守：
 
 1. DSH 挂载明确的 `releases/<agent-id>-v<semver>/`，默认只读；不得挂载 `current/` 作为生产来源。
-2. Runtime Adapter 记录 Release 路径如何映射到容器目标路径，运行态数据放到独立数据卷；凭据只由 Runtime 注入，不进入 Release。
+2. Runtime Adapter 记录 Candidate/Release 源路径如何映射到容器目标路径及阶段模式，运行态数据放到独立数据卷；凭据只由 Runtime 注入，不进入资产树。
 3. 记录 DSH 镜像版本或摘要、Profile、宿主机与容器路径、只读/读写模式、启动方式、Runtime 配置摘要和停止方法。
 4. 启动后核对实际加载的 Agent、Preset、Skill、Tool、Policy、Plugin 和 MCP 与 Release/Runtime 清单一致。
 5. 使用对外实际协议执行至少一条完整任务链，核对用户可见结果、工具与审批行为、最终业务状态和必要审计记录。
 
-容器启动、文件可见、进程存在、端口监听、HTTP `200`、`/health` 或模型列表成功都只证明局部状态，不能替代第 4、5 项。任何 Runtime 配置或挂载内容与通过候选基线不一致，都必须停止发布；修改冻结项后重新建立候选基线并评估。
+容器启动、文件可见、进程存在、端口监听、HTTP `200`、`/health`、模型列表、Mock MCP 或插件单测成功都只证明局部状态，不能替代第 4、5 项。任何 Runtime 配置或挂载内容与通过候选基线不一致，都必须停止发布；修改冻结项后重新建立候选基线并评估。
 
 根级 `AGENTS.md`、`.agents/skills/` 和 `.codex/config.toml` 属于仓库协作平面，默认不得随 Agent Release 挂载到 DSH，也不得被用作 Runtime 权限或安全策略。
 

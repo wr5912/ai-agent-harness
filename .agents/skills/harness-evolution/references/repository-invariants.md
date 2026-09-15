@@ -18,10 +18,12 @@
 - `evolution/experiments/`：假设、变化、候选、评估和决定；`evolution/baselines/`：已经验证通过的稳定快照。
 - `releases/`：可部署、不可变、自包含资产，至少绑定 Harness、Runtime 兼容范围、评估报告和变更记录。
 - `runtime/` 只记录兼容性和适配；不得复制 DSH Runtime 源码或私有运行数据。
+- 当前项目可装载 Harness 仅适用容器内 DSH。Experiment `candidate/dsh/workspace/` 是 Authoring 中唯一模型可读写的行为工作区；`candidate/dsh/presets/` 与 `candidate/dsh/managed/` 由受控平面只读装载，迁移历史与评估证据不挂载。容器内 DSH 可以自组合、自修改行为资产，但写入只形成待审 Candidate diff，复核后新容器、新 Session 激活。
+- `candidate/delivery/eval/cases.pending.jsonl` 只是旧材料摄取暂存，不是正式 Eval Case 事实源；不得把迁移输入数量、旧 `synthetic_reviewed` 声明或空结果文件记为正式评估通过。
 
 ## 发布一致性
 
-生产环境挂载具体 Release，不挂载可变 `current/`。稳定 Baseline 与 Release 必须同名、同时晋升，并使用相同的完整可装载资产树。项目采用以下最小、确定性发布契约：
+生产环境挂载具体 Release，不挂载可变 `current/`，也不挂载 Experiment Candidate。Release 的完整可装载树必须只读，生产 DSH 不自修改。稳定 Baseline 与 Release 必须同名、同时晋升，并使用相同的完整可装载资产树。项目采用以下最小、确定性发布契约：
 
 - 稳定 Baseline 根部包含 `harness.yaml`、`runtime.yaml`、`artifact-manifest.json` 和 `evaluation.json`；Release 根部包含前三项以及 `manifest.yaml`、`evaluation-report.md`、`CHANGELOG.md`。
 - `runtime.yaml` 使用唯一顶层标量 `runtime_compatibility` 记录非占位的兼容范围。复杂 Runtime 配置作为其他资产文件保存。

@@ -1,0 +1,122 @@
+name: ai-agent-harness-dsh-verification
+
+services:
+  home-init:
+    image: ai-agent-harness/dsh:c291e7961
+    pull_policy: never
+    user: "1000:1000"
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      - DSH_HOME=/var/lib/dsh
+      - DSH_HARNESS_MODE=verification
+    entrypoint: [node, /opt/dsh-adapter/prepare-verification-home.mjs]
+    volumes:
+      - type: bind
+        source: ./verification-home-controls
+        target: /opt/dsh-verification-controls
+        read_only: true
+      - type: volume
+        source: dsh-verification-home
+        target: /var/lib/dsh
+      - type: volume
+        source: dsh-verification-trusted-fallback
+        target: /var/lib/dsh/profiles/node_modules
+
+  dsh:
+    image: ai-agent-harness/dsh:c291e7961
+    pull_policy: never
+    init: true
+    entrypoint: [node, --expose-internals, /opt/dsh/apps/cli/lib/bin.js]
+    depends_on:
+      home-init:
+        condition: service_completed_successfully
+    user: "1000:1000"
+    working_dir: /work/harness/workspace
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    stop_grace_period: 20s
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m,mode=1777
+    environment:
+      - DSH_HOME=/var/lib/dsh
+      - DSH_HARNESS_MODE=verification
+      - DSH_PERMISSION_MODE=read-only
+      - DSH_TELEMETRY_DISABLED=1
+      - DEEPSEEK_API_KEY
+      - SEC_OPS_MCP_URL
+      - SEC_OPS_MCP_TOKEN
+      - INSPECTION_MCP_URL
+      - INSPECTION_MCP_TOKEN
+      - THREAT_ANALYSIS_MCP_URL
+      - THREAT_ANALYSIS_MCP_TOKEN
+    command:
+      - --profile
+      - web
+      - --patch
+      - /opt/dsh-managed/security-operations-expert.patch.yml
+      - --no-open
+    volumes:
+      - type: bind
+        source: ../../../evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace
+        target: /work/harness/workspace
+        read_only: true
+      - type: bind
+        source: ../../../evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/presets
+        target: /opt/dsh-presets
+        read_only: true
+      - type: bind
+        source: ../../../evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/managed
+        target: /opt/dsh-managed
+        read_only: true
+      - type: volume
+        source: dsh-verification-home
+        target: /var/lib/dsh
+      - type: volume
+        source: dsh-verification-trusted-fallback
+        target: /var/lib/dsh/profiles/node_modules
+        read_only: true
+      - type: bind
+        source: ./verification-home-controls/module-deny
+        target: /var/lib/dsh/node_modules
+        read_only: true
+      - type: bind
+        source: ./verification-home-controls/module-deny
+        target: /var/lib/dsh/profiles/web/node_modules
+        read_only: true
+      - type: bind
+        source: ./verification-home-controls/module-deny
+        target: /var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules
+        read_only: true
+      - type: bind
+        source: ./verification-home-controls/locked-user.patch.yml
+        target: /var/lib/dsh/cordis.patch.yml
+        read_only: true
+      - type: bind
+        source: ./verification-home-controls/locked-user.patch.yml
+        target: /var/lib/dsh/profiles/web/cordis.patch.yml
+        read_only: true
+      - type: bind
+        source: ./verification-home-controls/web-profile.package.json
+        target: /var/lib/dsh/profiles/web/package.json
+        read_only: true
+      - type: bind
+        source: ./verification-home-controls/locked-global.AGENTS.md
+        target: /var/lib/dsh/AGENTS.md
+        read_only: true
+      - type: bind
+        source: ./verification-home-controls/locked-bootstrap.env
+        target: /var/lib/dsh/.env
+        read_only: true
+      - type: bind
+        source: ./verification-home-controls/locked-bootstrap.env
+        target: /work/harness/workspace/.env
+        read_only: true
+
+volumes:
+  dsh-verification-home:
+  dsh-verification-trusted-fallback:

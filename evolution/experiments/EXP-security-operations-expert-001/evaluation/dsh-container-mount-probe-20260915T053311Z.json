@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-09-15T05:33:11Z",
+  "scope": "local Docker mount and DSH --dump-config composition only; not Plugin, MCP, Agent Session, business task, Baseline or Release acceptance",
+  "local_image_id": "sha256:ec49e4fffa068906d752416bb3a683eeca7fbb52b39bcd6adce602fd7f8d4212",
+  "dsh_cli_version": "0.1.5-rc.2",
+  "adapter_script_image_host_sha256_match": true,
+  "workspace_tree_sha256": "sha256:393448ca1ea4003340cf1b2efc3e6a5ce1e24959f079d22727c9f8a8da344ff5",
+  "presets_tree_sha256": "sha256:71d3b1ea06c1d0ede0c55f95953d8800851e2da63e5ab2e3230887eb231bed10",
+  "managed_tree_sha256": "sha256:2098e0c7d8b9738c6d9c659ce088c3dc5a707cbe6be8c457caf7d2992ef2fa22",
+  "composed_config_sha256": "sha256:4ef66e9fe379fd806554fdc6d66497610a1a53890447bc0a5148cef58a727fcd",
+  "controlled_home_file_mounts_ro": 6,
+  "controlled_module_mounts_ro": 4,
+  "trusted_fallback_installation_symlinks": 277,
+  "critical_modules_resolved_inside_image": 4,
+  "modes": {
+    "verification": {
+      "workspace_mount": "ro",
+      "presets_mount": "ro",
+      "managed_mount": "ro",
+      "home_mount": "rw",
+      "home_init_status": "pass",
+      "config_probe_status": "pass"
+    },
+    "authoring": {
+      "workspace_mount": "rw",
+      "presets_mount": "ro",
+      "managed_mount": "ro",
+      "home_mount": "rw",
+      "home_init_status": "pass",
+      "config_probe_status": "pass"
+    }
+  },
+  "proof_projects": [
+    "dsh-root-proof-verification-20260915-053200",
+    "dsh-root-proof-authoring-20260915-053200"
+  ],
+  "proof_projects_cleanup": "four temporary volumes and two temporary networks removed after the probes; default Compose volumes were not touched",
+  "runtime_credentials_injected": false,
+  "real_web_boot_tested": false,
+  "formal_eval_status": "not-started"
+}

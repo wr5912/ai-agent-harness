@@ -1,0 +1,86 @@
+schema_version: "1.0"
+runtime: dsh-container-only
+delegation_provider: spawn
+max_depth: 1
+background_mode: one-shot
+roles:
+  inspection:
+    tool_name: delegate_inspection
+    tools:
+      - mcp__inspection__inspection_service__list_inspection_checks
+      - mcp__inspection__inspection_service__preview_inspection_task
+      - mcp__inspection__inspection_service__execute_inspection
+      - mcp__inspection__inspection_service__list_inspection_tasks
+      - mcp__inspection__inspection_service__get_inspection_task
+      - mcp__inspection__inspection_service__get_inspection_run_progress
+      - mcp__inspection__inspection_service__get_inspection_run_result
+      - mcp__inspection__inspection_service__get_inspection_6e6414cd5e91
+      - mcp__inspection__inspection_service__get_inspection_report
+      - mcp__inspection__inspection_service__get_inspection_0cd3022ebf84
+  fault-analysis:
+    tool_name: delegate_fault_analysis
+    tools:
+      - read
+      - grep
+      - glob
+      - mcp__sec-ops__fault_diagnosis__fault_analysis_start
+      - mcp__sec-ops__fault_diagnosis__fault_analysis_submit_tool_result
+      - mcp__sec-ops__fault_diagnosis__fault_analysis_finalize
+      - mcp__sec-ops__fault_diagnosis__fault_analysis_get_status
+      - mcp__sec-ops__fault_diagnosis__fault_analysis_get_result
+      - mcp__sec-ops__ai_soc_event__post_event_search
+      - mcp__sec-ops__ai_soc_graph__get_graph_compliance_violations
+      - mcp__sec-ops__ai_soc_graph__get_graph_coverage
+      - mcp__sec-ops__ai_soc_graph__get_graph_flow_host_pair_ports
+      - mcp__sec-ops__ai_soc_graph__get_graph_node_detail
+      - mcp__sec-ops__ai_soc_graph__get_graph_path_query
+      - mcp__sec-ops__ai_soc_graph__get_reachability_cross_signal
+      - mcp__sec-ops__ai_soc_graph__get_reachability_path_by_ip
+      - mcp__sec-ops__ai_soc_ingest__get_admin_ingest_devic_ad206f9cdb7c
+      - mcp__sec-ops__ai_soc_master__detail
+      - mcp__sec-ops__ai_soc_master__list_8
+      - mcp__sec-ops__ai_soc_master__listbizbyasset
+      - mcp__sec-ops__ai_soc_master__vulnerabilities
+  response-planning:
+    tool_name: delegate_response_planning
+    tools: []
+    default_gate: deny
+    input_schema: schemas/response-plan-input.schema.json
+    output_schema: schemas/response-plan-output.schema.json
+  threat-analysis:
+    tool_name: delegate_threat_analysis
+    tools:
+      - mcp__threat-analysis__get_threat_event
+      - mcp__threat-analysis__get_rule_assertion
+      - mcp__threat-analysis__get_alerts
+      - mcp__threat-analysis__resolve_entity
+      - mcp__threat-analysis__get_field_domain
+      - mcp__threat-analysis__get_entity_context
+      - mcp__threat-analysis__check_feasibility
+      - mcp__threat-analysis__query_baseline
+      - mcp__threat-analysis__query_originator
+      - mcp__threat-analysis__query_logs
+      - mcp__threat-analysis__get_source_health
+      - mcp__threat-analysis__validate_rule_format
+      - mcp__threat-analysis__submit_report
+parent_direct_tools:
+  allow:
+    - read
+    - write
+    - edit
+    - glob
+    - grep
+    - skill
+    - mcp__sec-ops__weknora_knowledge__list_knowledge_bases
+    - mcp__sec-ops__weknora_knowledge__search_knowledge_bases
+    - mcp__sec-ops__ai_workbench_policy__prepare_policy_configuration
+    - mcp__sec-ops__ai_workbench_policy__get_policy_configuration_status
+    - delegate_inspection
+    - delegate_fault_analysis
+    - delegate_response_planning
+    - delegate_threat_analysis
+  deny_by_guard:
+    - role-specific MCP tools called directly instead of through delegation
+    - mcp__sec-ops__soc_api__execute
+    - mcp__sec-ops__fault_diagnosis__fault_analysis_get_trace
+    - shell, code execution, web and generic delegation tools
