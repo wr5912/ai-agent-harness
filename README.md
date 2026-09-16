@@ -1,6 +1,6 @@
 # ai-agent-harness
 
-用于管理仅由容器内 DSH（DeepSeek Harness）Agent Runtime 装载的 Agent / Harness 工程资产，并保存这些资产从需求、实验、评估到发布的演进证据。
+用于管理仅供容器内 DSH（DeepSeek Harness）Agent Runtime 装载的 Agent / Harness 工程资产，并保存这些资产从需求、实验、评估到发布的完整演进证据。
 
 本仓库管理业务能力及其运行支撑配置，不包含 DSH Runtime 源码，也不复制 Runtime 内部目录。DSH 从容器镜像启动，通过分别声明的卷装载候选资产或不可变 Release。开发态 Experiment Candidate 可在隔离 Authoring 容器中只对行为工作区读写；受控 Profile、Guard、MCP 绑定、凭据、评估证据和 Release 始终不由模型写入。会话、缓存、凭据和其他运行态数据不属于 Harness 资产。
 
