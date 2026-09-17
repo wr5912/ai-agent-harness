@@ -2820,12 +2820,12 @@ class EvalLoopContractTests(unittest.TestCase):
         return clone / ".agents" / "skills" / "harness-evolution" / "scripts" / "validate_repository.py"
 
     @classmethod
-    def _prepared_clone(cls, destination: Path, *, with_spec: bool = False) -> Path:
+    def _prepared_clone(cls, destination: Path, *, with_spec: bool = False, without_spec: bool = False) -> Path:
         clone = copy_initialized_repository(destination)
         subprocess.run(["git", "init", "-q"], cwd=clone, check=True)
+        agent = clone / "agents" / "security-operations-expert"
         if with_spec:
-            agent = clone / "agents" / "security-operations-expert"
-            (agent / "spec").mkdir()
+            (agent / "spec").mkdir(parents=True, exist_ok=True)
             (agent / "spec" / "requirements.md").write_text("# 需求\n\nREQ-001 受控查询。\n", encoding="utf-8")
             (agent / "spec" / "tasks.yaml").write_text(
                 'schema_version: "1.0"\ntasks:\n  - task_id: controlled-query\n    goal: 受限查询\n    input_contract: 文本\n',
@@ -2835,6 +2835,9 @@ class EvalLoopContractTests(unittest.TestCase):
                 'schema_version: "1.0"\nacceptance:\n  - id: AC-001\n    requirement_ids: [REQ-001]\n    gate: blocking\n    criterion: 全部返回受控结果\n',
                 encoding="utf-8",
             )
+        if without_spec:
+            shutil.rmtree(agent / "spec", ignore_errors=True)
+            shutil.rmtree(agent / "eval", ignore_errors=True)
         return clone
 
     def test_source_contract_selectors_and_role_mounts(self) -> None:
@@ -2891,7 +2894,7 @@ class EvalLoopContractTests(unittest.TestCase):
 
     def test_research_snapshot_requires_materialized_spec_eval(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
-            clone = self._prepared_clone(Path(temp))
+            clone = self._prepared_clone(Path(temp), without_spec=True)
             receipt_script = self._clone_script(clone, "mutation-receipt.py")
             completed = self._run(receipt_script, "--source", "experiment:EXP-security-operations-expert-001", "research-snapshot")
             self.assertEqual(completed.returncode, 1)
