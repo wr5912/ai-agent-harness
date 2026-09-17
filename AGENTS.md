@@ -59,6 +59,13 @@
 - 机器证据使用唯一 `agents/<agent-id>/eval/cases.jsonl` 与逐 Run 归档的 `evolution/experiments/EXP-<agent-id>-NNN/runs/<run-uuid>/results.jsonl`。大型或敏感证据外置时记录受控 URI、对象版本、SHA-256 和访问方式，不创建空替代文件。
 - 受控规范原文禁止直接修改。上游升级时添加新版本副本、更新 `SOURCES.md` 并记录迁移影响；不得原地覆写后仍沿用旧版本和摘要。
 
+## AI 纠错记录
+
+- 用户输入若为对上一轮的纠错（明确否定、指出具体错误、要求修正），在本轮回复完成后按 `.agents/skills/ai-correction-log/SKILL.md` 追加一条记录到 `AI纠错记录/YYYY-MM-DD.jsonl`；同一轮只写一次，落盘统一走 `.agents/skills/ai-correction-log/scripts/record_correction.py`。
+- 只记问题要点（被违反的约束、错误点、修正要求、反思、根因、改进方法），不复制原文，不记录新任务、确认与闲聊；低置信不记录。
+- 只在正常完成回复后写入；回复失败或中断不写。脚本检测到疑似凭据时拒绝写入，须改写要点后重试。
+- 记录随仓库版本控制，按天追加；不要重写或删除既有记录。
+
 ## 变更与验证
 
 - 先区分仓库治理变更、Agent 资产变更和 Runtime 运行变更；只有后两者影响冻结组合时才触发候选基线更新。

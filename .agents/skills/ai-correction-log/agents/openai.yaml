@@ -1,0 +1,6 @@
+interface:
+  display_name: "AI 纠错记录"
+  short_description: "识别用户纠错并抽取问题要点，按天追加到本地 JSONL"
+  default_prompt: "使用 $ai-correction-log 判断本轮是否为纠错，并在回复完成后写入一条要点记录。"
+policy:
+  allow_implicit_invocation: true
