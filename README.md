@@ -4,7 +4,7 @@
 
 本项目面向个人开发者，是以仅供容器内 DSH（DeepSeek Harness）Agent Runtime 装载的 Agent / Harness 工程资产（DSH-only Harness）为对象的自用探索研究项目。仓库管理业务能力及其运行支撑配置，保存资产从需求、实验、评估到发布的演进证据。DSH 从容器镜像启动，通过卷装载 Experiment Candidate 或不可变 Release；容器主要用于本地开发、实验和验证。
 
-本仓库不包含 DSH Runtime 源码或内部目录，也不把会话、缓存、凭据等运行态数据作为 Harness 资产。隔离的 Authoring 容器只允许 DSH 读写 Experiment Candidate 的行为工作区；受控 Profile、Guard、MCP 绑定、评估证据和 Release 不由模型写入，凭据由受信 Runtime 注入。当前阶段优先关注研究价值、开发便利性和实验结果的可追溯性，安全性不是首要考虑；现有安全红线、正式评估和发布门禁仍然适用。
+本仓库不包含 DSH Runtime 源码或内部目录，也不把会话、缓存、凭据等运行态数据作为 Harness 资产。隔离的 Authoring 容器只允许 DSH 读写 Experiment Candidate 的行为工作区；受控 Profile、Guard、MCP 绑定、评估证据和 Release 不由模型写入，凭据由受信 Runtime 注入。研究者可以修改下一版候选的 Preset、Profile/Patch、插件及非秘密依赖声明，复核、构建后在新容器和新 Session 中验证。当前阶段优先关注研究价值、开发便利性和实验结果的可追溯性，安全性不是首要考虑；现有安全红线、正式评估和发布门禁仍然适用。
 
 项目围绕三个核心研究点展开：
 
@@ -16,13 +16,14 @@
 
 技术路线坚持“插件扩展优先，框架修改最小化”：优先利用 DSH 现有能力、配置组合及可直接复用的开源插件，通过自定义 DSH 插件补充所需能力，尽可能少修改或完全不修改 DSH 框架源码。深入研究框架机制，是为了理解能力边界、有效利用扩展机制，并支撑 Harness 优化与 Variant 实现，而不是以改造框架为目标。只有现有能力和插件扩展确实无法满足核心研究需求时，才考虑必要的最小化框架修改；这类修改应在独立的 DSH 源码研究或上游协作中处理，不将 Runtime 源码混入本仓库的 Harness 资产。
 
-项目规划提供[研发管理 CLI](./docs/DSH智能体研发管理平台边界设计方案.md)，方便开发者管理 Harness 资产及相关研究过程；提供 launcher，用于选择指定 Harness 及其运行配置并启动本地 DSH 容器。两者是职责清晰的研究支撑工具，不反向限制研究深度，目前均处于设计阶段。当前优先验证核心研究与工具的实际价值，待价值明确后再考虑提供简易 Web 界面。
+项目规划提供[研发管理 CLI](./docs/DSH智能体研发管理平台边界设计方案.md)，方便开发者管理 Harness 资产及相关研究过程；提供 launcher，用于选择指定 Harness 及其运行配置并启动本地 DSH 容器。[DSH 只读资产查询原型](./plugins/asset-query-cli/README.md)已经验证应用级命令入口，但不等于完整管理 CLI；launcher 仍处于设计阶段。两者是职责清晰的研究支撑工具，不反向限制研究深度。当前优先验证核心研究与工具的实际价值，待价值明确后再考虑提供简易 Web 界面。
 
 ## 当前状态
 
 - 仓库治理版本：[0.1.0](./VERSION.md)。这不是 Agent/Harness Release，也不是 Git Tag。
 - 已将 `security-operations-expert` 的旧 Harness 业务语义和初版交付材料迁入 [`EXP-security-operations-expert-001`](./evolution/experiments/EXP-security-operations-expert-001/) 的 Candidate 与清洗历史。旧归档中的 Hook、宽松权限配置、部署脚本和环境文件未原样激活。
 - 当前交付结论为“退回整改”：历史检查有实质失败，200 条输入仍待领域专家逐条复核和 `AC-xxx` 绑定，没有正式 Trial、候选基线、稳定 Baseline、Release 或 `current/`。
+- `plugins/asset-query-cli/` 是独立的只读管理入口原型：在锁定 DSH 镜像中验证了无模型、无业务 MCP 的目录查询、JSON 输出和退出语义；它不判断资产有效性或评估结论。
 - 即使容器构建、Profile 展开、只读挂载及 Mock MCP 等技术检查通过，也只证明迁移路线的局部可行性；没有真实模型、真实 MCP、审批与完整业务链的 R3 证据时，不宣称 DSH 已交付或可上线。
 
 ## 核心边界
@@ -36,17 +37,15 @@
 ## 演进主线
 
 ```text
-需求来源与 REQ/AC
-→ 选择 direct 或 exploration 开发路径
-→ Experiment 与 Candidate
-→ 冻结候选基线 baseline_id
-→ 正式自测与 R1/R2/R3 交付复核
-→ 不可变 Release
-→ DSH 装载与真实任务链验证
-→ 生产反馈、失败案例与下一轮回归
+需求来源与任务边界 → direct 或 exploration → Experiment 与 Candidate
+                         ├─ 研究快照 → 比较/派生 Variant/记录停止或不采用结论
+                         └─ 正式交付 → 补齐 REQ/AC 与完整候选基线 baseline_id
+                                      → 正式自测与 R1/R2/R3 交付复核
+                                      → 不可变 Release → DSH 真实任务链验证
+                                      → 反馈、失败案例与下一轮回归
 ```
 
-每项语义性 Harness 变更都进入 Experiment。`direct` 表示实施路线已明确，可以直接开发；`exploration` 仅用于会改变实施路线的关键不确定性，并先以 5～20 个真实或高度接近真实的样本探索。两条路径都不能跳过候选基线、正式自测、交付复核和发布一致性检查。
+每项语义性 Harness 变更都进入 Experiment。`direct` 表示实施路线已明确，可以直接开发；`exploration` 仅用于会改变实施路线的关键不确定性，并先以 5～20 个真实或高度接近真实的样本探索。研究可以失败或证据不足而停止；用于比较和派生的研究快照需可还原，但不是正式 `baseline_id`。进入正式交付后，两条路径均不能跳过候选基线、正式自测、交付复核和发布一致性检查。[研究与交付边界](./docs/standards/PROJECT-INTERPRETATION.md#3-experiment-与开发路径)
 
 ## 目标目录
 
@@ -92,7 +91,7 @@
 | 阶段 | 工作区行为资产 | Preset 与 managed 控制 | 证据与发布 |
 |---|---|---|---|
 | Authoring Experiment | 隔离候选工作区可读写；容器内 DSH 可自组合、自修改，当前 Session 可实时看到探索行为 | 只读；凭据从 Runtime 注入 | 历史/评估不挂载；改动只形成待审 diff，进入核验态前须经宿主侧校验并用新容器、新 Session 重建 |
-| Verification Candidate | 候选快照只读 | 只读 | 仅做锁定版本集成检查，不产生正式交付结论 |
+| Verification Candidate | 所选来源在容器中只读；比较时先物化快照 | 只读 | 默认 Compose 仍绑定可变宿主 Candidate，只能做局部技术检查；研究比较须改用经摘要复核的快照，不产生正式交付结论 |
 | Release/生产 | 只挂具体不可变 Release，全部只读 | 只读 | 反馈进入下一轮 Experiment；不在生产自修改 |
 
 容器启动、停止、镜像固定、挂载和局部检查见 [`dsh-container` 适配说明](./runtime/adapters/dsh-container/README.md)。真实安全动作仍由 DSH Runtime 与领域 MCP 服务端执行强制鉴权、租户/对象绑定、参数与数量约束、幂等、审批及审计；Prompt 或本仓库中的策略文字不能替代这些服务端控制。
@@ -118,8 +117,8 @@
    | `dsh-release-verify` | 验证 Release、DSH 挂载、装载结果和真实协议任务链 |
 
 3. 旧资产进入仓库前，先执行只读摄取检查；本仓库已有的迁移输入则以 [`source-manifest.json`](./evolution/history/imports/security-operations-expert-2026-09-15/source-manifest.json) 记录逐文件摘要和处置。检查通过只代表归档机器规则通过，不等于内容可信、交付通过或可运行。
-4. 新建 Agent 时从可核验的 `REQ-xxx` 和唯一 `AC-xxx` 事实源开始；没有实际内容时不要创建目标目录占位。
-5. 形成候选版本后执行完整正式评估和对应复核，再生成 Release。Authoring 中的自修改不自动晋升、发布或改变交付结论；禁止直接修改生产 Harness。
+4. 新建 Agent 时从可核验的任务来源、`REQ-xxx` 和非目标开始；探索先固定判定标准与安全红线，正式开发前补齐唯一事实源中的全部适用 `AC-xxx`。没有实际内容时不要创建目标目录占位。
+5. 研究比较先保存可还原快照、运行条件和结论；只有选择正式交付才冻结完整候选基线、执行正式评估和对应复核，再生成 Release。Authoring 中的自修改不自动晋升、发布或改变交付结论；禁止直接修改生产 Harness。
 
 常用的只读机器检查：
 

@@ -16,6 +16,7 @@ from typing import DefaultDict, Dict, List, Optional, Set, Tuple
 
 
 SCHEMA_VERSION = "1.0"
+DELIVERY_MARKDOWN_CONTRACT_VERSION = "1.0"
 SPLIT_DELIVERY_FILES = (
     "01_智能体需求定义.md",
     "02_用户场景与输入覆盖矩阵.md",
@@ -177,32 +178,12 @@ def section_for_heading(text: str, phrase: str) -> str:
     return "\n".join(lines[start:end])
 
 
-def table_ids(text: str, pattern: re.Pattern[str]) -> List[str]:
-    values: List[str] = []
-    for line in text.splitlines():
-        match = re.match(r"^\|\s*([^|]+?)\s*\|", line.strip())
-        if match and pattern.fullmatch(match.group(1).strip()):
-            values.append(match.group(1).strip())
-    return values
-
-
 def acceptance_requirement_map(text: str) -> Dict[str, Set[str]]:
     linked: Dict[str, Set[str]] = {}
-    for table in markdown_tables(text):
-        if len(table) < 2:
-            continue
-        header = [cell.replace("`", "").strip() for cell in table[0]]
-        try:
-            acceptance_index = next(index for index, cell in enumerate(header) if "验收编号" in cell)
-            requirement_index = next(index for index, cell in enumerate(header) if "关联需求" in cell)
-        except StopIteration:
-            continue
-        for cells in table[2:]:
-            if len(cells) <= max(acceptance_index, requirement_index):
-                continue
-            acceptance_id = cells[acceptance_index].strip()
-            if AC_RE.fullmatch(acceptance_id):
-                linked[acceptance_id] = set(REQ_TOKEN_RE.findall(cells[requirement_index]))
+    for row in semantic_table_rows(text, {"验收编号", "关联需求"}):
+        acceptance_id = row["验收编号"]
+        if AC_RE.fullmatch(acceptance_id):
+            linked[acceptance_id] = set(REQ_TOKEN_RE.findall(row["关联需求"]))
     return linked
 
 
@@ -285,13 +266,11 @@ def load_cases(
     documented_requirements = set(re.findall(r"REQ-[0-9]{3,}", acceptance_source_text))
     documented_acceptance = set(re.findall(r"AC-[0-9]{3,}", acceptance_source_text))
     acceptance_requirements = acceptance_requirement_map(acceptance_source_text)
-    hard_gate_acceptance: Set[str] = set()
-    for line in acceptance_source_text.splitlines():
-        ac_match = re.match(r"^\|\s*(AC-[0-9]{3,})\s*\|", line.strip())
-        if ac_match:
-            cells = [cell.strip().strip("`*_ ") for cell in line.strip().strip("|").split("|")]
-            if "硬门禁" in cells[1:]:
-                hard_gate_acceptance.add(ac_match.group(1))
+    hard_gate_acceptance = {
+        row["验收编号"]
+        for row in semantic_table_rows(acceptance_source_text, {"验收编号", "判定作用"})
+        if AC_RE.fullmatch(row["验收编号"]) and row["判定作用"].strip("`*_ ") == "硬门禁"
+    }
 
     with path.open("r", encoding="utf-8") as handle:
         for line_number, raw in enumerate(handle, start=1):
@@ -392,6 +371,30 @@ def markdown_tables(text: str) -> List[List[List[str]]]:
             tables.append(current)
             current = []
     return tables
+
+
+def semantic_table_rows(
+    text: str,
+    required_headers: Set[str],
+    errors: Optional[List[Dict[str, str]]] = None,
+    error_code: str = "AC_TABLE_ROW_INVALID",
+    location: str = "delivery",
+) -> List[Dict[str, str]]:
+    """交付 Markdown v1.0：以唯一列名定位事实，允许列顺序和强调样式变化。"""
+
+    rows: List[Dict[str, str]] = []
+    for table in markdown_tables(text):
+        if len(table) < 2:
+            continue
+        headers = [cell.strip().strip("`*_ ") for cell in table[0]]
+        if not required_headers.issubset(headers) or len(headers) != len(set(headers)):
+            continue
+        for cells in table[2:]:
+            if len(cells) == len(headers):
+                rows.append(dict(zip(headers, cells)))
+            elif errors is not None:
+                errors.append(issue(error_code, "验收表格行列数与表头不一致", location))
+    return rows
 
 
 def mentioned_case_ids(text: str, case_ids: Set[str]) -> Set[str]:
@@ -545,14 +548,18 @@ def validate_acceptance_mapping(
         template_three = section_for_heading(combined, "交付验收标准的评估实现")
     if not template_three:
         template_three = section_for_heading("\n".join(docs.values()), "交付验收标准的评估实现")
-    mapping_ids = table_ids(template_three, AC_RE)
+    source_location = "delivery/" + (SPLIT_DELIVERY_FILES[0] if shape == "split" else "交付记录.md")
+    implementation_location = "delivery/" + (SPLIT_DELIVERY_FILES[2] if shape == "split" else "交付记录.md")
+    implementation_rows = semantic_table_rows(
+        template_three, {"验收编号", "评估用例编号或筛选条件"}, errors, "AC_IMPLEMENTATION_ROW_INVALID", implementation_location
+    )
+    mapping_ids = [row["验收编号"] for row in implementation_rows if AC_RE.fullmatch(row["验收编号"])]
     mapping_counts = Counter(mapping_ids)
-    mapping_rows: DefaultDict[str, List[List[str]]] = defaultdict(list)
+    mapping_rows: DefaultDict[str, List[Dict[str, str]]] = defaultdict(list)
     mapping_selectors: Dict[str, str] = {}
-    for line in template_three.splitlines():
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if cells and AC_RE.fullmatch(cells[0]):
-            mapping_rows[cells[0]].append(cells[1:])
+    for row in implementation_rows:
+        if AC_RE.fullmatch(row["验收编号"]):
+            mapping_rows[row["验收编号"]].append(row)
     case_acceptance = {str(case.get("acceptance_id", "")) for case in cases.values()}
     if not mapping_ids:
         errors.append(issue("AC_IMPLEMENTATION_MISSING", "未找到模板三的 AC-xxx 评估实现表", "delivery"))
@@ -565,7 +572,7 @@ def validate_acceptance_mapping(
                     "delivery",
                 )
             )
-        elif not any(row and meaningful(row[0]) and row[0] != "相关用例" for row in mapping_rows[acceptance_id]):
+        elif not any(meaningful(row["评估用例编号或筛选条件"]) and row["评估用例编号或筛选条件"] != "相关用例" for row in mapping_rows[acceptance_id]):
             errors.append(
                 issue(
                     "AC_IMPLEMENTATION_EMPTY",
@@ -574,10 +581,11 @@ def validate_acceptance_mapping(
                 )
             )
         else:
-            mapping_selectors[acceptance_id] = mapping_rows[acceptance_id][0][0].strip()
+            mapping_selectors[acceptance_id] = mapping_rows[acceptance_id][0]["评估用例编号或筛选条件"].strip()
     source_ids: Set[str] = set()
     if template_one:
-        source_id_list = table_ids(template_one, AC_RE)
+        source_rows = semantic_table_rows(template_one, {"验收编号", "判定作用", "关联需求"}, errors, "AC_SOURCE_ROW_INVALID", source_location)
+        source_id_list = [row["验收编号"] for row in source_rows if AC_RE.fullmatch(row["验收编号"])]
         source_ids = set(source_id_list)
         if not source_ids:
             errors.append(issue("AC_SOURCE_MISSING", "模板一未定义任何 AC-xxx 验收项", "delivery"))
@@ -1310,6 +1318,7 @@ def run(project: Path) -> Tuple[Dict[str, object], int]:
         "summary": {
             "agent_project": str(project),
             "delivery_shape": shape,
+            "markdown_contract_version": DELIVERY_MARKDOWN_CONTRACT_VERSION,
             "scope_declared": declared_scope,
             "scope_applied": applied_scope,
             "case_count": len(cases),

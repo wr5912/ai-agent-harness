@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "sources": {
+    "EXP-security-operations-expert-001": {
+      "agent_id": "security-operations-expert",
+      "candidate_root": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh",
+      "profile": "web",
+      "patch": "security-operations-expert.patch.yml",
+      "preset": "security-operations-expert/agent.cordis.yml",
+      "guard": "security-operations-guard.mjs",
+      "config_markers": [
+        "/opt/dsh-presets",
+        "/work/harness/workspace/.agents/skills",
+        "security-operations-expert",
+        "security-operations-mcp-sec-ops",
+        "security-operations-mcp-inspection",
+        "security-operations-mcp-threat-analysis",
+        "security-operations-delegate-inspection",
+        "security-operations-delegate-fault-analysis",
+        "security-operations-delegate-response-planning",
+        "security-operations-delegate-threat-analysis"
+      ],
+      "required_env_names": [
+        "DEEPSEEK_API_KEY",
+        "SEC_OPS_MCP_URL",
+        "SEC_OPS_MCP_TOKEN",
+        "INSPECTION_MCP_URL",
+        "INSPECTION_MCP_TOKEN",
+        "THREAT_ANALYSIS_MCP_URL",
+        "THREAT_ANALYSIS_MCP_TOKEN"
+      ]
+    }
+  }
+}

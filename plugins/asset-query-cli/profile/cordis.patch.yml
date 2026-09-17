@@ -1,0 +1,3 @@
+- insert:
+    - id: harness-asset-query
+      name: /opt/harness-plugins/asset-query-cli/query.mjs

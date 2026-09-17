@@ -1,0 +1,11 @@
+{
+  "name": "dsh-profile-asset-query-cli",
+  "private": true,
+  "dependencies": {},
+  "dsh": {
+    "profile": {
+      "bundles": [],
+      "patchReload": "startup"
+    }
+  }
+}

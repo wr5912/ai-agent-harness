@@ -241,6 +241,54 @@ def copy_initialized_repository(destination: Path) -> Path:
     return clone
 
 
+def write_generic_dsh_experiment(repository: Path, agent_id: str, number: int = 1) -> str:
+    experiment_id = f"EXP-{agent_id}-{number:03d}"
+    agent = repository / "agents" / agent_id
+    agent.mkdir(parents=True, exist_ok=True)
+    (agent / "manifest.yaml").write_text(
+        f"agent_id: {agent_id}\nruntime_family: dsh\nload_mode: container-only\nactive_experiment: {experiment_id}\n",
+        encoding="utf-8",
+    )
+    experiment = repository / "evolution" / "experiments" / experiment_id
+    candidate = experiment / "candidate"
+    preset = candidate / "dsh" / "presets" / agent_id
+    workspace = candidate / "dsh" / "workspace"
+    preset.mkdir(parents=True)
+    workspace.mkdir(parents=True)
+    (experiment / "evaluation").mkdir()
+    (experiment / "hypothesis.md").write_text("# 假设\n\n文件检索插件可完成受限查询。\n", encoding="utf-8")
+    (experiment / "decision.md").write_text("# 决定\n\n先测试文件检索组合。\n", encoding="utf-8")
+    (experiment / "change.yaml").write_text(
+        f"experiment_id: {experiment_id}\nagent_id: {agent_id}\ndevelopment_path: direct\n",
+        encoding="utf-8",
+    )
+    (experiment / "evaluation" / "probe.md").write_text("# 探针\n\n待与运行环境核对插件实际生效。\n", encoding="utf-8")
+    (candidate / "harness.yaml").write_text(
+        f"agent:\n  id: {agent_id}\n  runtime_family: dsh\n  load_mode: container-only\n"
+        f"experiment:\n  id: {experiment_id}\n"
+        f"loadable_assets:\n  workspace: dsh/workspace\n  preset_root: dsh/presets\n  preset_id: {agent_id}\n  runtime_lock: runtime.lock.json\n",
+        encoding="utf-8",
+    )
+    (candidate / "runtime.lock.json").write_text(
+        json.dumps({
+            "agent_id": agent_id,
+            "experiment_id": experiment_id,
+            "runtime_family": "dsh",
+            "container_only": True,
+            "source_commit": "a" * 40,
+        }) + "\n",
+        encoding="utf-8",
+    )
+    (workspace / "AGENTS.md").write_text("# 文件检索工作区\n\n仅检索当前实验数据。\n", encoding="utf-8")
+    (preset / "preset.yml").write_text("name: 文件检索\ndescription: 低算力检索实验组合\n", encoding="utf-8")
+    (preset / "agent.cordis.yml").write_text(
+        "- id: retrieval\n  name: '@example/dsh-retrieval'\n  disabled: false\n"
+        "- id: answer\n  name: '@example/dsh-template-answer'\n  disabled: false\n",
+        encoding="utf-8",
+    )
+    return experiment_id
+
+
 def write_artifact_manifest(directory: Path) -> str:
     excluded = {"artifact-manifest.json", "evaluation.json", "manifest.yaml", "evaluation-report.md", "CHANGELOG.md"}
     records = []
@@ -588,6 +636,73 @@ class RepositoryValidatorTests(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 0, payload)
         self.assertEqual(payload["status"], "pass")
+
+    def test_generic_dsh_candidate_accepts_distinct_agent_plugin_composition(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = copy_initialized_repository(Path(temp))
+            write_generic_dsh_experiment(clone, "file-researcher")
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+        self.assertEqual(completed.returncode, 0, payload)
+
+    def test_failed_research_experiment_does_not_require_formal_baseline_or_release(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = copy_initialized_repository(Path(temp))
+            experiment_id = write_generic_dsh_experiment(clone, "file-researcher")
+            experiment = clone / "evolution" / "experiments" / experiment_id
+            (experiment / "decision.md").write_text(
+                "# 决定\n\n停止：插件在边界输入上无收益，保留失败观察，不进入正式交付。\n",
+                encoding="utf-8",
+            )
+            (experiment / "evaluation" / "probe.md").write_text(
+                "# 观察\n\n边界输入未得到预期结果；本次研究不采用该候选。\n",
+                encoding="utf-8",
+            )
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+            self.assertFalse((clone / "evolution" / "baselines" / "file-researcher-v1.0.0").exists())
+            self.assertFalse((clone / "releases" / "file-researcher-v1.0.0").exists())
+        self.assertEqual(completed.returncode, 0, payload)
+
+    def test_generic_dsh_candidate_rejects_ambiguous_plugin_and_unpinned_runtime(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = copy_initialized_repository(Path(temp))
+            experiment_id = write_generic_dsh_experiment(clone, "file-researcher")
+            candidate = clone / "evolution" / "experiments" / experiment_id / "candidate"
+            preset = candidate / "dsh" / "presets" / "file-researcher" / "agent.cordis.yml"
+            preset.write_text(preset.read_text(encoding="utf-8") + "- id: retrieval\n  name: '@example/other'\n  disabled: false\n", encoding="utf-8")
+            lock = candidate / "runtime.lock.json"
+            value = json.loads(lock.read_text(encoding="utf-8"))
+            value["source_commit"] = "unresolved-main"
+            lock.write_text(json.dumps(value) + "\n", encoding="utf-8")
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+        self.assertEqual(completed.returncode, 1, payload)
+        self.assertIn("DSH_PRESET_INVALID", error_codes(payload))
+        self.assertIn("DSH_SOURCE_LOCK", error_codes(payload))
+
+    def test_historical_experiment_is_independent_of_active_pointer_and_release(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = copy_initialized_repository(Path(temp))
+            active = write_generic_dsh_experiment(clone, "security-operations-expert", 2)
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+            self.assertEqual(completed.returncode, 0, payload)
+            write_released_agent(clone, agent_id="security-operations-expert")
+            manifest = clone / "agents" / "security-operations-expert" / "manifest.yaml"
+            manifest.write_text(manifest.read_text(encoding="utf-8") + f"active_experiment: {active}\n", encoding="utf-8")
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+        self.assertEqual(completed.returncode, 0, payload)
+
+    def test_active_pointer_must_resolve_to_same_agent_experiment(self) -> None:
+        for target in ("EXP-security-operations-expert-999", "EXP-file-researcher-001"):
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as temp:
+                clone = copy_initialized_repository(Path(temp))
+                write_generic_dsh_experiment(clone, "file-researcher")
+                manifest = clone / "agents" / "security-operations-expert" / "manifest.yaml"
+                manifest.write_text(manifest.read_text(encoding="utf-8").replace(
+                    "active_experiment: EXP-security-operations-expert-001",
+                    f"active_experiment: {target}",
+                ), encoding="utf-8")
+                completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+            self.assertEqual(completed.returncode, 1, payload)
+            self.assertIn("AGENT_ACTIVE_EXPERIMENT_INVALID", error_codes(payload))
 
     def test_dsh_candidate_loadable_identity_and_pending_eval_fail_closed(self) -> None:
         experiment = "evolution/experiments/EXP-security-operations-expert-001/candidate"
@@ -1105,6 +1220,7 @@ class RepositoryValidatorTests(unittest.TestCase):
             external = base / "external-agents"
             external.mkdir()
             (external / "README.md").write_text("外部内容\n", encoding="utf-8")
+            shutil.rmtree(clone / "plugins")
             (clone / "plugins").symlink_to(external, target_is_directory=True)
             completed, payload = run_json(VALIDATE_REPOSITORY, clone)
 
@@ -1114,6 +1230,7 @@ class RepositoryValidatorTests(unittest.TestCase):
     def test_asset_root_and_direct_children_must_be_directories(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             clone = copy_initialized_repository(Path(temp))
+            shutil.rmtree(clone / "plugins")
             (clone / "plugins").write_text("not a directory\n", encoding="utf-8")
             completed, payload = run_json(VALIDATE_REPOSITORY, clone)
         self.assertEqual(completed.returncode, 1)
@@ -1802,6 +1919,63 @@ class DeliveryValidatorTests(unittest.TestCase):
         self.assertEqual(payload["status"], "pass")
         self.assertEqual(payload["summary"]["scope_applied"], "general")
         self.assertTrue(payload["manual_checks"])
+
+    def test_acceptance_markdown_contract_uses_semantic_headers_not_column_position(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            project = Path(temp)
+            write_delivery(project, case_count=50)
+            record = project / "delivery" / "交付记录.md"
+            text = record.read_text(encoding="utf-8")
+            text = text.replace(
+                "| 验收编号 | 判定作用 | 阈值 | 阈值依据 | 关联需求 |\n"
+                "|---|---|---|---|---|\n"
+                "| AC-001 | 硬门禁 | 100% | 测试约束 | REQ-001 |",
+                "| **关联需求** | `验收编号` | 判定作用 | 阈值 | 阈值依据 |\n"
+                "|---|---|---|---|---|\n"
+                "| REQ-001 | AC-001 | 硬门禁 | 100% | 测试约束 |",
+                1,
+            )
+            text = text.replace(
+                "| 验收编号 | 评估用例编号或筛选条件 | 评价方法 | 数据源 | 执行规则 |\n"
+                "|---|---|---|---|---|\n"
+                "| AC-001 | case_ids=",
+                "| `评估用例编号或筛选条件` | 评价方法 | 验收编号 | 数据源 | 执行规则 |\n"
+                "|---|---|---|---|---|\n"
+                "| case_ids=",
+                1,
+            ).replace(" | 确定性检查 | results.csv | required_trials |", " | 确定性检查 | AC-001 | results.csv | required_trials |", 1)
+            record.write_text(text, encoding="utf-8")
+            completed, payload = run_json(VALIDATE_DELIVERY, project)
+        self.assertEqual(completed.returncode, 0, payload)
+        self.assertEqual(payload["summary"]["markdown_contract_version"], "1.0")
+
+    def test_acceptance_markdown_contract_rejects_unrecognized_source_header(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            project = Path(temp)
+            write_delivery(project, case_count=50)
+            record = project / "delivery" / "交付记录.md"
+            record.write_text(record.read_text(encoding="utf-8").replace(
+                "| 验收编号 | 判定作用 | 阈值 | 阈值依据 | 关联需求 |",
+                "| 验收编号 | 判定作用 | 阈值 | 阈值依据 | 随意注释 |",
+                1,
+            ), encoding="utf-8")
+            completed, payload = run_json(VALIDATE_DELIVERY, project)
+        self.assertEqual(completed.returncode, 1, payload)
+        self.assertIn("AC_SOURCE_MISSING", error_codes(payload))
+
+    def test_acceptance_markdown_contract_reports_malformed_row(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            project = Path(temp)
+            write_delivery(project, case_count=50)
+            record = project / "delivery" / "交付记录.md"
+            record.write_text(record.read_text(encoding="utf-8").replace(
+                "| AC-001 | 硬门禁 | 100% | 测试约束 | REQ-001 |",
+                "| AC-001 | 硬门禁 | 100% | 测试约束 | REQ-001 | 多余单元格 |",
+                1,
+            ), encoding="utf-8")
+            completed, payload = run_json(VALIDATE_DELIVERY, project)
+        self.assertEqual(completed.returncode, 1, payload)
+        self.assertIn("AC_SOURCE_ROW_INVALID", error_codes(payload))
 
     def test_valid_split_delivery_passes_machine_contract(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

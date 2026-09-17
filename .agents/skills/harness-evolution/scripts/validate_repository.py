@@ -106,6 +106,7 @@ DSH_CANDIDATE_REQUIRED = (
     "dsh/managed/control-boundary.yaml",
     "runtime.lock.json",
 )
+SECURITY_MIGRATION_EXPERIMENT = "EXP-security-operations-expert-001"
 DSH_CREDENTIAL_KEYS = (
     "SEC_OPS_MCP_URL", "SEC_OPS_MCP_TOKEN",
     "INSPECTION_MCP_URL", "INSPECTION_MCP_TOKEN",
@@ -116,12 +117,15 @@ DSH_BOOTSTRAP_DENY_SHA256 = "e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5b
 # 安全关键适配层脚本与构建定义按当前审查基线锁定。合法变更必须重新审查并同步摘要；
 # 文件身份通过不等于 DSH Runtime 装载、业务能力或 Release 验收通过。
 DSH_ADAPTER_PINNED_SHA256 = {
-    "Dockerfile": "3140cd7a3c0bd7b14e7d2670e6d7706c2c201fc11df87291f6f136d9ede38b77",
+    "Dockerfile": "b8b2379a7c8acaa6992db4d9a9f3cb7f2e9374606cc7a44082d405e0d9ce7105",
+    "build-image.sh": "f0f56eb764975cad582a3f144c0f314f9971a9d86ff7c34433b01ccbb2a58250",
     "prepare-verification-home.mjs": "96e5495d29da68d1a106f9cd5462180b898edaf70456de263e3150220be620b4",
-    "verify-load.mjs": "5ce4a4b64f2cb96d0c29847e8e6fd91a80d2cd054a1dc83fd9a22aefa53d6985",
-    "verify-load.sh": "18996126c214eb0a1234ad5ec4f3e770e9a2abe899e786c3b558d661c8bcda8c",
+    "verify-load.mjs": "c95b3f097e1a40bf8d4d309e0a9d0025319bfadc4061ceead00fed718124121d",
+    "verify-load.sh": "e6a710e1cb459d03713701772fb35a115e480f1632988e9139306387b26ca380",
     "tree-digest.mjs": "ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
-    "mutation-receipt.py": "e1205b070b659f8e8ebc418426f88f8499d7c54812c26f8428dbbd6202e5aecb",
+    "mutation-receipt.py": "580bdcc589e961e143a21d2c8bd51bf0a84b03e24889c342a11ca7a1ddb5cd44",
+    "source_contract.py": "3a0f7f88260295d845768c56d67f0d342796c84cb27a909e62de07ac1cac1095",
+    "preflight-access.py": "1530599124b0d43d90b38b0992c9e6ce57518e248184a33733200cd6dd9274f6",
 }
 
 
@@ -908,6 +912,12 @@ def validate_agents(
         manifest_agent_id = manifest_values.get("agent_id") if manifest_values else None
         if manifest_agent_id != agent_id:
             errors.append(issue("AGENT_ID_MISMATCH", "Agent manifest.yaml 的 agent_id 必须与目录名一致", relative(manifest, root)))
+        active_experiment = manifest_values.get("active_experiment") if manifest_values else None
+        if active_experiment is not None:
+            match = EXPERIMENT_RE.fullmatch(active_experiment)
+            target = root / "evolution" / "experiments" / active_experiment
+            if not match or match.group(1) != agent_id or not target.is_dir() or target.is_symlink():
+                errors.append(issue("AGENT_ACTIVE_EXPERIMENT_INVALID", "active_experiment 必须指向本 Agent 已存在的 Experiment", relative(manifest, root)))
         current_dir = agent_dir / "current"
         owned_releases = release_index.get(agent_id, ())
         if not path_present(current_dir):
@@ -1102,13 +1112,136 @@ def validate_dsh_candidate(
     errors: List[Dict[str, str]],
     asset_files: Sequence[Path],
 ) -> None:
-    """只验证 DSH 迁移候选的装载/权限声明，不推断业务交付通过。"""
+    """验证通用 DSH 候选结构；迁移策略只应用于其明确归属的实验。"""
+
+    validate_dsh_candidate_structure(root, experiment, errors, asset_files)
+    if experiment.name == SECURITY_MIGRATION_EXPERIMENT:
+        validate_security_migration_candidate(root, experiment, errors, asset_files)
+
+
+def validate_dsh_candidate_structure(root: Path, experiment: Path, errors: List[Dict[str, str]], asset_files: Sequence[Path]) -> None:
+    candidate = experiment / "candidate"
+    dsh = candidate / "dsh"
+    match = EXPERIMENT_RE.fullmatch(experiment.name)
+    if match is None:
+        return
+    agent_id = match.group(1)
+    harness_path = candidate / "harness.yaml"
+    harness = dsh_yaml(root, harness_path)
+    if not isinstance(harness, dict):
+        errors.append(issue("DSH_CANDIDATE_HARNESS", "DSH 候选必须提供可解析的 harness.yaml mapping", relative(harness_path, root)))
+        return
+    agent = harness.get("agent")
+    identity = harness.get("experiment")
+    if not isinstance(agent, dict) or agent.get("id") != agent_id or agent.get("runtime_family") != "dsh" or agent.get("load_mode") != "container-only":
+        errors.append(issue("DSH_CANDIDATE_IDENTITY", "Harness 必须绑定当前 Agent 与容器内 DSH", relative(harness_path, root)))
+    if not isinstance(identity, dict) or identity.get("id") != experiment.name:
+        errors.append(issue("DSH_CANDIDATE_IDENTITY", "Harness 必须绑定当前 Experiment", relative(harness_path, root)))
+    runtime_contract = harness.get("runtime_contract")
+    if runtime_contract is not None and (not isinstance(runtime_contract, dict) or any(
+        runtime_contract.get(key) != value for key, value in {
+            "authoring_workspace_mode": "rw",
+            "authoring_preset_mode": "ro",
+            "authoring_managed_mode": "ro",
+            "verification_candidate_mode": "ro",
+            "release_mode": "ro",
+        }.items()
+    )):
+        errors.append(issue("DSH_RUNTIME_CONTRACT", "声明 Runtime 挂载模式时须保持 Authoring/Verification/Release 读写隔离", relative(harness_path, root)))
+    loadable = harness.get("loadable_assets")
+    if not isinstance(loadable, dict):
+        errors.append(issue("DSH_LOADABLE_ASSETS", "loadable_assets 必须声明候选内的装载路径", relative(harness_path, root)))
+        return
+    for key, expected in (("workspace", "dsh/workspace"), ("preset_root", "dsh/presets")):
+        value = loadable.get(key)
+        target = dsh_path_within(candidate, value)
+        if value != expected or target is None or not target.is_dir() or target.is_symlink():
+            errors.append(issue("DSH_LOADABLE_ASSETS", "%s 必须指向候选内的 DSH 装载目录" % key, relative(harness_path, root)))
+    managed_root = loadable.get("managed_root")
+    if managed_root is not None:
+        target = dsh_path_within(candidate, managed_root)
+        if managed_root != "dsh/managed" or target is None or not target.is_dir() or target.is_symlink():
+            errors.append(issue("DSH_LOADABLE_ASSETS", "managed_root 必须指向候选内的受控目录", relative(harness_path, root)))
+    profile_patch = loadable.get("profile_patch")
+    if profile_patch is not None:
+        target = dsh_path_within(candidate, profile_patch)
+        if managed_root != "dsh/managed" or not isinstance(profile_patch, str) or not profile_patch.startswith("dsh/managed/") or target is None or not is_nonempty_regular_file(target, root) or not isinstance(dsh_yaml(root, target, allow_js=True), list):
+            errors.append(issue("DSH_PROFILE_INVALID", "profile_patch 必须指向候选受控目录中的可解析 patch 列表", relative(harness_path, root)))
+    for key in ("pending_delivery", "pending_cases"):
+        if key in loadable:
+            target = dsh_path_within(candidate, loadable[key])
+            if target is None or not is_nonempty_regular_file(target, root):
+                errors.append(issue("DSH_LOADABLE_ASSETS", "%s 必须是候选内存在的普通文件" % key, relative(harness_path, root)))
+    lock_ref = loadable.get("runtime_lock")
+    lock_path = dsh_path_within(candidate, lock_ref)
+    if lock_ref != "runtime.lock.json" or lock_path is None or not is_nonempty_regular_file(lock_path, root):
+        errors.append(issue("DSH_SOURCE_LOCK", "runtime_lock 必须指向候选内的 runtime.lock.json", relative(harness_path, root)))
+    else:
+        try:
+            lock = load_json_object(root, lock_path)
+        except (OSError, UnicodeError, ValueError, TypeError):
+            lock = {}
+        source_commit = lock.get("source_commit")
+        image_digest = lock.get("image_digest")
+        if (lock.get("agent_id") != agent_id or lock.get("experiment_id") != experiment.name
+            or lock.get("runtime_family") != "dsh" or lock.get("container_only") is not True
+            or not ((isinstance(source_commit, str) and re.fullmatch(r"[0-9a-f]{40}", source_commit))
+                    or (isinstance(image_digest, str) and re.fullmatch(r"sha256:[0-9a-f]{64}", image_digest)))):
+            errors.append(issue("DSH_SOURCE_LOCK", "Runtime lock 必须绑定身份、容器内 DSH 和不可变来源", relative(lock_path, root)))
+    preset_id = loadable.get("preset_id")
+    if not isinstance(preset_id, str) or not KEBAB_RE.fullmatch(preset_id):
+        errors.append(issue("DSH_PRESET_INVALID", "preset_id 必须是有效的 Preset 身份", relative(harness_path, root)))
+        return
+    preset_dir = dsh / "presets" / preset_id
+    metadata = dsh_yaml(root, preset_dir / "preset.yml")
+    plugins = dsh_yaml(root, preset_dir / "agent.cordis.yml")
+    if not isinstance(metadata, dict) or not all(isinstance(metadata.get(key), str) and metadata[key].strip() for key in ("name", "description")):
+        errors.append(issue("DSH_PRESET_INVALID", "Preset 元数据缺少名称或说明", relative(preset_dir / "preset.yml", root)))
+    if not isinstance(plugins, list) or not plugins:
+        errors.append(issue("DSH_PRESET_INVALID", "Preset 必须是非空插件列表", relative(preset_dir / "agent.cordis.yml", root)))
+    else:
+        ids: Set[str] = set()
+        for plugin in plugins:
+            if (not isinstance(plugin, dict) or not isinstance(plugin.get("id"), str) or not plugin["id"].strip()
+                or not isinstance(plugin.get("name"), str) or not plugin["name"].strip()
+                or not isinstance(plugin.get("disabled"), bool) or plugin["id"] in ids):
+                errors.append(issue("DSH_PRESET_INVALID", "Preset 插件须有唯一 ID、名称和显式 disabled 状态", relative(preset_dir / "agent.cordis.yml", root)))
+            else:
+                ids.add(plugin["id"])
+    if not dsh.is_dir() or dsh.is_symlink():
+        errors.append(issue("DSH_ENTRYPOINT_MISSING", "缺少 DSH 候选装载目录", relative(dsh, root)))
+    for path in files_below(dsh, asset_files):
+        rel = path.relative_to(dsh)
+        if ".claude" in rel.parts or path.name == "CLAUDE.md":
+            errors.append(issue("DSH_LEGACY_ACTIVE_ASSET", "旧宿主活动配置不得进入 DSH 装载树", relative(path, root)))
+        if path.name == ".env":
+            try:
+                dotenv_text = read_text_limited(root, path)
+            except (OSError, UnicodeError, ValueError):
+                dotenv_text = None
+            if dotenv_text != DSH_BOOTSTRAP_DENY_TEXT:
+                errors.append(issue("DSH_WORKSPACE_DOTENV", "DSH 装载树中的 .env 只能是无变量的注释挂载目标", relative(path, root)))
+        if path.suffix.lower() in TEXT_SUFFIXES:
+            try:
+                text = read_text_limited(root, path)
+            except (OSError, UnicodeError, ValueError):
+                continue
+            if re.search(r"\b(?:dontAsk|allowUnsandboxedCommands|permissionMode)\b", text):
+                errors.append(issue("DSH_LEGACY_PERMISSION", "DSH 装载树不得继承旧宿主权限开关", relative(path, root)))
+
+
+def validate_security_migration_candidate(
+    root: Path,
+    experiment: Path,
+    errors: List[Dict[str, str]],
+    asset_files: Sequence[Path],
+) -> None:
+    """仅检查首个安全运营旧资产迁移的受控业务组合。"""
 
     candidate = experiment / "candidate"
     dsh = candidate / "dsh"
     agent_id = EXPERIMENT_RE.fullmatch(experiment.name).group(1) if EXPERIMENT_RE.fullmatch(experiment.name) else None
     if agent_id != "security-operations-expert":
-        errors.append(issue("DSH_CANDIDATE_UNSUPPORTED", "当前 DSH 静态契约只覆盖受控的 security-operations-expert 迁移候选", relative(dsh, root)))
         return
 
     harness_path = candidate / "harness.yaml"
@@ -1159,9 +1292,6 @@ def validate_dsh_candidate(
         errors.append(issue("DSH_RUNTIME_CONTRACT", "容器路径和 Candidate RW/RO 边界必须与固定契约一致", relative(harness_path, root)))
     if not isinstance(promotion, dict) or any(promotion.get(key) is not False for key in ("baseline_created", "release_created", "current_created")) or promotion.get("delivery_status") == "pass":
         errors.append(issue("DSH_PREMATURE_PROMOTION", "待整改迁移候选不得声明 Baseline/Release/current 或通过结论", relative(harness_path, root)))
-    manifest_values, manifest_error = parse_flat_manifest(root, root / "agents" / agent_id / "manifest.yaml")
-    if manifest_error or not manifest_values or manifest_values.get("active_experiment") != experiment.name or manifest_values.get("lifecycle_status") != "experiment" or manifest_values.get("runtime_family") != "dsh" or manifest_values.get("load_mode") != "container-only" or any(key in manifest_values for key in ("current_release", "release_id", "current_version", "release_version")):
-        errors.append(issue("DSH_PREMATURE_PROMOTION", "Agent manifest 必须只指向当前 DSH Experiment，不能提前绑定 Release", relative(root / "agents" / agent_id / "manifest.yaml", root)))
     try:
         candidate_lock = load_json_object(root, candidate / "runtime.lock.json")
     except (OSError, UnicodeError, ValueError, TypeError):
@@ -1182,18 +1312,6 @@ def validate_dsh_candidate(
         errors.append(issue("DSH_WORKSPACE_DOTENV", "Candidate workspace/.env 只能是精确注释挂载目标，不得承载变量或凭据", relative(workspace_dotenv, root)))
     if not (root / "runtime" / "adapters" / "dsh-container").is_dir():
         errors.append(issue("DSH_ADAPTER_ENTRYPOINT", "DSH Candidate 必须绑定可检查的容器薄适配层", "runtime/adapters/dsh-container"))
-    for path in files_below(dsh, asset_files):
-        rel = path.relative_to(dsh)
-        if ".claude" in rel.parts or path.name == "CLAUDE.md":
-            errors.append(issue("DSH_LEGACY_ACTIVE_ASSET", "旧宿主活动配置不得进入 DSH 装载树", relative(path, root)))
-        if path.suffix.lower() in TEXT_SUFFIXES:
-            try:
-                text = read_text_limited(root, path)
-            except (OSError, UnicodeError, ValueError):
-                continue
-            if re.search(r"\b(?:dontAsk|allowUnsandboxedCommands|permissionMode)\b", text):
-                errors.append(issue("DSH_LEGACY_PERMISSION", "DSH 装载树不得继承旧宿主权限开关", relative(path, root)))
-
     skills = dsh / "workspace" / ".agents" / "skills"
     skill_dirs = list(child_directories(root, skills, errors, "DSH_SKILL_DIRECTORY"))
     if not skill_dirs:
@@ -1919,7 +2037,7 @@ def validate_runtime_roots(root: Path, errors: List[Dict[str, str]]) -> None:
 
 def validate_dsh_adapter(root: Path, adapter: Path, errors: List[Dict[str, str]]) -> None:
     required = (
-        "Dockerfile", "source.lock.json", "build-image.sh", "authoring.compose.yaml",
+        "Dockerfile", "source.lock.json", "sources.json", "source_contract.py", "preflight-access.py", "build-image.sh", "authoring.compose.yaml",
         "verification.compose.yaml", "prepare-verification-home.mjs",
         "verify-load.mjs", "verify-load.sh", "tree-digest.mjs", "mutation-receipt.py",
         "verification-home-controls/locked-user.patch.yml",
@@ -1941,29 +2059,17 @@ def validate_dsh_adapter(root: Path, adapter: Path, errors: List[Dict[str, str]]
             errors.append(issue("DSH_ADAPTER_PINNED_FILE", "安全关键适配文件身份变化；须重新审查并同步门禁摘要，静态身份不代表业务验收", relative(path, root)))
     try:
         lock = load_json_object(root, adapter / "source.lock.json")
-        candidate_lock = load_json_object(root, root / "evolution" / "experiments" / "EXP-security-operations-expert-001" / "candidate" / "runtime.lock.json")
     except (OSError, UnicodeError, ValueError, TypeError):
-        errors.append(issue("DSH_SOURCE_LOCK", "Runtime 与 Candidate source lock 必须是无重复键、可解析的 JSON 对象", relative(adapter / "source.lock.json", root)))
+        errors.append(issue("DSH_SOURCE_LOCK", "Runtime source lock 必须是无重复键、可解析的 JSON 对象", relative(adapter / "source.lock.json", root)))
         return
-    paired = {
-        "repository": "official_source",
-        "commit": "source_commit",
-        "tree": "source_tree",
-        "cli_package": "cli_package",
-        "cli_version": "cli_version",
-        "package_manager": "package_manager",
-        "pnpm_lock_sha256": "pnpm_lock_sha256",
-        "platform": "platform",
-    }
-    if lock.get("schema_version") != "1.0" or candidate_lock.get("schema_version") != "1.0" or any(lock.get(key) != candidate_lock.get(other) for key, other in paired.items()) or lock.get("node_base") != "node:24-bookworm-slim@" + str(candidate_lock.get("node_base_oci_index_digest")) or candidate_lock.get("container_only") is not True or candidate_lock.get("runtime_family") != "dsh":
-        errors.append(issue("DSH_SOURCE_LOCK", "Adapter 和 Candidate 必须锁定同一 DSH 源码、依赖与 Node 镜像身份", relative(adapter / "source.lock.json", root)))
     commit = lock.get("commit")
     tree = lock.get("tree")
     lock_sha = lock.get("pnpm_lock_sha256")
     image_tag = lock.get("local_image_tag")
-    if not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit) or not isinstance(tree, str) or not re.fullmatch(r"[0-9a-f]{40}", tree) or not isinstance(lock_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", lock_sha) or not isinstance(image_tag, str) or image_tag != "ai-agent-harness/dsh:" + commit[:9]:
+    if lock.get("schema_version") != "1.0" or not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit) or not isinstance(tree, str) or not re.fullmatch(r"[0-9a-f]{40}", tree) or not isinstance(lock_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", lock_sha) or not isinstance(image_tag, str) or image_tag != "ai-agent-harness/dsh:" + commit[:9] or not isinstance(lock.get("node_base"), str) or not re.fullmatch(r"node:[^@]+@sha256:[0-9a-f]{64}", lock["node_base"]):
         errors.append(issue("DSH_SOURCE_LOCK", "源码提交、树、依赖摘要和本地镜像标识必须完整且固定", relative(adapter / "source.lock.json", root)))
         return
+    default_source = validate_dsh_source_catalog(root, adapter, lock, errors)
     try:
         dockerfile = read_text_limited(root, adapter / "Dockerfile")
         build_script = read_text_limited(root, adapter / "build-image.sh")
@@ -1974,8 +2080,11 @@ def validate_dsh_adapter(root: Path, adapter: Path, errors: List[Dict[str, str]]
         errors.append(issue("DSH_SOURCE_LOCK", "Dockerfile、构建与 HOME/Probe 脚本必须是可读取的仓库文件", relative(adapter, root)))
         return
     for expected in (
-        str(lock.get("node_base")), commit, lock_sha, "COPY --from=dsh_source",
-        "pnpm install --frozen-lockfile",
+        "ARG DSH_NODE_BASE", "FROM ${DSH_NODE_BASE}", "ARG DSH_CLIENT_COMMIT_HASH",
+        "ARG DSH_LOCK_SHA256", "ARG DSH_CLI_VERSION", "ARG DSH_PACKAGE_MANAGER",
+        "sha256sum pnpm-lock.yaml", '"$DSH_LOCK_SHA256"',
+        '"$DSH_CLI_VERSION"', 'corepack prepare "$DSH_PACKAGE_MANAGER"',
+        "COPY --from=dsh_source", "pnpm install --frozen-lockfile",
         "prepare-verification-home.mjs /opt/dsh-adapter/prepare-verification-home.mjs",
     ):
         if expected not in dockerfile:
@@ -2030,17 +2139,82 @@ def validate_dsh_adapter(root: Path, adapter: Path, errors: List[Dict[str, str]]
     )
     if any(marker not in probe_invocation for marker in invocation_safety):
         errors.append(issue("DSH_PROBE_INVOCATION", "宿主核验脚本必须先核镜像脚本、再运行 home-init 和受控 Probe", relative(adapter / "verify-load.sh", root)))
-    for expected in (commit, tree, lock_sha, image_tag, "--build-context", "--load"):
+    for expected in (
+        'source_contract.py" --source "$task_source_id"',
+        'git -C "$task_source_dir" fetch --depth=1 origin "$task_source_commit"',
+        '"$task_source_tree"', '"$task_lock_sha"',
+        'DSH_CLIENT_COMMIT_HASH=$task_source_commit', 'DSH_LOCK_SHA256=$task_lock_sha',
+        'DSH_CLI_VERSION=$task_cli_version', 'DSH_PACKAGE_MANAGER=$task_package_manager',
+        'DSH_NODE_BASE=$task_node_base', "--build-context", "--load",
+    ):
         if expected not in build_script:
-            errors.append(issue("DSH_SOURCE_LOCK", "构建脚本必须核对固定源码后再构建本地镜像", relative(adapter / "build-image.sh", root)))
+            errors.append(issue("DSH_SOURCE_LOCK", "构建脚本必须由来源合同获取固定源码/依赖身份并核对后构建", relative(adapter / "build-image.sh", root)))
             break
 
     compatibility = dsh_yaml(root, root / "runtime" / "compatibility.yaml")
     if not isinstance(compatibility, dict) or compatibility.get("runtime_source_commit") != commit or compatibility.get("runtime_version") != lock.get("cli_version") or compatibility.get("profile") != "web" or compatibility.get("agent_mount_scope") != "container-only":
         errors.append(issue("DSH_RUNTIME_COMPATIBILITY", "runtime/compatibility.yaml 必须与锁定的容器 DSH 身份一致", "runtime/compatibility.yaml"))
     validate_dsh_verification_home_controls(root, adapter, errors)
-    for mode in ("authoring", "verification"):
-        validate_dsh_compose(root, adapter, mode, image_tag, errors)
+    if default_source is not None:
+        for mode in ("authoring", "verification"):
+            validate_dsh_compose(root, adapter, mode, image_tag, default_source, errors)
+
+
+def validate_dsh_source_catalog(root: Path, adapter: Path, lock: Mapping[str, object], errors: List[Dict[str, str]]) -> Optional[Dict[str, object]]:
+    path = adapter / "sources.json"
+    try:
+        catalog = load_json_object(root, path)
+    except (OSError, UnicodeError, ValueError, TypeError):
+        errors.append(issue("DSH_SOURCE_CATALOG", "来源目录必须是无重复键 JSON 对象", relative(path, root)))
+        return None
+    sources = catalog.get("sources")
+    if catalog.get("schema_version") != "1.0" or not isinstance(sources, dict) or not sources:
+        errors.append(issue("DSH_SOURCE_CATALOG", "来源目录必须声明 schema 1.0 和非空 sources", relative(path, root)))
+        return None
+    required = {"agent_id", "candidate_root", "profile", "patch", "preset", "guard", "config_markers", "required_env_names"}
+    for source_id, item in sources.items():
+        match = EXPERIMENT_RE.fullmatch(source_id) if isinstance(source_id, str) else None
+        expected_root = "evolution/experiments/%s/candidate/dsh" % source_id
+        if not match or not isinstance(item, dict) or set(item) != required or item.get("agent_id") != match.group(1) or item.get("candidate_root") != expected_root or item.get("profile") != "web":
+            errors.append(issue("DSH_SOURCE_CATALOG", "来源身份、候选根、web Profile 或字段不符合合同", relative(path, root)))
+            continue
+        candidate_dsh = root / expected_root
+        for key, folder in (("patch", "managed"), ("preset", "presets"), ("guard", "managed")):
+            part = item[key]
+            if key == "guard" and part is None:
+                continue
+            target = dsh_path_within(candidate_dsh / folder, part)
+            if target is None or not is_nonempty_regular_file(target, root):
+                errors.append(issue("DSH_SOURCE_CATALOG", "%s 必须指向所选候选内存在的受控文件" % key, relative(path, root)))
+        for key in ("config_markers", "required_env_names"):
+            values = item[key]
+            if not isinstance(values, list) or (key == "config_markers" and not values) or any(not isinstance(value, str) or not value for value in values) or len(values) != len(set(values)):
+                errors.append(issue("DSH_SOURCE_CATALOG", "%s 必须为合法无重复字符串列表" % key, relative(path, root)))
+            elif key == "required_env_names" and any(not re.fullmatch(r"[A-Z][A-Z0-9_]*", value) for value in values):
+                errors.append(issue("DSH_SOURCE_CATALOG", "环境变量只能以名称引用，不能内联值", relative(path, root)))
+        try:
+            candidate_lock = load_json_object(root, candidate_dsh.parent / "runtime.lock.json")
+        except (OSError, UnicodeError, ValueError, TypeError):
+            candidate_lock = {}
+        paired = {
+            "repository": "official_source", "commit": "source_commit", "tree": "source_tree",
+            "cli_package": "cli_package", "cli_version": "cli_version",
+            "package_manager": "package_manager", "pnpm_lock_sha256": "pnpm_lock_sha256",
+            "platform": "platform",
+        }
+        if (candidate_lock.get("schema_version") != "1.0" or candidate_lock.get("agent_id") != item["agent_id"]
+            or candidate_lock.get("experiment_id") != source_id or candidate_lock.get("runtime_family") != "dsh"
+            or candidate_lock.get("container_only") is not True
+            or any(lock.get(key) != candidate_lock.get(other) for key, other in paired.items())
+            or lock.get("node_base") != "node:24-bookworm-slim@" + str(candidate_lock.get("node_base_oci_index_digest"))
+            or candidate_lock.get("profile") != item["profile"]
+            or candidate_lock.get("profile_patch") != "dsh/managed/" + str(item["patch"])):
+            errors.append(issue("DSH_SOURCE_LOCK", "来源目录、Adapter 锁与 Candidate 锁须绑定同一 DSH 组合", relative(candidate_dsh.parent / "runtime.lock.json", root)))
+    default = sources.get(SECURITY_MIGRATION_EXPERIMENT)
+    if not isinstance(default, dict):
+        errors.append(issue("DSH_SOURCE_CATALOG", "默认迁移来源必须在 sources.json 中明确声明", relative(path, root)))
+        return None
+    return default
 
 
 def validate_dsh_verification_home_controls(root: Path, adapter: Path, errors: List[Dict[str, str]]) -> None:
@@ -2101,8 +2275,16 @@ def validate_dsh_verification_home_controls(root: Path, adapter: Path, errors: L
         errors.append(issue("DSH_MODULE_DENY_CONTENT", "受控 Node deny-layer 目录只能包含固定 POLICY.md，禁止包/Plugin/可执行代码", relative(module_deny, root)))
 
 
-def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str, errors: List[Dict[str, str]]) -> None:
+def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str,
+                         source: Mapping[str, object], errors: List[Dict[str, str]]) -> None:
     path = adapter / (mode + ".compose.yaml")
+    if (not isinstance(source.get("patch"), str)
+        or not isinstance(source.get("candidate_root"), str)
+        or source.get("profile") != "web"
+        or not isinstance(source.get("required_env_names"), list)
+        or any(not isinstance(name, str) for name in source["required_env_names"])):
+        errors.append(issue("DSH_SOURCE_CATALOG", "默认来源缺少可用于 Compose 的受控装载字段", relative(path, root)))
+        return
     doc = dsh_yaml(root, path)
     if not isinstance(doc, dict):
         errors.append(issue("DSH_COMPOSE_INVALID", "Compose 必须是可安全解析的 YAML mapping", relative(path, root)))
@@ -2113,7 +2295,9 @@ def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str, e
     if not isinstance(services, dict) or set(services) != expected_services or not isinstance(service, dict):
         errors.append(issue("DSH_COMPOSE_INVALID", "Compose 只能定义阶段需要的受控 dsh/home-init 服务", relative(path, root)))
         return
-    validate_dsh_home_init(root, adapter, mode, services.get("home-init"), image_tag, errors)
+    image_expression = "${DSH_IMAGE_TAG:-" + image_tag + "}"
+    patch_expression = "${DSH_MANAGED_PATCH:-/opt/dsh-managed/" + str(source["patch"]) + "}"
+    validate_dsh_home_init(root, adapter, mode, services.get("home-init"), image_expression, errors)
     if service.get("depends_on") != {"home-init": {"condition": "service_completed_successfully"}}:
         code = "DSH_AUTHORING_HOME_INIT" if mode == "authoring" else "DSH_VERIFICATION_HOME_INIT"
         errors.append(issue(code, "DSH 必须等待阶段独立的受控 home-init 成功完成", relative(path, root)))
@@ -2123,12 +2307,12 @@ def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str, e
         "tmpfs", "environment", "entrypoint", "command", "volumes",
     }
     dangerous = {"ports", "expose", "devices", "privileged", "network_mode", "pid", "ipc", "userns_mode", "docker_socket", "build", "env_file", "extends"}
-    if set(service) != expected_service_keys or any(key in service for key in dangerous) or service.get("read_only") is not True or service.get("cap_drop") != ["ALL"] or service.get("security_opt") != ["no-new-privileges:true"] or service.get("pull_policy") != "never" or service.get("image") != image_tag or service.get("working_dir") != "/work/harness/workspace" or service.get("user") != "1000:1000" or service.get("init") is not True or type(service.get("pids_limit")) is not int or service.get("pids_limit") != 256 or service.get("tmpfs") != ["/tmp:rw,nosuid,nodev,size=64m,mode=1777"]:
+    if set(service) != expected_service_keys or any(key in service for key in dangerous) or service.get("read_only") is not True or service.get("cap_drop") != ["ALL"] or service.get("security_opt") != ["no-new-privileges:true"] or service.get("pull_policy") != "never" or service.get("image") != image_expression or service.get("working_dir") != "/work/harness/workspace" or service.get("user") != "1000:1000" or service.get("init") is not True or type(service.get("pids_limit")) is not int or service.get("pids_limit") != 256 or service.get("tmpfs") != ["/tmp:rw,nosuid,nodev,size=64m,mode=1777"]:
         errors.append(issue("DSH_COMPOSE_ISOLATION", "容器必须无宿主端口/socket/特权，根文件系统只读并锁定本地镜像", relative(path, root)))
     expected_entrypoint = ["node", "--expose-internals", "/opt/dsh/apps/cli/lib/bin.js"]
     if service.get("entrypoint") != expected_entrypoint:
         errors.append(issue("DSH_COMPOSE_ENTRYPOINT", "两种模式的主 DSH 只能以审查过的 node --expose-internals CLI 向量启动，不得省略或增加 Node flag", relative(path, root)))
-    if service.get("command") != ["--profile", "web", "--patch", "/opt/dsh-managed/security-operations-expert.patch.yml", "--no-open"]:
+    if service.get("command") != ["--profile", source["profile"], "--patch", patch_expression, "--no-open"]:
         errors.append(issue("DSH_COMPOSE_LOAD", "Compose 必须从受控 web Profile patch 装载 Candidate", relative(path, root)))
     environment = service.get("environment")
     if isinstance(environment, list) and any(isinstance(value, str) and value.split("=", 1)[0] == "NODE_OPTIONS" for value in environment):
@@ -2138,8 +2322,7 @@ def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str, e
         "DSH_HARNESS_MODE=" + mode,
         "DSH_PERMISSION_MODE=" + ("workspace-write" if mode == "authoring" else "read-only"),
         "DSH_TELEMETRY_DISABLED=1",
-        "DEEPSEEK_API_KEY",
-        *DSH_CREDENTIAL_KEYS,
+        *source["required_env_names"],
     }
     if not isinstance(environment, list) or any(not isinstance(value, str) for value in environment) or len(environment) != len(required_env) or set(environment) != required_env:
         errors.append(issue("DSH_COMPOSE_ENV", "DSH_HOME、模式、MCP 凭据和模型密钥只能由白名单 Runtime 环境注入，不得内联值", relative(path, root)))
@@ -2150,7 +2333,7 @@ def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str, e
         "/opt/dsh-presets": "presets",
         "/opt/dsh-managed": "managed",
     }
-    candidate_dsh = root / "evolution" / "experiments" / "EXP-security-operations-expert-001" / "candidate" / "dsh"
+    candidate_dsh = root / str(source["candidate_root"])
     controlled_targets = {
         "/var/lib/dsh/cordis.patch.yml": "./verification-home-controls/locked-user.patch.yml",
         "/var/lib/dsh/profiles/web/cordis.patch.yml": "./verification-home-controls/locked-user.patch.yml",
@@ -2192,7 +2375,6 @@ def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str, e
                 errors.append(issue("DSH_MODULE_SHADOW_MOUNT", "三处可写 HOME Node 解析目录必须由受控无包目录精确只读覆盖", relative(path, root)))
             continue
         if target in controlled_targets:
-            source = volume.get("source")
             expected_source = controlled_targets[target]
             source_ok = (is_empty_regular_file(adapter / expected_source, root) if target == "/var/lib/dsh/AGENTS.md" else is_nonempty_regular_file(adapter / expected_source, root))
             if not strict_json_equal(volume, {"type": "bind", "source": expected_source, "target": target, "read_only": True}) or not source_ok:
@@ -2200,8 +2382,11 @@ def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str, e
                 errors.append(issue(code, "受控用户 Patch、manifest、全局指令和双 .env 必须精确来源且只读挂载", relative(path, root)))
             continue
         component = expected_sources.get(target)
-        source = volume.get("source")
-        if component is None or volume.get("type") != "bind" or not isinstance(source, str) or "docker.sock" in source or (adapter / source).resolve() != candidate_dsh / component or volume.get("read_only") is not (mode == "verification" or component != "workspace"):
+        volume_source = volume.get("source")
+        default_source = os.path.relpath(candidate_dsh / component, adapter) if component else None
+        variable = {"workspace": "DSH_WORKSPACE_HOST", "presets": "DSH_PRESETS_HOST", "managed": "DSH_MANAGED_HOST"}.get(component)
+        expected_source = "${" + variable + ":-" + default_source + "}" if variable else None
+        if component is None or volume.get("type") != "bind" or volume_source != expected_source or volume.get("read_only") is not (mode == "verification" or component != "workspace"):
             errors.append(issue("DSH_COMPOSE_MOUNTS", "只允许精确 Candidate 工作区/预设/受控配置挂载及对应 RW/RO", relative(path, root)))
     expected_targets = set(expected_sources) | {"/var/lib/dsh", "/var/lib/dsh/profiles/node_modules"} | module_deny_targets | set(controlled_targets)
     if seen_targets != expected_targets:

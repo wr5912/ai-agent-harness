@@ -1,6 +1,6 @@
 # 项目规范解释与裁决
 
-本文将三项锁定来源应用到 `ai-agent-harness`，解决其在 Baseline、Experiment、Acceptance、Eval Set、Release/current 和 DSH 装载方面的命名或目录歧义。本文是项目级解释，不修改受控原文，也不得降低上游安全、评估或发布门禁。
+本文将三项锁定来源应用到 `ai-agent-harness`，解决其在研究快照、Baseline、Experiment、Acceptance、Eval Set、Release/current 和 DSH 装载方面的命名或目录歧义。本文是项目级解释，不修改受控原文，也不得降低上游安全、评估或发布门禁。
 
 ## 1. 来源优先级
 
@@ -13,7 +13,9 @@
 
 若来源发生实质冲突，先按适用范围区分。仍无法消解时，安全与证据采用更严格规则，并暂停相关 Candidate 晋升或 Release，等待维护者记录裁决；不得静默采用较宽松规则。
 
-## 2. 两种 Baseline 的统一语义
+## 2. 研究快照与两种 Baseline
+
+研究中需要比较或派生时，可以物化**可还原研究快照**：保存候选源码和所需插件/配置的真实字节或可取回的不可变引用、内容摘要、来源 Experiment、DSH/构建依赖身份及已知的评估状态。它允许源未评估、失败或证据不足，但不能沿用源的通过结论。研究快照不是 `bl-<UUIDv4>` 候选基线，不要求已具备正式评估的完整冻结项，也不能直接晋升 Release；若未来需要为其建立独立机器 Schema，应先升级校验器和测试。
 
 | 名称 | 标识与位置 | 形成时间 | 含义 |
 |---|---|---|---|
@@ -26,6 +28,7 @@
 - 稳定资产 Baseline 是仓库生命周期状态，不得用尚未执行的模板、旧归档或“看起来可用”的配置占位。
 - 新建 Agent 没有既有稳定资产 Baseline 时，起点可以明确记录为 `N/A（首次交付）`，随后从 Task/Acceptance 建立第一个 Experiment 和 Candidate。
 - 任一冻结项变化都形成新的候选基线；旧运行保留为历史证据，不能覆盖或改写。
+- 研究快照用于内容恢复和对照；正式候选基线还必须冻结需求/AC、Eval Set、评分与执行规则、Runtime 有效投影和环境等锁定规范规定的全部项目。只凭 Git HEAD、文件摘要或只读挂载，不足以证明研究内容可恢复或正式运行期间内容不变。
 
 ## 3. Experiment 与开发路径
 
@@ -36,7 +39,7 @@ Experiment 的 `development_path` 只能为：
 - `direct`：任务、验收、路线和影响范围已经明确，不存在会改变实施路线的关键不确定性。直接实现并运行受影响范围的针对性检查。
 - `exploration`：存在会改变实施路线的关键不确定性。先记录问题、预期结果、停止条件和不可降低的安全红线，再用 5～20 个真实或高度接近真实的样本探索。
 
-`direct` 不等于绕过 Experiment；`exploration` 的样本和结果也不能替代正式 Eval。两条路径最终都要形成 Candidate、冻结 `baseline_id`、完整执行本次正式评估范围并接受规定复核。
+`direct` 不等于绕过 Experiment；`exploration` 的样本和结果也不能替代正式 Eval。研究实验可以记录为继续、不采用、停止或证据不足，保留假设、候选、逐样本观察、失败原因和下一步，不需要为未交付的研究强制生成 `baseline_id` 或 Release。选择进入正式交付时，两条开发路径均须补齐已确认的全部 `REQ/AC`、完整候选基线冻结项、本次正式评估范围及规定复核；探索结果不能冒充这些结论。实验结束状态和内容引用若要进入机器契约，须由校验器及测试明确支持，不靠文档字段自行生效。
 
 ## 4. Acceptance 唯一事实源
 
@@ -82,17 +85,18 @@ agents/<agent-id>/delivery/eval/results.csv
 
 ## 6. Candidate、Release 与 current
 
-晋升关系如下：
+研究与交付的关系如下：
 
 ```text
-Experiment Candidate
-→ 冻结候选基线 baseline_id
-→ 正式自测通过
-→ 完成与风险相匹配的 R1/R2/R3 复核
-→ 交付评估通过
-→ 生成 releases/<agent-id>-v<semver>/
-→ 生成同摘要的稳定资产 Baseline 和 current 校验镜像
+Experiment Candidate ──→ 可还原研究快照 ──→ 比较/派生新 Experiment 或记录停止结论
+        │
+        └─ 进入正式交付 → 冻结完整候选基线 baseline_id → 正式自测通过
+                       → 完成与风险相匹配的 R1/R2/R3 复核 → 交付评估通过
+                       → 生成 releases/<agent-id>-v<semver>/
+                       → 生成同摘要的稳定资产 Baseline 和 current 校验镜像
 ```
+
+研究快照可作为 Variant 研究的来源；生产/正式发布只能使用经过同一候选基线完整交付评估的 Release。源 Release 也可供研究派生，但源的评估结论不转移给目标 Candidate。
 
 Release 是可部署 Harness Artifact，不是 Git Tag。每个 Release 必须：
 
@@ -120,7 +124,9 @@ Release 是可部署 Harness Artifact，不是 Git Tag。每个 Release 必须�
 | Candidate Verification | 冻结用于验证的 Candidate 快照 RO | 受控配置 RO；运行态数据独立 | 核实际镜像/Profile/路径/摘要和局部装载；结果仍是探索或候选技术证据 |
 | Release/生产 | 具体 Release 全部 RO；生产 DSH 不自修改 | 受控配置 RO；凭据只由 Runtime 注入 | 只挂不可变 `releases/<agent-id>-v<semver>/`；反馈回新 Experiment |
 
-Authoring 中的模型写入不能授予执行权限、改变 `AC-xxx` 阈值、修改正式 Eval、冻结候选基线、发布 Release 或覆盖历史。模型外 Runtime/领域服务须独立核验租户、对象、参数、数量、幂等、审批、失败安全和审计；Prompt 和静态文件声明都不等于这些控制已经落实。
+Authoring 中的模型写入不能授予执行权限、改变 `AC-xxx` 阈值、修改正式 Eval、冻结候选基线、发布 Release 或覆盖历史。研究者可在新候选源码中修改 Preset、Profile/Patch、插件及非秘密依赖声明，但受控运行配置在当前容器内仍只读；这些修改须经宿主侧复核、构建和新容器/新 Session 装载后才可观察生效，不暗示热更新。模型外 Runtime/领域服务须独立核验租户、对象、参数、数量、幂等、审批、失败安全和审计；Prompt 和静态文件声明都不等于这些控制已经落实。
+
+插件研究至少区分源码来源和版本、构建产物及其依赖摘要、插件入口、Bundle/Patch/Profile 顺序、DSH 兼容范围和实际展开的有效配置。包存在不等于插件已激活；比较运行须记录实际装载结果。研究用内容快照应覆盖未提交及必要的未跟踪资产，并从快照的只读副本启动验证；仅在可变工作目录上加只读容器挂载，不能阻止宿主同时修改源目录。
 
 正式 Trial 还须冻结并记录 Runtime 的**有效投影**：实际模型/provider/reasoning effort、模型 `baseURL` 与重试参数、Session 采用的 permission preset、Agent preset、Profile 和隔离的新 Session 身份。`DSH_HOME/settings.yaml` 是运行态 typed namespace，不整体当作 Harness 制品，也不能因 Profile/Plugin 名单未变就忽略其中的模型、请求终点或权限默认值变化。环境变量、MCP 端点、凭据标识和网络代理须记录受信来源与有效值的非秘密摘要；不得让工作区或数据卷中的 `.env` 悄悄补齐/覆盖这些输入。运行态凭据和会话历史不进入 Release；一旦有效投影偏离本次候选基线，停止该次正式结论并重新确定冻结组合。
 

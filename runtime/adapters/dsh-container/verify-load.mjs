@@ -10,6 +10,19 @@ const mode = process.env.DSH_HARNESS_MODE
 if (mode !== 'authoring' && mode !== 'verification') {
   throw new Error('DSH_HARNESS_MODE must be authoring or verification')
 }
+let source
+try {
+  source = JSON.parse(process.env.DSH_EXPECT_SOURCE_JSON ?? '')
+} catch {
+  throw new Error('missing or invalid selected DSH source contract')
+}
+if (source?.schema_version !== '1.0' || !/^EXP-[a-z0-9-]+-[0-9]{3}$/.test(source.source_id)
+  || source.profile !== 'web' || !source.patch?.startsWith('/opt/dsh-managed/')
+  || !source.preset?.startsWith('/opt/dsh-presets/')
+  || (source.guard !== null && !source.guard?.startsWith('/opt/dsh-managed/'))
+  || !Array.isArray(source.config_markers) || source.config_markers.length === 0) {
+  throw new Error('selected DSH source contract is incomplete')
+}
 
 const roots = [
   { key: 'workspace', path: '/work/harness/workspace', expected: process.env.DSH_EXPECT_WORKSPACE_TREE_SHA },
@@ -200,32 +213,28 @@ moduleEvidence[fallbackPath] = {
 
 const dump = spawnSync(process.execPath, [
   '/opt/dsh/apps/cli/lib/bin.js',
-  '--profile', 'web',
-  '--patch', '/opt/dsh-managed/security-operations-expert.patch.yml',
+  '--profile', source.profile,
+  '--patch', source.patch,
   '--dump-config',
 ], {
   cwd: '/work/harness/workspace',
   encoding: 'utf8',
   maxBuffer: 32 * 1024 * 1024,
+  timeout: 20_000,
+  killSignal: 'SIGKILL',
 })
-if (dump.error || dump.status !== 0) {
+if (dump.error?.code === 'ETIMEDOUT') {
+  throw new Error('DSH profile composition timed out after 20 seconds; child was killed')
+}
+if (dump.error) {
+  throw new Error(`DSH profile composition could not start (${dump.error.code ?? 'unknown'})`)
+}
+if (dump.status !== 0) {
   // 不输出原始 stderr；它可能包含 MCP URL、Token 或其他私有配置。
   throw new Error(`DSH profile composition failed (exit=${String(dump.status ?? dump.signal)})`)
 }
 
-const markers = [
-  '/opt/dsh-presets',
-  '/work/harness/workspace/.agents/skills',
-  'security-operations-expert',
-  'security-operations-mcp-sec-ops',
-  'security-operations-mcp-inspection',
-  'security-operations-mcp-threat-analysis',
-  'security-operations-delegate-inspection',
-  'security-operations-delegate-fault-analysis',
-  'security-operations-delegate-response-planning',
-  'security-operations-delegate-threat-analysis',
-]
-for (const marker of markers) {
+for (const marker of source.config_markers) {
   if (!dump.stdout.includes(marker)) {
     throw new Error(`DSH composed config missing expected marker: ${marker}`)
   }
@@ -233,26 +242,28 @@ for (const marker of markers) {
 
 // --dump-config 只展开全局 Profile，不展开每个 Agent Preset 的 agent.cordis.yml。
 // 因此 Guard 仅能在本探针里核对 Preset 声明与挂载文件；实际插件激活须另取证。
-const presetConfig = readFileSync(
-  '/opt/dsh-presets/security-operations-expert/agent.cordis.yml',
-  'utf8',
-)
-if (!presetConfig.includes('/opt/dsh-managed/security-operations-guard.mjs')
-  || !existsSync('/opt/dsh-managed/security-operations-guard.mjs')) {
-  throw new Error('Preset Guard declaration or managed Guard file is missing')
+let guardPresent = false
+if (source.guard !== null) {
+  const presetConfig = readFileSync(source.preset, 'utf8')
+  if (!presetConfig.includes(source.guard) || !existsSync(source.guard)) {
+    throw new Error('Preset Guard declaration or managed Guard file is missing')
+  }
+  guardPresent = true
 }
 
 console.log(JSON.stringify({
   status: 'mount-and-config-composition-only',
+  source_id: source.source_id,
+  agent_id: source.agent_id,
   dsh_mode: mode,
-  profile: 'web',
-  patch: '/opt/dsh-managed/security-operations-expert.patch.yml',
+  profile: source.profile,
+  patch: source.patch,
   mounts: mountEvidence,
   dsh_home_mount_mode: 'rw',
   controlled_home_controls: homeControlEvidence,
   controlled_module_resolution: moduleEvidence,
   composed_config_sha256: `sha256:${createHash('sha256').update(dump.stdout).digest('hex')}`,
-  expected_markers_present: markers.length,
-  preset_guard_declaration_present: true,
+  expected_markers_present: source.config_markers.length,
+  preset_guard_declaration_present: guardPresent,
   limitations: 'Read-only HOME/Module/.env controls and a startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested.',
 }))

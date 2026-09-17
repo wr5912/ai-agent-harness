@@ -2,7 +2,7 @@ name: ai-agent-harness-dsh-verification
 
 services:
   home-init:
-    image: ai-agent-harness/dsh:c291e7961
+    image: ${DSH_IMAGE_TAG:-ai-agent-harness/dsh:c291e7961}
     pull_policy: never
     user: "1000:1000"
     network_mode: none
@@ -26,7 +26,7 @@ services:
         target: /var/lib/dsh/profiles/node_modules
 
   dsh:
-    image: ai-agent-harness/dsh:c291e7961
+    image: ${DSH_IMAGE_TAG:-ai-agent-harness/dsh:c291e7961}
     pull_policy: never
     init: true
     entrypoint: [node, --expose-internals, /opt/dsh/apps/cli/lib/bin.js]
@@ -58,19 +58,19 @@ services:
       - --profile
       - web
       - --patch
-      - /opt/dsh-managed/security-operations-expert.patch.yml
+      - ${DSH_MANAGED_PATCH:-/opt/dsh-managed/security-operations-expert.patch.yml}
       - --no-open
     volumes:
       - type: bind
-        source: ../../../evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace
+        source: ${DSH_WORKSPACE_HOST:-../../../evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace}
         target: /work/harness/workspace
         read_only: true
       - type: bind
-        source: ../../../evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/presets
+        source: ${DSH_PRESETS_HOST:-../../../evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/presets}
         target: /opt/dsh-presets
         read_only: true
       - type: bind
-        source: ../../../evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/managed
+        source: ${DSH_MANAGED_HOST:-../../../evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/managed}
         target: /opt/dsh-managed
         read_only: true
       - type: volume
