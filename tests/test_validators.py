@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import csv
 import hashlib
 import io
 import json
@@ -22,6 +21,9 @@ ROOT = Path(__file__).resolve().parents[1]
 INSPECT_SOURCE = ROOT / ".agents/skills/legacy-asset-intake/scripts/inspect_source.py"
 VALIDATE_REPOSITORY = ROOT / ".agents/skills/harness-evolution/scripts/validate_repository.py"
 VALIDATE_DELIVERY = ROOT / ".agents/skills/baseline-eval/scripts/validate_delivery.py"
+SOURCE_CONTRACT = ROOT / "runtime/adapters/dsh-container/source_contract.py"
+MUTATION_RECEIPT = ROOT / "runtime/adapters/dsh-container/mutation-receipt.py"
+RUN_RECORD = ROOT / "runtime/adapters/dsh-container/run_record.py"
 
 RESULT_HEADER = [
     "run_id",
@@ -60,6 +62,76 @@ TOP_LEVEL_SECTIONS = (
     "候选基线",
     "自测与交付评估报告",
 )
+
+FIXED_RUN_ID = "run-f47ac10b-58cc-4372-a567-0e02b2c3d479"
+TEST_EXPERIMENT_ID = "EXP-example-agent-001"
+
+
+def run_dir_for(project: Path, run_id: str = FIXED_RUN_ID) -> Path:
+    run_dir = project / "evolution" / "experiments" / TEST_EXPERIMENT_ID / "runs" / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    return run_dir
+
+
+def results_jsonl(project: Path, run_id: str = FIXED_RUN_ID) -> Path:
+    return run_dir_for(project, run_id) / "results.jsonl"
+
+
+def write_run_manifest(project: Path, run_id: str, baseline_id: str) -> None:
+    run_dir = run_dir_for(project, run_id)
+    (run_dir / "run.yaml").write_text(
+        "schema_version: \"1.0\"\n"
+        f"run_id: {run_id}\n"
+        f"experiment_id: {TEST_EXPERIMENT_ID}\n"
+        "agent_id: example-agent\n"
+        "kind: formal\n"
+        "status: completed\n"
+        f"snapshot_ref: snap-{uuid.uuid4()}\n"
+        f"baseline_id: {baseline_id}\n"
+        "created_at: 2026-09-15T00:00:00Z\n",
+        encoding="utf-8",
+    )
+    (run_dir / "inputs.lock.json").write_text(
+        json.dumps({"schema_version": "1.0", "baseline_id": baseline_id, "source": "test-fixture"}, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def read_jsonl_rows(path: Path) -> list[dict]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def write_jsonl_rows(path: Path, rows: list[dict]) -> None:
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+
+def _load_result_rows(project: Path, run_id: str = FIXED_RUN_ID) -> list[list[str]]:
+    """以 17 列文本行形式读取结果（含表头），便于沿用逐格变异逻辑。"""
+    rows = read_jsonl_rows(results_jsonl(project, run_id))
+    return [RESULT_HEADER] + [
+        [str(row.get(field, "")) for field in RESULT_HEADER] for row in rows
+    ]
+
+
+def _save_result_rows(project: Path, rows: list[list[str]], run_id: str = FIXED_RUN_ID) -> None:
+    """写回 17 列文本行；自动丢弃表头行。"""
+    data_rows = [
+        row for row in rows
+        if len(row) >= len(RESULT_HEADER) and row[:2] != ["run_id", "trial_id"]
+    ]
+    write_jsonl_rows(
+        results_jsonl(project, run_id),
+        [{field: row[index] for index, field in enumerate(RESULT_HEADER)} for row in data_rows],
+    )
+
+
+def _save_extra_run_rows(project: Path, run_id: str, rows: list[list[str]], baseline_id: str) -> None:
+    """把属于另一个 run_id 的行写入独立 Run 目录并补齐清单。"""
+    write_run_manifest(project, run_id, baseline_id)
+    _save_result_rows(project, rows, run_id=run_id)
 
 
 def run_json(
@@ -103,10 +175,11 @@ def write_delivery(
     actual_trials: int | None = None,
 ) -> None:
     delivery = project / "delivery"
-    eval_dir = delivery / "eval"
+    delivery.mkdir(parents=True, exist_ok=True)
+    eval_dir = project / "eval"
     eval_dir.mkdir(parents=True)
     baseline_id = f"bl-{uuid.uuid4()}"
-    run_id = f"run-{uuid.uuid4()}"
+    run_id = FIXED_RUN_ID
     scope_value = "一般门槛" if scope == "general" else "影响范围明确的有限交付"
     case_ids = [f"case-{index + 1:03d}" for index in range(case_count)]
     case_id_list = ", ".join(case_ids)
@@ -182,33 +255,33 @@ def write_delivery(
         encoding="utf-8",
     )
 
+    write_run_manifest(project, run_id, baseline_id)
     trial_count = required_trials if actual_trials is None else actual_trials
-    with (eval_dir / "results.csv").open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(RESULT_HEADER)
-        for case in cases:
-            for trial_index in range(trial_count):
-                writer.writerow(
-                    [
-                        run_id,
-                        f"trial-{case['id']}-{trial_index + 1}",
-                        case["id"],
-                        baseline_id,
-                        "pass",
-                        "",
-                        "false",
-                        "1",
-                        "1",
-                        "1",
-                        "0",
-                        "0",
-                        "0",
-                        "CNY",
-                        "test-model",
-                        "",
-                        f"evidence/{case['id']}/{trial_index + 1}",
-                    ]
-                )
+    rows = []
+    for case in cases:
+        for trial_index in range(trial_count):
+            rows.append(
+                {
+                    "run_id": run_id,
+                    "trial_id": f"trial-{case['id']}-{trial_index + 1}",
+                    "case_id": case["id"],
+                    "baseline_id": baseline_id,
+                    "status": "pass",
+                    "score": "",
+                    "safety_violation": "false",
+                    "duration_ms": "1",
+                    "input_tokens": "1",
+                    "output_tokens": "1",
+                    "tool_call_count": "0",
+                    "retry_count": "0",
+                    "cost_amount": "0",
+                    "cost_currency": "CNY",
+                    "resolved_model": "test-model",
+                    "failure_reason": "",
+                    "evidence_ref": f"evidence/{case['id']}/{trial_index + 1}",
+                }
+            )
+    write_jsonl_rows(results_jsonl(project, run_id), rows)
 
 
 def convert_to_split_delivery(project: Path) -> None:
@@ -223,12 +296,9 @@ def convert_to_split_delivery(project: Path) -> None:
 
 
 def remove_case_results(project: Path, case_id: str) -> None:
-    results = project / "delivery" / "eval" / "results.csv"
-    with results.open("r", encoding="utf-8", newline="") as handle:
-        rows = list(csv.reader(handle))
-    with results.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.writer(handle)
-        writer.writerows(row for row in rows if len(row) < 3 or row[2] != case_id)
+    results = results_jsonl(project)
+    rows = [row for row in read_jsonl_rows(results) if row.get("case_id") != case_id]
+    write_jsonl_rows(results, rows)
 
 
 def copy_initialized_repository(destination: Path) -> Path:
@@ -724,6 +794,7 @@ class RepositoryValidatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             clone = copy_initialized_repository(Path(temp))
             pending = clone / experiment / "delivery/eval"
+            pending.mkdir(parents=True, exist_ok=True)
             (pending / "cases.jsonl").write_text('{"id":"case-fake"}\n', encoding="utf-8")
             completed, payload = run_json(VALIDATE_REPOSITORY, clone)
         self.assertEqual(completed.returncode, 1)
@@ -1882,31 +1953,30 @@ class DeliveryValidatorTests(unittest.TestCase):
                 "| %s | %s | 完整评估范围 | %s | evidence/review | reviewer / 2026-09-15 | 否 |\n"
                 % (review_run, level, conclusion)
             )
-        results = project / "delivery" / "eval" / "results.csv"
-        with results.open("r", encoding="utf-8", newline="") as handle:
-            rows = list(csv.reader(handle))
+        rows = read_jsonl_rows(results_jsonl(project))
+        baseline_id = rows[0]["baseline_id"] if rows else f"bl-{uuid.uuid4()}"
         review_rows = []
         seen_cases: set[str] = set()
-        for row in rows[1:]:
-            if one_trial_per_case and row[2] in seen_cases:
+        for row in rows:
+            if one_trial_per_case and row["case_id"] in seen_cases:
                 continue
-            seen_cases.add(row[2])
-            copied = list(row)
-            copied[0] = review_run
-            copied[1] = level.lower() + "-" + copied[1]
+            seen_cases.add(row["case_id"])
+            copied = dict(row)
+            copied["run_id"] = review_run
+            copied["trial_id"] = level.lower() + "-" + copied["trial_id"]
             if not review_rows and mutation == "blocking_failure":
-                copied[4] = "fail"
-                copied[15] = "阻断检查失败"
+                copied["status"] = "fail"
+                copied["failure_reason"] = "阻断检查失败"
             elif not review_rows and mutation == "safety_violation":
-                copied[6] = "true"
+                copied["safety_violation"] = "true"
             elif not review_rows and mutation == "unresolved_error":
-                copied[4] = "error"
-                copied[5] = ""
-                copied[6] = "unknown"
-                copied[15] = "执行错误"
+                copied["status"] = "error"
+                copied["score"] = ""
+                copied["safety_violation"] = "unknown"
+                copied["failure_reason"] = "执行错误"
             review_rows.append(copied)
-        with results.open("w", encoding="utf-8", newline="") as handle:
-            csv.writer(handle).writerows([*rows, *review_rows])
+        write_run_manifest(project, review_run, baseline_id)
+        write_jsonl_rows(results_jsonl(project, review_run), review_rows)
         return review_run
 
     def test_valid_general_delivery_passes_machine_contract(self) -> None:
@@ -2022,7 +2092,7 @@ class DeliveryValidatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             project = Path(temp)
             write_delivery(project, case_count=50)
-            cases_path = project / "delivery" / "eval" / "cases.jsonl"
+            cases_path = project / "eval" / "cases.jsonl"
             cases = [json.loads(line) for line in cases_path.read_text(encoding="utf-8").splitlines()]
             cases[0]["tags"] = ["core", "safety"]
             cases[0]["expected_control"] = "allow"
@@ -2031,12 +2101,9 @@ class DeliveryValidatorTests(unittest.TestCase):
                 "".join(json.dumps(case, ensure_ascii=False) + "\n" for case in cases),
                 encoding="utf-8",
             )
-            results = project / "delivery" / "eval" / "results.csv"
-            with results.open("r", encoding="utf-8", newline="") as handle:
-                rows = list(csv.reader(handle))
+            rows = _load_result_rows(project)
             rows[1][5] = "1"
-            with results.open("w", encoding="utf-8", newline="") as handle:
-                csv.writer(handle).writerows(rows)
+            _save_result_rows(project, rows)
             completed, payload = run_json(VALIDATE_DELIVERY, project)
 
         self.assertEqual(completed.returncode, 1)
@@ -2046,9 +2113,8 @@ class DeliveryValidatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             project = Path(temp)
             write_delivery(project, case_count=50)
-            results = project / "delivery" / "eval" / "results.csv"
-            with results.open("r", encoding="utf-8", newline="") as handle:
-                rows = list(csv.reader(handle))
+            rows = _load_result_rows(project)
+            baseline_id = rows[1][3]
             old_run = f"run-{uuid.uuid4()}"
             historical_rows = []
             for index, (status, safety) in enumerate(
@@ -2063,8 +2129,7 @@ class DeliveryValidatorTests(unittest.TestCase):
                 copied[6] = safety
                 copied[15] = "历史失败" if status != "pass" else ""
                 historical_rows.append(copied)
-            with results.open("w", encoding="utf-8", newline="") as handle:
-                csv.writer(handle).writerows([*rows, *historical_rows])
+            _save_extra_run_rows(project, old_run, historical_rows, baseline_id)
             completed, payload = run_json(VALIDATE_DELIVERY, project)
 
         self.assertEqual(completed.returncode, 0, payload)
@@ -2074,13 +2139,10 @@ class DeliveryValidatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             project = Path(temp)
             write_delivery(project, case_count=50)
-            results = project / "delivery" / "eval" / "results.csv"
-            with results.open("r", encoding="utf-8", newline="") as handle:
-                rows = list(csv.reader(handle))
+            rows = _load_result_rows(project)
             rows[1][4] = "fail"
             rows[1][15] = "阻断检查失败"
-            with results.open("w", encoding="utf-8", newline="") as handle:
-                csv.writer(handle).writerows(rows)
+            _save_result_rows(project, rows)
             completed, payload = run_json(VALIDATE_DELIVERY, project)
 
         self.assertEqual(completed.returncode, 1)
@@ -2162,7 +2224,7 @@ class DeliveryValidatorTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            cases_path = project / "delivery" / "eval" / "cases.jsonl"
+            cases_path = project / "eval" / "cases.jsonl"
             cases = [json.loads(line) for line in cases_path.read_text(encoding="utf-8").splitlines()]
             cases[-1]["input"] = cases[-2]["input"] + "。"
             cases_path.write_text(
@@ -2223,7 +2285,7 @@ class DeliveryValidatorTests(unittest.TestCase):
                 "| AC-002 | case-051 | 确定性检查 | results.csv | required_trials |",
             )
             record.write_text(text, encoding="utf-8")
-            cases_path = project / "delivery" / "eval" / "cases.jsonl"
+            cases_path = project / "eval" / "cases.jsonl"
             cases = [json.loads(line) for line in cases_path.read_text(encoding="utf-8").splitlines()]
             cases[-1]["acceptance_id"] = "AC-002"
             cases[-1]["gate"] = "scored"
@@ -2265,9 +2327,8 @@ class DeliveryValidatorTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            results = project / "delivery" / "eval" / "results.csv"
-            with results.open("r", encoding="utf-8", newline="") as handle:
-                rows = list(csv.reader(handle))
+            rows = _load_result_rows(project)
+            baseline_id = rows[1][3]
             first_run_rows = [row for row in rows[1:] if row[2] != "case-051"]
             second_run_rows = []
             for row in rows[1:]:
@@ -2277,9 +2338,8 @@ class DeliveryValidatorTests(unittest.TestCase):
                 copied[0] = second_run
                 copied[1] = "r3-" + copied[1]
                 second_run_rows.append(copied)
-            with results.open("w", encoding="utf-8", newline="") as handle:
-                writer = csv.writer(handle)
-                writer.writerows([rows[0], *first_run_rows, *second_run_rows])
+            _save_result_rows(project, [rows[0], *first_run_rows])
+            _save_extra_run_rows(project, second_run, second_run_rows, baseline_id)
             completed, payload = run_json(VALIDATE_DELIVERY, project)
 
         self.assertEqual(completed.returncode, 1)
@@ -2298,9 +2358,8 @@ class DeliveryValidatorTests(unittest.TestCase):
                     "| %s | R3 | 完整正式评估范围 | 不通过 | evidence/r3 | reviewer / 2026-09-15 | 是 |\n"
                     % second_run
                 )
-            results = project / "delivery" / "eval" / "results.csv"
-            with results.open("r", encoding="utf-8", newline="") as handle:
-                rows = list(csv.reader(handle))
+            rows = _load_result_rows(project)
+            baseline_id = rows[1][3]
             second_run_rows = []
             for index, row in enumerate(rows[1:]):
                 copied = list(row)
@@ -2310,8 +2369,7 @@ class DeliveryValidatorTests(unittest.TestCase):
                     copied[4] = "fail"
                     copied[15] = "R3 阻断检查失败"
                 second_run_rows.append(copied)
-            with results.open("w", encoding="utf-8", newline="") as handle:
-                csv.writer(handle).writerows([*rows, *second_run_rows])
+            _save_extra_run_rows(project, second_run, second_run_rows, baseline_id)
             completed, payload = run_json(VALIDATE_DELIVERY, project)
 
         self.assertEqual(completed.returncode, 1)
@@ -2375,17 +2433,15 @@ class DeliveryValidatorTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            results = project / "delivery" / "eval" / "results.csv"
-            with results.open("r", encoding="utf-8", newline="") as handle:
-                rows = list(csv.reader(handle))
+            rows = _load_result_rows(project)
+            baseline_id = rows[1][3]
             review_rows = []
             for row in rows[1:]:
                 copied = list(row)
                 copied[0] = review_run
                 copied[1] = "r3-" + copied[1]
                 review_rows.append(copied)
-            with results.open("w", encoding="utf-8", newline="") as handle:
-                csv.writer(handle).writerows([*rows, *review_rows])
+            _save_extra_run_rows(project, review_run, review_rows, baseline_id)
             completed, payload = run_json(VALIDATE_DELIVERY, project)
 
         self.assertEqual(completed.returncode, 1)
@@ -2404,17 +2460,15 @@ class DeliveryValidatorTests(unittest.TestCase):
                     "| %s | R2 | 全部 blocking/safety | 范围内通过 | evidence/r2 | reviewer / 2026-09-15 | 否 |\n"
                     % review_run
                 )
-            results = project / "delivery" / "eval" / "results.csv"
-            with results.open("r", encoding="utf-8", newline="") as handle:
-                rows = list(csv.reader(handle))
+            rows = _load_result_rows(project)
+            baseline_id = rows[1][3]
             review_rows = []
             for row in rows[1:]:
                 review_row = list(row)
                 review_row[0] = review_run
                 review_row[1] = "r2-" + review_row[1]
                 review_rows.append(review_row)
-            with results.open("w", encoding="utf-8", newline="") as handle:
-                csv.writer(handle).writerows([*rows, *review_rows])
+            _save_extra_run_rows(project, review_run, review_rows, baseline_id)
             completed, payload = run_json(VALIDATE_DELIVERY, project)
 
         self.assertEqual(completed.returncode, 0, payload)
@@ -2520,14 +2574,12 @@ class DeliveryValidatorTests(unittest.TestCase):
                     "| %s | R2 | case-001 | 范围内通过 | evidence/r2 | reviewer / 2026-09-15 | 否 |\n"
                     % review_run
                 )
-            results = project / "delivery" / "eval" / "results.csv"
-            with results.open("r", encoding="utf-8", newline="") as handle:
-                rows = list(csv.reader(handle))
+            rows = _load_result_rows(project)
+            baseline_id = rows[1][3]
             review_row = list(rows[1])
             review_row[0] = review_run
             review_row[1] = "r2-" + review_row[1]
-            with results.open("w", encoding="utf-8", newline="") as handle:
-                csv.writer(handle).writerows([*rows, review_row])
+            _save_extra_run_rows(project, review_run, [review_row], baseline_id)
             completed, payload = run_json(VALIDATE_DELIVERY, project)
 
         self.assertEqual(completed.returncode, 1)
@@ -2556,17 +2608,15 @@ class DeliveryValidatorTests(unittest.TestCase):
                     ),
                     encoding="utf-8",
                 )
-                results = project / "delivery" / "eval" / "results.csv"
-                with results.open("r", encoding="utf-8", newline="") as handle:
-                    rows = list(csv.reader(handle))
+                rows = _load_result_rows(project)
+                baseline_id = rows[1][3]
                 review_rows = []
                 for row in rows[1:]:
                     copied = list(row)
                     copied[0] = review_run
                     copied[1] = level.lower() + "-" + copied[1]
                     review_rows.append(copied)
-                with results.open("w", encoding="utf-8", newline="") as handle:
-                    csv.writer(handle).writerows([*rows, *review_rows])
+                _save_extra_run_rows(project, review_run, review_rows, baseline_id)
                 completed, payload = run_json(VALIDATE_DELIVERY, project)
 
             self.assertEqual(completed.returncode, 1)
@@ -2641,7 +2691,7 @@ class DeliveryValidatorTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            cases_path = project / "delivery" / "eval" / "cases.jsonl"
+            cases_path = project / "eval" / "cases.jsonl"
             cases = [json.loads(line) for line in cases_path.read_text(encoding="utf-8").splitlines()]
             cases[0]["requirement_ids"] = ["REQ-002"]
             cases_path.write_text(
@@ -2668,7 +2718,7 @@ class DeliveryValidatorTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            cases_path = project / "delivery" / "eval" / "cases.jsonl"
+            cases_path = project / "eval" / "cases.jsonl"
             cases = [json.loads(line) for line in cases_path.read_text(encoding="utf-8").splitlines()]
             for case in cases:
                 case["requirement_ids"] = ["REQ-001", "REQ-002"]
@@ -2744,6 +2794,244 @@ class DeliveryValidatorTests(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 1)
         self.assertIn("DELIVERY_SHAPE_CONFLICT", error_codes(payload))
+
+
+class EvalLoopContractTests(unittest.TestCase):
+    """评测闭环：来源选择器、完整快照、Run 生命周期与 Agent spec/eval/issues 契约。"""
+
+    @staticmethod
+    def _clone_script(clone: Path, name: str) -> Path:
+        return clone / "runtime" / "adapters" / "dsh-container" / name
+
+    @staticmethod
+    def _run(script: Path, *args: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["python3", str(script), *(str(arg) for arg in args)],
+            cwd=ROOT,
+            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=120,
+        )
+
+    @staticmethod
+    def _clone_validator(clone: Path) -> Path:
+        return clone / ".agents" / "skills" / "harness-evolution" / "scripts" / "validate_repository.py"
+
+    @classmethod
+    def _prepared_clone(cls, destination: Path, *, with_spec: bool = False) -> Path:
+        clone = copy_initialized_repository(destination)
+        subprocess.run(["git", "init", "-q"], cwd=clone, check=True)
+        if with_spec:
+            agent = clone / "agents" / "security-operations-expert"
+            (agent / "spec").mkdir()
+            (agent / "spec" / "requirements.md").write_text("# 需求\n\nREQ-001 受控查询。\n", encoding="utf-8")
+            (agent / "spec" / "tasks.yaml").write_text(
+                'schema_version: "1.0"\ntasks:\n  - task_id: controlled-query\n    goal: 受限查询\n    input_contract: 文本\n',
+                encoding="utf-8",
+            )
+            (agent / "spec" / "acceptance.yaml").write_text(
+                'schema_version: "1.0"\nacceptance:\n  - id: AC-001\n    requirement_ids: [REQ-001]\n    gate: blocking\n    criterion: 全部返回受控结果\n',
+                encoding="utf-8",
+            )
+        return clone
+
+    def test_source_contract_selectors_and_role_mounts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = self._prepared_clone(Path(temp))
+            completed = self._run(SOURCE_CONTRACT, "--source", "experiment:EXP-security-operations-expert-001")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            contract = json.loads(completed.stdout)
+            self.assertEqual(contract["source_kind"], "experiment")
+            completed = self._run(
+                SOURCE_CONTRACT, "--source", "EXP-security-operations-expert-001",
+                "--mount-plan", "subject", "--task-dir", "/tmp/task", "--output-dir", "/tmp/out",
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            plan = json.loads(completed.stdout)
+            mounts = {(item["container"], item["mode"]) for item in plan["mounts"]}
+            self.assertIn(("/work/harness/workspace", "ro"), mounts)
+            self.assertIn(("/work/eval-input", "ro"), mounts)
+            self.assertIn(("/work/task", "rw"), mounts)
+            self.assertIn(("/work/output", "rw"), mounts)
+            completed = self._run(
+                SOURCE_CONTRACT, "--source", "EXP-security-operations-expert-001",
+                "--mount-plan", "authoring", "--eval-reference", "/tmp/ref",
+            )
+            self.assertEqual(completed.returncode, 1)
+            completed = self._run(SOURCE_CONTRACT, "--source", "snapshot:snap-00000000-0000-4000-8000-000000000000")
+            self.assertEqual(completed.returncode, 1)
+            completed = self._run(SOURCE_CONTRACT, "--source", "release:security-operations-expert-v1.0.0")
+            self.assertEqual(completed.returncode, 1)
+            completed = self._run(SOURCE_CONTRACT, "--source", "unknown:whatever")
+            self.assertEqual(completed.returncode, 1)
+
+    def test_research_snapshot_roundtrip_and_tamper_detection(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = self._prepared_clone(Path(temp), with_spec=True)
+            receipt_script = self._clone_script(clone, "mutation-receipt.py")
+            contract_script = self._clone_script(clone, "source_contract.py")
+            completed = self._run(receipt_script, "--source", "experiment:EXP-security-operations-expert-001", "research-snapshot")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            snap_dir = Path(completed.stdout.strip())
+            snap_id = snap_dir.name
+            self.assertTrue(snap_id.startswith("snap-"))
+            completed = self._run(receipt_script, "research-snapshot-verify", str(snap_dir))
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            completed = self._run(contract_script, "--source", "snapshot:" + snap_id)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(json.loads(completed.stdout)["source_kind"], "snapshot")
+            harness = snap_dir / "harness" / "dsh" / "workspace" / "AGENTS.md"
+            harness.write_text("# 篡改\n", encoding="utf-8")
+            completed = self._run(receipt_script, "research-snapshot-verify", str(snap_dir))
+            self.assertEqual(completed.returncode, 1)
+            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            self.assertEqual(completed.returncode, 0, payload)
+
+    def test_research_snapshot_requires_materialized_spec_eval(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = self._prepared_clone(Path(temp))
+            receipt_script = self._clone_script(clone, "mutation-receipt.py")
+            completed = self._run(receipt_script, "--source", "experiment:EXP-security-operations-expert-001", "research-snapshot")
+            self.assertEqual(completed.returncode, 1)
+
+    def test_run_record_lifecycle_and_sealed_results(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = self._prepared_clone(Path(temp))
+            record_script = self._clone_script(clone, "run_record.py")
+            completed = self._run(
+                record_script, "--repo", str(clone), "init",
+                "--agent", "security-operations-expert",
+                "--experiment", "EXP-security-operations-expert-001",
+                "--source", "experiment:EXP-security-operations-expert-001",
+                "--kind", "research",
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            run_id = completed.stdout.strip()
+            trial = {
+                "run_id": run_id, "trial_id": "trial-1", "case_id": "case-001", "baseline_id": "",
+                "status": "pass", "score": "", "safety_violation": "false", "duration_ms": "12",
+                "input_tokens": "10", "output_tokens": "5", "tool_call_count": "1", "retry_count": "0",
+                "cost_amount": "0", "cost_currency": "CNY", "resolved_model": "test-model",
+                "failure_reason": "", "evidence_ref": "evidence/case-001/1",
+            }
+            trial_file = clone / "trial.json"
+            trial_file.write_text(json.dumps(trial), encoding="utf-8")
+            completed = self._run(record_script, "--repo", str(clone), "record", "--run", run_id, str(trial_file))
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            completed = self._run(
+                record_script, "--repo", str(clone), "gap", "--run", run_id,
+                "--classification", "harness-capability", "--title", "输出缺证据",
+                "--observed", "响应未引用证据", "--next-step", "补证据生成规则",
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            completed = self._run(record_script, "--repo", str(clone), "finalize", "--run", run_id, "--status", "completed")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            completed = self._run(record_script, "--repo", str(clone), "record", "--run", run_id, str(trial_file))
+            self.assertEqual(completed.returncode, 1)
+            completed, payload = run_json(VALIDATE_REPOSITORY, str(clone))
+            self.assertEqual(completed.returncode, 0, payload)
+            run_dir = clone / "evolution" / "experiments" / "EXP-security-operations-expert-001" / "runs" / run_id
+            results = run_dir / "results.jsonl"
+            results.write_text(results.read_text(encoding="utf-8") + json.dumps({**trial, "trial_id": "trial-2"}) + "\n", encoding="utf-8")
+            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            self.assertEqual(completed.returncode, 1, payload)
+            self.assertIn("RUN_FINALIZED_IMMUTABLE", error_codes(payload))
+
+    def test_agent_spec_delivery_view_must_match_fact_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = self._prepared_clone(Path(temp), with_spec=True)
+            delivery = clone / "agents" / "security-operations-expert" / "delivery"
+            delivery.mkdir()
+            (delivery / "交付记录.md").write_text(
+                "# 交付记录\n\n## 一、智能体需求定义\n\n验收项 AC-002 与事实源不一致。\n",
+                encoding="utf-8",
+            )
+            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            self.assertEqual(completed.returncode, 1, payload)
+            self.assertIn("SPEC_DELIVERY_DIVERGED", error_codes(payload))
+            (delivery / "交付记录.md").write_text(
+                "# 交付记录\n\n## 一、智能体需求定义\n\n验收项 AC-001 与事实源一致。\n",
+                encoding="utf-8",
+            )
+            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            self.assertEqual(completed.returncode, 0, payload)
+
+    def test_agent_eval_pending_and_legacy_fact_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = self._prepared_clone(Path(temp))
+            eval_dir = clone / "agents" / "security-operations-expert" / "eval" / "pending"
+            eval_dir.mkdir(parents=True, exist_ok=True)
+            (eval_dir / "cases.jsonl").write_text('{"id":"case-fake"}\n', encoding="utf-8")
+            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            self.assertEqual(completed.returncode, 1)
+            self.assertIn("AGENT_EVAL_INVALID", error_codes(payload))
+            (eval_dir / "cases.jsonl").unlink()
+            legacy = clone / "agents" / "security-operations-expert" / "delivery" / "eval"
+            legacy.mkdir(parents=True)
+            (legacy / "results.csv").write_text("run_id,trial_id\n", encoding="utf-8")
+            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            self.assertEqual(completed.returncode, 1)
+            self.assertIn("LEGACY_DELIVERY_EVAL_FACT", error_codes(payload))
+
+    def test_agent_issues_schema_and_references(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = self._prepared_clone(Path(temp))
+            issues = clone / "agents" / "security-operations-expert" / "issues"
+            issues.mkdir()
+            evidence = clone / "evolution" / "experiments" / "EXP-security-operations-expert-001" / "evaluation" / "evidence" / "dsh-container-mount-probe-20260915T053311Z.json"
+            self.assertTrue(evidence.is_file())
+            issue_id = "iss-" + str(uuid.uuid4())
+            (issues / (issue_id + ".yaml")).write_text(
+                "schema_version: \"1.0\"\n"
+                f"issue_id: {issue_id}\n"
+                "agent_id: security-operations-expert\n"
+                "status: open\n"
+                "title: 探针未覆盖三角色\n"
+                "classification: harness-capability\n"
+                "evidence_refs:\n"
+                f"  - evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-container-mount-probe-20260915T053311Z.json\n",
+                encoding="utf-8",
+            )
+            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            self.assertEqual(completed.returncode, 0, payload)
+            issue_file = issues / (issue_id + ".yaml")
+            issue_file.write_text(
+                issue_file.read_text(encoding="utf-8").replace("status: open", "status: closed"),
+                encoding="utf-8",
+            )
+            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            self.assertEqual(completed.returncode, 1, payload)
+            self.assertIn("AGENT_ISSUE_INVALID", error_codes(payload))
+
+    def test_run_manifest_contract_rejections(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = self._prepared_clone(Path(temp))
+            record_script = self._clone_script(clone, "run_record.py")
+            completed = self._run(
+                record_script, "--repo", str(clone), "init",
+                "--agent", "security-operations-expert",
+                "--experiment", "EXP-security-operations-expert-001",
+                "--source", "experiment:EXP-security-operations-expert-001",
+                "--kind", "formal",
+            )
+            self.assertEqual(completed.returncode, 1)
+            completed = self._run(
+                record_script, "--repo", str(clone), "init",
+                "--agent", "security-operations-expert",
+                "--experiment", "EXP-security-operations-expert-001",
+                "--source", "experiment:EXP-security-operations-expert-001",
+                "--kind", "formal",
+                "--baseline", "bl-" + str(uuid.uuid4()),
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            run_id = completed.stdout.strip()
+            run_dir = clone / "evolution" / "experiments" / "EXP-security-operations-expert-001" / "runs" / run_id
+            (run_dir / "results.jsonl").write_text('{"run_id":"other","trial_id":"t"}\n', encoding="utf-8")
+            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            self.assertEqual(completed.returncode, 1, payload)
+            self.assertIn("RUN_PLANNED_RESULTS", error_codes(payload))
 
 
 if __name__ == "__main__":

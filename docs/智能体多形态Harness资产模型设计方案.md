@@ -30,7 +30,7 @@
 | Stable Baseline / Release | `agent_id + variant_id + semver + digest` | 仅同一已通过交付评估的候选可晋升；Release 自包含、不可变、可校验，含兼容范围、评估报告、变更记录。 |
 | Release Set | Agent 内有版本的不可变索引 | 引用多个 Variant Release 的身份、摘要和适用 Target；自身不是 DSH 挂载目标，也不继承评估结论。 |
 
-项目特有验收标准的唯一可编辑来源仍是 Agent 的 `delivery/交付记录.md` 模板一；`tasks/**/acceptance.yaml` 只能是引用或投影。Eval Case 的唯一来源仍是 `agents/<agent-id>/delivery/eval/cases.jsonl`，`core`、`boundary`、`safety`、`regression` 是标签。Variant 可以存 Case 选择器、范围映射和运行证据，不得维护另一套 AC 阈值或复制 Case。正式运行写新的 `results.csv` Trial 行，不能覆写历史。[现行评估契约](../.agents/skills/baseline-eval/references/delivery-contract.md)
+项目特有验收标准的唯一可编辑来源是 `agents/<agent-id>/spec/acceptance.yaml`（spec 未物化时交付记录模板一暂代）；`tasks/**/acceptance.yaml` 只能是引用或投影。Eval Case 的唯一来源是 `agents/<agent-id>/eval/cases.jsonl`，`core`、`boundary`、`safety`、`regression` 是标签。Variant 可以存 Case 选择器、范围映射和运行证据，不得维护另一套 AC 阈值或复制 Case。正式运行写独立的 `runs/<run-uuid>/results.jsonl` Trial 事实，不能覆写历史。[现行评估契约](../.agents/skills/baseline-eval/references/delivery-contract.md)
 
 ### 2.1 任务范围不是门禁豁免
 
@@ -41,7 +41,9 @@
 以下目录仅是下一版规范的候选拓扑，**尚未创建，也不能由当前校验器直接验收**：
 
 ```text
-agents/<agent-id>/delivery/                  # Agent 唯一需求、AC、Case 来源
+agents/<agent-id>/spec/                     # Agent 唯一需求、AC 来源
+agents/<agent-id>/eval/                     # Agent 唯一 Case、方法与计划来源
+agents/<agent-id>/delivery/                 # 正式交付记录及引用视图
 agents/<agent-id>/variants/<variant-id>/      # Variant 的实现和装载声明
 deployment/targets/<target-id>.yaml          # 可复用的环境约束
 transformations/<transformation-id>/         # 有实际规则和构建记录时才创建

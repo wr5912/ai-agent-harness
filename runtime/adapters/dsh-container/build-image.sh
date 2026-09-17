@@ -65,7 +65,7 @@ task_image_tag="$(python3 "$task_adapter_dir/source_contract.py" --source "$task
 task_source_repository="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --field image.repository)"
 task_experiment_root="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --field experiment_root)"
 if [[ -z "$task_evidence_file" ]]; then
-  task_evidence_file="$task_experiment_root/evaluation/dsh-image-build-$(date -u +%Y%m%dT%H%M%SZ)-$$.json"
+  task_evidence_file="$task_experiment_root/evaluation/evidence/dsh-image-build-$(date -u +%Y%m%dT%H%M%SZ)-$$.json"
 fi
 
 task_cleanup() {

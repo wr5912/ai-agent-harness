@@ -1,6 +1,6 @@
 # DSH 容器开发启动器设计方案
 
-> 状态：Proposal，尚未实施。本文中的 `dsh-dev`、host 网络实例、命令输出及验收流程均为待实现的设计合同，不是当前仓库已有的可执行功能。
+> 状态：部分实施。来源解析（`experiment:`/`snapshot:` 选择器）、三角色挂载计划（`source_contract.py --mount-plan`）、完整研究快照（`mutation-receipt.py research-snapshot`）与 Run 台账（`run_record.py`）已在适配层实现并有回归测试；`dsh-dev up/url/open`、host 网络实例、容器启动与认证 URL 交付仍是本文的待实施合同，当前没有可执行的 `dsh-dev`。
 >
 > 范围：同一台 Linux Docker Engine 主机上的本地开发和候选技术核验。本文不设计生产部署入口，不改变 DSH Runtime 源码，也不替代 Agent 交付评估或 Release 验收。
 >
@@ -10,7 +10,7 @@
 
 开发者需要明确选择本仓库中的 Harness 来源和运行模式，快速启动容器内 DSH Web，并取得**宿主机浏览器可访问、包含本次进程 Token 的完整 URL**。启动器属于宿主侧开发工具；容器内运行的仍是锁定镜像中的官方 DSH，Harness 仍通过卷装载，`DSH_HOME` 仍是独立运行态数据根。
 
-当前适配层只装载 `EXP-security-operations-expert-001` 的 Candidate，提供 Authoring/Verification 两套 Compose；`dsh` 服务未发布宿主机端口，官方 Web 绑定容器内回环。因此即使容器日志出现 `127.0.0.1:3080`，该地址目前也不能直接供宿主机浏览器使用。现有[技术预检](../evolution/experiments/EXP-security-operations-expert-001/evaluation/dsh-web-technical-preflight-20260915T054223Z.json)验证过隔离环境内 Token 入口 `303`、取得 Cookie 后根页面 `200`，但没有验证本文拟议的 host 网络、真实模型/MCP 或完整业务任务。当前没有可用的 `dsh-dev`，也没有已晋升的业务 Agent Release。
+当前适配层只装载 `EXP-security-operations-expert-001` 的 Candidate，提供 Authoring/Verification 两套 Compose；`dsh` 服务未发布宿主机端口，官方 Web 绑定容器内回环。因此即使容器日志出现 `127.0.0.1:3080`，该地址目前也不能直接供宿主机浏览器使用。现有[技术预检](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json)验证过隔离环境内 Token 入口 `303`、取得 Cookie 后根页面 `200`，但没有验证本文拟议的 host 网络、真实模型/MCP 或完整业务任务。当前没有可用的 `dsh-dev`，也没有已晋升的业务 Agent Release。
 
 锁定的 DSH 镜像身份见 [`source.lock.json`](../runtime/adapters/dsh-container/source.lock.json)。官方文档说明 `dsh web` 默认监听回环，支持 `--port`，并在启动后打印带进程 Token 的认证链接；Token 经根页面换取浏览器 Cookie。[DSH Web 应用说明](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/bundle/web-app/README.md)、[DSH HTTP Server](https://deepseek-harness.github.io/deepseek-harness/en/reference/subsystems/web-server)。官方在线文档可能随版本变化，实施时仍须在本仓库锁定镜像上实测参数与链接格式。
 

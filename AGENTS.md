@@ -30,11 +30,11 @@
 ## 资产演进不变量
 
 - 从可核验的需求来源、`REQ-xxx` 和非目标开始。直接开发时确认全部项目特有 `AC-xxx`；关键不确定性的探索先固定判定标准、安全红线和已知 `AC-xxx`，进入正式开发/交付前补齐全部 `AC-xxx`。每个交付需求至少关联一个定义最低可接受任务结果的硬门禁。
-- 项目特有验收标准的唯一事实源是具体 Agent 的交付记录模板一。`tasks/**/acceptance.yaml` 只能引用或生成投影，不得成为第二套可编辑阈值。
+- 项目特有验收标准的唯一事实源是 `agents/<agent-id>/spec/acceptance.yaml`；该文件物化前交付记录模板一暂代事实源，两者不得并存为可编辑标准。`tasks/**/acceptance.yaml` 只能引用或生成投影，不得成为第二套可编辑阈值。
 - 每项语义性 Harness 变更都建立 Experiment。路径字段使用 `direct` 或 `exploration`：只有会改变实施路线的关键不确定性才使用后者；探索样本不能形成正式交付结论。
 - 研究实验可以停止、不采用或得出证据不足的结论，保留假设、变化、观察、失败原因和来源，不强制生成 Release。比较或派生用的研究快照必须保存可还原内容和来源/摘要；它不是正式候选基线，也不继承源的评估结论。选择正式交付时再执行完整冻结、自测、复核和发布门禁。
 - 任一候选基线冻结项变化都生成新的 `bl-<UUIDv4>`；同一基线重跑只生成新的 `run-<UUIDv4>`，历史结果不得覆盖。
-- 每个 Agent 只维护一个 Eval Set 事实源。`core`、`boundary`、`safety`、`regression` 是 `cases.jsonl` 的标签；smoke/capability 等只允许成为选择器或视图，不得复制 Case。
+- 每个 Agent 只维护一个 Eval Set 事实源 `agents/<agent-id>/eval/cases.jsonl`。`core`、`boundary`、`safety`、`regression` 是 `cases.jsonl` 的标签；smoke/capability 等只允许成为选择器或视图，不得复制 Case。待复核输入只允许位于 `agents/<agent-id>/eval/pending/`，不得冒充正式用例。
 - 正式评估一般门槛为不少于 50 个有效 Eval Case 和 50 条逐条质量复核的实质不同 User Input。只有满足锁定规范全部条件的确定性或影响范围明确交付才可采用有限范围；无法证明时回退一般门槛。
 - R2 只形成范围结论，不得表述为正式评估运行通过；R3 才能对完整冻结范围形成独立正式运行结论。
 - 只有交付评估通过的同一候选基线可以生成 Release。Release 必须自包含、不可变、可校验，且包含兼容范围、评估报告和变更记录；Git Tag 不能替代 Release。
@@ -56,7 +56,7 @@
 - Agent ID、技能名和普通目录使用小写 kebab-case。
 - Experiment 使用 `EXP-<agent-id>-NNN`；稳定资产和 Release 使用 `<agent-id>-v<semver>`。
 - 交付内容默认位于 `agents/<agent-id>/delivery/`：六项内容可合并为唯一 `交付记录.md`，或拆分为规范指定的六份文件；禁止同时维护内容重复的两种形态。
-- 机器证据使用唯一 `delivery/eval/cases.jsonl` 和 `delivery/eval/results.csv`。大型或敏感证据外置时记录受控 URI、对象版本、SHA-256 和访问方式，不创建空替代文件。
+- 机器证据使用唯一 `agents/<agent-id>/eval/cases.jsonl` 与逐 Run 归档的 `evolution/experiments/EXP-<agent-id>-NNN/runs/<run-uuid>/results.jsonl`。大型或敏感证据外置时记录受控 URI、对象版本、SHA-256 和访问方式，不创建空替代文件。
 - 受控规范原文禁止直接修改。上游升级时添加新版本副本、更新 `SOURCES.md` 并记录迁移影响；不得原地覆写后仍沿用旧版本和摘要。
 
 ## 变更与验证

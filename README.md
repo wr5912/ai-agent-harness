@@ -20,7 +20,7 @@
 
 ## 当前状态
 
-- 仓库治理版本：[0.1.0](./VERSION.md)。这不是 Agent/Harness Release，也不是 Git Tag。
+- 仓库治理版本：[0.2.0](./VERSION.md)。这不是 Agent/Harness Release，也不是 Git Tag。
 - 已将 `security-operations-expert` 的旧 Harness 业务语义和初版交付材料迁入 [`EXP-security-operations-expert-001`](./evolution/experiments/EXP-security-operations-expert-001/) 的 Candidate 与清洗历史。旧归档中的 Hook、宽松权限配置、部署脚本和环境文件未原样激活。
 - 当前交付结论为“退回整改”：历史检查有实质失败，200 条输入仍待领域专家逐条复核和 `AC-xxx` 绑定，没有正式 Trial、候选基线、稳定 Baseline、Release 或 `current/`。
 - `plugins/asset-query-cli/` 是独立的只读管理入口原型：在锁定 DSH 镜像中验证了无模型、无业务 MCP 的目录查询、JSON 输出和退出语义；它不判断资产有效性或评估结论。
@@ -59,25 +59,43 @@
 ├── docs/standards/                   # 受控规范原文、来源锁定和项目裁决
 ├── agents/<agent-id>/
 │   ├── manifest.yaml                # 当前 Agent 身份与生命周期
+│   ├── spec/                         # 业务规格：需求、任务与验收标准的唯一事实源
+│   │   ├── requirements.md
+│   │   ├── tasks.yaml
+│   │   └── acceptance.yaml
+│   ├── eval/                         # 评测输入；不存实际运行结果
+│   │   ├── cases.jsonl              # 本 Agent 的 Case 唯一事实源
+│   │   ├── fixtures/                # 用例附件、环境初始数据或其锁定引用
+│   │   ├── methods.yaml             # 方法、评分器与 AC/Case 绑定
+│   │   ├── plans/                   # 选择范围、重复次数与重置规则
+│   │   └── pending/                 # 待复核输入；不得冒充正式用例
+│   ├── issues/                       # 跨 Run/Experiment 的问题跟踪状态
+│   ├── variants/                     # 实际出现 Variant 时创建
 │   ├── current/                     # 仅 Release 晋升后生成；生产不直接挂载
 │   ├── components/                  # 稳定组件确有内容时才创建
-│   └── delivery/                    # 正式六项交付内容及唯一机器证据
+│   └── delivery/                    # 正式六项交付内容，引用 spec/eval/Run 事实
 ├── tasks/<task-domain>/              # Task 与 AC 的引用或生成投影
 ├── eval/                             # 跨 Agent 复用的 grader、选择器和报告索引
 ├── evolution/
 │   ├── baselines/                    # 评估与交付通过后的稳定资产
 │   ├── experiments/                  # EXP-<agent-id>-NNN
+│   │   ├── candidate/               # 可修改 Harness；不混入评测结果
+│   │   ├── snapshots/               # frozen-sources 旧三树 + research/<snap-id> 完整快照
+│   │   ├── runs/<run-uuid>/         # 每次执行独立归档，失败也保留
+│   │   └── evaluation/              # 技术/迁移证据
 │   └── history/                      # 清洗历史证据，不随 Candidate/Release 装载
 ├── plugins/                          # 确有需要时纳入版本管理的自定义扩展
 ├── mcp/                              # MCP 声明与 schema，不保存凭据
 ├── runtime/adapters/dsh-container/   # 锁定 DSH 源码的薄容器装载适配层
-└── releases/<agent-id>-v<semver>/    # 可部署、不可变且自包含的 Harness 制品
-    ├── manifest.yaml                 # Release/Baseline/Run/兼容范围/摘要绑定
-    ├── harness.yaml
-    ├── runtime.yaml
-    ├── artifact-manifest.json        # 完整可装载资产树的逐文件摘要
-    ├── evaluation-report.md
-    └── CHANGELOG.md
+├── tests/                            # 仓库工具、校验器、解析器与快照恢复的测试
+├── releases/<agent-id>-v<semver>/    # 可部署、不可变且自包含的 Harness 制品
+│   ├── manifest.yaml                 # Release/Baseline/Run/兼容范围/摘要绑定
+│   ├── harness.yaml
+│   ├── runtime.yaml
+│   ├── artifact-manifest.json        # 完整可装载资产树的逐文件摘要
+│   ├── evaluation-report.md
+│   └── CHANGELOG.md
+└── .local/                           # 可选本地入口；忽略的 HOME/缓存/临时工作区
 ```
 
 目录语义和两套规范之间的裁决见[《项目规范解释与裁决》](./docs/standards/PROJECT-INTERPRETATION.md)。
@@ -96,7 +114,7 @@
 
 容器启动、停止、镜像固定、挂载和局部检查见 [`dsh-container` 适配说明](./runtime/adapters/dsh-container/README.md)。真实安全动作仍由 DSH Runtime 与领域 MCP 服务端执行强制鉴权、租户/对象绑定、参数与数量约束、幂等、审批及审计；Prompt 或本仓库中的策略文字不能替代这些服务端控制。
 
-面向本机开发者的容器启动器仍处于设计阶段，命令及 host 网络、Token URL 的拟议合同见[《DSH 容器开发启动器设计方案》](./docs/DSH容器开发启动器设计方案.md)；`dsh-dev` 目前不可运行。
+面向本机开发者的容器启动器仍处于设计阶段，命令及 host 网络、Token URL 的拟议合同见[《DSH 容器开发启动器设计方案》](./docs/DSH容器开发启动器设计方案.md)；`dsh-dev up/url/open` 目前不可运行，其前置的来源选择器、三角色挂载计划、研究快照与 Run 台账已在适配层实现。
 
 当前 Candidate 的 `workspace/.env` 只有注释，是 Docker 首次只读子文件挂载所需的目标；实际容器会用适配层同字节的受控空环境层覆盖，不能在它或 DSH_HOME 的 `.env` 中放端点、变量或凭据。
 
@@ -131,6 +149,20 @@ python3 .agents/skills/baseline-eval/scripts/validate_delivery.py agents/<agent-
 
 三个脚本都输出 JSON。退出码 `0` 只表示其覆盖的机器规则通过；`1` 表示存在阻断项或必须复核的风险，`2` 表示输入或读取错误。
 
+评测闭环的宿主侧工具（详见[启动器设计](./docs/DSH容器开发启动器设计方案.md)）：
+
+```bash
+# 解析来源并生成三角色挂载计划（authoring/subject/scoring）
+python3 runtime/adapters/dsh-container/source_contract.py --source experiment:EXP-<agent-id>-NNN --mount-plan subject
+# 冻结完整研究快照（需要 agents/<id>/spec 与 agents/<id>/eval 已物化）并复核
+python3 runtime/adapters/dsh-container/mutation-receipt.py --source experiment:EXP-<agent-id>-NNN research-snapshot
+python3 runtime/adapters/dsh-container/mutation-receipt.py research-snapshot-verify <snapshots/research/snap-<uuid>>
+# Run 台账：init → record → gap → finalize
+python3 runtime/adapters/dsh-container/run_record.py --repo . init --agent <agent-id> --experiment EXP-<agent-id>-NNN --source snapshot:<snap-uuid> --kind research
+python3 runtime/adapters/dsh-container/run_record.py --repo . record --run <run-uuid> trial.json
+python3 runtime/adapters/dsh-container/run_record.py --repo . finalize --run <run-uuid> --status completed
+```
+
 ## 规范来源
 
 - [Harness Repo 目录结构设计说明（v1.1）](./docs/standards/Harness_Repo目录结构设计说明_v1.1.md)
@@ -143,6 +175,6 @@ python3 .agents/skills/baseline-eval/scripts/validate_delivery.py agents/<agent-
 ## 验收口径
 
 - 静态校验、脚本退出码 `0`、进程存在、端口监听、HTTP `200` 或 `/health` 只证明对应局部检查通过。
-- 正式交付必须能够追溯 `REQ → AC → Eval Case → Trial → Run → results.csv → 交付结论 → Release`。
+- 正式交付必须能够追溯 `REQ → AC → Eval Case → Trial → Run 归档 → 交付结论 → Release`。
 - DSH 发布验收必须核对装载的 Release 与通过的候选基线一致，并通过对外实际协议完成至少一条完整任务链；涉及工具或写操作时还要检查最终业务状态和审计证据。
 - 仓库变更记录见 [`CHANGELOG.md`](./CHANGELOG.md)。

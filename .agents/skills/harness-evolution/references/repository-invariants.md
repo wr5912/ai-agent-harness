@@ -12,14 +12,15 @@
 
 ## 目录职责
 
-- `agents/<agent-id>/`：当前业务 Agent/Harness 定义；不得绑定为 `dsh-agent`。
-- `tasks/`：任务定义；`acceptance.yaml` 只能引用或投影交付记录中的 `AC-xxx`，不得成为第二套可编辑验收标准。
-- 评估用例只有一个事实源，通过 `core`、`boundary`、`safety`、`regression` 标签形成逻辑子集，不复制 Case。
-- `evolution/experiments/`：假设、变化、候选、评估和决定；`evolution/baselines/`：已经验证通过的稳定快照。
+- `agents/<agent-id>/`：当前业务 Agent/Harness 定义；不得绑定为 `dsh-agent`。`spec/` 维护需求、任务与验收标准的唯一事实源；`eval/` 维护 Case、方法与计划的评测输入，不存运行结果；`issues/` 维护跨 Run 的问题状态；`variants/` 记录 Variant 范围与资产引用；`delivery/` 只放交付文档及其引用视图。
+- `tasks/`：任务定义；`acceptance.yaml` 只能引用或投影 `agents/<agent-id>/spec/acceptance.yaml`（spec 未物化时引用交付记录需求定义）中的 `AC-xxx`，不得成为第二套可编辑验收标准。
+- 评估用例只有一个事实源 `agents/<agent-id>/eval/cases.jsonl`，通过 `core`、`boundary`、`safety`、`regression` 标签形成逻辑子集，不复制 Case；待复核输入只允许位于 `agents/<agent-id>/eval/pending/`。
+- `evolution/experiments/`：假设、变化、候选、快照、Run 和决定；`evolution/baselines/`：已经验证通过的稳定快照。Trial 事实按 Run 归档于 `runs/<run-uuid>/`，每次执行独立保存，失败也保留。
 - `releases/`：可部署、不可变、自包含资产，至少绑定 Harness、Runtime 兼容范围、评估报告和变更记录。
 - `runtime/` 只记录兼容性和适配；不得复制 DSH Runtime 源码或私有运行数据。
 - 当前项目可装载 Harness 仅适用容器内 DSH。Experiment `candidate/dsh/workspace/` 是 Authoring 中唯一模型可读写的行为工作区；`candidate/dsh/presets/` 与 `candidate/dsh/managed/` 由受控平面只读装载，迁移历史与评估证据不挂载。容器内 DSH 可以自组合、自修改行为资产，但写入只形成待审 Candidate diff，复核后新容器、新 Session 激活。
-- `candidate/delivery/eval/cases.pending.jsonl` 只是旧材料摄取暂存，不是正式 Eval Case 事实源；不得把迁移输入数量、旧 `synthetic_reviewed` 声明或空结果文件记为正式评估通过。
+- `agents/<agent-id>/eval/pending/*.pending.jsonl` 只是旧材料摄取暂存，不是正式 Eval Case 事实源；不得把迁移输入数量、旧 `synthetic_reviewed` 声明或空结果文件记为正式评估通过。
+- 执行 Run 使用 `run-<UUIDv4>`，研究快照使用 `snap-<UUIDv4>`，跨 Run 问题使用 `iss-<UUIDv4>`。Run finalize 后执行事实不可改写；研究快照物化后内容不可原地修改。
 
 ## 发布一致性
 
@@ -51,7 +52,7 @@ Release 只能存在一个可识别的 Harness 主文件候选，并归属于同
 ## Task 与 Experiment 最小机器契约
 
 - `task-definition.yaml` 使用唯一、非空的顶层标量，`task_id` 与目录名一致，并提供非占位的 `goal`、`input_contract` 和 `requirement_source`。
-- 可选 `acceptance.yaml` 必须唯一声明 `source_ref` 或 `acceptance_source`，值为 `agents/<agent-id>/delivery/交付记录.md#AC-xxx` 或拆分版需求定义的同类引用；目标必须是仓库内真实文件且确实包含该 AC。
+- 可选 `acceptance.yaml` 必须唯一声明 `source_ref` 或 `acceptance_source`，值为 `agents/<agent-id>/spec/acceptance.yaml#AC-xxx` 或交付记录需求定义的同类引用；目标必须是仓库内真实文件且确实包含该 AC。
 - `change.yaml` 至少包含与目录一致的 `experiment_id`、名称中对应的既有 `agent_id` 以及 `development_path: direct|exploration`。`hypothesis.md` 和 `decision.md` 必须有标题之外的实质内容，`candidate/` 与 `evaluation/` 必须各有真实内容；`TODO`、`TBD`、空 JSON/YAML、只藏在 HTML 注释中的文本，以及仅用 Markdown 强调、行内代码、引用、列表、任务项或代码围栏包装的占位内容都不算真实资产。围栏内存在非占位代码时仍视为真实内容。
 
 治理路径的每一级和资产根与结构容器的子项都必须是真实目录；普通文件不得通过父级符号链接逃逸仓库。治理与资产文件拒绝符号链接、硬链接、特殊文件、零字节文件和纯占位目录。资产扫描上限为 100,000 个节点、256 层、单文件 64 MiB、文本文件 4 MiB、资产总量 1 GiB；超过限制时 fail-closed，不继续以无界遍历或读取形成结论。

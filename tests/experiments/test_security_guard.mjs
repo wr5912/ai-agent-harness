@@ -6,7 +6,7 @@ import {
   createSecurityOperationsGuard,
   validateResponsePlanInput,
   validateResponsePlanOutput,
-} from '../candidate/dsh/managed/security-operations-guard.mjs'
+} from '../../evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/managed/security-operations-guard.mjs'
 
 function agent(depth = 0) {
   return { session: { header: { delegationDepth: depth } } }

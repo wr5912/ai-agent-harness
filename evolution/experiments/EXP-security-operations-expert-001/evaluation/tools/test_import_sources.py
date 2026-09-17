@@ -81,7 +81,7 @@ class ImportSourceRegression(unittest.TestCase):
                 IMPORTER.verify_generated_targets(repo, [old_target], prior_hashes)
 
     def test_delivery_record_limits_new_session_to_verification(self) -> None:
-        record = (SOURCE.parent.parent / "candidate" / "delivery" / "交付记录.md").read_text(encoding="utf-8")
+        record = (SOURCE.parents[2] / "candidate" / "delivery" / "交付记录.md").read_text(encoding="utf-8")
         self.assertIn("隔离 Authoring 当前 Session 可实时看到探索行为", record)
         self.assertIn("进入 Candidate Verification 或正式评估前必须使用复核后的快照、新容器和新 Session", record)
         self.assertIn("不授予 Candidate Verification 或正式评估的激活", record)

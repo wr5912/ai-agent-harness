@@ -33,8 +33,6 @@ loadable_assets:
   preset_id: security-operations-expert
   profile_patch: dsh/managed/security-operations-expert.patch.yml
   runtime_lock: runtime.lock.json
-  pending_delivery: delivery/交付记录.md
-  pending_cases: delivery/eval/cases.pending.jsonl
 runtime_contract:
   workspace_container_path: /work/harness/workspace
   preset_container_path: /opt/dsh-presets

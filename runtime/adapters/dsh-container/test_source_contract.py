@@ -24,7 +24,8 @@ class SourceContractTest(unittest.TestCase):
 
     def test_current_source_resolves_without_private_values(self):
         result = source_contract.resolve()
-        self.assertEqual(result["source_id"], "EXP-security-operations-expert-001")
+        self.assertEqual(result["source_id"], "experiment:EXP-security-operations-expert-001")
+        self.assertEqual(result["source_kind"], "experiment")
         self.assertEqual(result["patch"], "/opt/dsh-managed/security-operations-expert.patch.yml")
         self.assertNotIn("TOKEN=", json.dumps(result))
 

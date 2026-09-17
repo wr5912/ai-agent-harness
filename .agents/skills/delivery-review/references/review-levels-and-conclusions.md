@@ -11,7 +11,7 @@
 5. `05_候选基线.md`
 6. `06_自测与交付评估报告.md`
 
-两种形态二选一。机器证据仍是 `delivery/eval/cases.jsonl` 与 `delivery/eval/results.csv`；敏感或大型数据可外置，但必须有受控 URI、对象版本、SHA-256 和实际访问方式。
+两种形态二选一。机器证据仍是 `eval/cases.jsonl` 与逐 Run 归档的 `evolution/experiments/EXP-<agent-id>-NNN/runs/<run-uuid>/results.jsonl`；敏感或大型数据可外置，但必须有受控 URI、对象版本、SHA-256 和实际访问方式。
 
 ## 最低复核等级
 

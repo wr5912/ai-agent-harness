@@ -15,7 +15,7 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 
 本机 Docker 构建网络异常时还可显式加 `--build-network host`，但这会让构建步骤直接使用宿主网络命名空间、扩大构建期网络接触面；默认仍为 Docker 隔离网络。镜像源与网络选项都不改变锁定 DSH 源码和 Node 基础镜像身份，实际值写入构建证据。不得把这些选项用于绕过凭据、来源校验或生产 Runtime 网络策略。
 
-成功构建后脚本打印实际本地 Image ID 和 CLI 版本，并向本 Experiment 的 `evaluation/dsh-image-build-<UTC>-<PID>.json` 写入只追加的本地构建证据。也可以指定 `--evidence-output FILE`。`source.lock.json` 仅锁构建输入，不填写未取得的 Registry digest；本地标签可重指向，不能代替 Image ID 或发布时验证的不可变 Registry digest。
+成功构建后脚本打印实际本地 Image ID 和 CLI 版本，并向本 Experiment 的 `evaluation/evidence/dsh-image-build-<UTC>-<PID>.json` 写入只追加的本地构建证据。也可以指定 `--evidence-output FILE`。`source.lock.json` 仅锁构建输入，不填写未取得的 Registry digest；本地标签可重指向，不能代替 Image ID 或发布时验证的不可变 Registry digest。
 
 ## 候选资产装载
 
@@ -74,7 +74,7 @@ python3 runtime/adapters/dsh-container/mutation-receipt.py before
 python3 runtime/adapters/dsh-container/mutation-receipt.py after <上一步打印的 before.json 绝对路径>
 ```
 
-回执写入本 Experiment 的 `evaluation/mutation-receipts/mr-<UUIDv4>/`，比较三棵资产树的文件、目录权限与前后摘要，记录工作区变化及是否需重新审查冻结组合。如果受控 Preset 或 Managed/Guard 树在编写期间变化，脚本保留失败回执并以非零状态明确拒绝；它不是评估、候选基线、发布或生产变更批准。若要单独取得三棵装载树的文件摘要，可使用 `mutation-receipt.py digest <精确资产源路径>`。
+回执写入本 Experiment 的 `evaluation/evidence/mutation-receipts/mr-<UUIDv4>/`，比较三棵资产树的文件、目录权限与前后摘要，记录工作区变化及是否需重新审查冻结组合。如果受控 Preset 或 Managed/Guard 树在编写期间变化，脚本保留失败回执并以非零状态明确拒绝；它不是评估、候选基线、发布或生产变更批准。若要单独取得三棵装载树的文件摘要，可使用 `mutation-receipt.py digest <精确资产源路径>`。
 
 局部装载比较前可物化三棵 Candidate 挂载树的实际字节（含未提交文件），并在只读容器装载前复核摘要：
 

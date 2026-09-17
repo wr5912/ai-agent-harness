@@ -87,6 +87,11 @@ VERSIONED_ASSET_RE = re.compile(
 UUID_V4_PATTERN = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}"
 BASELINE_ID_RE = re.compile(r"^bl-" + UUID_V4_PATTERN + r"$")
 RUN_ID_RE = re.compile(r"^run-" + UUID_V4_PATTERN + r"$")
+SNAPSHOT_ID_RE = re.compile(r"^snap-" + UUID_V4_PATTERN + r"$")
+ISSUE_ID_RE = re.compile(r"^iss-" + UUID_V4_PATTERN + r"$")
+FREEZE_ID_RE = re.compile(r"^fr-" + UUID_V4_PATTERN + r"$")
+AC_ID_RE = re.compile(r"AC-[0-9]{3,}")
+REQ_ID_RE = re.compile(r"REQ-[0-9]{3,}")
 MAX_ASSET_DEPTH = 256
 MAX_ASSET_NODES = 100_000
 MAX_ASSET_FILE_BYTES = 64 * 1024 * 1024
@@ -95,17 +100,6 @@ MAX_TEXT_BYTES = 4 * 1024 * 1024
 MAX_YAML_NODES = 50_000
 MAX_YAML_ALIASES = 1_000
 DSH_JS_TAG = "tag:yaml.org,2002:js"
-DSH_CANDIDATE_REQUIRED = (
-    "dsh/workspace/AGENTS.md",
-    "dsh/presets/security-operations-expert/preset.yml",
-    "dsh/presets/security-operations-expert/agent.cordis.yml",
-    "dsh/managed/security-operations-expert.patch.yml",
-    "dsh/managed/security-operations-guard.mjs",
-    "dsh/managed/mcp-servers.yaml",
-    "dsh/managed/role-tool-matrix.yaml",
-    "dsh/managed/control-boundary.yaml",
-    "runtime.lock.json",
-)
 SECURITY_MIGRATION_EXPERIMENT = "EXP-security-operations-expert-001"
 DSH_CREDENTIAL_KEYS = (
     "SEC_OPS_MCP_URL", "SEC_OPS_MCP_TOKEN",
@@ -118,13 +112,13 @@ DSH_BOOTSTRAP_DENY_SHA256 = "e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5b
 # 文件身份通过不等于 DSH Runtime 装载、业务能力或 Release 验收通过。
 DSH_ADAPTER_PINNED_SHA256 = {
     "Dockerfile": "b8b2379a7c8acaa6992db4d9a9f3cb7f2e9374606cc7a44082d405e0d9ce7105",
-    "build-image.sh": "f0f56eb764975cad582a3f144c0f314f9971a9d86ff7c34433b01ccbb2a58250",
+    "build-image.sh": "4dd075177d7dcfb1c549dee751d44ce596c727ed9078a1a86f3d7d057f6a5d28",
     "prepare-verification-home.mjs": "96e5495d29da68d1a106f9cd5462180b898edaf70456de263e3150220be620b4",
     "verify-load.mjs": "c95b3f097e1a40bf8d4d309e0a9d0025319bfadc4061ceead00fed718124121d",
     "verify-load.sh": "e6a710e1cb459d03713701772fb35a115e480f1632988e9139306387b26ca380",
     "tree-digest.mjs": "ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
-    "mutation-receipt.py": "580bdcc589e961e143a21d2c8bd51bf0a84b03e24889c342a11ca7a1ddb5cd44",
-    "source_contract.py": "3a0f7f88260295d845768c56d67f0d342796c84cb27a909e62de07ac1cac1095",
+    "mutation-receipt.py": "4c2d6b1f0c4145adb35138a2a463a2a233817d1c880ef75845874d0b5bf26993",
+    "source_contract.py": "9cb8f0e61e6e1d42ac570324a6c799ecd22718fcfdf508495660a098859f5f24",
     "preflight-access.py": "1530599124b0d43d90b38b0992c9e6ce57518e248184a33733200cd6dd9274f6",
 }
 
@@ -875,10 +869,10 @@ def resolve_acceptance_reference(root: Path, value: str) -> Tuple[Optional[Path]
     target = root.joinpath(*candidate.parts)
     normalized = candidate.as_posix()
     if not re.fullmatch(
-        r"agents/[a-z0-9]+(?:-[a-z0-9]+)*/delivery/(?:交付记录\.md|01_智能体需求定义\.md)",
+        r"agents/[a-z0-9]+(?:-[a-z0-9]+)*/(?:spec/acceptance\.yaml|delivery/(?:交付记录\.md|01_智能体需求定义\.md))",
         normalized,
     ):
-        return None, None, "source_ref 必须指向 Agent 交付记录中的需求定义事实源"
+        return None, None, "source_ref 必须指向 Agent 的 spec/acceptance.yaml 或交付记录需求定义事实源"
     if not is_nonempty_regular_file(target, root):
         return None, None, "source_ref 指向的事实源不存在或不安全"
     try:
@@ -918,6 +912,9 @@ def validate_agents(
             target = root / "evolution" / "experiments" / active_experiment
             if not match or match.group(1) != agent_id or not target.is_dir() or target.is_symlink():
                 errors.append(issue("AGENT_ACTIVE_EXPERIMENT_INVALID", "active_experiment 必须指向本 Agent 已存在的 Experiment", relative(manifest, root)))
+        validate_agent_spec(root, agent_dir, agent_id, errors)
+        validate_agent_eval(root, agent_dir, errors)
+        validate_agent_issues(root, agent_dir, errors)
         current_dir = agent_dir / "current"
         owned_releases = release_index.get(agent_id, ())
         if not path_present(current_dir):
@@ -974,6 +971,225 @@ def validate_agents(
             errors.append(issue("CURRENT_RELEASE_TREE_DIVERGED", "current 校验镜像必须与绑定 Release 的完整可装载资产树一致", relative(current_dir, root)))
         if not (agent_dir / "components").exists():
             warnings.append(issue("AGENT_COMPONENTS_ABSENT", "Agent 尚无 components；仅在确实不存在组件时可省略", relative(agent_dir, root)))
+
+
+def _markdown_section(text: str, phrase: str) -> str:
+    """返回包含 phrase 的标题到下一同级或更高级标题之间的正文。"""
+    lines = text.splitlines()
+    start = None
+    end = len(lines)
+    level = 0
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped.startswith("#"):
+            continue
+        hashes = len(stripped) - len(stripped.lstrip("#"))
+        if start is None:
+            if phrase in stripped:
+                start = index
+                level = hashes
+        elif hashes <= level:
+            end = index
+            break
+    if start is None:
+        return ""
+    return "\n".join(lines[start:end])
+
+
+def delivery_requirement_ac_ids(root: Path, agent_dir: Path) -> Set[str]:
+    """交付记录需求定义章节中出现的 AC 编号集合。"""
+    delivery = agent_dir / "delivery"
+    ids: Set[str] = set()
+    for name in ("交付记录.md", "01_智能体需求定义.md"):
+        path = delivery / name
+        if not is_nonempty_regular_file(path, root):
+            continue
+        try:
+            text = read_text_limited(root, path)
+        except (OSError, UnicodeError, ValueError):
+            continue
+        ids |= set(AC_ID_RE.findall(_markdown_section(text, "智能体需求定义")))
+    return ids
+
+
+def validate_agent_spec(root: Path, agent_dir: Path, agent_id: str, errors: List[Dict[str, str]]) -> None:
+    spec = agent_dir / "spec"
+    if not path_present(spec):
+        return
+    if not spec.is_dir() or spec.is_symlink():
+        errors.append(issue("AGENT_SPEC_INVALID", "spec 必须是真实目录", relative(spec, root)))
+        return
+    requirements_path = spec / "requirements.md"
+    requirement_ids: Set[str] = set()
+    if not is_nonempty_regular_file(requirements_path, root) or substantive_markdown(root, requirements_path) is None:
+        errors.append(issue("AGENT_SPEC_INCOMPLETE", "spec 必须包含有实质内容的需求定义 requirements.md", relative(requirements_path, root)))
+    else:
+        try:
+            requirement_ids = set(REQ_ID_RE.findall(read_text_limited(root, requirements_path)))
+        except (OSError, UnicodeError, ValueError):
+            requirement_ids = set()
+        if not requirement_ids:
+            errors.append(issue("AGENT_SPEC_INCOMPLETE", "requirements.md 必须包含至少一个 REQ-xxx", relative(requirements_path, root)))
+    tasks_path = spec / "tasks.yaml"
+    tasks = dsh_yaml(root, tasks_path)
+    if not isinstance(tasks, dict) or tasks.get("schema_version") != "1.0" or not isinstance(tasks.get("tasks"), list) or not tasks["tasks"]:
+        errors.append(issue("AGENT_SPEC_INCOMPLETE", "tasks.yaml 必须声明 schema 1.0 和非空 tasks 列表", relative(tasks_path, root)))
+    else:
+        seen_task_ids: Set[str] = set()
+        for item in tasks["tasks"]:
+            task_id = item.get("task_id") if isinstance(item, dict) else None
+            if not isinstance(task_id, str) or not KEBAB_RE.fullmatch(task_id) or task_id in seen_task_ids \
+                    or not isinstance(item.get("goal"), str) or not item["goal"].strip() \
+                    or not isinstance(item.get("input_contract"), str) or not item["input_contract"].strip():
+                errors.append(issue("AGENT_SPEC_INCOMPLETE", "tasks.yaml 的每个任务必须有唯一 kebab-case task_id、非空 goal 与 input_contract", relative(tasks_path, root)))
+            else:
+                seen_task_ids.add(task_id)
+    acceptance_path = spec / "acceptance.yaml"
+    acceptance = dsh_yaml(root, acceptance_path)
+    if not isinstance(acceptance, dict) or acceptance.get("schema_version") != "1.0" or not isinstance(acceptance.get("acceptance"), list) or not acceptance["acceptance"]:
+        errors.append(issue("AGENT_SPEC_INCOMPLETE", "acceptance.yaml 必须声明 schema 1.0 和非空 acceptance 列表", relative(acceptance_path, root)))
+        return
+    acceptance_ids: Set[str] = set()
+    for item in acceptance["acceptance"]:
+        if not isinstance(item, dict):
+            errors.append(issue("AGENT_SPEC_INCOMPLETE", "验收项必须是 mapping", relative(acceptance_path, root)))
+            continue
+        ac_id = item.get("id")
+        if not isinstance(ac_id, str) or not re.fullmatch(r"AC-[0-9]{3,}", ac_id) or ac_id in acceptance_ids:
+            errors.append(issue("AGENT_SPEC_INCOMPLETE", "acceptance.yaml 的每个验收项必须有唯一 AC-xxx 编号", relative(acceptance_path, root)))
+        else:
+            acceptance_ids.add(ac_id)
+        requirement_ids_field = item.get("requirement_ids")
+        if not isinstance(requirement_ids_field, list) or not requirement_ids_field or any(not isinstance(value, str) or not REQ_ID_RE.fullmatch(value) for value in requirement_ids_field):
+            errors.append(issue("AGENT_SPEC_INCOMPLETE", "每个验收项必须关联非空 REQ-xxx 列表", relative(acceptance_path, root)))
+        elif requirement_ids and any(value not in requirement_ids for value in requirement_ids_field):
+            errors.append(issue("AGENT_SPEC_UNBOUND", "验收项引用了 requirements.md 中不存在的 REQ", relative(acceptance_path, root)))
+        if item.get("gate") not in {"blocking", "scored"}:
+            errors.append(issue("AGENT_SPEC_INCOMPLETE", "验收项的 gate 必须是 blocking 或 scored", relative(acceptance_path, root)))
+        if not isinstance(item.get("criterion"), str) or not item["criterion"].strip():
+            errors.append(issue("AGENT_SPEC_INCOMPLETE", "验收项必须包含非空判定标准", relative(acceptance_path, root)))
+    delivery_present = is_nonempty_regular_file(agent_dir / "delivery" / "交付记录.md", root) \
+        or is_nonempty_regular_file(agent_dir / "delivery" / "01_智能体需求定义.md", root)
+    if delivery_present:
+        delivery_ac_ids = delivery_requirement_ac_ids(root, agent_dir)
+        missing_in_delivery = sorted(acceptance_ids - delivery_ac_ids)
+        extra_in_delivery = sorted(delivery_ac_ids - acceptance_ids)
+        if missing_in_delivery or extra_in_delivery:
+            details: List[str] = []
+            if missing_in_delivery:
+                details.append("交付记录缺少 " + ", ".join(missing_in_delivery))
+            if extra_in_delivery:
+                details.append("交付记录多出 " + ", ".join(extra_in_delivery))
+            errors.append(issue("SPEC_DELIVERY_DIVERGED", "spec 是验收唯一事实源，交付记录中的 AC 必须与其逐项一致：%s" % "；".join(details), relative(agent_dir / "delivery", root)))
+
+
+def validate_agent_eval(root: Path, agent_dir: Path, errors: List[Dict[str, str]]) -> None:
+    delivery_eval = agent_dir / "delivery" / "eval"
+    for legacy in (delivery_eval / "cases.jsonl", delivery_eval / "results.csv", delivery_eval / "results.jsonl"):
+        if path_present(legacy):
+            errors.append(issue("LEGACY_DELIVERY_EVAL_FACT", "Case/Trial 事实源已迁至 eval/ 与 runs/；delivery/eval 不得再保存 facts 文件", relative(legacy, root)))
+    eval_dir = agent_dir / "eval"
+    if not path_present(eval_dir):
+        return
+    if not eval_dir.is_dir() or eval_dir.is_symlink():
+        errors.append(issue("AGENT_EVAL_INVALID", "eval 必须是真实目录", relative(eval_dir, root)))
+        return
+    cases_path = eval_dir / "cases.jsonl"
+    if path_present(cases_path) and not is_nonempty_regular_file(cases_path, root):
+        errors.append(issue("AGENT_EVAL_INVALID", "cases.jsonl 必须是非空普通文件", relative(cases_path, root)))
+    elif is_nonempty_regular_file(cases_path, root):
+        seen_case_ids: Set[str] = set()
+        try:
+            with cases_path.open("r", encoding="utf-8") as handle:
+                for line_number, line in enumerate(handle, start=1):
+                    if not line.strip():
+                        continue
+                    try:
+                        value = json.loads(line)
+                    except json.JSONDecodeError as exc:
+                        errors.append(issue("AGENT_EVAL_INVALID", "cases.jsonl 第 %d 行无法解析：%s" % (line_number, exc.msg), relative(cases_path, root)))
+                        continue
+                    case_id = value.get("id") if isinstance(value, dict) else None
+                    if not isinstance(case_id, str) or not case_id.strip():
+                        errors.append(issue("AGENT_EVAL_INVALID", "cases.jsonl 第 %d 行缺少非空 id" % line_number, relative(cases_path, root)))
+                    elif case_id in seen_case_ids:
+                        errors.append(issue("AGENT_EVAL_INVALID", "Case id 重复：%s" % case_id, relative(cases_path, root)))
+                    else:
+                        seen_case_ids.add(case_id)
+        except (OSError, UnicodeError, ValueError):
+            errors.append(issue("AGENT_EVAL_INVALID", "cases.jsonl 不可安全读取", relative(cases_path, root)))
+    pending_dir = eval_dir / "pending"
+    if path_present(pending_dir):
+        if not pending_dir.is_dir() or pending_dir.is_symlink():
+            errors.append(issue("AGENT_EVAL_INVALID", "pending 必须是真实目录", relative(pending_dir, root)))
+        else:
+            for entry in sorted(pending_dir.iterdir()):
+                if entry.is_symlink() or not entry.is_file() or not entry.name.endswith(".pending.jsonl") \
+                        or not KEBAB_RE.fullmatch(entry.name[: -len(".pending.jsonl")]):
+                    errors.append(issue("AGENT_EVAL_INVALID", "pending 只允许 <name>.pending.jsonl 普通文件，<name> 使用小写 kebab-case", relative(entry, root)))
+    methods_path = eval_dir / "methods.yaml"
+    if path_present(methods_path):
+        methods = dsh_yaml(root, methods_path)
+        if not isinstance(methods, dict) or methods.get("schema_version") != "1.0" or not isinstance(methods.get("methods"), list) or not methods["methods"]:
+            errors.append(issue("AGENT_EVAL_METHODS_INVALID", "methods.yaml 必须声明 schema 1.0 和非空 methods 列表", relative(methods_path, root)))
+        else:
+            for item in methods["methods"]:
+                if not isinstance(item, dict) or not isinstance(item.get("id"), str) or not item["id"].strip() \
+                        or not isinstance(item.get("acceptance_ids"), list) or not item["acceptance_ids"] \
+                        or any(not isinstance(value, str) or not re.fullmatch(r"AC-[0-9]{3,}", value) for value in item["acceptance_ids"]) \
+                        or not isinstance(item.get("grader"), str) or not item["grader"].strip():
+                    errors.append(issue("AGENT_EVAL_METHODS_INVALID", "每个评估方法必须有唯一 id、AC 绑定和 grader 引用", relative(methods_path, root)))
+                if any(key in item for key in ("threshold", "阈值")):
+                    errors.append(issue("AGENT_EVAL_METHODS_INVALID", "methods.yaml 不得复制验收阈值", relative(methods_path, root)))
+    plans_dir = eval_dir / "plans"
+    if path_present(plans_dir):
+        if not plans_dir.is_dir() or plans_dir.is_symlink():
+            errors.append(issue("AGENT_EVAL_INVALID", "plans 必须是真实目录", relative(plans_dir, root)))
+        else:
+            for plan_path in sorted(plans_dir.glob("*.yaml")):
+                plan = dsh_yaml(root, plan_path)
+                if not isinstance(plan, dict) or plan.get("schema_version") != "1.0" or not plan.get("selector"):
+                    errors.append(issue("AGENT_EVAL_PLAN_INVALID", "评测计划必须声明 schema 1.0 和非空 selector", relative(plan_path, root)))
+
+
+def validate_agent_issues(root: Path, agent_dir: Path, errors: List[Dict[str, str]]) -> None:
+    issues_dir = agent_dir / "issues"
+    if not path_present(issues_dir):
+        return
+    if not issues_dir.is_dir() or issues_dir.is_symlink():
+        errors.append(issue("AGENT_ISSUES_INVALID", "issues 必须是真实目录", relative(issues_dir, root)))
+        return
+    for issue_path in sorted(issues_dir.glob("*.yaml")):
+        issue_id = issue_path.stem
+        if not ISSUE_ID_RE.fullmatch(issue_id):
+            errors.append(issue("AGENT_ISSUE_NAME", "问题必须命名为 iss-<UUIDv4>", relative(issue_path, root)))
+            continue
+        document = dsh_yaml(root, issue_path)
+        if not isinstance(document, dict):
+            errors.append(issue("AGENT_ISSUE_INVALID", "问题文件必须是可解析的 YAML mapping", relative(issue_path, root)))
+            continue
+        if document.get("schema_version") != "1.0" or document.get("issue_id") != issue_id or document.get("agent_id") != agent_dir.name:
+            errors.append(issue("AGENT_ISSUE_IDENTITY", "问题文件必须绑定目录名与 Agent", relative(issue_path, root)))
+        if document.get("status") not in {"open", "confirmed", "resolved", "wontfix"}:
+            errors.append(issue("AGENT_ISSUE_INVALID", "status 必须是 open/confirmed/resolved/wontfix", relative(issue_path, root)))
+        if not isinstance(document.get("title"), str) or not document["title"].strip():
+            errors.append(issue("AGENT_ISSUE_INVALID", "问题必须包含非空标题", relative(issue_path, root)))
+        if document.get("classification") not in {"harness-capability", "eval-data", "scoring-method", "environment-dependency", "spec-ambiguity", "unconfirmed"}:
+            errors.append(issue("AGENT_ISSUE_INVALID", "问题分类必须是约定的六类之一", relative(issue_path, root)))
+        evidence_refs = document.get("evidence_refs")
+        if not isinstance(evidence_refs, list) or not evidence_refs:
+            errors.append(issue("AGENT_ISSUE_INVALID", "问题必须关联至少一条证据引用", relative(issue_path, root)))
+        else:
+            for ref in evidence_refs:
+                if not isinstance(ref, str) or not ref or "\\" in ref:
+                    errors.append(issue("AGENT_ISSUE_INVALID", "证据引用必须是无跳转的仓库相对路径", relative(issue_path, root)))
+                    continue
+                parts = Path(ref).parts
+                target = root.joinpath(*parts)
+                if Path(ref).is_absolute() or any(part in {"", ".", ".."} for part in parts) or not is_nonempty_regular_file(target, root):
+                    errors.append(issue("AGENT_ISSUE_INVALID", "证据引用必须指向仓库内存在的普通文件", relative(issue_path, root)))
+        if document.get("status") == "resolved" and (not isinstance(document.get("resolved_by"), str) or not document["resolved_by"].strip()):
+            errors.append(issue("AGENT_ISSUE_INVALID", "resolved 问题必须记录 resolved_by", relative(issue_path, root)))
 
 
 def validate_tasks(root: Path, errors: List[Dict[str, str]], warnings: List[Dict[str, str]]) -> None:
@@ -1047,17 +1263,32 @@ def validate_experiments(root: Path, errors: List[Dict[str, str]], asset_files: 
             owner = root / "agents" / expected_agent
             if not owner.is_dir() or owner.is_symlink():
                 errors.append(issue("EXPERIMENT_AGENT_MISSING", "Experiment 名称中的 Agent 必须已存在", relative(experiment, root)))
-        for required_dir in ("candidate", "evaluation"):
-            target = experiment / required_dir
-            experiment_files = experiment_file_index.get(experiment.name, ())
-            material_files = [
-                path
-                for path in experiment_files
-                if path.relative_to(experiment).parts[0] == required_dir
-                and is_material_asset_file(root, path)
-            ]
-            if not target.is_dir() or target.is_symlink() or not material_files:
-                errors.append(issue("EXPERIMENT_STRUCTURE", "Experiment 的 %s 必须包含真实资产" % required_dir, relative(target, root)))
+        experiment_files = experiment_file_index.get(experiment.name, ())
+        candidate_target = experiment / "candidate"
+        candidate_material = [
+            path
+            for path in experiment_files
+            if path.relative_to(experiment).parts[0] == "candidate"
+            and is_material_asset_file(root, path)
+        ]
+        if not candidate_target.is_dir() or candidate_target.is_symlink() or not candidate_material:
+            errors.append(issue("EXPERIMENT_STRUCTURE", "Experiment 的 candidate 必须包含真实资产", relative(candidate_target, root)))
+        evidence_groups = [
+            (
+                experiment / name,
+                [
+                    path
+                    for path in experiment_files
+                    if path.relative_to(experiment).parts[0] == name
+                    and is_material_asset_file(root, path)
+                ],
+            )
+            for name in ("evaluation", "runs", "snapshots")
+        ]
+        if not any(group[0].is_dir() and not group[0].is_symlink() and group[1] for group in evidence_groups):
+            errors.append(issue("EXPERIMENT_STRUCTURE", "Experiment 的 evaluation、runs 或 snapshots 至少其一必须包含真实资产", relative(experiment, root)))
+        validate_experiment_runs(root, experiment, errors)
+        validate_experiment_snapshots(root, experiment, errors)
         candidate_harness = dsh_yaml(root, experiment / "candidate" / "harness.yaml")
         dsh_declared = (
             isinstance(candidate_harness, dict)
@@ -1066,6 +1297,167 @@ def validate_experiments(root: Path, errors: List[Dict[str, str]], asset_files: 
         )
         if path_present(experiment / "candidate" / "dsh") or dsh_declared:
             validate_dsh_candidate(root, experiment, errors, asset_files)
+
+
+RUN_RESULT_FIELDS = (
+    "run_id", "trial_id", "case_id", "baseline_id", "status", "score", "safety_violation",
+    "duration_ms", "input_tokens", "output_tokens", "tool_call_count", "retry_count",
+    "cost_amount", "cost_currency", "resolved_model", "failure_reason", "evidence_ref",
+)
+RUN_RESULT_STATUSES = ("pass", "fail", "error", "skipped", "blocked")
+
+
+def _read_jsonl_lines(root: Path, path: Path, errors: List[Dict[str, str]], code: str) -> List[Dict[str, object]]:
+    rows: List[Dict[str, object]] = []
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            for line_number, line in enumerate(handle, start=1):
+                if not line.strip():
+                    continue
+                try:
+                    value = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    errors.append(issue(code, "第 %d 行无法解析：%s" % (line_number, exc.msg), relative(path, root)))
+                    continue
+                if not isinstance(value, dict):
+                    errors.append(issue(code, "第 %d 行必须是 JSON 对象" % line_number, relative(path, root)))
+                    continue
+                rows.append(value)
+    except (OSError, UnicodeError, ValueError):
+        errors.append(issue(code, "文件不可安全读取", relative(path, root)))
+    return rows
+
+
+def validate_experiment_runs(root: Path, experiment: Path, errors: List[Dict[str, str]]) -> None:
+    runs = experiment / "runs"
+    if not runs.is_dir() or runs.is_symlink():
+        return
+    match = EXPERIMENT_RE.fullmatch(experiment.name)
+    agent_id = match.group(1) if match else None
+    for run_dir in child_directories(root, runs, errors, "RUN_CHILD_TYPE"):
+        if not RUN_ID_RE.fullmatch(run_dir.name):
+            errors.append(issue("RUN_NAME", "Run 必须命名为 run-<UUIDv4>", relative(run_dir, root)))
+            continue
+        manifest_path = run_dir / "run.yaml"
+        if not is_nonempty_regular_file(manifest_path, root):
+            errors.append(issue("RUN_MANIFEST_MISSING", "Run 缺少非空 run.yaml", relative(manifest_path, root)))
+            continue
+        values, manifest_error = parse_flat_manifest(root, manifest_path)
+        if manifest_error:
+            errors.append(issue("RUN_MANIFEST_INVALID", "run.yaml 必须是唯一顶层标量清单：%s" % manifest_error, relative(manifest_path, root)))
+            continue
+        if values.get("run_id") != run_dir.name:
+            errors.append(issue("RUN_ID_MISMATCH", "run_id 必须与 Run 目录名一致", relative(manifest_path, root)))
+        if values.get("experiment_id") != experiment.name or (agent_id is not None and values.get("agent_id") != agent_id):
+            errors.append(issue("RUN_IDENTITY_MISMATCH", "Run 必须绑定当前 Experiment 与 Agent", relative(manifest_path, root)))
+        if values.get("kind") not in {"formal", "research", "technical"}:
+            errors.append(issue("RUN_KIND_INVALID", "kind 只能是 formal、research 或 technical", relative(manifest_path, root)))
+        if values.get("status") not in {"planned", "running", "completed", "failed", "cancelled"}:
+            errors.append(issue("RUN_STATUS_INVALID", "status 必须是 planned/running/completed/failed/cancelled", relative(manifest_path, root)))
+        if values.get("kind") == "formal" and not values.get("baseline_id"):
+            errors.append(issue("RUN_BASELINE_MISSING", "formal Run 必须绑定 baseline_id", relative(manifest_path, root)))
+        if not values.get("snapshot_ref"):
+            errors.append(issue("RUN_SNAPSHOT_MISSING", "Run 必须绑定来源快照引用", relative(manifest_path, root)))
+        status = values.get("status")
+        results_path = run_dir / "results.jsonl"
+        if status == "planned":
+            if path_present(results_path):
+                errors.append(issue("RUN_PLANNED_RESULTS", "planned Run 不得已有 results.jsonl", relative(results_path, root)))
+            continue
+        if not is_nonempty_regular_file(results_path, root):
+            errors.append(issue("RUN_RESULTS_MISSING", "非 planned Run 必须包含 results.jsonl", relative(results_path, root)))
+            continue
+        rows = _read_jsonl_lines(root, results_path, errors, "RUN_RESULTS_INVALID")
+        baseline_ids: Set[str] = set()
+        trial_ids: Set[str] = set()
+        status_counts = {name: 0 for name in RUN_RESULT_STATUSES}
+        for row in rows:
+            missing = sorted(field for field in RUN_RESULT_FIELDS if field not in row)
+            if missing:
+                errors.append(issue("RUN_RESULTS_INVALID", "Trial 行缺少字段：%s" % ", ".join(missing), relative(results_path, root)))
+            if row.get("run_id") != run_dir.name:
+                errors.append(issue("RUN_RESULTS_INVALID", "Trial 行的 run_id 必须与 Run 一致", relative(results_path, root)))
+            if not isinstance(row.get("trial_id"), str) or not row["trial_id"] or row.get("trial_id") in trial_ids:
+                errors.append(issue("RUN_RESULTS_INVALID", "trial_id 必须唯一且非空", relative(results_path, root)))
+            else:
+                trial_ids.add(row["trial_id"])
+            if isinstance(row.get("baseline_id"), str) and row["baseline_id"]:
+                baseline_ids.add(row["baseline_id"])
+            row_status = row.get("status")
+            if row_status not in RUN_RESULT_STATUSES:
+                errors.append(issue("RUN_RESULTS_INVALID", "status 必须是 pass/fail/error/skipped/blocked", relative(results_path, root)))
+            else:
+                status_counts[row_status] += 1
+            if row_status == "error" and row.get("score") not in (None, ""):
+                errors.append(issue("RUN_RESULTS_INVALID", "status=error 的 Trial 不得有 score", relative(results_path, root)))
+            if row_status != "pass" and not (isinstance(row.get("failure_reason"), str) and row["failure_reason"].strip()):
+                errors.append(issue("RUN_RESULTS_INVALID", "status!=pass 的 Trial 必须填写 failure_reason", relative(results_path, root)))
+        if len(baseline_ids) > 1:
+            errors.append(issue("RUN_RESULTS_INVALID", "同一 Run 只能绑定一个 baseline_id", relative(results_path, root)))
+        if status in {"completed", "failed", "cancelled"}:
+            declared_results = values.get("results_sha256")
+            if not isinstance(declared_results, str) or not re.fullmatch(r"[0-9a-f]{64}", declared_results) \
+                    or declared_results != sha256(results_path):
+                errors.append(issue("RUN_FINALIZED_IMMUTABLE", "finalized Run 的 results_sha256 必须与 results.jsonl 当前内容一致", relative(manifest_path, root)))
+            declared_gaps = values.get("gaps_sha256")
+            if path_present(run_dir / "gaps.jsonl"):
+                if not isinstance(declared_gaps, str) or not re.fullmatch(r"[0-9a-f]{64}", declared_gaps) \
+                        or declared_gaps != sha256(run_dir / "gaps.jsonl"):
+                    errors.append(issue("RUN_FINALIZED_IMMUTABLE", "finalized Run 的 gaps_sha256 必须与 gaps.jsonl 当前内容一致", relative(manifest_path, root)))
+            elif declared_gaps:
+                errors.append(issue("RUN_FINALIZED_IMMUTABLE", "声明了 gaps_sha256 但 gaps.jsonl 缺失", relative(manifest_path, root)))
+            summary_path = run_dir / "summary.json"
+            if not is_nonempty_regular_file(summary_path, root):
+                errors.append(issue("RUN_SUMMARY_MISSING", "finalized Run 必须包含 summary.json", relative(summary_path, root)))
+            else:
+                try:
+                    summary = load_json_object(root, summary_path)
+                except (OSError, UnicodeError, ValueError, TypeError):
+                    summary = {}
+                if summary.get("schema_version") != "1.0" or summary.get("trial_count") != len(rows):
+                    errors.append(issue("RUN_SUMMARY_INVALID", "summary.json 的 trial_count 必须与 results.jsonl 一致", relative(summary_path, root)))
+                for name in RUN_RESULT_STATUSES:
+                    if summary.get(name) != status_counts[name]:
+                        errors.append(issue("RUN_SUMMARY_INVALID", "summary.json 的 %s 计数必须与 results.jsonl 一致" % name, relative(summary_path, root)))
+            if values.get("kind") == "formal" and not is_nonempty_regular_file(run_dir / "report.md", root):
+                errors.append(issue("RUN_REPORT_MISSING", "formal Run 必须包含 report.md", relative(run_dir / "report.md", root)))
+        if not is_nonempty_regular_file(run_dir / "inputs.lock.json", root):
+            errors.append(issue("RUN_INPUTS_MISSING", "非 planned Run 必须包含 inputs.lock.json", relative(run_dir / "inputs.lock.json", root)))
+        gaps_path = run_dir / "gaps.jsonl"
+        if path_present(gaps_path) and not is_nonempty_regular_file(gaps_path, root):
+            errors.append(issue("RUN_GAPS_INVALID", "gaps.jsonl 必须是非空普通文件", relative(gaps_path, root)))
+
+
+def validate_experiment_snapshots(root: Path, experiment: Path, errors: List[Dict[str, str]]) -> None:
+    snapshots = experiment / "snapshots"
+    if not snapshots.is_dir() or snapshots.is_symlink():
+        return
+    research = snapshots / "research"
+    if research.is_dir() and not research.is_symlink():
+        for snap_dir in child_directories(root, research, errors, "SNAPSHOT_CHILD_TYPE"):
+            if not SNAPSHOT_ID_RE.fullmatch(snap_dir.name):
+                errors.append(issue("SNAPSHOT_NAME", "研究快照必须命名为 snap-<UUIDv4>", relative(snap_dir, root)))
+                continue
+            manifest_path = snap_dir / "snapshot.json"
+            try:
+                manifest = load_json_object(root, manifest_path)
+            except (OSError, UnicodeError, ValueError, TypeError):
+                errors.append(issue("SNAPSHOT_MANIFEST_INVALID", "快照必须提供可解析的 snapshot.json", relative(manifest_path, root)))
+                continue
+            if manifest.get("schema_version") != "1.0" or manifest.get("snapshot_id") != snap_dir.name \
+                    or manifest.get("experiment_id") != experiment.name:
+                errors.append(issue("SNAPSHOT_IDENTITY_MISMATCH", "snapshot.json 必须绑定目录名与当前 Experiment", relative(manifest_path, root)))
+            for folder in ("harness", "spec", "eval"):
+                target = snap_dir / folder
+                if not target.is_dir() or target.is_symlink():
+                    errors.append(issue("SNAPSHOT_CONTENT_MISSING", "完整快照缺少 %s 内容副本" % folder, relative(target, root)))
+            if not is_nonempty_regular_file(snap_dir / "dependencies.lock.json", root):
+                errors.append(issue("SNAPSHOT_CONTENT_MISSING", "完整快照缺少 dependencies.lock.json", relative(snap_dir / "dependencies.lock.json", root)))
+    frozen = snapshots / "frozen-sources"
+    if frozen.is_dir() and not frozen.is_symlink():
+        for frozen_dir in child_directories(root, frozen, errors, "SNAPSHOT_CHILD_TYPE"):
+            if not FREEZE_ID_RE.fullmatch(frozen_dir.name):
+                errors.append(issue("SNAPSHOT_NAME", "旧三树冻结对象必须命名为 fr-<UUIDv4>", relative(frozen_dir, root)))
 
 
 def dsh_yaml(root: Path, path: Path, allow_js: bool = False) -> Optional[object]:
@@ -1262,10 +1654,8 @@ def validate_security_migration_candidate(
         "workspace": "dsh/workspace",
         "preset_root": "dsh/presets",
         "managed_root": "dsh/managed",
-        "profile_patch": "dsh/managed/security-operations-expert.patch.yml",
+        "profile_patch": "dsh/managed/%s.patch.yml" % agent_id,
         "runtime_lock": "runtime.lock.json",
-        "pending_delivery": "delivery/交付记录.md",
-        "pending_cases": "delivery/eval/cases.pending.jsonl",
     }
     if not isinstance(loadable, dict) or loadable.get("preset_id") != agent_id:
         errors.append(issue("DSH_LOADABLE_ASSETS", "loadable_assets 必须绑定当前 Preset", relative(harness_path, root)))
@@ -1299,7 +1689,18 @@ def validate_security_migration_candidate(
     if candidate_lock.get("agent_id") != agent_id or candidate_lock.get("experiment_id") != experiment.name or candidate_lock.get("runtime_adapter") != "runtime/adapters/dsh-container" or candidate_lock.get("profile") != "web" or candidate_lock.get("profile_patch") != expected_paths["profile_patch"]:
         errors.append(issue("DSH_SOURCE_LOCK", "Candidate Runtime lock 必须绑定当前 Agent、Experiment、web Profile 与薄适配层", relative(candidate / "runtime.lock.json", root)))
 
-    for name in DSH_CANDIDATE_REQUIRED:
+    required_entries = (
+        "dsh/workspace/AGENTS.md",
+        "dsh/presets/%s/preset.yml" % agent_id,
+        "dsh/presets/%s/agent.cordis.yml" % agent_id,
+        "dsh/managed/%s.patch.yml" % agent_id,
+        "dsh/managed/security-operations-guard.mjs",
+        "dsh/managed/mcp-servers.yaml",
+        "dsh/managed/role-tool-matrix.yaml",
+        "dsh/managed/control-boundary.yaml",
+        "runtime.lock.json",
+    )
+    for name in required_entries:
         target = candidate / name
         if not is_nonempty_regular_file(target, root):
             errors.append(issue("DSH_ENTRYPOINT_MISSING", "缺少 DSH 容器装载必需入口", relative(target, root)))
@@ -1362,12 +1763,12 @@ def validate_security_migration_candidate(
     if not isinstance(preset_metadata, dict) or not preset_metadata.get("name") or not preset_metadata.get("description"):
         errors.append(issue("DSH_PRESET_INVALID", "Preset 元数据缺少名称和说明", relative(dsh / "presets" / agent_id / "preset.yml", root)))
 
-    profile_path = dsh / "managed" / "security-operations-expert.patch.yml"
+    profile_path = dsh / "managed" / ("%s.patch.yml" % agent_id)
     profile = dsh_yaml(root, profile_path, allow_js=True)
     validate_dsh_profile(root, profile_path, profile, errors)
     validate_dsh_mcp_manifest(root, dsh / "managed" / "mcp-servers.yaml", errors)
     validate_dsh_role_matrix(root, dsh / "managed" / "role-tool-matrix.yaml", profile, errors)
-    validate_dsh_public_tool_map(root, dsh / "managed" / "mcp-tool-name-map.json", dsh / "managed" / "role-tool-matrix.yaml", profile, errors)
+    validate_dsh_public_tool_map(root, dsh / "managed" / "mcp-tool-name-map.json", dsh / "managed" / "role-tool-matrix.yaml", profile, candidate / "runtime.lock.json", errors)
     if path_present(candidate / "delivery" / "eval" / "cases.jsonl") or path_present(candidate / "delivery" / "eval" / "results.csv"):
         errors.append(issue("DSH_PENDING_IS_NOT_FORMAL_EVAL", "迁移 pending Case 不得与正式 Case/Trial 文件混用", relative(candidate / "delivery" / "eval", root)))
 
@@ -1601,10 +2002,10 @@ def validate_dsh_role_matrix(root: Path, path: Path, profile: object, errors: Li
             errors.append(issue("DSH_RESPONSE_NO_TOOLS", "响应规划角色不得持有工具", relative(path, root)))
 
 
-def validate_dsh_public_tool_map(root: Path, path: Path, matrix_path: Path, profile: object, errors: List[Dict[str, str]]) -> None:
+def validate_dsh_public_tool_map(root: Path, path: Path, matrix_path: Path, profile: object, runtime_lock_path: Path, errors: List[Dict[str, str]]) -> None:
     try:
         manifest = load_json_object(root, path)
-        runtime_lock = load_json_object(root, root / "evolution" / "experiments" / "EXP-security-operations-expert-001" / "candidate" / "runtime.lock.json")
+        runtime_lock = load_json_object(root, runtime_lock_path)
     except (OSError, UnicodeError, ValueError, TypeError):
         errors.append(issue("DSH_MCP_PUBLIC_TOOL_NAME", "必须提供可校验的 DSH MCP 公开号映射", relative(path, root)))
         return
@@ -2069,7 +2470,7 @@ def validate_dsh_adapter(root: Path, adapter: Path, errors: List[Dict[str, str]]
     if lock.get("schema_version") != "1.0" or not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit) or not isinstance(tree, str) or not re.fullmatch(r"[0-9a-f]{40}", tree) or not isinstance(lock_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", lock_sha) or not isinstance(image_tag, str) or image_tag != "ai-agent-harness/dsh:" + commit[:9] or not isinstance(lock.get("node_base"), str) or not re.fullmatch(r"node:[^@]+@sha256:[0-9a-f]{64}", lock["node_base"]):
         errors.append(issue("DSH_SOURCE_LOCK", "源码提交、树、依赖摘要和本地镜像标识必须完整且固定", relative(adapter / "source.lock.json", root)))
         return
-    default_source = validate_dsh_source_catalog(root, adapter, lock, errors)
+    source_catalog = validate_dsh_source_catalog(root, adapter, lock, errors)
     try:
         dockerfile = read_text_limited(root, adapter / "Dockerfile")
         build_script = read_text_limited(root, adapter / "build-image.sh")
@@ -2155,9 +2556,10 @@ def validate_dsh_adapter(root: Path, adapter: Path, errors: List[Dict[str, str]]
     if not isinstance(compatibility, dict) or compatibility.get("runtime_source_commit") != commit or compatibility.get("runtime_version") != lock.get("cli_version") or compatibility.get("profile") != "web" or compatibility.get("agent_mount_scope") != "container-only":
         errors.append(issue("DSH_RUNTIME_COMPATIBILITY", "runtime/compatibility.yaml 必须与锁定的容器 DSH 身份一致", "runtime/compatibility.yaml"))
     validate_dsh_verification_home_controls(root, adapter, errors)
-    if default_source is not None:
-        for mode in ("authoring", "verification"):
-            validate_dsh_compose(root, adapter, mode, image_tag, default_source, errors)
+    if source_catalog is not None:
+        for source in source_catalog.values():
+            for mode in ("authoring", "verification"):
+                validate_dsh_compose(root, adapter, mode, image_tag, source, errors)
 
 
 def validate_dsh_source_catalog(root: Path, adapter: Path, lock: Mapping[str, object], errors: List[Dict[str, str]]) -> Optional[Dict[str, object]]:
@@ -2210,11 +2612,7 @@ def validate_dsh_source_catalog(root: Path, adapter: Path, lock: Mapping[str, ob
             or candidate_lock.get("profile") != item["profile"]
             or candidate_lock.get("profile_patch") != "dsh/managed/" + str(item["patch"])):
             errors.append(issue("DSH_SOURCE_LOCK", "来源目录、Adapter 锁与 Candidate 锁须绑定同一 DSH 组合", relative(candidate_dsh.parent / "runtime.lock.json", root)))
-    default = sources.get(SECURITY_MIGRATION_EXPERIMENT)
-    if not isinstance(default, dict):
-        errors.append(issue("DSH_SOURCE_CATALOG", "默认迁移来源必须在 sources.json 中明确声明", relative(path, root)))
-        return None
-    return default
+    return dict(sources)
 
 
 def validate_dsh_verification_home_controls(root: Path, adapter: Path, errors: List[Dict[str, str]]) -> None:

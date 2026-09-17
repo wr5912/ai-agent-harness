@@ -19,3 +19,6 @@ htmlcov/
 .env.*
 !.env.example
 !evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.env
+
+# 本地开发入口；HOME/缓存/临时工作区
+.local/

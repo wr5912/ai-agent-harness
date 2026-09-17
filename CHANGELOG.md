@@ -2,18 +2,29 @@
 
 本文件记录仓库治理、目录契约和公共演进工具的变化。单个 Agent/Harness Release 的变更应记录在对应不可变 Release 中。
 
-## [Unreleased]
+## [0.2.0]
 
 ### 新增
 
 - 将 `security-operations-expert` 旧 Harness 的业务语义迁入 DSH 容器候选 Preset、Skill、受控 Profile、MCP 声明、角色工具矩阵和原生 Guard；旧活动 Hook、权限配置和宿主部署文件不进入可装载树。
 - 保存四域初版交付的清洗历史、逐文件来源清单和 200 条待领域复核输入，不创建正式 Eval、候选基线、Release 或 `current/`。
-- 增加锁定 DSH 源码的薄容器适配层和 Authoring/Verification 分阶段挂载契约。
-- 为两种容器模式固定用户 Patch、Web Profile manifest、全局指令与 Boot `.env` 的只读层；将官方安装模块 fallback 离线预生成并只读装载，阻断可写数据卷中的同名包覆盖。装载探针核对镜像内脚本、精确挂载、模块解析与候选摘要，但不把这些局部证据当作 Plugin/业务验收。
+- 增加锁定 DSH 源码的薄容器适配层和 Authoring/Verification 分阶段挂载契约；为两种容器模式固定用户 Patch、Web Profile manifest、全局指令与 Boot `.env` 的只读层，并阻断可写数据卷中的同名包覆盖。
+- 事实源与目录契约重构：验收事实源移至 `agents/<agent-id>/spec/acceptance.yaml`（未物化时交付记录模板一暂代）；Case 事实源移至 `agents/<agent-id>/eval/cases.jsonl`；待复核输入唯一允许位于 `agents/<agent-id>/eval/pending/`；Trial 事实按 `runs/<run-uuid>/results.jsonl` 独立归档，`delivery/eval/` 不再保存 facts 文件。200 条待复核输入迁入 `agents/security-operations-expert/eval/pending/cases.pending.jsonl`。
+- 来源解析扩展：`source_contract.py` 支持 `experiment:<id>`、`snapshot:<snap-id>`、`release:<name>` 选择器，并按优化执行/被测执行/评分分析三种角色生成挂载计划，被测侧与评分侧判分材料隔离。
+- `mutation-receipt.py research-snapshot` 物化完整研究快照：候选元数据、Harness 树、spec、eval 与依赖身份一并冻结，附逐树摘要与完整性复核；旧 `fr-*` 三树冻结保留可用。
+- `run_record.py` 提供 Run 全生命周期：init 固定输入身份、record 逐 Trial 追加、gap 记录问题、finalize 收尾并封存 results/gaps 摘要；已收尾 Run 拒绝再写。
+- 校验器新增 Agent spec/eval/issues、Experiment runs/snapshots 契约校验，并去除单一迁移实验硬编码；交付校验器改读 spec/eval/runs 事实源，删除 results.csv 读取路径。测试增至 128 项，覆盖选择器、快照往返与篡改检测、Run 收尾封存、spec 与交付记录一致性、pending 与旧路径门禁。
+
+### 变更
+
+- Experiment `evaluation/` 重组为 `evidence/` 与 `tools/`；镜像构建证据与变更回执写入 `evaluation/evidence/`；`test_security_guard.mjs` 移至 `tests/experiments/`。
+- `harness.yaml` 的 `loadable_assets` 只保留运行时装载资产；`pending_delivery`/`pending_cases` 从候选装载声明中移除。
+- 受控适配层安全摘要随 `source_contract.py`、`mutation-receipt.py`、`build-image.sh` 的既有变更重新审查并同步。
 
 ### 边界
 
 - 当前唯一交付结论仍为“退回整改”；容器技术检查与确定性插件单测不能替代真实模型/MCP 的 R3 业务评估。
+- `dsh-dev up/url/open` 容器启动与 host 网络实例、逐例驱动 DSH 的评测执行器仍未实施；其来源解析、快照、挂载计划与 Run 台账前置契约已交付。
 
 ## [0.1.0] - 2026-09-15
 

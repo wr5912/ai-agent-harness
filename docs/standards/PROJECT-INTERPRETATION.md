@@ -43,7 +43,11 @@ Experiment 的 `development_path` 只能为：
 
 ## 4. Acceptance 唯一事实源
 
-具体 Agent 的 `delivery/交付记录.md` 中“智能体需求定义”（模板一）是项目特有 `AC-xxx` 的唯一事实源；采用六文件拆分版时，对应唯一事实源是 `delivery/01_智能体需求定义.md`。验收要求、判定作用、阈值和阈值依据只能在这里维护。
+验收要求、判定作用、阈值和阈值依据的唯一维护位置，按以下规则确定：
+
+- `agents/<agent-id>/spec/acceptance.yaml` 存在时，它是该 Agent 的唯一事实源；同目录 `requirements.md` 维护 `REQ-xxx` 需求，`tasks.yaml` 维护业务任务定义、输入输出与适用范围。
+- `spec/` 尚未物化时，交付记录模板一（或拆分版 `01_智能体需求定义.md`）暂代事实源；`spec/acceptance.yaml` 一旦建立，交付记录中出现的全部 `AC-xxx` 必须与其逐项一致，不得再独立编辑阈值。
+- 同一 Agent 不得同时维护两套可编辑验收标准。
 
 《Harness Repo 目录结构设计说明》中的 `tasks/<task-domain>/acceptance.yaml` 按以下方式使用：
 
@@ -52,25 +56,33 @@ Experiment 的 `development_path` 只能为：
 - 禁止在投影中独立新增、修改或放宽验收要求；
 - 没有实际跨 Agent 复用或机器索引需求时，不创建该文件。
 
-当前初始化版本的机器校验器只接受第一种纯引用形式：`source_ref` 或 `acceptance_source` 必须精确指向交付需求定义中的一个 `AC-xxx`，且不得附带阈值等可编辑字段。以后若实现生成投影，必须先一并交付生成器、来源摘要和逐项一致性检查，再扩展机器契约；不能先提交一份无法证明只读派生关系的副本。
+机器校验器接受 `source_ref` 或 `acceptance_source` 精确指向 `agents/<agent-id>/spec/acceptance.yaml#AC-xxx` 或指向交付记录需求定义中的 `AC-xxx`；引用必须可解析且确实包含所引用的验收项，不得附带阈值等可编辑字段。以后若实现生成投影，必须先一并交付生成器、来源摘要和逐项一致性检查，再扩展机器契约；不能先提交一份无法证明只读派生关系的副本。
 
-评估实现只在交付记录模板三中通过 `AC-xxx` 绑定用例、方法、数据、结果字段、Trial 和聚合规则，不复制或修改模板一阈值。
+评估实现只在交付记录模板三中通过 `AC-xxx` 绑定用例、方法、数据、结果字段、Trial 和聚合规则，不复制或修改事实源阈值。
 
-## 5. 单一 Eval Set 与目录映射
+## 5. 单一 Eval Set、Run 归档与目录映射
 
 每个 Agent 仅维护一个 Case 事实源：
 
 ```text
-agents/<agent-id>/delivery/eval/cases.jsonl
+agents/<agent-id>/eval/cases.jsonl
 ```
 
-旧材料摄取阶段允许在具体 Experiment 的 `candidate/delivery/eval/cases.pending.jsonl` 保存待复核输入。这是迁移材料，不是第二个正式 Eval Set，也不得在正式 `results.csv` 中引用；只有完成逐条领域质量复核、唯一 `AC-xxx` 绑定和冻结范围后，才可物化正式 Case 事实源。仅有输入条数或旧文档中的 `synthetic_reviewed` 声明，不构成复核通过。
-
-`core`、`boundary`、`safety`、`regression` 是每个 Case 的 `tags` 枚举，可组合使用；同一 Case 无论被多少标签、验收项视图或矩阵格引用，都只计一次。Trial 事实统一写入：
+旧材料摄取阶段的待复核输入只能保存在：
 
 ```text
-agents/<agent-id>/delivery/eval/results.csv
+agents/<agent-id>/eval/pending/*.pending.jsonl
 ```
+
+pending 是迁移材料，不是正式 Eval Set，不得被正式 Run、Trial 或验收结论引用；只有完成逐条领域质量复核、唯一 `AC-xxx` 绑定和冻结范围后，才可物化正式 Case 事实源。仅有输入条数或旧文档中的 `synthetic_reviewed` 声明，不构成复核通过。
+
+`core`、`boundary`、`safety`、`regression` 是每个 Case 的 `tags` 枚举，可组合使用；同一 Case 无论被多少标签、验收项视图或矩阵格引用，都只计一次。Trial 执行事实按 Run 独立归档：
+
+```text
+evolution/experiments/EXP-<agent-id>-NNN/runs/<run-uuid>/results.jsonl
+```
+
+每次执行产生新的 `run-<UUIDv4>`，历史 Run 不得覆盖或改写；`run.yaml` 记录实验、来源快照、研究/正式性质、状态与起止，`inputs.lock.json` 绑定本次冻结输入身份，`gaps.jsonl` 保存本次发现，`summary.json` 由执行事实计算。`agents/<id>/delivery/eval/results.csv` 不再作为 Trial 事实源；尚未实现由新 Run 事实生成的兼容视图前，不得出现该文件。评估方法位于 `agents/<id>/eval/methods.yaml` 与被引用的版本化评分实现，Run 必须记录其精确版本。
 
 顶层 `eval/` 仅在产生真实复用内容时创建，并按以下方式解释 v1.1 的目录建议：
 
@@ -79,7 +91,7 @@ agents/<agent-id>/delivery/eval/results.csv
 - `eval/datasets/capability/`：按需求、验收项或本次能力影响范围形成的视图；
 - `eval/datasets/safety/`：选择 `tags` 含 `safety` 的视图；
 - `eval/graders/`：可被多个 Agent 引用且已版本化的评分实现；
-- `eval/reports/`：不可变结果快照的索引或派生报告，不是 `results.csv` 的第二事实源。
+- `eval/reports/`：不可变结果快照的索引或派生报告，不是 `results.jsonl` 的第二事实源。
 
 这些位置不得复制 `cases.jsonl` 或维护相互冲突的结果。尚无内容时不创建空目录。
 
@@ -126,6 +138,41 @@ Release 是可部署 Harness Artifact，不是 Git Tag。每个 Release 必须�
 
 Authoring 中的模型写入不能授予执行权限、改变 `AC-xxx` 阈值、修改正式 Eval、冻结候选基线、发布 Release 或覆盖历史。研究者可在新候选源码中修改 Preset、Profile/Patch、插件及非秘密依赖声明，但受控运行配置在当前容器内仍只读；这些修改须经宿主侧复核、构建和新容器/新 Session 装载后才可观察生效，不暗示热更新。模型外 Runtime/领域服务须独立核验租户、对象、参数、数量、幂等、审批、失败安全和审计；Prompt 和静态文件声明都不等于这些控制已经落实。
 
+### 7.1 三角色运行视图
+
+同一份源资产按运行角色生成不同挂载视图；宿主侧来源解析与挂载计划必须区分三种角色，不能把执行者来源与修改目标压成同一个 `--source` 概念：
+
+| 内容 | 优化执行 | 被测执行 | 评分/分析 |
+|---|---|---|---|
+| 目标 Candidate 工作区 | 可写 | 不挂可变目录，使用冻结快照 | 通常不需要；诊断时只读 |
+| Preset/Profile/插件 | 当前运行配置固定；修改下一版候选后重新装载 | 冻结版本 | 评估侧记录版本 |
+| 规格（需求/任务/公开标准） | 可读 | 按任务所需提供 | 可读 |
+| 评测输入 | 按探索计划 | 只读提供选中用例输入 | 读取输入与被测输出 |
+| 隐藏答案/参考判分材料 | 不开放 | 不提供 | 按方法使用 |
+| 任务工作目录 | 可写 | 独立可写 | 独立可写或只读 |
+| 输出目录 | 写优化记录，不覆盖历史 Run | 写任务输出与轨迹 | 写评分、验收与缺口 |
+| DSH_HOME | 独立运行态 | 新 HOME/新 Session；按计划管理用例隔离 | 不复用被测会话的推理上下文 |
+
+容器路径合同：
+
+```text
+/work/harness/workspace   # Harness 行为资产
+/opt/dsh-presets          # Preset，RO
+/opt/dsh-managed          # 受控配置，RO
+/work/spec                # 角色可读的规格视图，RO
+/work/eval-input          # 角色可读的评测输入投影，RO
+/work/eval-reference      # 仅评分侧挂载的判分材料，RO
+/work/task                # 本次用例工作区，RW
+/work/output              # 当前 Run 输出出口，RW
+/var/lib/dsh              # 独立 DSH_HOME，RW，不直接作为实验档案
+```
+
+只读只限制写入，不限制读取；参考答案、隐藏用例和不应提前获知的判分材料不得因“都是只读资产”而提供给被测侧。Harness 只读不等于整个业务执行只能只读——生成文件、调用写操作或修改任务数据可能正是被测能力，应在独立工作区运行，不能因此意外换掉原任务所需的权限配置。引入独立工作目录时必须验证 DSH 的 CWD、Skill 发现和 Prompt 投影仍与待测组合一致。
+
+### 7.2 冻结组合与 Run 事实
+
+研究比较或正式评估前，须物化**完整冻结组合**：Harness 候选元数据、受控配置、规格、评测输入、方法与计划、依赖身份的真实字节或可取回不可变引用，并写入快照清单；只有三棵挂载树的摘要不足以唯一说明“这次评测测了哪个组合”。每次执行（无论成功、失败或取消）归档到独立 `runs/<run-uuid>/`，结果事实、环境、输入锁、缺口与汇总由该 Run 自含；重新评分产生独立记录，不静默改写原 Run。
+
 插件研究至少区分源码来源和版本、构建产物及其依赖摘要、插件入口、Bundle/Patch/Profile 顺序、DSH 兼容范围和实际展开的有效配置。包存在不等于插件已激活；比较运行须记录实际装载结果。研究用内容快照应覆盖未提交及必要的未跟踪资产，并从快照的只读副本启动验证；仅在可变工作目录上加只读容器挂载，不能阻止宿主同时修改源目录。
 
 正式 Trial 还须冻结并记录 Runtime 的**有效投影**：实际模型/provider/reasoning effort、模型 `baseURL` 与重试参数、Session 采用的 permission preset、Agent preset、Profile 和隔离的新 Session 身份。`DSH_HOME/settings.yaml` 是运行态 typed namespace，不整体当作 Harness 制品，也不能因 Profile/Plugin 名单未变就忽略其中的模型、请求终点或权限默认值变化。环境变量、MCP 端点、凭据标识和网络代理须记录受信来源与有效值的非秘密摘要；不得让工作区或数据卷中的 `.env` 悄悄补齐/覆盖这些输入。运行态凭据和会话历史不进入 Release；一旦有效投影偏离本次候选基线，停止该次正式结论并重新确定冻结组合。
@@ -146,6 +193,7 @@ Authoring 中的模型写入不能授予执行权限、改变 `AC-xxx` 阈值、
 
 - Agent ID、技能名和普通目录使用小写 kebab-case。
 - Experiment 使用 `EXP-<agent-id>-NNN`；稳定资产 Baseline 和 Release 使用 `<agent-id>-v<semver>`。
+- 执行 Run 使用 `run-<UUIDv4>`，研究快照使用 `snap-<UUIDv4>`，跨 Run 问题使用 `iss-<UUIDv4>`（文件位于 `agents/<agent-id>/issues/`）。
 - 只有存在真实资产、证据或复用需求时才物化目录。禁止通过 `.gitkeep`、空配置、空报告或占位数据伪造完整性。
-- 历史通过 Git Commit、Tag、不可变 Release 和结果快照追溯，不建立 `latest`、`final-final` 或重复交付目录。
+- 历史通过 Git Commit、Tag、不可变 Release、快照和 Run 事实追溯，不建立 `latest`、`final-final` 或重复交付目录。
 - `current/` 是 Release 后生成的校验镜像，不是 `latest` 别名，也不改变 Release 的不可变性要求。

@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import re
 import sys
@@ -13,6 +12,11 @@ from collections import Counter, defaultdict
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import DefaultDict, Dict, List, Optional, Set, Tuple
+
+try:
+    import yaml
+except ImportError:  # 缺少 PyYAML 时只影响 spec YAML 校验，不阻断整体运行
+    yaml = None
 
 
 SCHEMA_VERSION = "1.0"
@@ -253,25 +257,95 @@ def load_delivery_docs(
     return all_text, docs, shape
 
 
+def load_bounded_spec_yaml(text: str) -> Optional[object]:
+    """有限制、拒重复键的 spec YAML 解析；解析失败返回 None。"""
+    if yaml is None:
+        return None
+
+    class BoundedUniqueSafeLoader(yaml.SafeLoader):  # type: ignore[union-attr]
+        def __init__(self, stream: str) -> None:
+            super().__init__(stream)
+            self.node_count = 0
+            self.alias_count = 0
+
+        def compose_node(self, parent: object, index: object) -> object:
+            self.node_count += 1
+            if self.node_count > 50_000:
+                raise ValueError("YAML 节点超过检查上限")
+            if self.check_event(yaml.events.AliasEvent):
+                self.alias_count += 1
+                if self.alias_count > 1_000:
+                    raise ValueError("YAML alias 超过检查上限")
+            return super().compose_node(parent, index)
+
+        def construct_mapping(self, node: object, deep: bool = False) -> Dict[object, object]:
+            self.flatten_mapping(node)
+            mapping: Dict[object, object] = {}
+            for key_node, value_node in node.value:
+                key = self.construct_object(key_node, deep=deep)
+                if key in mapping:
+                    raise ValueError("YAML mapping key 重复：%s" % key)
+                mapping[key] = self.construct_object(value_node, deep=deep)
+            return mapping
+
+    try:
+        return yaml.load(text, Loader=BoundedUniqueSafeLoader)
+    except Exception:  # PyYAML 的 Parser/Constructor 异常类型跨版本不同
+        return None
+
+
+def spec_acceptance_maps(
+    project: Path,
+    errors: List[Dict[str, str]],
+) -> Optional[Tuple[Set[str], Dict[str, Set[str]], Set[str]]]:
+    """spec/acceptance.yaml 存在时返回 (AC 集合, AC→REQ 映射, 硬门禁 AC)；不存在返回 None。"""
+    path = project / "spec" / "acceptance.yaml"
+    if not path.is_file():
+        return None
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError, ValueError):
+        errors.append(issue("SPEC_ACCEPTANCE_UNREADABLE", "spec/acceptance.yaml 不可安全读取", rel(path, project)))
+        return None
+    document = load_bounded_spec_yaml(text)
+    if not isinstance(document, dict) or not isinstance(document.get("acceptance"), list):
+        errors.append(issue("SPEC_ACCEPTANCE_INVALID", "spec/acceptance.yaml 必须是含 acceptance 列表的 YAML", rel(path, project)))
+        return None
+    acceptance_ids: Set[str] = set()
+    acceptance_requirements: Dict[str, Set[str]] = {}
+    hard_gates: Set[str] = set()
+    for item in document["acceptance"]:
+        if not isinstance(item, dict):
+            continue
+        ac_id = item.get("id")
+        if not is_nonempty_string(ac_id) or not AC_RE.fullmatch(str(ac_id)):
+            errors.append(issue("SPEC_ACCEPTANCE_INVALID", "验收项 id 必须为 AC-xxx", rel(path, project)))
+            continue
+        acceptance_ids.add(str(ac_id))
+        requirement_ids = item.get("requirement_ids")
+        if is_string_list(requirement_ids):
+            acceptance_requirements[str(ac_id)] = {str(value) for value in requirement_ids}
+        if item.get("gate") == "blocking":
+            hard_gates.add(str(ac_id))
+    if not acceptance_ids:
+        errors.append(issue("SPEC_ACCEPTANCE_INVALID", "spec/acceptance.yaml 未声明任何 AC", rel(path, project)))
+        return None
+    return acceptance_ids, acceptance_requirements, hard_gates
+
+
 def load_cases(
     path: Path,
     project: Path,
-    acceptance_source_text: str,
+    documented_requirements: Set[str],
+    documented_acceptance: Set[str],
+    acceptance_requirements: Dict[str, Set[str]],
+    hard_gate_acceptance: Set[str],
     errors: List[Dict[str, str]],
 ) -> Dict[str, Dict[str, object]]:
     cases: Dict[str, Dict[str, object]] = {}
     if not path.is_file():
-        errors.append(issue("CASES_MISSING", "缺少可访问的 delivery/eval/cases.jsonl", rel(path, project)))
+        errors.append(issue("CASES_MISSING", "缺少可访问的 eval/cases.jsonl", rel(path, project)))
         return cases
-    documented_requirements = set(re.findall(r"REQ-[0-9]{3,}", acceptance_source_text))
-    documented_acceptance = set(re.findall(r"AC-[0-9]{3,}", acceptance_source_text))
-    acceptance_requirements = acceptance_requirement_map(acceptance_source_text)
-    hard_gate_acceptance = {
-        row["验收编号"]
-        for row in semantic_table_rows(acceptance_source_text, {"验收编号", "判定作用"})
-        if AC_RE.fullmatch(row["验收编号"]) and row["判定作用"].strip("`*_ ") == "硬门禁"
-    }
-
     with path.open("r", encoding="utf-8") as handle:
         for line_number, raw in enumerate(handle, start=1):
             if not raw.strip():
@@ -526,7 +600,7 @@ def validate_case_matrix(
                         issue(
                             "CASE_MATRIX_UNBOUND",
                             "%s 的 %s + %s 未被模板二对应矩阵格引用" % (case_id, requirement_id, variant),
-                            "delivery/eval/cases.jsonl",
+                            "eval/cases.jsonl",
                         )
                     )
 
@@ -919,107 +993,154 @@ def parse_decimal_value(
         errors.append(issue("RESULT_NUMBER", "%s 必须是%s" % (field, qualifier), location))
 
 
-def load_results(
-    path: Path,
+def _json_result_row(value: object) -> Dict[str, str]:
+    """将 results.jsonl 的 JSON 对象转成字符串列，兼容原有逐字段文本检查。"""
+    if not isinstance(value, dict):
+        return {}
+    row: Dict[str, str] = {}
+    for key in RESULT_HEADER:
+        raw = value.get(key)
+        if raw is None:
+            row[key] = ""
+        elif isinstance(raw, bool):
+            row[key] = "true" if raw else "false"
+        elif isinstance(raw, float) and raw.is_integer():
+            row[key] = str(int(raw))
+        else:
+            row[key] = str(raw).strip()
+    return row
+
+
+def find_repo_root(project: Path) -> Path:
+    """向上寻找包含 evolution/experiments 的仓库根；找不到时回退两级父目录。"""
+    current = project.resolve()
+    for _ in range(6):
+        if (current / "evolution" / "experiments").is_dir():
+            return current
+        if current.parent == current:
+            break
+        current = current.parent
+    return project.resolve().parents[1]
+
+
+def load_run_results(
     project: Path,
     cases: Dict[str, Dict[str, object]],
     conclusion_checked_runs: Set[str],
     errors: List[Dict[str, str]],
 ) -> Tuple[List[Dict[str, str]], Dict[str, Set[str]], Dict[str, str]]:
+    """从该 Agent 全部 Experiment 的 runs/<run-uuid>/results.jsonl 读取 Trial 执行事实。"""
     rows: List[Dict[str, str]] = []
     run_cases: DefaultDict[str, Set[str]] = defaultdict(set)
     run_baselines: Dict[str, str] = {}
     counts: Counter[Tuple[str, str]] = Counter()
     trial_keys: Set[Tuple[str, str]] = set()
-    if not path.is_file():
-        errors.append(issue("RESULTS_MISSING", "缺少可访问的 delivery/eval/results.csv", rel(path, project)))
+    repo_root = find_repo_root(project)
+    experiments_root = repo_root / "evolution" / "experiments"
+    if not experiments_root.is_dir():
+        errors.append(issue("RESULTS_MISSING", "缺少可访问的 evolution/experiments Run 归档", rel(experiments_root, project)))
         return rows, dict(run_cases), run_baselines
-    with path.open("r", encoding="utf-8-sig", newline="") as handle:
-        reader = csv.DictReader(handle)
-        if reader.fieldnames != RESULT_HEADER:
-            errors.append(
-                issue(
-                    "RESULT_HEADER",
-                    "results.csv 表头必须精确为 17 列且顺序一致",
-                    rel(path, project),
-                )
-            )
-            return rows, dict(run_cases), run_baselines
-        for row_number, raw in enumerate(reader, start=2):
-            location = "%s:%d" % (rel(path, project), row_number)
-            if None in raw:
-                errors.append(issue("RESULT_EXTRA_COLUMNS", "CSV 行包含表头之外的额外列", location))
-            row = {key: (value or "").strip() for key, value in raw.items() if key is not None}
-            rows.append(row)
-            run_id = row["run_id"]
-            trial_id = row["trial_id"]
-            case_id = row["case_id"]
-            baseline_id = row["baseline_id"]
-            if not validate_uuid(run_id, "run-"):
-                errors.append(issue("RUN_ID_FORMAT", "run_id 必须为 run-<UUIDv4>", location))
-            if not validate_uuid(baseline_id, "bl-"):
-                errors.append(issue("BASELINE_ID_FORMAT", "baseline_id 必须为 bl-<UUIDv4>", location))
-            if not trial_id:
-                errors.append(issue("TRIAL_ID_EMPTY", "trial_id 不得留空", location))
-            key = (run_id, trial_id)
-            if key in trial_keys:
-                errors.append(issue("TRIAL_ID_DUPLICATE", "run_id + trial_id 重复", location))
-            trial_keys.add(key)
-            if case_id not in cases:
-                errors.append(issue("RESULT_CASE_UNKNOWN", "结果引用未知 Case：%s" % case_id, location))
-            else:
-                run_cases[run_id].add(case_id)
-                counts[(run_id, case_id)] += 1
-            existing_baseline = run_baselines.get(run_id)
-            if existing_baseline is not None and existing_baseline != baseline_id:
-                errors.append(issue("RUN_BASELINE_MIXED", "同一 run_id 使用了多个 baseline_id", location))
-            else:
-                run_baselines[run_id] = baseline_id
+    for experiment in sorted(experiments_root.iterdir()):
+        if not experiment.is_dir() or experiment.is_symlink():
+            continue
+        runs_dir = experiment / "runs"
+        if not runs_dir.is_dir():
+            continue
+        for run_dir in sorted(runs_dir.iterdir()):
+            if not run_dir.is_dir() or run_dir.is_symlink() or not RUN_RE.fullmatch(run_dir.name):
+                continue
+            results_path = run_dir / "results.jsonl"
+            if not results_path.is_file():
+                continue
+            run_id = run_dir.name
+            try:
+                with results_path.open("r", encoding="utf-8") as handle:
+                    for line_number, line in enumerate(handle, start=1):
+                        if not line.strip():
+                            continue
+                        location = "%s:%d" % (rel(results_path, repo_root), line_number)
+                        try:
+                            value = json.loads(line)
+                        except json.JSONDecodeError as exc:
+                            errors.append(issue("RESULT_JSON", "JSONL 行无法解析：%s" % exc.msg, location))
+                            continue
+                        row = _json_result_row(value)
+                        if not row:
+                            errors.append(issue("RESULT_OBJECT", "每个 JSONL 行必须是对象", location))
+                            continue
+                        rows.append(row)
+                        trial_id = row["trial_id"]
+                        case_id = row["case_id"]
+                        baseline_id = row["baseline_id"]
+                        if row["run_id"] != run_id:
+                            errors.append(issue("RUN_ID_FORMAT", "Trial 行的 run_id 必须与 Run 目录一致", location))
+                        if not validate_uuid(run_id, "run-"):
+                            errors.append(issue("RUN_ID_FORMAT", "run_id 必须为 run-<UUIDv4>", location))
+                        if not validate_uuid(baseline_id, "bl-"):
+                            errors.append(issue("BASELINE_ID_FORMAT", "baseline_id 必须为 bl-<UUIDv4>", location))
+                        if not trial_id:
+                            errors.append(issue("TRIAL_ID_EMPTY", "trial_id 不得留空", location))
+                        key = (run_id, trial_id)
+                        if key in trial_keys:
+                            errors.append(issue("TRIAL_ID_DUPLICATE", "run_id + trial_id 重复", location))
+                        trial_keys.add(key)
+                        if case_id not in cases:
+                            errors.append(issue("RESULT_CASE_UNKNOWN", "结果引用未知 Case：%s" % case_id, location))
+                        else:
+                            run_cases[run_id].add(case_id)
+                            counts[(run_id, case_id)] += 1
+                        existing_baseline = run_baselines.get(run_id)
+                        if existing_baseline is not None and existing_baseline != baseline_id:
+                            errors.append(issue("RUN_BASELINE_MIXED", "同一 run_id 使用了多个 baseline_id", location))
+                        else:
+                            run_baselines[run_id] = baseline_id
 
-            status = row["status"]
-            if status not in {"pass", "fail", "error"}:
-                errors.append(issue("RESULT_STATUS", "status 必须为 pass/fail/error", location))
-            if status == "error" and row["score"]:
-                errors.append(issue("ERROR_SCORE", "status=error 时 score 必须为空", location))
-            elif row["score"]:
-                parse_decimal_value(row["score"], "score", location, errors)
-            if status != "pass" and not row["failure_reason"]:
-                errors.append(issue("FAILURE_REASON", "status!=pass 时 failure_reason 不得留空", location))
-            if not row["evidence_ref"]:
-                errors.append(issue("EVIDENCE_REF", "evidence_ref 不得留空", location))
-            safety = row["safety_violation"]
-            if safety not in {"true", "false", "unknown"}:
-                errors.append(issue("SAFETY_VALUE", "safety_violation 必须为 true/false/unknown", location))
-            if status != "error" and safety == "unknown":
-                errors.append(issue("SAFETY_UNKNOWN", "仅 error Trial 可将 safety_violation 记为 unknown", location))
-            for field in ("tool_call_count", "retry_count"):
-                if not row[field]:
-                    errors.append(issue("RESULT_REQUIRED_FIELD", "%s 不得留空" % field, location))
-                else:
-                    parse_nonnegative_integer(row[field], field, location, errors)
-            for field in ("duration_ms", "input_tokens", "output_tokens"):
-                if row[field]:
-                    parse_nonnegative_integer(row[field], field, location, errors)
-            if row["cost_amount"]:
-                parse_decimal_value(row["cost_amount"], "cost_amount", location, errors, require_nonnegative=True)
-            if row["cost_amount"] and not row["cost_currency"]:
-                errors.append(issue("COST_CURRENCY", "cost_amount 有值时 cost_currency 不得留空", location))
-            if not row["cost_amount"] and row["cost_currency"]:
-                errors.append(issue("COST_AMOUNT", "cost_currency 有值时 cost_amount 不得留空", location))
-            if row["cost_currency"] and not re.fullmatch(r"[A-Z]{3}", row["cost_currency"]):
-                errors.append(issue("COST_CURRENCY", "cost_currency 必须是三位大写币种代码", location))
-            if case_id in cases:
-                case = cases[case_id]
-                if case.get("gate") == "scored" and status != "error" and not row["score"]:
-                    errors.append(issue("SCORED_RESULT_SCORE", "正常完成的 scored Trial 必须填写 score", location))
-                if run_id in conclusion_checked_runs and case.get("gate") == "blocking" and status == "fail":
-                    errors.append(issue("BLOCKING_TRIAL_FAILED", "blocking Trial 已确认失败", location))
-            if run_id in conclusion_checked_runs and safety == "true":
-                errors.append(issue("SAFETY_VIOLATION", "Trial 已确认安全违规", location))
-            if run_id in conclusion_checked_runs and status == "error":
-                errors.append(issue("UNRESOLVED_ERROR", "结果包含未解决 error", location))
+                        status = row["status"]
+                        if status not in {"pass", "fail", "error"}:
+                            errors.append(issue("RESULT_STATUS", "status 必须为 pass/fail/error", location))
+                        if status == "error" and row["score"]:
+                            errors.append(issue("ERROR_SCORE", "status=error 时 score 必须为空", location))
+                        elif row["score"]:
+                            parse_decimal_value(row["score"], "score", location, errors)
+                        if status != "pass" and not row["failure_reason"]:
+                            errors.append(issue("FAILURE_REASON", "status!=pass 时 failure_reason 不得留空", location))
+                        if not row["evidence_ref"]:
+                            errors.append(issue("EVIDENCE_REF", "evidence_ref 不得留空", location))
+                        safety = row["safety_violation"]
+                        if safety not in {"true", "false", "unknown"}:
+                            errors.append(issue("SAFETY_VALUE", "safety_violation 必须为 true/false/unknown", location))
+                        if status != "error" and safety == "unknown":
+                            errors.append(issue("SAFETY_UNKNOWN", "仅 error Trial 可将 safety_violation 记为 unknown", location))
+                        for field in ("tool_call_count", "retry_count"):
+                            if not row[field]:
+                                errors.append(issue("RESULT_REQUIRED_FIELD", "%s 不得留空" % field, location))
+                            else:
+                                parse_nonnegative_integer(row[field], field, location, errors)
+                        for field in ("duration_ms", "input_tokens", "output_tokens"):
+                            if row[field]:
+                                parse_nonnegative_integer(row[field], field, location, errors)
+                        if row["cost_amount"]:
+                            parse_decimal_value(row["cost_amount"], "cost_amount", location, errors, require_nonnegative=True)
+                        if row["cost_amount"] and not row["cost_currency"]:
+                            errors.append(issue("COST_CURRENCY", "cost_amount 有值时 cost_currency 不得留空", location))
+                        if not row["cost_amount"] and row["cost_currency"]:
+                            errors.append(issue("COST_AMOUNT", "cost_currency 有值时 cost_amount 不得留空", location))
+                        if row["cost_currency"] and not re.fullmatch(r"[A-Z]{3}", row["cost_currency"]):
+                            errors.append(issue("COST_CURRENCY", "cost_currency 必须是三位大写币种代码", location))
+                        if case_id in cases:
+                            case = cases[case_id]
+                            if case.get("gate") == "scored" and status != "error" and not row["score"]:
+                                errors.append(issue("SCORED_RESULT_SCORE", "正常完成的 scored Trial 必须填写 score", location))
+                            if run_id in conclusion_checked_runs and case.get("gate") == "blocking" and status == "fail":
+                                errors.append(issue("BLOCKING_TRIAL_FAILED", "blocking Trial 已确认失败", location))
+                        if run_id in conclusion_checked_runs and safety == "true":
+                            errors.append(issue("SAFETY_VIOLATION", "Trial 已确认安全违规", location))
+                        if run_id in conclusion_checked_runs and status == "error":
+                            errors.append(issue("UNRESOLVED_ERROR", "结果包含未解决 error", location))
+            except (OSError, UnicodeError, ValueError):
+                errors.append(issue("RESULTS_UNREADABLE", "Run 结果文件不可安全读取", rel(results_path, repo_root)))
     if not rows:
-        errors.append(issue("RESULTS_EMPTY", "results.csv 没有 Trial 结果", rel(path, project)))
+        errors.append(issue("RESULTS_EMPTY", "该 Agent 的 Run 归档没有 Trial 结果", "runs"))
     for (run_id, case_id), actual in sorted(counts.items()):
         if run_id not in conclusion_checked_runs:
             continue
@@ -1029,7 +1150,7 @@ def load_results(
                 issue(
                     "TRIAL_COUNT",
                     "%s / %s 应有 %d 个 Trial，实际 %d" % (run_id, case_id, required, actual),
-                    rel(path, project),
+                    "runs/%s/results.jsonl" % run_id,
                 )
             )
     return rows, dict(run_cases), run_baselines
@@ -1075,7 +1196,7 @@ def validate_formal_runs(
                 )
     for run_id in sorted(formal_runs):
         if run_id not in run_cases:
-            errors.append(issue("FORMAL_RUN_RESULTS_MISSING", "正式 Run 在 results.csv 中没有结果：%s" % run_id, "delivery"))
+            errors.append(issue("FORMAL_RUN_RESULTS_MISSING", "正式 Run 没有归档结果：%s" % run_id, "delivery"))
             continue
         baseline_id = run_baselines.get(run_id, "")
         if document_baselines and baseline_id not in document_baselines:
@@ -1163,13 +1284,38 @@ def run(project: Path) -> Tuple[Dict[str, object], int]:
     errors: List[Dict[str, str]] = []
     warnings: List[Dict[str, str]] = []
     text, docs, shape = load_delivery_docs(project, errors, warnings)
-    cases_path = project / "delivery" / "eval" / "cases.jsonl"
-    results_path = project / "delivery" / "eval" / "results.csv"
+    cases_path = project / "eval" / "cases.jsonl"
     if shape == "split":
         acceptance_source_text = docs.get(SPLIT_DELIVERY_FILES[0], "")
     else:
         acceptance_source_text = section_for_heading(docs.get("交付记录.md", ""), "智能体需求定义")
-    cases = load_cases(cases_path, project, acceptance_source_text, errors)
+    spec_maps = spec_acceptance_maps(project, errors)
+    if spec_maps is not None:
+        documented_acceptance, acceptance_requirements, hard_gate_acceptance = spec_maps
+        requirements_path = project / "spec" / "requirements.md"
+        try:
+            requirements_text = requirements_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError, ValueError):
+            requirements_text = acceptance_source_text
+        documented_requirements = set(re.findall(r"REQ-[0-9]{3,}", requirements_text))
+    else:
+        documented_requirements = set(re.findall(r"REQ-[0-9]{3,}", acceptance_source_text))
+        documented_acceptance = set(re.findall(r"AC-[0-9]{3,}", acceptance_source_text))
+        acceptance_requirements = acceptance_requirement_map(acceptance_source_text)
+        hard_gate_acceptance = {
+            row["验收编号"]
+            for row in semantic_table_rows(acceptance_source_text, {"验收编号", "判定作用"})
+            if AC_RE.fullmatch(row["验收编号"]) and row["判定作用"].strip("`*_ ") == "硬门禁"
+        }
+    cases = load_cases(
+        cases_path,
+        project,
+        documented_requirements,
+        documented_acceptance,
+        acceptance_requirements,
+        hard_gate_acceptance,
+        errors,
+    )
     validate_case_matrix(docs, shape, cases, errors)
     acceptance_source_ids, mapping_selectors = validate_acceptance_mapping(
         docs, shape, cases, project, errors, warnings
@@ -1224,8 +1370,7 @@ def run(project: Path) -> Tuple[Dict[str, object], int]:
     }
     conclusion_checked_runs = effective_adopted_runs | b2_passing_runs
     formal_runs = (selftest_runs | r3_runs) & effective_adopted_runs
-    rows, run_cases, run_baselines = load_results(
-        results_path,
+    rows, run_cases, run_baselines = load_run_results(
         project,
         cases,
         conclusion_checked_runs,
@@ -1237,7 +1382,7 @@ def run(project: Path) -> Tuple[Dict[str, object], int]:
     for run_id in sorted(b2_decisions):
         level, adopted, result_value = b2_decisions[run_id]
         if run_id not in run_baselines:
-            errors.append(issue("B2_RUN_RESULTS_MISSING", "B2 复跑未写入同一 results.csv：%s" % run_id, "delivery"))
+            errors.append(issue("B2_RUN_RESULTS_MISSING", "B2 复跑未归档 Run 结果：%s" % run_id, "delivery"))
         elif document_baselines and run_baselines[run_id] not in document_baselines:
             errors.append(issue("B2_RUN_BASELINE_MISMATCH", "B2 复跑与候选基线不一致：%s" % run_id, "delivery"))
         if adopted and result_value in {"不通过", "范围内不通过"}:

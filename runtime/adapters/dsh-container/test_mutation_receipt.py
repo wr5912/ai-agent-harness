@@ -31,7 +31,7 @@ class MutationReceiptTest(unittest.TestCase):
             receipt.DSH_ROOT / "presets",
             receipt.DSH_ROOT / "managed",
         }
-        receipt.RECEIPTS = self.root / "evaluation/mutation-receipts"
+        receipt.RECEIPTS = self.root / "evaluation/evidence/mutation-receipts"
         receipt.FROZEN = self.root / "snapshots/frozen-sources"
         for folder in receipt.ALLOWED_ROOTS:
             folder.mkdir(parents=True)

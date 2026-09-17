@@ -333,7 +333,7 @@ def delivery_disposition(relative: str) -> tuple[str, str, str | None]:
     if rest in {"README.md", "tests/README.md"}:
         return "sanitized", "清洗物化非执行历史说明；不激活其中提到的部署或测试命令", f"history/delivery-docs/{slug}/{rest}"
     if rest == "eval/cases.jsonl":
-        return "migrated", "规范化为 pending Case；业务复核和 AC 绑定尚未完成", "candidate/delivery/eval/cases.pending.jsonl"
+        return "migrated", "规范化为 pending Case；业务复核和 AC 绑定尚未完成", "agents/security-operations-expert/eval/pending/cases.pending.jsonl"
     if rest == "eval/results.csv":
         return "hash-only", "旧结果仅有表头且无 Trial；禁止创建空正式结果", None
     return "hash-only", "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate", None
@@ -518,7 +518,7 @@ def main() -> int:
     if len(case_ids) != len(set(case_ids)):
         raise ValueError("pending Case ID 存在重复")
 
-    cases_path = experiment / "candidate" / "delivery" / "eval" / "cases.pending.jsonl"
+    cases_path = repo / "agents" / "security-operations-expert" / "eval" / "pending" / "cases.pending.jsonl"
     plan(
         cases_path,
         "".join(json.dumps(case, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n" for case in pending_cases).encode("utf-8"),
