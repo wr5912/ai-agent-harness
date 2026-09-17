@@ -22,8 +22,8 @@
 
 - 仓库治理版本：[0.2.0](./VERSION.md)。这不是 Agent/Harness Release，也不是 Git Tag。
 - 已将 `security-operations-expert` 的旧 Harness 业务语义和初版交付材料迁入 [`EXP-security-operations-expert-001`](./evolution/experiments/EXP-security-operations-expert-001/) 的 Candidate 与清洗历史。旧归档中的 Hook、宽松权限配置、部署脚本和环境文件未原样激活。
-- 五类场景（响应处置、巡检、故障排查、策略配置、知识问答）的需求、任务与验收标准已按《网络安全运营五类场景_需求任务测试评估与验收标准 V0.2》摄入 `agents/security-operations-expert/spec/`：34 项 `REQ-001..034`、34 项任务、39 项 `AC-001..039`（确认状态：待交付负责人确认）。评估方法与夹具位于 `agents/security-operations-expert/eval/`；115 条 V0.2 设计样例（`D-*`）、4 条用户补充输入与 200 条旧候选同为待领域复核输入，不构成正式 Eval Set。
-- 当前交付结论为“退回整改”：历史检查有实质失败，319 条待复核输入（200 条旧候选＋115 条设计样例＋4 条用户补充输入）仍待领域专家逐条复核和 `AC-xxx` 绑定，没有正式 Trial、候选基线、稳定 Baseline、Release 或 `current/`。
+- 五类场景（响应处置、巡检、故障排查、策略配置、知识问答）的需求、任务与验收标准已按《网络安全运营五类场景_需求任务测试评估与验收标准 V0.2》摄入 `agents/security-operations-expert/spec/`：34 项 `REQ-001..034`、34 项任务、39 项 `AC-001..039`（确认状态：待交付负责人确认）。评估方法与预置场景位于 `agents/security-operations-expert/eval/`；115 条 V0.2 设计样例（`D-*`）、6 条用户补充输入与 200 条旧候选同为待领域复核输入，不构成正式 Eval Set。
+- 当前交付结论为“退回整改”：历史检查有实质失败，321 条待复核输入（200 条旧候选＋115 条设计样例＋6 条用户补充输入）仍待领域专家逐条复核和 `AC-xxx` 绑定，没有正式 Trial、候选基线、稳定 Baseline、Release 或 `current/`。
 - `plugins/asset-query-cli/` 是独立的只读管理入口原型：在锁定 DSH 镜像中验证了无模型、无业务 MCP 的目录查询、JSON 输出和退出语义；它不判断资产有效性或评估结论。
 - 即使容器构建、Profile 展开、只读挂载及 Mock MCP 等技术检查通过，也只证明迁移路线的局部可行性；没有真实模型、真实 MCP、审批与完整业务链的 R3 证据时，不宣称 DSH 已交付或可上线。
 

@@ -89,7 +89,9 @@
   "source": {
     "archived_path": "evolution/history/imports/security-operations-expert-2026-09-17/网络安全运营五类场景_需求任务测试评估与验收标准_V0.2_2026-09-17.md",
     "name": "网络安全运营五类场景_需求任务测试评估与验收标准_V0.2_2026-09-17.md",
-    "sha256": "051501599389c2f797c9f8ff493e6b2c704b55c89878e921fee4f791e9e95776"
+    "sha256": "231699628f51a47a2ec55747abdb26a5975d25d2c8309768a05a58502f7a7d0d",
+      "original_business_sha256": "051501599389c2f797c9f8ff493e6b2c704b55c89878e921fee4f791e9e95776",
+      "terminology_normalized": true
   },
   "status": "design ingested; domain confirmation and per-item review still pending"
 }

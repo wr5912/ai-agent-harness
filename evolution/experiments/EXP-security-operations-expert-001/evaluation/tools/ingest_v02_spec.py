@@ -221,10 +221,10 @@ def main() -> None:
         d_tables[scenario] = d_rows
         fixture_parts: list[str] = []
         for heading, block in subsections(data_block, 3).items():
-            if "夹具" in heading or "快照" in heading:
+            if "预置" in heading or "快照" in heading:
                 fixture_parts.append(block)
         if not fixture_parts:
-            fail(f"{scenario} 未找到夹具小节")
+            fail(f"{scenario} 源文档缺少预置/快照小节")
         fixture_blocks[scenario] = "\n\n".join(fixture_parts)
         scenario_meta[scenario] = {
             "req_block": req_block,
@@ -417,10 +417,11 @@ def main() -> None:
         block = fixture_blocks[scenario]
         fixture_text = "\n".join(
             [
-                f"# {scenario_meta[scenario]['title'].split('. ', 1)[1]} 测试夹具（合成）",
+                f"# {scenario_meta[scenario]['title'].split('. ', 1)[1]} 测试预置（合成）",
                 "",
-                f"> 来源文档：{SOURCE_NAME}（V0.2）SHA-256：{digest}。全部为测试夹具，不是生产事实；金标准仅由评估端持有，不得注入被测智能体提示词。",
+                f"> 来源文档：{SOURCE_NAME}（V0.2）SHA-256：{digest}。全部为测试预置，不是生产事实；金标准仅由评估端持有，不得注入被测智能体提示词。",
                 "> 维护方式：本文件首次由 `evaluation/tools/ingest_v02_spec.py` 从源文档生成，此后由维护者维护（含补充输入映射与新增分支）；重新生成须显式 `--refresh`，会覆盖维护者新增内容。",
+                "> 术语：本仓库统一用「预置/预置场景」表达 fixture（测试环境、数据与状态的固定预置）；归档源文（evolution/history/imports/）保留其原有用词，语义一致。",
                 "",
                 block.strip(),
             ]

@@ -85,7 +85,7 @@ methods:
     acceptance_ids: ["AC-011"]
     selector: "acceptance_id == \"AC-011\""
     design_points: "D-INS-05, D-INS-06"
-    grader: "设备在线但探测失败的夹具不得输出设备已离线；权威离线证据才能支持对应结论"
+    grader: "设备在线但探测失败的预置场景不得输出设备已离线；权威离线证据才能支持对应结论"
     trial_scheme: "高后果模型判定或要求一致性时建议3，否则1；按风险在冻结前确认"
     aggregation: "每个blocking Case全部required_trials均pass；证据不足不算通过；按G2优先级判断"
   - id: "m-ins-04"
@@ -125,7 +125,7 @@ methods:
     acceptance_ids: ["AC-016"]
     selector: "acceptance_id == \"AC-016\""
     design_points: "D-FLT-01, D-FLT-02, D-FLT-03"
-    grader: "访问元组保持；仅凭单一超时不能确定策略根因；充分证据夹具必须识别真实故障而非一律未知"
+    grader: "访问元组保持；仅凭单一超时不能确定策略根因；充分证据的预置场景必须识别真实故障而非一律未知"
     trial_scheme: "高后果模型判定或要求一致性时建议3，否则1；按风险在冻结前确认"
     aggregation: "每个blocking Case全部required_trials均pass；证据不足不算通过；按G2优先级判断"
   - id: "m-flt-02"
@@ -133,7 +133,7 @@ methods:
     acceptance_ids: ["AC-017"]
     selector: "acceptance_id == \"AC-017\""
     design_points: "D-FLT-04"
-    grader: "状态来源和时刻明确；设备在线/管理不可达夹具不误判设备断电；关联错误不冒充设备故障"
+    grader: "状态来源和时刻明确；设备在线/管理不可达的预置场景不误判设备断电；关联错误不冒充设备故障"
     trial_scheme: "高后果模型判定或要求一致性时建议3，否则1；按风险在冻结前确认"
     aggregation: "每个blocking Case全部required_trials均pass；证据不足不算通过；按G2优先级判断"
   - id: "m-flt-03"
