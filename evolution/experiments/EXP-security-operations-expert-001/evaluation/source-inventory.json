@@ -1,0 +1,1634 @@
+{
+  "entries": [
+    {
+      "disposition": "sanitized",
+      "path": "响应处置_delivery/01_智能体需求定义.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "51f913dfddda4a970f4d9cfdbb154c355ec26a922decf259c98a202edcf71293",
+      "sha256": "51f913dfddda4a970f4d9cfdbb154c355ec26a922decf259c98a202edcf71293",
+      "size": 6206,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/response-disposition/01_智能体需求定义.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "响应处置_delivery/02_用户场景与输入覆盖矩阵.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "c7121f7d5164b8986445f38234ed7282829ec556dbc4566d63dbf10612c543ed",
+      "sha256": "c7121f7d5164b8986445f38234ed7282829ec556dbc4566d63dbf10612c543ed",
+      "size": 3740,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/response-disposition/02_用户场景与输入覆盖矩阵.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "响应处置_delivery/03_任务与评估数据集说明.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "b292925aaf73da42b99def1d6e085f00a2c15184139c26d0793ec4f41f71b11e",
+      "sha256": "b292925aaf73da42b99def1d6e085f00a2c15184139c26d0793ec4f41f71b11e",
+      "size": 4039,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/response-disposition/03_任务与评估数据集说明.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "响应处置_delivery/04_安全与控制边界清单.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "a48faf7cb391ac29a5bafc14bd5dc9f4e358d17dbf112e7f9167e4f4c6873169",
+      "sha256": "a48faf7cb391ac29a5bafc14bd5dc9f4e358d17dbf112e7f9167e4f4c6873169",
+      "size": 4844,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/response-disposition/04_安全与控制边界清单.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "响应处置_delivery/05_候选版本基线.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [
+        "private-uri"
+      ],
+      "sanitized_sha256": "8f840369c150df3656708fee3963872b77714aa2191c25d431af3523ece596c6",
+      "sha256": "abb7fef3f27f2ff4ff8a09902c1b4e9d65d2cd9a274fff63a63a45ac93cd1714",
+      "size": 4538,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/response-disposition/05_候选版本基线.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "响应处置_delivery/06_自测与交付评估报告.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "b4a90576836764fd09610792c401ea18d0945d5b958302faafaab5127337bb71",
+      "sha256": "b4a90576836764fd09610792c401ea18d0945d5b958302faafaab5127337bb71",
+      "size": 8637,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/response-disposition/06_自测与交付评估报告.md"
+    },
+    {
+      "disposition": "migrated",
+      "path": "响应处置_delivery/eval/cases.jsonl",
+      "reason": "规范化为 pending Case；业务复核和 AC 绑定尚未完成",
+      "sha256": "ca283d36a74fb6b80c2700a95ae68527c98741ba502315a358d7f1ffe6c79a30",
+      "size": 36632,
+      "source": "agent-delivery-data",
+      "target": "candidate/delivery/eval/cases.pending.jsonl"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "响应处置_delivery/eval/results.csv",
+      "reason": "旧结果仅有表头且无 Trial；禁止创建空正式结果",
+      "sha256": "0aeae078a75530e66298166fd073b828eaada5468842b2dec497c3e7dd362bdc",
+      "size": 94,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "响应处置_delivery/tests/README.md",
+      "reason": "清洗物化非执行历史说明；不激活其中提到的部署或测试命令",
+      "sanitization_rules": [],
+      "sanitized_sha256": "cbd73b21a606fe7b978958ccfc8ef1becda0b014fe393d9036f44d24ef614684",
+      "sha256": "cbd73b21a606fe7b978958ccfc8ef1becda0b014fe393d9036f44d24ef614684",
+      "size": 1015,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/response-disposition/tests/README.md"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "响应处置_delivery/tests/test_delivery_package.py",
+      "reason": "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate",
+      "sha256": "3dde8a5a363c4fc0e5c23da1beddf2f0616e220a73e0c843ed8c58241e604cea",
+      "size": 4547,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "巡检_delivery/.env.example",
+      "reason": "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate",
+      "sha256": "0a0003279fb9dddc7fa71a0c08336a3550aed3314481cb49a5f9d67e57c7a564",
+      "size": 1345,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "巡检_delivery/01_智能体需求定义.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "135be98e55f667464c61ad3a1e27c50fdb566cc340f832826c503e307a225515",
+      "sha256": "135be98e55f667464c61ad3a1e27c50fdb566cc340f832826c503e307a225515",
+      "size": 6175,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/inspection/01_智能体需求定义.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "巡检_delivery/02_用户场景与输入覆盖矩阵.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "c8fbbf3573610c8da990042dde1092c3f20c372ccf72e345f11c6615c9bd3f02",
+      "sha256": "c8fbbf3573610c8da990042dde1092c3f20c372ccf72e345f11c6615c9bd3f02",
+      "size": 4811,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/inspection/02_用户场景与输入覆盖矩阵.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "巡检_delivery/03_任务与评估数据集说明.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "c018503c8f2aef3934c4edbc80dfe9ec952ee8f79ed965bda3aa5906a603bc0d",
+      "sha256": "c018503c8f2aef3934c4edbc80dfe9ec952ee8f79ed965bda3aa5906a603bc0d",
+      "size": 5468,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/inspection/03_任务与评估数据集说明.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "巡检_delivery/04_安全与控制边界清单.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "dea27cf531f0c17e90e7781f5f79cd4ef8c2a411fe3fadfdf3c20e53fc417379",
+      "sha256": "dea27cf531f0c17e90e7781f5f79cd4ef8c2a411fe3fadfdf3c20e53fc417379",
+      "size": 7139,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/inspection/04_安全与控制边界清单.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "巡检_delivery/05_候选版本基线.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [
+        "private-uri"
+      ],
+      "sanitized_sha256": "05ed1c201db1bf75b96b05021031ce148a9b913c18db9607fa688461efb90825",
+      "sha256": "685d8fe933722ad6bf44ee6e4c795657ccd4776ece45668f68511eac9311a03f",
+      "size": 4328,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/inspection/05_候选版本基线.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "巡检_delivery/06_自测与交付评估报告.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "e58cc6ce3d2ef65ef6a63b8f5ed5c3f26a625d5753e954d6f0874c1fdbed0bfc",
+      "sha256": "e58cc6ce3d2ef65ef6a63b8f5ed5c3f26a625d5753e954d6f0874c1fdbed0bfc",
+      "size": 11188,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/inspection/06_自测与交付评估报告.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "巡检_delivery/README.md",
+      "reason": "清洗物化非执行历史说明；不激活其中提到的部署或测试命令",
+      "sanitization_rules": [],
+      "sanitized_sha256": "3c15414d1407e7a9d4a69b9f6da2b28f3d91fad06f1ef10a1a9fca485386b392",
+      "sha256": "3c15414d1407e7a9d4a69b9f6da2b28f3d91fad06f1ef10a1a9fca485386b392",
+      "size": 1065,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/inspection/README.md"
+    },
+    {
+      "disposition": "migrated",
+      "path": "巡检_delivery/eval/cases.jsonl",
+      "reason": "规范化为 pending Case；业务复核和 AC 绑定尚未完成",
+      "sha256": "1f7eacdef2d87e6b1a705c6faf9b1f9348367ec1cee49b11239fc8847f119201",
+      "size": 33108,
+      "source": "agent-delivery-data",
+      "target": "candidate/delivery/eval/cases.pending.jsonl"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "巡检_delivery/eval/results.csv",
+      "reason": "旧结果仅有表头且无 Trial；禁止创建空正式结果",
+      "sha256": "0aeae078a75530e66298166fd073b828eaada5468842b2dec497c3e7dd362bdc",
+      "size": 94,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "巡检_delivery/inspection_delivery.sh",
+      "reason": "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate",
+      "sha256": "adfdfdd1709fd71f22b5ccde468c7dcc86aceb722f8caf8a7076f0e6ae25a866",
+      "size": 14505,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "巡检_delivery/module_plan.py",
+      "reason": "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate",
+      "sha256": "36ee8c331218a0224a206bb33c82fc399894892450b27e2233f6a0fbd99e40c0",
+      "size": 7325,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "巡检_delivery/package_workspace.py",
+      "reason": "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate",
+      "sha256": "962776973c1bb14a616e086a708142d9e569c90a3c7ae52fdee9c27b88cc1a18",
+      "size": 4524,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "巡检_delivery/remote_acceptance.py",
+      "reason": "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate",
+      "sha256": "b14683bbdbc4e9e4c3418ccd2af16e07af9fcc198c34ca1c073d8bf6a6b3c34f",
+      "size": 32571,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "巡检_delivery/remote_deploy.py",
+      "reason": "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate",
+      "sha256": "7f0d394476dd09101abf2bcc2e1ae7e1fc1813438fd1713e618c14ba4f4f10ce",
+      "size": 21157,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "巡检_delivery/tests/conftest.py",
+      "reason": "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate",
+      "sha256": "9f6c80572c4a038e82572f345bad14d09a07cc92e57fafc064f65b9009a21e56",
+      "size": 208,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "巡检_delivery/tests/test_module_plan.py",
+      "reason": "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate",
+      "sha256": "bb3e3b0d1078fbd8ed2ec4cb9d50e25baacb890511f229feaad2f0c98ac1e3b4",
+      "size": 3299,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "巡检_delivery/tests/test_package_workspace.py",
+      "reason": "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate",
+      "sha256": "e6b5e3af532e31936e26e87d3842ccd8b42f61158d32cd4e169e86150ec2a581",
+      "size": 2214,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "巡检_delivery/tests/test_remote_acceptance.py",
+      "reason": "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate",
+      "sha256": "3ba386b5b39584aaa7848352547b1b7c416b03581e5ee0771924d2a98141fa99",
+      "size": 18818,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "巡检_delivery/tests/test_remote_deploy.py",
+      "reason": "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate",
+      "sha256": "927f3052463c0d104765d44ceeae58fa92174b8f7925615b675be2f5fae79d50",
+      "size": 2526,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "故障排查_delivery/01_智能体需求定义.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "c8cafdcb39261a98e633ff203074351a1f111ceb3ddeccb76a9d16466404965f",
+      "sha256": "c8cafdcb39261a98e633ff203074351a1f111ceb3ddeccb76a9d16466404965f",
+      "size": 6652,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/fault-analysis/01_智能体需求定义.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "故障排查_delivery/02_用户场景与输入覆盖矩阵.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "421aa83ad050846e0444ccb3938eb9098bae8c5ee542476f1edf611b76e0d55b",
+      "sha256": "421aa83ad050846e0444ccb3938eb9098bae8c5ee542476f1edf611b76e0d55b",
+      "size": 6178,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/fault-analysis/02_用户场景与输入覆盖矩阵.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "故障排查_delivery/03_任务与评估数据集说明.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "dc9b838944b3fd48bbd65fab92fa2014ba394125b180cb99e21b1dcd35776303",
+      "sha256": "dc9b838944b3fd48bbd65fab92fa2014ba394125b180cb99e21b1dcd35776303",
+      "size": 5109,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/fault-analysis/03_任务与评估数据集说明.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "故障排查_delivery/04_安全与控制边界清单.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "dfe43426fabb020ad0d2a026494afb3cd2d066a736ccad3edc572484df9be696",
+      "sha256": "dfe43426fabb020ad0d2a026494afb3cd2d066a736ccad3edc572484df9be696",
+      "size": 6161,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/fault-analysis/04_安全与控制边界清单.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "故障排查_delivery/05_候选版本基线.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "9f15af2e4b5df635962bc9a225eda8ac7039684f84349017a2ceebe026a45776",
+      "sha256": "9f15af2e4b5df635962bc9a225eda8ac7039684f84349017a2ceebe026a45776",
+      "size": 5708,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/fault-analysis/05_候选版本基线.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "故障排查_delivery/06_自测与交付评估报告.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "eebc11266d2f7071017865ced999ce3088ea55c335ba67c51fd94965ccc04118",
+      "sha256": "eebc11266d2f7071017865ced999ce3088ea55c335ba67c51fd94965ccc04118",
+      "size": 9352,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/fault-analysis/06_自测与交付评估报告.md"
+    },
+    {
+      "disposition": "migrated",
+      "path": "故障排查_delivery/eval/cases.jsonl",
+      "reason": "规范化为 pending Case；业务复核和 AC 绑定尚未完成",
+      "sha256": "7e98f103542bbfab361397f1cd84b267caf113f6ea2ab9f53476805653287799",
+      "size": 70059,
+      "source": "agent-delivery-data",
+      "target": "candidate/delivery/eval/cases.pending.jsonl"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "故障排查_delivery/eval/results.csv",
+      "reason": "旧结果仅有表头且无 Trial；禁止创建空正式结果",
+      "sha256": "0aeae078a75530e66298166fd073b828eaada5468842b2dec497c3e7dd362bdc",
+      "size": 94,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "故障排查_delivery/tests/README.md",
+      "reason": "清洗物化非执行历史说明；不激活其中提到的部署或测试命令",
+      "sanitization_rules": [],
+      "sanitized_sha256": "fd0d3f7cd1868ae115aecd36f6890c494f0737f08e63fad3c87c217785082e32",
+      "sha256": "fd0d3f7cd1868ae115aecd36f6890c494f0737f08e63fad3c87c217785082e32",
+      "size": 1258,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/fault-analysis/tests/README.md"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "故障排查_delivery/tests/test_delivery_package.py",
+      "reason": "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate",
+      "sha256": "fa802214ec460cca0bd68507838fae426f226068611cc505236c114a4126e4bf",
+      "size": 4561,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "策略配置_delivery/01_智能体需求定义.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "ccb1a292cfff2041450beca2af24afe378eacf03bfff12c92e649e6cf6c1013e",
+      "sha256": "ccb1a292cfff2041450beca2af24afe378eacf03bfff12c92e649e6cf6c1013e",
+      "size": 6296,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/policy-configuration/01_智能体需求定义.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "策略配置_delivery/02_用户场景与输入覆盖矩阵.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "68b20494437199bbaabf4e66378ff19ee9902523ce02750d2725b56e35716ccf",
+      "sha256": "68b20494437199bbaabf4e66378ff19ee9902523ce02750d2725b56e35716ccf",
+      "size": 3468,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/policy-configuration/02_用户场景与输入覆盖矩阵.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "策略配置_delivery/03_任务与评估数据集说明.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "b260b65e1d8a6f2cd834fe23c1e8853edf75c81f5e081b486320d7f8b8252ada",
+      "sha256": "b260b65e1d8a6f2cd834fe23c1e8853edf75c81f5e081b486320d7f8b8252ada",
+      "size": 3637,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/policy-configuration/03_任务与评估数据集说明.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "策略配置_delivery/04_安全与控制边界清单.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "f27c272dea26e51376520c47b9ed4db0a0dec5d3964f0958a8eda2c305577968",
+      "sha256": "f27c272dea26e51376520c47b9ed4db0a0dec5d3964f0958a8eda2c305577968",
+      "size": 4954,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/policy-configuration/04_安全与控制边界清单.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "策略配置_delivery/05_候选版本基线.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [
+        "private-uri"
+      ],
+      "sanitized_sha256": "18bc402359bb75f985b9c7c5d50ddfbe2afd4956a2758e6404ae6b28258c756e",
+      "sha256": "3d012617a10e3bc92fbc70a61bd1fe1a33d929ed84acf9aeb13af62ab9e34c56",
+      "size": 3556,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/policy-configuration/05_候选版本基线.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "策略配置_delivery/06_自测与交付评估报告.md",
+      "reason": "清洗物化六件套历史正文；不作为当前正式结论",
+      "sanitization_rules": [],
+      "sanitized_sha256": "bb7f9ad43312d167f6c8fbed0eb7d3cd7f1ab3e72d66723a2e83a196b34b9942",
+      "sha256": "bb7f9ad43312d167f6c8fbed0eb7d3cd7f1ab3e72d66723a2e83a196b34b9942",
+      "size": 4460,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/policy-configuration/06_自测与交付评估报告.md"
+    },
+    {
+      "disposition": "migrated",
+      "path": "策略配置_delivery/eval/cases.jsonl",
+      "reason": "规范化为 pending Case；业务复核和 AC 绑定尚未完成",
+      "sha256": "dc74747e3f0606c551e2046679065d727015f19317ea210b74f34f1f6a3efedc",
+      "size": 33501,
+      "source": "agent-delivery-data",
+      "target": "candidate/delivery/eval/cases.pending.jsonl"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "策略配置_delivery/eval/results.csv",
+      "reason": "旧结果仅有表头且无 Trial；禁止创建空正式结果",
+      "sha256": "16a39e9a1bdaf550267e106a50d3b127a3c5cd8cead7f243ea24b5c30f10930e",
+      "size": 95,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "策略配置_delivery/tests/README.md",
+      "reason": "清洗物化非执行历史说明；不激活其中提到的部署或测试命令",
+      "sanitization_rules": [],
+      "sanitized_sha256": "7816aae100d902547ca1f4a5f81d13195e4e3a30542412c21dadf881bcac4f99",
+      "sha256": "7816aae100d902547ca1f4a5f81d13195e4e3a30542412c21dadf881bcac4f99",
+      "size": 1285,
+      "source": "agent-delivery-data",
+      "target": "history/delivery-docs/policy-configuration/tests/README.md"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "策略配置_delivery/tests/test_delivery_package.py",
+      "reason": "旧部署、环境或可执行测试材料仅留大小和 SHA-256；不复制、不执行、不作为 DSH Candidate",
+      "sha256": "2b8d2c2df83e37f3b12b13a3fa1d6936a28932112b1e46c0c3184290ec1e864e",
+      "size": 4391,
+      "source": "agent-delivery-data"
+    },
+    {
+      "disposition": "manual-transform",
+      "path": "workspace/.claude/agents/inspection-agent.md",
+      "reason": "四个旧角色经人工审查后合并成一份 DSH role-tool-matrix.yaml；本脚本不自动生成该目标",
+      "sha256": "75422a541cbae1756ffefbc9ac4c46a3d9bf98c2c20856f89e705c64ef4c486b",
+      "size": 8108,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/managed/role-tool-matrix.yaml",
+      "target_relation": "semantic-merge-not-auto-generated",
+      "target_sha256": "c8e31241d93e29e90bdb747c3d30d064c6c3d8ecb6302f72f091b7550dba93ff"
+    },
+    {
+      "disposition": "manual-transform",
+      "path": "workspace/.claude/agents/network-security-fault-analysis-expert.md",
+      "reason": "四个旧角色经人工审查后合并成一份 DSH role-tool-matrix.yaml；本脚本不自动生成该目标",
+      "sha256": "d2cacb4ecb1c009edf0007da1d16b35991ba875d445105e2cf74cc6a61ef7cd7",
+      "size": 17841,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/managed/role-tool-matrix.yaml",
+      "target_relation": "semantic-merge-not-auto-generated",
+      "target_sha256": "c8e31241d93e29e90bdb747c3d30d064c6c3d8ecb6302f72f091b7550dba93ff"
+    },
+    {
+      "disposition": "manual-transform",
+      "path": "workspace/.claude/agents/response-planning-agent.md",
+      "reason": "四个旧角色经人工审查后合并成一份 DSH role-tool-matrix.yaml；本脚本不自动生成该目标",
+      "sha256": "4ff9fa3f01e482bef1b4b41ce29eae3bf9f8c66a3e679e0111ed7cf83bf9a5b0",
+      "size": 1072,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/managed/role-tool-matrix.yaml",
+      "target_relation": "semantic-merge-not-auto-generated",
+      "target_sha256": "c8e31241d93e29e90bdb747c3d30d064c6c3d8ecb6302f72f091b7550dba93ff"
+    },
+    {
+      "disposition": "manual-transform",
+      "path": "workspace/.claude/agents/threat-analysis.md",
+      "reason": "四个旧角色经人工审查后合并成一份 DSH role-tool-matrix.yaml；本脚本不自动生成该目标",
+      "sha256": "deebfcdd3da633fe0053d2e7dfa47a68e716d6fcaad61e47c3547d0b1910c631",
+      "size": 16614,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/managed/role-tool-matrix.yaml",
+      "target_relation": "semantic-merge-not-auto-generated",
+      "target_sha256": "c8e31241d93e29e90bdb747c3d30d064c6c3d8ecb6302f72f091b7550dba93ff"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/.claude/legacy/agents/policy-operator.md",
+      "reason": "与目标 DSH 可装载资产无直接关系或属于旧 Runtime 外壳",
+      "sha256": "ecf4cce90a782c5c0ca30f5ffd34ac0f662c5d38d4e015b875b31345f67a6efd",
+      "size": 492,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/.claude/legacy/agents/response-playbook-resolver.md",
+      "reason": "与目标 DSH 可装载资产无直接关系或属于旧 Runtime 外壳",
+      "sha256": "26bc656801307b9b3fe6228c196ed673fa37fd86c77d3bdf316a0ec3820517d5",
+      "size": 342,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/.claude/legacy/agents/response-strategy-planner.md",
+      "reason": "与目标 DSH 可装载资产无直接关系或属于旧 Runtime 外壳",
+      "sha256": "997a7f5ca74e4f750b6b7225231924d0c6342cca008eefa0f805440113b413e1",
+      "size": 341,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/.claude/legacy/commands/investigate-security-event.md",
+      "reason": "与目标 DSH 可装载资产无直接关系或属于旧 Runtime 外壳",
+      "sha256": "4354becaac2e0d114d6f115995b47527e35b11f5d529c43fcbd788f92f45fd0d",
+      "size": 269,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/.claude/legacy/commands/plan-response.md",
+      "reason": "与目标 DSH 可装载资产无直接关系或属于旧 Runtime 外壳",
+      "sha256": "73b0f2bfe52fbd0f8b917f43981b2bcf3dec61e6eb43464a57b319a979f86074",
+      "size": 222,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/.claude/legacy/hooks/session_start.py",
+      "reason": "旧 Python Hook 禁止执行；控制不变量在 DSH native guard 中重建",
+      "sha256": "a0865c9a8830f70ca3d397beb4fe9d3b9aa8dae100fec7c6df0a5633444245a9",
+      "size": 137,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/.claude/legacy/rules/evidence-first.md",
+      "reason": "与目标 DSH 可装载资产无直接关系或属于旧 Runtime 外壳",
+      "sha256": "20276782dfe5d6e5d6345da65016d449aea1ef0d349a6ce4438fb2bd36c7126b",
+      "size": 146,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/.claude/legacy/rules/fault-analysis-boundary.md",
+      "reason": "与目标 DSH 可装载资产无直接关系或属于旧 Runtime 外壳",
+      "sha256": "68da6cbaa6dc4ea6f3ec22187039c956304996326c0e136d3353eaab69b15d29",
+      "size": 157,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/.claude/legacy/rules/response-safety.md",
+      "reason": "与目标 DSH 可装载资产无直接关系或属于旧 Runtime 外壳",
+      "sha256": "e52ee62f2727a78c9bbb916c6ee34efd61b38c875b2b0a468d2a889e773f1bbb",
+      "size": 150,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/.claude/legacy/rules/secops-operational-boundary.md",
+      "reason": "与目标 DSH 可装载资产无直接关系或属于旧 Runtime 外壳",
+      "sha256": "6a508ce986b3e489403edd3a3e5ee3f4acdeda63c8508a139170eeb26131edb0",
+      "size": 162,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/.claude/settings.json",
+      "reason": "包含旧权限、活动 Hook 或 Runtime 绑定，不得原样激活",
+      "sha256": "929e407082e2b1ca0a59329a4a6abcf03e04fba309991a01fb7c34e9de10f241",
+      "size": 13201,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "8292ae8e913e12556693361d8858a2c4cbff685dc927324d0bdf4ad6aecfda0d",
+      "path": "workspace/.claude/skills/fault-analysis/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "be3c605eecc699c2edb64360448afe7c2f1278ee7b5d8d4ebc1e80bc20bd1248",
+      "size": 30189,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-analysis/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "d6f9d97840126dc74b7d30da760772073c5f7e36c1a85534c732d2c7161d256c",
+      "path": "workspace/.claude/skills/fault-analysis/references/README.md",
+      "reason": "作为 DSH Skill 的只读业务参考迁移",
+      "sanitization_rules": [],
+      "sha256": "d6f9d97840126dc74b7d30da760772073c5f7e36c1a85534c732d2c7161d256c",
+      "size": 2087,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-analysis/references/README.md",
+      "transformation": "dsh-reference-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "467749fa4ce7bcef00eb62dc8469754c93e85a6d3dbbdae98f6ca5b6eadcabb7",
+      "path": "workspace/.claude/skills/fault-analysis/references/evidence-explain.md",
+      "reason": "作为 DSH Skill 的只读业务参考迁移",
+      "sanitization_rules": [],
+      "sha256": "467749fa4ce7bcef00eb62dc8469754c93e85a6d3dbbdae98f6ca5b6eadcabb7",
+      "size": 964,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-analysis/references/evidence-explain.md",
+      "transformation": "dsh-reference-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "bb7807e31e04272af8f2179a1bcfcdfb8895539dba5b99d39e42d87fab7c4ae4",
+      "path": "workspace/.claude/skills/fault-analysis/references/evidence-plan.md",
+      "reason": "作为 DSH Skill 的只读业务参考迁移",
+      "sanitization_rules": [
+        "private-ip",
+        "runtime-rewrite:.mcp.json"
+      ],
+      "sha256": "86827b438a01c5f9b59c99b1321e1f8571a7f7cf44fce0a5a25751ac3e04ee82",
+      "size": 7383,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-analysis/references/evidence-plan.md",
+      "transformation": "dsh-reference-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "9d081c953bafb4a20f0eb15e17f986a17d03ce5095e6310dc6b4232f605f7ccc",
+      "path": "workspace/.claude/skills/fault-analysis/references/hypothesis.md",
+      "reason": "作为 DSH Skill 的只读业务参考迁移",
+      "sanitization_rules": [],
+      "sha256": "9d081c953bafb4a20f0eb15e17f986a17d03ce5095e6310dc6b4232f605f7ccc",
+      "size": 2163,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-analysis/references/hypothesis.md",
+      "transformation": "dsh-reference-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "346f11665ca6fef83238478dc0ca352f66bc40f414e9a5f000d38b9a39dc6419",
+      "path": "workspace/.claude/skills/fault-analysis/references/report-organize.md",
+      "reason": "作为 DSH Skill 的只读业务参考迁移",
+      "sanitization_rules": [],
+      "sha256": "346f11665ca6fef83238478dc0ca352f66bc40f414e9a5f000d38b9a39dc6419",
+      "size": 982,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-analysis/references/report-organize.md",
+      "transformation": "dsh-reference-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "9a569247bc8bb58c6d49c8c776db7a8dcfcf0b7429f00cdc58dc70627bf134d3",
+      "path": "workspace/.claude/skills/fault-analysis/references/triage.md",
+      "reason": "作为 DSH Skill 的只读业务参考迁移",
+      "sanitization_rules": [],
+      "sha256": "9a569247bc8bb58c6d49c8c776db7a8dcfcf0b7429f00cdc58dc70627bf134d3",
+      "size": 3355,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-analysis/references/triage.md",
+      "transformation": "dsh-reference-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "3a4864cc300eee00dcaa0e6004f0dc8524b71be940fb469fe5a0efa065b0c586",
+      "path": "workspace/.claude/skills/fault-domain-asset-association-abnormal/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "7ee0ecd4eb1fac9d2b37defabf3bf828f98f0552d382c572fa9ef798d9b8f7f8",
+      "size": 5013,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-domain-asset-association-abnormal/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "f490fbe01b525812e9a5d9c03c2572a21e3e8f96b71042b7a80a4bee8bb39e34",
+      "path": "workspace/.claude/skills/fault-domain-asset-runtime-status/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "3de6a191259ce3f62c8fb6abf6fa32b20ab8a9a296fca6b931313b15b32a083d",
+      "size": 7682,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-domain-asset-runtime-status/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "6b36631ae49329758577ac56c818eb546cdcaba9736ba2822bc3d7cab609ce84",
+      "path": "workspace/.claude/skills/fault-domain-business-access-unreachable/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "9eec7f19dda7a33c9b49ddaf375961551f3d1826493bfcc512676b6a2022e540",
+      "size": 9481,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-domain-business-access-unreachable/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "d861f7aff6d2ed6fe1d8c4aa8a9e3841cff5b37349af09308d9a2daf18191fdb",
+      "path": "workspace/.claude/skills/fault-domain-cascade-data-sync-abnormal/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "4914acceebeceb8e825e6e4ca2248a1e0998173dfe7bcb62981ddbfe9b397bfe",
+      "size": 6924,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-domain-cascade-data-sync-abnormal/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "47b9fb85da50f4c9275306d67d88f8b968e68d96412fe4cfd2a3b91e81a1ebce",
+      "path": "workspace/.claude/skills/fault-domain-detection-alert-pipeline-abnormal/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "9362725d2d207eddb0e86fba2a6b6c596fa98613850f6a2f18be9c0270fb4af0",
+      "size": 7058,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-domain-detection-alert-pipeline-abnormal/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "2605eab4e4fee1dabb236f2a2ef215f1e1a3dd45309a32e645387ddbbdc6fe53",
+      "path": "workspace/.claude/skills/fault-domain-ha-policy-drift/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "e5cb7c56b502e3e4fe160f082691b65586190049406f0bb57552fa40a27451cb",
+      "size": 6785,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-domain-ha-policy-drift/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "86dd66a72bb95cbadfa5cf8d46cc459cf5c18d7b2c20312cc569739383549e1a",
+      "path": "workspace/.claude/skills/fault-domain-heterogeneous-policy-migration-access-abnormal/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "3c283fbccf8a3b4706fe85d28f8a6be4d6c86eaf77566bdb64d61768aa73d1a5",
+      "size": 7966,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-domain-heterogeneous-policy-migration-access-abnormal/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "873560e7ac19bc56afdb4d2f27c3ab7ae3252ebf2c69709b7f3114e140219e7c",
+      "path": "workspace/.claude/skills/fault-domain-host-security-configuration-risk/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "6eb5ba4fbd762e39d145e2631d1c32490c320a61770901ba52923c2b1eb2cf5e",
+      "size": 5102,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-domain-host-security-configuration-risk/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "c3e7134fc8760b4413c75c3ddc85f4f2b3481f800f85609a0766373a1c1792fe",
+      "path": "workspace/.claude/skills/fault-domain-identity-auth-login-abnormal/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "0f55c18c6aaf997fe57afbfb460f4d3cb2900e786e004445afcc899ce02fa830",
+      "size": 9899,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-domain-identity-auth-login-abnormal/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "69d18270add8372cb3b2bb4a53da7af6233eb4c4d647801a44f25c9dfaa219c3",
+      "path": "workspace/.claude/skills/fault-domain-path-compliance-abnormal/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "df533b9ac84c636ebacd7d3cb8409ded09450d30ff85c5c5f057114a53166bb2",
+      "size": 8532,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-domain-path-compliance-abnormal/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "d3fc72efc043a8b85563f2e93a026b62e6f80de54c648c4e6b45c603f37117f0",
+      "path": "workspace/.claude/skills/fault-domain-policy-change-access-abnormal/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "729d1b2c279cf85932b957ac1dea363b77ab6d7fa5f7392548dcee0f9e06c15d",
+      "size": 6770,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-domain-policy-change-access-abnormal/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "e8a75abf5b7efd6fe238ee1695f7dbc546e16795b84cdf6991f46e89e07f2848",
+      "path": "workspace/.claude/skills/fault-domain-security-device-config-drift/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "b23b81473a3766ca755d065886d02b054b06ae49513fee0aed55fd19f6c933fd",
+      "size": 6960,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-domain-security-device-config-drift/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "a1660f15b4e5ff344be3882e97fcd06d3da1ec7b494871a7991f400064a46c18",
+      "path": "workspace/.claude/skills/fault-domain-vulnerability-exposure-risk/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "0cea7a5616b112e4d6262388cfa13a082c396884b12eb5b70ed39c01ed1a8e19",
+      "size": 5347,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/fault-domain-vulnerability-exposure-risk/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "11eac32c06a95eb9f8576b790714bec9f2161bf75d40eb94bb0c0f7d37f531a6",
+      "path": "workspace/.claude/skills/knowledge-base-search/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "1cbd644134a02f9e9c96499861c9661d8e57e1584eea50e3ff37a60e980b46b6",
+      "size": 11791,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/knowledge-base-search/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "3d646a4378b000311deab8ba0aea25a4bc3603ec2da1fe070efe1348fffefb84",
+      "path": "workspace/.claude/skills/knowledge-base-search/references/tool-contract.md",
+      "reason": "作为 DSH Skill 的只读业务参考迁移",
+      "sanitization_rules": [
+        "runtime-rewrite:.claude/",
+        "runtime-rewrite:.mcp.json",
+        "runtime-rewrite:Claude",
+        "runtime-rewrite:Claude Code"
+      ],
+      "sha256": "559a554e70cbf4d005d514b643ebb7239e750ef724780ad19f70e146b4644338",
+      "size": 12325,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/knowledge-base-search/references/tool-contract.md",
+      "transformation": "dsh-reference-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "0f9663df79770158b07a907de42da17aefe544430c134bc01303a03194a59989",
+      "path": "workspace/.claude/skills/playbook-impact-assessment/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "407665fa784e5116107442a4814292fd7275e982d94495691575d6b8d92d5f1f",
+      "size": 1658,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/playbook-impact-assessment/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "8acbcbcbdc86ff316ac4a858206988aacd2095d393ef0edf58b8954f23c30660",
+      "path": "workspace/.claude/skills/policy-configuration/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "47ea71c7ceae1a6088d4e5b6bf8fb0f8c19eb31d7c0d3fa2688ef08597797ba4",
+      "size": 2097,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/policy-configuration/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "76d84e82fd9c3edc85ec693a50b6881e54271eb89da77335ac11142998a056a4",
+      "path": "workspace/.claude/skills/response-planning/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "b8b381c0d801a6035963cc717ad4bcd617256c1fd186e765ff515ef7bc004bcf",
+      "size": 1285,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/response-planning/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "eba39b7a1fe3909fcf2ced035f6685d03cabab2497ade1d0fed8d6804bec02cf",
+      "path": "workspace/.claude/skills/security-inspection/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "08792c3f17b9a1db7d8f9ead4a57dbe8f3327987b2b8d1a5a062b239af2e145a",
+      "size": 3132,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/security-inspection/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "f923c9053f14be82b8fb98144eedf51d8d41c2127b3207af4342a12bc2abad07",
+      "path": "workspace/.claude/skills/security-investigation/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "22a52be46b6c3c56601be01a571b925b5d0ab5dc582e2f6c47ae545bbe4224bc",
+      "size": 1912,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/security-investigation/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "d2b5d5bddf141e9415da0b87e61166f4f7dcae119fff6a3479903e9c355bf028",
+      "path": "workspace/.claude/skills/threat-analysis-asset-context-scoring/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "0039d4dc6d2a6023507daecc5d2e7b455b15bcb081d12d0ff8bf21c221014852",
+      "size": 6147,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/threat-analysis-asset-context-scoring/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "5905946148694f64d910bfa55d8c64a2e418f1e633762e16c3dc85b9d420c30d",
+      "path": "workspace/.claude/skills/threat-analysis-baseline-profiling/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "c52edf50822fefaf7924e9bd2030c6df55fd44549f64862410ec7d2f84736c96",
+      "size": 5015,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/threat-analysis-baseline-profiling/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "aff3d7dec28d4e3189f89a975c62e6e2a469fa3b3e0a8b2b54089f2408970425",
+      "path": "workspace/.claude/skills/threat-analysis-hypothesis-falsification/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "61f285a1cbc5622f9ba61deb57194fb54a1441017e93403974b142e987eb4d54",
+      "size": 8799,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/threat-analysis-hypothesis-falsification/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "103e4835ea4c02ffcb1026f351163f4c204a44cb34095e8ca205aa90a950129e",
+      "path": "workspace/.claude/skills/threat-analysis-kill-chain-reconstruction/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "d249a5198f2e076c896c9dcca71696c86e1f4de4a2e0cddf9e6e9d66836ae510",
+      "size": 5886,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/threat-analysis-kill-chain-reconstruction/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "ef973fafb650ad7def12e217850696b617945f31451e8bc900cee1337007e32b",
+      "path": "workspace/.claude/skills/threat-analysis-rule-tuning/SKILL.md",
+      "reason": "重写为 DSH 直接发现 Skill；原 frontmatter 不激活",
+      "sha256": "5b3e955bfec5dfe4b022bbf74d5f09ca25cf6b7a30f056fc4f749907dacc89d4",
+      "size": 10095,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/.agents/skills/threat-analysis-rule-tuning/SKILL.md",
+      "transformation": "dsh-skill-frontmatter-and-runtime-rewrite-v1"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/.gitignore",
+      "reason": "与目标 DSH 可装载资产无直接关系或属于旧 Runtime 外壳",
+      "sha256": "2bef8d26b8b0cffb1e36baa447f73a874b4cdf8750d2db3030d4a49952a2cae1",
+      "size": 456,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/.mcp.json",
+      "reason": "包含旧权限、活动 Hook 或 Runtime 绑定，不得原样激活",
+      "sha256": "3b9277364bb17ed9a6ffdf8402159b5263b9217cbe9f27ad4da4a9cd8d4f30ca",
+      "size": 188,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/.worktreeinclude",
+      "reason": "与目标 DSH 可装载资产无直接关系或属于旧 Runtime 外壳",
+      "sha256": "c98c51a216c0e17d14acc5632285d9233ec24880f7c6fb7acd04aed222882495",
+      "size": 201,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "manual-transform",
+      "path": "workspace/CLAUDE.md",
+      "reason": "业务指令语义经人工审查后合并到 DSH workspace AGENTS.md；本脚本不自动生成该目标",
+      "sha256": "08742e6462d18e708459a71ded1e25189542dd6c5c9d3412ae7a8bd19296ed8d",
+      "size": 6411,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/workspace/AGENTS.md",
+      "target_relation": "semantic-merge-not-auto-generated",
+      "target_sha256": "d7c72d060cee63b976ef1eb4f06dfe4bd23d49ee1f0bf252fdaf58ff418d1698"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/README.md",
+      "reason": "与目标 DSH 可装载资产无直接关系或属于旧 Runtime 外壳",
+      "sha256": "b826566d56cf058c59f2e4c0e586457cdeae66a637369df2a9a20084748439b5",
+      "size": 8297,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "manual-transform",
+      "path": "workspace/agent.yaml",
+      "reason": "身份、能力与路由语义经人工审查后合并到 DSH harness.yaml；本脚本不自动生成该目标",
+      "sha256": "3230d687c8c379c906eee24ab1102d2eabb4a15722494f4130f72bc2999113f9",
+      "size": 5693,
+      "source": "claude-code-archive",
+      "target": "candidate/harness.yaml",
+      "target_relation": "semantic-merge-not-auto-generated",
+      "target_sha256": "8311d704939f3106262bf33be4c5409939229b9779c3d4a875af2f9626df72bc"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "workspace/docs/accepted-risks.md",
+      "reason": "保留清洗后的历史风险证据",
+      "sanitization_rules": [],
+      "sanitized_sha256": "63ba3eea8648555b39fb8c5610dafdf2b00b727b1deffe470aa968e23ab8076c",
+      "sha256": "63ba3eea8648555b39fb8c5610dafdf2b00b727b1deffe470aa968e23ab8076c",
+      "size": 6421,
+      "source": "claude-code-archive",
+      "target": "history/archive-docs/accepted-risks.md"
+    },
+    {
+      "disposition": "sanitized",
+      "path": "workspace/docs/adversarial-remediation-matrix.md",
+      "reason": "保留清洗后的历史风险证据",
+      "sanitization_rules": [],
+      "sanitized_sha256": "748eab585e2135bfa4699daeeea97cd978e5d9a6e7945811312c612207715edc",
+      "sha256": "748eab585e2135bfa4699daeeea97cd978e5d9a6e7945811312c612207715edc",
+      "size": 9828,
+      "source": "claude-code-archive",
+      "target": "history/archive-docs/adversarial-remediation-matrix.md"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/hooks/common_guard.py",
+      "reason": "旧 Python Hook 禁止执行；控制不变量在 DSH native guard 中重建",
+      "sha256": "1c48bc3f4205b659c5852733a6f375f7eb59088bcb599382b67e696bbedd3683",
+      "size": 22342,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/hooks/fault_analysis_output_contract.py",
+      "reason": "旧 Python Hook 禁止执行；控制不变量在 DSH native guard 中重建",
+      "sha256": "4ad954b38d05b425eb0d2b56aea655b49f7b8814328db50625db2cc44505e229",
+      "size": 2995,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/hooks/post_tool_audit.py",
+      "reason": "旧 Python Hook 禁止执行；控制不变量在 DSH native guard 中重建",
+      "sha256": "67db11ea282a567f512b77207551f870000a1e44b070b924b81a667145a4e548",
+      "size": 37079,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/hooks/pre_tool_guard.py",
+      "reason": "旧 Python Hook 禁止执行；控制不变量在 DSH native guard 中重建",
+      "sha256": "493b0cddec044ac781f23d6c1e0e7fce2cdf6356dbece30ea01c143beddc4246",
+      "size": 68502,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/hooks/response_planning_output_contract.py",
+      "reason": "旧 Python Hook 禁止执行；控制不变量在 DSH native guard 中重建",
+      "sha256": "21f6ae744454deb7ee96e221649d217b4747e492bf12233b7b32ee487c393b48",
+      "size": 14352,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/hooks/threat_analysis_hook_entry.py",
+      "reason": "旧 Python Hook 禁止执行；控制不变量在 DSH native guard 中重建",
+      "sha256": "44c5dbe46ca811078c90ea8211bc4eacbdc2e5fa4858feb031ee3f2e43f6ed6e",
+      "size": 7227,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/hooks/threat_analysis_hook_state.py",
+      "reason": "旧 Python Hook 禁止执行；控制不变量在 DSH native guard 中重建",
+      "sha256": "3995d684c0bcc2da683207a80791963d06887c01196892c70b67338d8455e9a6",
+      "size": 82065,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/hooks/threat_analysis_lifecycle_guard.py",
+      "reason": "旧 Python Hook 禁止执行；控制不变量在 DSH native guard 中重建",
+      "sha256": "380b966efb66ee496d1d770bd3b1d81efc2f578c03422583f31bcc6ec7f47c0e",
+      "size": 12123,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/hooks/threat_analysis_output_contract.py",
+      "reason": "旧 Python Hook 禁止执行；控制不变量在 DSH native guard 中重建",
+      "sha256": "a1ca6d8da556359a2131cb7c4e50333dd12cb4513fd1b89e93937c176031c2ef",
+      "size": 94170,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/hooks/threat_analysis_route_guard.py",
+      "reason": "旧 Python Hook 禁止执行；控制不变量在 DSH native guard 中重建",
+      "sha256": "fd0b345b10202acacfef4056c78bfae5bab5931df8d457d81dedd862a2bcd5b7",
+      "size": 5601,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "d5835c248c2e624c39a50c44cd5fc9dd734700d23e8f2ef580c565cb1bd861ce",
+      "path": "workspace/schemas/response-plan-input.schema.json",
+      "reason": "迁移为 DSH 受控输出契约",
+      "sanitization_rules": [],
+      "sha256": "1fd3c4dcbead6043807c7d29fdb397e000d7f1feaaee348ee78e59e5fea7cfe6",
+      "size": 3185,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/managed/schemas/response-plan-input.schema.json",
+      "transformation": "canonical-json-and-sanitize-v2"
+    },
+    {
+      "disposition": "migrated",
+      "migrated_sha256": "c3d46e77f133bfee9ad8f6fd30b951f931013f4fee7e1381707d88d12e86c33d",
+      "path": "workspace/schemas/response-plan-output.schema.json",
+      "reason": "迁移为 DSH 受控输出契约",
+      "sanitization_rules": [],
+      "sha256": "f143fdfb83f2d1d35afc987b41ccdc714cfe660768e95125699de62f42c0e344",
+      "size": 3194,
+      "source": "claude-code-archive",
+      "target": "candidate/dsh/managed/schemas/response-plan-output.schema.json",
+      "transformation": "canonical-json-and-sanitize-v2"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/scripts/check_workspace_contract.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "65472adf6fd6b6836e06c029a61c9f585b28b5a684bc72da58161ac79ff89470",
+      "size": 31535,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/README.md",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "84e37fb66c8872be9588eca6d8122f0c53f5488af6e066d525f7b10a0994e02f",
+      "size": 5571,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_fault_analysis_assets.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "cbc966d92e2e7f229a7b87ee76022fc3703f747398110f81fc47f6c1ddeba743",
+      "size": 21333,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_fault_analysis_behavior.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "48ba6b2877b67b9b0d25fada98f1dd7617156eb9a51bfb31fafa4d26f663d87f",
+      "size": 3259,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_hooks.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "8dd97f2387b654fd2ef7c328bc9b958dec11331efc9d741cec64b531dd6efc5a",
+      "size": 170707,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_inspection_config.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "6745f22f4c262bc42210b6861aef77fd3829b5a73695e305ee4bc7f84d090631",
+      "size": 6007,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_knowledge_base_search_behavior.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "91cd0e604080ca5e7560377b997873adbbae8e51d535cd29924051728750be74",
+      "size": 3556,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_native_config.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "cd2265443b1a2a4181a48fb04fe9c469a38c8879cf1c7ebb9bb96f4f4a77c466",
+      "size": 14468,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_policy_configuration.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "fa2a3e4b65a1146ae4ff87c98be20204eb3b610436758a0d0757c8fa1c2e4762",
+      "size": 3502,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_response_llm_boundary.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "eec92d8b68d7b13ad9527a771a5612dc93b5b0299858c78d4939c57b4db614ca",
+      "size": 23328,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_threat_analysis_contracts.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "82855f9f283aee1108ac0b757cd12173a1d8d1dc97fe16cdd6bbdf598117da35",
+      "size": 16809,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_threat_analysis_flow.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "fed9bf0d50d61077acc03a2acfc6e8c1fd2018eeeb71d7ddbaccf7b5023772df",
+      "size": 154568,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_threat_analysis_hook_state.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "ff1b3305ab53c22ece656492580b0a0488822d40f305c17805fa9f76c4b790ef",
+      "size": 11231,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_threat_analysis_permissions.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "ec659b337e3607e36a76502fdbc2f70f428515abf577dff7f3b5c8150993d845",
+      "size": 4877,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_threat_analysis_routing.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "dc485f0b89f584fe04c312f4f736f5f21a1925e65c6068c87d3da843259db2c7",
+      "size": 3842,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_threat_analysis_stop_hooks.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "5337d430a546666d4537ae95c1a4039f9a44cd2828f5d71c09ac3b688d715804",
+      "size": 238596,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/test_workspace_contract.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "153dacdc433dd73f7d2cbdcc414a06629ca992ba87c1ed6da3659356634103dc",
+      "size": 22257,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/threat_analysis_fixtures.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "4e43a0854993ebce31dae009ed6d08c743da8eafddc930419c3ff18e0bcb9715",
+      "size": 66346,
+      "source": "claude-code-archive"
+    },
+    {
+      "disposition": "hash-only",
+      "path": "workspace/tests/threat_analysis_mcp_server.py",
+      "reason": "旧 Runtime 测试或脚本仅作为行为 Oracle，不在迁移中执行",
+      "sha256": "8a2c0f4287f2f98971debf9fe39334a5dc642f2663dd2114c86f0d0793c890a3",
+      "size": 14750,
+      "source": "claude-code-archive"
+    }
+  ],
+  "generated_for": "EXP-security-operations-expert-001",
+  "generated_outputs": [
+    {
+      "path": "agents/security-operations-expert/manifest.yaml",
+      "sha256": "154e200e897fdfee17af4fdf981967d201dd1914a6e104d1cca253d2e0d324bd"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/delivery/eval/cases.pending.jsonl",
+      "sha256": "70aca9a3067cc3756e3c60e8a00d362d7be14088ee1f0ed8c35453295081a0fc"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/delivery/交付记录.md",
+      "sha256": "3082b756b2f268f552869e7f18a74d8584fa58ca926dcab1128ccc2af46abe71"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/managed/schemas/response-plan-input.schema.json",
+      "sha256": "d5835c248c2e624c39a50c44cd5fc9dd734700d23e8f2ef580c565cb1bd861ce"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/managed/schemas/response-plan-output.schema.json",
+      "sha256": "c3d46e77f133bfee9ad8f6fd30b951f931013f4fee7e1381707d88d12e86c33d"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-analysis/SKILL.md",
+      "sha256": "8292ae8e913e12556693361d8858a2c4cbff685dc927324d0bdf4ad6aecfda0d"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-analysis/references/README.md",
+      "sha256": "d6f9d97840126dc74b7d30da760772073c5f7e36c1a85534c732d2c7161d256c"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-analysis/references/evidence-explain.md",
+      "sha256": "467749fa4ce7bcef00eb62dc8469754c93e85a6d3dbbdae98f6ca5b6eadcabb7"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-analysis/references/evidence-plan.md",
+      "sha256": "bb7807e31e04272af8f2179a1bcfcdfb8895539dba5b99d39e42d87fab7c4ae4"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-analysis/references/hypothesis.md",
+      "sha256": "9d081c953bafb4a20f0eb15e17f986a17d03ce5095e6310dc6b4232f605f7ccc"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-analysis/references/report-organize.md",
+      "sha256": "346f11665ca6fef83238478dc0ca352f66bc40f414e9a5f000d38b9a39dc6419"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-analysis/references/triage.md",
+      "sha256": "9a569247bc8bb58c6d49c8c776db7a8dcfcf0b7429f00cdc58dc70627bf134d3"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-domain-asset-association-abnormal/SKILL.md",
+      "sha256": "3a4864cc300eee00dcaa0e6004f0dc8524b71be940fb469fe5a0efa065b0c586"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-domain-asset-runtime-status/SKILL.md",
+      "sha256": "f490fbe01b525812e9a5d9c03c2572a21e3e8f96b71042b7a80a4bee8bb39e34"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-domain-business-access-unreachable/SKILL.md",
+      "sha256": "6b36631ae49329758577ac56c818eb546cdcaba9736ba2822bc3d7cab609ce84"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-domain-cascade-data-sync-abnormal/SKILL.md",
+      "sha256": "d861f7aff6d2ed6fe1d8c4aa8a9e3841cff5b37349af09308d9a2daf18191fdb"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-domain-detection-alert-pipeline-abnormal/SKILL.md",
+      "sha256": "47b9fb85da50f4c9275306d67d88f8b968e68d96412fe4cfd2a3b91e81a1ebce"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-domain-ha-policy-drift/SKILL.md",
+      "sha256": "2605eab4e4fee1dabb236f2a2ef215f1e1a3dd45309a32e645387ddbbdc6fe53"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-domain-heterogeneous-policy-migration-access-abnormal/SKILL.md",
+      "sha256": "86dd66a72bb95cbadfa5cf8d46cc459cf5c18d7b2c20312cc569739383549e1a"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-domain-host-security-configuration-risk/SKILL.md",
+      "sha256": "873560e7ac19bc56afdb4d2f27c3ab7ae3252ebf2c69709b7f3114e140219e7c"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-domain-identity-auth-login-abnormal/SKILL.md",
+      "sha256": "c3e7134fc8760b4413c75c3ddc85f4f2b3481f800f85609a0766373a1c1792fe"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-domain-path-compliance-abnormal/SKILL.md",
+      "sha256": "69d18270add8372cb3b2bb4a53da7af6233eb4c4d647801a44f25c9dfaa219c3"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-domain-policy-change-access-abnormal/SKILL.md",
+      "sha256": "d3fc72efc043a8b85563f2e93a026b62e6f80de54c648c4e6b45c603f37117f0"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-domain-security-device-config-drift/SKILL.md",
+      "sha256": "e8a75abf5b7efd6fe238ee1695f7dbc546e16795b84cdf6991f46e89e07f2848"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/fault-domain-vulnerability-exposure-risk/SKILL.md",
+      "sha256": "a1660f15b4e5ff344be3882e97fcd06d3da1ec7b494871a7991f400064a46c18"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/knowledge-base-search/SKILL.md",
+      "sha256": "11eac32c06a95eb9f8576b790714bec9f2161bf75d40eb94bb0c0f7d37f531a6"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/knowledge-base-search/references/tool-contract.md",
+      "sha256": "3d646a4378b000311deab8ba0aea25a4bc3603ec2da1fe070efe1348fffefb84"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/playbook-impact-assessment/SKILL.md",
+      "sha256": "0f9663df79770158b07a907de42da17aefe544430c134bc01303a03194a59989"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/policy-configuration/SKILL.md",
+      "sha256": "8acbcbcbdc86ff316ac4a858206988aacd2095d393ef0edf58b8954f23c30660"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/response-planning/SKILL.md",
+      "sha256": "76d84e82fd9c3edc85ec693a50b6881e54271eb89da77335ac11142998a056a4"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/security-inspection/SKILL.md",
+      "sha256": "eba39b7a1fe3909fcf2ced035f6685d03cabab2497ade1d0fed8d6804bec02cf"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/security-investigation/SKILL.md",
+      "sha256": "f923c9053f14be82b8fb98144eedf51d8d41c2127b3207af4342a12bc2abad07"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/threat-analysis-asset-context-scoring/SKILL.md",
+      "sha256": "d2b5d5bddf141e9415da0b87e61166f4f7dcae119fff6a3479903e9c355bf028"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/threat-analysis-baseline-profiling/SKILL.md",
+      "sha256": "5905946148694f64d910bfa55d8c64a2e418f1e633762e16c3dc85b9d420c30d"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/threat-analysis-hypothesis-falsification/SKILL.md",
+      "sha256": "aff3d7dec28d4e3189f89a975c62e6e2a469fa3b3e0a8b2b54089f2408970425"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/threat-analysis-kill-chain-reconstruction/SKILL.md",
+      "sha256": "103e4835ea4c02ffcb1026f351163f4c204a44cb34095e8ca205aa90a950129e"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace/.agents/skills/threat-analysis-rule-tuning/SKILL.md",
+      "sha256": "ef973fafb650ad7def12e217850696b617945f31451e8bc900cee1337007e32b"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/candidate/migration-id-map.json",
+      "sha256": "e41f0392374de37bd03646ce9729d0c621010aa7cb8df3436deb84187cfb56f2"
+    },
+    {
+      "path": "evolution/experiments/EXP-security-operations-expert-001/evaluation/delivery-migration-audit.md",
+      "sha256": "eb21d6126f235f2f54de9a3754720b6f540a83303a82bfb0c1baddfb4859401b"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/README.md",
+      "sha256": "788be715aba8fb23a89f0b03855af76101141e47dbd6a3d0ea8ebd28ba047beb"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/archive-docs/accepted-risks.md",
+      "sha256": "63ba3eea8648555b39fb8c5610dafdf2b00b727b1deffe470aa968e23ab8076c"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/archive-docs/adversarial-remediation-matrix.md",
+      "sha256": "748eab585e2135bfa4699daeeea97cd978e5d9a6e7945811312c612207715edc"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/fault-analysis/01_智能体需求定义.md",
+      "sha256": "c8cafdcb39261a98e633ff203074351a1f111ceb3ddeccb76a9d16466404965f"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/fault-analysis/02_用户场景与输入覆盖矩阵.md",
+      "sha256": "421aa83ad050846e0444ccb3938eb9098bae8c5ee542476f1edf611b76e0d55b"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/fault-analysis/03_任务与评估数据集说明.md",
+      "sha256": "dc9b838944b3fd48bbd65fab92fa2014ba394125b180cb99e21b1dcd35776303"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/fault-analysis/04_安全与控制边界清单.md",
+      "sha256": "dfe43426fabb020ad0d2a026494afb3cd2d066a736ccad3edc572484df9be696"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/fault-analysis/05_候选版本基线.md",
+      "sha256": "9f15af2e4b5df635962bc9a225eda8ac7039684f84349017a2ceebe026a45776"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/fault-analysis/06_自测与交付评估报告.md",
+      "sha256": "eebc11266d2f7071017865ced999ce3088ea55c335ba67c51fd94965ccc04118"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/fault-analysis/tests/README.md",
+      "sha256": "fd0d3f7cd1868ae115aecd36f6890c494f0737f08e63fad3c87c217785082e32"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/inspection/01_智能体需求定义.md",
+      "sha256": "135be98e55f667464c61ad3a1e27c50fdb566cc340f832826c503e307a225515"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/inspection/02_用户场景与输入覆盖矩阵.md",
+      "sha256": "c8fbbf3573610c8da990042dde1092c3f20c372ccf72e345f11c6615c9bd3f02"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/inspection/03_任务与评估数据集说明.md",
+      "sha256": "c018503c8f2aef3934c4edbc80dfe9ec952ee8f79ed965bda3aa5906a603bc0d"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/inspection/04_安全与控制边界清单.md",
+      "sha256": "dea27cf531f0c17e90e7781f5f79cd4ef8c2a411fe3fadfdf3c20e53fc417379"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/inspection/05_候选版本基线.md",
+      "sha256": "05ed1c201db1bf75b96b05021031ce148a9b913c18db9607fa688461efb90825"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/inspection/06_自测与交付评估报告.md",
+      "sha256": "e58cc6ce3d2ef65ef6a63b8f5ed5c3f26a625d5753e954d6f0874c1fdbed0bfc"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/inspection/README.md",
+      "sha256": "3c15414d1407e7a9d4a69b9f6da2b28f3d91fad06f1ef10a1a9fca485386b392"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/policy-configuration/01_智能体需求定义.md",
+      "sha256": "ccb1a292cfff2041450beca2af24afe378eacf03bfff12c92e649e6cf6c1013e"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/policy-configuration/02_用户场景与输入覆盖矩阵.md",
+      "sha256": "68b20494437199bbaabf4e66378ff19ee9902523ce02750d2725b56e35716ccf"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/policy-configuration/03_任务与评估数据集说明.md",
+      "sha256": "b260b65e1d8a6f2cd834fe23c1e8853edf75c81f5e081b486320d7f8b8252ada"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/policy-configuration/04_安全与控制边界清单.md",
+      "sha256": "f27c272dea26e51376520c47b9ed4db0a0dec5d3964f0958a8eda2c305577968"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/policy-configuration/05_候选版本基线.md",
+      "sha256": "18bc402359bb75f985b9c7c5d50ddfbe2afd4956a2758e6404ae6b28258c756e"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/policy-configuration/06_自测与交付评估报告.md",
+      "sha256": "bb7f9ad43312d167f6c8fbed0eb7d3cd7f1ab3e72d66723a2e83a196b34b9942"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/policy-configuration/tests/README.md",
+      "sha256": "7816aae100d902547ca1f4a5f81d13195e4e3a30542412c21dadf881bcac4f99"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/response-disposition/01_智能体需求定义.md",
+      "sha256": "51f913dfddda4a970f4d9cfdbb154c355ec26a922decf259c98a202edcf71293"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/response-disposition/02_用户场景与输入覆盖矩阵.md",
+      "sha256": "c7121f7d5164b8986445f38234ed7282829ec556dbc4566d63dbf10612c543ed"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/response-disposition/03_任务与评估数据集说明.md",
+      "sha256": "b292925aaf73da42b99def1d6e085f00a2c15184139c26d0793ec4f41f71b11e"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/response-disposition/04_安全与控制边界清单.md",
+      "sha256": "a48faf7cb391ac29a5bafc14bd5dc9f4e358d17dbf112e7f9167e4f4c6873169"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/response-disposition/05_候选版本基线.md",
+      "sha256": "8f840369c150df3656708fee3963872b77714aa2191c25d431af3523ece596c6"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/response-disposition/06_自测与交付评估报告.md",
+      "sha256": "b4a90576836764fd09610792c401ea18d0945d5b958302faafaab5127337bb71"
+    },
+    {
+      "path": "evolution/history/imports/security-operations-expert-2026-09-15/delivery-docs/response-disposition/tests/README.md",
+      "sha256": "cbd73b21a606fe7b978958ccfc8ef1becda0b014fe393d9036f44d24ef614684"
+    }
+  ],
+  "schema_version": "1.0",
+  "source_authorization": "用户提供的内部迁移来源；未发现独立许可证文件",
+  "sources": [
+    {
+      "directory_count": 43,
+      "file_count": 86,
+      "id": "claude-code-archive",
+      "intake_status": "review_required",
+      "kind": "tar.gz",
+      "path": "/home/admin/Downloads/security-operations-expert.tar.gz",
+      "sha256": "1cde69e0ec0355619186f8390ba658cc0b6a45705a033a962c4398154189af76"
+    },
+    {
+      "directory_count": 12,
+      "file_count": 50,
+      "id": "agent-delivery-data",
+      "intake_status": "review_required",
+      "kind": "directory",
+      "path": "/home/admin/Downloads/agent_delivery_data",
+      "tree_sha256": "e49e72a8b7f6a97e7dd13e39af01138e9670311339e00573ab0a017df15963d2"
+    }
+  ]
+}

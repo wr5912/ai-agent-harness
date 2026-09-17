@@ -1,0 +1,12 @@
+schema_version: "1.0"
+runtime_compatibility: "deepseek-harness@c291e7961a515f6d7af9304e7fd1d257929aef26"
+runtime_name: deepseek-harness
+runtime_version: 0.1.5-rc.2
+runtime_source_commit: c291e7961a515f6d7af9304e7fd1d257929aef26
+adapter: dsh-container
+profile: web
+agent_mount_scope: container-only
+authoring_workspace_mount: read-write
+verification_workspace_mount: read-only
+managed_mount: read-only
+release_mount: read-only

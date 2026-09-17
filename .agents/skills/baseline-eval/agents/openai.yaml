@@ -1,0 +1,6 @@
+interface:
+  display_name: "Baseline 与评估校验"
+  short_description: "核验候选基线、Eval 数据、Trial 结果与交付证据契约"
+  default_prompt: "使用 $baseline-eval 校验这个候选基线及其正式评估证据。"
+policy:
+  allow_implicit_invocation: true

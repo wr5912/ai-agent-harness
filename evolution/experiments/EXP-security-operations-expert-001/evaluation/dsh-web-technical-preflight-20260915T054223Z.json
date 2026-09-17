@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-09-15T05:42:23Z",
+  "scope": "isolated local Docker technical Web preflight with official base+web only; Candidate Managed Patch, Guard activation, MCP, model calls, Agent Session and business task were not tested",
+  "local_image_id": "sha256:ec49e4fffa068906d752416bb3a683eeca7fbb52b39bcd6adce602fd7f8d4212",
+  "dsh_cli_version": "0.1.5-rc.2",
+  "profile": "web",
+  "profile_patch_reload": "startup",
+  "main_dsh_entrypoint": ["node", "--expose-internals", "/opt/dsh/apps/cli/lib/bin.js"],
+  "home_init_entrypoint_uses_expose_internals": false,
+  "runtime_credentials": "dummy no-call key only; no real model or MCP credentials injected",
+  "verification": {
+    "process_project": "dsh-adapter-expose-v-20260915053833-490938",
+    "process_alive_seconds_before_host_timeout": 17,
+    "startup_marker_observed": true,
+    "http_project": "dsh-adapter-http-v-20260915054213-498775",
+    "boot_entry_status": 303,
+    "session_cookie_observed": true,
+    "cookie_root_status": 200,
+    "cookie_root_content_type": "text/html; charset=utf-8",
+    "cookie_root_boot_marker": "__DSH_BOOT__",
+    "main_js_status": 200,
+    "main_js_content_type": "text/javascript; charset=utf-8"
+  },
+  "authoring": {
+    "project": "dsh-adapter-expose-a-20260915054046-494757",
+    "home_init_status": "pass",
+    "config_probe_status": "pass",
+    "main_dsh_container_started": true,
+    "workspace_tree_unchanged_after_boot": true
+  },
+  "secret_handling": "startup URL, token and cookie were consumed inside a temporary container and were not output, saved or committed",
+  "temporary_projects_cleanup": "all three temporary projects' test volumes and networks were removed; default Compose volumes were not touched",
+  "formal_eval_status": "not-started"
+}

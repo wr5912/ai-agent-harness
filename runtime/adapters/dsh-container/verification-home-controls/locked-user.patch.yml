@@ -1,0 +1,3 @@
+# Verification deny-layer：固定两处 DSH_HOME 用户 Patch 为无额外条目。
+# 保留官方 base + web-app 与显式受控 --patch，不接受 home/profile 私有 Plugin 注入。
+[]

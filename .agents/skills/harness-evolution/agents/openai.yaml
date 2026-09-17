@@ -1,0 +1,6 @@
+interface:
+  display_name: "Harness 演进治理"
+  short_description: "规划、记录并核验 Harness 实验、候选基线与不可变发布"
+  default_prompt: "使用 $harness-evolution 通过可审计的实验、候选和发布路径演进这个 Harness。"
+policy:
+  allow_implicit_invocation: true
