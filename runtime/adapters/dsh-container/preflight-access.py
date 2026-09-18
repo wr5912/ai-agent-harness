@@ -50,11 +50,14 @@ def main() -> None:
     parser.add_argument("workspace", type=Path)
     parser.add_argument("presets", type=Path)
     parser.add_argument("managed", type=Path)
+    parser.add_argument("context", type=Path, nargs="*", help="只读上下文数据资产根（spec、eval-input）")
     args = parser.parse_args()
     try:
         check_source(args.workspace, writable=args.mode == "authoring")
         check_source(args.presets, writable=False)
         check_source(args.managed, writable=False)
+        for source in args.context:
+            check_source(source, writable=False)
     except (OSError, ValueError) as error:
         print(f"DSH mount access preflight failed: {error}", file=sys.stderr)
         print("Use a source readable by container UID/GID 1000:1000; Authoring workspace also needs write access. "

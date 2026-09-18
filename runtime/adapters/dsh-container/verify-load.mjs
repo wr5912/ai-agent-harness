@@ -22,7 +22,9 @@ if (source?.schema_version !== '1.0' || !sourceSelector.test(source.source_id) |
   || source.profile !== 'web' || !source.patch?.startsWith('/opt/dsh-managed/')
   || !source.preset?.startsWith('/opt/dsh-presets/')
   || (source.guard !== null && !source.guard?.startsWith('/opt/dsh-managed/'))
-  || !Array.isArray(source.config_markers) || source.config_markers.length === 0) {
+  || !Array.isArray(source.config_markers) || source.config_markers.length === 0
+  || typeof source.spec_root !== 'string' || typeof source.eval_root !== 'string'
+  || (mode === 'authoring' && typeof source.patch_overlay !== 'string')) {
   throw new Error('selected DSH source contract is incomplete')
 }
 
@@ -30,6 +32,8 @@ const roots = [
   { key: 'workspace', path: '/work/harness/workspace', expected: process.env.DSH_EXPECT_WORKSPACE_TREE_SHA },
   { key: 'presets', path: '/opt/dsh-presets', expected: process.env.DSH_EXPECT_PRESETS_TREE_SHA },
   { key: 'managed', path: '/opt/dsh-managed', expected: process.env.DSH_EXPECT_MANAGED_TREE_SHA },
+  { key: 'spec', path: '/work/spec', expected: process.env.DSH_EXPECT_SPEC_TREE_SHA },
+  { key: 'eval_input', path: '/work/eval-input', expected: process.env.DSH_EXPECT_EVAL_TREE_SHA },
 ]
 
 const mounts = readFileSync('/proc/self/mountinfo', 'utf8')
@@ -217,6 +221,7 @@ const dump = spawnSync(process.execPath, [
   '/opt/dsh/apps/cli/lib/bin.js',
   '--profile', source.profile,
   '--patch', source.patch,
+  ...(mode === 'authoring' ? ['--patch', source.patch_overlay] : []),
   '--dump-config',
 ], {
   cwd: '/work/harness/workspace',
@@ -242,6 +247,18 @@ for (const marker of source.config_markers) {
   }
 }
 
+// 开发模式必须真的把出厂 preset 根打开并把默认 preset 换成创造模式；
+// 评测模式保持 includeShippedRoot 关闭，创造模式在该容器内不可选。
+let developmentOverlayApplied = false
+if (mode === 'authoring') {
+  if (!/\bincludeShippedRoot:\s*true\b/.test(dump.stdout) || !/\bdefault:\s*cordis\b/.test(dump.stdout)) {
+    throw new Error('development overlay did not enable the shipped preset root with cordis as the default preset')
+  }
+  developmentOverlayApplied = true
+} else if (/\bincludeShippedRoot:\s*true\b/.test(dump.stdout) || /\bdefault:\s*cordis\b/.test(dump.stdout)) {
+  throw new Error('verification composition must not expose the shipped cordis preset')
+}
+
 // --dump-config 只展开全局 Profile，不展开每个 Agent Preset 的 agent.cordis.yml。
 // 因此 Guard 仅能在本探针里核对 Preset 声明与挂载文件；实际插件激活须另取证。
 let guardPresent = false
@@ -261,11 +278,17 @@ console.log(JSON.stringify({
   profile: source.profile,
   patch: source.patch,
   mounts: mountEvidence,
+  context_assets: {
+    spec: { host: source.spec_root, container: '/work/spec', mount_mode: 'ro' },
+    eval_input: { host: source.eval_root, container: '/work/eval-input', mount_mode: 'ro' },
+    note: 'Read-only context identity only; mounting the requirement/evaluation factsource does not prove any agent consumed it.',
+  },
   dsh_home_mount_mode: 'rw',
   controlled_home_controls: homeControlEvidence,
   controlled_module_resolution: moduleEvidence,
   composed_config_sha256: `sha256:${createHash('sha256').update(dump.stdout).digest('hex')}`,
   expected_markers_present: source.config_markers.length,
+  development_overlay_applied: developmentOverlayApplied,
   preset_guard_declaration_present: guardPresent,
   limitations: 'Read-only HOME/Module/.env controls and a startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested.',
 }))

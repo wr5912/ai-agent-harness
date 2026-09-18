@@ -22,6 +22,9 @@ EXPERIMENT = REPO / "evolution/experiments/EXP-security-operations-expert-001"
 DSH_ROOT = EXPERIMENT / "candidate/dsh"
 WORKSPACE = DSH_ROOT / "workspace"
 ALLOWED_ROOTS = {WORKSPACE, DSH_ROOT / "presets", DSH_ROOT / "managed"}
+# 只读上下文数据资产根（需求/任务/验收标准、测试数据/评估方法）。它们只参与
+# `digest` 的只读身份核对，不进入编写态变更回执，也不参与三树冻结。
+CONTEXT_ROOTS: set[Path] = set()
 RECEIPTS = EXPERIMENT / "evaluation/evidence/mutation-receipts"
 FROZEN = EXPERIMENT / "snapshots/frozen-sources"
 SOURCE_ID = DEFAULT_SOURCE
@@ -161,13 +164,14 @@ def write_json_once(path: Path, data: dict) -> None:
 
 
 def select_source(source_id: str, require_assets: bool = True) -> dict:
-    global EXPERIMENT, DSH_ROOT, WORKSPACE, ALLOWED_ROOTS, RECEIPTS, FROZEN, SOURCE_ID, AGENT_ID
+    global EXPERIMENT, DSH_ROOT, WORKSPACE, ALLOWED_ROOTS, CONTEXT_ROOTS, RECEIPTS, FROZEN, SOURCE_ID, AGENT_ID
     contract = resolve(source_id, require_assets=require_assets)
     SOURCE_ID = contract["source_id"]
     AGENT_ID = contract["agent_id"]
     DSH_ROOT = Path(contract["candidate_root"])
     WORKSPACE = Path(contract["workspace"])
     ALLOWED_ROOTS = {WORKSPACE, Path(contract["presets"]), Path(contract["managed"])}
+    CONTEXT_ROOTS = {Path(value) for value in (contract.get("spec_root"), contract.get("eval_root")) if value}
     EXPERIMENT = DSH_ROOT.parents[1]
     RECEIPTS = EXPERIMENT / "evaluation/evidence/mutation-receipts"
     FROZEN = EXPERIMENT / "snapshots/frozen-sources"
@@ -636,7 +640,10 @@ def main() -> None:
     try:
         select_source(args.source, require_assets=args.command not in ("restore", "frozen-digest"))
         if args.command == "digest":
-            print(snapshot(args.root)["tree_sha256"])
+            if args.root.absolute() in CONTEXT_ROOTS:
+                print(snapshot(args.root, allowed_roots={args.root.absolute()})["tree_sha256"])
+            else:
+                print(snapshot(args.root)["tree_sha256"])
         elif args.command == "before":
             before()
         elif args.command == "after":

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { openSync, closeSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import { decodeMountPath } from './tree-digest.mjs'
 
 const paths = [
@@ -17,6 +17,7 @@ const modulePaths = [
   '/var/lib/dsh/profiles/web/node_modules',
   '/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules',
 ]
+const contextPaths = ['/work/spec', '/work/eval-input']
 const mounts = readFileSync('/proc/self/mountinfo', 'utf8')
   .split('\n')
   .filter(Boolean)
@@ -36,6 +37,13 @@ for (const path of paths) {
 for (const path of modulePaths) {
   assert.ok(mounts.some(item => item.target === path && item.options.includes('ro')))
   assert.throws(() => writeFileSync(`${path}/shadow-package.js`, 'forbidden'),
+    error => error.code === 'EROFS' || error.code === 'EACCES')
+}
+// 只读上下文数据资产（需求/任务/验收标准、测试数据/评估方法）必须只读且不可写入。
+for (const path of contextPaths) {
+  assert.ok(existsSync(path), `${path} must be mounted`)
+  assert.ok(mounts.some(item => item.target === path && item.options.includes('ro')))
+  assert.throws(() => writeFileSync(`${path}/.context-write-proof`, 'forbidden'),
     error => error.code === 'EROFS' || error.code === 'EACCES')
 }
 
@@ -65,6 +73,7 @@ console.log(JSON.stringify({
   home_mount: 'rw',
   controlled_file_mounts: paths.length,
   controlled_module_mounts: modulePaths.length,
+  read_only_context_mounts: contextPaths.length,
   controlled_patch_sha256: createHash('sha256').update(first).digest('hex'),
   note: 'Docker mount semantics only; no DSH Profile or Plugin activation was tested.',
 }))

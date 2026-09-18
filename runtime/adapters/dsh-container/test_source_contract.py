@@ -27,7 +27,31 @@ class SourceContractTest(unittest.TestCase):
         self.assertEqual(result["source_id"], "experiment:EXP-security-operations-expert-001")
         self.assertEqual(result["source_kind"], "experiment")
         self.assertEqual(result["patch"], "/opt/dsh-managed/security-operations-expert.patch.yml")
+        self.assertEqual(result["patch_overlay"],
+                         "/opt/dsh-managed/security-operations-expert.development.patch.yml")
+        self.assertTrue(result["spec_root"].endswith("agents/security-operations-expert/spec"))
+        self.assertTrue(result["eval_root"].endswith("agents/security-operations-expert/eval"))
         self.assertNotIn("TOKEN=", json.dumps(result))
+
+    def test_development_overlay_must_exist_inside_managed(self):
+        with tempfile.TemporaryDirectory(prefix="dsh-source-contract-") as location:
+            catalog_path = Path(location) / "sources.json"
+            catalog = json.loads(source_contract.SOURCES.read_text(encoding="utf-8"))
+            item = catalog["sources"]["EXP-security-operations-expert-001"]
+            item["development_patch_overlay"] = "missing.development.patch.yml"
+            catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                source_contract.resolve("experiment:EXP-security-operations-expert-001",
+                                         sources=catalog_path)
+
+    def test_snapshot_contract_declares_no_development_overlay(self):
+        snapshot_root = source_contract.REPO / "evolution/experiments/EXP-security-operations-expert-001/snapshots/research"
+        snapshots = sorted(path.name for path in snapshot_root.iterdir()) if snapshot_root.is_dir() else []
+        if not snapshots:
+            self.skipTest("no research snapshot materialized")
+        result = source_contract.resolve("snapshot:" + snapshots[-1])
+        self.assertIsNone(result["patch_overlay"])
+        self.assertTrue(result["spec_root"].endswith("/spec"))
 
     def test_second_source_needs_catalog_data_only(self):
         with tempfile.TemporaryDirectory(prefix="dsh-source-contract-") as location:
@@ -38,11 +62,13 @@ class SourceContractTest(unittest.TestCase):
                 (root / name).mkdir(parents=True)
             (root / "presets/second-harness/agent.cordis.yml").write_text("guard", encoding="utf-8")
             (root / "managed/second.patch.yml").write_text("[]", encoding="utf-8")
+            (root / "managed/second.development.patch.yml").write_text("[]", encoding="utf-8")
             catalog = {"schema_version": "1.0", "sources": {source_id: {
                 "agent_id": "second-harness",
                 "candidate_root": f"evolution/experiments/{source_id}/candidate/dsh",
                 "profile": "web", "patch": "second.patch.yml",
                 "preset": "second-harness/agent.cordis.yml", "guard": None,
+                "development_patch_overlay": "second.development.patch.yml",
                 "config_markers": ["second-harness"], "required_env_names": [],
             }}}
             catalog_path = repo / "sources.json"
@@ -73,11 +99,13 @@ class SourceContractTest(unittest.TestCase):
             (external / "agent.cordis.yml").write_text("preset", encoding="utf-8")
             (root / "presets/linked").symlink_to(external, target_is_directory=True)
             (root / "managed/second.patch.yml").write_text("[]", encoding="utf-8")
+            (root / "managed/second.development.patch.yml").write_text("[]", encoding="utf-8")
             catalog = {"schema_version": "1.0", "sources": {source_id: {
                 "agent_id": "second-harness",
                 "candidate_root": f"evolution/experiments/{source_id}/candidate/dsh",
                 "profile": "web", "patch": "second.patch.yml",
                 "preset": "linked/agent.cordis.yml", "guard": None,
+                "development_patch_overlay": "second.development.patch.yml",
                 "config_markers": ["second-harness"], "required_env_names": [],
             }}}
             catalog_path = repo / "sources.json"
@@ -101,6 +129,7 @@ class SourceContractTest(unittest.TestCase):
                 "candidate_root": f"evolution/experiments/{source_id}/candidate/dsh",
                 "profile": "web", "patch": "second.patch.yml",
                 "preset": "agent.cordis.yml", "guard": None,
+                "development_patch_overlay": "second.development.patch.yml",
                 "config_markers": ["second-harness"], "required_env_names": [],
             }}}
             catalog_path = repo / "sources.json"

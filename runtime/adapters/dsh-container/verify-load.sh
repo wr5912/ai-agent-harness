@@ -68,6 +68,15 @@ done
 task_candidate_root="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field candidate_root)"
 task_image_tag="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field image.local_image_tag)"
 task_patch="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field patch)"
+task_spec_root="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field spec_root)" \
+  || { printf 'Selected source declares no spec root for the read-only context mount.\n' >&2; exit 1; }
+task_eval_root="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field eval_root)" \
+  || { printf 'Selected source declares no eval root for the read-only context mount.\n' >&2; exit 1; }
+if [[ -n "$task_frozen_root" && "$task_research_snapshot" != true ]]; then
+  # 三树冻结副本不含 spec/eval；此时上下文资产取所选来源的活动事实源，并在证据中记录实际路径与摘要。
+  printf 'Note: frozen three-tree copy carries no spec/eval; mounting the live source context (%s, %s).\n' \
+    "$task_spec_root" "$task_eval_root" >&2
+fi
 if [[ -n "$task_frozen_root" ]]; then
   if [[ "$task_research_snapshot" == true ]]; then
     task_candidate_root="$task_frozen_root/harness/dsh"
@@ -80,6 +89,8 @@ export DSH_MANAGED_PATCH="$task_patch"
 export DSH_WORKSPACE_HOST="$task_candidate_root/workspace"
 export DSH_PRESETS_HOST="$task_candidate_root/presets"
 export DSH_MANAGED_HOST="$task_candidate_root/managed"
+export DSH_SPEC_HOST="$task_spec_root"
+export DSH_EVAL_HOST="$task_eval_root"
 
 if [[ "$task_research_snapshot" == true ]]; then
   task_workspace_sha="$(python3 "$task_adapter_dir/mutation-receipt.py" --source "$task_source_id" digest "$task_candidate_root/workspace")"
@@ -103,6 +114,11 @@ task_prepare_script_sha=""
 task_verify_script_sha=""
 task_tree_script_sha=""
 
+# 只读上下文数据资产（需求/任务/验收标准与测试数据/评估方法）始终按所选来源的实际根计算摘要，
+# 与三树摘要同一工具语义；冻结三树副本不含它们，因此这里也记录活动事实源身份。
+task_spec_sha="$(python3 "$task_adapter_dir/mutation-receipt.py" --source "$task_source_id" digest "$task_spec_root")"
+task_eval_sha="$(python3 "$task_adapter_dir/mutation-receipt.py" --source "$task_source_id" digest "$task_eval_root")"
+
 task_user_patch_sha="sha256:$(sha256sum "$task_adapter_dir/verification-home-controls/locked-user.patch.yml" | cut -d ' ' -f 1)"
 task_web_manifest_sha="sha256:$(sha256sum "$task_adapter_dir/verification-home-controls/web-profile.package.json" | cut -d ' ' -f 1)"
 task_global_agents_sha="sha256:$(sha256sum "$task_adapter_dir/verification-home-controls/locked-global.AGENTS.md" | cut -d ' ' -f 1)"
@@ -124,7 +140,8 @@ if [[ ! -f "$task_workspace_env" || -L "$task_workspace_env" ]] \
 fi
 
 python3 "$task_adapter_dir/preflight-access.py" "$task_mode" \
-  "$DSH_WORKSPACE_HOST" "$DSH_PRESETS_HOST" "$DSH_MANAGED_HOST"
+  "$DSH_WORKSPACE_HOST" "$DSH_PRESETS_HOST" "$DSH_MANAGED_HOST" \
+  "$DSH_SPEC_HOST" "$DSH_EVAL_HOST"
 
 "${task_compose_prefix[@]}" docker compose -f "$task_adapter_dir/$task_mode.compose.yaml" config --quiet
 docker image inspect "$task_image_tag" >/dev/null
@@ -156,6 +173,8 @@ done
   -e "DSH_EXPECT_WORKSPACE_TREE_SHA=$task_workspace_sha" \
   -e "DSH_EXPECT_PRESETS_TREE_SHA=$task_presets_sha" \
   -e "DSH_EXPECT_MANAGED_TREE_SHA=$task_managed_sha" \
+  -e "DSH_EXPECT_SPEC_TREE_SHA=$task_spec_sha" \
+  -e "DSH_EXPECT_EVAL_TREE_SHA=$task_eval_sha" \
   -e "DSH_EXPECT_USER_PATCH_SHA=$task_user_patch_sha" \
   -e "DSH_EXPECT_WEB_MANIFEST_SHA=$task_web_manifest_sha" \
   -e "DSH_EXPECT_GLOBAL_AGENTS_SHA=$task_global_agents_sha" \

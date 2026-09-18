@@ -88,7 +88,7 @@ def _experiment_contract(
     expected = Path("evolution/experiments") / source_id / "candidate/dsh"
     if safe_relative(item["candidate_root"]) != expected:
         raise ValueError("candidate root does not belong to selected experiment")
-    for key in ("patch", "preset"):
+    for key in ("patch", "preset", "development_patch_overlay"):
         safe_relative(item[key])
     if item["guard"] is not None:
         safe_relative(item["guard"])
@@ -100,7 +100,8 @@ def _experiment_contract(
         for directory in (root, root / "workspace", root / "presets", root / "managed"):
             if directory.is_symlink() or not directory.is_dir():
                 raise ValueError(f"missing or symlinked source directory: {directory}")
-        for key, folder in (("patch", "managed"), ("preset", "presets"), ("guard", "managed")):
+        for key, folder in (("patch", "managed"), ("preset", "presets"), ("guard", "managed"),
+                            ("development_patch_overlay", "managed")):
             if key == "guard" and item[key] is None:
                 continue
             relative = safe_relative(item[key])
@@ -133,6 +134,7 @@ def _experiment_contract(
         "patch": "/opt/dsh-managed/" + item["patch"],
         "preset": "/opt/dsh-presets/" + item["preset"],
         "guard": "/opt/dsh-managed/" + item["guard"] if item["guard"] else None,
+        "patch_overlay": "/opt/dsh-managed/" + item["development_patch_overlay"],
         "config_markers": item["config_markers"],
         "required_env_names": item["required_env_names"],
         "image": lock,
@@ -150,7 +152,7 @@ def _resolve_experiment(source_id: str, *, repo: Path, sources: Path, lock_path:
     if not match or not isinstance(item, dict) or item.get("agent_id") != match.group(1):
         raise ValueError(f"unknown or inconsistent DSH source: {source_id}")
     if set(item) != {"agent_id", "candidate_root", "profile", "patch", "preset", "guard",
-                     "config_markers", "required_env_names"}:
+                     "development_patch_overlay", "config_markers", "required_env_names"}:
         raise ValueError("source fields differ from schema 1.0")
     lock = _read_source_lock(lock_path)
     return _experiment_contract(source_id, item, repo=repo, lock=lock, require_assets=require_assets)
@@ -240,6 +242,7 @@ def _resolve_snapshot(snapshot_id: str, *, repo: Path, sources: Path, lock_path:
         "patch": "/opt/dsh-managed/" + patch_rel.rsplit("/", 1)[-1],
         "preset": "/opt/dsh-presets/" + preset_rel.rsplit("/", 1)[-1],
         "guard": None,
+        "patch_overlay": None,
         "config_markers": markers,
         "required_env_names": env_names,
         "spec_root": str(snap_dir / "spec"),

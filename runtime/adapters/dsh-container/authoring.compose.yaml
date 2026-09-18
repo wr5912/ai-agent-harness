@@ -59,6 +59,8 @@ services:
       - web
       - --patch
       - ${DSH_MANAGED_PATCH:-/opt/dsh-managed/security-operations-expert.patch.yml}
+      - --patch
+      - ${DSH_MANAGED_PATCH_OVERLAY:-/opt/dsh-managed/security-operations-expert.development.patch.yml}
       - --no-open
     volumes:
       - type: bind
@@ -72,6 +74,14 @@ services:
       - type: bind
         source: ${DSH_MANAGED_HOST:-../../../evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/managed}
         target: /opt/dsh-managed
+        read_only: true
+      - type: bind
+        source: ${DSH_SPEC_HOST:-../../../agents/security-operations-expert/spec}
+        target: /work/spec
+        read_only: true
+      - type: bind
+        source: ${DSH_EVAL_HOST:-../../../agents/security-operations-expert/eval}
+        target: /work/eval-input
         read_only: true
       - type: volume
         source: dsh-authoring-home

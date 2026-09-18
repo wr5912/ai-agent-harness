@@ -114,12 +114,12 @@ DSH_ADAPTER_PINNED_SHA256 = {
     "Dockerfile": "b8b2379a7c8acaa6992db4d9a9f3cb7f2e9374606cc7a44082d405e0d9ce7105",
     "build-image.sh": "4dd075177d7dcfb1c549dee751d44ce596c727ed9078a1a86f3d7d057f6a5d28",
     "prepare-verification-home.mjs": "96e5495d29da68d1a106f9cd5462180b898edaf70456de263e3150220be620b4",
-    "verify-load.mjs": "9ab59808f46155a2da3920671574c69849701ae82dd082ee28adf00d880f305a",
-    "verify-load.sh": "06153ff35c8fa1a0affef59426aee9595ba4d17c2fd464159dd5a81da21f38a6",
+    "verify-load.mjs": "1b8a135a9873d2d3d1e1c5448cca4ade2ee83bc286f94a665034cc6880005274",
+    "verify-load.sh": "3601e7cac57c6ac696615ef4c5d9394b19acd3d27c40990b022b80146fc10ad7",
     "tree-digest.mjs": "ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
-    "mutation-receipt.py": "4c2d6b1f0c4145adb35138a2a463a2a233817d1c880ef75845874d0b5bf26993",
-    "source_contract.py": "9cb8f0e61e6e1d42ac570324a6c799ecd22718fcfdf508495660a098859f5f24",
-    "preflight-access.py": "1530599124b0d43d90b38b0992c9e6ce57518e248184a33733200cd6dd9274f6",
+    "mutation-receipt.py": "3bd6e54b0b2048182d721a4b1ba14a27f9e2feeaf556ca6524104e0f6d7b5bab",
+    "source_contract.py": "c92636b52c380df5b291387bd664c14a86c35333dc6eec54d04bdb1c0ab69a88",
+    "preflight-access.py": "bc31fa959fb7a18480951d9875a7ae525c704b5e6e44806eb0bb2438cd94764e",
 }
 
 
@@ -2589,6 +2589,52 @@ def validate_dsh_adapter(root: Path, adapter: Path, errors: List[Dict[str, str]]
                 validate_dsh_compose(root, adapter, mode, image_tag, source, errors)
 
 
+DSH_DEVELOPMENT_OVERLAY_ROWS = {
+    # 开发模式（创造模式）叠加层只允许触碰这些行：出厂 preset 名册开关，以及
+    # Cordis preset 自带、但可能被受控 Profile 关闭的 host 侧 provider 行。
+    "agent-presets", "tool-web", "tool-jobs", "tool-subagent", "tool-workflow",
+    "tool-ralph", "workflow-worker-thread", "tool-bash", "tool-pwsh",
+}
+
+
+def validate_dsh_development_overlay(root: Path, candidate_dsh: Path, relative_value: object,
+                                     errors: List[Dict[str, str]]) -> None:
+    """开发模式叠加层只能调整白名单行，且必须真的打开出厂 preset 根并选中 cordis。"""
+    path = candidate_dsh / "managed" / str(relative_value)
+    if not isinstance(relative_value, str):
+        errors.append(issue("DSH_DEVELOPMENT_OVERLAY", "来源必须登记开发模式叠加层文件", relative(path, root)))
+        return
+    try:
+        document = dsh_yaml(root, path)
+    except (OSError, UnicodeError, ValueError):
+        errors.append(issue("DSH_DEVELOPMENT_OVERLAY", "开发模式叠加层必须是可安全解析的 YAML 列表", relative(path, root)))
+        return
+    if not isinstance(document, list) or not document:
+        errors.append(issue("DSH_DEVELOPMENT_OVERLAY", "开发模式叠加层必须是非空 YAML 列表", relative(path, root)))
+        return
+    preset_row: Optional[dict] = None
+    for entry in document:
+        if not isinstance(entry, dict) or set(entry) - {"id", "disabled", "config"} or not isinstance(entry.get("id"), str):
+            errors.append(issue("DSH_DEVELOPMENT_OVERLAY", "开发模式叠加层只允许对白名单行声明 id/disabled/config", relative(path, root)))
+            return
+        if entry["id"] not in DSH_DEVELOPMENT_OVERLAY_ROWS:
+            errors.append(issue("DSH_DEVELOPMENT_OVERLAY", "开发模式叠加层不得改备受控行：%s" % entry["id"], relative(path, root)))
+            return
+        if entry["id"] == "agent-presets":
+            preset_row = entry
+    config = preset_row.get("config") if isinstance(preset_row, dict) else None
+    roots = config.get("roots") if isinstance(config, dict) else None
+    if (not isinstance(config, dict) or config.get("default") != "cordis"
+            or config.get("includeShippedRoot") is not True
+            or config.get("includeUserRoot") is not False
+            or not isinstance(roots, list) or len(roots) != 1
+            or not isinstance(roots[0], dict) or set(roots[0]) != {"path", "trust"}
+            or roots[0].get("path") != "/opt/dsh-presets" or roots[0].get("trust") != "system"):
+        # 叠加层按行整体替换 config（不是深合并）：必须完整重述候选 Preset 根并继续排除
+        # 可写 HOME 的 user 根，否则开发模式会静默丢掉候选 Preset 根或让 HOME 成为额外根。
+        errors.append(issue("DSH_DEVELOPMENT_OVERLAY", "开发模式叠加层必须完整重述 agent-presets 配置：cordis 默认、打开出厂根、只保留候选 Preset 根且不含 user 根", relative(path, root)))
+
+
 def validate_dsh_source_catalog(root: Path, adapter: Path, lock: Mapping[str, object], errors: List[Dict[str, str]]) -> Optional[Dict[str, object]]:
     path = adapter / "sources.json"
     try:
@@ -2600,7 +2646,8 @@ def validate_dsh_source_catalog(root: Path, adapter: Path, lock: Mapping[str, ob
     if catalog.get("schema_version") != "1.0" or not isinstance(sources, dict) or not sources:
         errors.append(issue("DSH_SOURCE_CATALOG", "来源目录必须声明 schema 1.0 和非空 sources", relative(path, root)))
         return None
-    required = {"agent_id", "candidate_root", "profile", "patch", "preset", "guard", "config_markers", "required_env_names"}
+    required = {"agent_id", "candidate_root", "profile", "patch", "preset", "guard",
+                "development_patch_overlay", "config_markers", "required_env_names"}
     for source_id, item in sources.items():
         match = EXPERIMENT_RE.fullmatch(source_id) if isinstance(source_id, str) else None
         expected_root = "evolution/experiments/%s/candidate/dsh" % source_id
@@ -2608,13 +2655,15 @@ def validate_dsh_source_catalog(root: Path, adapter: Path, lock: Mapping[str, ob
             errors.append(issue("DSH_SOURCE_CATALOG", "来源身份、候选根、web Profile 或字段不符合合同", relative(path, root)))
             continue
         candidate_dsh = root / expected_root
-        for key, folder in (("patch", "managed"), ("preset", "presets"), ("guard", "managed")):
+        for key, folder in (("patch", "managed"), ("preset", "presets"), ("guard", "managed"),
+                            ("development_patch_overlay", "managed")):
             part = item[key]
             if key == "guard" and part is None:
                 continue
             target = dsh_path_within(candidate_dsh / folder, part)
             if target is None or not is_nonempty_regular_file(target, root):
                 errors.append(issue("DSH_SOURCE_CATALOG", "%s 必须指向所选候选内存在的受控文件" % key, relative(path, root)))
+        validate_dsh_development_overlay(root, candidate_dsh, item.get("development_patch_overlay"), errors)
         for key in ("config_markers", "required_env_names"):
             values = item[key]
             if not isinstance(values, list) or (key == "config_markers" and not values) or any(not isinstance(value, str) or not value for value in values) or len(values) != len(set(values)):
@@ -2737,8 +2786,14 @@ def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str,
     expected_entrypoint = ["node", "--expose-internals", "/opt/dsh/apps/cli/lib/bin.js"]
     if service.get("entrypoint") != expected_entrypoint:
         errors.append(issue("DSH_COMPOSE_ENTRYPOINT", "两种模式的主 DSH 只能以审查过的 node --expose-internals CLI 向量启动，不得省略或增加 Node flag", relative(path, root)))
-    if service.get("command") != ["--profile", source["profile"], "--patch", patch_expression, "--no-open"]:
-        errors.append(issue("DSH_COMPOSE_LOAD", "Compose 必须从受控 web Profile patch 装载 Candidate", relative(path, root)))
+    overlay_expression = "${DSH_MANAGED_PATCH_OVERLAY:-/opt/dsh-managed/" + str(source.get("development_patch_overlay")) + "}"
+    expected_command = ["--profile", source["profile"], "--patch", patch_expression, "--no-open"]
+    if mode == "authoring":
+        expected_command = ["--profile", source["profile"], "--patch", patch_expression,
+                            "--patch", overlay_expression, "--no-open"]
+    if not isinstance(source.get("development_patch_overlay"), str) \
+            or service.get("command") != expected_command:
+        errors.append(issue("DSH_COMPOSE_LOAD", "开发模式必须叠加受控开发层、评测模式不得叠加；两者都只能从受控 web Profile patch 装载 Candidate", relative(path, root)))
     environment = service.get("environment")
     if isinstance(environment, list) and any(isinstance(value, str) and value.split("=", 1)[0] == "NODE_OPTIONS" for value in environment):
         errors.append(issue("DSH_COMPOSE_NODE_OPTIONS", "不得通过 NODE_OPTIONS 注入未审查的 Node flag", relative(path, root)))
@@ -2758,6 +2813,11 @@ def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str,
         "/opt/dsh-presets": "presets",
         "/opt/dsh-managed": "managed",
     }
+    # 只读上下文数据资产：需求/任务/验收标准与测试数据/评估方法，来源为 Agent 级事实源。
+    context_targets = {
+        "/work/spec": ("spec", "DSH_SPEC_HOST"),
+        "/work/eval-input": ("eval", "DSH_EVAL_HOST"),
+    }
     candidate_dsh = root / str(source["candidate_root"])
     controlled_targets = {
         "/var/lib/dsh/cordis.patch.yml": "./verification-home-controls/locked-user.patch.yml",
@@ -2773,7 +2833,7 @@ def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str,
         "/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules",
     }
     seen_targets: Set[str] = set()
-    expected_count = 14
+    expected_count = 16
     if not isinstance(volumes, list) or len(volumes) != expected_count:
         errors.append(issue("DSH_COMPOSE_MOUNTS", "Compose 必须精确挂载 Candidate、独立数据卷和受控 HOME/Bootstrap/Module deny-layer", relative(path, root)))
         return
@@ -2806,6 +2866,13 @@ def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str,
                 code = "DSH_AUTHORING_HOME_MOUNT" if mode == "authoring" else "DSH_VERIFICATION_HOME_MOUNT"
                 errors.append(issue(code, "受控用户 Patch、manifest、全局指令和双 .env 必须精确来源且只读挂载", relative(path, root)))
             continue
+        if target in context_targets:
+            folder, variable = context_targets[target]
+            default_source = os.path.relpath(root / "agents" / str(source["agent_id"]) / folder, adapter)
+            if not strict_json_equal(volume, {"type": "bind", "source": "${" + variable + ":-" + default_source + "}",
+                                              "target": target, "read_only": True}):
+                errors.append(issue("DSH_COMPOSE_MOUNTS", "只读上下文数据资产必须精确挂载所选来源的 Agent 级 spec/eval 根", relative(path, root)))
+            continue
         component = expected_sources.get(target)
         volume_source = volume.get("source")
         default_source = os.path.relpath(candidate_dsh / component, adapter) if component else None
@@ -2813,9 +2880,9 @@ def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str,
         expected_source = "${" + variable + ":-" + default_source + "}" if variable else None
         if component is None or volume.get("type") != "bind" or volume_source != expected_source or volume.get("read_only") is not (mode == "verification" or component != "workspace"):
             errors.append(issue("DSH_COMPOSE_MOUNTS", "只允许精确 Candidate 工作区/预设/受控配置挂载及对应 RW/RO", relative(path, root)))
-    expected_targets = set(expected_sources) | {"/var/lib/dsh", "/var/lib/dsh/profiles/node_modules"} | module_deny_targets | set(controlled_targets)
+    expected_targets = set(expected_sources) | set(context_targets) | {"/var/lib/dsh", "/var/lib/dsh/profiles/node_modules"} | module_deny_targets | set(controlled_targets)
     if seen_targets != expected_targets:
-        errors.append(issue("DSH_COMPOSE_MOUNTS", "挂载目标必须精确覆盖三类资产、独立 HOME、受信 fallback 与受控遮蔽文件/目录", relative(path, root)))
+        errors.append(issue("DSH_COMPOSE_MOUNTS", "挂载目标必须精确覆盖三类资产、只读上下文数据资产、独立 HOME、受信 fallback 与受控遮蔽文件/目录", relative(path, root)))
     declared_volumes = doc.get("volumes")
     if not isinstance(declared_volumes, dict) or set(declared_volumes) != {"dsh-" + mode + "-home", "dsh-" + mode + "-trusted-fallback"} or any(value is not None for value in declared_volumes.values()):
         errors.append(issue("DSH_COMPOSE_MOUNTS", "Compose 顶层只能声明模式独立的 HOME 与受信 fallback 卷", relative(path, root)))

@@ -1131,11 +1131,42 @@ class RepositoryValidatorTests(unittest.TestCase):
             ("verification.compose.yaml", "target: /work/harness/workspace\n        read_only: true", "target: /work/harness/workspace\n        read_only: false", "DSH_COMPOSE_MOUNTS"),
             ("verification.compose.yaml", "../../../evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/managed", "/var/run/docker.sock", "DSH_COMPOSE_MOUNTS"),
             ("authoring.compose.yaml", "      - SEC_OPS_MCP_TOKEN\n", "      - SEC_OPS_MCP_TOKEN=inline-secret\n", "DSH_COMPOSE_ENV"),
+            ("verification.compose.yaml", "        target: /work/spec\n        read_only: true\n", "", "DSH_COMPOSE_MOUNTS"),
+            ("authoring.compose.yaml", "        target: /work/eval-input\n        read_only: true\n", "        target: /work/eval-input\n        read_only: false\n", "DSH_COMPOSE_MOUNTS"),
+            ("verification.compose.yaml", "      - --no-open\n", "      - --patch\n      - /opt/dsh-managed/security-operations-expert.development.patch.yml\n      - --no-open\n", "DSH_COMPOSE_LOAD"),
         )
         for filename, before, after, expected_code in changes:
             with self.subTest(filename=filename, after=after), tempfile.TemporaryDirectory() as temp:
                 clone = copy_initialized_repository(Path(temp))
                 path = clone / adapter / filename
+                text = path.read_text(encoding="utf-8")
+                self.assertIn(before, text)
+                path.write_text(text.replace(before, after, 1), encoding="utf-8")
+                completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+                self.assertEqual(completed.returncode, 1, payload)
+                self.assertIn(expected_code, error_codes(payload))
+
+    def test_dsh_development_overlay_and_source_field_are_gated(self) -> None:
+        """开发模式叠加层只能改白名单行且必须真的选中 cordis；来源必须登记该层。"""
+        adapter = "runtime/adapters/dsh-container"
+        overlay = ("evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/managed/"
+                   "security-operations-expert.development.patch.yml")
+        changes = (
+            (overlay, "- id: agent-presets", "- id: security-operations-mcp-sec-ops", "DSH_DEVELOPMENT_OVERLAY"),
+            (overlay, "    includeShippedRoot: true", "    includeShippedRoot: false", "DSH_DEVELOPMENT_OVERLAY"),
+            (overlay, "    default: cordis", "    default: security-operations-expert", "DSH_DEVELOPMENT_OVERLAY"),
+            (overlay, "- id: agent-presets", "- insert:\n    - id: agent-presets", "DSH_DEVELOPMENT_OVERLAY"),
+            (overlay, "    includeUserRoot: false\n", "", "DSH_DEVELOPMENT_OVERLAY"),
+            (overlay, "    roots:\n      - path: /opt/dsh-presets\n        trust: system\n", "", "DSH_DEVELOPMENT_OVERLAY"),
+            (overlay, "        trust: system", "        trust: user", "DSH_DEVELOPMENT_OVERLAY"),
+            (adapter + "/sources.json",
+             '      "development_patch_overlay": "security-operations-expert.development.patch.yml",\n',
+             "", "DSH_SOURCE_CATALOG"),
+        )
+        for filename, before, after, expected_code in changes:
+            with self.subTest(filename=filename, after=after), tempfile.TemporaryDirectory() as temp:
+                clone = copy_initialized_repository(Path(temp))
+                path = clone / filename
                 text = path.read_text(encoding="utf-8")
                 self.assertIn(before, text)
                 path.write_text(text.replace(before, after, 1), encoding="utf-8")

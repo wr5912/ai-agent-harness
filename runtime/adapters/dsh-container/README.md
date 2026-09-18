@@ -24,7 +24,11 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 | `/work/harness/workspace` | `candidate/dsh/workspace` | 读写 | 只读 |
 | `/opt/dsh-presets` | `candidate/dsh/presets` | 只读 | 只读 |
 | `/opt/dsh-managed` | `candidate/dsh/managed` | 只读 | 只读 |
+| `/work/spec` | `agents/<agent-id>/spec`（研究快照来源为其 `spec/`） | 只读 | 只读 |
+| `/work/eval-input` | `agents/<agent-id>/eval`（研究快照来源为其 `eval/`） | 只读 | 只读 |
 | `/var/lib/dsh` | 分别命名的 DSH_HOME 数据卷 | 读写 | 读写 |
+
+`/work/spec` 提供需求定义、任务定义与验收标准，`/work/eval-input` 提供测试夹具、评估方法与待复核输入；两者是 Agent 级事实源的只读投影，不是工作区行为资产，也不进入工作区树摘要。来源未物化对应根时启动失败关闭，不创建空目录。`eval/pending/**` 是待领域复核输入而非正式 Eval Case；`cases.jsonl` 尚未物化，容器内不得把它当作正式用例。
 
 两种模式都使用同一组受控 HOME 边界：`locked-user.patch.yml`（顶层 `[]`）精确只读覆盖 HOME 与 Web Profile 的用户 Patch，`web-profile.package.json` 固定官方 `base`、`web-app` Bundle 和 `patchReload: startup`，阻断可写 HOME 的额外启动 Plugin。真正 **0 字节**的 `locked-global.AGENTS.md` 精确只读覆盖 HOME 全局 Agent instructions，不向 Session 注入任何额外语义。`locked-bootstrap.env` 只含一行注释，精确只读覆盖 HOME 与 Candidate workspace 两处 `.env`；模型/MCP Endpoint 和凭据只能由受信容器调用环境或 Runtime 受控凭据提供，不能由可写工作区在 Boot 前暗改。Candidate workspace 中的 `.env` 只是与受控文件字节相同的宿主挂载目标，不存任何变量或凭据。编写态仍可写其他 Candidate workspace 资产，`skill-filesystem.watch: true` 仍可实时看到 Skill 改动；这不授予改受控 Profile、MCP 或 Boot 环境的权限。
 
@@ -57,18 +61,26 @@ docker compose -f runtime/adapters/dsh-container/authoring.compose.yaml down
 
 ## 开发启动器与本地装载核验
 
-`dsh-dev` 是宿主侧开发启动器（只依赖 Python 3 标准库、Docker CLI 和 Compose），把本目录的受控 Compose 渲染成仓库外实例：
+`dsh-dev` 是宿主侧开发启动器（只依赖 Python 3 标准库、Docker CLI 和 Compose），把本目录的受控 Compose 渲染成仓库外实例。两种模式都挂载 harness 三棵树与 `/work/spec`、`/work/eval-input` 只读上下文数据资产：
+
+| 模式 | CLI | 默认 DSH Agent preset | harness 挂载 | 用途 |
+|---|---|---|---|---|
+| 开发模式 | `--mode dev`（内部 `authoring`） | 出厂 `cordis`（创造模式，额外 `--patch` 开发层） | workspace RW，presets/managed RO | 让创造模式 Agent 修改/优化被测 harness，spec/eval 作为背景 |
+| 评测模式 | `--mode eval`（内部 `verification`） | 被测智能体 `security-operations-expert` | 全部 RO + 受控 HOME 锁 | 以智能体定义装载并评估其能力，spec/eval 作为判分背景 |
 
 ```bash
-python3 runtime/adapters/dsh-container/dsh-dev plan --source experiment:EXP-security-operations-expert-001 --mode verification --name soe-verify --port 3081
-python3 runtime/adapters/dsh-container/dsh-dev up --source snapshot:<snap-id> --mode verification --name soe-verify --port 3081
+python3 runtime/adapters/dsh-container/dsh-dev plan --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3084
+python3 runtime/adapters/dsh-container/dsh-dev up --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3084 --accept-cordis-trust
+python3 runtime/adapters/dsh-container/dsh-dev up --source snapshot:<snap-id> --mode eval --name secops-eval --port 3085
 python3 runtime/adapters/dsh-container/dsh-dev ps
-python3 runtime/adapters/dsh-container/dsh-dev url soe-verify --non-interactive   # 交互终端可省略该旗标
-python3 runtime/adapters/dsh-container/dsh-dev logs soe-verify --tail 200
-python3 runtime/adapters/dsh-container/dsh-dev down soe-verify
+python3 runtime/adapters/dsh-container/dsh-dev url secops-dev --non-interactive   # 交互终端可省略该旗标
+python3 runtime/adapters/dsh-container/dsh-dev logs secops-dev --tail 200
+python3 runtime/adapters/dsh-container/dsh-dev down secops-dev
 ```
 
-实例配置与 `instance.json` 写在 `${XDG_STATE_HOME:-~/.local/state}/dsh-dev/<name>/`，只记录环境变量**名称**，不含 Token。渲染保留只读根文件系统、UID/GID 1000、能力裁剪和无端口发布，只把主 `dsh` 服务切到 host 网络并把 Web 绑定宿主回环。`url` 只读取**本次**进程启动后的日志并做 Token→Cookie→根页探针；标准输出不是交互终端时，必须显式加 `--non-interactive`，否则失败关闭，不把 Token 写进状态文件、普通日志或证据。
+`--mode dev` 使用 `authoring.compose.yaml` 并在基础受控 patch 之后叠加 `security-operations-expert.development.patch.yml`（仅打开 DSH 出厂 preset 根并把默认 preset 设为 `cordis`；校验器对该文件实施行白名单）。因为创造模式会话具备 shell 与对实时 runtime 执行模型 JS 的 `tool-cordis` 能力（等同 shell 权限），且容器使用 host 网络、可直达宿主回环服务（含本机 DSH Web），`up --mode dev` 必须显式加 `--accept-cordis-trust`；`--mode eval` 拒绝该旗标。创造模式会话不加载 `security-operations-guard`，注入的 SOC MCP 工具与 delegate 因此**没有角色矩阵约束**——这是开发模式的已知边界，不是已隔离状态。`--mode eval` 不叠加开发层，`includeShippedRoot` 保持关闭，创造模式在该容器内不在 preset 名册中。
+
+实例配置与 `instance.json` 写在 `${XDG_STATE_HOME:-~/.local/state}/dsh-dev/<name>/`，只记录环境变量**名称**、`purpose`、`preset_default`、`context_mounts` 与信任确认标记，不含 Token。渲染保留只读根文件系统、UID/GID 1000、能力裁剪和无端口发布，只把主 `dsh` 服务切到 host 网络并把 Web 绑定宿主回环。`url` 只读取**本次**进程启动后的日志并做 Token→Cookie→根页探针；标准输出不是交互终端时，必须显式加 `--non-interactive`，否则失败关闭，不把 Token 写进状态文件、普通日志或证据。
 
 候选 Profile 以 fail-closed 方式声明三个 `streamable-http` MCP 客户端；缺少真实端点与凭据时容器会在启动阶段退出，使"装载是否成立"无法核验。为此适配层提供两个只用于受控技术装载核验的本地工具：
 
@@ -92,7 +104,7 @@ bash runtime/adapters/dsh-container/verify-load.sh authoring
 # 其他已登记来源：verify-load.sh verification --source EXP-<agent-id>-NNN
 ```
 
-脚本先在无卷、只读、无网络容器中比对本地镜像内 `prepare-verification-home.mjs`、`verify-load.mjs`、`tree-digest.mjs` 与宿主适配层的 SHA-256，旧标签必须重建，避免旧脚本先触碰 HOME 卷。随后比对宿主机与容器内三棵精确资产树的文件、权限、大小和 SHA-256 摘要，检查 `/proc/self/mountinfo` 的读写模式与独立 HOME 卷。两种模式都核六处受控只读子文件（两个空用户 Patch、Web manifest、零字节全局指令、两处注释 `.env`）、四处模块目录挂载及共享 fallback 的 277 个镜像安装 symlink（数量以实际锁定安装闭包为准），并核关键模块从 Web Profile 的首个解析位置的 `realpath` 在 `/opt/dsh/`。然后调用 DSH 的 `--dump-config` 核对全局 Profile/Patch 组合标识。单个 Agent 的 Guard 声明单独在 Preset/Managed 文件中核对，因为全局配置展开不会包含 Preset 子树。脚本不输出可能含私有 URL、Token 的原始配置或日志。该结果仅是“挂载身份、模块解析及配置组合证据”；**不证明 Plugin 实际激活**、MCP 连接成功、Preset/Skill 被真实 Session 调用、用户任务、最终业务状态或 Release 验收。
+脚本先在无卷、只读、无网络容器中比对本地镜像内 `prepare-verification-home.mjs`、`verify-load.mjs`、`tree-digest.mjs` 与宿主适配层的 SHA-256，旧标签必须重建，避免旧脚本先触碰 HOME 卷。随后比对宿主机与容器内三棵精确资产树以及 `/work/spec`、`/work/eval-input` 两棵只读上下文树的文件、权限、大小和 SHA-256 摘要，检查 `/proc/self/mountinfo` 的读写模式与独立 HOME 卷。编写态还会核对开发叠加层确实把 `includeShippedRoot` 打开且默认 preset 为 `cordis`，核验态则断言组合配置中不出现该开放（创造模式在评测容器内不可选）。两种模式都核六处受控只读子文件（两个空用户 Patch、Web manifest、零字节全局指令、两处注释 `.env`）、四处模块目录挂载及共享 fallback 的 277 个镜像安装 symlink（数量以实际锁定安装闭包为准），并核关键模块从 Web Profile 的首个解析位置的 `realpath` 在 `/opt/dsh/`。然后调用 DSH 的 `--dump-config` 核对全局 Profile/Patch 组合标识。单个 Agent 的 Guard 声明单独在 Preset/Managed 文件中核对，因为全局配置展开不会包含 Preset 子树。脚本不输出可能含私有 URL、Token 的原始配置或日志。该结果仅是“挂载身份、模块解析及配置组合证据”；**不证明 Plugin 实际激活**、MCP 连接成功、Preset/Skill 被真实 Session 调用、上下文资产被智能体消费、用户任务、最终业务状态或 Release 验收。
 
 在编写态自修改前后留下只追加回执：
 
@@ -101,7 +113,7 @@ python3 runtime/adapters/dsh-container/mutation-receipt.py before
 python3 runtime/adapters/dsh-container/mutation-receipt.py after <上一步打印的 before.json 绝对路径>
 ```
 
-回执写入本 Experiment 的 `evaluation/evidence/mutation-receipts/mr-<UUIDv4>/`，比较三棵资产树的文件、目录权限与前后摘要，记录工作区变化及是否需重新审查冻结组合。如果受控 Preset 或 Managed/Guard 树在编写期间变化，脚本保留失败回执并以非零状态明确拒绝；它不是评估、候选基线、发布或生产变更批准。若要单独取得三棵装载树的文件摘要，可使用 `mutation-receipt.py digest <精确资产源路径>`。
+回执写入本 Experiment 的 `evaluation/evidence/mutation-receipts/mr-<UUIDv4>/`，比较三棵资产树的文件、目录权限与前后摘要，记录工作区变化及是否需重新审查冻结组合。如果受控 Preset 或 Managed/Guard 树在编写期间变化，脚本保留失败回执并以非零状态明确拒绝；它不是评估、候选基线、发布或生产变更批准。若要单独取得三棵装载树或所选来源的 `spec`/`eval` 上下文根的文件摘要，可使用 `mutation-receipt.py digest <精确资产源路径>`（其他路径仍被拒绝）。
 
 局部装载比较前可物化三棵 Candidate 挂载树的实际字节（含未提交文件），并在只读容器装载前复核摘要：
 

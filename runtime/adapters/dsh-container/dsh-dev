@@ -29,11 +29,43 @@ NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 TOKEN_URL_RE = re.compile(r"dsh web: (http://127\.0\.0\.1:(\d+)/\?token=[^\s()]+)")
 SECRET_RE = re.compile(r"(token=)[^\s&)\"']+")
 MODES = ("authoring", "verification")
+MODE_ALIASES = {"dev": "authoring", "eval": "verification"}
+MODE_CHOICES = ("dev", "eval") + MODES
+PURPOSES = {"authoring": "dev", "verification": "eval"}
+PRESET_DEFAULTS = {"authoring": "cordis", "verification": "security-operations-expert"}
+CONTEXT_ASSETS = (
+    ("spec", "/work/spec", "spec_root", "需求定义、任务定义、验收标准"),
+    ("eval", "/work/eval-input", "eval_root", "测试数据、评估方法、待复核输入"),
+)
+CORDIS_TRUST_NOTICE = (
+    "开发模式（--mode dev）以出厂 cordis（创造模式）preset 启动：该会话具备 shell 与对实时 runtime 执行模型 JS 的 "
+    "tool-cordis 能力，等同 shell 权限；容器使用 host 网络，可直达宿主回环服务（含本机 DSH Web）；"
+    "创造模式会话不加载 security-operations-guard，注入的 SOC MCP 工具与 delegate 不受角色矩阵约束。"
+)
 
 
 def fail(message: str) -> None:
     print(f"dsh-dev failed: {message}", file=sys.stderr)
     raise SystemExit(1)
+
+
+def normalize_mode(value: str) -> str:
+    """把用户可见模式名（dev/eval）规范化为内部 harness 阶段名。"""
+    mode = MODE_ALIASES.get(value, value)
+    if mode not in MODES:
+        fail("mode 只能是 dev、eval、authoring 或 verification")
+    return mode
+
+
+def context_assets(contract: dict) -> list[dict]:
+    """只读上下文数据资产；来源缺少根即失败关闭，不伪造空目录。"""
+    missing = [key for _, _, key, _ in CONTEXT_ASSETS if not contract.get(key)]
+    if missing:
+        fail("所选来源缺少只读上下文数据资产根（%s）；不伪造空目录，请改用具备 spec/eval 的来源" % "、".join(missing))
+    return [
+        {"key": name, "host": contract[key], "container": container, "mode": "ro", "content": content}
+        for name, container, key, content in CONTEXT_ASSETS
+    ]
 
 
 def run(command: list[str], *, check: bool = True, capture: bool = True, env: dict | None = None) -> subprocess.CompletedProcess:
@@ -57,6 +89,12 @@ def compose_env(contract: dict, mode: str, port: int) -> dict:
             "DSH_MANAGED_HOST": contract["managed"],
         }
     )
+    for asset in context_assets(contract):
+        environment["DSH_SPEC_HOST" if asset["key"] == "spec" else "DSH_EVAL_HOST"] = asset["host"]
+    if mode == "authoring":
+        if not contract.get("patch_overlay"):
+            fail("所选来源未登记开发模式叠加层（development_patch_overlay），不能以 --mode dev 启动")
+        environment["DSH_MANAGED_PATCH_OVERLAY"] = contract["patch_overlay"]
     return environment
 
 
@@ -132,7 +170,8 @@ def project_name(name: str) -> str:
     return f"dsh-dev-{name}"
 
 
-def write_instance(name: str, *, mode: str, contract: dict, port: int) -> Path:
+def write_instance(name: str, *, mode: str, contract: dict, port: int,
+                   accepted_cordis_trust: bool = False) -> Path:
     target = instance_dir(name)
     if target.exists():
         manifest = target / "instance.json"
@@ -157,6 +196,8 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int) -> Path:
         "source_id": contract["source_id"],
         "source_kind": contract["source_kind"],
         "mode": mode,
+        "purpose": PURPOSES[mode],
+        "preset_default": PRESET_DEFAULTS[mode],
         "port": port,
         "image_tag": contract["image"]["local_image_tag"],
         "agent_id": contract["agent_id"],
@@ -165,11 +206,17 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int) -> Path:
             "presets": contract["presets"],
             "managed": contract["managed"],
         },
+        "context_mounts": [
+            {"key": asset["key"], "host": asset["host"], "container": asset["container"], "mode": asset["mode"]}
+            for asset in context_assets(contract)
+        ],
         "mount_modes": {
             "workspace": "rw" if mode == "authoring" else "ro",
             "presets": "ro",
             "managed": "ro",
         },
+        "patch_overlay": contract.get("patch_overlay") if mode == "authoring" else None,
+        "cordis_trust_accepted": bool(accepted_cordis_trust) if mode == "authoring" else False,
         "required_env_names": required_env_names(contract),
     }
     (target / "instance.json").write_text(
@@ -210,13 +257,16 @@ def command_plan(args: argparse.Namespace) -> None:
         fail("--port 必须是合法 TCP 端口")
     contract = resolve(args.source, repo=REPO)
     if args.mode == "authoring" and contract["source_kind"] != "experiment":
-        fail("authoring 模式只接受 experiment:<id> 来源（研究快照只读）")
+        fail("开发模式（authoring）只接受 experiment:<id> 来源（研究快照只读）")
+    assets = context_assets(contract)
     missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
     plan = {
         "schema_version": "1.0",
         "name": args.name,
         "project": project_name(args.name),
         "mode": args.mode,
+        "purpose": PURPOSES[args.mode],
+        "preset_default": PRESET_DEFAULTS[args.mode],
         "port": args.port,
         "source_id": contract["source_id"],
         "source_kind": contract["source_kind"],
@@ -225,13 +275,21 @@ def command_plan(args: argparse.Namespace) -> None:
             {"container": "/work/harness/workspace", "mode": "rw" if args.mode == "authoring" else "ro"},
             {"container": "/opt/dsh-presets", "mode": "ro"},
             {"container": "/opt/dsh-managed", "mode": "ro"},
+            *[{"container": asset["container"], "mode": "ro", "content": asset["content"]} for asset in assets],
         ],
+        "context_assets": assets,
+        "patch_overlay": contract.get("patch_overlay") if args.mode == "authoring" else None,
+        "cordis_trust_required": args.mode == "authoring",
         "network": "host (127.0.0.1 only)",
         "required_env_names": required_env_names(contract),
         "missing_env_names": missing,
         "state_dir": str(instance_dir(args.name)),
         "risk": "host 网络取消容器与宿主机的网络命名空间隔离；实例只绑定 127.0.0.1",
     }
+    if args.mode == "authoring":
+        plan["cordis_trust_notice"] = CORDIS_TRUST_NOTICE
+    if args.mode == "verification" and contract["source_kind"] == "experiment":
+        plan["evaluation_source_notice"] = "评测模式绑定的是可变宿主候选（非冻结副本）；该结果只能作为局部技术核验，不得作为正式评估结论。"
     print(json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True))
 
 
@@ -242,7 +300,12 @@ def command_up(args: argparse.Namespace) -> None:
         fail(f"端口 {args.port} 已被占用；本工具不自动改端口，请显式指定其它端口")
     contract = resolve(args.source, repo=REPO)
     if args.mode == "authoring" and contract["source_kind"] != "experiment":
-        fail("authoring 模式只接受 experiment:<id> 来源（研究快照只读）")
+        fail("开发模式（authoring）只接受 experiment:<id> 来源（研究快照只读）")
+    if args.mode == "authoring" and not args.accept_cordis_trust:
+        fail(CORDIS_TRUST_NOTICE + " 确认接受上述风险后，重新执行并显式加 --accept-cordis-trust。")
+    if args.mode != "authoring" and args.accept_cordis_trust:
+        fail("--accept-cordis-trust 只对开发模式（--mode dev / authoring）有效")
+    context_assets(contract)
     if args.allow_missing_env:
         missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
         if missing:
@@ -250,7 +313,8 @@ def command_up(args: argparse.Namespace) -> None:
                               "missing_env_names": missing}, ensure_ascii=False), file=sys.stderr)
     else:
         check_environment(contract)
-    target = write_instance(args.name, mode=args.mode, contract=contract, port=args.port)
+    target = write_instance(args.name, mode=args.mode, contract=contract, port=args.port,
+                            accepted_cordis_trust=args.accept_cordis_trust)
     environment = compose_env(contract, args.mode, args.port)
     run(compose_command(target, args.name, "config", "--quiet"), env=environment)
     run(compose_command(target, args.name, "up", "-d", "--no-build"), env=environment)
@@ -272,7 +336,10 @@ def command_ps(_args: argparse.Namespace) -> None:
                     "name": manifest["name"],
                     "source_id": manifest["source_id"],
                     "mode": manifest["mode"],
+                    "purpose": manifest.get("purpose", PURPOSES.get(manifest["mode"], manifest["mode"])),
+                    "preset_default": manifest.get("preset_default", PRESET_DEFAULTS.get(manifest["mode"])),
                     "port": manifest["port"],
+                    "context_mounts": [item["container"] for item in manifest.get("context_mounts", [])],
                     "base_url": f"http://127.0.0.1:{manifest['port']}/",
                     "ps": (listing.stdout or "").strip() or "not running",
                 }
@@ -392,12 +459,15 @@ def main() -> None:
         sub = commands.add_parser(name, help="实例计划或启动")
         if needs_source:
             sub.add_argument("--source", required=True, help="experiment:<id> 或 snapshot:<snap-id>")
-        sub.add_argument("--mode", choices=MODES, required=True)
+        sub.add_argument("--mode", choices=MODE_CHOICES, required=True, type=normalize_mode,
+                         help="dev（开发模式/创造模式，内部 authoring）或 eval（评测模式，内部 verification）")
         sub.add_argument("--name", required=True)
         sub.add_argument("--port", type=int, required=True)
         if name == "up":
             sub.add_argument("--allow-missing-env", action="store_true",
                              help="显式允许缺少运行时环境变量，仅用于技术装载核验")
+            sub.add_argument("--accept-cordis-trust", action="store_true",
+                             help="显式确认开发模式（Cordis 创造模式）等同 shell 权限与 host 网络风险")
         sub.set_defaults(handler=handler)
 
     commands.add_parser("ps", help="列出启动器管理的实例").set_defaults(handler=command_ps)

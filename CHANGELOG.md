@@ -16,6 +16,8 @@
 - 校验器新增 Agent spec/eval/issues、Experiment runs/snapshots 契约校验，并去除单一迁移实验硬编码；交付校验器改读 spec/eval/runs 事实源，删除 results.csv 读取路径。测试覆盖范围扩展到选择器、快照往返与篡改检测、Run 收尾封存、spec 与交付记录一致性、pending 与旧路径门禁。
 - 开发启动器 `dsh-dev`：按 `experiment:`/`snapshot:` 选择器渲染仓库外实例 Compose（host 网络、只绑定宿主回环、每实例独立 HOME 卷），提供 `image build`、`plan`、`up`、`ps`、`url`、`logs`、`down`；`url` 只从本次进程日志取认证 URL 并做 Token→Cookie→根页探针，非交互输出必须显式 `--non-interactive`。
 - 受控技术装载辅助：`stub-mcp-streamable-http.mjs` 提供只含 `initialize`/`notifications/initialized`/`tools/list` 的回环 MCP 桩（`tools/call` 默认失败关闭，不编造业务数据），`derive_mcp_stub_tools.py` 只从候选 MCP 声明派生工具原始名并对无法解析的超长引用失败关闭，使 fail-closed 的 MCP 候选在缺少真实端点时仍可核验装载。
+- 开发启动器双模式：`--mode dev`（内部 authoring）以出厂 `cordis`（创造模式）preset 启动，`--mode eval`（内部 verification）以被测智能体 preset 启动；开发模式经第二层受控 `--patch` 叠加层打开出厂 preset 根，并要求显式 `--accept-cordis-trust`。两种模式都只读挂载 `/work/spec`（需求定义、任务定义、验收标准）与 `/work/eval-input`（测试夹具、评估方法、待复核输入）。
+
 
 ### 变更
 
@@ -23,10 +25,12 @@
 - `harness.yaml` 的 `loadable_assets` 只保留运行时装载资产；`pending_delivery`/`pending_cases` 从候选装载声明中移除。
 - 受控适配层安全摘要随 `source_contract.py`、`mutation-receipt.py`、`build-image.sh` 的既有变更重新审查并同步。
 - `role-tool-matrix.yaml` 的父级直连集合把残留的超长旧工具名改为已登记公开号；校验器新增“技能、角色矩阵与父级直连集合中的超长 MCP 工具引用必须登记公开号”的失败门禁，仓库测试增至 146 项。
+- 适配层门禁扩展：两种 Compose 的挂载数由 14 增至 16，只读上下文数据资产必须精确来源；开发模式命令必须叠加受控开发层且评测模式不得叠加；新增 `DSH_DEVELOPMENT_OVERLAY` 门禁，限制开发层只能改行白名单（`agent-presets` 与 Cordis 所需 host provider 行）且必须真的选中 `cordis`；`sources.json` 与来源合同登记 `development_patch_overlay`。仓库测试增至 147 项。
 
 ### 边界
 
 - 当前唯一交付结论仍为“退回整改”；容器技术检查、本地 MCP 桩与确定性插件单测不能替代真实模型/MCP 的 R3 业务评估。
+- 开发模式的创造模式会话等同 shell 权限（含 `tool-cordis` 对实时 runtime 执行模型 JS），且不加载 sec-ops Guard、MCP 工具不受角色矩阵约束；容器使用 host 网络可直达宿主回环服务。该风险由操作者以 `--accept-cordis-trust` 显式确认并在文档披露，不构成强制控制，也不表示已隔离。
 - `dsh-dev open/resume/fresh`、`release:<id>` 选择器与逐例驱动 DSH 的评测执行器仍未实施；其来源解析、快照、挂载计划与 Run 台账前置契约已交付。
 
 ## [0.1.0] - 2026-09-15

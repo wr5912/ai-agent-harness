@@ -8,6 +8,7 @@
       "patch": "security-operations-expert.patch.yml",
       "preset": "security-operations-expert/agent.cordis.yml",
       "guard": "security-operations-guard.mjs",
+      "development_patch_overlay": "security-operations-expert.development.patch.yml",
       "config_markers": [
         "/opt/dsh-presets",
         "/work/harness/workspace/.agents/skills",

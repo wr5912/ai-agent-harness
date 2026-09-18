@@ -1,0 +1,20 @@
+# 开发模式（Cordis 创造模式）专用叠加层：由 authoring.compose.yaml 作为第二个
+# `--patch` 层，在基础受控 patch 之后应用。本层只打开 DSH 出厂 preset 根，并把
+# 未命名新会话的默认 preset 换成创造模式；不重复、不覆盖基础 patch 的 MCP 客户端、
+# delegate、Guard、技能目录与工具白名单配置。
+#
+# 适用边界：只允许 `--mode dev`（内部 authoring）的实例使用。创造模式会话不加载
+# security-operations-guard，且具备 shell 与对实时 runtime 执行模型 JS 的
+# tool-cordis 能力；因此该模式的容器必须由操作者显式确认信任（dsh-dev
+# --accept-cordis-trust），不得用于评测或 Release 验收。
+
+- id: agent-presets
+  config:
+    # 叠加层按行整体替换 config（不是深合并），因此必须重述基础 patch 的全部键，
+    # 否则会静默丢掉候选 Preset 根并把可写 HOME 变成额外的 preset 根。
+    default: cordis
+    includeShippedRoot: true
+    includeUserRoot: false
+    roots:
+      - path: /opt/dsh-presets
+        trust: system

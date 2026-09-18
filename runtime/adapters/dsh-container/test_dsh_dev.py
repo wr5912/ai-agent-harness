@@ -54,6 +54,90 @@ class RenderComposeTest(unittest.TestCase):
                                project="dsh-dev-probe", port=3081)
 
 
+class ModeAndContextContractTest(unittest.TestCase):
+    """两种模式：dev/eval 别名、只读上下文挂载与开发模式信任门禁。"""
+
+    def contract(self, **overrides):
+        contract = {
+            "source_id": "experiment:EXP-security-operations-expert-001",
+            "source_kind": "experiment",
+            "agent_id": "security-operations-expert",
+            "workspace": "/tmp/ws",
+            "presets": "/tmp/presets",
+            "managed": "/tmp/managed",
+            "spec_root": "/tmp/spec",
+            "eval_root": "/tmp/eval",
+            "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+            "patch_overlay": "/opt/dsh-managed/security-operations-expert.development.patch.yml",
+            "required_env_names": [],
+            "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
+        }
+        contract.update(overrides)
+        return contract
+
+    def test_mode_aliases_normalize_to_harness_phases(self):
+        self.assertEqual(dev.normalize_mode("dev"), "authoring")
+        self.assertEqual(dev.normalize_mode("eval"), "verification")
+        self.assertEqual(dev.normalize_mode("authoring"), "authoring")
+        self.assertEqual(dev.normalize_mode("verification"), "verification")
+        with self.assertRaises(SystemExit):
+            dev.normalize_mode("development")
+
+    def test_authoring_template_passes_development_overlay(self):
+        template = (ADAPTER / "authoring.compose.yaml").read_text(encoding="utf-8")
+        rendered = dev.render_compose(template, mode="authoring", project="dsh-dev-author", port=3082)
+        self.assertIn("      - --patch\n      - ${DSH_MANAGED_PATCH_OVERLAY:-/opt/dsh-managed/security-operations-expert.development.patch.yml}\n", rendered)
+        self.assertIn("        target: /work/spec\n", rendered)
+        self.assertIn("        target: /work/eval-input\n", rendered)
+
+    def test_verification_template_has_no_overlay_but_keeps_context(self):
+        template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
+        rendered = dev.render_compose(template, mode="verification", project="dsh-dev-probe", port=3081)
+        self.assertNotIn("DSH_MANAGED_PATCH_OVERLAY", rendered)
+        self.assertIn("        target: /work/spec\n", rendered)
+        self.assertIn("        target: /work/eval-input\n", rendered)
+
+    def test_context_assets_require_declared_roots(self):
+        assets = dev.context_assets(self.contract())
+        self.assertEqual([asset["container"] for asset in assets], ["/work/spec", "/work/eval-input"])
+        self.assertTrue(all(asset["mode"] == "ro" for asset in assets))
+        with self.assertRaises(SystemExit):
+            dev.context_assets(self.contract(spec_root=None))
+        with self.assertRaises(SystemExit):
+            dev.context_assets(self.contract(eval_root=None))
+
+    def test_compose_env_injects_context_and_overlay_per_mode(self):
+        authoring_env = dev.compose_env(self.contract(), "authoring", 3082)
+        self.assertEqual(authoring_env["DSH_SPEC_HOST"], "/tmp/spec")
+        self.assertEqual(authoring_env["DSH_EVAL_HOST"], "/tmp/eval")
+        self.assertEqual(authoring_env["DSH_MANAGED_PATCH_OVERLAY"],
+                         "/opt/dsh-managed/security-operations-expert.development.patch.yml")
+        verification_env = dev.compose_env(self.contract(), "verification", 3081)
+        self.assertNotIn("DSH_MANAGED_PATCH_OVERLAY", verification_env)
+
+    def test_authoring_without_overlay_fails_closed(self):
+        with self.assertRaises(SystemExit):
+            dev.compose_env(self.contract(patch_overlay=None), "authoring", 3082)
+
+    def test_dev_up_requires_explicit_cordis_trust(self):
+        args = types.SimpleNamespace(source="experiment:EXP-security-operations-expert-001",
+                                     mode="authoring", name="secops-dev", port=3084,
+                                     allow_missing_env=True, accept_cordis_trust=False)
+        with mock.patch.object(dev, "port_in_use", return_value=False), \
+                mock.patch.object(dev, "compose_env") as compose_env:
+            with self.assertRaises(SystemExit):
+                dev.command_up(args)
+        compose_env.assert_not_called()
+
+    def test_eval_up_rejects_cordis_trust_flag(self):
+        args = types.SimpleNamespace(source="experiment:EXP-security-operations-expert-001",
+                                     mode="verification", name="secops-eval", port=3085,
+                                     allow_missing_env=True, accept_cordis_trust=True)
+        with mock.patch.object(dev, "port_in_use", return_value=False):
+            with self.assertRaises(SystemExit):
+                dev.command_up(args)
+
+
 class ExtractAuthUrlTest(unittest.TestCase):
     def test_extracts_matching_port(self):
         logs = "noise\n" + TOKEN + "dsh web: http://127.0.0.1:9999/?token=other\n"
@@ -88,17 +172,51 @@ class InstanceStateTest(unittest.TestCase):
                 "workspace": "/tmp/ws",
                 "presets": "/tmp/presets",
                 "managed": "/tmp/managed",
+                "spec_root": "/tmp/spec",
+                "eval_root": "/tmp/eval",
                 "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+                "patch_overlay": None,
                 "required_env_names": ["DEEPSEEK_API_KEY"],
                 "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
             }
             target = dev.write_instance("soe-verify", mode="verification", contract=contract, port=3081)
             manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["mount_modes"], {"workspace": "ro", "presets": "ro", "managed": "ro"})
+            self.assertEqual(manifest["purpose"], "eval")
+            self.assertEqual(manifest["preset_default"], "security-operations-expert")
+            self.assertEqual([item["container"] for item in manifest["context_mounts"]], ["/work/spec", "/work/eval-input"])
+            self.assertIsNone(manifest["patch_overlay"])
+            self.assertFalse(manifest["cordis_trust_accepted"])
             self.assertNotIn("token", json.dumps(manifest).lower())
             compose = (target / "compose.yaml").read_text(encoding="utf-8")
             self.assertNotIn("token=", compose)
             self.assertIn("network_mode: host", compose)
+
+    def test_development_instance_records_overlay_and_trust(self):
+        with tempfile.TemporaryDirectory() as temp:
+            dev.STATE_ROOT = Path(temp)
+            contract = {
+                "source_id": "experiment:EXP-security-operations-expert-001",
+                "source_kind": "experiment",
+                "agent_id": "security-operations-expert",
+                "workspace": "/tmp/ws",
+                "presets": "/tmp/presets",
+                "managed": "/tmp/managed",
+                "spec_root": "/tmp/spec",
+                "eval_root": "/tmp/eval",
+                "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+                "patch_overlay": "/opt/dsh-managed/security-operations-expert.development.patch.yml",
+                "required_env_names": [],
+                "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
+            }
+            target = dev.write_instance("secops-dev", mode="authoring", contract=contract, port=3084,
+                                        accepted_cordis_trust=True)
+            manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["purpose"], "dev")
+            self.assertEqual(manifest["preset_default"], "cordis")
+            self.assertTrue(manifest["cordis_trust_accepted"])
+            self.assertEqual(manifest["mount_modes"]["workspace"], "rw")
+            self.assertIn("DSH_MANAGED_PATCH_OVERLAY", (target / "compose.yaml").read_text(encoding="utf-8"))
 
     def test_instance_name_must_be_kebab(self):
         with self.assertRaises(SystemExit):
@@ -114,7 +232,10 @@ class InstanceStateTest(unittest.TestCase):
                 "workspace": "/tmp/ws",
                 "presets": "/tmp/presets",
                 "managed": "/tmp/managed",
+                "spec_root": "/tmp/spec",
+                "eval_root": "/tmp/eval",
                 "patch": "/opt/dsh-managed/x.patch.yml",
+                "patch_overlay": "/opt/dsh-managed/x.development.patch.yml",
                 "required_env_names": [],
                 "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
             }
