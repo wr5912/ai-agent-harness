@@ -1,20 +1,26 @@
 # 开发模式（Cordis 创造模式）专用叠加层：由 authoring.compose.yaml 作为第二个
-# `--patch` 层，在基础受控 patch 之后应用。本层只打开 DSH 出厂 preset 根，并把
-# 未命名新会话的默认 preset 换成创造模式；不重复、不覆盖基础 patch 的 MCP 客户端、
-# delegate、Guard、技能目录与工具白名单配置。
+# `--patch` 层，在基础受控 patch 之后应用。本层只打开 DSH 出厂 preset 根与可写 HOME
+# 用户 preset 根，并把未命名新会话的默认 preset 换成创造模式；不重复、不覆盖基础 patch
+# 的 MCP 客户端、delegate、Guard、技能目录与工具白名单配置。
 #
 # 适用边界：只允许 `--mode dev`（内部 authoring）的实例使用。创造模式会话不加载
 # security-operations-guard，且具备 shell 与对实时 runtime 执行模型 JS 的
 # tool-cordis 能力；因此该模式的容器必须由操作者显式确认信任（dsh-dev
 # --accept-cordis-trust），不得用于评测或 Release 验收。
+#
+# 用户 preset 根（HOME 下的 .agent-presets）只服务于"新建一份候选 preset"：
+#   - 受控的 /opt/dsh-presets 与 /opt/dsh-managed 仍然只读，运行中的受控配置没有被改写；
+#   - 新建 preset 必须使用与 /opt/dsh-presets 下已有 preset 不同的 ID：DSH 按根顺序扫描，
+#     较早的系统根会遮蔽后续用户根里的同名 preset，不能假设 user 根会覆盖旧 preset；
+#   - 容器内产物只算探索，宿主复核后把目录复制回 candidate/dsh/presets/<new-id>/ 再重建实例。
 
 - id: agent-presets
   config:
     # 叠加层按行整体替换 config（不是深合并），因此必须重述基础 patch 的全部键，
-    # 否则会静默丢掉候选 Preset 根并把可写 HOME 变成额外的 preset 根。
+    # 否则会静默丢掉候选 Preset 根。
     default: cordis
     includeShippedRoot: true
-    includeUserRoot: false
+    includeUserRoot: true
     roots:
       - path: /opt/dsh-presets
         trust: system

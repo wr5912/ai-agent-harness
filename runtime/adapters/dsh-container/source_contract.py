@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""将 DSH-only 来源（实验候选、研究快照）解析为单一、无秘密的运行数据合同，并按角色生成挂载计划。"""
+"""将 DSH-only 来源（实验候选）解析为单一、无秘密的运行数据合同，并按角色生成挂载计划。
+
+来源只剩 `experiment:<id>` 一种。早期 `snapshot:<id>` 兼容入口已退役：它把当前镜像当作
+历史组合使用，并按 `rsplit('/', 1)` 重建容器路径，会丢掉 preset 的 Agent 子目录。
+历史快照内容改由 Git 恢复，映射见 evolution/experiments/<id>/snapshots/README.md。
+"""
 
 from __future__ import annotations
 
@@ -18,10 +23,14 @@ LOCK = ADAPTER / "source.lock.json"
 DEFAULT_SOURCE = "EXP-security-operations-expert-001"
 NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 EXPERIMENT = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3}$")
-UUID_V4 = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}"
-SNAPSHOT = re.compile(r"^snap-" + UUID_V4 + r"$")
 RELEASE_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*-v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
 ROLES = ("authoring", "subject", "scoring")
+# 需求/任务/验收与评估方法、预置、预期答案都是判分材料：开发与评分角色可读，被测角色不可读。
+GRADING_ROLES = ("authoring", "scoring")
+CONTAINER_WORKSPACE = "/work/harness/workspace"
+CONTAINER_SPEC = "/work/spec"
+CONTAINER_EVAL_REFERENCE = "/work/eval-reference"
+CONTAINER_EVAL_INPUT = "/work/eval-input"
 
 
 def strict_json(path: Path, max_bytes: int = 1024 * 1024) -> dict:
@@ -133,6 +142,7 @@ def _experiment_contract(
         "profile": item["profile"],
         "patch": "/opt/dsh-managed/" + item["patch"],
         "preset": "/opt/dsh-presets/" + item["preset"],
+        "preset_id": preset_id(item["preset"]),
         "guard": "/opt/dsh-managed/" + item["guard"] if item["guard"] else None,
         "patch_overlay": "/opt/dsh-managed/" + item["development_patch_overlay"],
         "config_markers": item["config_markers"],
@@ -141,6 +151,14 @@ def _experiment_contract(
     }
     contract.update(_agent_asset_roots(repo, item["agent_id"]))
     return contract
+
+
+def preset_id(preset_relative: str) -> str:
+    """从来源声明的 preset 相对路径取 preset ID，避免在通用适配层硬编码业务 Agent 名。"""
+    parts = safe_relative(preset_relative).parts
+    if len(parts) < 2:
+        raise ValueError("preset 必须声明为 <preset-id>/<file>，以便确定运行目标身份")
+    return parts[0]
 
 
 def _resolve_experiment(source_id: str, *, repo: Path, sources: Path, lock_path: Path, require_assets: bool) -> dict:
@@ -179,79 +197,6 @@ def _read_source_lock(lock_path: Path) -> dict:
     return lock
 
 
-def _resolve_snapshot(snapshot_id: str, *, repo: Path, sources: Path, lock_path: Path, require_assets: bool) -> dict:
-    if not SNAPSHOT.fullmatch(snapshot_id):
-        raise ValueError(f"invalid snapshot identity: {snapshot_id}")
-    matches = []
-    experiments_root = repo / "evolution" / "experiments"
-    if experiments_root.is_dir() and not experiments_root.is_symlink():
-        for experiment in experiments_root.iterdir():
-            candidate = experiment / "snapshots" / "research" / snapshot_id
-            if candidate.is_dir() and not candidate.is_symlink():
-                matches.append(candidate)
-    if len(matches) != 1:
-        raise ValueError(f"unknown or ambiguous research snapshot: {snapshot_id}")
-    snap_dir = matches[0]
-    experiment_dir = snap_dir.parents[2]
-    manifest = strict_json(snap_dir / "snapshot.json")
-    if manifest.get("schema_version") != "1.0" or manifest.get("snapshot_id") != snapshot_id \
-            or manifest.get("experiment_id") != experiment_dir.name \
-            or not NAME.fullmatch(str(manifest.get("agent_id", ""))):
-        raise ValueError("snapshot manifest identity mismatch")
-    for folder in ("harness", "spec", "eval"):
-        target = snap_dir / folder
-        if target.is_symlink() or not target.is_dir():
-            raise ValueError(f"snapshot missing content: {folder}")
-    if not real_file_below(snap_dir, Path("dependencies.lock.json")):
-        raise ValueError("snapshot missing dependencies.lock.json")
-    harness = snap_dir / "harness"
-    candidate_root = harness / "dsh"
-    patch_rel = manifest.get("profile_patch")
-    preset_rel = manifest.get("preset")
-    if not isinstance(patch_rel, str) or not preset_rel:
-        raise ValueError("snapshot manifest must declare profile patch and preset")
-    safe_relative(patch_rel)
-    safe_relative(preset_rel)
-    if require_assets:
-        for directory in (candidate_root, candidate_root / "workspace", candidate_root / "presets", candidate_root / "managed"):
-            if directory.is_symlink() or not directory.is_dir():
-                raise ValueError(f"snapshot harness missing directory: {directory.name}")
-        if not real_file_below(candidate_root, safe_relative(patch_rel)) \
-                or not real_file_below(candidate_root, safe_relative(preset_rel)):
-            raise ValueError("snapshot harness missing declared patch or preset")
-    markers = manifest.get("config_markers")
-    env_names = manifest.get("required_env_names")
-    if not isinstance(markers, list) or not markers or not isinstance(env_names, list) \
-            or any(not isinstance(value, str) or not value for value in markers + env_names):
-        raise ValueError("snapshot manifest must record config markers and environment names")
-    lock = _read_source_lock(lock_path)
-    return {
-        "schema_version": "1.0",
-        "source_kind": "snapshot",
-        "source_id": "snapshot:" + snapshot_id,
-        "snapshot_id": snapshot_id,
-        "experiment_id": manifest["experiment_id"],
-        "agent_id": manifest["agent_id"],
-        "snapshot_root": str(snap_dir),
-        "experiment_root": str(experiment_dir),
-        "candidate_root": str(candidate_root),
-        "workspace": str(candidate_root / "workspace"),
-        "presets": str(candidate_root / "presets"),
-        "managed": str(candidate_root / "managed"),
-        "profile": "web",
-        "patch": "/opt/dsh-managed/" + patch_rel.rsplit("/", 1)[-1],
-        "preset": "/opt/dsh-presets/" + preset_rel.rsplit("/", 1)[-1],
-        "guard": None,
-        "patch_overlay": None,
-        "config_markers": markers,
-        "required_env_names": env_names,
-        "spec_root": str(snap_dir / "spec"),
-        "eval_root": str(snap_dir / "eval"),
-        "image": lock,
-        "frozen": True,
-    }
-
-
 def _resolve_release(release_name: str, *, repo: Path) -> dict:
     if not RELEASE_NAME.fullmatch(release_name):
         raise ValueError(f"invalid release identity: {release_name}")
@@ -267,8 +212,6 @@ def resolve(source_id: str = DEFAULT_SOURCE, *, repo: Path = REPO, sources: Path
             lock_path: Path = LOCK, require_assets: bool = True) -> dict:
     if source_id.startswith("experiment:"):
         return _resolve_experiment(source_id[len("experiment:"):], repo=repo, sources=sources, lock_path=lock_path, require_assets=require_assets)
-    if source_id.startswith("snapshot:"):
-        return _resolve_snapshot(source_id[len("snapshot:"):], repo=repo, sources=sources, lock_path=lock_path, require_assets=require_assets)
     if source_id.startswith("release:"):
         return _resolve_release(source_id[len("release:"):], repo=repo)
     if ":" in source_id:
@@ -277,26 +220,32 @@ def resolve(source_id: str = DEFAULT_SOURCE, *, repo: Path = REPO, sources: Path
 
 
 def mount_plan(contract: dict, role: str, *, task_dir: str = None, output_dir: str = None,
-               eval_reference: str = None) -> dict:
-    """按运行角色生成挂载视图；被测侧与评分侧的判分材料必须隔离。"""
+               eval_input: str = None) -> dict:
+    """按运行角色生成挂载视图。
+
+    判分材料（`spec` 的需求/任务/验收标准，以及 `eval` 的评估方法、测试预置与预期答案）
+    只挂给开发与评分角色。被测角色默认不挂任何评测材料；确需给被测侧数据时，必须显式
+    声明一个已确认不含预期答案的输入根，而不是把整个 `eval` 目录当作"被测输入"。
+    """
     if role not in ROLES:
         raise ValueError("role must be authoring、subject 或 scoring")
-    if eval_reference and role != "scoring":
-        raise ValueError("eval-reference 只允许挂载给评分/分析角色")
+    if eval_input is not None and role != "subject":
+        raise ValueError("eval-input 只允许挂载给被测角色（subject）")
     workspace_mode = "rw" if role == "authoring" else "ro"
     mounts = [
-        {"host": contract["workspace"], "container": "/work/harness/workspace", "mode": workspace_mode, "purpose": "harness-workspace"},
+        {"host": contract["workspace"], "container": CONTAINER_WORKSPACE, "mode": workspace_mode, "purpose": "harness-workspace"},
         {"host": contract["presets"], "container": "/opt/dsh-presets", "mode": "ro", "purpose": "presets"},
         {"host": contract["managed"], "container": "/opt/dsh-managed", "mode": "ro", "purpose": "managed"},
     ]
-    spec_root = contract.get("spec_root")
-    if spec_root:
-        mounts.append({"host": spec_root, "container": "/work/spec", "mode": "ro", "purpose": "spec"})
-    eval_root = contract.get("eval_root")
-    if eval_root:
-        mounts.append({"host": eval_root, "container": "/work/eval-input", "mode": "ro", "purpose": "eval-input"})
-    if eval_reference:
-        mounts.append({"host": eval_reference, "container": "/work/eval-reference", "mode": "ro", "purpose": "eval-reference"})
+    grading = role in GRADING_ROLES
+    if grading:
+        for key, container, purpose in (("spec_root", CONTAINER_SPEC, "spec"),
+                                        ("eval_root", CONTAINER_EVAL_REFERENCE, "eval-reference")):
+            host = contract.get(key)
+            if host:
+                mounts.append({"host": host, "container": container, "mode": "ro", "purpose": purpose})
+    elif eval_input:
+        mounts.append({"host": eval_input, "container": CONTAINER_EVAL_INPUT, "mode": "ro", "purpose": "eval-input"})
     if task_dir:
         mounts.append({"host": task_dir, "container": "/work/task", "mode": "rw", "purpose": "task-workspace"})
     if output_dir:
@@ -305,6 +254,8 @@ def mount_plan(contract: dict, role: str, *, task_dir: str = None, output_dir: s
         "schema_version": "1.0",
         "role": role,
         "source_id": contract["source_id"],
+        "grading_material_exposed": grading,
+        "subject_input_declared": bool(eval_input) if role == "subject" else None,
         "mounts": mounts,
     }
 
@@ -318,7 +269,7 @@ def main() -> None:
     parser.add_argument("--mount-plan", choices=ROLES, help="print the role mount plan instead of the contract")
     parser.add_argument("--task-dir", help="task workspace host path for the mount plan")
     parser.add_argument("--output-dir", help="run output host path for the mount plan")
-    parser.add_argument("--eval-reference", help="scoring-side reference material host path")
+    parser.add_argument("--eval-input", help="已确认不含预期答案的被测输入根；只对 subject 角色有效")
     args = parser.parse_args()
     try:
         contract = resolve(args.source, require_assets=not args.allow_missing_assets)
@@ -331,7 +282,7 @@ def main() -> None:
                 args.mount_plan,
                 task_dir=args.task_dir,
                 output_dir=args.output_dir,
-                eval_reference=args.eval_reference,
+                eval_input=args.eval_input,
             )
             print(json.dumps(plan, ensure_ascii=False, separators=(",", ":")))
         elif args.env_names:

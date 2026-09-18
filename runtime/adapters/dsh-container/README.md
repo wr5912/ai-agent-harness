@@ -24,11 +24,12 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 | `/work/harness/workspace` | `candidate/dsh/workspace` | 读写 | 只读 |
 | `/opt/dsh-presets` | `candidate/dsh/presets` | 只读 | 只读 |
 | `/opt/dsh-managed` | `candidate/dsh/managed` | 只读 | 只读 |
-| `/work/spec` | `agents/<agent-id>/spec`（研究快照来源为其 `spec/`） | 只读 | 只读 |
-| `/work/eval-input` | `agents/<agent-id>/eval`（研究快照来源为其 `eval/`） | 只读 | 只读 |
+| `/work/spec` | `agents/<agent-id>/spec` | 只读 | 不挂载 |
+| `/work/eval-reference` | `agents/<agent-id>/eval` | 只读 | 不挂载 |
+| `/work/eval-input` | 显式声明的被测输入根 | 不适用 | 仅在显式声明时只读 |
 | `/var/lib/dsh` | 分别命名的 DSH_HOME 数据卷 | 读写 | 读写 |
 
-`/work/spec` 提供需求定义、任务定义与验收标准，`/work/eval-input` 提供测试夹具、评估方法与待复核输入；两者是 Agent 级事实源的只读投影，不是工作区行为资产，也不进入工作区树摘要。来源未物化对应根时启动失败关闭，不创建空目录。`eval/pending/**` 是待领域复核输入而非正式 Eval Case；`cases.jsonl` 尚未物化，容器内不得把它当作正式用例。
+`/work/spec` 提供需求定义、任务定义与验收标准，`/work/eval-reference` 提供测试预置、评估方法与待复核输入。两者都是**判分材料**：只读挂载限制写入但不限制读取，所以它们只挂给编写态（开发者需要读它们来维护），核验态（运行被测目标）完全不挂载，`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。来源未物化对应根时编写态启动失败关闭，不创建空目录。`eval/pending/**` 是待领域复核输入而非正式 Eval Case；`cases.jsonl` 尚未物化，容器内不得把它当作正式用例。
 
 两种模式都使用同一组受控 HOME 边界：`locked-user.patch.yml`（顶层 `[]`）精确只读覆盖 HOME 与 Web Profile 的用户 Patch，`web-profile.package.json` 固定官方 `base`、`web-app` Bundle 和 `patchReload: startup`，阻断可写 HOME 的额外启动 Plugin。真正 **0 字节**的 `locked-global.AGENTS.md` 精确只读覆盖 HOME 全局 Agent instructions，不向 Session 注入任何额外语义。`locked-bootstrap.env` 只含一行注释，精确只读覆盖 HOME 与 Candidate workspace 两处 `.env`；模型/MCP Endpoint 和凭据只能由受信容器调用环境或 Runtime 受控凭据提供，不能由可写工作区在 Boot 前暗改。Candidate workspace 中的 `.env` 只是与受控文件字节相同的宿主挂载目标，不存任何变量或凭据。编写态仍可写其他 Candidate workspace 资产，`skill-filesystem.watch: true` 仍可实时看到 Skill 改动；这不授予改受控 Profile、MCP 或 Boot 环境的权限。
 
@@ -59,26 +60,46 @@ docker compose -f runtime/adapters/dsh-container/authoring.compose.yaml down
 
 官方 Web 当前默认只绑定容器内 `127.0.0.1`，本适配层未发布宿主端口，因此不会提供可从宿主浏览器使用的 URL。需要真实对外协议验收时，应在目标环境另行明确入口、认证、网络暴露与回滚方案；不能以本 Compose 的容器启动或配置展开代替完整业务链。
 
+## 构建镜像
+
+```bash
+bash runtime/adapters/dsh-container/build-image.sh --build-network host
+```
+
+构建期统一使用国内阿里云源：APT 走 `http://mirrors.aliyun.com/debian`（security 同站），npm/pnpm 与 corepack 走 `https://registry.npmmirror.com`。两者都不需要调用方额外加参数；只有国内 APT 源不可达时，才用 `--apt-mirror http://deb.debian.org/debian` 显式回退到官方源。
+
+换源不放松校验：APT 仍由 `debian-archive-keyring` 校验 Release/InRelease 签名与 `Valid-Until`，依赖仍按 `pnpm-lock.yaml` 的完整性摘要校验。实际使用的源写入该次构建证据。
+
 ## 开发启动器与本地装载核验
 
-`dsh-dev` 是宿主侧开发启动器（只依赖 Python 3 标准库、Docker CLI 和 Compose），把本目录的受控 Compose 渲染成仓库外实例。两种模式都挂载 harness 三棵树与 `/work/spec`、`/work/eval-input` 只读上下文数据资产：
+`dsh-dev` 是宿主侧开发启动器（只依赖 Python 3 标准库、Docker CLI 和 Compose），把本目录的受控 Compose 渲染成仓库外实例。两种模式都挂载 harness 三棵树，但判分材料只给开发会话：
 
-| 模式 | CLI | 默认 DSH Agent preset | harness 挂载 | 用途 |
-|---|---|---|---|---|
-| 开发模式 | `--mode dev`（内部 `authoring`） | 出厂 `cordis`（创造模式，额外 `--patch` 开发层） | workspace RW，presets/managed RO | 让创造模式 Agent 修改/优化被测 harness，spec/eval 作为背景 |
-| 评测模式 | `--mode eval`（内部 `verification`） | 被测智能体 `security-operations-expert` | 全部 RO + 受控 HOME 锁 | 以智能体定义装载并评估其能力，spec/eval 作为判分背景 |
+| 模式 | CLI | 目标 DSH Agent preset | 注册工作区 | harness 挂载 | 判分材料 | 用途 |
+|---|---|---|---|---|---|---|
+| 开发模式 | `--mode dev`（内部 `authoring`） | 出厂 `cordis`（创造模式，额外 `--patch` 开发层） | `/work` | workspace RW，presets/managed RO | `/work/spec`、`/work/eval-reference` RO | 开发者修改/优化被测 harness，需要读判分材料来维护 |
+| 评测模式 | `--mode eval`（内部 `verification`） | 由所选来源声明（`plan.target_preset`） | `/work/harness/workspace` | 全部 RO + 受控 HOME 锁 | 不挂载 | 以目标定义装载并运行被测智能体 |
+
+开发会话的注册工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（`verification-home-controls/locked-dev.AGENTS.md`，内容通用、不含业务 Agent 名）；目标自己的业务 `AGENTS.md` 仍在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。被测容器不挂载该文件。
+
+目标 preset 由 `sources.json` 的 `preset` 路径推出，适配层不内联任何业务 Agent 名；新增来源只需追加目录数据。
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-dev plan --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3084
 python3 runtime/adapters/dsh-container/dsh-dev up --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3084 --accept-cordis-trust
-python3 runtime/adapters/dsh-container/dsh-dev up --source snapshot:<snap-id> --mode eval --name secops-eval --port 3085
+python3 runtime/adapters/dsh-container/dsh-dev plan --source experiment:EXP-security-operations-expert-001 --mode eval --name secops-eval --port 3085
 python3 runtime/adapters/dsh-container/dsh-dev ps
 python3 runtime/adapters/dsh-container/dsh-dev url secops-dev --non-interactive   # 交互终端可省略该旗标
 python3 runtime/adapters/dsh-container/dsh-dev logs secops-dev --tail 200
 python3 runtime/adapters/dsh-container/dsh-dev down secops-dev
 ```
 
-`--mode dev` 使用 `authoring.compose.yaml` 并在基础受控 patch 之后叠加 `security-operations-expert.development.patch.yml`（仅打开 DSH 出厂 preset 根并把默认 preset 设为 `cordis`；校验器对该文件实施行白名单）。因为创造模式会话具备 shell 与对实时 runtime 执行模型 JS 的 `tool-cordis` 能力（等同 shell 权限），且容器使用 host 网络、可直达宿主回环服务（含本机 DSH Web），`up --mode dev` 必须显式加 `--accept-cordis-trust`；`--mode eval` 拒绝该旗标。创造模式会话不加载 `security-operations-guard`，注入的 SOC MCP 工具与 delegate 因此**没有角色矩阵约束**——这是开发模式的已知边界，不是已隔离状态。`--mode eval` 不叠加开发层，`includeShippedRoot` 保持关闭，创造模式在该容器内不在 preset 名册中。
+`--mode dev` 使用 `authoring.compose.yaml` 并在基础受控 patch 之后叠加 `security-operations-expert.development.patch.yml`（仅打开 DSH 出厂 preset 根并把默认 preset 设为 `cordis`；校验器对该文件实施行白名单）。因为创造模式会话具备 shell 与对实时 runtime 执行模型 JS 的 `tool-cordis` 能力（等同 shell 权限），且容器使用 host 网络、可直达宿主回环服务（含本机 DSH Web），`up --mode dev` 必须显式加 `--accept-cordis-trust`；`--mode eval` 拒绝该旗标。创造模式会话不加载 `security-operations-guard`，注入的 SOC MCP 工具与 delegate 因此**没有角色矩阵约束**——这是开发模式的已知边界，不是已隔离状态。`--mode eval` 不叠加开发层，`includeShippedRoot` 保持关闭，创造模式在该容器内不在 preset 名册中，判分材料也不进入该容器。
+
+`up` 不只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的在运行（`home-init` 是一次性服务，正常结束不算失败），否则报告失败或 `dsh_running: "unknown"` 并以非零退出码结束。
+
+`ps`、`logs`、`down` 从实例状态文件重建读取该实例 Compose 所需的环境变量：受控模板用 `${VAR:?}` 声明必填变量、不内联仓库内默认路径，因此这些命令不依赖调用者的当前环境。`down` 先检查 `docker compose down` 的退出码，再核对实际容器状态与 HOME 卷：命令失败即报错，仍有容器运行或状态无法确认时输出 `stopped: false` / `stopped: "unknown"` 并以非零退出码结束；HOME 卷名按 Compose 卷标签解析，不按 `<project>-home` 猜测。
+
+完整使用过程、挂载矩阵与异常处理见[DSH 开发与评测启动器设计方案](../../../docs/DSH开发与评测启动器设计方案.md)。
 
 **首次打开 Web 需要在界面注册工作区。** DSH Web 的输入栏在没有已打开会话时是惰性的，必须先选定一个**已注册工作区**才能开会话；工作区注册表（`$DSH_HOME/storages/workspace.json`）只从已存会话头 bootstrap，新实例的 HOME 卷里因此为空——容器的 `working_dir` 只是进程工作目录，不等于 DSH 工作区。该锁定 DSH 提交没有受支持的工作区预注册入口，启动器只交付路径与步骤、不改写 Runtime 存储内部格式：
 
@@ -112,7 +133,7 @@ bash runtime/adapters/dsh-container/verify-load.sh authoring
 # 其他已登记来源：verify-load.sh verification --source EXP-<agent-id>-NNN
 ```
 
-脚本先在无卷、只读、无网络容器中比对本地镜像内 `prepare-verification-home.mjs`、`verify-load.mjs`、`tree-digest.mjs` 与宿主适配层的 SHA-256，旧标签必须重建，避免旧脚本先触碰 HOME 卷。随后比对宿主机与容器内三棵精确资产树以及 `/work/spec`、`/work/eval-input` 两棵只读上下文树的文件、权限、大小和 SHA-256 摘要，检查 `/proc/self/mountinfo` 的读写模式与独立 HOME 卷。编写态还会核对开发叠加层确实把 `includeShippedRoot` 打开且默认 preset 为 `cordis`，核验态则断言组合配置中不出现该开放（创造模式在评测容器内不可选）。两种模式都核六处受控只读子文件（两个空用户 Patch、Web manifest、零字节全局指令、两处注释 `.env`）、四处模块目录挂载及共享 fallback 的 277 个镜像安装 symlink（数量以实际锁定安装闭包为准），并核关键模块从 Web Profile 的首个解析位置的 `realpath` 在 `/opt/dsh/`。然后调用 DSH 的 `--dump-config` 核对全局 Profile/Patch 组合标识。单个 Agent 的 Guard 声明单独在 Preset/Managed 文件中核对，因为全局配置展开不会包含 Preset 子树。脚本不输出可能含私有 URL、Token 的原始配置或日志。该结果仅是“挂载身份、模块解析及配置组合证据”；**不证明 Plugin 实际激活**、MCP 连接成功、Preset/Skill 被真实 Session 调用、上下文资产被智能体消费、用户任务、最终业务状态或 Release 验收。
+适配层脚本不烘焙进镜像：`prepare-verification-home.mjs`、`verify-load.mjs`、`tree-digest.mjs` 由 Compose 把本目录只读挂载到 `/opt/dsh-adapter`，因此改脚本只要重启实例，不必重建镜像。脚本先在无卷、无网络容器中以同一只读挂载比对这三个文件的 SHA-256，确认容器读到的字节与宿主审查的文件一致后再触碰 HOME 卷。随后比对宿主机与容器内三棵精确资产树；编写态另比 `/work/spec`、`/work/eval-reference` 两棵只读判分材料树的文件、权限、大小和 SHA-256 摘要，核验态则断言这三条判分材料路径在容器内既不存在也未挂载。同时检查 `/proc/self/mountinfo` 的读写模式与独立 HOME 卷。编写态还会核对开发叠加层确实把 `includeShippedRoot` 打开且默认 preset 为 `cordis`，核验态则断言组合配置中不出现该开放（创造模式在评测容器内不可选）。两种模式都核六处受控只读子文件（两个空用户 Patch、Web manifest、零字节全局指令、两处注释 `.env`）、四处模块目录挂载及共享 fallback 的 277 个镜像安装 symlink（数量以实际锁定安装闭包为准），并核关键模块从 Web Profile 的首个解析位置的 `realpath` 在 `/opt/dsh/`。然后调用 DSH 的 `--dump-config` 核对全局 Profile/Patch 组合标识。单个 Agent 的 Guard 声明单独在 Preset/Managed 文件中核对，因为全局配置展开不会包含 Preset 子树。脚本不输出可能含私有 URL、Token 的原始配置或日志。该结果仅是“挂载身份、模块解析及配置组合证据”；**不证明 Plugin 实际激活**、MCP 连接成功、Preset/Skill 被真实 Session 调用、上下文资产被智能体消费、用户任务、最终业务状态或 Release 验收。
 
 在编写态自修改前后留下只追加回执：
 
@@ -131,6 +152,8 @@ python3 runtime/adapters/dsh-container/mutation-receipt.py freeze
 bash runtime/adapters/dsh-container/verify-load.sh verification --frozen SNAPSHOT_DIR
 ```
 
-副本位于所选 Experiment 的 `snapshots/frozen-sources/fr-<UUIDv4>/`；`snapshot.json` 记录三树文件、目录权限摘要和来源，`frozen-digest` 会核对副本字节与权限。冻结拒绝空资产目录、被 Git 忽略的文件和非受控 `.env`；仍需人工检查资产是否含敏感内容。`restore SNAPSHOT_DIR` 仅在 Candidate 根目录不存在时恢复三棵挂载树，绝不覆盖现有工作树。这只是可还原的**挂载源**，并未单独归档候选元数据、插件构建制品或运行有效配置；完整研究快照须另绑定这些身份与依赖。它也不是经评估的 `bl-<UUIDv4>`、Release 或防宿主侧修改的存储锁；比较运行前后还须复核摘要并确保单写者。
+副本位于所选 Experiment 的 `snapshots/frozen-sources/fr-<UUIDv4>/`；`snapshot.json` 记录三树文件、目录权限摘要和来源，`frozen-digest` 会核对副本字节与权限。冻结拒绝空资产目录、被 Git 忽略的文件和非受控 `.env`；仍需人工检查资产是否含敏感内容。`restore SNAPSHOT_DIR` 仅在 Candidate 根目录不存在时恢复三棵挂载树，绝不覆盖现有工作树。这只是可还原的**挂载源**，并未单独归档候选元数据、插件构建制品或运行有效配置。它也不是经评估的 `bl-<UUIDv4>`、Release 或防宿主侧修改的存储锁；比较运行前后还须复核摘要并确保单写者。
+
+整套源码研究快照（`snapshots/research/`）的创建与复核已退役：它与 Git 重复保存同一份内容，并要求跨环境重现宿主机完整 POSIX 权限。历史内容按 `evolution/experiments/<id>/snapshots/README.md` 的映射从 Git 提交恢复。
 
 发布后必须用具体不可变 Release 替换这三棵 Candidate 源，所有 Harness 资产只读，并按 `dsh-release-verify` 核对通过评估的 `baseline_id`、`run_id`、Release 摘要、实际 DSH 加载及完整业务链。当前没有通过的 Release，不能把核验态 Candidate 说成生产发布。

@@ -16,8 +16,8 @@ try {
 } catch {
   throw new Error('missing or invalid selected DSH source contract')
 }
-const sourceSelector = /^(?:experiment:EXP-[a-z0-9-]+-[0-9]{3}|snapshot:snap-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/
-const sourceKinds = new Set(['experiment', 'snapshot'])
+const sourceSelector = /^experiment:EXP-[a-z0-9-]+-[0-9]{3}$/
+const sourceKinds = new Set(['experiment'])
 if (source?.schema_version !== '1.0' || !sourceSelector.test(source.source_id) || !sourceKinds.has(source.source_kind)
   || source.profile !== 'web' || !source.patch?.startsWith('/opt/dsh-managed/')
   || !source.preset?.startsWith('/opt/dsh-presets/')
@@ -32,9 +32,12 @@ const roots = [
   { key: 'workspace', path: '/work/harness/workspace', expected: process.env.DSH_EXPECT_WORKSPACE_TREE_SHA },
   { key: 'presets', path: '/opt/dsh-presets', expected: process.env.DSH_EXPECT_PRESETS_TREE_SHA },
   { key: 'managed', path: '/opt/dsh-managed', expected: process.env.DSH_EXPECT_MANAGED_TREE_SHA },
-  { key: 'spec', path: '/work/spec', expected: process.env.DSH_EXPECT_SPEC_TREE_SHA },
-  { key: 'eval_input', path: '/work/eval-input', expected: process.env.DSH_EXPECT_EVAL_TREE_SHA },
 ]
+const gradingMaterialPaths = ['/work/spec', '/work/eval-reference', '/work/eval-input']
+if (mode === 'authoring') {
+  roots.push({ key: 'spec', path: '/work/spec', expected: process.env.DSH_EXPECT_SPEC_TREE_SHA })
+  roots.push({ key: 'eval_reference', path: '/work/eval-reference', expected: process.env.DSH_EXPECT_EVAL_TREE_SHA })
+}
 
 const mounts = readFileSync('/proc/self/mountinfo', 'utf8')
   .split('\n')
@@ -52,17 +55,49 @@ function fileSha(path, maxBytes = 256 * 1024, allowEmpty = false) {
   return `sha256:${createHash('sha256').update(readFileSync(path)).digest('hex')}`
 }
 
+// 适配层脚本由只读 bind 挂载提供，不烘焙进镜像：脚本改动只需重启实例。
+// 这里同时核对"是精确只读挂载"与"字节等于宿主审查过的文件"。
+const adapterMount = mounts.find(entry => entry.target === '/opt/dsh-adapter')
+if (!adapterMount || !adapterMount.options.includes('ro')) {
+  throw new Error('adapter scripts are not provided by an exact read-only bind mount')
+}
+const adapterScriptEvidence = {}
 for (const script of [
-  { path: '/opt/dsh-adapter/verify-load.mjs', expected: process.env.DSH_EXPECT_VERIFY_SCRIPT_SHA },
-  { path: '/opt/dsh-adapter/prepare-verification-home.mjs', expected: process.env.DSH_EXPECT_PREPARE_SCRIPT_SHA },
-  { path: '/opt/dsh-adapter/tree-digest.mjs', expected: process.env.DSH_EXPECT_TREE_SCRIPT_SHA },
+  { key: 'verify_load', path: '/opt/dsh-adapter/verify-load.mjs', expected: process.env.DSH_EXPECT_VERIFY_SCRIPT_SHA },
+  { key: 'prepare_home', path: '/opt/dsh-adapter/prepare-verification-home.mjs', expected: process.env.DSH_EXPECT_PREPARE_SCRIPT_SHA },
+  { key: 'tree_digest', path: '/opt/dsh-adapter/tree-digest.mjs', expected: process.env.DSH_EXPECT_TREE_SCRIPT_SHA },
 ]) {
-  if (!script.expected || fileSha(script.path) !== script.expected) {
-    throw new Error(`host/image adapter script digest mismatch: ${script.path}`)
+  const digest = fileSha(script.path, 64 * 1024)
+  if (!script.expected || digest !== script.expected) {
+    throw new Error(`mounted adapter script differs from the reviewed file: ${script.path}`)
   }
+  adapterScriptEvidence[script.key] = { mount_mode: 'ro', sha256: digest, size: lstatSync(script.path).size }
 }
 
 const mountEvidence = {}
+
+// 角色分离必须在容器内正向核对：判分材料只出现在开发者会话，
+// 开发会话身份文件只出现在开发者会话。两者都按"路径不存在 + 不是挂载点"双重判断。
+const devInstructionPath = '/work/AGENTS.md'
+let devInstructionEvidence = null
+if (mode === 'authoring') {
+  const mount = mounts.find(entry => entry.target === devInstructionPath)
+  if (!mount || !mount.options.includes('ro')) {
+    throw new Error('development session instructions are not an exact read-only bind mount')
+  }
+  const digest = fileSha(devInstructionPath, 64 * 1024)
+  if (!process.env.DSH_EXPECT_DEV_INSTRUCTIONS_SHA || digest !== process.env.DSH_EXPECT_DEV_INSTRUCTIONS_SHA) {
+    throw new Error('development session instructions differ from the reviewed controlled file')
+  }
+  devInstructionEvidence = { mount_mode: 'ro', sha256: digest, size: lstatSync(devInstructionPath).size }
+} else {
+  for (const path of [...gradingMaterialPaths, devInstructionPath]) {
+    if (existsSync(path) || mounts.some(entry => entry.target === path)) {
+      throw new Error(`the subject container must not carry grading material or development instructions: ${path}`)
+    }
+  }
+}
+
 for (const item of roots) {
   if (!existsSync(item.path)) throw new Error(`asset mount missing: ${item.key}`)
   const mount = mounts.find(entry => entry.target === item.path)
@@ -247,16 +282,22 @@ for (const marker of source.config_markers) {
   }
 }
 
-// 开发模式必须真的把出厂 preset 根打开并把默认 preset 换成创造模式；
-// 评测模式保持 includeShippedRoot 关闭，创造模式在该容器内不可选。
+// 开发模式必须真的把出厂 preset 根与可写用户根打开，并把默认 preset 换成创造模式；
+// 评测模式两者都保持关闭，创造模式与用户 preset 在该容器内都不可选。
 let developmentOverlayApplied = false
+let userPresetRootEnabled = false
 if (mode === 'authoring') {
   if (!/\bincludeShippedRoot:\s*true\b/.test(dump.stdout) || !/\bdefault:\s*cordis\b/.test(dump.stdout)) {
     throw new Error('development overlay did not enable the shipped preset root with cordis as the default preset')
   }
+  if (!/\bincludeUserRoot:\s*true\b/.test(dump.stdout)) {
+    throw new Error('development overlay did not open the writable user preset root; preset authoring would be impossible')
+  }
   developmentOverlayApplied = true
-} else if (/\bincludeShippedRoot:\s*true\b/.test(dump.stdout) || /\bdefault:\s*cordis\b/.test(dump.stdout)) {
-  throw new Error('verification composition must not expose the shipped cordis preset')
+  userPresetRootEnabled = true
+} else if (/\bincludeShippedRoot:\s*true\b/.test(dump.stdout) || /\bincludeUserRoot:\s*true\b/.test(dump.stdout)
+  || /\bdefault:\s*cordis\b/.test(dump.stdout)) {
+  throw new Error('verification composition must not expose the shipped cordis preset or a writable preset root')
 }
 
 // --dump-config 只展开全局 Profile，不展开每个 Agent Preset 的 agent.cordis.yml。
@@ -278,17 +319,25 @@ console.log(JSON.stringify({
   profile: source.profile,
   patch: source.patch,
   mounts: mountEvidence,
-  context_assets: {
-    spec: { host: source.spec_root, container: '/work/spec', mount_mode: 'ro' },
-    eval_input: { host: source.eval_root, container: '/work/eval-input', mount_mode: 'ro' },
-    note: 'Read-only context identity only; mounting the requirement/evaluation factsource does not prove any agent consumed it.',
-  },
+  grading_material: mode === 'authoring'
+    ? {
+      spec: { host: source.spec_root, container: '/work/spec', mount_mode: 'ro' },
+      eval_reference: { host: source.eval_root, container: '/work/eval-reference', mount_mode: 'ro' },
+      note: 'Read-only grading-material identity for the developer session only; it does not prove any agent consumed it.',
+    }
+    : {
+      exposed_paths: [],
+      note: 'The subject role receives no grading material; the negative assertion above proves the requirement, acceptance-threshold and expected-answer paths are absent.',
+    },
+  adapter_scripts: adapterScriptEvidence,
+  development_session_instructions: devInstructionEvidence,
   dsh_home_mount_mode: 'rw',
   controlled_home_controls: homeControlEvidence,
   controlled_module_resolution: moduleEvidence,
   composed_config_sha256: `sha256:${createHash('sha256').update(dump.stdout).digest('hex')}`,
   expected_markers_present: source.config_markers.length,
   development_overlay_applied: developmentOverlayApplied,
+  writable_user_preset_root: userPresetRootEnabled,
   preset_guard_declaration_present: guardPresent,
   limitations: 'Read-only HOME/Module/.env controls and a startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested.',
 }))

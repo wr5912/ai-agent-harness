@@ -8,6 +8,7 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
 import sys
 import uuid
 from datetime import datetime, timezone
@@ -80,6 +81,29 @@ def tree_digest(repo: Path, root: Path) -> dict:
     except ValueError:
         raise ValueError("run inputs must live inside the repository")
     return snapshot(root, allowed_roots={root})
+
+
+def git_version(repo: Path) -> dict:
+    """记录本次运行对应的 Git 版本与未提交状态。
+
+    源码版本由 Git 管理后，Run 台账要能说明实际跑的是哪一版。未提交修改无法仅凭 HEAD 还原，
+    因此如实记录 dirty 状态；读取失败记为 unknown，不猜测、也不虚称已完整冻结。
+    """
+    def git(*args: str) -> tuple[int, str]:
+        completed = subprocess.run(["git", *args], cwd=repo, text=True,
+                                   capture_output=True, check=False, timeout=60)
+        return completed.returncode, completed.stdout.strip()
+
+    commit_code, commit = git("rev-parse", "HEAD")
+    status_code, status = git("status", "--porcelain")
+    if commit_code != 0 or status_code != 0:
+        return {"commit": None, "dirty": None, "detail": "无法读取 Git 版本；本次运行的源码版本未知"}
+    changed = [line for line in status.splitlines() if line.strip()]
+    return {
+        "commit": commit,
+        "dirty": bool(changed),
+        "changed_path_count": len(changed),
+    }
 
 
 def load_run_manifest(repo: Path, run_id: str) -> tuple[Path, dict, dict]:
@@ -183,6 +207,7 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
             },
             "spec_tree": tree_digest(repo, Path(contract["spec_root"])) if contract.get("spec_root") else None,
             "eval_tree": tree_digest(repo, Path(contract["eval_root"])) if contract.get("eval_root") else None,
+            "git_version": git_version(repo),
         }
         plan_ref = ""
         if args.plan:
@@ -204,7 +229,7 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
             "kind": args.kind,
             "status": "planned",
             "created_at": utc_now(),
-            "snapshot_ref": contract["source_id"],
+            "source_id": contract["source_id"],
         }
         if plan_ref:
             manifest["plan_ref"] = plan_ref
@@ -318,7 +343,7 @@ def main() -> None:
     init_parser = commands.add_parser("init", help="create a planned Run and pin its inputs")
     init_parser.add_argument("--agent", required=True)
     init_parser.add_argument("--experiment", required=True)
-    init_parser.add_argument("--source", required=True, help="experiment:<id>、snapshot:<id> 或 release:<id>")
+    init_parser.add_argument("--source", required=True, help="experiment:<id> 或 release:<id>")
     init_parser.add_argument("--kind", default="research", choices=RUN_KINDS)
     init_parser.add_argument("--baseline", help="formal Run 必须绑定的 bl-<UUIDv4>")
     init_parser.add_argument("--plan", help="评测计划的仓库相对路径")

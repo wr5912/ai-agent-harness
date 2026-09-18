@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-09-18T15:35:56Z",
+  "purpose": "核对开发模式打开可写用户 preset 根后，创造者能在容器内新建候选 preset，且受控配置仍然只读",
+  "source_id": "experiment:EXP-security-operations-expert-001",
+  "image_tag": "ai-agent-harness/dsh:c291e7961",
+  "observations": {
+    "authoring_composed_config": {
+      "default": "cordis",
+      "includeShippedRoot": true,
+      "includeUserRoot": true,
+      "roots": [
+        "/opt/dsh-presets (system)"
+      ]
+    },
+    "authoring_writable_user_root": {
+      "path": "/var/lib/dsh/.agent-presets",
+      "probe": "mkdir + 写入 preset.yml 成功",
+      "controlled_preset_root": "/opt/dsh-presets 写入被拒绝（Read-only file system）",
+      "controlled_managed_root": "/opt/dsh-managed 写入被拒绝（Read-only file system）"
+    },
+    "verification_composed_config": {
+      "default": "security-operations-expert",
+      "includeShippedRoot": false,
+      "includeUserRoot": false,
+      "roots": [
+        "/opt/dsh-presets (system)"
+      ]
+    },
+    "verification_subject_paths_absent": [
+      "/work/AGENTS.md",
+      "/work/spec",
+      "/work/eval-reference"
+    ]
+  },
+  "verified": [
+    "开发模式组合配置出现 includeUserRoot: true，可写用户根实际可写",
+    "受控 /opt/dsh-presets 与 /opt/dsh-managed 在开发模式下仍为只读",
+    "评测模式两者皆关，且不携带开发身份文件与判分材料",
+    "verify-load.sh 两种模式均退出 0，证据字段 writable_user_preset_root 分别为 true/false"
+  ],
+  "limitations": [
+    "未注入模型与 MCP 凭据，未真实调用 DSH 的 preset 复制/选中流程，也未用新 preset 建立真实会话；容器层只证明可写根已打开且受控根只读",
+    "同名遮蔽行为按 DSH 根扫描顺序推断，未在真实会话中验证"
+  ]
+}

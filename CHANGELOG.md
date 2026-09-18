@@ -2,6 +2,37 @@
 
 本文件记录仓库治理、目录契约和公共演进工具的变化。单个 Agent/Harness Release 的变更应记录在对应不可变 Release 中。
 
+## [0.3.0]
+
+### 新增
+
+- 根级 `AGENTS.md` 增加"开发对象与修改边界"与"文档与数据质量"两章：定义开发智能体运行配置、被开发 Harness 资产、需求与评测资料、运行状态与运行记录四类对象的用途与修改原则，并统一内容组织、数据语义、减少重复和完成检查的要求。原散布在使命、安全与资产条款中的同类约定合并去重，不保留两套说法。
+- `evaluation/tools/render_pending_review.py`：按需把 `eval/cases.jsonl` 与 `eval/pending/*.jsonl` 渲染成人工复核用的 Markdown 阅读视图，只读 JSONL，不产生第二份可编辑事实源。
+- `evaluation/tools/ingest_v02_spec.py` 生成的 `requirements.md` 增列「需求名称」，`tasks.yaml` 的 `goal` 改为关联需求的目标任务；`acceptance.yaml` 与 `methods.yaml` 增加来源代号图例与字段含义说明。
+- `run_record.py init` 在 `inputs.lock.json` 写入 `git_version`（提交、是否含未提交修改、变更路径数）。源码版本交给 Git 后，Run 台账据此说明实际跑的是哪一版。
+- 适配层新增结构性门禁：Compose 模板不得内联任何业务 Agent 的路径、preset 或 patch 名；每个挂载源必须是 `${VAR:?message}` 必填变量；`DSH_SUBJECT_GRADING_EXPOSURE` 阻止判分材料出现在被测容器；`SNAPSHOT_RETIRED` 阻止重新引入整套源码副本。
+- **适配层脚本改为只读挂载，不再烘焙进镜像**：`verify-load.mjs`、`tree-digest.mjs`、`prepare-verification-home.mjs` 从 `Dockerfile` 的 `COPY` 改为由 Compose 把适配层目录只读挂载到 `/opt/dsh-adapter`（`home-init` 与 `dsh` 都挂，新增必填变量 `DSH_ADAPTER_HOST`，实例状态 schema 升到 `1.2`）。脚本改动只需重启实例，不必重建镜像，也不再出现"镜像内脚本过期"的中间状态；镜像只在源码提交、基础镜像、系统依赖或目录结构变化时重建。`verify-load.sh` 的身份核对从"比对镜像内脚本"改为"比对挂载进容器的脚本字节"，`verify-load.mjs` 另断言 `/opt/dsh-adapter` 是精确只读挂载；仓库校验器新增 `DSH_ADAPTER_MOUNT` 门禁，禁止脚本再被 `COPY` 进镜像。
+- 构建期统一使用国内阿里云源：`Dockerfile` 与 `build-image.sh` 的 APT 默认源改为 `http://mirrors.aliyun.com/debian`（security 同站），并新增 `DSH_NPM_REGISTRY=https://registry.npmmirror.com`，让 `corepack prepare` 与 `pnpm install` 共用同一个国内 registry。官方 Debian 源保留为显式回退参数，只在国内源不可达时使用。换源不放松校验：APT 仍由 `debian-archive-keyring` 校验签名与 `Valid-Until`，依赖仍按 `pnpm-lock.yaml` 的完整性摘要校验；实际使用的两个源写入构建证据（新增 `npm_registry` 字段）。仓库校验器新增 `DSH_BUILD_MIRROR` 门禁，防止默认值静默回退。
+- 容器级角色隔离证据：`evaluation/evidence/dsh-dev-role-isolation-20260918.json` 记录两种模式实际挂载与路径可见性；镜像按锁定提交重建，`verify-load.sh` 两种模式均通过并记录新的构建证据。
+- `tests/test_validators.py` 增加模块级绑定"声明前使用"结构检查：容器内脚本曾两次在 `const mounts` 声明前引用它，只有真实运行才暴露；现在提交前即可发现同类 TDZ 缺陷（已用注入缺陷反向验证）。
+- `tests/test_validators.py` 增加 `SpecDataSemanticsTests`：锁定 goal/output 不同义、需求表带业务名称且不重复、验收条目不复读套话、评估方法字段各司其职、待复核输入不重复保存来源信息。
+
+### 变更
+
+- **开发模式打开可写 preset 根**：`security-operations-expert.development.patch.yml` 的 `includeUserRoot` 由 `false` 改为 `true`，创造者因此可以在容器内 `copy()` 出新 preset 并试跑——此前没有任何可写 preset 根，preset 创作在容器内无法完成。受控的 `/opt/dsh-presets` 与 `/opt/dsh-managed` 仍只读，用户根只是额外候选来源。受控开发指令补充新建 preset 的完整步骤：必须用与现有 preset 不同的 ID（较早的系统根会遮蔽同名用户根）、用新 ID 开新会话验证、宿主复核后复制回 `candidate/dsh/presets/<new-id>/`。仓库校验器与 `verify-load.mjs` 同步翻转：开发模式必须出现 `includeUserRoot: true`，评测模式必须两者皆关。
+- **开发会话身份与被测身份分开**：开发模式注册的工作区由 `/work/harness/workspace` 改为 `/work`，会话身份来自新增的受控只读文件 `verification-home-controls/locked-dev.AGENTS.md`（挂载到 `/work/AGENTS.md`）；目标自己的业务 `AGENTS.md` 仍留在 `/work/harness/workspace` 供阅读和编辑，但不再被注入为开发会话身份。该文件保持通用，不内联任何业务 Agent 名，目标 preset 由启动器 `target_preset` 给出。被测容器不挂载该文件，`verify-load.mjs`、`test_home_submounts.mjs` 与仓库校验器对此做正反向断言。候选业务 `AGENTS.md` 同步修正：不再声称容器内提供 `/work/spec` 与 `/work/eval-input`，改为说明判分材料不进入运行本智能体的容器。
+- **判分材料与被测输入分离**：`/work/spec`（验收阈值）与判分材料根不再挂载到被测角色，容器内路径由 `/work/eval-input` 改为 `/work/eval-reference`；被测角色默认不挂任何评测材料，`/work/eval-input` 只在显式声明不含预期答案的输入根时挂载。`verify-load.mjs` 与 `test_home_submounts.mjs` 增加负向断言：这三条路径在评测容器内既不存在也未挂载。只读挂载只限制写入、不限制读取，隔离不再依赖被测实现自带的文件访问控制。
+- **整套源码研究快照退役**：`snapshots/research/<snap-id>/` 的工作树副本删除，`source_contract.py` 移除 `snapshot:` 选择器，`mutation-receipt.py` 移除 `research-snapshot`/`research-snapshot-verify`，`verify-load.sh` 的 `--frozen` 不再接受研究快照。历史内容按 `evolution/experiments/<id>/snapshots/README.md` 记录的提交与路径从 Git 恢复（已逐文件核对 60/60 字节一致）。研究版本改用 Git 提交与 Run 记录表达。
+- **目标身份由来源声明决定**：`source_contract.py` 从 preset 相对路径推出 `preset_id`；`dsh-dev` 的目标 preset 不再硬编码业务 Agent 名，`plan`/`instance.json` 字段由 `preset_default` 改为 `target_preset`。Compose 模板移除全部业务 Agent 默认路径与 `EXP-*` 默认值，改为必填变量。
+- **`dsh-dev down` 不再无条件报告成功**：先检查 `docker compose down` 退出码，再查实际容器状态与 HOME 卷；命令失败即报错，仍有容器运行或状态查询失败时输出 `stopped: false`/`stopped: "unknown"` 并以非零退出码结束。`ps` 查询失败时标为 `unknown`，不再显示成"没有运行"。
+- `dsh-dev up` 不再只看 `docker compose up -d` 的退出码：命令返回 0 后还要确认 `dsh` 服务真的进入运行状态（`home-init` 是一次性服务，正常结束不计为失败），否则报 `dsh_running: false` / `"unknown"` 并以非零退出码结束。与 `down`、`ps` 属同一类修正：命令成功不等于目标状态达成。
+- `dsh-dev` 的 `ps`、`logs`、`down` 改为从实例状态文件重建 Compose 环境：受控模板用 `${VAR:?}` 声明必填变量后，这些命令不能再依赖调用者当前环境，否则停止与查询会随环境漂移而失败。实例状态 schema 升到 `1.1` 并新增 `managed_patch`；旧版状态文件明确失败并提示对同名实例重新 `up`。HOME 卷名改按 Compose 卷标签解析（Compose 会给卷名加项目前缀），`down` 输出新增 `containers_removed`，区分"容器已删除"与"HOME 卷仍在"。
+- `PROJECT-INTERPRETATION.md` 第 2 节由"研究快照"改为"研究版本管理"；第 7.1 节三角色视图与实现一致；第 7.2 节不再要求物化完整冻结副本，改为记录可复核身份并由开发者保证评测期间不修改相关资产。
+- 文档结构整改：`docs/DSH开发与评测启动器设计方案.md`（原 dev/eval 与创造链方案）按"背景与目标—当前能力与范围—核心对象与职责—完整使用过程—目录与配置关系—异常与既有实例—实施与验证—附录"重写，删除以 `sandbox_permissions` 被拒为由改用 shell 写 HOME 的建议；`README.md` 改为"用途—现在能做什么—从哪里开始—主要目录—演进主线"，并修正 launcher "仍处于设计阶段"与代码不符的表述。
+- 技能同步：`baseline-eval`、`security-control-boundary`、`delivery-review` 的阈值来源统一指向 `spec/acceptance.yaml`，模板一仅在该文件未物化时暂代；`harness-evolution` 增加"先按根级定义识别本次对象"步骤；`repository-invariants` 与 `delivery-contract` 更新 Run 字段与快照表述。
+- **生成器与事实源收敛为一条规则**：`ingest_v02_spec.py` 补齐章节小标题降级、场景引导语、需求名称与术语说明、以及每个生成文件的"首次生成、此后人工维护"声明；`tasks.yaml`、`acceptance.yaml`、`methods.yaml`、`requirements.md`、`scenario-design.pending.jsonl` 现可由脚本逐字节重放，`fixtures/*.md` 只保留维护者的"补充输入映射"纯新增段。`requirements.md` 中被改写过的源文措辞恢复为归档原文。新增回归测试锁定该不变量，防止生成逻辑与事实源再次分叉。
+- 数据整改：`requirements.md` 删除逐场景重复的原始需求表并补业务名称；`tasks.yaml` 的 34 条 `goal` 不再等于 `output`；`acceptance.yaml` 移除 27 处逐条重复的通用判定句，改由文件级说明统一表达；`methods.yaml` 的 `grader`/`trial_scheme`/`aggregation` 改为各司其义并补齐可定位来源；`user-inputs.pending.jsonl` 合并重复的 `supplement` 字段。原始用户输入、稳定编号与历史证据均未改写。
+
 ## [0.2.0]
 
 ### 新增

@@ -15,12 +15,12 @@
 - `agents/<agent-id>/`：当前业务 Agent/Harness 定义；不得绑定为 `dsh-agent`。`spec/` 维护需求、任务与验收标准的唯一事实源；`eval/` 维护 Case、方法与计划的评测输入，不存运行结果；`issues/` 维护跨 Run 的问题状态；`variants/` 记录 Variant 范围与资产引用；`delivery/` 只放交付文档及其引用视图。
 - `tasks/`：任务定义；`acceptance.yaml` 只能引用或投影 `agents/<agent-id>/spec/acceptance.yaml`（spec 未物化时引用交付记录需求定义）中的 `AC-xxx`，不得成为第二套可编辑验收标准。
 - 评估用例只有一个事实源 `agents/<agent-id>/eval/cases.jsonl`，通过 `core`、`boundary`、`safety`、`regression` 标签形成逻辑子集，不复制 Case；待复核输入只允许位于 `agents/<agent-id>/eval/pending/`。
-- `evolution/experiments/`：假设、变化、候选、快照、Run 和决定；`evolution/baselines/`：已经验证通过的稳定快照。Trial 事实按 Run 归档于 `runs/<run-uuid>/`，每次执行独立保存，失败也保留。
+- `evolution/experiments/`：假设、变化、候选、Run 和决定；`evolution/baselines/`：已经验证通过的稳定基线。Trial 事实按 Run 归档于 `runs/<run-uuid>/`，每次执行独立保存，失败也保留。
 - `releases/`：可部署、不可变、自包含资产，至少绑定 Harness、Runtime 兼容范围、评估报告和变更记录。
 - `runtime/` 只记录兼容性和适配；不得复制 DSH Runtime 源码或私有运行数据。
 - 当前项目可装载 Harness 仅适用容器内 DSH。Experiment `candidate/dsh/workspace/` 是 Authoring 中唯一模型可读写的行为工作区；`candidate/dsh/presets/` 与 `candidate/dsh/managed/` 由受控平面只读装载，迁移历史与评估证据不挂载。容器内 DSH 可以自组合、自修改行为资产，但写入只形成待审 Candidate diff，复核后新容器、新 Session 激活。
 - `agents/<agent-id>/eval/pending/*.pending.jsonl` 只是旧材料摄取暂存，不是正式 Eval Case 事实源；不得把迁移输入数量、旧 `synthetic_reviewed` 声明或空结果文件记为正式评估通过。
-- 执行 Run 使用 `run-<UUIDv4>`，研究快照使用 `snap-<UUIDv4>`，跨 Run 问题使用 `iss-<UUIDv4>`。Run finalize 后执行事实不可改写；研究快照物化后内容不可原地修改。
+- 执行 Run 使用 `run-<UUIDv4>`，跨 Run 问题使用 `iss-<UUIDv4>`。Run finalize 后执行事实不可改写。研究版本用 Git 保存与比较，不复制整套源码快照；`snapshots/README.md` 只保留早期快照到 Git 提交的恢复映射。
 
 ## 发布一致性
 

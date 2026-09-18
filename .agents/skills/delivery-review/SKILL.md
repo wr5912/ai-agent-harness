@@ -11,7 +11,7 @@ description: 审查智能体六项交付内容、机器证据与候选基线，�
 
 1. 确认交付对象、风险等级、`baseline_id`、冻结提交或制品、结果事实源以及责任人和日期。任一冻结项变化都应形成新候选基线。
 2. 识别唯一交付形态：默认是一份 `delivery/交付记录.md`，或者同目录内六份规定名称的拆分文件；不得并行维护内容重复的合并版与拆分版。
-3. 核对六类信息、`spec/acceptance.yaml`（未物化时核对交付记录模板一）、`eval/cases.jsonl`、该 Agent 全部 Experiment 的 `runs/<run-uuid>/results.jsonl`、不可变定位信息和从 `REQ → AC → 评估实现 → Case → Trial → Run 归档` 的追溯闭环。模板或空文件不是交付物。
+3. 核对六类信息、`spec/acceptance.yaml`（它是阈值唯一事实源；仅在该文件未物化时才核对交付记录模板一）、`eval/cases.jsonl`、该 Agent 全部 Experiment 的 `runs/<run-uuid>/results.jsonl`、不可变定位信息和从 `REQ → AC → 评估实现 → Case → Trial → Run 归档` 的追溯闭环。模板或空文件不是交付物。
 4. 按风险和证据情况选择且记录 R1/R2/R3；不得低于风险要求。具体执行边界见 [review-levels-and-conclusions.md](references/review-levels-and-conclusions.md)。
 5. 先记录已确认的实质失败，再记录材料缺口，最终形成一个且仅一个交付结论：`通过`、`退回整改` 或 `材料不完整`。
 

@@ -86,9 +86,10 @@ dsh:
   agent_factory: deterministic-chat-factory
   plugins: [approved-rule-plugin]
 source:
-  kind: research-snapshot             # 或 release；提案字段
-  ref: <immutable-source-ref>
-  digest: <verified-content-digest>
+  kind: git-commit                    # 或 release；提案字段
+  ref: <commit-sha>
+  dirty: false                        # 未提交修改必须如实标注
+  digest: <verified-tree-digest>
   evaluation_status: not-evaluated    # 源状态保留，不传给目标
 ```
 

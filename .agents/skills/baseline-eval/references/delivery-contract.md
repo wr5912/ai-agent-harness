@@ -45,7 +45,8 @@ Trial 执行事实按 Run 独立归档于 `evolution/experiments/EXP-<agent-id>-
 
 | 文件/目录 | 内容 |
 |---|---|
-| `run.yaml` | run_id、experiment_id、agent_id、kind（formal/research/technical）、status（planned/running/completed/failed/cancelled）、snapshot_ref、plan_ref、created_at；formal 还必须绑定 `baseline_id`；finalize 时写入 `results_sha256` 与 `summary_sha256` |
+| `run.yaml` | run_id、experiment_id、agent_id、kind（formal/research/technical）、status（planned/running/completed/failed/cancelled）、source_id（本次运行的来源选择器）、plan_ref、created_at；formal 还必须绑定 `baseline_id`；finalize 时写入 `results_sha256` 与 `summary_sha256` |
+| `inputs.lock.json` | 本次运行的三棵 Harness 树与 spec/eval 树摘要，以及 `git_version`（提交、是否含未提交修改、变更路径数）；未提交修改无法仅凭 `HEAD` 还原，必须如实记录 |
 | `inputs.lock.json` | Harness、spec、Case、计划、方法、评分代码、插件及附件的精确身份与摘要 |
 | `environment.json` | 实际镜像身份、有效配置、模型标识与参数、环境初始条件；不存凭据 |
 | `results.jsonl` | 逐 Case/Trial 执行事实（见下） |

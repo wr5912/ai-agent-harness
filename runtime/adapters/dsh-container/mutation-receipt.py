@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""对所选 DSH Candidate 生成回执和真实字节冻结副本，不执行 Harness。"""
+"""对所选 DSH Candidate 生成回执和真实字节冻结副本，不执行 Harness。
+
+研究快照（`research-snapshot`）的创建与复核已退役：整套源码副本与 Git 重复，且其权限摘要
+在 `umask` 不同的检出环境会产生误报。源码版本改由 Git 管理，历史快照的恢复映射见
+`evolution/experiments/<id>/snapshots/README.md`。
+"""
 
 from __future__ import annotations
 
@@ -466,157 +471,6 @@ def restore(frozen_source: Path) -> None:
     print(DSH_ROOT)
 
 
-def _git_clean_paths(roots: list, records_list: list) -> None:
-    """拒绝把 Git 忽略的本机私有文件带入研究快照；仓库外临时目录测试跳过。"""
-    try:
-        paths = []
-        for root, records in zip(roots, records_list):
-            paths.extend(str((root / record["path"]).relative_to(REPO)) for record in records["files"])
-    except ValueError:
-        return
-    try:
-        completed = subprocess.run(
-            ["git", "-C", str(REPO), "check-ignore", "--no-index", "-z", "--stdin"],
-            input=("\0".join(paths) + "\0").encode(), capture_output=True, check=False,
-            timeout=20,
-        )
-    except (OSError, subprocess.TimeoutExpired) as error:
-        raise ValueError("cannot verify snapshot inputs against Git ignore rules") from error
-    if completed.returncode not in (0, 1):
-        raise ValueError("cannot verify snapshot inputs against Git ignore rules")
-    if completed.stdout:
-        raise ValueError("snapshot inputs include Git-ignored files; review before freezing")
-
-
-def _declared_dependencies(contract: dict, candidate: Path) -> dict:
-    """记录声明依赖与受控文件的身份；实际构建身份仍以 runtime.lock.json 与适配层锁为准。"""
-    runtime_lock = candidate / "runtime.lock.json"
-    runtime = json.loads(runtime_lock.read_bytes()) if runtime_lock.is_file() else {}
-    managed = candidate / "dsh" / "managed"
-    presets = candidate / "dsh" / "presets" / contract["agent_id"]
-    declared = {}
-    for key, path in (
-        ("profile_patch", managed / (contract["agent_id"] + ".patch.yml")),
-        ("guard", managed / "security-operations-guard.mjs"),
-        ("mcp_servers", managed / "mcp-servers.yaml"),
-        ("role_matrix", managed / "role-tool-matrix.yaml"),
-        ("control_boundary", managed / "control-boundary.yaml"),
-        ("tool_name_map", managed / "mcp-tool-name-map.json"),
-        ("preset", presets / "agent.cordis.yml"),
-        ("preset_metadata", presets / "preset.yml"),
-    ):
-        if path.is_file() and not path.is_symlink() and path.stat().st_nlink == 1:
-            declared[key] = {
-                "path": path.relative_to(candidate).as_posix(),
-                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-            }
-    return {
-        "schema_version": "1.0",
-        "runtime_identity": {
-            key: runtime.get(key)
-            for key in ("source_commit", "source_tree", "cli_version", "pnpm_lock_sha256", "node_base_oci_index_digest", "platform")
-        },
-        "adapter_image": {
-            key: contract["image"].get(key)
-            for key in ("commit", "tree", "local_image_tag", "pnpm_lock_sha256", "node_base")
-        },
-        "declared_assets": declared,
-    }
-
-
-def research_snapshot() -> None:
-    """物化完整研究快照：候选元数据 + Harness 树 + spec + eval + 依赖身份。"""
-    contract = resolve(SOURCE_ID, require_assets=True)
-    candidate = Path(contract["candidate_root"]).parent
-    spec_root = contract.get("spec_root")
-    eval_root = contract.get("eval_root")
-    if not spec_root or not eval_root:
-        raise ValueError("agent spec/eval content is not materialized; create agents/<id>/spec and agents/<id>/eval before freezing")
-    spec_root = Path(spec_root)
-    eval_root = Path(eval_root)
-    experiment = Path(contract["experiment_root"])
-    snapshots_root = experiment / "snapshots" / "research"
-    snap_id = "snap-" + str(uuid.uuid4())
-    snapshots_root.mkdir(parents=True, exist_ok=True)
-    temp_root = snapshots_root / (".tmp-" + snap_id)
-    final_root = snapshots_root / snap_id
-    temp_root.mkdir(exist_ok=False)
-    try:
-        dsh_records = snapshot(Path(contract["candidate_root"]), allowed_roots={Path(contract["candidate_root"])})
-        metadata_files = [name for name in ("harness.yaml", "runtime.lock.json", "migration-id-map.json")
-                          if (candidate / name).is_file()]
-        spec_records = snapshot(spec_root, allowed_roots={spec_root})
-        eval_records = snapshot(eval_root, allowed_roots={eval_root})
-        _git_clean_paths(
-            [Path(contract["candidate_root"]), spec_root, eval_root],
-            [dsh_records, spec_records, eval_records],
-        )
-        harness_dir = temp_root / "harness"
-        harness_dir.mkdir(exist_ok=False)
-        for name in metadata_files:
-            copy_tree(candidate, harness_dir, single_file_records(candidate / name, name), create_root=False)
-        copy_tree(Path(contract["candidate_root"]), harness_dir / "dsh", dsh_records)
-        copy_tree(spec_root, temp_root / "spec", spec_records)
-        copy_tree(eval_root, temp_root / "eval", eval_records)
-        harness_records = snapshot(harness_dir, allowed_roots={harness_dir})
-        if snapshot(temp_root / "spec", allowed_roots={temp_root / "spec"}) != spec_records \
-                or snapshot(temp_root / "eval", allowed_roots={temp_root / "eval"}) != eval_records:
-            raise ValueError("materialized spec/eval bytes differ from source scan")
-        dependencies = _declared_dependencies(contract, candidate)
-        write_json_once(temp_root / "dependencies.lock.json", dependencies)
-        manifest = {
-            "schema_version": "1.0",
-            "snapshot_id": snap_id,
-            "agent_id": contract["agent_id"],
-            "experiment_id": contract["experiment_id"],
-            "created_at": utc_now(),
-            "source_candidate_root": candidate_reference(),
-            "profile_patch": "managed/%s.patch.yml" % contract["agent_id"],
-            "preset": "presets/%s/agent.cordis.yml" % contract["agent_id"],
-            "config_markers": contract["config_markers"],
-            "required_env_names": contract["required_env_names"],
-            "scope": "complete frozen research combination: candidate metadata, Harness tree, spec, eval inputs and declared dependency identities; not an evaluated baseline",
-            "trees": {
-                "harness": harness_records,
-                "spec": spec_records,
-                "eval": eval_records,
-            },
-            "dependencies_sha256": hashlib.sha256((temp_root / "dependencies.lock.json").read_bytes()).hexdigest(),
-        }
-        write_json_once(temp_root / "snapshot.json", manifest)
-        temp_root.rename(final_root)
-    except BaseException:
-        remove_new_tree(temp_root)
-        raise
-    print(final_root)
-
-
-def verify_research_snapshot(snap_dir: Path) -> dict:
-    """按清单重新比对完整研究快照的内容与身份。"""
-    snap_dir = snap_dir.absolute()
-    if snap_dir.is_symlink() or not snap_dir.is_dir() or snap_dir.parent.name != "research" \
-            or snap_dir.parent.parent.name != "snapshots" or not snap_dir.name.startswith("snap-"):
-        raise ValueError("research snapshot must be a direct directory under an Experiment snapshots/research")
-    manifest = strict_json(snap_dir / "snapshot.json", 64 * 1024 * 1024)
-    if manifest.get("schema_version") != "1.0" or manifest.get("snapshot_id") != snap_dir.name \
-            or manifest.get("experiment_id") != snap_dir.parent.parent.parent.name:
-        raise ValueError("research snapshot identity mismatch")
-    trees = manifest.get("trees")
-    if not isinstance(trees, dict):
-        raise ValueError("snapshot manifest must record harness/spec/eval trees")
-    for folder in ("harness", "spec", "eval"):
-        recorded = trees.get(folder)
-        if not isinstance(recorded, dict):
-            raise ValueError(f"snapshot manifest missing {folder} tree")
-        root = snap_dir / folder
-        if snapshot(root, allowed_roots={root}) != recorded:
-            raise ValueError(f"{folder} tree drifted from snapshot manifest")
-    dependencies = snap_dir / "dependencies.lock.json"
-    if not dependencies.is_file() or hashlib.sha256(dependencies.read_bytes()).hexdigest() != manifest.get("dependencies_sha256"):
-        raise ValueError("dependencies.lock.json drifted from snapshot manifest")
-    return manifest
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", default=DEFAULT_SOURCE, help="selected DSH Experiment identity")
@@ -627,9 +481,6 @@ def main() -> None:
     after_parser = commands.add_parser("after", help="compare with the pre-change receipt")
     after_parser.add_argument("before_receipt", type=Path)
     commands.add_parser("freeze", help="materialize and verify all three Candidate trees")
-    commands.add_parser("research-snapshot", help="materialize a complete frozen research combination (harness + spec + eval)")
-    snapshot_verify_parser = commands.add_parser("research-snapshot-verify", help="re-verify a research snapshot against its manifest")
-    snapshot_verify_parser.add_argument("snap_dir", type=Path)
     restore_parser = commands.add_parser("restore", help="restore a frozen source to an absent Candidate root")
     restore_parser.add_argument("frozen_source", type=Path)
     frozen_digest_parser = commands.add_parser("frozen-digest", help="verify frozen bytes and print one mount digest")
@@ -650,11 +501,6 @@ def main() -> None:
             after(args.before_receipt)
         elif args.command == "freeze":
             freeze()
-        elif args.command == "research-snapshot":
-            research_snapshot()
-        elif args.command == "research-snapshot-verify":
-            verify_research_snapshot(args.snap_dir)
-            print(args.snap_dir)
         elif args.command == "frozen-digest":
             print(verify_frozen(args.frozen_source)["mount_snapshots"][args.mount]["tree_sha256"])
         else:

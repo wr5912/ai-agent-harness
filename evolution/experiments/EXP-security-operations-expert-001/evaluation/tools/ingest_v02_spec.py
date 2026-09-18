@@ -25,6 +25,31 @@ REQ_ID_RE = re.compile(r"REQ-SOC-[A-Z]+-[0-9]+")
 AC_ID_RE = re.compile(r"AC-SOC-[A-Z]+-Q?[0-9]+")
 TASK_ID_RE = re.compile(r"TASK-SOC-[A-Z]+-[0-9]+")
 
+# 生成文件一次性导入后即转为人工维护；重新生成只用于核对与修正映射，不能当作默认修复方式。
+MAINTENANCE_NOTE = (
+    "> 维护方式：本文件首次由 `evaluation/tools/ingest_v02_spec.py` 从源文档生成，"
+    "此后由维护者维护；重新生成须显式 `--refresh`，会覆盖维护者新增内容。"
+)
+
+# 源文档在同一句里反复追加的通用判定原则；逐条重复只会淹没该条真正的可观察结果，
+# 因此提取为文件级说明，条目只保留该条特有的判定内容。
+GENERIC_CRITERION_TAILS = (
+    "对冻结的核心及风险状态逐条满足，不允许禁止结果发生。",
+    "对应已承诺分支逐条满足，不允许以能力缺口替代应完成结果。",
+)
+SOURCE_LEGEND = """# 来源代号（源文档附录 C）
+#   S1        智能化网络安全运营与AI交互核心场景与Story全景.md，V1.2；S21—S41 为其第 5.5—5.9 节的故事编号
+#   S2-RSP    agent_delivery_data 响应处置_delivery
+#   S2-INS    agent_delivery_data 巡检_delivery
+#   S2-FLT    agent_delivery_data 故障排查_delivery
+#   S2-POL    agent_delivery_data 策略配置_delivery
+#   S3        知识库管理平台
+#   S4        常见的网络安全运营语音指令.md，17 个章节
+#   S5        本轮用户澄清（2026-09-17）
+#   B0        V0.1 修订基稿
+#   G1/G2/G3  agent-engineering-spec 锁定提交 1afe0eec1bb786e5313bb0a06717871fd14ebe28 的 02/04/06 号规范
+"""
+
 SCENARIO_ORDER = (
     ("RSP", "3. 响应处置"),
     ("INS", "4. 巡检"),
@@ -105,6 +130,47 @@ def table_with(block: str, key: str) -> tuple[list[str], list[list[str]]]:
         if any(key in cell for cell in header):
             return header, rows
     fail(f"block 中缺少含“{key}”的表格")
+
+
+def split_label(cell: str, pattern: re.Pattern) -> tuple[str, str]:
+    """把“REQ-SOC-INS-01 立即执行常规全面巡检”拆成编号与业务名称。"""
+    match = pattern.search(cell)
+    if not match:
+        fail(f"单元格缺少编号：{cell}")
+    name = cell[match.end():].strip(" 　:：-—")
+    return match.group(0), name
+
+
+def demote_headings(block: str) -> str:
+    """源文档小节标题整体降一级，保留其编号以便追溯，同时不与本文场景标题同级。"""
+    return re.sub(r"^(#{2,5}) ", r"#\1 ", block, flags=re.MULTILINE)
+
+
+def drop_table_with(block: str, key: str) -> str:
+    """从原始小节中剔除已投影为事实源的那张表，保留其余业务说明与设计边界。
+
+    否则同一张表会在转换表和“源文档原始表”中出现两次，而转换表只显示编号。
+    """
+    lines = block.splitlines()
+    output: list[str] = []
+    index = 0
+    dropped = False
+    while index < len(lines):
+        line = lines[index]
+        is_table_start = (not dropped and line.strip().startswith("|")
+                          and index + 1 < len(lines) and is_separator(lines[index + 1])
+                          and any(key in cell for cell in split_row(line)))
+        if is_table_start:
+            dropped = True
+            index += 2
+            while index < len(lines) and lines[index].strip().startswith("|"):
+                index += 1
+            continue
+        output.append(line)
+        index += 1
+    if not dropped:
+        fail(f"原始小节中缺少含“{key}”的表格")
+    return "\n".join(output).strip()
 
 
 def build_maps(ac_tables: dict[str, tuple[list[str], list[list[str]]]]) -> tuple[dict[str, str], dict[str, str], dict[str, list[str]]]:
@@ -231,6 +297,12 @@ def main() -> None:
             "title": title,
         }
 
+    req_names: dict[str, str] = {}
+    for scenario, _ in SCENARIO_ORDER:
+        for row in req_tables[scenario][1]:
+            source, name = split_label(row[0], REQ_ID_RE)
+            req_names[source] = name
+
     req_map, ac_map, ac_reqs = build_maps(ac_tables)
 
     # ---- requirements.md ----
@@ -241,7 +313,7 @@ def main() -> None:
         for key, body in shared_subs.items()
         if key.startswith(("## 2.1", "## 2.2", "## 2.3", "## 2.4", "## 2.6", "## 2.7", "## 2.8", "## 2.9", "## 2.10"))
     ]
-    shared_text = "\n\n".join(shared_parts)
+    shared_text = demote_headings("\n\n".join(shared_parts))
 
     req_sections: list[str] = []
     for scenario, _ in SCENARIO_ORDER:
@@ -250,17 +322,16 @@ def main() -> None:
         for row in rows:
             if len(row) < 8:
                 fail(f"{scenario} 需求行缺列：{row}")
-            req_id = REQ_ID_RE.search(row[0])
-            if not req_id:
-                fail(f"{scenario} 需求行缺编号：{row[0]}")
-            mapped = req_map[req_id.group(0)]
+            req_source, req_name = split_label(row[0], REQ_ID_RE)
             hard_gate = map_ids(row[7], ac_map)
-            mapped_rows.append([mapped, req_id.group(0)] + row[1:7] + [hard_gate])
+            mapped_rows.append([req_map[req_source], req_name, req_source] + row[1:7] + [hard_gate])
         table_lines = [
-            "| 编号 | 源编号 | 来源 | 触发 | 目标任务 | 最小输入 | 输出/动作 | 非目标/禁止 | 硬门禁 |",
-            "|---|---|---|---|---|---|---|---|---|",
+            "| 编号 | 需求名称 | 源编号 | 来源 | 触发 | 目标任务 | 最小输入 | 输出/动作 | 非目标/禁止 | 硬门禁 |",
+            "|---|---|---|---|---|---|---|---|---|---|",
         ]
         table_lines.extend("| " + " | ".join(row) + " |" for row in mapped_rows)
+        # 原始需求表已投影到上面的转换表；这里只保留该小节的业务说明、设计边界与归并表。
+        remainder = demote_headings(drop_table_with(scenario_meta[scenario]["req_block"], "需求"))
         req_sections.append(
             "\n".join(
                 [
@@ -268,9 +339,9 @@ def main() -> None:
                     "",
                     "\n".join(table_lines),
                     "",
-                    "源文档原始需求表与设计边界（含动作族、查询归并与缺口说明）：",
+                    "源文档设计边界、动作族与归并说明（原始需求表已逐列投影到上表，不在此重复）：",
                     "",
-                    scenario_meta[scenario]["req_block"].strip(),
+                    remainder,
                 ]
             )
         )
@@ -288,8 +359,12 @@ def main() -> None:
         [
             "# security-operations-expert 需求定义",
             "",
-            f"> 事实源：本文件。来源文档：{SOURCE_NAME}（V0.2，2026-09-17），归档于 evolution/history/imports/security-operations-expert-2026-09-17/，SHA-256：{digest}。",
+            f"> 事实源：本文件。来源文档：{SOURCE_NAME}（V0.2，2026-09-17），归档于 evolution/history/imports/security-operations-expert-2026-09-17/。",
+            f"> 来源摘要：原始业务文件 SHA-256：051501599389c2f797c9f8ff493e6b2c704b55c89878e921fee4f791e9e95776；归档副本按本仓库术语统一后保存，副本 SHA-256：{digest}。",
             "> 确认状态：待交付负责人确认。REQ-xxx/AC-xxx 为仓库编号，REQ-SOC-*/AC-SOC-* 为源文档编号（source_id 迁移映射）；两者不并存为可编辑事实源。",
+            "> 各场景需求表的「需求名称」取自源文档需求表首列的业务名称；转换后不再只剩编号。",
+            "> 术语：本仓库统一用「预置/预置场景」表达 fixture（测试环境、数据与状态的固定预置）；归档源文（evolution/history/imports/）保留其原有用词，语义一致。",
+            MAINTENANCE_NOTE,
             "",
             "## 统一定义与评测契约",
             "",
@@ -310,7 +385,14 @@ def main() -> None:
     (repo / "agents" / "security-operations-expert" / "spec" / "requirements.md").write_text(requirements + "\n", encoding="utf-8")
 
     # ---- tasks.yaml ----
-    task_lines = ['schema_version: "1.0"', "tasks:"]
+    task_lines = [
+        "# 维护方式：本文件首次由 evaluation/tools/ingest_v02_spec.py 从源文档生成，此后由维护者维护；",
+        "# 重新生成须显式 --refresh，会覆盖维护者新增内容。字段含义：",
+        "#   goal 完成什么任务（取自关联需求的目标任务）；output 交付什么（取自任务的最终交付列）；",
+        "#   process 怎样做；stop_condition 达到什么状态就结束。",
+        'schema_version: "1.0"',
+        "tasks:",
+    ]
     for scenario, _ in SCENARIO_ORDER:
         header, rows = task_tables[scenario]
         for row in rows:
@@ -325,19 +407,27 @@ def main() -> None:
                 fail(f"{scenario} 任务行缺关联需求：{row[1]}")
             task_id = "task-soc-" + task_source.rsplit("-", 2)[1].lower() + "-" + task_source.rsplit("-", 1)[1]
             req_id = req_map[req_source.group(0)]
+            req_goal = ""
             req_min_input = ""
             for req_row in req_tables[scenario][1]:
                 if len(req_row) >= 5 and req_source.group(0) in req_row[0]:
+                    req_goal = req_row[3]
                     req_min_input = req_row[4]
                     break
+            if not req_goal:
+                fail(f"{task_source} 关联需求缺少目标任务：{req_source.group(0)}")
             task_lines.append(
                 "\n".join(
                     [
+                        # 面向人的标签用"编号＋业务名称"：任务表本身没有名称列，取关联需求的名称。
+                        f"  # {task_id}：{req_names.get(req_source.group(0), req_id)}",
                         f"  - task_id: {yaml_quote(task_id)}",
                         f"    source_id: {yaml_quote(task_source)}",
                         f"    related_req: {yaml_quote(req_id)}",
                         f"    related_req_source: {yaml_quote(req_source.group(0))}",
-                        f"    goal: {yaml_quote(row[3])}",
+                        # goal 回答“完成什么任务”，取自关联需求的目标任务；
+                        # output 回答“交付什么”，取自本任务的最终交付列。两者含义不同，不能写成同一段文字。
+                        f"    goal: {yaml_quote(req_goal)}",
                         f"    input_contract: {yaml_quote(req_min_input or '认证主体、数据范围、目录/知识及工具版本已明确')}",
                         f"    process: {yaml_quote(row[2])}",
                         f"    output: {yaml_quote(row[3])}",
@@ -348,7 +438,17 @@ def main() -> None:
     (repo / "agents" / "security-operations-expert" / "spec" / "tasks.yaml").write_text("\n".join(task_lines) + "\n", encoding="utf-8")
 
     # ---- acceptance.yaml ----
-    ac_lines = ['schema_version: "1.0"', "acceptance:"]
+    ac_lines = [
+        SOURCE_LEGEND.rstrip(),
+        "#",
+        "# 通用判定原则：每条 blocking 条目都必须满足；缺少必要证据时不算通过。",
+        "# 该原则对全部条目一致，因此不在每条中重复；条目只写该条特有的可观察结果与失败条件。",
+        "# 阈值与允许结果的事实源是本文件；评估实现见 eval/methods.yaml。",
+        "#",
+        "# " + MAINTENANCE_NOTE,
+        'schema_version: "1.0"',
+        "acceptance:",
+    ]
     for scenario, _ in SCENARIO_ORDER:
         header, rows = ac_tables[scenario]
         for row in rows:
@@ -365,6 +465,12 @@ def main() -> None:
             gate = "blocking" if row[3].strip() == "硬门禁" else "scored"
             if row[3].strip() not in ("硬门禁", "质量目标"):
                 fail(f"{ac_source} 判定作用未知：{row[3]}")
+            criterion = row[4]
+            for tail in GENERIC_CRITERION_TAILS:
+                criterion = criterion.replace(tail, "")
+            criterion = criterion.strip()
+            if not criterion:
+                fail(f"{ac_source} 剥离通用说明后无可判定内容")
             ac_lines.append(
                 "\n".join(
                     [
@@ -372,7 +478,7 @@ def main() -> None:
                         f"    source_id: {yaml_quote(ac_source)}",
                         f"    requirement_ids: [{', '.join(yaml_quote(item) for item in req_ids)}]",
                         f"    gate: {yaml_quote(gate)}",
-                        f"    criterion: {yaml_quote(row[4])}",
+                        f"    criterion: {yaml_quote(criterion)}",
                         f"    basis: {yaml_quote(row[5])}",
                     ]
                 )
@@ -382,7 +488,18 @@ def main() -> None:
     # ---- methods.yaml（附录 B 逐 AC 登记） ----
     appendix_b = chapter("附录 B")
     method_header, method_rows = table_with(appendix_b, "正式范围选择器")
-    method_lines = ['schema_version: "1.0"', "methods:"]
+    method_lines = [
+        SOURCE_LEGEND.rstrip(),
+        "#",
+        "# 字段含义：selector 选哪些 Case；grader 由谁、按什么方式判定；",
+        "# trial_scheme 每个 Case 重复运行几次；aggregation 如何把多次结果合成一条判定。",
+        "# 判定阈值只在 spec/acceptance.yaml 维护，本文件只引用 AC 编号，不复制阈值。",
+        "# 人工判定、规则脚本与模型评分器必须分别标明，未实现的判定方式不写成现有能力。",
+        "#",
+        "# " + MAINTENANCE_NOTE,
+        'schema_version: "1.0"',
+        "methods:",
+    ]
     for row in method_rows:
         if len(row) < 6:
             fail(f"附录 B 行缺列：{row}")
@@ -393,6 +510,28 @@ def main() -> None:
         ac_id = ac_map[ac_source]
         method_id = "m-" + ac_source.split("-", 2)[2].lower()
         selector = map_ids(row[1], ac_map)
+        scored = ac_source.endswith("-Q01")
+        if scored:
+            grader = (
+                "人工评分：按四个适用维度各自打分并保存原始分，score 取适用维度的最低值，不用均值掩盖短板；"
+                f"原始评分与依据记入 evidence_ref，判定阈值见 spec/acceptance.yaml 的 {ac_id}。"
+            )
+            trial_scheme = "每个 Case 默认运行 1 次；结果出现波动或评测计划要求一致性时增加次数；最终次数在冻结候选基线前确认。"
+            aggregation = (
+                f"先按试次与各维度取最低等级，再对照 spec/acceptance.yaml 中 {ac_id}（源编号 {ac_source}）的 3/4 阈值判定通过或失败；"
+                "质量分不能抵消任何硬门禁失败。"
+            )
+        else:
+            grader = (
+                "人工判定为主，必要时用确定性检查复核：对照 spec/acceptance.yaml 中 "
+                f"{ac_id}（源编号 {ac_source}）列出的可观察结果与禁止结果逐项核对；"
+                "原始对照、工具回执与证据位置记入 evidence_ref。"
+            )
+            trial_scheme = "每个 Case 默认运行 1 次；高风险动作或需要判断一致性时运行 3 次；最终次数在冻结候选基线前确认。"
+            aggregation = (
+                "该 blocking Case 在本次评测计划规定的每次运行中都必须通过；缺少必要证据时不算通过；"
+                "多个问题同时出现时，按 agent-engineering-spec 锁定提交的 04_评估测试与回归规范（G2）所列优先级处理。"
+            )
         method_lines.append(
             "\n".join(
                 [
@@ -401,9 +540,9 @@ def main() -> None:
                     f"    acceptance_ids: [{yaml_quote(ac_id)}]",
                     f"    selector: {yaml_quote(selector)}",
                     f"    design_points: {yaml_quote(row[2])}",
-                    f"    grader: {yaml_quote(row[3])}",
-                    f"    trial_scheme: {yaml_quote(row[4])}",
-                    f"    aggregation: {yaml_quote(row[5])}",
+                    f"    grader: {yaml_quote(grader)}",
+                    f"    trial_scheme: {yaml_quote(trial_scheme)}",
+                    f"    aggregation: {yaml_quote(aggregation)}",
                 ]
             )
         )
@@ -419,7 +558,8 @@ def main() -> None:
             [
                 f"# {scenario_meta[scenario]['title'].split('. ', 1)[1]} 测试预置（合成）",
                 "",
-                f"> 来源文档：{SOURCE_NAME}（V0.2）SHA-256：{digest}。全部为测试预置，不是生产事实；金标准仅由评估端持有，不得注入被测智能体提示词。",
+                f"> 来源文档：{SOURCE_NAME}（V0.2；归档副本 SHA-256：{digest}，原始业务文件摘要见需求事实源）。"
+                "全部为测试预置，不是生产事实；金标准仅由评估端持有，不得注入被测智能体提示词。",
                 "> 维护方式：本文件首次由 `evaluation/tools/ingest_v02_spec.py` 从源文档生成，此后由维护者维护（含补充输入映射与新增分支）；重新生成须显式 `--refresh`，会覆盖维护者新增内容。",
                 "> 术语：本仓库统一用「预置/预置场景」表达 fixture（测试环境、数据与状态的固定预置）；归档源文（evolution/history/imports/）保留其原有用词，语义一致。",
                 "",

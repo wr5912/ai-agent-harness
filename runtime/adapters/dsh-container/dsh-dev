@@ -15,6 +15,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -32,10 +33,12 @@ MODES = ("authoring", "verification")
 MODE_ALIASES = {"dev": "authoring", "eval": "verification"}
 MODE_CHOICES = ("dev", "eval") + MODES
 PURPOSES = {"authoring": "dev", "verification": "eval"}
-PRESET_DEFAULTS = {"authoring": "cordis", "verification": "security-operations-expert"}
+# 开发模式用出厂 cordis（创造模式），它是 Runtime 固定事实；评测模式的目标 preset 由所选来源声明决定，
+# 不在通用启动器里硬编码任何业务 Agent 名。
+AUTHORING_PRESET = "cordis"
 CONTEXT_ASSETS = (
     ("spec", "/work/spec", "spec_root", "需求定义、任务定义、验收标准"),
-    ("eval", "/work/eval-input", "eval_root", "测试数据、评估方法、待复核输入"),
+    ("eval", "/work/eval-reference", "eval_root", "测试数据、评估方法、待复核输入"),
 )
 CORDIS_TRUST_NOTICE = (
     "开发模式（--mode dev）以出厂 cordis（创造模式）preset 启动：该会话具备 shell 与对实时 runtime 执行模型 JS 的 "
@@ -43,14 +46,23 @@ CORDIS_TRUST_NOTICE = (
     "创造模式会话不加载 security-operations-guard，注入的 SOC MCP 工具与 delegate 不受角色矩阵约束。"
 )
 CONTAINER_WORKSPACE = "/work/harness/workspace"
+# 开发会话注册 /work：受控只读的 /work/AGENTS.md 说明开发者身份与可编辑范围，
+# 目标智能体的业务 AGENTS.md 仍留在 /work/harness/workspace 供阅读和编辑，但不会被注入为会话身份。
+CONTAINER_DEV_WORKSPACE = "/work"
+CONTAINER_SPEC = "/work/spec"
+CONTAINER_EVAL_REFERENCE = "/work/eval-reference"
+# 受控模板不含任何仓库内默认值，凡读取实例 Compose 的命令都必须按实例状态注入这些变量。
+INSTANCE_SCHEMA_VERSION = "1.2"
 # DSH Web 首次打开是冷启动：会话必须先绑定一个**已注册工作区**，而新实例的 DSH_HOME 里工作区注册表为空
 # （注册表 storages/workspace.json 只从已存会话头 bootstrap，且初始化标记一经写入不再重建）。DSH 在该锁定提交上
 # 没有受支持的工作区预注册入口，因此启动器只如实交付路径与操作步骤，不改写 Runtime 存储内部格式。
-WEB_COLD_START_HINT = (
-    "DSH Web 首次打开需要在界面注册工作区：点击“选择工作区”→ 目录对话框的“编辑路径”→ 粘贴 "
-    f"“{CONTAINER_WORKSPACE}” → “打开”，随后即可直接对话。该注册写入本实例 DSH_HOME 数据卷并跨重启保留；"
-    "换用新的实例名等于新的 HOME 卷，需要重新选择一次。"
-)
+def web_cold_start_hint(mode: str) -> str:
+    path = workspace_to_register(mode)
+    return (
+        "DSH Web 首次打开需要在界面注册工作区：点击“选择工作区”→ 目录对话框的“编辑路径”→ 粘贴 "
+        f"“{path}” → “打开”，随后即可直接对话。该注册写入本实例 DSH_HOME 数据卷并跨重启保留；"
+        "换用新的实例名等于新的 HOME 卷，需要重新选择一次。"
+    )
 
 
 def fail(message: str) -> None:
@@ -66,8 +78,29 @@ def normalize_mode(value: str) -> str:
     return mode
 
 
-def context_assets(contract: dict) -> list[dict]:
-    """只读上下文数据资产；来源缺少根即失败关闭，不伪造空目录。"""
+def workspace_to_register(mode: str) -> str:
+    """本次会话要注册的工作区：开发会话用 /work，被测会话用目标 Harness 工作区本身。"""
+    return CONTAINER_DEV_WORKSPACE if mode == "authoring" else CONTAINER_WORKSPACE
+
+
+def target_preset(contract: dict, mode: str) -> str:
+    """本次会话实际运行的 preset ID：开发模式用创造模式，评测模式用来源声明的目标。"""
+    if mode == "authoring":
+        return AUTHORING_PRESET
+    preset = contract.get("preset_id")
+    if not preset:
+        fail("所选来源未声明可解析的 preset ID，无法确定评测目标")
+    return preset
+
+
+def context_assets(contract: dict, mode: str) -> list[dict]:
+    """只读上下文数据资产。
+
+    开发模式是开发者会话，挂载需求与评测材料用于修改和核对；评测模式运行的是被测目标，
+    不挂载任何判分材料 —— 验收阈值、评估方法、测试预置与预期答案都属于判分侧。
+    """
+    if mode != "authoring":
+        return []
     missing = [key for _, _, key, _ in CONTEXT_ASSETS if not contract.get(key)]
     if missing:
         fail("所选来源缺少只读上下文数据资产根（%s）；不伪造空目录，请改用具备 spec/eval 的来源" % "、".join(missing))
@@ -92,13 +125,14 @@ def compose_env(contract: dict, mode: str, port: int) -> dict:
     environment.update(
         {
             "DSH_IMAGE_TAG": contract["image"]["local_image_tag"],
+            "DSH_ADAPTER_HOST": str(ADAPTER),
             "DSH_MANAGED_PATCH": contract["patch"],
             "DSH_WORKSPACE_HOST": contract["workspace"],
             "DSH_PRESETS_HOST": contract["presets"],
             "DSH_MANAGED_HOST": contract["managed"],
         }
     )
-    for asset in context_assets(contract):
+    for asset in context_assets(contract, mode):
         environment["DSH_SPEC_HOST" if asset["key"] == "spec" else "DSH_EVAL_HOST"] = asset["host"]
     if mode == "authoring":
         if not contract.get("patch_overlay"):
@@ -199,16 +233,18 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
     rendered = render_compose(template, mode=mode, project=project_name(name), port=port)
     (target / "compose.yaml").write_text(rendered, encoding="utf-8")
     manifest = {
-        "schema_version": "1.0",
+        "schema_version": INSTANCE_SCHEMA_VERSION,
         "name": name,
         "project": project_name(name),
         "source_id": contract["source_id"],
         "source_kind": contract["source_kind"],
         "mode": mode,
         "purpose": PURPOSES[mode],
-        "preset_default": PRESET_DEFAULTS[mode],
+        "target_preset": target_preset(contract, mode),
         "port": port,
         "image_tag": contract["image"]["local_image_tag"],
+        "adapter_root": str(ADAPTER),
+        "managed_patch": contract["patch"],
         "agent_id": contract["agent_id"],
         "mounts": {
             "workspace": contract["workspace"],
@@ -217,7 +253,7 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         },
         "context_mounts": [
             {"key": asset["key"], "host": asset["host"], "container": asset["container"], "mode": asset["mode"]}
-            for asset in context_assets(contract)
+            for asset in context_assets(contract, mode)
         ],
         "mount_modes": {
             "workspace": "rw" if mode == "authoring" else "ro",
@@ -232,6 +268,37 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     return target
+
+
+def instance_compose_env(manifest: dict) -> dict:
+    """从实例状态重建读取该实例 Compose 所需的环境。
+
+    模板用 ${VAR:?} 声明必填变量（不内联任何仓库内默认路径），所以 `ps`、`logs`、`down`
+    也必须按实例自身记录注入，不能依赖调用者的当前环境——否则停止和查询会随环境漂移而失败。
+    """
+    if manifest.get("schema_version") != INSTANCE_SCHEMA_VERSION:
+        fail(
+            "实例状态文件版本过旧（%s），缺少读取其 Compose 所需的字段；"
+            "请对同名实例重新执行 up（HOME 数据卷保留）" % manifest.get("schema_version")
+        )
+    mounts = manifest.get("mounts") or {}
+    environment = dict(os.environ)
+    environment.update(
+        {
+            "DSH_IMAGE_TAG": manifest["image_tag"],
+            "DSH_ADAPTER_HOST": manifest["adapter_root"],
+            "DSH_MANAGED_PATCH": manifest["managed_patch"],
+            "DSH_WORKSPACE_HOST": mounts["workspace"],
+            "DSH_PRESETS_HOST": mounts["presets"],
+            "DSH_MANAGED_HOST": mounts["managed"],
+        }
+    )
+    if manifest.get("patch_overlay"):
+        environment["DSH_MANAGED_PATCH_OVERLAY"] = manifest["patch_overlay"]
+    for asset in manifest.get("context_mounts", []):
+        key = "DSH_SPEC_HOST" if asset["container"] == CONTAINER_SPEC else "DSH_EVAL_HOST"
+        environment[key] = asset["host"]
+    return environment
 
 
 def compose_command(target: Path, name: str, *args: str) -> list[str]:
@@ -266,8 +333,8 @@ def command_plan(args: argparse.Namespace) -> None:
         fail("--port 必须是合法 TCP 端口")
     contract = resolve(args.source, repo=REPO)
     if args.mode == "authoring" and contract["source_kind"] != "experiment":
-        fail("开发模式（authoring）只接受 experiment:<id> 来源（研究快照只读）")
-    assets = context_assets(contract)
+        fail("开发模式（authoring）只接受 experiment:<id> 来源；该来源必须可写才能作为开发目标")
+    assets = context_assets(contract, args.mode)
     missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
     plan = {
         "schema_version": "1.0",
@@ -275,7 +342,9 @@ def command_plan(args: argparse.Namespace) -> None:
         "project": project_name(args.name),
         "mode": args.mode,
         "purpose": PURPOSES[args.mode],
-        "preset_default": PRESET_DEFAULTS[args.mode],
+        "target_preset": target_preset(contract, args.mode),
+        "workspace_to_register": workspace_to_register(args.mode),
+        "grading_material_mounted": args.mode == "authoring",
         "port": args.port,
         "source_id": contract["source_id"],
         "source_kind": contract["source_kind"],
@@ -287,10 +356,11 @@ def command_plan(args: argparse.Namespace) -> None:
             *[{"container": asset["container"], "mode": "ro", "content": asset["content"]} for asset in assets],
         ],
         "context_assets": assets,
-        "workspace_to_register": CONTAINER_WORKSPACE,
-        "web_cold_start": WEB_COLD_START_HINT,
+        "workspace_to_register": workspace_to_register(args.mode),
+        "web_cold_start": web_cold_start_hint(args.mode),
         "patch_overlay": contract.get("patch_overlay") if args.mode == "authoring" else None,
         "cordis_trust_required": args.mode == "authoring",
+        "dev_instructions": "/work/AGENTS.md" if args.mode == "authoring" else None,
         "network": "host (127.0.0.1 only)",
         "required_env_names": required_env_names(contract),
         "missing_env_names": missing,
@@ -311,12 +381,12 @@ def command_up(args: argparse.Namespace) -> None:
         fail(f"端口 {args.port} 已被占用；本工具不自动改端口，请显式指定其它端口")
     contract = resolve(args.source, repo=REPO)
     if args.mode == "authoring" and contract["source_kind"] != "experiment":
-        fail("开发模式（authoring）只接受 experiment:<id> 来源（研究快照只读）")
+        fail("开发模式（authoring）只接受 experiment:<id> 来源；该来源必须可写才能作为开发目标")
     if args.mode == "authoring" and not args.accept_cordis_trust:
         fail(CORDIS_TRUST_NOTICE + " 确认接受上述风险后，重新执行并显式加 --accept-cordis-trust。")
     if args.mode != "authoring" and args.accept_cordis_trust:
         fail("--accept-cordis-trust 只对开发模式（--mode dev / authoring）有效")
-    context_assets(contract)
+    context_assets(contract, args.mode)
     if args.allow_missing_env:
         missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
         if missing:
@@ -329,9 +399,21 @@ def command_up(args: argparse.Namespace) -> None:
     environment = compose_env(contract, args.mode, args.port)
     run(compose_command(target, args.name, "config", "--quiet"), env=environment)
     run(compose_command(target, args.name, "up", "-d", "--no-build"), env=environment)
-    print(json.dumps({"name": args.name, "project": project_name(args.name), "port": args.port,
-                      "state_dir": str(target)}, ensure_ascii=False, indent=2, sort_keys=True))
-    print(json.dumps({"hint": WEB_COLD_START_HINT, "workspace_to_register": CONTAINER_WORKSPACE},
+    # `docker compose up -d` 返回 0 只说明命令成功，不说明容器在运行：容器可能立刻退出。
+    containers = wait_for_service(args.name, "dsh")
+    report = {"name": args.name, "project": project_name(args.name), "port": args.port,
+              "state_dir": str(target)}
+    if containers is None:
+        report["dsh_running"] = "unknown"
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        fail("无法查询容器状态，不能确认 dsh 服务是否已启动；用 logs 查看实例日志")
+    running = [item for item in containers if item["service"] == "dsh" and item["state"] == "running"]
+    report["dsh_running"] = bool(running)
+    report["containers"] = [{"service": item["service"], "state": item["state"]} for item in containers]
+    print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    if not running:
+        fail("docker compose up 返回 0，但 dsh 服务没有进入运行状态；用 logs 查看失败原因")
+    print(json.dumps({"hint": web_cold_start_hint(args.mode), "workspace_to_register": workspace_to_register(args.mode)},
                      ensure_ascii=False), file=sys.stderr)
 
 
@@ -343,18 +425,26 @@ def command_ps(_args: argparse.Namespace) -> None:
             if not manifest_path.is_file():
                 continue
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            listing = run(compose_command(target, manifest["name"], "ps", "--format", "json"), check=False)
+            listing = run(compose_command(target, manifest["name"], "ps", "--format", "json"),
+                          check=False, env=instance_compose_env(manifest))
+            if listing.returncode != 0:
+                ps_state = "unknown"
+                ps_detail = (listing.stderr or listing.stdout or "").strip()[-200:] or "docker compose ps 查询失败"
+            else:
+                ps_state = "reported"
+                ps_detail = (listing.stdout or "").strip() or "not running"
             entries.append(
                 {
                     "name": manifest["name"],
                     "source_id": manifest["source_id"],
                     "mode": manifest["mode"],
                     "purpose": manifest.get("purpose", PURPOSES.get(manifest["mode"], manifest["mode"])),
-                    "preset_default": manifest.get("preset_default", PRESET_DEFAULTS.get(manifest["mode"])),
+                    "target_preset": manifest.get("target_preset"),
                     "port": manifest["port"],
                     "context_mounts": [item["container"] for item in manifest.get("context_mounts", [])],
                     "base_url": f"http://127.0.0.1:{manifest['port']}/",
-                    "ps": (listing.stdout or "").strip() or "not running",
+                    "ps_query": ps_state,
+                    "ps": ps_detail,
                 }
             )
     print(json.dumps({"schema_version": "1.0", "instances": entries}, ensure_ascii=False, indent=2, sort_keys=True))
@@ -434,17 +524,95 @@ def probe_url(url: str, port: int) -> dict:
 
 
 def command_logs(args: argparse.Namespace) -> None:
-    logs = run(compose_command(instance_dir(args.name), args.name, "logs", "--no-color", "--tail",
-                               str(args.tail), "dsh")).stdout or ""
+    target, manifest = load_instance(args.name)
+    logs = run(compose_command(target, args.name, "logs", "--no-color", "--tail", str(args.tail), "dsh"),
+               env=instance_compose_env(manifest)).stdout or ""
     sys.stdout.write(redact_secrets(logs))
 
 
+def project_containers(name: str) -> list[dict] | None:
+    """查询本实例实际容器状态；查询失败返回 None，由调用方按未知处理。"""
+    listing = run(
+        ["docker", "ps", "-a", "--filter", f"label=com.docker.compose.project={project_name(name)}",
+         "--format", "{{.ID}}\t{{.State}}\t{{.Status}}\t{{.Names}}\t{{.Label \"com.docker.compose.service\"}}"],
+        check=False,
+    )
+    if listing.returncode != 0:
+        return None
+    containers = []
+    for line in (listing.stdout or "").strip().splitlines():
+        fields = line.split("\t")
+        if len(fields) != 5:
+            return None
+        containers.append({"id": fields[0], "state": fields[1], "status": fields[2],
+                           "name": fields[3], "service": fields[4]})
+    return containers
+
+
+def wait_for_service(name: str, service: str, timeout: float = 20.0) -> list[dict] | None:
+    """等待指定服务进入运行状态；超时返回最后一次观测，无法查询返回 None。"""
+    deadline = time.monotonic() + timeout
+    while True:
+        containers = project_containers(name)
+        if containers is None:
+            return None
+        if any(item["service"] == service and item["state"] == "running" for item in containers):
+            return containers
+        if time.monotonic() >= deadline:
+            return containers
+        time.sleep(1.0)
+
+
+def home_volume(manifest: dict) -> tuple[str | None, bool | None]:
+    """按 Compose 自身的卷标签解析本实例 HOME 卷，返回 (卷名, 是否存在)。
+
+    Compose 会把项目名前缀加到卷名上，因此不能按模板里的声明名或 `<project>-home` 猜测；
+    查询失败返回 (None, None)，由调用方按未知处理。
+    """
+    declared = f"{manifest['project']}-home"
+    listing = run(["docker", "volume", "ls",
+                   "--filter", f"label=com.docker.compose.project={manifest['project']}",
+                   "--filter", f"label=com.docker.compose.volume={declared}",
+                   "--format", "{{.Name}}"], check=False)
+    if listing.returncode != 0:
+        return None, None
+    names = [line for line in (listing.stdout or "").split() if line]
+    if not names:
+        return declared, False
+    return names[0], True
+
+
 def command_down(args: argparse.Namespace) -> None:
+    """停止实例并如实报告结果：命令失败、仍有容器运行或状态未知都不报告停止成功。"""
     target = instance_dir(args.name)
     if not (target / "instance.json").is_file():
         fail(f"未找到实例 {args.name}")
-    run(compose_command(target, args.name, "down", "--remove-orphans"), check=False)
-    print(json.dumps({"name": args.name, "stopped": True, "home_preserved": True}, ensure_ascii=False))
+    manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+    completed = run(compose_command(target, args.name, "down", "--remove-orphans"),
+                    check=False, env=instance_compose_env(manifest))
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout or "").strip()
+        fail(f"停止 {args.name} 失败（docker compose down 退出码 {completed.returncode}），实例状态未确认：{detail[-400:]}")
+    containers = project_containers(args.name)
+    resolved_volume, preserved = home_volume(manifest)
+    report = {
+        "name": args.name,
+        "project": manifest["project"],
+        "home_volume": resolved_volume,
+        "home_preserved": preserved,
+    }
+    if containers is None:
+        report["stopped"] = "unknown"
+        report["detail"] = "docker ps 查询失败，无法确认实例是否已停止；不报告停止成功"
+        print(json.dumps(report, ensure_ascii=False))
+        raise SystemExit(1)
+    running = [item for item in containers if item["state"] == "running"]
+    report["containers"] = containers
+    report["stopped"] = not running
+    report["containers_removed"] = not containers
+    print(json.dumps(report, ensure_ascii=False))
+    if running:
+        fail("docker compose down 返回 0，但以下容器仍在运行：" + "、".join(item["name"] for item in running))
 
 
 def command_image_build(args: argparse.Namespace) -> None:

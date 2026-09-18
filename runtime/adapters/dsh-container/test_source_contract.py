@@ -1,4 +1,4 @@
-"""第二个 DSH Harness 只新增描述，不修改适配工具中的业务名。"""
+"""来源合同只依赖 sources.json 描述：新增第二个 Harness 不改适配工具中的业务名。"""
 
 import json
 import os
@@ -44,14 +44,18 @@ class SourceContractTest(unittest.TestCase):
                 source_contract.resolve("experiment:EXP-security-operations-expert-001",
                                          sources=catalog_path)
 
-    def test_snapshot_contract_declares_no_development_overlay(self):
-        snapshot_root = source_contract.REPO / "evolution/experiments/EXP-security-operations-expert-001/snapshots/research"
-        snapshots = sorted(path.name for path in snapshot_root.iterdir()) if snapshot_root.is_dir() else []
-        if not snapshots:
-            self.skipTest("no research snapshot materialized")
-        result = source_contract.resolve("snapshot:" + snapshots[-1])
-        self.assertIsNone(result["patch_overlay"])
-        self.assertTrue(result["spec_root"].endswith("/spec"))
+    def test_preset_identity_is_derived_from_the_source_declaration(self):
+        result = source_contract.resolve()
+        self.assertEqual(result["preset_id"], "security-operations-expert")
+        self.assertEqual(result["preset"], "/opt/dsh-presets/security-operations-expert/agent.cordis.yml")
+
+    def test_retired_snapshot_selector_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "unknown source selector"):
+            source_contract.resolve("snapshot:snap-00000000-0000-4000-8000-000000000000")
+
+    def test_preset_must_declare_an_agent_subdirectory(self):
+        with self.assertRaisesRegex(ValueError, "preset-id"):
+            source_contract.preset_id("agent.cordis.yml")
 
     def test_second_source_needs_catalog_data_only(self):
         with tempfile.TemporaryDirectory(prefix="dsh-source-contract-") as location:

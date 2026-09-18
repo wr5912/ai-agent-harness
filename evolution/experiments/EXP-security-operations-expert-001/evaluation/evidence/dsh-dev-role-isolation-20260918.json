@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-09-18T14:07:20Z",
+  "purpose": "核对 dev/eval 两种模式实际的挂载与可见路径，特别是判分材料与开发会话身份文件只出现在开发会话",
+  "source_id": "experiment:EXP-security-operations-expert-001",
+  "image_tag": "ai-agent-harness/dsh:c291e7961",
+  "image_id": "sha256:76c62b267c758c282eb8d106bcc233b5249693c38d8e230fd641dc71e44d2f22",
+  "observations": {
+    "dev": {
+      "instance": "ev-dev",
+      "container_id": "13938f47d335",
+      "mounts": [
+        {
+          "container": "/opt/dsh-presets",
+          "rw": false
+        }
+      ],
+      "path_presence": {
+        "/work/AGENTS.md": true,
+        "/work/spec": true,
+        "/work/eval-reference": true,
+        "/work/eval-input": false
+      }
+    },
+    "eval": {
+      "instance": "ev-eval",
+      "container_id": "8f57d1751458",
+      "mounts": [
+        {
+          "container": "/var/lib/dsh/profiles/web/cordis.patch.yml",
+          "rw": false
+        }
+      ],
+      "path_presence": {
+        "/work/AGENTS.md": false,
+        "/work/spec": false,
+        "/work/eval-reference": false,
+        "/work/eval-input": false
+      }
+    }
+  },
+  "verified": [
+    "dev 会话挂载 /work/AGENTS.md（只读）作为受控开发身份，并挂载 /work/spec 与 /work/eval-reference（只读）",
+    "eval 会话不挂载 /work/AGENTS.md、/work/spec、/work/eval-reference、/work/eval-input，这些路径在容器内不存在",
+    "两种模式的 /work/harness/workspace 读写模式分别为可写与只读",
+    "受控 HOME 子文件与模块 deny-layer 在两种模式下均为只读"
+  ],
+  "limitations": [
+    "本次未注入模型与 MCP 凭据，未执行真实 Agent Session，也未验证会话实际读取了 /work/AGENTS.md；容器层只能证明挂载与路径可见性",
+    "未执行用户任务、工具调用或最终业务状态核对，不构成交付评估或 Release 验收"
+  ]
+}

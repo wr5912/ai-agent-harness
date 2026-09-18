@@ -12,6 +12,7 @@ import tarfile
 import tempfile
 import unittest
 import uuid
+import yaml
 import zipfile
 import zlib
 from pathlib import Path
@@ -1099,6 +1100,42 @@ class RepositoryValidatorTests(unittest.TestCase):
                 if diagnostic_code is not None:
                     self.assertIn(diagnostic_code, error_codes(payload))
 
+    def test_adapter_mjs_scripts_do_not_use_bindings_before_declaration(self) -> None:
+        """回归：容器内脚本曾两次在 `const mounts` 声明前使用 mounts，只有真实运行才暴露。
+
+        这里做宿主侧结构检查，让同类错误在提交前就能被发现，而不必等到容器核验。
+        """
+        adapter = ROOT / "runtime/adapters/dsh-container"
+        # 只检查模块顶层的 `const NAME =`：它们在整个模块内可见，声明前引用就是 TDZ 错误。
+        # 若同一文件另有缩进的同名 `const NAME =`（函数内局部变量），
+        # 无法在不做作用域分析的情况下判断某次使用指向哪一个，跳过该名字以免误报。
+        top_level = re.compile(r"^const\s+([A-Za-z_$][\w$]*)\s*=", re.MULTILINE)
+        nested = re.compile(r"^[ \t]+const\s+([A-Za-z_$][\w$]*)\s*=", re.MULTILINE)
+        checked = 0
+        for path in sorted(adapter.glob("*.mjs")):
+            text = path.read_text(encoding="utf-8")
+            shadowed = {match.group(1) for match in nested.finditer(text)}
+            for match in top_level.finditer(text):
+                name = match.group(1)
+                if name in shadowed:
+                    continue
+                line_end = text.find("\n", match.start())
+                line_end = len(text) if line_end == -1 else line_end
+                first_use = text.find(f"{name}.")
+                if first_use == -1:
+                    continue
+                if match.start() <= first_use < line_end:
+                    # 只在声明行自身右侧出现（例如 `const x = f(x.y)`），继续找后面的使用。
+                    first_use = text.find(f"{name}.", line_end)
+                    if first_use == -1:
+                        continue
+                checked += 1
+                self.assertGreater(
+                    first_use, match.start(),
+                    f"{path.name}: 模块级 `{name}` 在声明前被使用（TDZ）",
+                )
+        self.assertGreater(checked, 0, "至少应检查到一条模块级声明的使用")
+
     def test_dsh_both_modes_use_one_exact_main_node_startup_vector(self) -> None:
         adapter = "runtime/adapters/dsh-container"
         entrypoint = "    entrypoint: [node, --expose-internals, /opt/dsh/apps/cli/lib/bin.js]\n"
@@ -1129,16 +1166,58 @@ class RepositoryValidatorTests(unittest.TestCase):
             ("authoring.compose.yaml", "    command:\n", "    ports: ['8080:8080']\n    command:\n", "DSH_COMPOSE_ISOLATION"),
             ("authoring.compose.yaml", "read_only: false", "read_only: true", "DSH_COMPOSE_MOUNTS"),
             ("verification.compose.yaml", "target: /work/harness/workspace\n        read_only: true", "target: /work/harness/workspace\n        read_only: false", "DSH_COMPOSE_MOUNTS"),
-            ("verification.compose.yaml", "../../../evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/managed", "/var/run/docker.sock", "DSH_COMPOSE_MOUNTS"),
+            ("verification.compose.yaml", "${DSH_MANAGED_HOST:?", "${DSH_MANAGED_HOST:-/var/run/docker.sock}${DSH_MANAGED_HOST_IGNORED:?", "DSH_COMPOSE_MOUNTS"),
             ("authoring.compose.yaml", "      - SEC_OPS_MCP_TOKEN\n", "      - SEC_OPS_MCP_TOKEN=inline-secret\n", "DSH_COMPOSE_ENV"),
-            ("verification.compose.yaml", "        target: /work/spec\n        read_only: true\n", "", "DSH_COMPOSE_MOUNTS"),
-            ("authoring.compose.yaml", "        target: /work/eval-input\n        read_only: true\n", "        target: /work/eval-input\n        read_only: false\n", "DSH_COMPOSE_MOUNTS"),
+            ("authoring.compose.yaml", "        target: /work/AGENTS.md\n        read_only: true\n", "", "DSH_COMPOSE_MOUNTS"),
+            ("verification.compose.yaml", "      - --no-open\n", "      - --no-open\n      - --patch\n      - /opt/dsh-managed/x.yml\n", "DSH_COMPOSE_LOAD"),
+            ("authoring.compose.yaml", "        target: /work/eval-reference\n        read_only: true\n", "        target: /work/eval-reference\n        read_only: false\n", "DSH_COMPOSE_MOUNTS"),
+            ("verification.compose.yaml", "      - --no-open\n", "      - --no-open\n      - --patch\n      - /opt/dsh-managed/x.patch.yml\n", "DSH_COMPOSE_LOAD"),
             ("verification.compose.yaml", "      - --no-open\n", "      - --patch\n      - /opt/dsh-managed/security-operations-expert.development.patch.yml\n      - --no-open\n", "DSH_COMPOSE_LOAD"),
         )
         for filename, before, after, expected_code in changes:
             with self.subTest(filename=filename, after=after), tempfile.TemporaryDirectory() as temp:
                 clone = copy_initialized_repository(Path(temp))
                 path = clone / adapter / filename
+                text = path.read_text(encoding="utf-8")
+                self.assertIn(before, text)
+                path.write_text(text.replace(before, after, 1), encoding="utf-8")
+                completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+                self.assertEqual(completed.returncode, 1, payload)
+                self.assertIn(expected_code, error_codes(payload))
+
+    def test_subject_container_must_not_mount_development_instructions(self) -> None:
+        """回归：被测容器不得携带开发会话身份，否则目标会读到开发者指令。"""
+        adapter = "runtime/adapters/dsh-container"
+        with tempfile.TemporaryDirectory() as temp:
+            clone = copy_initialized_repository(Path(temp))
+            path = clone / adapter / "verification.compose.yaml"
+            text = path.read_text(encoding="utf-8")
+            anchor = ("        target: /work/harness/workspace/.env\n"
+                      "        read_only: true\n")
+            self.assertIn(anchor, text)
+            path.write_text(text.replace(anchor,
+                anchor + "      - type: bind\n        source: ./verification-home-controls/locked-dev.AGENTS.md\n"
+                         "        target: /work/AGENTS.md\n        read_only: true\n", 1), encoding="utf-8")
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+            self.assertEqual(completed.returncode, 1, payload)
+            codes = error_codes(payload)
+            # 数量门禁与角色门禁都必须报出，便于直接定位是"多挂"还是"挂错角色"。
+            self.assertIn("DSH_COMPOSE_MOUNTS", codes)
+            self.assertIn("DSH_DEV_INSTRUCTIONS", codes)
+
+    def test_development_instructions_must_stay_generic_and_bounded(self) -> None:
+        """开发指令文件不得内联业务身份、URL 或可执行标记。"""
+        adapter = "runtime/adapters/dsh-container"
+        instructions = "runtime/adapters/dsh-container/verification-home-controls/locked-dev.AGENTS.md"
+        for before, after, expected_code in (
+            ("你是本 Harness 研究项目的**开发者**", "你是 security-operations-expert 业务专家", "DSH_DEV_INSTRUCTIONS"),
+            ("## 目标在哪里", "见 https://example.invalid/guide\n\n## 目标在哪里", "DSH_DEV_INSTRUCTIONS"),
+            ("## 操作纪律", "## 操作纪律\n\n!!js process.exit(1)", "DSH_DEV_INSTRUCTIONS"),
+            ("`/work/eval-reference`", "评测材料", "DSH_DEV_INSTRUCTIONS"),
+        ):
+            with self.subTest(after=after), tempfile.TemporaryDirectory() as temp:
+                clone = copy_initialized_repository(Path(temp))
+                path = clone / instructions
                 text = path.read_text(encoding="utf-8")
                 self.assertIn(before, text)
                 path.write_text(text.replace(before, after, 1), encoding="utf-8")
@@ -1154,9 +1233,11 @@ class RepositoryValidatorTests(unittest.TestCase):
         changes = (
             (overlay, "- id: agent-presets", "- id: security-operations-mcp-sec-ops", "DSH_DEVELOPMENT_OVERLAY"),
             (overlay, "    includeShippedRoot: true", "    includeShippedRoot: false", "DSH_DEVELOPMENT_OVERLAY"),
+            # 创造者必须有可写 preset 根，否则 preset 创作无法完成。
+            (overlay, "    includeUserRoot: true", "    includeUserRoot: false", "DSH_DEVELOPMENT_OVERLAY"),
             (overlay, "    default: cordis", "    default: security-operations-expert", "DSH_DEVELOPMENT_OVERLAY"),
             (overlay, "- id: agent-presets", "- insert:\n    - id: agent-presets", "DSH_DEVELOPMENT_OVERLAY"),
-            (overlay, "    includeUserRoot: false\n", "", "DSH_DEVELOPMENT_OVERLAY"),
+            (overlay, "    includeUserRoot: true\n", "", "DSH_DEVELOPMENT_OVERLAY"),
             (overlay, "    roots:\n      - path: /opt/dsh-presets\n        trust: system\n", "", "DSH_DEVELOPMENT_OVERLAY"),
             (overlay, "        trust: system", "        trust: user", "DSH_DEVELOPMENT_OVERLAY"),
             (adapter + "/sources.json",
@@ -2827,8 +2908,134 @@ class DeliveryValidatorTests(unittest.TestCase):
         self.assertIn("DELIVERY_SHAPE_CONFLICT", error_codes(payload))
 
 
+class SpecDataSemanticsTests(unittest.TestCase):
+    """spec/eval 数据的字段语义：同一事实不重复、含义不同的字段不写成同一段文字。"""
+
+    def test_tasks_goal_and_output_are_different_fields(self) -> None:
+        """回归：goal 回答"完成什么任务"，output 回答"交付什么"，不得由同一列生成。"""
+        tasks = yaml.safe_load(
+            (ROOT / "agents/security-operations-expert/spec/tasks.yaml").read_text(encoding="utf-8"))
+        self.assertGreaterEqual(len(tasks["tasks"]), 34)
+        same = [item["task_id"] for item in tasks["tasks"] if item["goal"] == item["output"]]
+        self.assertEqual(same, [], f"goal 与 output 不得相同：{same}")
+        for item in tasks["tasks"]:
+            self.assertTrue(item["goal"].strip() and item["output"].strip())
+        # 面向人的标签使用"编号＋业务名称"，不只显示编号。
+        text = (ROOT / "agents/security-operations-expert/spec/tasks.yaml").read_text(encoding="utf-8")
+        for item in tasks["tasks"]:
+            self.assertRegex(text, rf"# {item['task_id']}：\S", f"{item['task_id']} 缺少业务名称标签")
+
+    def test_requirements_keep_business_names_and_have_no_duplicate_table(self) -> None:
+        """回归：转换表必须带业务名称，且不再重复追加原始需求表。"""
+        text = (ROOT / "agents/security-operations-expert/spec/requirements.md").read_text(encoding="utf-8")
+        self.assertNotIn("源文档原始需求表", text)
+        rows = [line for line in text.splitlines() if line.startswith("| REQ-")]
+        self.assertGreaterEqual(len(rows), 34)
+        for row in rows:
+            cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
+            self.assertRegex(cells[0], r"^REQ-[0-9]{3}$")
+            self.assertTrue(cells[1], f"缺少需求名称：{row[:60]}")
+            self.assertNotRegex(cells[1], r"^REQ-")
+
+    def test_acceptance_has_no_paragraph_level_boilerplate(self) -> None:
+        """回归：通用判定原则只在文件级说明一次，不逐条重复。"""
+        acceptance = yaml.safe_load(
+            (ROOT / "agents/security-operations-expert/spec/acceptance.yaml").read_text(encoding="utf-8"))
+        for item in acceptance["acceptance"]:
+            self.assertNotIn("不允许禁止结果发生", item["criterion"], item["id"])
+
+    def test_methods_fields_carry_distinct_meanings(self) -> None:
+        """grader 说明判定方式，trial_scheme 说明重复次数，aggregation 说明如何合成判定。"""
+        methods = yaml.safe_load(
+            (ROOT / "agents/security-operations-expert/eval/methods.yaml").read_text(encoding="utf-8"))
+        criterion = {item["id"]: item["criterion"] for item in yaml.safe_load(
+            (ROOT / "agents/security-operations-expert/spec/acceptance.yaml").read_text(encoding="utf-8"))["acceptance"]}
+        for method in methods["methods"]:
+            for ac_id in method["acceptance_ids"]:
+                # 阈值不在评估方法里复制，只引用验收项。
+                self.assertNotEqual(method["grader"].strip(), criterion[ac_id].strip(), method["id"])
+            self.assertNotIn("required_trials", method["aggregation"], method["id"])
+            self.assertNotIn("本章", method["aggregation"], method["id"])
+            self.assertIn("运行", method["trial_scheme"], method["id"])
+
+    def test_pending_review_renderer_is_a_read_only_view(self) -> None:
+        """回归：人工复核视图只按需渲染 JSONL，不产生第二份可编辑事实源。"""
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp) / "review.md"
+            renderer = ROOT / ("evolution/experiments/EXP-security-operations-expert-001/"
+                               "evaluation/tools/render_pending_review.py")
+            before = {
+                path: path.read_bytes()
+                for path in (ROOT / "agents/security-operations-expert/eval").rglob("*.jsonl")
+            }
+            completed = subprocess.run(
+                ["python3", str(renderer), "--agent-dir", str(ROOT / "agents/security-operations-expert"),
+                 "--output", str(output)],
+                cwd=ROOT, text=True, capture_output=True, check=False, timeout=120,
+                env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            text = output.read_text(encoding="utf-8")
+            self.assertIn("待复核用例阅读视图", text)
+            # 阅读顺序：名称与状态 → 用户输入 → 预期行为 → 检查方法 → 关联编号。
+            for label in ("用户输入", "预期行为", "检查方法", "用例审定状态", "验收映射状态", "关联验收"):
+                self.assertIn(label, text)
+            self.assertIn("case-rsp-001", text)
+            # 渲染不得改动任何 JSONL 事实源。
+            self.assertEqual(before, {
+                path: path.read_bytes()
+                for path in (ROOT / "agents/security-operations-expert/eval").rglob("*.jsonl")
+            })
+
+    def test_generator_reproduces_maintained_spec_data(self) -> None:
+        """回归：生成器与事实源不得长期保持两套规则。
+
+        spec/ 与 methods/scenario-design 必须能由导入脚本逐字节重放；
+        只有 fixtures 允许保留维护者补充，且该补充必须是纯新增。
+        """
+        with tempfile.TemporaryDirectory() as temp:
+            clone = copy_initialized_repository(Path(temp))
+            tool = clone / ("evolution/experiments/EXP-security-operations-expert-001/"
+                            "evaluation/tools/ingest_v02_spec.py")
+            completed = subprocess.run(
+                ["python3", str(tool), "--repo", str(clone), "--refresh"],
+                cwd=ROOT, text=True, capture_output=True, check=False, timeout=180,
+                env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            agent = Path("agents/security-operations-expert")
+            replayable = (
+                "spec/requirements.md", "spec/tasks.yaml", "spec/acceptance.yaml",
+                "eval/methods.yaml", "eval/pending/scenario-design.pending.jsonl",
+            )
+            for relative in replayable:
+                self.assertEqual(
+                    (ROOT / agent / relative).read_bytes(),
+                    (clone / agent / relative).read_bytes(),
+                    f"{relative} 与生成器输出不一致；生成逻辑与事实源已经分叉",
+                )
+            # fixtures 允许保留人工补充，但生成器不得删除既有内容。
+            for name in ("flt", "ins", "pol", "qa", "rsp"):
+                maintained = (ROOT / agent / f"eval/fixtures/{name}.md").read_text(encoding="utf-8")
+                generated = (clone / agent / f"eval/fixtures/{name}.md").read_text(encoding="utf-8")
+                for line in generated.splitlines():
+                    self.assertIn(line, maintained, f"fixtures/{name}.md 丢失生成器产出的行：{line[:60]}")
+                if name != "qa":
+                    self.assertIn("维护者补充", maintained, f"fixtures/{name}.md 应标明维护者补充段")
+
+    def test_pending_inputs_do_not_duplicate_provenance(self) -> None:
+        """回归：同一份来源信息只保留一个字段。"""
+        path = ROOT / "agents/security-operations-expert/eval/pending/user-inputs.pending.jsonl"
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            self.assertNotIn("supplement", row, row.get("id"))
+            self.assertIn("design", row.get("context", {}), row.get("id"))
+
+
 class EvalLoopContractTests(unittest.TestCase):
-    """评测闭环：来源选择器、完整快照、Run 生命周期与 Agent spec/eval/issues 契约。"""
+    """评测闭环：来源选择器、Run 生命周期与 Agent spec/eval/issues 契约。"""
 
     @staticmethod
     def _clone_script(clone: Path, name: str) -> Path:
@@ -2878,6 +3085,7 @@ class EvalLoopContractTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             contract = json.loads(completed.stdout)
             self.assertEqual(contract["source_kind"], "experiment")
+            self.assertEqual(contract["preset_id"], "security-operations-expert")
             completed = self._run(
                 SOURCE_CONTRACT, "--source", "EXP-security-operations-expert-001",
                 "--mount-plan", "subject", "--task-dir", "/tmp/task", "--output-dir", "/tmp/out",
@@ -2886,14 +3094,39 @@ class EvalLoopContractTests(unittest.TestCase):
             plan = json.loads(completed.stdout)
             mounts = {(item["container"], item["mode"]) for item in plan["mounts"]}
             self.assertIn(("/work/harness/workspace", "ro"), mounts)
-            self.assertIn(("/work/eval-input", "ro"), mounts)
             self.assertIn(("/work/task", "rw"), mounts)
             self.assertIn(("/work/output", "rw"), mounts)
+            # 被测角色不得拿到验收阈值、评估方法、测试预置或预期答案。
+            self.assertFalse(plan["grading_material_exposed"])
+            self.assertNotIn(("/work/spec", "ro"), mounts)
+            self.assertNotIn(("/work/eval-reference", "ro"), mounts)
+            self.assertNotIn(("/work/eval-input", "ro"), mounts)
             completed = self._run(
                 SOURCE_CONTRACT, "--source", "EXP-security-operations-expert-001",
-                "--mount-plan", "authoring", "--eval-reference", "/tmp/ref",
+                "--mount-plan", "authoring",
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            authoring_plan = json.loads(completed.stdout)
+            authoring_mounts = {(item["container"], item["mode"]) for item in authoring_plan["mounts"]}
+            self.assertTrue(authoring_plan["grading_material_exposed"])
+            self.assertIn(("/work/spec", "ro"), authoring_mounts)
+            self.assertIn(("/work/eval-reference", "ro"), authoring_mounts)
+            # 被测输入只能显式声明给被测角色；声明的根必须真的不含预期答案。
+            completed = self._run(
+                SOURCE_CONTRACT, "--source", "EXP-security-operations-expert-001",
+                "--mount-plan", "subject", "--eval-input", "/tmp/subject-input",
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            declared = json.loads(completed.stdout)
+            self.assertTrue(declared["subject_input_declared"])
+            self.assertIn(("/work/eval-input", "ro"),
+                          {(item["container"], item["mode"]) for item in declared["mounts"]})
+            completed = self._run(
+                SOURCE_CONTRACT, "--source", "EXP-security-operations-expert-001",
+                "--mount-plan", "authoring", "--eval-input", "/tmp/subject-input",
             )
             self.assertEqual(completed.returncode, 1)
+            # 研究快照入口已退役：源码版本交给 Git，历史内容按恢复映射取回。
             completed = self._run(SOURCE_CONTRACT, "--source", "snapshot:snap-00000000-0000-4000-8000-000000000000")
             self.assertEqual(completed.returncode, 1)
             completed = self._run(SOURCE_CONTRACT, "--source", "release:security-operations-expert-v1.0.0")
@@ -2901,34 +3134,21 @@ class EvalLoopContractTests(unittest.TestCase):
             completed = self._run(SOURCE_CONTRACT, "--source", "unknown:whatever")
             self.assertEqual(completed.returncode, 1)
 
-    def test_research_snapshot_roundtrip_and_tamper_detection(self) -> None:
+    def test_retired_research_snapshot_commands_are_gone_and_reintroduction_is_blocked(self) -> None:
+        """快照创建已退役；重新引入整套源码副本会被仓库校验器判为阻断项。"""
         with tempfile.TemporaryDirectory() as temp:
             clone = self._prepared_clone(Path(temp), with_spec=True)
             receipt_script = self._clone_script(clone, "mutation-receipt.py")
-            contract_script = self._clone_script(clone, "source_contract.py")
-            completed = self._run(receipt_script, "--source", "experiment:EXP-security-operations-expert-001", "research-snapshot")
+            completed = self._run(receipt_script, "--help")
             self.assertEqual(completed.returncode, 0, completed.stderr)
-            snap_dir = Path(completed.stdout.strip())
-            snap_id = snap_dir.name
-            self.assertTrue(snap_id.startswith("snap-"))
-            completed = self._run(receipt_script, "research-snapshot-verify", str(snap_dir))
-            self.assertEqual(completed.returncode, 0, completed.stderr)
-            completed = self._run(contract_script, "--source", "snapshot:" + snap_id)
-            self.assertEqual(completed.returncode, 0, completed.stderr)
-            self.assertEqual(json.loads(completed.stdout)["source_kind"], "snapshot")
-            harness = snap_dir / "harness" / "dsh" / "workspace" / "AGENTS.md"
-            harness.write_text("# 篡改\n", encoding="utf-8")
-            completed = self._run(receipt_script, "research-snapshot-verify", str(snap_dir))
-            self.assertEqual(completed.returncode, 1)
-            completed, payload = run_json(self._clone_validator(clone), str(clone))
-            self.assertEqual(completed.returncode, 0, payload)
-
-    def test_research_snapshot_requires_materialized_spec_eval(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            clone = self._prepared_clone(Path(temp), without_spec=True)
-            receipt_script = self._clone_script(clone, "mutation-receipt.py")
-            completed = self._run(receipt_script, "--source", "experiment:EXP-security-operations-expert-001", "research-snapshot")
-            self.assertEqual(completed.returncode, 1)
+            self.assertNotIn("research-snapshot", completed.stdout)
+            experiment = clone / "evolution" / "experiments" / "EXP-security-operations-expert-001"
+            research = experiment / "snapshots" / "research" / ("snap-" + str(uuid.uuid4()))
+            research.mkdir(parents=True)
+            (research / "snapshot.json").write_text("{}\n", encoding="utf-8")
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+            self.assertEqual(completed.returncode, 1, payload)
+            self.assertIn("SNAPSHOT_RETIRED", error_codes(payload))
 
     def test_run_record_lifecycle_and_sealed_results(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -2969,7 +3189,7 @@ class EvalLoopContractTests(unittest.TestCase):
             run_dir = clone / "evolution" / "experiments" / "EXP-security-operations-expert-001" / "runs" / run_id
             results = run_dir / "results.jsonl"
             results.write_text(results.read_text(encoding="utf-8") + json.dumps({**trial, "trial_id": "trial-2"}) + "\n", encoding="utf-8")
-            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
             self.assertEqual(completed.returncode, 1, payload)
             self.assertIn("RUN_FINALIZED_IMMUTABLE", error_codes(payload))
 
@@ -2982,14 +3202,14 @@ class EvalLoopContractTests(unittest.TestCase):
                 "# 交付记录\n\n## 一、智能体需求定义\n\n验收项 AC-002 与事实源不一致。\n",
                 encoding="utf-8",
             )
-            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
             self.assertEqual(completed.returncode, 1, payload)
             self.assertIn("SPEC_DELIVERY_DIVERGED", error_codes(payload))
             (delivery / "交付记录.md").write_text(
                 "# 交付记录\n\n## 一、智能体需求定义\n\n验收项 AC-001 与事实源一致。\n",
                 encoding="utf-8",
             )
-            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
             self.assertEqual(completed.returncode, 0, payload)
 
     def test_agent_eval_pending_and_legacy_fact_paths(self) -> None:
@@ -2998,14 +3218,14 @@ class EvalLoopContractTests(unittest.TestCase):
             eval_dir = clone / "agents" / "security-operations-expert" / "eval" / "pending"
             eval_dir.mkdir(parents=True, exist_ok=True)
             (eval_dir / "cases.jsonl").write_text('{"id":"case-fake"}\n', encoding="utf-8")
-            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
             self.assertEqual(completed.returncode, 1)
             self.assertIn("AGENT_EVAL_INVALID", error_codes(payload))
             (eval_dir / "cases.jsonl").unlink()
             legacy = clone / "agents" / "security-operations-expert" / "delivery" / "eval"
             legacy.mkdir(parents=True)
             (legacy / "results.csv").write_text("run_id,trial_id\n", encoding="utf-8")
-            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
             self.assertEqual(completed.returncode, 1)
             self.assertIn("LEGACY_DELIVERY_EVAL_FACT", error_codes(payload))
 
@@ -3028,14 +3248,14 @@ class EvalLoopContractTests(unittest.TestCase):
                 f"  - evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-container-mount-probe-20260915T053311Z.json\n",
                 encoding="utf-8",
             )
-            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
             self.assertEqual(completed.returncode, 0, payload)
             issue_file = issues / (issue_id + ".yaml")
             issue_file.write_text(
                 issue_file.read_text(encoding="utf-8").replace("status: open", "status: closed"),
                 encoding="utf-8",
             )
-            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
             self.assertEqual(completed.returncode, 1, payload)
             self.assertIn("AGENT_ISSUE_INVALID", error_codes(payload))
 
@@ -3053,7 +3273,7 @@ class EvalLoopContractTests(unittest.TestCase):
                 "调用 `mcp__sec-ops__ai_soc_unmapped__some_extremely_long_tool_name_for_probe_checks`。\n",
                 encoding="utf-8",
             )
-            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
         self.assertEqual(completed.returncode, 1, payload)
         self.assertIn("DSH_MCP_PUBLIC_TOOL_NAME", error_codes(payload))
 
@@ -3071,7 +3291,7 @@ class EvalLoopContractTests(unittest.TestCase):
                 "调用 `mcp__sec-ops__ai_workbench_policy__get_policy_confi_e0cfa6659b3a`。\n",
                 encoding="utf-8",
             )
-            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
         self.assertEqual(completed.returncode, 0, payload)
 
     def test_matrix_parent_allow_referencing_unregistered_overlong_tool_is_rejected(self) -> None:
@@ -3087,7 +3307,7 @@ class EvalLoopContractTests(unittest.TestCase):
                 "    - mcp__sec-ops__ai_workbench_policy__get_policy_configuration_status\n",
             )
             matrix.write_text(text, encoding="utf-8")
-            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
         self.assertEqual(completed.returncode, 1, payload)
         self.assertIn("DSH_MCP_PUBLIC_TOOL_NAME", error_codes(payload))
 
@@ -3115,7 +3335,7 @@ class EvalLoopContractTests(unittest.TestCase):
             run_id = completed.stdout.strip()
             run_dir = clone / "evolution" / "experiments" / "EXP-security-operations-expert-001" / "runs" / run_id
             (run_dir / "results.jsonl").write_text('{"run_id":"other","trial_id":"t"}\n', encoding="utf-8")
-            completed, payload = run_json(self._clone_validator(clone), str(clone))
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
             self.assertEqual(completed.returncode, 1, payload)
             self.assertIn("RUN_PLANNED_RESULTS", error_codes(payload))
 

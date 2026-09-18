@@ -1,6 +1,6 @@
 # 项目规范解释与裁决
 
-本文将三项锁定来源应用到 `ai-agent-harness`，解决其在研究快照、Baseline、Experiment、Acceptance、Eval Set、Release/current 和 DSH 装载方面的命名或目录歧义。本文是项目级解释，不修改受控原文，也不得降低上游安全、评估或发布门禁。
+本文将三项锁定来源应用到 `ai-agent-harness`，解决其在研究版本管理、Baseline、Experiment、Acceptance、Eval Set、Release/current 和 DSH 装载方面的命名或目录歧义。本文是项目级解释，不修改受控原文，也不得降低上游安全、评估或发布门禁。
 
 ## 1. 来源优先级
 
@@ -13,14 +13,18 @@
 
 若来源发生实质冲突，先按适用范围区分。仍无法消解时，安全与证据采用更严格规则，并暂停相关 Candidate 晋升或 Release，等待维护者记录裁决；不得静默采用较宽松规则。
 
-## 2. 研究快照与两种 Baseline
+## 2. 研究版本管理与两种 Baseline
 
-研究中需要比较或派生时，可以物化**可还原研究快照**：保存候选源码和所需插件/配置的真实字节或可取回的不可变引用、内容摘要、来源 Experiment、DSH/构建依赖身份及已知的评估状态。它允许源未评估、失败或证据不足，但不能沿用源的通过结论。研究快照不是 `bl-<UUIDv4>` 候选基线，不要求已具备正式评估的完整冻结项，也不能直接晋升 Release；若未来需要为其建立独立机器 Schema，应先升级校验器和测试。
+研究中需要比较或派生时，用普通 Git 工作流保存和取回版本：把要保留的源码提交到研究分支或正常历史。**不默认复制整套源码快照**——全量副本与 Git 重复保存同一份内容，还会引入一套独立的身份与权限校验规则，而完整 POSIX 权限在 `umask` 不同的检出环境本来就无法重现。
+
+需要同时运行不同版本时按实际需要临时使用独立目录或 `git worktree`；它是可选手段，不是所有研究的强制流程。每次执行在 `runs/<run-uuid>/inputs.lock.json` 记录实际提交、是否包含未提交修改、Harness 与 spec/eval 树摘要，以及镜像与依赖身份。未提交修改无法仅凭 `HEAD` 还原，必须如实记录，不得声称该次运行对应某个提交的完整内容。
+
+研究版本的结论允许未评估、失败或证据不足，但不能沿用其来源的通过结论；它也不是 `bl-<UUIDv4>` 候选基线，不要求具备正式评估的完整冻结项，不能直接晋升 Release。早期物化的 `snapshots/research/<snap-id>/` 内容改由 Git 按 `evolution/experiments/<id>/snapshots/README.md` 的恢复映射取回。
 
 | 名称 | 标识与位置 | 形成时间 | 含义 |
 |---|---|---|---|
 | 候选基线 | `bl-<UUIDv4>`，记录于具体 Agent 的交付记录 | 首次正式自测前 | 冻结需求与验收、Harness、Runtime、模型、控制、Eval Set、评估实现、执行规则和环境的待测组合；不代表已通过或可发布 |
-| 稳定资产 Baseline | `evolution/baselines/<agent-id>-v<semver>/` | 候选基线完成正式评估、规定复核并通过交付评估后，与 Release 一起晋升 | 下一轮演进可复用的、已验证 Harness 快照；必须保留 Runtime、依赖、Eval 结论和 Release 引用 |
+| 稳定资产 Baseline | `evolution/baselines/<agent-id>-v<semver>/` | 候选基线完成正式评估、规定复核并通过交付评估后，与 Release 一起晋升 | 下一轮演进可复用的、已验证 Harness 制品；必须保留 Runtime、依赖、Eval 结论和 Release 引用 |
 
 规则：
 
@@ -28,7 +32,7 @@
 - 稳定资产 Baseline 是仓库生命周期状态，不得用尚未执行的模板、旧归档或“看起来可用”的配置占位。
 - 新建 Agent 没有既有稳定资产 Baseline 时，起点可以明确记录为 `N/A（首次交付）`，随后从 Task/Acceptance 建立第一个 Experiment 和 Candidate。
 - 任一冻结项变化都形成新的候选基线；旧运行保留为历史证据，不能覆盖或改写。
-- 研究快照用于内容恢复和对照；正式候选基线还必须冻结需求/AC、Eval Set、评分与执行规则、Runtime 有效投影和环境等锁定规范规定的全部项目。只凭 Git HEAD、文件摘要或只读挂载，不足以证明研究内容可恢复或正式运行期间内容不变。
+- 研究版本用 Git 恢复和对照。正式候选基线还必须冻结需求/AC、Eval Set、评分与执行规则、Runtime 有效投影和环境等锁定规范规定的全部项目。只凭 Git HEAD、文件摘要或只读挂载，不足以证明正式运行期间内容不变；开发者按第 7.1 节的运行纪律保证本次运行期间不改写相关资产。
 
 ## 3. Experiment 与开发路径
 
@@ -82,7 +86,7 @@ pending 是迁移材料，不是正式 Eval Set，不得被正式 Run、Trial �
 evolution/experiments/EXP-<agent-id>-NNN/runs/<run-uuid>/results.jsonl
 ```
 
-每次执行产生新的 `run-<UUIDv4>`，历史 Run 不得覆盖或改写；`run.yaml` 记录实验、来源快照、研究/正式性质、状态与起止，`inputs.lock.json` 绑定本次冻结输入身份，`gaps.jsonl` 保存本次发现，`summary.json` 由执行事实计算。`agents/<id>/delivery/eval/results.csv` 不再作为 Trial 事实源；尚未实现由新 Run 事实生成的兼容视图前，不得出现该文件。评估方法位于 `agents/<id>/eval/methods.yaml` 与被引用的版本化评分实现，Run 必须记录其精确版本。
+每次执行产生新的 `run-<UUIDv4>`，历史 Run 不得覆盖或改写；`run.yaml` 记录实验、来源选择器、研究/正式性质、状态与起止，`inputs.lock.json` 记录本次的 Git 版本（提交、是否有未提交修改）与 Harness/spec/eval 树摘要，`gaps.jsonl` 保存本次发现，`summary.json` 由执行事实计算。`agents/<id>/delivery/eval/results.csv` 不再作为 Trial 事实源；尚未实现由新 Run 事实生成的兼容视图前，不得出现该文件。评估方法位于 `agents/<id>/eval/methods.yaml` 与被引用的版本化评分实现，Run 必须记录其精确版本。
 
 顶层 `eval/` 仅在产生真实复用内容时创建，并按以下方式解释 v1.1 的目录建议：
 
@@ -91,7 +95,7 @@ evolution/experiments/EXP-<agent-id>-NNN/runs/<run-uuid>/results.jsonl
 - `eval/datasets/capability/`：按需求、验收项或本次能力影响范围形成的视图；
 - `eval/datasets/safety/`：选择 `tags` 含 `safety` 的视图；
 - `eval/graders/`：可被多个 Agent 引用且已版本化的评分实现；
-- `eval/reports/`：不可变结果快照的索引或派生报告，不是 `results.jsonl` 的第二事实源。
+- `eval/reports/`：不可变结果归档的索引或派生报告，不是 `results.jsonl` 的第二事实源。
 
 这些位置不得复制 `cases.jsonl` 或维护相互冲突的结果。尚无内容时不创建空目录。
 
@@ -100,7 +104,7 @@ evolution/experiments/EXP-<agent-id>-NNN/runs/<run-uuid>/results.jsonl
 研究与交付的关系如下：
 
 ```text
-Experiment Candidate ──→ 可还原研究快照 ──→ 比较/派生新 Experiment 或记录停止结论
+Experiment Candidate ──→ Git 提交（研究版本） ──→ 比较/派生新 Experiment 或记录停止结论
         │
         └─ 进入正式交付 → 冻结完整候选基线 baseline_id → 正式自测通过
                        → 完成与风险相匹配的 R1/R2/R3 复核 → 交付评估通过
@@ -108,7 +112,7 @@ Experiment Candidate ──→ 可还原研究快照 ──→ 比较/派生新 
                        → 生成同摘要的稳定资产 Baseline 和 current 校验镜像
 ```
 
-研究快照可作为 Variant 研究的来源；生产/正式发布只能使用经过同一候选基线完整交付评估的 Release。源 Release 也可供研究派生，但源的评估结论不转移给目标 Candidate。
+提交到 Git 的研究版本可作为 Variant 研究的来源；生产/正式发布只能使用经过同一候选基线完整交付评估的 Release。源 Release 也可供研究派生，但源的评估结论不转移给目标 Candidate。
 
 Release 是可部署 Harness Artifact，不是 Git Tag。每个 Release 必须：
 
@@ -133,7 +137,7 @@ Release 是可部署 Harness Artifact，不是 Git Tag。每个 Release 必须�
 | 阶段 | 可变行为资产 | 受控配置和凭据 | 挂载/身份规则 |
 |---|---|---|---|
 | Experiment Authoring | 仅当前 Candidate 的 Workspace 可在隔离容器中 RW；DSH 可以自组合、自修改，当前 Session 可实时观察探索行为并生成提案 | Preset、Profile、Guard、MCP 等控制 RO；历史/评估不挂载；凭据仅由受信 Runtime 注入，不作为 Candidate 资产 | 宿主侧记录改动前后摘要、diff 和待审回执；进入核验态或正式评估前，经复核后用新容器、新 Session 重建加载 |
-| Candidate Verification | 冻结用于验证的 Candidate 快照 RO | 受控配置 RO；运行态数据独立 | 核实际镜像/Profile/路径/摘要和局部装载；结果仍是探索或候选技术证据 |
+| Candidate Verification | 所选来源的 Candidate 树 RO | 受控配置 RO；运行态数据独立 | 核实际镜像/Profile/路径/摘要和局部装载；结果仍是探索或候选技术证据 |
 | Release/生产 | 具体 Release 全部 RO；生产 DSH 不自修改 | 受控配置 RO；凭据只由 Runtime 注入 | 只挂不可变 `releases/<agent-id>-v<semver>/`；反馈回新 Experiment |
 
 Authoring 中的模型写入不能授予执行权限、改变 `AC-xxx` 阈值、修改正式 Eval、冻结候选基线、发布 Release 或覆盖历史。研究者可在新候选源码中修改 Preset、Profile/Patch、插件及非秘密依赖声明，但受控运行配置在当前容器内仍只读；这些修改须经宿主侧复核、构建和新容器/新 Session 装载后才可观察生效，不暗示热更新。模型外 Runtime/领域服务须独立核验租户、对象、参数、数量、幂等、审批、失败安全和审计；Prompt 和静态文件声明都不等于这些控制已经落实。
@@ -142,13 +146,14 @@ Authoring 中的模型写入不能授予执行权限、改变 `AC-xxx` 阈值、
 
 同一份源资产按运行角色生成不同挂载视图；宿主侧来源解析与挂载计划必须区分三种角色，不能把执行者来源与修改目标压成同一个 `--source` 概念：
 
-| 内容 | 优化执行 | 被测执行 | 评分/分析 |
+| 内容 | 优化执行（authoring） | 被测执行（subject） | 评分/分析（scoring） |
 |---|---|---|---|
-| 目标 Candidate 工作区 | 可写 | 不挂可变目录，使用冻结快照 | 通常不需要；诊断时只读 |
-| Preset/Profile/插件 | 当前运行配置固定；修改下一版候选后重新装载 | 冻结版本 | 评估侧记录版本 |
-| 规格（需求/任务/公开标准） | 可读 | 按任务所需提供 | 可读 |
-| 评测输入 | 按探索计划 | 只读提供选中用例输入 | 读取输入与被测输出 |
-| 隐藏答案/参考判分材料 | 不开放 | 不提供 | 按方法使用 |
+| 目标 Candidate 工作区 | 可写 | 只读（同一候选源码） | 通常不需要；诊断时只读 |
+| Preset/Profile/插件 | 当前运行配置固定；修改下一版候选后重新装载 | 只读装载同一版本 | 评估侧记录版本 |
+| 规格：需求/任务/验收标准（`/work/spec`） | 可读 | **不挂载** | 可读 |
+| 评测材料：方法、预置、预期答案（`/work/eval-reference`） | 可读 | **不挂载** | 可读 |
+| 明确声明不含预期答案的被测输入（`/work/eval-input`） | 不适用 | 仅在显式声明时只读挂载 | 读取输入与被测输出 |
+| 隐藏答案/参考判分材料 | 作为开发者可见，用于维护 | 不提供 | 按方法使用 |
 | 任务工作目录 | 可写 | 独立可写 | 独立可写或只读 |
 | 输出目录 | 写优化记录，不覆盖历史 Run | 写任务输出与轨迹 | 写评分、验收与缺口 |
 | DSH_HOME | 独立运行态 | 新 HOME/新 Session；按计划管理用例隔离 | 不复用被测会话的推理上下文 |
@@ -159,21 +164,21 @@ Authoring 中的模型写入不能授予执行权限、改变 `AC-xxx` 阈值、
 /work/harness/workspace   # Harness 行为资产
 /opt/dsh-presets          # Preset，RO
 /opt/dsh-managed          # 受控配置，RO
-/work/spec                # 角色可读的规格视图，RO
-/work/eval-input          # 角色可读的评测输入投影，RO
-/work/eval-reference      # 仅评分侧挂载的判分材料，RO
+/work/spec                # 判分材料：需求/任务/验收标准；仅 authoring 与 scoring 挂载，RO
+/work/eval-reference      # 判分材料：评估方法、测试预置、预期答案；仅 authoring 与 scoring 挂载，RO
+/work/eval-input          # 显式声明不含预期答案的被测输入；仅 subject 在声明时挂载，RO
 /work/task                # 本次用例工作区，RW
 /work/output              # 当前 Run 输出出口，RW
 /var/lib/dsh              # 独立 DSH_HOME，RW，不直接作为实验档案
 ```
 
-只读只限制写入，不限制读取；参考答案、隐藏用例和不应提前获知的判分材料不得因“都是只读资产”而提供给被测侧。Harness 只读不等于整个业务执行只能只读——生成文件、调用写操作或修改任务数据可能正是被测能力，应在独立工作区运行，不能因此意外换掉原任务所需的权限配置。引入独立工作目录时必须验证 DSH 的 CWD、Skill 发现和 Prompt 投影仍与待测组合一致。
+只读只限制写入，不限制读取。因此判分材料不能靠“挂成只读”来隔离：验收阈值、评估方法、测试预置与预期答案根本不进入被测容器。被测侧唯一可能拿到的评测材料是显式声明的 `/work/eval-input`，声明者必须先确认该目录不含预期答案。Harness 只读不等于整个业务执行只能只读——生成文件、调用写操作或修改任务数据可能正是被测能力，应在独立工作区运行，不能因此意外换掉原任务所需的权限配置。引入独立工作目录时必须验证 DSH 的 CWD、Skill 发现和 Prompt 投影仍与待测组合一致。
 
 ### 7.2 冻结组合与 Run 事实
 
-研究比较或正式评估前，须物化**完整冻结组合**：Harness 候选元数据、受控配置、规格、评测输入、方法与计划、依赖身份的真实字节或可取回不可变引用，并写入快照清单；只有三棵挂载树的摘要不足以唯一说明“这次评测测了哪个组合”。每次执行（无论成功、失败或取消）归档到独立 `runs/<run-uuid>/`，结果事实、环境、输入锁、缺口与汇总由该 Run 自含；重新评分产生独立记录，不静默改写原 Run。
+研究比较或正式评估前，须固定**完整冻结组合**：Harness 候选元数据、受控配置、规格、评测输入、方法与计划、依赖身份，并记录为可复核的身份（提交、树摘要、镜像与依赖锁）。只有三棵挂载树的摘要不足以唯一说明“这次评测测了哪个组合”，而开发者按第 7.1 节的运行纪律保证评测期间不修改这些内容。每次执行（无论成功、失败或取消）归档到独立 `runs/<run-uuid>/`，结果事实、环境、输入锁、缺口与汇总由该 Run 自含；重新评分产生独立记录，不静默改写原 Run。
 
-插件研究至少区分源码来源和版本、构建产物及其依赖摘要、插件入口、Bundle/Patch/Profile 顺序、DSH 兼容范围和实际展开的有效配置。包存在不等于插件已激活；比较运行须记录实际装载结果。研究用内容快照应覆盖未提交及必要的未跟踪资产，并从快照的只读副本启动验证；仅在可变工作目录上加只读容器挂载，不能阻止宿主同时修改源目录。
+插件研究至少区分源码来源和版本、构建产物及其依赖摘要、插件入口、Bundle/Patch/Profile 顺序、DSH 兼容范围和实际展开的有效配置。包存在不等于插件已激活；比较运行须记录实际装载结果。研究运行如果包含未提交修改，必须在 `inputs.lock.json` 的 `git_version` 中如实标注；只在可变工作目录上加只读容器挂载，并不能阻止宿主同时修改源目录，因此评测期间不修改相关资产由开发者保证，而不是由挂载方式保证。
 
 正式 Trial 还须冻结并记录 Runtime 的**有效投影**：实际模型/provider/reasoning effort、模型 `baseURL` 与重试参数、Session 采用的 permission preset、Agent preset、Profile 和隔离的新 Session 身份。`DSH_HOME/settings.yaml` 是运行态 typed namespace，不整体当作 Harness 制品，也不能因 Profile/Plugin 名单未变就忽略其中的模型、请求终点或权限默认值变化。环境变量、MCP 端点、凭据标识和网络代理须记录受信来源与有效值的非秘密摘要；不得让工作区或数据卷中的 `.env` 悄悄补齐/覆盖这些输入。运行态凭据和会话历史不进入 Release；一旦有效投影偏离本次候选基线，停止该次正式结论并重新确定冻结组合。
 
@@ -193,7 +198,7 @@ Authoring 中的模型写入不能授予执行权限、改变 `AC-xxx` 阈值、
 
 - Agent ID、技能名和普通目录使用小写 kebab-case。
 - Experiment 使用 `EXP-<agent-id>-NNN`；稳定资产 Baseline 和 Release 使用 `<agent-id>-v<semver>`。
-- 执行 Run 使用 `run-<UUIDv4>`，研究快照使用 `snap-<UUIDv4>`，跨 Run 问题使用 `iss-<UUIDv4>`（文件位于 `agents/<agent-id>/issues/`）。
+- 执行 Run 使用 `run-<UUIDv4>`，跨 Run 问题使用 `iss-<UUIDv4>`（文件位于 `agents/<agent-id>/issues/`）。研究版本使用 Git 提交标识，不引入第二套 `snap-<UUIDv4>` 身份。
 - 只有存在真实资产、证据或复用需求时才物化目录。禁止通过 `.gitkeep`、空配置、空报告或占位数据伪造完整性。
-- 历史通过 Git Commit、Tag、不可变 Release、快照和 Run 事实追溯，不建立 `latest`、`final-final` 或重复交付目录。
+- 历史通过 Git Commit、Tag、不可变 Release 和 Run 事实追溯，不建立 `latest`、`final-final` 或重复交付目录。早期快照内容按 `snapshots/README.md` 的恢复映射从 Git 取回。
 - `current/` 是 Release 后生成的校验镜像，不是 `latest` 别名，也不改变 Release 的不可变性要求。

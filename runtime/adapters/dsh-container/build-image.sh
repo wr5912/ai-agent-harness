@@ -7,13 +7,18 @@ task_source_dir=""
 task_source_id="EXP-security-operations-expert-001"
 task_evidence_file=""
 task_build_network="default"
-task_apt_mirror="http://deb.debian.org/debian"
+# 构建期统一使用国内阿里云源：APT 走 mirrors.aliyun.com，npm/pnpm 走 registry.npmmirror.com。
+# 只有国内源不可达时，才由调用方显式改回 Debian 官方 apt 源。
+task_apt_mirror="http://mirrors.aliyun.com/debian"
+task_npm_registry="https://registry.npmmirror.com"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help)
-      printf 'Usage: %s [--source EXP-agent-NNN] [--evidence-output FILE] [--build-network host] [--apt-mirror http://mirrors.tuna.tsinghua.edu.cn/debian]\n' "$0"
-      printf 'Build locked official DSH source; host network is opt-in for local build egress only.\n'
+      printf 'Usage: %s [--source EXP-agent-NNN] [--evidence-output FILE] [--build-network host] [--apt-mirror http://mirrors.aliyun.com/debian|http://deb.debian.org/debian]\n' "$0"
+      printf 'Build locked official DSH source. APT and npm both default to Aliyun mirrors;\n'
+      printf 'the official Debian APT source is an explicit fallback when the mirror is unreachable.\n'
+      printf 'Host network is opt-in for local build egress only.\n'
       exit 0
       ;;
     --evidence-output)
@@ -41,8 +46,9 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --apt-mirror)
-      if [[ $# -lt 2 || "$2" != http://mirrors.tuna.tsinghua.edu.cn/debian || "$task_apt_mirror" != http://deb.debian.org/debian ]]; then
-        printf 'Only one exact HTTP Tsinghua Debian mirror is supported\n' >&2
+      # 阿里云是默认值；官方源只作为国内源不可达时的显式回退。
+      if [[ $# -lt 2 || ( "$2" != http://mirrors.aliyun.com/debian && "$2" != http://deb.debian.org/debian ) || "$task_apt_mirror" != http://mirrors.aliyun.com/debian ]]; then
+        printf 'Only the Aliyun default or an explicit Debian official fallback is supported\n' >&2
         exit 2
       fi
       task_apt_mirror="$2"
@@ -107,6 +113,7 @@ docker buildx build \
   --build-arg "DSH_PACKAGE_MANAGER=$task_package_manager" \
   --build-arg "DSH_NODE_BASE=$task_node_base" \
   --build-arg "DSH_APT_MIRROR=$task_apt_mirror" \
+  --build-arg "DSH_NPM_REGISTRY=$task_npm_registry" \
   --load \
   -t "$task_image_tag" \
   -f "$task_adapter_dir/Dockerfile" \
@@ -118,7 +125,7 @@ task_runtime_version="$(docker run --rm --entrypoint node "$task_image_tag" /opt
 [[ "$task_image_platform" == "$task_platform" ]]
 [[ "$task_runtime_version" == "$task_cli_version" ]]
 
-python3 - "$task_evidence_file" "$task_source_id" "$task_source_repository" "$task_source_commit" "$task_source_tree" "$task_lock_sha" "$task_package_manager" "$task_node_base" "$task_image_tag" "$task_image_id" "$task_image_platform" "$task_runtime_version" "$task_build_network" "$task_apt_mirror" <<'PY'
+python3 - "$task_evidence_file" "$task_source_id" "$task_source_repository" "$task_source_commit" "$task_source_tree" "$task_lock_sha" "$task_package_manager" "$task_node_base" "$task_image_tag" "$task_image_id" "$task_image_platform" "$task_runtime_version" "$task_build_network" "$task_apt_mirror" "$task_npm_registry" <<'PY'
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -143,7 +150,12 @@ evidence = {
     "dsh_cli_version": sys.argv[12],
     "build_network_mode": sys.argv[13],
     "apt_mirror_main": sys.argv[14],
-    "apt_mirror_security": sys.argv[14] + "-security",
+    "apt_mirror_security": (
+        "http://mirrors.aliyun.com/debian-security"
+        if sys.argv[14] == "http://mirrors.aliyun.com/debian"
+        else "http://deb.debian.org/debian-security"
+    ),
+    "npm_registry": sys.argv[15],
     "apt_signed_metadata_preflight": "pass",
     "registry_digest_verified": False,
     "scope": "local image build and CLI identity only; no Harness or business acceptance",
@@ -159,5 +171,6 @@ printf 'Local image ID: %s\n' "$task_image_id"
 printf 'DSH CLI version: %s\n' "$task_runtime_version"
 printf 'Build network mode: %s\n' "$task_build_network"
 printf 'APT mirror main: %s\n' "$task_apt_mirror"
+printf 'npm registry: %s\n' "$task_npm_registry"
 printf 'Registry digest: not available until the image is pushed and verified\n'
 printf 'Build evidence: %s\n' "$task_evidence_file"
