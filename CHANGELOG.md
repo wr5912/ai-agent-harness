@@ -15,7 +15,7 @@
 - `run_record.py` 提供 Run 全生命周期：init 固定输入身份、record 逐 Trial 追加、gap 记录问题、finalize 收尾并封存 results/gaps 摘要；已收尾 Run 拒绝再写。
 - 校验器新增 Agent spec/eval/issues、Experiment runs/snapshots 契约校验，并去除单一迁移实验硬编码；交付校验器改读 spec/eval/runs 事实源，删除 results.csv 读取路径。测试覆盖范围扩展到选择器、快照往返与篡改检测、Run 收尾封存、spec 与交付记录一致性、pending 与旧路径门禁。
 - 开发启动器 `dsh-dev`：按 `experiment:`/`snapshot:` 选择器渲染仓库外实例 Compose（host 网络、只绑定宿主回环、每实例独立 HOME 卷），提供 `image build`、`plan`、`up`、`ps`、`url`、`logs`、`down`；`url` 只从本次进程日志取认证 URL 并做 Token→Cookie→根页探针，非交互输出必须显式 `--non-interactive`。
-- 受控技术装载辅助：`stub-mcp-streamable-http.mjs` 提供只含 `initialize`/`notifications/initialized`/`tools/list` 的回环 MCP 桩，`derive_mcp_stub_tools.py` 只从候选 MCP 声明派生工具原始名并对无法解析的超长引用失败关闭，使 fail-closed 的 MCP 候选在缺少真实端点时仍可核验装载。
+- 受控技术装载辅助：`stub-mcp-streamable-http.mjs` 提供只含 `initialize`/`notifications/initialized`/`tools/list` 的回环 MCP 桩（`tools/call` 默认失败关闭，不编造业务数据），`derive_mcp_stub_tools.py` 只从候选 MCP 声明派生工具原始名并对无法解析的超长引用失败关闭，使 fail-closed 的 MCP 候选在缺少真实端点时仍可核验装载。
 
 ### 变更
 

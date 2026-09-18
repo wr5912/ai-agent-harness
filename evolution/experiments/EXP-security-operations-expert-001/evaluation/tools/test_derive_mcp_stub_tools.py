@@ -141,6 +141,16 @@ class StubServerProtocolTest(unittest.TestCase):
             urllib.request.urlopen(f"http://127.0.0.1:{self.port}/mcp/inspection", timeout=10)
         self.assertEqual(raised.exception.code, 405)
 
+    def test_tool_call_fails_closed_without_business_data(self):
+        status, called = self.post("/mcp/sec-ops", {
+            "jsonrpc": "2.0", "id": 3, "method": "tools/call",
+            "params": {"name": "ai_soc_graph__get_graph_coverage", "arguments": {}},
+        })
+        self.assertEqual(status, 200)
+        self.assertIs(called["result"]["isError"], True)
+        self.assertIn("refusing to fabricate", called["result"]["content"][0]["text"])
+        self.assertNotIn("stub\":true", called["result"]["content"][0]["text"])
+
     def test_unknown_path_returns_404(self):
         request = urllib.request.Request(
             f"http://127.0.0.1:{self.port}/mcp/unknown",

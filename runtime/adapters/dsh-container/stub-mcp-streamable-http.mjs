@@ -8,13 +8,15 @@
  * 与 `tools/list` 的最小协议面，使 DSH 能完成 MCP 握手与工具注册。
  *
  * 边界（必须如实标注）：
- * - 桩没有业务语义、没有鉴权、没有状态机；`tools/call` 只回显桩标记。
+ * - 桩没有业务语义、没有鉴权、没有状态机。
+ * - `tools/list` 只为让 DSH 完成工具注册；`tools/call` **默认返回错误**（`isError: true`），
+ *   绝不编造业务数据。显式传 `--stub-success` 才会回显桩标记，仅供协议自测。
  * - 桩的存在只证明"Profile/MCP 客户端/工具注册这条链路能装载"，
  *   绝不构成业务能力通过、评估通过或 Release 验收。
  * - 只监听回环地址，不暴露到非本机网络。
  *
  * 用法：
- *   node stub-mcp-streamable-http.mjs --port 3099 [--tools tools.json] [--log stub.log]
+ *   node stub-mcp-streamable-http.mjs --port 3099 [--tools tools.json] [--log stub.log] [--stub-success]
  *
  * tools.json 形如：
  *   { "servers": { "sec-ops": { "path": "/mcp/sec-ops", "tools": ["raw_tool_name"] } } }
@@ -26,9 +28,11 @@ import { appendFileSync, readFileSync } from 'node:fs'
 
 const DEFAULT_PROTOCOL_VERSION = '2025-06-18'
 const SERVER_INFO = { name: 'dsh-verification-mcp-stub', version: '0.0.0' }
+const TOOL_CALL_REFUSAL =
+  'verification stub: this MCP group has no business backend in this run; refusing to fabricate business data'
 
 function parseArgs(argv) {
-  const options = { host: '127.0.0.1', port: 0, tools: null, log: null, servers: [] }
+  const options = { host: '127.0.0.1', port: 0, tools: null, log: null, servers: [], stubSuccess: false }
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index]
     const value = argv[index + 1]
@@ -49,6 +53,9 @@ function parseArgs(argv) {
         options.log = value
         index += 1
         break
+      case '--stub-success':
+        options.stubSuccess = true
+        break
       case '--server': {
         const [name, path] = String(value).split('=')
         options.servers.push({ name, path: path || `/mcp/${name}` })
@@ -58,7 +65,7 @@ function parseArgs(argv) {
       case '--help':
       case '-h':
         process.stdout.write(
-          'usage: stub-mcp-streamable-http.mjs --port <n> [--host 127.0.0.1] [--tools tools.json] [--log file] [--server name=path]\n',
+          'usage: stub-mcp-streamable-http.mjs --port <n> [--host 127.0.0.1] [--tools tools.json] [--log file] [--server name=path] [--stub-success]\n',
         )
         process.exit(0)
         break
@@ -172,6 +179,20 @@ function handleMessage(message, endpoint) {
       }
     case 'tools/call': {
       const name = message.params?.name
+      if (!options.stubSuccess) {
+        return {
+          kind: 'result',
+          payload: rpcResult(id, {
+            content: [
+              {
+                type: 'text',
+                text: `${TOOL_CALL_REFUSAL} (server=${endpoint.name}, tool=${name ?? 'unknown'})`,
+              },
+            ],
+            isError: true,
+          }),
+        }
+      }
       return {
         kind: 'result',
         payload: rpcResult(id, {
@@ -234,6 +255,7 @@ const server = createServer((request, response) => {
         id: message?.id ?? null,
         kind: outcome.kind,
         tool: message?.params?.name ?? null,
+        is_error: outcome.payload?.result?.isError ?? null,
         authorization_present: authPresent,
       })
     }
