@@ -4,7 +4,7 @@
 >
 > 范围：同一台 Linux Docker Engine 主机上的本地开发和候选技术核验。本文不设计生产部署入口，不改变 DSH Runtime 源码，也不替代 Agent 交付评估或 Release 验收。
 >
-> 依据：[规范来源锁定](./standards/SOURCES.md)、[项目规范解释](./standards/PROJECT-INTERPRETATION.md)、[当前 DSH 容器适配层](../runtime/adapters/dsh-container/README.md)。研发管理 CLI 是[另一项提案](./DSH智能体研发管理平台边界设计方案.md)，两者不共用命令、权限或运行态数据。
+> 依据：[规范来源锁定](./standards/SOURCES.md)、[项目规范解释](./standards/PROJECT-INTERPRETATION.md)、[当前 DSH 容器适配层](../runtime/adapters/dsh-container/README.md)。dev/eval 两种模式的取舍、创造链缺口与目标设计见[DSH 开发启动器 dev/eval 双模式与「创造链」设计方案](./DSH开发启动器dev-eval模式与创造链设计方案.md)。研发管理 CLI 是[另一项提案](./DSH智能体研发管理平台边界设计方案.md)，两者不共用命令、权限或运行态数据。
 
 ## 1. 要解决的问题与当前事实
 
