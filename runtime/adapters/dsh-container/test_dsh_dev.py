@@ -129,6 +129,21 @@ class ModeAndContextContractTest(unittest.TestCase):
                 dev.command_up(args)
         compose_env.assert_not_called()
 
+    def test_plan_delivers_workspace_path_and_cold_start_hint(self):
+        """DSH Web 冷启动需要先在界面注册工作区；计划必须交付确切路径与步骤。"""
+        args = types.SimpleNamespace(source="experiment:EXP-security-operations-expert-001",
+                                     mode="verification", name="secops-eval", port=3085)
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout), \
+                mock.patch.object(dev, "context_assets", return_value=[]):
+            dev.command_plan(args)
+        plan = json.loads(stdout.getvalue())
+        self.assertEqual(plan["workspace_to_register"], "/work/harness/workspace")
+        self.assertIn("/work/harness/workspace", plan["web_cold_start"])
+        self.assertIn("编辑路径", plan["web_cold_start"])
+        # 计划可以出现环境变量**名称**（含 TOKEN 字样），但不得出现任何值。
+        self.assertNotIn("token=", json.dumps(plan).lower())
+
     def test_eval_up_rejects_cordis_trust_flag(self):
         args = types.SimpleNamespace(source="experiment:EXP-security-operations-expert-001",
                                      mode="verification", name="secops-eval", port=3085,

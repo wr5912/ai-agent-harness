@@ -69,6 +69,8 @@ dsh-dev fresh --source experiment:EXP-security-operations-expert-001 --mode dev 
 | `down <name>` | 停止该实例，默认保留 HOME 与资产；不等于重置会话。 | 删除其他实例、数据卷、Candidate 资产或外部服务。 |
 | `resume <name>` / `fresh ...` | 前者显式复用已保留 HOME，后者创建全新实例、HOME 与 Session；Verification 默认 fresh。清理旧 HOME 另设确认目标的操作，不由 `down` 隐式执行。 | 把恢复旧会话和新运行混为一谈，或在比较运行中复用旧状态。 |
 
+`dsh` 容器的 `working_dir` 只是进程工作目录，**不等于 DSH 工作区**：Web 会话必须绑定一个已注册工作区，注册表存在 `$DSH_HOME/storages/workspace.json`（domain version 2，只从已存会话头 bootstrap，初始化标记写入后不再重建）。新实例的 HOME 卷为空，因此首次打开必然是“选择一个工作区开始”的冷启动态。当前锁定 DSH 提交没有受支持的工作区预注册入口（`dsh web` 无工作区参数；工作区命令只走浏览器 typert RPC）；启动器因此**只交付路径与操作步骤**（`plan.web_cold_start`、`up` 的 stderr 提示），不写 Runtime 存储内部格式，也不在适配层实现私有 RPC 客户端。若要“打开即可用”，需要 DSH 侧提供受支持的预注册接口，或由操作者在同一实例 HOME 上注册一次后复用该实例。
+
 `<name>` 使用小写 kebab-case，映射到唯一 Compose 项目；不同实例有独立容器和 HOME 卷。`--port` 默认 `3080`，必须是合法 TCP 端口且同机唯一。为保证 URL 可预测，端口冲突时失败，不自动换端口；第二个实例应显式指定其他端口。`plan` 与 `up` 都检查端口，但 `plan` 结果不保留端口，`up` 仍须处理两次检查之间的占用竞争。开发模式（`--mode dev`/authoring）允许行为工作区改变但标记 dirty，受控 Profile/插件组合或镜像改变则必须新装载；评测模式（`--mode eval`/verification）只接受同一冻结摘要。两种模式都必须显式提供 `spec`/`eval` 上下文根，缺失即失败关闭。固定 DSH 版本的 `--port` 语义、两个实例不同端口及 Cookie 隔离均需实测。
 
 ## 4. 实例生成与认证 URL 的正确性

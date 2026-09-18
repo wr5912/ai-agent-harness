@@ -25,6 +25,7 @@
 - `harness.yaml` 的 `loadable_assets` 只保留运行时装载资产；`pending_delivery`/`pending_cases` 从候选装载声明中移除。
 - 受控适配层安全摘要随 `source_contract.py`、`mutation-receipt.py`、`build-image.sh` 的既有变更重新审查并同步。
 - `role-tool-matrix.yaml` 的父级直连集合把残留的超长旧工具名改为已登记公开号；校验器新增“技能、角色矩阵与父级直连集合中的超长 MCP 工具引用必须登记公开号”的失败门禁，仓库测试增至 146 项。
+- 启动器交付 DSH Web 冷启动步骤：`plan`/`up` 输出 `workspace_to_register=/work/harness/workspace` 与操作提示。DSH 工作区注册表只从已存会话头 bootstrap，新实例 HOME 为空时界面必须先注册工作区；该锁定提交无受支持的预注册入口，启动器不改写 Runtime 存储内部格式。
 - 适配层门禁扩展：两种 Compose 的挂载数由 14 增至 16，只读上下文数据资产必须精确来源；开发模式命令必须叠加受控开发层且评测模式不得叠加；新增 `DSH_DEVELOPMENT_OVERLAY` 门禁，限制开发层只能改行白名单（`agent-presets` 与 Cordis 所需 host provider 行）且必须真的选中 `cordis`；`sources.json` 与来源合同登记 `development_patch_overlay`。仓库测试增至 147 项。
 
 ### 边界

@@ -42,6 +42,15 @@ CORDIS_TRUST_NOTICE = (
     "tool-cordis 能力，等同 shell 权限；容器使用 host 网络，可直达宿主回环服务（含本机 DSH Web）；"
     "创造模式会话不加载 security-operations-guard，注入的 SOC MCP 工具与 delegate 不受角色矩阵约束。"
 )
+CONTAINER_WORKSPACE = "/work/harness/workspace"
+# DSH Web 首次打开是冷启动：会话必须先绑定一个**已注册工作区**，而新实例的 DSH_HOME 里工作区注册表为空
+# （注册表 storages/workspace.json 只从已存会话头 bootstrap，且初始化标记一经写入不再重建）。DSH 在该锁定提交上
+# 没有受支持的工作区预注册入口，因此启动器只如实交付路径与操作步骤，不改写 Runtime 存储内部格式。
+WEB_COLD_START_HINT = (
+    "DSH Web 首次打开需要在界面注册工作区：点击“选择工作区”→ 目录对话框的“编辑路径”→ 粘贴 "
+    f"“{CONTAINER_WORKSPACE}” → “打开”，随后即可直接对话。该注册写入本实例 DSH_HOME 数据卷并跨重启保留；"
+    "换用新的实例名等于新的 HOME 卷，需要重新选择一次。"
+)
 
 
 def fail(message: str) -> None:
@@ -278,6 +287,8 @@ def command_plan(args: argparse.Namespace) -> None:
             *[{"container": asset["container"], "mode": "ro", "content": asset["content"]} for asset in assets],
         ],
         "context_assets": assets,
+        "workspace_to_register": CONTAINER_WORKSPACE,
+        "web_cold_start": WEB_COLD_START_HINT,
         "patch_overlay": contract.get("patch_overlay") if args.mode == "authoring" else None,
         "cordis_trust_required": args.mode == "authoring",
         "network": "host (127.0.0.1 only)",
@@ -320,6 +331,8 @@ def command_up(args: argparse.Namespace) -> None:
     run(compose_command(target, args.name, "up", "-d", "--no-build"), env=environment)
     print(json.dumps({"name": args.name, "project": project_name(args.name), "port": args.port,
                       "state_dir": str(target)}, ensure_ascii=False, indent=2, sort_keys=True))
+    print(json.dumps({"hint": WEB_COLD_START_HINT, "workspace_to_register": CONTAINER_WORKSPACE},
+                     ensure_ascii=False), file=sys.stderr)
 
 
 def command_ps(_args: argparse.Namespace) -> None:

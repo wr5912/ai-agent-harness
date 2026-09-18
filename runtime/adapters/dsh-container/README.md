@@ -80,6 +80,14 @@ python3 runtime/adapters/dsh-container/dsh-dev down secops-dev
 
 `--mode dev` 使用 `authoring.compose.yaml` 并在基础受控 patch 之后叠加 `security-operations-expert.development.patch.yml`（仅打开 DSH 出厂 preset 根并把默认 preset 设为 `cordis`；校验器对该文件实施行白名单）。因为创造模式会话具备 shell 与对实时 runtime 执行模型 JS 的 `tool-cordis` 能力（等同 shell 权限），且容器使用 host 网络、可直达宿主回环服务（含本机 DSH Web），`up --mode dev` 必须显式加 `--accept-cordis-trust`；`--mode eval` 拒绝该旗标。创造模式会话不加载 `security-operations-guard`，注入的 SOC MCP 工具与 delegate 因此**没有角色矩阵约束**——这是开发模式的已知边界，不是已隔离状态。`--mode eval` 不叠加开发层，`includeShippedRoot` 保持关闭，创造模式在该容器内不在 preset 名册中。
 
+**首次打开 Web 需要在界面注册工作区。** DSH Web 的输入栏在没有已打开会话时是惰性的，必须先选定一个**已注册工作区**才能开会话；工作区注册表（`$DSH_HOME/storages/workspace.json`）只从已存会话头 bootstrap，新实例的 HOME 卷里因此为空——容器的 `working_dir` 只是进程工作目录，不等于 DSH 工作区。该锁定 DSH 提交没有受支持的工作区预注册入口，启动器只交付路径与步骤、不改写 Runtime 存储内部格式：
+
+1. 在 Web 界面点击“选择工作区”；
+2. 在“选择工作区目录”对话框点“编辑路径”，粘贴 `/work/harness/workspace`（或从“主目录”逐级进入 `/work/harness/workspace`）；
+3. 点“打开”，会话即在该工作区创建，随后可直接对话。
+
+该注册写入本实例 DSH_HOME 数据卷并跨重启保留；换用新的实例名等于新的 HOME 卷，需要重新选择一次。`plan` 输出与 `up` 的 stderr 都会带上该路径与步骤。
+
 实例配置与 `instance.json` 写在 `${XDG_STATE_HOME:-~/.local/state}/dsh-dev/<name>/`，只记录环境变量**名称**、`purpose`、`preset_default`、`context_mounts` 与信任确认标记，不含 Token。渲染保留只读根文件系统、UID/GID 1000、能力裁剪和无端口发布，只把主 `dsh` 服务切到 host 网络并把 Web 绑定宿主回环。`url` 只读取**本次**进程启动后的日志并做 Token→Cookie→根页探针；标准输出不是交互终端时，必须显式加 `--non-interactive`，否则失败关闭，不把 Token 写进状态文件、普通日志或证据。
 
 候选 Profile 以 fail-closed 方式声明三个 `streamable-http` MCP 客户端；缺少真实端点与凭据时容器会在启动阶段退出，使"装载是否成立"无法核验。为此适配层提供两个只用于受控技术装载核验的本地工具：
