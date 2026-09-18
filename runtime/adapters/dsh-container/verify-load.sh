@@ -9,7 +9,7 @@ task_frozen_root=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help)
-      printf 'Usage: %s [authoring|verification] [--source EXP-agent-NNN] [--frozen SNAPSHOT_DIR]\n' "$0"
+      printf 'Usage: %s [authoring|verification] [--source EXP-agent-NNN|snapshot:snap-UUID] [--frozen RESEARCH_SNAPSHOT_OR_FROZEN_SOURCES_DIR]\n' "$0"
       printf 'Compare exact host/container mounts and DSH composed config; no business acceptance.\n'
       exit 0 ;;
     authoring|verification)
@@ -26,6 +26,16 @@ done
 if [[ -n "$task_frozen_root" && "$task_mode" != verification ]]; then
   printf 'Frozen source is only valid in verification mode.\n' >&2
   exit 2
+fi
+
+task_research_snapshot=false
+if [[ -n "$task_frozen_root" ]]; then
+  task_frozen_root="$(realpath -e -- "$task_frozen_root")"
+  if [[ -f "$task_frozen_root/snapshot.json" && -d "$task_frozen_root/harness/dsh" ]]; then
+    task_research_snapshot=true
+    task_source_id="snapshot:$(basename -- "$task_frozen_root")"
+    python3 "$task_adapter_dir/mutation-receipt.py" research-snapshot-verify "$task_frozen_root" >/dev/null
+  fi
 fi
 
 task_source_resolve_options=()
@@ -59,8 +69,11 @@ task_candidate_root="$(python3 "$task_adapter_dir/source_contract.py" --source "
 task_image_tag="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field image.local_image_tag)"
 task_patch="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field patch)"
 if [[ -n "$task_frozen_root" ]]; then
-  task_frozen_root="$(realpath -e -- "$task_frozen_root")"
-  task_candidate_root="$task_frozen_root"
+  if [[ "$task_research_snapshot" == true ]]; then
+    task_candidate_root="$task_frozen_root/harness/dsh"
+  else
+    task_candidate_root="$task_frozen_root"
+  fi
 fi
 export DSH_IMAGE_TAG="$task_image_tag"
 export DSH_MANAGED_PATCH="$task_patch"
@@ -68,7 +81,11 @@ export DSH_WORKSPACE_HOST="$task_candidate_root/workspace"
 export DSH_PRESETS_HOST="$task_candidate_root/presets"
 export DSH_MANAGED_HOST="$task_candidate_root/managed"
 
-if [[ -n "$task_frozen_root" ]]; then
+if [[ "$task_research_snapshot" == true ]]; then
+  task_workspace_sha="$(python3 "$task_adapter_dir/mutation-receipt.py" --source "$task_source_id" digest "$task_candidate_root/workspace")"
+  task_presets_sha="$(python3 "$task_adapter_dir/mutation-receipt.py" --source "$task_source_id" digest "$task_candidate_root/presets")"
+  task_managed_sha="$(python3 "$task_adapter_dir/mutation-receipt.py" --source "$task_source_id" digest "$task_candidate_root/managed")"
+elif [[ -n "$task_frozen_root" ]]; then
   task_workspace_sha="$(python3 "$task_adapter_dir/mutation-receipt.py" --source "$task_source_id" frozen-digest "$task_frozen_root" workspace)"
   task_presets_sha="$(python3 "$task_adapter_dir/mutation-receipt.py" --source "$task_source_id" frozen-digest "$task_frozen_root" presets)"
   task_managed_sha="$(python3 "$task_adapter_dir/mutation-receipt.py" --source "$task_source_id" frozen-digest "$task_frozen_root" managed)"

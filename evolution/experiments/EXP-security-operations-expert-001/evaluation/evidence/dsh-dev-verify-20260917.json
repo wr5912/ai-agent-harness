@@ -1,0 +1,54 @@
+{
+  "generated_at": "2026-09-18T01:00:20Z",
+  "image": {
+    "local_image_id": "544dcddbdf44",
+    "tag": "ai-agent-harness/dsh:c291e7961"
+  },
+  "instance": {
+    "missing_env_names": [
+      "DEEPSEEK_API_KEY",
+      "SEC_OPS_MCP_URL",
+      "SEC_OPS_MCP_TOKEN",
+      "INSPECTION_MCP_URL",
+      "INSPECTION_MCP_TOKEN",
+      "THREAT_ANALYSIS_MCP_URL",
+      "THREAT_ANALYSIS_MCP_TOKEN"
+    ],
+    "mode": "verification",
+    "mount_modes": {
+      "managed": "ro",
+      "presets": "ro",
+      "workspace": "ro"
+    },
+    "name": "soe-verify",
+    "network": "host, DSH binds 127.0.0.1 only, no published ports",
+    "port": 3081,
+    "project": "dsh-dev-soe-verify",
+    "source_id": "snapshot:snap-d0802d2a-ae8f-4d51-8101-b52bee291a2b"
+  },
+  "not_a_release_acceptance": true,
+  "observations": {
+    "container_state": "exited|1|map[host:0xc00027ea20]",
+    "mcp_absent_boot": {
+      "detail": "三个 MCP client 的 url 由环境变量注入；变量缺失时 DSH 启动期配置校验失败并退出，未降级为静默运行",
+      "evidence_excerpt": [
+        "Error: failed to apply loader entry security-operations-mcp-sec-ops (@deepseek-ai/dsh-mcp-client): invalid config:",
+        "Error: failed to apply loader entry security-operations-mcp-inspection (@deepseek-ai/dsh-mcp-client): invalid config:"
+      ],
+      "result": "fail-closed"
+    },
+    "web_endpoint": "未监听 3081（进程在配置校验阶段退出），未见 `dsh web:` 认证 URL 行"
+  },
+  "schema_version": "1.0",
+  "stage": "candidate-technical-load-verification",
+  "unverified_requires_external_input": [
+    "预置、29 项工作区技能的运行时发现与工具名绑定（需可达 MCP 端点）",
+    "认证 URL 交付（Token→Cookie→根页 200）与 Web 可用性（需 DSH 完成引导）",
+    "业务任务链与问题缺口判定（需模型凭据，按计划 C3）"
+  ],
+  "verified": [
+    "镜像按锁定提交构建成功并记录本地 Image ID",
+    "实例 Compose 渲染通过 docker compose config，启用 host 网络、只绑定 127.0.0.1、无 ports 段、无 Token",
+    "容器实际启动到 DSH 引导阶段；MCP 缺失时按 fail-closed 拒绝启动"
+  ]
+}

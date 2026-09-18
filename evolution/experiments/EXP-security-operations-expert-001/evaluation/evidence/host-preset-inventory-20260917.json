@@ -1,0 +1,355 @@
+{
+  "counts": {
+    "already-represented": 40,
+    "files": 53,
+    "merged-into-delegate-personas": 5,
+    "not-in-scope": 2,
+    "superseded-by-controlled-profile": 1,
+    "superseded-retired-route": 5
+  },
+  "credential_scan": {
+    "literal_secrets_found": false,
+    "note": "命中项为策略文本中提及 token/密钥的禁止性表述；agent.cordis.yml 含内网 MCP 端点 URL（172.16.x.x:50500），未复制入库，也不回显",
+    "private_endpoints_found": true
+  },
+  "disposition_rules": {
+    "already-represented": "仓库已有等价或更严格表达（fault-domain-* 技能、workspace/AGENTS.md、managed 控制面）",
+    "merged-into-delegate-personas": "子 Agent 契约的操作性规则合并进仓库 4 个委派角色 persona",
+    "not-in-scope": "DSH 0.1.5-rc.2 无 slash command 机制",
+    "superseded-by-controlled-profile": "旧 49KB agent.cordis.yml 由仓库受控 Profile + Guard 重写取代",
+    "superseded-retired-route": "旧策略子 Agent 与拓扑/设备/Preview 路线，宿主自身已声明退役"
+  },
+  "generated_at": "2026-09-17T12:38:49Z",
+  "note": "命中项为策略文本中提及 token/密钥的禁止性表述；agent.cordis.yml 含内网 MCP 端点 URL（私有网段，未复制入库，也不回显）",
+  "records": [
+    {
+      "disposition": "superseded-by-controlled-profile",
+      "path": "agent.cordis.yml",
+      "sha256": "8406950aecfcde838594647e9d4db49589b932f91e021b62b977a8432b23abda",
+      "size": 49367
+    },
+    {
+      "disposition": "merged-into-delegate-personas",
+      "path": "agents/inspection-agent.md",
+      "sha256": "6d41cecc7dc7426dba2a5eafc365edb14c04173cc64ba5d66707e7fa94d6c0ae",
+      "size": 3101
+    },
+    {
+      "disposition": "merged-into-delegate-personas",
+      "path": "agents/network-security-fault-analysis-expert.md",
+      "sha256": "5aebbdbda1d55fc0c98e68f84212302a7c6b53c4006d8bbf477b04cacf9289fd",
+      "size": 13605
+    },
+    {
+      "disposition": "superseded-retired-route",
+      "path": "agents/policy-operator.md",
+      "reason": "宿主自身最新 policy-configuration 已声明不得使用旧策略子 Agent、不得自行查询拓扑/设备或直接调用 Preview；仓库保留退役边界，不迁入",
+      "sha256": "a017d7fa68b9ef20013386e07ab0383e42702cb0a0a6bd5504f4e50d428819c5",
+      "size": 4218
+    },
+    {
+      "disposition": "merged-into-delegate-personas",
+      "path": "agents/response-playbook-resolver.md",
+      "sha256": "59f827d5d0bd88b16611ff4328c1cf6fe4e76d15b416c0e17278f2c6c4440518",
+      "size": 2451
+    },
+    {
+      "disposition": "merged-into-delegate-personas",
+      "path": "agents/response-strategy-planner.md",
+      "sha256": "1fff14012c3d7b8ba9035f0bc9995ccd569d02601ab0d8535a51be27fab832ef",
+      "size": 2205
+    },
+    {
+      "disposition": "merged-into-delegate-personas",
+      "path": "agents/threat-analysis.md",
+      "sha256": "78c7d5580c6484297705477289dd065bd4bc8fca3df5923bf042cf8b9589f823",
+      "size": 12588
+    },
+    {
+      "disposition": "not-in-scope",
+      "path": "commands/investigate-security-event.md",
+      "sha256": "5b14845efe58f66ef30bfde13a025a1c9cd56685c1e12e9a5b557097865f9f53",
+      "size": 665
+    },
+    {
+      "disposition": "not-in-scope",
+      "path": "commands/plan-response.md",
+      "sha256": "da59bff8f849ab0621e6c0db7341915f8345c11503914f0c5a20594bacd21d75",
+      "size": 1031
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/asset-association-abnormal/DOMAIN.md",
+      "sha256": "c0de11de75b9f66dca77529ec45ee924983009ddfa017778f4695eb95abd3706",
+      "size": 2435
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/asset-association-abnormal/evidence-boundary.md",
+      "sha256": "5e9a9498772455f9dca12cf035c9bc19adb3c7a8338f7f3aa8e2277d63c72523",
+      "size": 1628
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/asset-association-abnormal/planning-contract.md",
+      "sha256": "1a1c00460e262fc4b66dc0a98631f0dbe9052b2df51b3a562fac24f55b11d6b9",
+      "size": 3640
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/asset-runtime-status/DOMAIN.md",
+      "sha256": "97fb0588976db1fe40dc7c1b3414ef5d47c3c9c120f0aec83c72197036560489",
+      "size": 2370
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/asset-runtime-status/evidence-boundary.md",
+      "sha256": "046cc5b99139c41c7ab8697f0a56a9cde29b3b7bc0cf814e99a411d6d7a12e22",
+      "size": 1534
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/asset-runtime-status/planning-contract.md",
+      "sha256": "2c1fefce48fb38dda24e1e5c751ce5c8efe2516cf3d8df06cc1078bb464034cd",
+      "size": 3951
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/business-access-abnormal/DOMAIN.md",
+      "sha256": "a90d57cb759c6ca05508ae67d4347bbc2d1e40b76015bef35351e613a61a1734",
+      "size": 4858
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/business-access-abnormal/evidence-boundary.md",
+      "sha256": "525e8b8f9b5293f9c911547b79ce732234f44c1f8f4b9cdcb2e84fa0e0f995ec",
+      "size": 1316
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/business-access-abnormal/planning-contract.md",
+      "sha256": "fa93b8bbd2d1662cc2d3535287c267ca12638bfebfdaf510ddfefe139af00b99",
+      "size": 4605
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/cascade-data-sync-abnormal/DOMAIN.md",
+      "sha256": "a97faf5d2124a4b30e20ee0b35bb6fe41c23709bfedae412633b13789981c1fe",
+      "size": 2446
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/cascade-data-sync-abnormal/evidence-boundary.md",
+      "sha256": "df347c6b5368a66acdf4581d8cce415134a3ae54182ae5baea5c22147bbfd174",
+      "size": 1739
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/cascade-data-sync-abnormal/planning-contract.md",
+      "sha256": "d933127884f5075ad211913eed2fb3779cedfa33b64982e2316e0fe587680ca4",
+      "size": 3096
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/detection-alert-pipeline-abnormal/DOMAIN.md",
+      "sha256": "f01ebe235cd90dfba14ef928c92b1a2233d65a88e817f76e57f743d6ccb24e65",
+      "size": 2624
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/detection-alert-pipeline-abnormal/evidence-boundary.md",
+      "sha256": "37dab80854e61023ad057358f1a1e9fe21f74313a5bdd4748e719a573ebbcd66",
+      "size": 1773
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/detection-alert-pipeline-abnormal/planning-contract.md",
+      "sha256": "0dc271f560ab8bccd332b36712b0d3f6f0c4cd5c77597e974312faefad717279",
+      "size": 3301
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/host-security-configuration-risk/DOMAIN.md",
+      "sha256": "71a77c2094efed6d08c5f008c00582b6bb268022b349b87737020c3317e889bc",
+      "size": 2366
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/host-security-configuration-risk/evidence-boundary.md",
+      "sha256": "3fad425e521b78ebb7a31bc52761ce04fab0938c102a172b6fd8b292ba781899",
+      "size": 1476
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/host-security-configuration-risk/planning-contract.md",
+      "sha256": "886d25fb1bb615c08f5e9dbb4d331e89823f635324a154775054d17abb62f58d",
+      "size": 2835
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/identity-auth-login-abnormal/DOMAIN.md",
+      "sha256": "87ef07365d800bb27b662ff28eecc909aae6a2f13c1857b8e151e6cd3ad28201",
+      "size": 2983
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/identity-auth-login-abnormal/evidence-boundary.md",
+      "sha256": "3396594e05fb954312358a8c39b1f2c203f80856ddb0e50fdf728ad211435218",
+      "size": 2007
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/identity-auth-login-abnormal/planning-contract.md",
+      "sha256": "69f48cc75125db36c302165676cb711be9026bcf41313b068cbb527d51081896",
+      "size": 3676
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/vulnerability-exposure-risk/DOMAIN.md",
+      "sha256": "99d87c345585292a07bafa6dd0a93cdc8e4d3caac7b670fb75c258e4c9895852",
+      "size": 2265
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/vulnerability-exposure-risk/evidence-boundary.md",
+      "sha256": "5f22a4d1f5ddfb955a240b0fe6de33d43cb2c5cef565b62e5fa98d3a4e0aa209",
+      "size": 1588
+    },
+    {
+      "disposition": "already-represented",
+      "path": "fault-domains/vulnerability-exposure-risk/planning-contract.md",
+      "sha256": "381fa0d1d8001e8c63857c340ac2326f788ebe21215c0bd9afb0a4a7c8a06d7f",
+      "size": 2818
+    },
+    {
+      "disposition": "already-represented",
+      "path": "preset.yml",
+      "sha256": "7edbb783a586f230e2b2381dec815b3bce601dc7fa5acd561c4cdf3ce41de048",
+      "size": 206
+    },
+    {
+      "disposition": "already-represented",
+      "path": "rules/evidence-first.md",
+      "sha256": "ba1e115e74b7ec4832d5672db84f89e68d6b80db9e9767dcc8c4bcae54ac0594",
+      "size": 363
+    },
+    {
+      "disposition": "already-represented",
+      "path": "rules/fault-analysis-boundary.md",
+      "sha256": "10a9c1bb6edbbd83731bf5b8a7f769586240922c9cbc41313f50e60eb0d72992",
+      "size": 460
+    },
+    {
+      "disposition": "already-represented",
+      "path": "rules/response-safety.md",
+      "sha256": "b0689ea070553398f0cc3e71b2dd296a2a9adf542c81aa69da8306a493108342",
+      "size": 1782
+    },
+    {
+      "disposition": "already-represented",
+      "path": "rules/secops-operational-boundary.md",
+      "sha256": "06e801976fcffc59a87f4d51ede63e47a045c3a4472ec22e09e5750b132e402a",
+      "size": 725
+    },
+    {
+      "disposition": "already-represented",
+      "path": "skills/knowledge-base-search/SKILL.md",
+      "sha256": "57aecb5c797533a67ee161021909de14a332bda02566efc1993e078d368cb241",
+      "size": 11833
+    },
+    {
+      "disposition": "already-represented",
+      "path": "skills/knowledge-base-search/references/tool-contract.md",
+      "sha256": "71a97a1a79d51d44de5c1e7807a1f3d531223b0c6ad223977a0f1e60db87e410",
+      "size": 12477
+    },
+    {
+      "disposition": "already-represented",
+      "path": "skills/playbook-impact-assessment/SKILL.md",
+      "sha256": "94abb070f5c5d71f5519396ea5ef44703cda0b1e724e3c4c2e9eb3bc3e3389ad",
+      "size": 1399
+    },
+    {
+      "disposition": "already-represented",
+      "path": "skills/policy-configuration/SKILL.md",
+      "sha256": "bf8d476a2b044320f44f9148dffa5e6710e18ad0baf9afda11e9ec061cc7d0a1",
+      "size": 6398
+    },
+    {
+      "disposition": "superseded-retired-route",
+      "path": "skills/policy-device-binding/SKILL.md",
+      "reason": "宿主自身最新 policy-configuration 已声明不得使用旧策略子 Agent、不得自行查询拓扑/设备或直接调用 Preview；仓库保留退役边界，不迁入",
+      "sha256": "30c49333192dfc327679f4ebc94ae917246ee5394b4bf2e0c6b567714e3fba43",
+      "size": 1517
+    },
+    {
+      "disposition": "superseded-retired-route",
+      "path": "skills/policy-existing-rule-context/SKILL.md",
+      "reason": "宿主自身最新 policy-configuration 已声明不得使用旧策略子 Agent、不得自行查询拓扑/设备或直接调用 Preview；仓库保留退役边界，不迁入",
+      "sha256": "47f43209c3d0b4a15b2feae3dd45289094ab7590d1da69c2013a152e0feca3bf",
+      "size": 857
+    },
+    {
+      "disposition": "superseded-retired-route",
+      "path": "skills/policy-preview-handoff/SKILL.md",
+      "reason": "宿主自身最新 policy-configuration 已声明不得使用旧策略子 Agent、不得自行查询拓扑/设备或直接调用 Preview；仓库保留退役边界，不迁入",
+      "sha256": "6fe94cac617f5a9cf44766d7efa0f4a78156458dccb6f85c5d5df682ed563d2b",
+      "size": 2645
+    },
+    {
+      "disposition": "superseded-retired-route",
+      "path": "skills/policy-topology-resolution/SKILL.md",
+      "reason": "宿主自身最新 policy-configuration 已声明不得使用旧策略子 Agent、不得自行查询拓扑/设备或直接调用 Preview；仓库保留退役边界，不迁入",
+      "sha256": "3d582a4a64d09e35bfd899409be923dd11cfdefeefa4c01cc51d489530b2783d",
+      "size": 1566
+    },
+    {
+      "disposition": "already-represented",
+      "path": "skills/response-planning/SKILL.md",
+      "sha256": "7916c5025bf7d19b809ada587f14f37532d4d3ca28b7bf9d6ca3a0dfdeae1d92",
+      "size": 2982
+    },
+    {
+      "disposition": "already-represented",
+      "path": "skills/security-investigation/SKILL.md",
+      "sha256": "f4716f011c7407df2a32e849993e067b82de3dc0c6957f8080f21c86d65a7789",
+      "size": 1757
+    },
+    {
+      "disposition": "already-represented",
+      "path": "skills/threat-analysis-asset-context-scoring/SKILL.md",
+      "sha256": "92346e6135d02efdabcd7569ad17d41dd6d76e5f8d8ba49bafda9c9283c1da9e",
+      "size": 6124
+    },
+    {
+      "disposition": "already-represented",
+      "path": "skills/threat-analysis-baseline-profiling/SKILL.md",
+      "sha256": "52f39efa25e5cc039af2dcc2bb795c772e13d51a21861eb54f72933284e43c29",
+      "size": 4992
+    },
+    {
+      "disposition": "already-represented",
+      "path": "skills/threat-analysis-hypothesis-falsification/SKILL.md",
+      "sha256": "26ea8c54cb247547f2882db0304e50c8d38424e0164dffc771fb435ff99efd74",
+      "size": 8776
+    },
+    {
+      "disposition": "already-represented",
+      "path": "skills/threat-analysis-kill-chain-reconstruction/SKILL.md",
+      "sha256": "f03ebae452abdf0a446d2b35ba79b7d27df8d3b6d55342d8b2d92f4ceabc6de8",
+      "size": 8151
+    },
+    {
+      "disposition": "already-represented",
+      "path": "skills/threat-analysis-rule-tuning/SKILL.md",
+      "sha256": "3c0ae70b02fa67c5df52eb639984907cf7ce27e9668257a9a6fe47f575f0803b",
+      "size": 10072
+    }
+  ],
+  "schema_version": "1.0",
+  "source": {
+    "kind": "host-side-dsh-agent-preset",
+    "note": "只读清点；未复制到仓库，未执行其中内容",
+    "path": "/home/cmp/.dsh/.agent-presets/security-operations-expert"
+  }
+}

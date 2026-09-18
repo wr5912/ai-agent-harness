@@ -1,6 +1,6 @@
 # DSH 容器开发启动器设计方案
 
-> 状态：部分实施。来源解析（`experiment:`/`snapshot:` 选择器）、三角色挂载计划（`source_contract.py --mount-plan`）、完整研究快照（`mutation-receipt.py research-snapshot`）与 Run 台账（`run_record.py`）已在适配层实现并有回归测试；`dsh-dev up/url/open`、host 网络实例、容器启动与认证 URL 交付仍是本文的待实施合同，当前没有可执行的 `dsh-dev`。
+> 状态：`dsh-dev` 已实现 `image build`、`plan`、`up`、`ps`、`url`、`logs`、`down`：按来源选择器（`experiment:`/`snapshot:`）启动 host 网络实例（只绑定宿主回环）、渲染实例 Compose、按本次进程日志交付认证 URL 并做 Token→Cookie→根页探针（非交互输出须显式 `--non-interactive`）；`open`、`resume`、`fresh` 和 `release:<id>` 选择器仍是待实施合同。本轮实例级装载证据：[dsh-dev-live-load-20260918.json](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-live-load-20260918.json)。
 >
 > 范围：同一台 Linux Docker Engine 主机上的本地开发和候选技术核验。本文不设计生产部署入口，不改变 DSH Runtime 源码，也不替代 Agent 交付评估或 Release 验收。
 >
@@ -10,7 +10,7 @@
 
 开发者需要明确选择本仓库中的 Harness 来源和运行模式，快速启动容器内 DSH Web，并取得**宿主机浏览器可访问、包含本次进程 Token 的完整 URL**。启动器属于宿主侧开发工具；容器内运行的仍是锁定镜像中的官方 DSH，Harness 仍通过卷装载，`DSH_HOME` 仍是独立运行态数据根。
 
-当前适配层只装载 `EXP-security-operations-expert-001` 的 Candidate，提供 Authoring/Verification 两套 Compose；`dsh` 服务未发布宿主机端口，官方 Web 绑定容器内回环。因此即使容器日志出现 `127.0.0.1:3080`，该地址目前也不能直接供宿主机浏览器使用。现有[技术预检](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json)验证过隔离环境内 Token 入口 `303`、取得 Cookie 后根页面 `200`，但没有验证本文拟议的 host 网络、真实模型/MCP 或完整业务任务。当前没有可用的 `dsh-dev`，也没有已晋升的业务 Agent Release。
+适配层提供 Authoring/Verification 两套受控 Compose（`dsh` 服务不发布宿主机端口、官方 Web 绑定容器内回环），`dsh-dev` 则按实例在仓库外渲染一份启用了 host 网络、只绑定宿主回环的实例 Compose。现有[技术预检](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json)验证过隔离环境内 Token 入口 `303`、取得 Cookie 后根页面 `200`，但没有验证本文拟议的 host 网络、真实模型/MCP 或完整业务任务。当前仍没有已晋升的业务 Agent Release。
 
 锁定的 DSH 镜像身份见 [`source.lock.json`](../runtime/adapters/dsh-container/source.lock.json)。官方文档说明 `dsh web` 默认监听回环，支持 `--port`，并在启动后打印带进程 Token 的认证链接；Token 经根页面换取浏览器 Cookie。[DSH Web 应用说明](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/bundle/web-app/README.md)、[DSH HTTP Server](https://deepseek-harness.github.io/deepseek-harness/en/reference/subsystems/web-server)。官方在线文档可能随版本变化，实施时仍须在本仓库锁定镜像上实测参数与链接格式。
 
@@ -40,7 +40,7 @@ host 网络消除了此处的回环可达性问题，**也消除了容器与宿�
 
 ## 3. `dsh-dev` 命令合同
 
-拟议可执行入口为仓库内 `runtime/adapters/dsh-container/dsh-dev`，文中的 `dsh-dev` 表示开发者把该目录加入 `PATH` 后的命令名；直接调用时使用 `./runtime/adapters/dsh-container/dsh-dev`。建议只依赖 Python 3 标准库、Docker CLI 和 Compose，不在容器内安装管理工具。所有命令均为未来接口，**现在运行会找不到该入口**。
+可执行入口为仓库内 `runtime/adapters/dsh-container/dsh-dev`，文中的 `dsh-dev` 表示开发者把该目录加入 `PATH` 后的命令名；直接调用时使用 `./runtime/adapters/dsh-container/dsh-dev`。只依赖 Python 3 标准库、Docker CLI 和 Compose，不在容器内安装管理工具。下表命令中 `image build`、`plan`、`up`、`ps`、`url`、`logs`、`down` 已实现；`open`、`resume`、`fresh` 尚未实现。
 
 ```bash
 dsh-dev image build
@@ -72,7 +72,7 @@ dsh-dev fresh --source experiment:EXP-security-operations-expert-001 --mode auth
 
 ## 4. 实例生成与认证 URL 的正确性
 
-启动器在宿主侧解析 `experiment:<id>`、后续的 `snapshot:<immutable-ref>` 或 `release:<id>` 到**精确、已核验的来源**，拒绝路径穿越、符号链接越界、不存在的快照/Release、错误模式及仓库外来源。现有适配层已有 `sources.json` 和共享来源解析器；当前仅登记 `EXP-security-operations-expert-001`，`verify-load.sh --source` 可展开镜像、Patch 和三棵卷用于局部技术核验。Compose 的凭据环境名称与 HOME 卷仍对应默认样例；启动器须为其他 Agent 实例化环境与隔离 HOME，并验证实际装载和恢复，不能只替换资产卷便假称完整支持。已有三棵挂载树的局部物化/摘要核验工具，完整研究快照的元数据/插件构建身份和 `snapshot:<...>`、Release 启动器选择器仍待实现，不为它们创建空制品。
+启动器在宿主侧解析 `experiment:<id>`、`snapshot:<snap-UUID>` 或后续的 `release:<id>` 到**精确、已核验的来源**，拒绝路径穿越、符号链接越界、不存在的快照/Release、错误模式及仓库外来源。现有适配层已有 `sources.json` 和共享来源解析器；当前仅登记 `EXP-security-operations-expert-001`，`verify-load.sh --source` 可展开镜像、Patch 和三棵卷用于局部技术核验。`snapshot:<...>` 选择器已实现：`dsh-dev up`/`plan` 接受研究快照来源，`verify-load.sh --frozen <研究快照目录>` 会先核对该快照的只追加回执再以快照内容装载；`release:<id>` 选择器、完整研究快照的元数据/插件构建身份绑定仍待实现，不为它们创建空制品。Compose 的凭据环境名称与 HOME 卷仍对应默认样例；启动器须为其他 Agent 实例化环境与隔离 HOME，并验证实际装载和恢复，不能只替换资产卷便假称完整支持。
 
 对每个实例生成位于仓库外用户状态目录的非秘密配置；调用 Docker Compose 前运行 `config --quiet`，保留现有适配层的挂载/权限控制，只改变所选资产来源、实例身份、Web 端口和 `dsh` 服务的 host 网络。Compose 项目名和卷名按 `<name>` 隔离，不能复用现有固定 Compose 的默认 HOME。受信调用环境按变量名提供模型/MCP 端点和凭据；环境值不进入生成配置、计划输出或仓库。不得通过 DSH_HOME 或 Candidate `.env` 偷偷补齐配置。
 
@@ -105,4 +105,4 @@ dsh-dev fresh --source experiment:EXP-security-operations-expert-001 --mode auth
 3. 验证 `ps`、`plan`、默认 `logs`、错误输出和生成配置不意外泄露 Token/凭据；显式详细诊断与 `url --non-interactive` 的敏感输出边界单独测试。确认 Docker 日志保留配置。核 Authoring 单写者和 dirty 状态、Verification 冻结来源 RO、HOME 分离、无 Docker Socket 和仓库根挂载；检查超时、取消、非默认 UID/GID 与双实例恢复。
 4. 对模型/MCP/权限和至少一条真实任务链另行验收，记录用户可见结果、工具/审批行为、最终业务状态和审计；若缺少这些证据，只报告“本地 Web 接入通过”，不报告 Agent 交付或 Release 通过。
 
-本次仅形成设计。后续实现先交付来源解析、单实例 `plan/up/ps/down` 与 host 网络装载，再交付研究快照、恢复/全新实例、`url/open` 和诊断测试；已实现的子集必须明确标注，不得把本文示例命令加入可执行快速开始流程。
+当前实现覆盖第 1、2、3 条中的来源解析（`experiment:`/`snapshot:`）、单实例 `image build/plan/up/ps/url/logs/down`、host 网络渲染、认证 URL 探针、脱敏日志与 Token 不落盘，并有 `dsh-dev-live-load-20260918.json` 记录本轮实例级装载证据；主 JS 资源 `200`、双实例并发、`open`、`resume`、`fresh`、`release:<id>` 选择器与完整业务链仍未验收。已实现的子集必须明确标注，不得把本文示例命令加入可执行快速开始流程。

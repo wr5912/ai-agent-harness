@@ -16,7 +16,9 @@ try {
 } catch {
   throw new Error('missing or invalid selected DSH source contract')
 }
-if (source?.schema_version !== '1.0' || !/^EXP-[a-z0-9-]+-[0-9]{3}$/.test(source.source_id)
+const sourceSelector = /^(?:experiment:EXP-[a-z0-9-]+-[0-9]{3}|snapshot:snap-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/
+const sourceKinds = new Set(['experiment', 'snapshot'])
+if (source?.schema_version !== '1.0' || !sourceSelector.test(source.source_id) || !sourceKinds.has(source.source_kind)
   || source.profile !== 'web' || !source.patch?.startsWith('/opt/dsh-managed/')
   || !source.preset?.startsWith('/opt/dsh-presets/')
   || (source.guard !== null && !source.guard?.startsWith('/opt/dsh-managed/'))

@@ -1,0 +1,13 @@
+{
+  "acceptance_id_policy": "pending；不得机械发明业务 AC 或阈值",
+  "case_id_policy": "保留原 case-rsp/ins/flt/pol-*；四域合并后仍唯一",
+  "experiment_id": "EXP-security-operations-expert-001",
+  "pending_case_count": 200,
+  "requirement_ranges": {
+    "REQ-FLT-001..010": "REQ-019..028",
+    "REQ-INS-001..008": "REQ-011..018",
+    "REQ-POL-001..010": "REQ-029..038",
+    "REQ-RSP-001..010": "REQ-001..010"
+  },
+  "schema_version": "1.0"
+}

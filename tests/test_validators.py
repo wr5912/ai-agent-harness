@@ -3008,6 +3008,58 @@ class EvalLoopContractTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 1, payload)
             self.assertIn("AGENT_ISSUE_INVALID", error_codes(payload))
 
+    def test_skill_referencing_unmapped_overlong_tool_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = self._prepared_clone(Path(temp))
+            skills = (
+                clone / "evolution" / "experiments" / "EXP-security-operations-expert-001"
+                / "candidate" / "dsh" / "workspace" / ".agents" / "skills"
+            )
+            probe = skills / "probe-unmapped-tool"
+            probe.mkdir()
+            (probe / "SKILL.md").write_text(
+                "---\nname: probe-unmapped-tool\ndescription: \"探针技能：引用未登记公开号的超长工具名。\"\n---\n\n"
+                "调用 `mcp__sec-ops__ai_soc_unmapped__some_extremely_long_tool_name_for_probe_checks`。\n",
+                encoding="utf-8",
+            )
+            completed, payload = run_json(self._clone_validator(clone), str(clone))
+        self.assertEqual(completed.returncode, 1, payload)
+        self.assertIn("DSH_MCP_PUBLIC_TOOL_NAME", error_codes(payload))
+
+    def test_mapped_overlong_tool_public_name_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = self._prepared_clone(Path(temp))
+            skills = (
+                clone / "evolution" / "experiments" / "EXP-security-operations-expert-001"
+                / "candidate" / "dsh" / "workspace" / ".agents" / "skills"
+            )
+            probe = skills / "probe-mapped-tool"
+            probe.mkdir()
+            (probe / "SKILL.md").write_text(
+                "---\nname: probe-mapped-tool\ndescription: \"探针技能：引用已登记公开号。\"\n---\n\n"
+                "调用 `mcp__sec-ops__ai_workbench_policy__get_policy_confi_e0cfa6659b3a`。\n",
+                encoding="utf-8",
+            )
+            completed, payload = run_json(self._clone_validator(clone), str(clone))
+        self.assertEqual(completed.returncode, 0, payload)
+
+    def test_matrix_parent_allow_referencing_unregistered_overlong_tool_is_rejected(self) -> None:
+        """父级直连集合里的超长旧名同样不可绕过公开号登记。"""
+        with tempfile.TemporaryDirectory() as temp:
+            clone = self._prepared_clone(Path(temp))
+            matrix = (
+                clone / "evolution" / "experiments" / "EXP-security-operations-expert-001"
+                / "candidate" / "dsh" / "managed" / "role-tool-matrix.yaml"
+            )
+            text = matrix.read_text(encoding="utf-8").replace(
+                "    - mcp__sec-ops__ai_workbench_policy__get_policy_confi_e0cfa6659b3a\n",
+                "    - mcp__sec-ops__ai_workbench_policy__get_policy_configuration_status\n",
+            )
+            matrix.write_text(text, encoding="utf-8")
+            completed, payload = run_json(self._clone_validator(clone), str(clone))
+        self.assertEqual(completed.returncode, 1, payload)
+        self.assertIn("DSH_MCP_PUBLIC_TOOL_NAME", error_codes(payload))
+
     def test_run_manifest_contract_rejections(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             clone = self._prepared_clone(Path(temp))

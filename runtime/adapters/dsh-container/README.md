@@ -55,6 +55,33 @@ docker compose -f runtime/adapters/dsh-container/authoring.compose.yaml down
 
 官方 Web 当前默认只绑定容器内 `127.0.0.1`，本适配层未发布宿主端口，因此不会提供可从宿主浏览器使用的 URL。需要真实对外协议验收时，应在目标环境另行明确入口、认证、网络暴露与回滚方案；不能以本 Compose 的容器启动或配置展开代替完整业务链。
 
+## 开发启动器与本地装载核验
+
+`dsh-dev` 是宿主侧开发启动器（只依赖 Python 3 标准库、Docker CLI 和 Compose），把本目录的受控 Compose 渲染成仓库外实例：
+
+```bash
+python3 runtime/adapters/dsh-container/dsh-dev plan --source experiment:EXP-security-operations-expert-001 --mode verification --name soe-verify --port 3081
+python3 runtime/adapters/dsh-container/dsh-dev up --source snapshot:<snap-id> --mode verification --name soe-verify --port 3081
+python3 runtime/adapters/dsh-container/dsh-dev ps
+python3 runtime/adapters/dsh-container/dsh-dev url soe-verify --non-interactive   # 交互终端可省略该旗标
+python3 runtime/adapters/dsh-container/dsh-dev logs soe-verify --tail 200
+python3 runtime/adapters/dsh-container/dsh-dev down soe-verify
+```
+
+实例配置与 `instance.json` 写在 `${XDG_STATE_HOME:-~/.local/state}/dsh-dev/<name>/`，只记录环境变量**名称**，不含 Token。渲染保留只读根文件系统、UID/GID 1000、能力裁剪和无端口发布，只把主 `dsh` 服务切到 host 网络并把 Web 绑定宿主回环。`url` 只读取**本次**进程启动后的日志并做 Token→Cookie→根页探针；标准输出不是交互终端时，必须显式加 `--non-interactive`，否则失败关闭，不把 Token 写进状态文件、普通日志或证据。
+
+候选 Profile 以 fail-closed 方式声明三个 `streamable-http` MCP 客户端；缺少真实端点与凭据时容器会在启动阶段退出，使"装载是否成立"无法核验。为此适配层提供两个只用于受控技术装载核验的本地工具：
+
+```bash
+python3 evolution/experiments/EXP-security-operations-expert-001/evaluation/tools/derive_mcp_stub_tools.py --check
+python3 evolution/experiments/EXP-security-operations-expert-001/evaluation/tools/derive_mcp_stub_tools.py --out "$STATE/tools.json"
+node runtime/adapters/dsh-container/stub-mcp-streamable-http.mjs --port 3099 --tools "$STATE/tools.json" --log "$STATE/stub.log"
+```
+
+派生脚本只从候选 `mcp-servers.yaml`、`mcp-tool-name-map.json`、`role-tool-matrix.yaml` 取工具原始名，无法解析到"服务名 + 原始名"的引用即非零退出；桩服务只实现 `initialize`、`notifications/initialized`、`tools/list` 的最小协议面，只监听回环、不校验凭据、无业务语义，并只记录"是否带鉴权头"而不记录凭据值。它证明的是**受控 Profile 的 MCP 客户端配置、鉴权头注入与工具注册链路可装载**，不证明真实 MCP 服务集成、租户/对象授权、状态机、业务能力、评估结论或 Release 验收。真实业务核验必须在受信 Runtime 提供模型与 MCP 端点后进行。
+
+本轮候选的实例级装载证据见 [`dsh-dev-live-load-20260918.json`](../../../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-live-load-20260918.json)：容器保持运行、三个 MCP 客户端完成握手、三棵只读资产树与受控 HOME 摘要通过容器内探针、Web Token 入口探针通过；同时记录未验证项（无模型凭据，未建立 Agent Session）。
+
 ## 局部加载核验与变更回执
 
 镜像已经构建、候选资产未并发变化时，可以执行：

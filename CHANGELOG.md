@@ -13,18 +13,21 @@
 - 来源解析扩展：`source_contract.py` 支持 `experiment:<id>`、`snapshot:<snap-id>`、`release:<name>` 选择器，并按优化执行/被测执行/评分分析三种角色生成挂载计划，被测侧与评分侧判分材料隔离。
 - `mutation-receipt.py research-snapshot` 物化完整研究快照：候选元数据、Harness 树、spec、eval 与依赖身份一并冻结，附逐树摘要与完整性复核；旧 `fr-*` 三树冻结保留可用。
 - `run_record.py` 提供 Run 全生命周期：init 固定输入身份、record 逐 Trial 追加、gap 记录问题、finalize 收尾并封存 results/gaps 摘要；已收尾 Run 拒绝再写。
-- 校验器新增 Agent spec/eval/issues、Experiment runs/snapshots 契约校验，并去除单一迁移实验硬编码；交付校验器改读 spec/eval/runs 事实源，删除 results.csv 读取路径。测试增至 128 项，覆盖选择器、快照往返与篡改检测、Run 收尾封存、spec 与交付记录一致性、pending 与旧路径门禁。
+- 校验器新增 Agent spec/eval/issues、Experiment runs/snapshots 契约校验，并去除单一迁移实验硬编码；交付校验器改读 spec/eval/runs 事实源，删除 results.csv 读取路径。测试覆盖范围扩展到选择器、快照往返与篡改检测、Run 收尾封存、spec 与交付记录一致性、pending 与旧路径门禁。
+- 开发启动器 `dsh-dev`：按 `experiment:`/`snapshot:` 选择器渲染仓库外实例 Compose（host 网络、只绑定宿主回环、每实例独立 HOME 卷），提供 `image build`、`plan`、`up`、`ps`、`url`、`logs`、`down`；`url` 只从本次进程日志取认证 URL 并做 Token→Cookie→根页探针，非交互输出必须显式 `--non-interactive`。
+- 受控技术装载辅助：`stub-mcp-streamable-http.mjs` 提供只含 `initialize`/`notifications/initialized`/`tools/list` 的回环 MCP 桩，`derive_mcp_stub_tools.py` 只从候选 MCP 声明派生工具原始名并对无法解析的超长引用失败关闭，使 fail-closed 的 MCP 候选在缺少真实端点时仍可核验装载。
 
 ### 变更
 
 - Experiment `evaluation/` 重组为 `evidence/` 与 `tools/`；镜像构建证据与变更回执写入 `evaluation/evidence/`；`test_security_guard.mjs` 移至 `tests/experiments/`。
 - `harness.yaml` 的 `loadable_assets` 只保留运行时装载资产；`pending_delivery`/`pending_cases` 从候选装载声明中移除。
 - 受控适配层安全摘要随 `source_contract.py`、`mutation-receipt.py`、`build-image.sh` 的既有变更重新审查并同步。
+- `role-tool-matrix.yaml` 的父级直连集合把残留的超长旧工具名改为已登记公开号；校验器新增“技能、角色矩阵与父级直连集合中的超长 MCP 工具引用必须登记公开号”的失败门禁，仓库测试增至 146 项。
 
 ### 边界
 
-- 当前唯一交付结论仍为“退回整改”；容器技术检查与确定性插件单测不能替代真实模型/MCP 的 R3 业务评估。
-- `dsh-dev up/url/open` 容器启动与 host 网络实例、逐例驱动 DSH 的评测执行器仍未实施；其来源解析、快照、挂载计划与 Run 台账前置契约已交付。
+- 当前唯一交付结论仍为“退回整改”；容器技术检查、本地 MCP 桩与确定性插件单测不能替代真实模型/MCP 的 R3 业务评估。
+- `dsh-dev open/resume/fresh`、`release:<id>` 选择器与逐例驱动 DSH 的评测执行器仍未实施；其来源解析、快照、挂载计划与 Run 台账前置契约已交付。
 
 ## [0.1.0] - 2026-09-15
 

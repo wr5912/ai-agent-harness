@@ -1,0 +1,57 @@
+schema_version: "1.0"
+runtime: dsh-container-only
+status: experiment-candidate
+controls:
+  - id: CTRL-DSH-001
+    boundary: container-only-load
+    enforcement: runtime-adapter
+    failure_mode: stop
+  - id: CTRL-DSH-002
+    boundary: candidate-authoring-write-scope
+    enforcement: bind-mount-plus-native-guard
+    allowed: /work/harness/workspace
+    denied:
+      - /opt/dsh-managed
+      - /opt/dsh-presets
+      - /var/lib/dsh
+      - repository-root
+    authoring_live_behavior: experiment-only
+    verification_activation: host-review-new-container-new-session
+  - id: CTRL-DSH-003
+    boundary: verification-and-release-read-only
+    enforcement: bind-mount-plus-native-guard
+    failure_mode: stop
+  - id: CTRL-DSH-004
+    boundary: role-tool-monotonic-decay
+    enforcement: dsh-tool-filter-plus-native-guard
+    maximum_delegation_depth: 1
+  - id: CTRL-DSH-005
+    boundary: mcp-service-authority
+    enforcement: external-service
+    required_checks:
+      - tenant
+      - object
+      - parameter
+      - quantity
+      - idempotency
+      - approval
+      - audit
+    repository_cannot_prove: true
+  - id: CTRL-DSH-006
+    boundary: response-planning
+    enforcement: default-deny-native-guard
+    trusted_gate_env: DSH_SEC_OPS_RESPONSE_PLANNING_ENABLED
+    input_digest_env: DSH_SEC_OPS_RESPONSE_INPUT_SHA256
+    output_schema_validation: native-post-execute-guard
+    tool_access: none
+  - id: CTRL-DSH-007
+    boundary: immediate-inspection-execution
+    enforcement: default-deny-native-guard-plus-external-service
+    trusted_gate_env: DSH_SEC_OPS_INSPECTION_EXECUTION_ENABLED
+    idempotency_digest_env: DSH_SEC_OPS_INSPECTION_KEY_SHA256
+    external_service_must_enforce_tenant_object_approval_and_one_time_idempotency: true
+promotion_limits:
+  formal_eval_materialized: false
+  baseline_frozen: false
+  release_created: false
+  dsh_business_acceptance: false

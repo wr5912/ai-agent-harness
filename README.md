@@ -116,7 +116,7 @@
 
 容器启动、停止、镜像固定、挂载和局部检查见 [`dsh-container` 适配说明](./runtime/adapters/dsh-container/README.md)。真实安全动作仍由 DSH Runtime 与领域 MCP 服务端执行强制鉴权、租户/对象绑定、参数与数量约束、幂等、审批及审计；Prompt 或本仓库中的策略文字不能替代这些服务端控制。
 
-面向本机开发者的容器启动器仍处于设计阶段，命令及 host 网络、Token URL 的拟议合同见[《DSH 容器开发启动器设计方案》](./docs/DSH容器开发启动器设计方案.md)；`dsh-dev up/url/open` 目前不可运行，其前置的来源选择器、三角色挂载计划、研究快照与 Run 台账已在适配层实现。
+面向本机开发者的容器启动器见[《DSH 容器开发启动器设计方案》](./docs/DSH容器开发启动器设计方案.md)：`dsh-dev` 已实现 `image build`/`plan`/`up`/`ps`/`url`/`logs`/`down`（host 网络实例只绑定 `127.0.0.1`，认证 URL 取自本次进程并先做 Token 探针）；`open`/`resume`/`fresh` 仍未实现。
 
 当前 Candidate 的 `workspace/.env` 只有注释，是 Docker 首次只读子文件挂载所需的目标；实际容器会用适配层同字节的受控空环境层覆盖，不能在它或 DSH_HOME 的 `.env` 中放端点、变量或凭据。
 

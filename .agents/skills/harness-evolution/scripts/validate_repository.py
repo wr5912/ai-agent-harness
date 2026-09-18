@@ -114,8 +114,8 @@ DSH_ADAPTER_PINNED_SHA256 = {
     "Dockerfile": "b8b2379a7c8acaa6992db4d9a9f3cb7f2e9374606cc7a44082d405e0d9ce7105",
     "build-image.sh": "4dd075177d7dcfb1c549dee751d44ce596c727ed9078a1a86f3d7d057f6a5d28",
     "prepare-verification-home.mjs": "96e5495d29da68d1a106f9cd5462180b898edaf70456de263e3150220be620b4",
-    "verify-load.mjs": "c95b3f097e1a40bf8d4d309e0a9d0025319bfadc4061ceead00fed718124121d",
-    "verify-load.sh": "e6a710e1cb459d03713701772fb35a115e480f1632988e9139306387b26ca380",
+    "verify-load.mjs": "9ab59808f46155a2da3920671574c69849701ae82dd082ee28adf00d880f305a",
+    "verify-load.sh": "06153ff35c8fa1a0affef59426aee9595ba4d17c2fd464159dd5a81da21f38a6",
     "tree-digest.mjs": "ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
     "mutation-receipt.py": "4c2d6b1f0c4145adb35138a2a463a2a233817d1c880ef75845874d0b5bf26993",
     "source_contract.py": "9cb8f0e61e6e1d42ac570324a6c799ecd22718fcfdf508495660a098859f5f24",
@@ -1768,7 +1768,7 @@ def validate_security_migration_candidate(
     validate_dsh_profile(root, profile_path, profile, errors)
     validate_dsh_mcp_manifest(root, dsh / "managed" / "mcp-servers.yaml", errors)
     validate_dsh_role_matrix(root, dsh / "managed" / "role-tool-matrix.yaml", profile, errors)
-    validate_dsh_public_tool_map(root, dsh / "managed" / "mcp-tool-name-map.json", dsh / "managed" / "role-tool-matrix.yaml", profile, candidate / "runtime.lock.json", errors)
+    validate_dsh_public_tool_map(root, dsh / "managed" / "mcp-tool-name-map.json", dsh / "managed" / "role-tool-matrix.yaml", profile, candidate / "runtime.lock.json", dsh / "workspace" / ".agents" / "skills", errors)
     if path_present(candidate / "delivery" / "eval" / "cases.jsonl") or path_present(candidate / "delivery" / "eval" / "results.csv"):
         errors.append(issue("DSH_PENDING_IS_NOT_FORMAL_EVAL", "迁移 pending Case 不得与正式 Case/Trial 文件混用", relative(candidate / "delivery" / "eval", root)))
 
@@ -2002,7 +2002,7 @@ def validate_dsh_role_matrix(root: Path, path: Path, profile: object, errors: Li
             errors.append(issue("DSH_RESPONSE_NO_TOOLS", "响应规划角色不得持有工具", relative(path, root)))
 
 
-def validate_dsh_public_tool_map(root: Path, path: Path, matrix_path: Path, profile: object, runtime_lock_path: Path, errors: List[Dict[str, str]]) -> None:
+def validate_dsh_public_tool_map(root: Path, path: Path, matrix_path: Path, profile: object, runtime_lock_path: Path, skills_root: Path, errors: List[Dict[str, str]]) -> None:
     try:
         manifest = load_json_object(root, path)
         runtime_lock = load_json_object(root, runtime_lock_path)
@@ -2010,8 +2010,8 @@ def validate_dsh_public_tool_map(root: Path, path: Path, matrix_path: Path, prof
         errors.append(issue("DSH_MCP_PUBLIC_TOOL_NAME", "必须提供可校验的 DSH MCP 公开号映射", relative(path, root)))
         return
     mappings = manifest.get("mappings")
-    if manifest.get("schema_version") != "1.0" or manifest.get("runtime_commit") != runtime_lock.get("source_commit") or not isinstance(mappings, list) or len(mappings) != 3:
-        errors.append(issue("DSH_MCP_PUBLIC_TOOL_NAME", "超长旧名必须显式映射为三个 DSH 公开号", relative(path, root)))
+    if manifest.get("schema_version") != "1.0" or manifest.get("runtime_commit") != runtime_lock.get("source_commit") or not isinstance(mappings, list) or not mappings:
+        errors.append(issue("DSH_MCP_PUBLIC_TOOL_NAME", "超长旧名必须显式映射为 DSH 公开号", relative(path, root)))
         return
     matrix = dsh_yaml(root, matrix_path)
     roles = matrix.get("roles") if isinstance(matrix, dict) else None
@@ -2031,6 +2031,16 @@ def validate_dsh_public_tool_map(root: Path, path: Path, matrix_path: Path, prof
                     allow = filter_config.get("allow") if isinstance(filter_config, dict) else None
                     if isinstance(allow, list):
                         profile_names.update(name for name in allow if isinstance(name, str))
+    skill_names: Set[str] = set()
+    if skills_root.is_dir() and not skills_root.is_symlink():
+        for skill_file in sorted(skills_root.rglob("*.md")):
+            if skill_file.is_symlink() or not skill_file.is_file():
+                continue
+            try:
+                skill_text = read_text_limited(root, skill_file)
+            except (OSError, UnicodeError, ValueError):
+                continue
+            skill_names.update(re.findall(r"mcp__[A-Za-z0-9_-]+__[A-Za-z0-9_]+", skill_text))
     seen_public: Set[str] = set()
     for entry in mappings:
         if not isinstance(entry, dict):
@@ -2043,9 +2053,26 @@ def validate_dsh_public_tool_map(root: Path, path: Path, matrix_path: Path, prof
         qualified = "mcp__%s__%s" % (server, raw)
         digest = hashlib.sha256((server + "\x00" + raw).encode("utf-8")).hexdigest()[:12]
         expected = qualified[:51] + "_" + digest
-        if legacy != qualified or len(qualified) <= 64 or public != expected or len(public) != 64 or public in seen_public or public not in matrix_names or public not in profile_names or legacy in matrix_names or legacy in profile_names:
-            errors.append(issue("DSH_MCP_PUBLIC_TOOL_NAME", "角色工具名必须使用按锁定 DSH 算法生成的公开号，不能保留旧超长名", relative(path, root)))
+        referenced = public in matrix_names or public in skill_names
+        role_scoped = public in matrix_names
+        if (legacy != qualified or len(qualified) <= 64 or public != expected or len(public) != 64
+                or public in seen_public or not referenced
+                or (role_scoped and public not in profile_names)
+                or legacy in matrix_names or legacy in profile_names or legacy in skill_names):
+            errors.append(issue("DSH_MCP_PUBLIC_TOOL_NAME", "超长工具名必须登记按锁定 DSH 算法生成的公开号，并在角色矩阵或技能中被引用；不得保留旧超长名", relative(path, root)))
         seen_public.add(public)
+    mapped_public = {entry.get("dsh_public_name") for entry in mappings if isinstance(entry, dict)}
+    matrix_all_names: Set[str] = set(matrix_names)
+    direct_tools = matrix.get("parent_direct_tools") if isinstance(matrix, dict) else None
+    if isinstance(direct_tools, dict):
+        for key in ("allow", "deny_by_guard"):
+            values = direct_tools.get(key)
+            if isinstance(values, list):
+                matrix_all_names.update(value for value in values if isinstance(value, str) and value.startswith("mcp__"))
+    for source, names, source_path in (("技能", skill_names, skills_root), ("角色工具矩阵", matrix_all_names, matrix_path)):
+        for name in sorted(value for value in names if len(value) > 64):
+            if name not in mapped_public:
+                errors.append(issue("DSH_MCP_PUBLIC_TOOL_NAME", "%s引用了未登记公开号的超长工具名：%s" % (source, name), relative(source_path, root)))
 
 
 def validate_versioned_assets(

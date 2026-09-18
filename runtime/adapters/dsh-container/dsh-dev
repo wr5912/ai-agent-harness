@@ -1,0 +1,425 @@
+#!/usr/bin/env python3
+"""dsh-dev：按来源选择器启动本地 DSH 容器实例，并交付本次进程的认证 URL。
+
+设计合同见 docs/DSH容器开发启动器设计方案.md。本工具只依赖 Python 3 标准库、
+Docker CLI 与 Compose；实例配置生成在仓库外，Token 不落盘、不入仓库、不回显到日志。
+"""
+
+from __future__ import annotations
+
+import argparse
+import http.cookiejar
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from source_contract import REPO, resolve  # noqa: E402
+
+ADAPTER = Path(__file__).resolve().parent
+STATE_ROOT = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "dsh-dev"
+NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+TOKEN_URL_RE = re.compile(r"dsh web: (http://127\.0\.0\.1:(\d+)/\?token=[^\s()]+)")
+SECRET_RE = re.compile(r"(token=)[^\s&)\"']+")
+MODES = ("authoring", "verification")
+
+
+def fail(message: str) -> None:
+    print(f"dsh-dev failed: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def run(command: list[str], *, check: bool = True, capture: bool = True, env: dict | None = None) -> subprocess.CompletedProcess:
+    completed = subprocess.run(
+        command, text=True, capture_output=capture, check=False, env=env, timeout=300
+    )
+    if check and completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout or "").strip()
+        fail(f"命令失败（{command[0]}）：{detail[-400:]}")
+    return completed
+
+
+def compose_env(contract: dict, mode: str, port: int) -> dict:
+    environment = dict(os.environ)
+    environment.update(
+        {
+            "DSH_IMAGE_TAG": contract["image"]["local_image_tag"],
+            "DSH_MANAGED_PATCH": contract["patch"],
+            "DSH_WORKSPACE_HOST": contract["workspace"],
+            "DSH_PRESETS_HOST": contract["presets"],
+            "DSH_MANAGED_HOST": contract["managed"],
+        }
+    )
+    return environment
+
+
+def required_env_names(contract: dict) -> list[str]:
+    names = list(contract.get("required_env_names") or [])
+    return names
+
+
+def check_environment(contract: dict) -> None:
+    missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
+    if missing:
+        fail(
+            "以下运行时环境变量未注入，按 fail-closed 拒绝启动："
+            + "、".join(missing)
+            + "（由受信调用环境按名注入；本工具不读取凭据文件）"
+        )
+
+
+def render_compose(template: str, *, mode: str, project: str, port: int) -> str:
+    """把受控 Compose 模板渲染为实例配置：宿主网络、回环端口、每实例卷名。"""
+    if mode not in MODES:
+        fail("mode 只能是 authoring 或 verification")
+    text = template
+    replacements = [
+        (f"name: ai-agent-harness-dsh-{mode}", f"name: {project}"),
+        (f"dsh-{mode}-home", f"{project}-home"),
+        (f"dsh-{mode}-trusted-fallback", f"{project}-fallback"),
+    ]
+    for old, new in replacements:
+        if text.count(old) < 1:
+            fail(f"Compose 模板缺少预期锚点：{old}")
+        text = text.replace(old, new)
+    working_dir = "    working_dir: /work/harness/workspace\n"
+    if text.count(working_dir) != 1:
+        fail("Compose 模板缺少唯一的 working_dir 锚点")
+    text = text.replace(working_dir, working_dir + "    network_mode: host\n")
+    relative_source = "        source: ./"
+    if text.count(relative_source) < 1:
+        fail("Compose 模板缺少相对挂载源锚点")
+    text = text.replace(relative_source, f"        source: {ADAPTER}/")
+    command_tail = "      - --no-open\n"
+    if text.count(command_tail) != 1:
+        fail("Compose 模板缺少唯一的 command 锚点")
+    text = text.replace(
+        command_tail,
+        command_tail + f"      - --host\n      - 127.0.0.1\n      - --port\n      - \"{port}\"\n",
+    )
+    return text
+
+
+def extract_auth_url(log_text: str, port: int) -> str | None:
+    """从日志中提取唯一匹配本次端口与本机回环的认证 URL。"""
+    matches = [match for match in TOKEN_URL_RE.finditer(log_text) if int(match.group(2)) == port]
+    if not matches:
+        return None
+    urls = {match.group(1) for match in matches}
+    if len(urls) != 1:
+        return None
+    return urls.pop()
+
+
+def redact_secrets(text: str) -> str:
+    return SECRET_RE.sub(r"\1<redacted>", text)
+
+
+def instance_dir(name: str) -> Path:
+    if not NAME_RE.fullmatch(name):
+        fail("实例名必须使用小写 kebab-case")
+    return STATE_ROOT / name
+
+
+def project_name(name: str) -> str:
+    return f"dsh-dev-{name}"
+
+
+def write_instance(name: str, *, mode: str, contract: dict, port: int) -> Path:
+    target = instance_dir(name)
+    if target.exists():
+        manifest = target / "instance.json"
+        if manifest.is_file():
+            existing = json.loads(manifest.read_text(encoding="utf-8"))
+            if existing.get("source_id") != contract["source_id"] or existing.get("mode") != mode:
+                fail(
+                    f"实例 {name} 已存在且来源/模式不同（{existing.get('source_id')}/{existing.get('mode')}）；"
+                    "请改用新的实例名"
+                )
+        else:
+            fail(f"实例目录已存在但缺少 instance.json：{target}")
+    else:
+        target.mkdir(parents=True, exist_ok=False)
+    template = (ADAPTER / f"{mode}.compose.yaml").read_text(encoding="utf-8")
+    rendered = render_compose(template, mode=mode, project=project_name(name), port=port)
+    (target / "compose.yaml").write_text(rendered, encoding="utf-8")
+    manifest = {
+        "schema_version": "1.0",
+        "name": name,
+        "project": project_name(name),
+        "source_id": contract["source_id"],
+        "source_kind": contract["source_kind"],
+        "mode": mode,
+        "port": port,
+        "image_tag": contract["image"]["local_image_tag"],
+        "agent_id": contract["agent_id"],
+        "mounts": {
+            "workspace": contract["workspace"],
+            "presets": contract["presets"],
+            "managed": contract["managed"],
+        },
+        "mount_modes": {
+            "workspace": "rw" if mode == "authoring" else "ro",
+            "presets": "ro",
+            "managed": "ro",
+        },
+        "required_env_names": required_env_names(contract),
+    }
+    (target / "instance.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return target
+
+
+def compose_command(target: Path, name: str, *args: str) -> list[str]:
+    return ["docker", "compose", "-p", project_name(name), "-f", str(target / "compose.yaml"), *args]
+
+
+def load_instance(name: str) -> tuple[Path, dict]:
+    target = instance_dir(name)
+    manifest_path = target / "instance.json"
+    if not manifest_path.is_file():
+        fail(f"未找到实例 {name} 的状态文件；先执行 dsh-dev up")
+    return target, json.loads(manifest_path.read_text(encoding="utf-8"))
+
+
+def port_in_use(port: int) -> bool:
+    """以 TCP 连接探测宿主回环端口是否已被占用。"""
+    import socket
+
+    probe = socket.socket()
+    probe.settimeout(1.0)
+    try:
+        probe.connect(("127.0.0.1", port))
+    except OSError:
+        return False
+    finally:
+        probe.close()
+    return True
+
+
+def command_plan(args: argparse.Namespace) -> None:
+    if not 1 <= args.port <= 65535:
+        fail("--port 必须是合法 TCP 端口")
+    contract = resolve(args.source, repo=REPO)
+    if args.mode == "authoring" and contract["source_kind"] != "experiment":
+        fail("authoring 模式只接受 experiment:<id> 来源（研究快照只读）")
+    missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
+    plan = {
+        "schema_version": "1.0",
+        "name": args.name,
+        "project": project_name(args.name),
+        "mode": args.mode,
+        "port": args.port,
+        "source_id": contract["source_id"],
+        "source_kind": contract["source_kind"],
+        "image_tag": contract["image"]["local_image_tag"],
+        "mounts": [
+            {"container": "/work/harness/workspace", "mode": "rw" if args.mode == "authoring" else "ro"},
+            {"container": "/opt/dsh-presets", "mode": "ro"},
+            {"container": "/opt/dsh-managed", "mode": "ro"},
+        ],
+        "network": "host (127.0.0.1 only)",
+        "required_env_names": required_env_names(contract),
+        "missing_env_names": missing,
+        "state_dir": str(instance_dir(args.name)),
+        "risk": "host 网络取消容器与宿主机的网络命名空间隔离；实例只绑定 127.0.0.1",
+    }
+    print(json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True))
+
+
+def command_up(args: argparse.Namespace) -> None:
+    if not 1 <= args.port <= 65535:
+        fail("--port 必须是合法 TCP 端口")
+    if port_in_use(args.port):
+        fail(f"端口 {args.port} 已被占用；本工具不自动改端口，请显式指定其它端口")
+    contract = resolve(args.source, repo=REPO)
+    if args.mode == "authoring" and contract["source_kind"] != "experiment":
+        fail("authoring 模式只接受 experiment:<id> 来源（研究快照只读）")
+    if args.allow_missing_env:
+        missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
+        if missing:
+            print(json.dumps({"warning": "缺少运行时环境变量，按显式降级启动（仅技术装载核验）",
+                              "missing_env_names": missing}, ensure_ascii=False), file=sys.stderr)
+    else:
+        check_environment(contract)
+    target = write_instance(args.name, mode=args.mode, contract=contract, port=args.port)
+    environment = compose_env(contract, args.mode, args.port)
+    run(compose_command(target, args.name, "config", "--quiet"), env=environment)
+    run(compose_command(target, args.name, "up", "-d", "--no-build"), env=environment)
+    print(json.dumps({"name": args.name, "project": project_name(args.name), "port": args.port,
+                      "state_dir": str(target)}, ensure_ascii=False, indent=2, sort_keys=True))
+
+
+def command_ps(_args: argparse.Namespace) -> None:
+    entries = []
+    if STATE_ROOT.is_dir():
+        for target in sorted(STATE_ROOT.iterdir()):
+            manifest_path = target / "instance.json"
+            if not manifest_path.is_file():
+                continue
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            listing = run(compose_command(target, manifest["name"], "ps", "--format", "json"), check=False)
+            entries.append(
+                {
+                    "name": manifest["name"],
+                    "source_id": manifest["source_id"],
+                    "mode": manifest["mode"],
+                    "port": manifest["port"],
+                    "base_url": f"http://127.0.0.1:{manifest['port']}/",
+                    "ps": (listing.stdout or "").strip() or "not running",
+                }
+            )
+    print(json.dumps({"schema_version": "1.0", "instances": entries}, ensure_ascii=False, indent=2, sort_keys=True))
+
+
+def running_container(name: str) -> tuple[str, str]:
+    project = project_name(name)
+    listing = run(["docker", "ps", "--filter", f"label=com.docker.compose.project={project}",
+                   "--format", "{{.ID}}"], check=False)
+    containers = (listing.stdout or "").strip().splitlines()
+    if not containers:
+        fail(f"实例 {name} 没有运行中的容器")
+    container = containers[0]
+    inspect = run(["docker", "inspect", "--format", "{{.State.StartedAt}}", container])
+    return container, inspect.stdout.strip()
+
+
+def command_url(args: argparse.Namespace) -> None:
+    _, manifest = load_instance(args.name)
+    if not args.non_interactive and not sys.stdout.isatty():
+        fail(
+            "标准输出不是交互终端；认证 URL 含本次进程 Token。"
+            "确需由脚本或 IDE 消费时显式加 --non-interactive，并自行保护标准输出"
+        )
+    container, started_at = running_container(args.name)
+    logs = run(["docker", "logs", "--since", started_at, container], check=False).stdout or ""
+    url = extract_auth_url(logs, manifest["port"])
+    if url is None:
+        fail("未从本次进程日志中取得唯一的认证 URL（不返回历史链接，也不拼造 Token）")
+    probe = probe_url(url, manifest["port"])
+    if not probe["ok"]:
+        fail(f"认证 URL 探针失败：{probe['reason']}")
+    if args.non_interactive:
+        print("警告：标准输出含本次进程认证 URL（敏感），调用方负责管道与终端记录。", file=sys.stderr)
+    print(url)
+
+
+class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """禁止自动跟随重定向：Token 入口的 303 本身就是核验证据，不能被吞成 200。"""
+
+    def redirect_request(self, request, file_pointer, code, message, headers, new_url):
+        return None
+
+
+def probe_url(url: str, port: int) -> dict:
+    jar = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(
+        urllib.request.HTTPCookieProcessor(jar), NoRedirectHandler()
+    )
+    try:
+        request = urllib.request.Request(url, method="GET")
+        try:
+            with opener.open(request, timeout=20) as response:
+                status = response.status
+        except urllib.error.HTTPError as error:
+            status = error.code
+            error.close()
+        if status not in (200, 301, 302, 303, 307, 308):
+            return {"ok": False, "reason": f"Token 入口返回意外状态（HTTP {status}）"}
+        if not any(cookie.name for cookie in jar):
+            return {"ok": False, "reason": f"Token 入口未建立会话 Cookie（HTTP {status}）"}
+        root = f"http://127.0.0.1:{port}/"
+        try:
+            with opener.open(urllib.request.Request(root, method="GET"), timeout=20) as response:
+                root_status = response.status
+                html = response.read(65536).decode("utf-8", "replace")
+        except urllib.error.HTTPError as error:
+            error.close()
+            return {"ok": False, "reason": f"认证后根页面 HTTP {error.code}"}
+        if root_status != 200:
+            return {"ok": False, "reason": f"认证后根页面 HTTP {root_status}"}
+        if "__DSH_BOOT__" not in html:
+            return {"ok": False, "reason": "根页面缺少 __DSH_BOOT__"}
+        return {"ok": True, "reason": f"token({status})→cookie→root 200"}
+    except (urllib.error.URLError, OSError, ValueError) as error:
+        return {"ok": False, "reason": f"{type(error).__name__}"}
+
+
+def command_logs(args: argparse.Namespace) -> None:
+    logs = run(compose_command(instance_dir(args.name), args.name, "logs", "--no-color", "--tail",
+                               str(args.tail), "dsh")).stdout or ""
+    sys.stdout.write(redact_secrets(logs))
+
+
+def command_down(args: argparse.Namespace) -> None:
+    target = instance_dir(args.name)
+    if not (target / "instance.json").is_file():
+        fail(f"未找到实例 {args.name}")
+    run(compose_command(target, args.name, "down", "--remove-orphans"), check=False)
+    print(json.dumps({"name": args.name, "stopped": True, "home_preserved": True}, ensure_ascii=False))
+
+
+def command_image_build(args: argparse.Namespace) -> None:
+    script = ADAPTER / "build-image.sh"
+    if shutil.which("bash") is None:
+        fail("缺少 bash，无法调用 build-image.sh")
+    run(["bash", str(script), "--source", args.source], check=True, capture=False)
+    print(json.dumps({"built": True, "source": args.source}, ensure_ascii=False))
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    build = commands.add_parser("image", help="构建锁定 DSH 镜像")
+    build_sub = build.add_subparsers(dest="image_command", required=True)
+    build_parser = build_sub.add_parser("build")
+    build_parser.add_argument("--source", default="EXP-security-operations-expert-001")
+    build_parser.set_defaults(handler=command_image_build)
+
+    for name, handler, needs_source in (
+        ("plan", command_plan, True),
+        ("up", command_up, True),
+    ):
+        sub = commands.add_parser(name, help="实例计划或启动")
+        if needs_source:
+            sub.add_argument("--source", required=True, help="experiment:<id> 或 snapshot:<snap-id>")
+        sub.add_argument("--mode", choices=MODES, required=True)
+        sub.add_argument("--name", required=True)
+        sub.add_argument("--port", type=int, required=True)
+        if name == "up":
+            sub.add_argument("--allow-missing-env", action="store_true",
+                             help="显式允许缺少运行时环境变量，仅用于技术装载核验")
+        sub.set_defaults(handler=handler)
+
+    commands.add_parser("ps", help="列出启动器管理的实例").set_defaults(handler=command_ps)
+
+    url_parser = commands.add_parser("url", help="取得本次进程的认证 URL")
+    url_parser.add_argument("name")
+    url_parser.add_argument("--non-interactive", action="store_true",
+                            help="允许向非交互标准输出打印认证 URL（含敏感值，调用方自负保护责任）")
+    url_parser.set_defaults(handler=command_url)
+
+    logs_parser = commands.add_parser("logs", help="输出有界、尽力脱敏的运行日志")
+    logs_parser.add_argument("name")
+    logs_parser.add_argument("--tail", type=int, default=200)
+    logs_parser.set_defaults(handler=command_logs)
+
+    down_parser = commands.add_parser("down", help="停止实例并保留 HOME")
+    down_parser.add_argument("name")
+    down_parser.set_defaults(handler=command_down)
+
+    args = parser.parse_args()
+    args.handler(args)
+
+
+if __name__ == "__main__":
+    main()
