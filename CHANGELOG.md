@@ -2,6 +2,25 @@
 
 本文件记录仓库治理、目录契约和公共演进工具的变化。单个 Agent/Harness Release 的变更应记录在对应不可变 Release 中。
 
+## [0.4.0]
+
+### 新增
+
+- `dsh-dev up --replace`：先停止同名实例自身的容器（保留 HOME 数据卷）再按新配置启动。挂载内容变化不会让容器进程自动重启，普通 `compose up -d` 也不会仅因挂载内容变化重建容器，因此重载需要这个入口或"先 `down` 再同名 `up`"。
+- `ps` 每条实例输出 `agent_id`、`session_preset`、`target_preset`、`state_schema`、`needs_migration`；单条实例记录损坏时只在该条报 `error`，不再中断整张列表。
+- 仓库校验器新增来源目录一致性门禁：`sources.json` 的 `preset` 必须是 `<agent_id>/<file>`。
+
+### 变更
+
+- **会话身份与优化目标分离**：`plan`、`up`、`instance.json` 统一给出 `session_preset`（本次会话实际运行的 preset）、`target_preset`（待优化/待评估目标，始终来自来源声明）与 `agent_id`。开发模式下前两者不同（`cordis` 对业务 preset），此前的单一 `target_preset` 字段在两种模式下含义不一致。受控开发指令同步说明两者的区别与用途。
+- **实例状态 schema `1.2` → `1.3`**，`target_preset` 含义收窄并新增 `session_preset`。`ps`、`logs`、`down` 不再要求状态文件是最新 schema：旧实例按记录里已有的字段重建 Compose 环境，缺失字段交给 Compose 报出变量名，因此旧实例仍可停止与查询。已停止的旧实例直接同名 `up` 即完成迁移；仍在运行的用 `up --replace` 或先 `down` 再同名 `up`；`ps` 以 `needs_migration` 标出待迁移实例。
+- 端口占用区分归属：被本实例自身容器占用时给出 `down` 与 `--replace` 两条出路；被其他占用者占用时按原样失败。同名实例记录端口与 `--port` 不一致时直接失败，不自动改端口。
+- **生效默认 preset 与声明绑定**：来源解析要求 `sources.json` 的 `preset` 目录等于 `agent_id`；仓库校验器要求候选基础 patch 的 `agent-presets.default` 等于该 Agent 的 `preset_id`，替换原先硬编码的业务名。新建 preset 的四处对应位置（preset 目录、`harness.yaml` 的 `preset_id`、`sources.json`、基础 patch 默认值）在受控开发指令中列明。
+- **阅读视图工具**：写出前核对输出是否就是输入（含相对/绝对路径、符号链接与硬链接别名），并拒绝会落在下次渲染输入集合内的路径，被拒时退出码 2 且不改动任何输入；表格只放短字段并转义竖线，用户输入与测试前提用按内容自适应长度的栅栏块原样保留，列表项换行用缩进续行；正文顺序调整为名称与状态、用户输入、测试前提、预期行为、检查方法、关联与来源，与工具说明一致。
+- `requirements.md` 由十列宽表改为短索引表加逐条 `### REQ-xxx <需求名称>` 段落，字段用加粗标签分述；稳定 ID、业务信息与机器字段不变，生成器同步并可逐字节重放。
+- `dsh-dev` 的 `--source` 帮助只列出当前支持的 `experiment:<id>`；模块说明的设计合同指向当前设计方案。
+- 证据 `dsh-dev-identity-and-lifecycle-20260919.json`：实机核对两种模式的身份与目标字段、旧状态实例的 `ps`/`up`/`up --replace` 行为、迁移后 HOME 数据卷保留。
+
 ## [0.3.0]
 
 ### 新增

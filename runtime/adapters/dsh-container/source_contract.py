@@ -128,6 +128,13 @@ def _experiment_contract(
     for name in item["required_env_names"]:
         if not re.fullmatch(r"[A-Z][A-Z0-9_]*", name):
             raise ValueError("invalid required environment name")
+    declared_preset = preset_id(item["preset"])
+    if declared_preset != item["agent_id"]:
+        # 一个来源声明一个 Agent 与一个 preset ID；路径与 agent_id 不一致会让"计划显示的目标"
+        # 与"来源所代表的 Agent"分叉，因此在此失败关闭，而不是留给下游各自解释。
+        raise ValueError(
+            "source preset 目录与 agent_id 不一致：%s != %s" % (declared_preset, item["agent_id"])
+        )
     contract = {
         "schema_version": "1.0",
         "source_kind": "experiment",
@@ -142,7 +149,7 @@ def _experiment_contract(
         "profile": item["profile"],
         "patch": "/opt/dsh-managed/" + item["patch"],
         "preset": "/opt/dsh-presets/" + item["preset"],
-        "preset_id": preset_id(item["preset"]),
+        "preset_id": declared_preset,
         "guard": "/opt/dsh-managed/" + item["guard"] if item["guard"] else None,
         "patch_overlay": "/opt/dsh-managed/" + item["development_patch_overlay"],
         "config_markers": item["config_markers"],

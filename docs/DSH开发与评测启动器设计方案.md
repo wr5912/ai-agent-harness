@@ -53,7 +53,7 @@ python3 runtime/adapters/dsh-container/dsh-dev plan \
   --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3081
 ```
 
-`plan` 会打印本次的 `mode`、`target_preset`、`workspace_to_register`、`dev_instructions`、`grading_material_mounted`、挂载清单和缺失的环境变量名。先核对这些值与本次任务一致，再启动。
+`plan` 会打印本次的 `mode`、`agent_id`、`session_preset`、`target_preset`、`workspace_to_register`、`dev_instructions`、`grading_material_mounted`、挂载清单和缺失的环境变量名。先核对这些值与本次任务一致，再启动；报告目标用 `target_preset`，描述本次会话用 `session_preset`。
 
 来源只接受 `experiment:<id>`。`source_contract.py` 校验 `sources.json` 中登记的 `candidate_root`、patch、preset、Guard 与开发叠加层确实存在且不是符号链接或硬链接，并从 preset 相对路径推出 `preset_id`——适配层不内联任何业务 Agent 名。
 
@@ -66,7 +66,7 @@ python3 runtime/adapters/dsh-container/dsh-dev plan \
 ### 4.3 重新装载并运行
 
 ```bash
-# 构建镜像（首次或适配层脚本变更后；镜像内脚本有摘要门禁，过期即拒绝启动）
+# 构建镜像（首次或镜像内容变化后；适配层脚本走只读挂载，改脚本不需要重建镜像）
 python3 runtime/adapters/dsh-container/dsh-dev image build
 
 # 开发会话：出厂 cordis 创造模式，等同 shell 权限，需要显式确认
@@ -82,9 +82,19 @@ python3 runtime/adapters/dsh-container/dsh-dev up \
 python3 runtime/adapters/dsh-container/dsh-dev url secops-dev
 ```
 
-**源码改了不等于已经生效。** Preset 存在按 ID 的驻留装载，不能假设"再开一个同 ID 会话就一定重读全部文件"。改完 preset 或 managed 后重新 `up`（或按 DSH 实际机制重载），再在界面上新建会话，并确认预先定义的可观察变化真的出现。
+**源码改了不等于已经生效。** 容器里的进程不会因为 bind 挂载内容变化而自动重启，普通 `docker compose up -d` 也不会仅因挂载内容变化重建容器；Preset 又存在按 ID 的驻留装载。因此改完 preset、managed 或岗位脚本后必须真正重启实例：
 
-DSH Web 首次打开需要在界面注册工作区：点击"选择工作区" → 目录对话框"编辑路径" → 粘贴 `/work/harness/workspace` → "打开"。锁定提交没有受支持的工作区预注册入口，因此启动器只交付路径与步骤，不改写 Runtime 存储格式。该注册写入本实例 HOME 卷并跨重启保留；换实例名等于换 HOME 卷，需要重新选择一次。
+```bash
+# 一条命令：先停同名实例自身的容器（保留 HOME 数据卷）再按新配置启动
+dsh-dev up --source <id> --mode dev --name secops-dev --port 3081 --accept-cordis-trust --replace
+
+# 等价做法：先 down，再同名同端口 up
+dsh-dev down secops-dev && dsh-dev up ...
+```
+
+重启后在界面上**新建会话**（不要复用旧会话），并确认预先定义的可观察变化真的出现。适配层脚本走只读挂载，只需重启实例，不必重建镜像。
+
+DSH Web 首次打开需要在界面注册工作区：点击"选择工作区" → 目录对话框"编辑路径" → 粘贴本次模式对应的路径 → "打开"。开发会话注册 `/work`，被测会话注册 `/work/harness/workspace`；以 `plan.workspace_to_register` 为准。锁定提交没有受支持的工作区预注册入口，因此启动器只交付路径与步骤，不改写 Runtime 存储格式。该注册写入本实例 HOME 卷并跨重启保留；换实例名等于换 HOME 卷，需要重新选择一次。
 
 ### 4.4 运行评测
 
@@ -136,7 +146,9 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 | | `--mode dev`（authoring） | `--mode eval`（verification） |
 |---|---|---|
-| 运行身份 | 出厂 `cordis` 创造模式 | 所选来源声明的目标 preset（`target_preset`） |
+| `session_preset`（本次会话实际运行） | 出厂 `cordis` 创造模式 | 所选来源声明的目标 preset |
+| `target_preset`（待优化/待评估目标） | 所选来源声明的业务 preset | 同 `session_preset` |
+| 注册工作区（`plan.workspace_to_register`） | `/work` | `/work/harness/workspace` |
 | `/work/harness/workspace` | 读写 | 只读 |
 | `/opt/dsh-presets` | 只读 | 只读 |
 | `/opt/dsh-managed` | 只读 | 只读 |
@@ -158,7 +170,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 | 会话指令来源 | `/work/AGENTS.md`（受控只读） | `/work/harness/workspace/AGENTS.md`（目标业务指令） |
 | 目标业务 `AGENTS.md` | 作为编辑对象可读可写 | 作为会话身份注入 |
 
-开发指令文件由 `verification-home-controls/locked-dev.AGENTS.md` 提供，精确只读挂载。它的内容是**通用的**：说明开发者身份、目标位置（`/work/harness/workspace`、`/opt/dsh-presets`、`/opt/dsh-managed`）、上下文路径、修改与保存纪律，并明确目标 preset ID 以启动器输出的 `target_preset` 为准。它不内联任何业务 Agent 名——仓库校验器会核对这一点，同时要求文件非空、有界、不含 URL 或 `!!js`。
+开发指令文件由 `verification-home-controls/locked-dev.AGENTS.md` 提供，精确只读挂载。它的内容是**通用的**：说明开发者身份、目标位置（`/work/harness/workspace`、`/opt/dsh-presets`、`/opt/dsh-managed`）、上下文路径、修改与保存纪律，并区分本次会话身份（`session_preset`）与待优化目标（`target_preset`），两者都以启动器输出为准。它不内联任何业务 Agent 名——仓库校验器会核对这一点，同时要求文件非空、有界、不含 URL 或 `!!js`。
 
 被测容器不挂载该文件：它运行的是目标智能体，读到开发者指令会让目标身份错位。
 
@@ -170,7 +182,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 因此：
 
-- 判分材料只挂给开发会话（用于修改和核对）和评分角色；
+- 判分材料只挂给开发会话（供其阅读与核对，维护在宿主侧完成）和评分角色；
 - 被测角色默认不挂任何评测材料，`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言——不只是"没挂"，而是这些路径在容器里不存在；
 - 确需给被测侧数据的，必须显式声明一个已确认不含预期答案的输入根（`mount_plan --eval-input`），不能把整个 `eval` 目录当作"被测输入"。
 
@@ -183,13 +195,24 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
   config:
     default: cordis
     includeShippedRoot: true
-    includeUserRoot: false
+    includeUserRoot: true
     roots:
       - path: /opt/dsh-presets
         trust: system
 ```
 
-开发层同时打开出厂根与**可写用户根**（HOME 下的 `.agent-presets`），因此创造者在容器内可以新建一份候选 preset 并试跑：受控的 `/opt/dsh-presets` 与 `/opt/dsh-managed` 仍然只读，运行中的受控配置没有被改写，用户根只是额外的候选来源。新建 preset 必须用与现有 preset 不同的 ID——DSH 按根顺序扫描，较早的系统根会遮蔽用户根里的同名 preset。容器内产物只算探索，宿主复核后复制回 `candidate/dsh/presets/<new-id>/` 再重建实例。完整步骤见受控开发指令 `/work/AGENTS.md`。
+开发层同时打开出厂根与**可写用户根**（HOME 下的 `.agent-presets`），因此创造者在容器内可以新建一份候选 preset 并试跑：受控的 `/opt/dsh-presets` 与 `/opt/dsh-managed` 仍然只读，运行中的受控配置没有被改写，用户根只是额外的候选来源。新建 preset 必须用与现有 preset 不同的 ID——DSH 按根顺序扫描，较早的系统根会遮蔽用户根里的同名 preset。容器内产物只算探索；完整步骤见受控开发指令 `/work/AGENTS.md`。
+
+并入候选时以下四处必须一起改，只改一处会被拒绝：
+
+| 位置 | 内容 |
+|---|---|
+| 候选 `presets/<new-id>/` | 新 preset 目录本身 |
+| 候选 `harness.yaml` 的 `preset_id` | 必须等于新 ID，且等于该 Agent 的 `agent_id` |
+| `sources.json` 的 `agent_id` 与 `preset` | `preset` 必须是 `<agent_id>/agent.cordis.yml`，来源解析与仓库校验器都会核对 |
+| 基础 patch 的 `agent-presets.default` | DSH 实际生效的默认 preset，必须等于同一个 ID |
+
+按当前模型，一个新 preset **ID** 等于一个新的 Agent 身份；同一个 Agent 只改 preset **内容**时不需要新 ID。多 Variant（一个 Agent 对应多个 preset ID）需要改资产模型，不属于当前实现。
 
 评测模式两种根都保持关闭：`includeShippedRoot: false`、`includeUserRoot: false`，创造模式与用户 preset 在该容器内都不可选。`--mode dev` 缺 `--accept-cordis-trust` 即失败关闭，`--mode eval` 拒绝该旗标。
 
@@ -208,7 +231,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 **适配层脚本不烘焙进镜像。** `verify-load.mjs`、`tree-digest.mjs`、`prepare-verification-home.mjs` 由 Compose 以只读 bind 把整个适配层目录挂到 `/opt/dsh-adapter`（`home-init` 与 `dsh` 两个服务都挂）。因此：
 
-- 改脚本只需重新 `up` 实例，不必重建镜像，也不会出现"镜像内脚本已过期"的中间状态；
+- 改脚本只需重启实例（`down` + 同名 `up`，或 `up --replace`），不必重建镜像；
 - 容器实际读到的脚本字节与宿主上被审查的文件一致由同一份挂载保证，`verify-load.sh` 仍在容器内用 `sha256sum` 核对这三个文件的摘要并记录到证据里；
 - 镜像只在 DSH 源码提交、基础镜像、系统依赖或目录结构变化时才需要重建。
 
@@ -216,7 +239,19 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 ### 5.7 实例状态
 
-实例配置生成在仓库外：`$XDG_STATE_HOME/dsh-dev/<name>/{compose.yaml,instance.json}`（缺省 `~/.local/state/dsh-dev/`）。`instance.json`（schema `1.1`）记录来源、模式、`target_preset`、端口、镜像标签、profile patch、挂载与上下文挂载、环境变量名。它不含 Token，也不进入仓库；`ps`、`logs`、`down` 从它重建 Compose 环境。
+实例配置生成在仓库外：`$XDG_STATE_HOME/dsh-dev/<name>/{compose.yaml,instance.json}`（缺省 `~/.local/state/dsh-dev/`）。`instance.json`（schema `1.3`）记录来源、模式、`agent_id`、`target_preset`、`session_preset`、端口、镜像标签、profile patch、挂载与上下文挂载、环境变量名。它不含 Token，也不进入仓库。
+
+`ps`、`logs`、`down` 从实例状态文件重建读取该实例 Compose 所需的环境变量，并且**不要求状态文件是最新 schema**：一条旧实例必须仍然能被停止和查询，否则新版会卡在"旧状态拒绝操作、同名 `up` 又被端口挡住"的循环里。记录里缺失的字段不猜：旧模板用 `${VAR:-默认}`，缺值可解析；新模板用 `${VAR:?}`，缺值由 Compose 报出变量名。
+
+三种升级情形：
+
+| 情形 | 做法 |
+|---|---|
+| 旧状态实例已停止 | 直接同名同端口 `up`：重渲染 Compose 并按当前 schema 重写状态，即完成迁移 |
+| 旧状态实例仍在运行 | `up --replace`（先停自身容器、保留 HOME，再启动），或先 `down` 再同名 `up` |
+| `ps` 显示 `needs_migration: true` | 说明该实例状态文件早于当前 schema；按上面两行之一迁移，查询与停止在此期间照常可用 |
+
+`--replace` 只停同名实例自身的容器，不带 `-v`，HOME 数据卷保留；同名但来源或模式不同的实例仍然拒绝（身份冲突）。同名实例不得改端口：记录端口与 `--port` 不一致时直接失败。
 
 ## 6. 异常与已有实例处理
 
@@ -225,9 +260,10 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 | 端口被占用 | `up` 直接失败，不自动改端口；显式换 `--port` |
 | 缺运行时环境变量 | 默认失败并列出变量名。只有技术装载核验才用 `--allow-missing-env` 显式降级，并在输出中标注 |
 | 同名的实例已存在且来源或模式不同 | 直接失败；改用新的实例名，或先 `down` 旧实例 |
-| 界面提示选择工作区、输入栏无响应 | 这是 DSH 的冷启动流程：注册 `/work/harness/workspace`。注册一次即写入该 HOME 卷并跨重启保留；换实例名需要重新选择 |
-| 改完 preset 但行为没变 | Preset 按 ID 驻留装载。重新 `up` 并新建会话，不要复用旧会话；必要时用 `verify-load.sh` 核对实际组合配置 |
-| 镜像内脚本过期 | `verify-load.sh` 拒绝启动并提示重建镜像；执行 `image build` |
+| 界面提示选择工作区、输入栏无响应 | 这是 DSH 的冷启动流程：按模式注册 `/work`（dev）或 `/work/harness/workspace`（eval）。注册一次即写入该 HOME 卷并跨重启保留；换实例名需要重新选择 |
+| 改完 preset 但行为没变 | 挂载内容变化不会自动重启进程。用 `up --replace` 或 `down` + 同名 `up` 重启实例，再新建会话；必要时用 `verify-load.sh` 核对实际组合配置 |
+| 端口被本实例自身占用 | `up` 提示先 `down` 或加 `--replace`；同名实例不得改端口，也不会自动换端口 |
+| 旧状态实例需要迁移 | `ps` 标出 `needs_migration: true`；已停止的直接同名 `up`，仍在运行的用 `up --replace` |
 | `url` 报"未取得唯一认证 URL" | 只从**本次进程**日志提取，不返回历史链接也不拼造 Token；确认容器在本次启动后没有重启 |
 | `down` 报状态未确认 | 说明 `docker compose down` 失败或 `docker ps` 查询失败；人工核对容器与卷后再决定是否继续 |
 | 既有实例 | 适配层脚本或 Compose 变化后需重建容器并重跑 `verify-load.sh`；HOME 数据卷不随重建丢失，工作区注册保留 |
@@ -252,7 +288,9 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 | 开发角色 | 按说明启动 `--mode dev`，注册 `/work` 并核对实际加载的指令 | 会话读到 `/work/AGENTS.md` 的开发者身份，知道当前目标与可编辑位置；目标业务指令只作为编辑对象出现 |
 | 被测身份 | 启动 `--mode eval`，核对容器内不存在 `/work/AGENTS.md` | 目标只加载自己的业务指令，不会读到开发者身份 |
 | 目标编辑与保存 | 改一个 preset 配置和相关技能 | 修改进入候选资产目录；容器 HOME 中的新产物不被当缓存丢弃 |
-| 目标选择 | 用明确的 preset ID 启动 `--mode eval`，核对 `plan.target_preset` | 运行的是本次声明的目标，不是固定默认旧目标 |
+| 目标选择 | 用明确的 preset ID 启动 `--mode eval`，核对 `plan.target_preset` 与基础 patch 的 `agent-presets.default` | 两者相等且等于该 Agent 的 `preset_id`；仓库校验器在这三者不一致时失败 |
+| 落状态迁移 | 对一份旧 schema 状态目录执行 `ps` 与 `down` | `ps` 标出 `needs_migration: true`，`down` 能停掉容器并保留 HOME，不因旧状态被拒 |
+| 同名重载 | `up --replace`，或 `down` 后同名同端口 `up` | 旧进程确实停止，新配置被读取；输出含 `replaced.previous_state_schema` |
 | 重载生效 | 按文档重新装载并验证预先定义的可观察变化 | 不把驻留旧配置的结果误认成新配置 |
 | 新建 preset | 在 `--mode dev` 内复制一份 composition 为新 ID，用新 ID 开新会话 | 组合配置中出现 `includeUserRoot: true`；新 ID 不被系统根遮蔽；产物可复制回候选 |
 | 判分材料隔离 | 在 `--mode eval` 容器内检查 `/work/spec`、`/work/eval-reference`、`/work/eval-input` | 三条路径都不存在，也不在 `/proc/self/mountinfo` 中 |

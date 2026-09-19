@@ -123,7 +123,7 @@ DSH_ADAPTER_PINNED_SHA256 = {
     "verify-load.sh": "aaa955b01b3cd566c828779ab44d42374922ca8195b8b9cbc4124c0dced18e96",
     "tree-digest.mjs": "ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
     "mutation-receipt.py": "f063d103074bf845ab9aafa170e156464e8e8b8b51203de887837ff29df2ede7",
-    "source_contract.py": "96eac06166fad3c75c657087a58775115aba71bddfafa8b895025061d0367072",
+    "source_contract.py": "0273f0ace4b240acfcc50915c3399683c34ef76705add8353737ca1dbe9653c9",
     "preflight-access.py": "44cf075c4e299845829fbc2f2e8d0b1fb7aea15cf93ddc2ae6cd9776bf75780c",
 }
 
@@ -1775,7 +1775,7 @@ def validate_security_migration_candidate(
 
     profile_path = dsh / "managed" / ("%s.patch.yml" % agent_id)
     profile = dsh_yaml(root, profile_path, allow_js=True)
-    validate_dsh_profile(root, profile_path, profile, errors)
+    validate_dsh_profile(root, profile_path, profile, agent_id, errors)
     validate_dsh_mcp_manifest(root, dsh / "managed" / "mcp-servers.yaml", errors)
     validate_dsh_role_matrix(root, dsh / "managed" / "role-tool-matrix.yaml", profile, errors)
     validate_dsh_public_tool_map(root, dsh / "managed" / "mcp-tool-name-map.json", dsh / "managed" / "role-tool-matrix.yaml", profile, candidate / "runtime.lock.json", dsh / "workspace" / ".agents" / "skills", errors)
@@ -1783,7 +1783,8 @@ def validate_security_migration_candidate(
         errors.append(issue("DSH_PENDING_IS_NOT_FORMAL_EVAL", "迁移 pending Case 不得与正式 Case/Trial 文件混用", relative(candidate / "delivery" / "eval", root)))
 
 
-def validate_dsh_profile(root: Path, path: Path, profile: object, errors: List[Dict[str, str]]) -> None:
+def validate_dsh_profile(root: Path, path: Path, profile: object, agent_id: str,
+                         errors: List[Dict[str, str]]) -> None:
     if not isinstance(profile, list):
         errors.append(issue("DSH_PROFILE_INVALID", "DSH Profile patch 必须是 YAML patch 列表", relative(path, root)))
         return
@@ -1849,8 +1850,10 @@ def validate_dsh_profile(root: Path, path: Path, profile: object, errors: List[D
     ):
         errors.append(issue("DSH_SKILL_DISCOVERY", "Skill provider 只能发现挂载工作区的直接技能目录；禁止显式 bundled root 与符号链接跟随", relative(path, root)))
     presets = ordinary.get("agent-presets", {}).get("config")
-    if not isinstance(presets, dict) or set(presets) != {"default", "roots", "includeShippedRoot", "includeUserRoot"} or presets.get("default") != "security-operations-expert" or presets.get("roots") != [{"path": "/opt/dsh-presets", "trust": "system"}] or presets.get("includeShippedRoot") is not False or presets.get("includeUserRoot") is not False:
-        errors.append(issue("DSH_PRESET_ROOT", "Preset 必须仅从受控容器挂载根发现", relative(path, root)))
+    # 生效默认 preset 必须等于候选声明的 preset_id（== agent_id），这样"计划里显示的目标"
+    # 与"DSH 实际装载的默认目标"由门禁绑定，不靠两处各自硬编码恰好相同。
+    if not isinstance(presets, dict) or set(presets) != {"default", "roots", "includeShippedRoot", "includeUserRoot"} or presets.get("default") != agent_id or presets.get("roots") != [{"path": "/opt/dsh-presets", "trust": "system"}] or presets.get("includeShippedRoot") is not False or presets.get("includeUserRoot") is not False:
+        errors.append(issue("DSH_PRESET_ROOT", "Preset 必须仅从受控容器挂载根发现，且生效默认 preset 必须等于本 Agent 的 preset_id", relative(path, root)))
     if set(ordinary.get("agent-presets", {})) != {"id", "disabled", "config"} or ordinary.get("agent-presets", {}).get("disabled") is not False:
         errors.append(issue("DSH_PRESET_DISABLED", "Profile 的 agent-presets 必须显式启用，不能落入无 Guard 的 bare Agent", relative(path, root)))
     for plugin_id in ("tool-fs", "tool-fs-search", "tool-skill"):
@@ -2685,6 +2688,12 @@ def validate_dsh_source_catalog(root: Path, adapter: Path, lock: Mapping[str, ob
         if not match or not isinstance(item, dict) or set(item) != required or item.get("agent_id") != match.group(1) or item.get("candidate_root") != expected_root or item.get("profile") != "web":
             errors.append(issue("DSH_SOURCE_CATALOG", "来源身份、候选根、web Profile 或字段不符合合同", relative(path, root)))
             continue
+        # 来源声明的 preset 目录决定 preset_id；它与 agent_id 不一致会让"来源声明的目标"
+        # 与"该来源代表的 Agent"分叉，后续的计划与生效默认值核对都会失去意义。
+        preset_parts = item["preset"].split("/") if isinstance(item.get("preset"), str) else []
+        if len(preset_parts) < 2 or preset_parts[0] != item["agent_id"]:
+            errors.append(issue("DSH_SOURCE_CATALOG", "preset 必须声明为 <agent_id>/<file>，与 agent_id 一致", relative(path, root)))
+            continue
         candidate_dsh = root / expected_root
         for key, folder in (("patch", "managed"), ("preset", "presets"), ("guard", "managed"),
                             ("development_patch_overlay", "managed")):
@@ -2782,7 +2791,7 @@ def validate_dsh_verification_home_controls(root: Path, adapter: Path, errors: L
 
 DEV_INSTRUCTIONS_REQUIRED_TEXT = (
     "/work/harness/workspace", "/opt/dsh-presets", "/opt/dsh-managed",
-    "/work/spec", "/work/eval-reference", "target_preset", ".agent-presets",
+    "/work/spec", "/work/eval-reference", "target_preset", "session_preset", ".agent-presets",
 )
 
 

@@ -2933,9 +2933,17 @@ class SpecDataSemanticsTests(unittest.TestCase):
         self.assertGreaterEqual(len(rows), 34)
         for row in rows:
             cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
+            # 索引表只放编号、业务名称、硬门禁、源编号：宽表不适合承载长解释。
+            self.assertEqual(len(cells), 4, f"索引表应为 4 列：{row[:60]}")
             self.assertRegex(cells[0], r"^REQ-[0-9]{3}$")
             self.assertTrue(cells[1], f"缺少需求名称：{row[:60]}")
             self.assertNotRegex(cells[1], r"^REQ-")
+            # 每条需求都有对应的条目段落，字段按标签分述。
+            heading = f"### {cells[0]} {cells[1]}"
+            self.assertIn(heading, text.splitlines(), f"缺少需求条目：{heading}")
+        for label in ("**来源：**", "**触发：**", "**目标任务：**", "**最小输入：**",
+                      "**输出/动作：**", "**非目标/禁止：**", "**硬门禁：**"):
+            self.assertIn(label, text)
 
     def test_acceptance_has_no_paragraph_level_boilerplate(self) -> None:
         """回归：通用判定原则只在文件级说明一次，不逐条重复。"""
@@ -2958,34 +2966,145 @@ class SpecDataSemanticsTests(unittest.TestCase):
             self.assertNotIn("本章", method["aggregation"], method["id"])
             self.assertIn("运行", method["trial_scheme"], method["id"])
 
+    RENDERER = ("evolution/experiments/EXP-security-operations-expert-001/"
+                "evaluation/tools/render_pending_review.py")
+
+    def _render(self, agent_dir: Path, *extra: object) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            ["python3", str(ROOT / self.RENDERER), "--agent-dir", str(agent_dir), *(str(item) for item in extra)],
+            cwd=ROOT, text=True, capture_output=True, check=False, timeout=120,
+            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        )
+
+    @staticmethod
+    def _synthetic_agent(root: Path) -> Path:
+        agent = root / "agent"
+        pending = agent / "eval" / "pending"
+        pending.mkdir(parents=True)
+        row = {
+            "id": "case-x-001", "scenario_id": "S1", "intent_id": "access",
+            "gate": "blocking", "review_status": "pending", "acceptance_mapping_status": "pending",
+            "variant_types": ["standard"], "tags": ["core"],
+            "input": "检查 A | B\n保留这条说明。",
+            "expected_behavior": ["预期一 | 预期二", "预期三\n第二行\n\n空行后"],
+            "check": ["检查一 | 含竖线"],
+            "requirement_ids": ["REQ-001"], "acceptance_id": "AC-001",
+            "context": {"input_template": "模板 | X", "fixture_state": "预置 A\n预置 B",
+                        "design": {"source_kind": "user_supplied_input", "supplied_by": "维护者"}},
+        }
+        (pending / "synthetic.jsonl").write_text(
+            json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+        return agent
+
     def test_pending_review_renderer_is_a_read_only_view(self) -> None:
         """回归：人工复核视图只按需渲染 JSONL，不产生第二份可编辑事实源。"""
         with tempfile.TemporaryDirectory() as temp:
-            output = Path(temp) / "review.md"
-            renderer = ROOT / ("evolution/experiments/EXP-security-operations-expert-001/"
-                               "evaluation/tools/render_pending_review.py")
-            before = {
-                path: path.read_bytes()
-                for path in (ROOT / "agents/security-operations-expert/eval").rglob("*.jsonl")
-            }
-            completed = subprocess.run(
-                ["python3", str(renderer), "--agent-dir", str(ROOT / "agents/security-operations-expert"),
-                 "--output", str(output)],
-                cwd=ROOT, text=True, capture_output=True, check=False, timeout=120,
-                env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
-            )
+            root = Path(temp)
+            agent = self._synthetic_agent(root)
+            output = root / "review.md"
+            before = (agent / "eval" / "pending" / "synthetic.jsonl").read_bytes()
+            completed = self._render(agent, "--output", output)
             self.assertEqual(completed.returncode, 0, completed.stderr)
             text = output.read_text(encoding="utf-8")
             self.assertIn("待复核用例阅读视图", text)
-            # 阅读顺序：名称与状态 → 用户输入 → 预期行为 → 检查方法 → 关联编号。
-            for label in ("用户输入", "预期行为", "检查方法", "用例审定状态", "验收映射状态", "关联验收"):
-                self.assertIn(label, text)
-            self.assertIn("case-rsp-001", text)
-            # 渲染不得改动任何 JSONL 事实源。
-            self.assertEqual(before, {
-                path: path.read_bytes()
-                for path in (ROOT / "agents/security-operations-expert/eval").rglob("*.jsonl")
-            })
+            self.assertIn("case-x-001", text)
+            self.assertEqual(before, (agent / "eval" / "pending" / "synthetic.jsonl").read_bytes())
+
+    def test_renderer_refuses_to_write_over_its_inputs(self) -> None:
+        """回归：输出路径落在输入集合内时必须拒绝，且输入字节完全不变。"""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            agent = self._synthetic_agent(root)
+            source = agent / "eval" / "pending" / "synthetic.jsonl"
+            before = source.read_bytes()
+            alias = root / "alias.jsonl"
+            alias.symlink_to(source)
+            hardlink = root / "hard.jsonl"
+            os.link(source, hardlink)
+            outputs = (
+                source,                                   # 同一路径
+                (agent / "eval" / "pending").resolve() / "synthetic.jsonl",  # 绝对路径指向同文件
+                alias,                                    # 符号链接别名
+                hardlink,                                 # 硬链接
+                agent / "eval" / "pending" / "review.jsonl",  # 尚不存在但会落进输入集合
+            )
+            for output in outputs:
+                with self.subTest(output=str(output)):
+                    completed = self._render(agent, "--output", output)
+                    self.assertEqual(completed.returncode, 2, completed.stdout)
+                    self.assertIn("拒绝写出", completed.stderr)
+                    self.assertEqual(before, source.read_bytes(), "输入文件被改动了")
+            # 普通报告路径仍应可用。
+            completed = self._render(agent, "--output", root / "report.md")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_renderer_keeps_markdown_structure_and_reading_order(self) -> None:
+        """回归：竖线与换行不得破坏表格或标题；正文顺序与工具说明一致。"""
+        with tempfile.TemporaryDirectory() as temp:
+            agent = self._synthetic_agent(Path(temp))
+            completed = self._render(agent)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            text = completed.stdout
+            # 标题只用编号，不把整条输入塞进去。
+            self.assertIn("### case-x-001\n", text)
+            self.assertNotIn("### case-x-001：", text)
+            # 短字段表格列数一致；含竖线的长文本只在栅栏块里原样出现。
+            table_lines = [line for line in text.splitlines()
+                           if line.startswith("|") and not set(line) <= set("|- ")]
+            widths = {line.count(" | ") for line in table_lines}
+            self.assertEqual(len(widths), 1, f"表格列数不一致：{sorted(widths)}")
+            self.assertEqual(widths.pop(), 1, "阅读视图的小表只放两列短字段")
+            self.assertIn("检查 A | B", text)
+            self.assertIn("保留这条说明。", text)
+            # 顺序：名称与状态 → 用户输入 → 测试前提 → 预期行为 → 检查方法 → 关联与来源
+            order = [text.index(marker) for marker in
+                     ("| 编号 |", "**用户输入**", "**测试前提**", "**预期行为**", "**检查方法**", "**关联与来源**")]
+            self.assertEqual(order, sorted(order), "正文顺序与工具说明不一致")
+
+    def test_base_patch_default_must_match_declared_preset(self) -> None:
+        """回归：生效默认 preset 与候选声明的 preset_id 必须一致，否则"计划显示的目标"会失真。"""
+        patch = ("evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/managed/"
+                 "security-operations-expert.patch.yml")
+        with tempfile.TemporaryDirectory() as temp:
+            clone = copy_initialized_repository(Path(temp))
+            path = clone / patch
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("    default: security-operations-expert\n", text)
+            path.write_text(text.replace("    default: security-operations-expert\n",
+                                         "    default: some-other-preset\n", 1), encoding="utf-8")
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+            self.assertEqual(completed.returncode, 1, payload)
+            self.assertIn("DSH_PRESET_ROOT", error_codes(payload))
+
+    def test_source_catalog_preset_must_match_agent_id(self) -> None:
+        """回归：来源的 preset 路径必须声明为 <agent_id>/<file>。"""
+        catalog = "runtime/adapters/dsh-container/sources.json"
+        with tempfile.TemporaryDirectory() as temp:
+            clone = copy_initialized_repository(Path(temp))
+            path = clone / catalog
+            data = json.loads(path.read_text(encoding="utf-8"))
+            item = data["sources"]["EXP-security-operations-expert-001"]
+            item["preset"] = "someone-else/agent.cordis.yml"
+            path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+            self.assertEqual(completed.returncode, 1, payload)
+            self.assertIn("DSH_SOURCE_CATALOG", error_codes(payload))
+
+    def test_design_doc_matches_code_contract_values(self) -> None:
+        """回归：设计方案里的实例 schema 与用户根开关必须与代码/受控文件一致。"""
+        text = (ROOT / "docs/DSH开发与评测启动器设计方案.md").read_text(encoding="utf-8")
+        schema = re.search(r'^INSTANCE_SCHEMA_VERSION = "([^"]+)"', (
+            ROOT / "runtime/adapters/dsh-container/dsh-dev").read_text(encoding="utf-8"), re.MULTILINE)
+        self.assertIsNotNone(schema)
+        self.assertIn(f"schema `{schema.group(1)}`", text)
+        overlay = (ROOT / "evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/managed/"
+                   "security-operations-expert.development.patch.yml").read_text(encoding="utf-8")
+        expected = re.search(r"^\s+includeUserRoot:\s*(\w+)", overlay, re.MULTILINE).group(1)
+        block = re.search(r"```yaml\n(- id: agent-presets.*?)```", text, re.DOTALL)
+        self.assertIsNotNone(block, "设计方案应包含开发叠加层的 YAML 片段")
+        documented = re.search(r"^\s+includeUserRoot:\s*(\w+)", block.group(1), re.MULTILINE).group(1)
+        self.assertEqual(documented, expected)
+        self.assertNotIn("镜像内脚本过期", text)
 
     def test_generator_reproduces_maintained_spec_data(self) -> None:
         """回归：生成器与事实源不得长期保持两套规则。

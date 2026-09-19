@@ -29,7 +29,7 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 | `/work/eval-input` | 显式声明的被测输入根 | 不适用 | 仅在显式声明时只读 |
 | `/var/lib/dsh` | 分别命名的 DSH_HOME 数据卷 | 读写 | 读写 |
 
-`/work/spec` 提供需求定义、任务定义与验收标准，`/work/eval-reference` 提供测试预置、评估方法与待复核输入。两者都是**判分材料**：只读挂载限制写入但不限制读取，所以它们只挂给编写态（开发者需要读它们来维护），核验态（运行被测目标）完全不挂载，`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。来源未物化对应根时编写态启动失败关闭，不创建空目录。`eval/pending/**` 是待领域复核输入而非正式 Eval Case；`cases.jsonl` 尚未物化，容器内不得把它当作正式用例。
+`/work/spec` 提供需求定义、任务定义与验收标准，`/work/eval-reference` 提供测试预置、评估方法与待复核输入。两者都是**判分材料**：只读挂载限制写入但不限制读取，所以它们只挂给编写态（开发者会话只读阅读与核对，维护在宿主侧完成），核验态（运行被测目标）完全不挂载，`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。来源未物化对应根时编写态启动失败关闭，不创建空目录。`eval/pending/**` 是待领域复核输入而非正式 Eval Case；`cases.jsonl` 尚未物化，容器内不得把它当作正式用例。
 
 两种模式都使用同一组受控 HOME 边界：`locked-user.patch.yml`（顶层 `[]`）精确只读覆盖 HOME 与 Web Profile 的用户 Patch，`web-profile.package.json` 固定官方 `base`、`web-app` Bundle 和 `patchReload: startup`，阻断可写 HOME 的额外启动 Plugin。真正 **0 字节**的 `locked-global.AGENTS.md` 精确只读覆盖 HOME 全局 Agent instructions，不向 Session 注入任何额外语义。`locked-bootstrap.env` 只含一行注释，精确只读覆盖 HOME 与 Candidate workspace 两处 `.env`；模型/MCP Endpoint 和凭据只能由受信容器调用环境或 Runtime 受控凭据提供，不能由可写工作区在 Boot 前暗改。Candidate workspace 中的 `.env` 只是与受控文件字节相同的宿主挂载目标，不存任何变量或凭据。编写态仍可写其他 Candidate workspace 资产，`skill-filesystem.watch: true` 仍可实时看到 Skill 改动；这不授予改受控 Profile、MCP 或 Boot 环境的权限。
 
@@ -97,19 +97,19 @@ python3 runtime/adapters/dsh-container/dsh-dev down secops-dev
 
 `up` 不只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的在运行（`home-init` 是一次性服务，正常结束不算失败），否则报告失败或 `dsh_running: "unknown"` 并以非零退出码结束。
 
-`ps`、`logs`、`down` 从实例状态文件重建读取该实例 Compose 所需的环境变量：受控模板用 `${VAR:?}` 声明必填变量、不内联仓库内默认路径，因此这些命令不依赖调用者的当前环境。`down` 先检查 `docker compose down` 的退出码，再核对实际容器状态与 HOME 卷：命令失败即报错，仍有容器运行或状态无法确认时输出 `stopped: false` / `stopped: "unknown"` 并以非零退出码结束；HOME 卷名按 Compose 卷标签解析，不按 `<project>-home` 猜测。
+`ps`、`logs`、`down` 从实例状态文件重建读取该实例 Compose 所需的环境变量：受控模板用 `${VAR:?}` 声明必填变量、不内联仓库内默认路径，因此这些命令不依赖调用者的当前环境；状态文件不是最新 schema 时同样可用，`ps` 会标出 `needs_migration`。旧实例仍在运行时用 `up --replace`（保留 HOME 数据卷）或先 `down` 再同名 `up` 完成迁移。挂载内容变化不会自动重启进程，重载必须走这两条路径之一。`down` 先检查 `docker compose down` 的退出码，再核对实际容器状态与 HOME 卷：命令失败即报错，仍有容器运行或状态无法确认时输出 `stopped: false` / `stopped: "unknown"` 并以非零退出码结束；HOME 卷名按 Compose 卷标签解析，不按 `<project>-home` 猜测。
 
 完整使用过程、挂载矩阵与异常处理见[DSH 开发与评测启动器设计方案](../../../docs/DSH开发与评测启动器设计方案.md)。
 
 **首次打开 Web 需要在界面注册工作区。** DSH Web 的输入栏在没有已打开会话时是惰性的，必须先选定一个**已注册工作区**才能开会话；工作区注册表（`$DSH_HOME/storages/workspace.json`）只从已存会话头 bootstrap，新实例的 HOME 卷里因此为空——容器的 `working_dir` 只是进程工作目录，不等于 DSH 工作区。该锁定 DSH 提交没有受支持的工作区预注册入口，启动器只交付路径与步骤、不改写 Runtime 存储内部格式：
 
 1. 在 Web 界面点击“选择工作区”；
-2. 在“选择工作区目录”对话框点“编辑路径”，粘贴 `/work/harness/workspace`（或从“主目录”逐级进入 `/work/harness/workspace`）；
+2. 在“选择工作区目录”对话框点“编辑路径”，粘贴本次模式对应的路径：开发实例 `/work`，评测实例 `/work/harness/workspace`（或从“主目录”逐级进入）；
 3. 点“打开”，会话即在该工作区创建，随后可直接对话。
 
-该注册写入本实例 DSH_HOME 数据卷并跨重启保留；换用新的实例名等于新的 HOME 卷，需要重新选择一次。`plan` 输出与 `up` 的 stderr 都会带上该路径与步骤。
+该注册写入本实例 DSH_HOME 数据卷并跨重启保留；换用新的实例名等于新的 HOME 卷，需要重新选择一次。`plan` 输出与 `up` 的 stderr 都会带上本次模式对应的路径与步骤，以 `plan.workspace_to_register` 为准。
 
-实例配置与 `instance.json` 写在 `${XDG_STATE_HOME:-~/.local/state}/dsh-dev/<name>/`，只记录环境变量**名称**、`purpose`、`preset_default`、`context_mounts` 与信任确认标记，不含 Token。渲染保留只读根文件系统、UID/GID 1000、能力裁剪和无端口发布，只把主 `dsh` 服务切到 host 网络并把 Web 绑定宿主回环。`url` 只读取**本次**进程启动后的日志并做 Token→Cookie→根页探针；标准输出不是交互终端时，必须显式加 `--non-interactive`，否则失败关闭，不把 Token 写进状态文件、普通日志或证据。
+实例配置与 `instance.json` 写在 `${XDG_STATE_HOME:-~/.local/state}/dsh-dev/<name>/`，只记录环境变量**名称**、`purpose`、`agent_id`、`target_preset`、`session_preset`、`context_mounts` 与信任确认标记，不含 Token。渲染保留只读根文件系统、UID/GID 1000、能力裁剪和无端口发布，只把主 `dsh` 服务切到 host 网络并把 Web 绑定宿主回环。`url` 只读取**本次**进程启动后的日志并做 Token→Cookie→根页探针；标准输出不是交互终端时，必须显式加 `--non-interactive`，否则失败关闭，不把 Token 写进状态文件、普通日志或证据。
 
 候选 Profile 以 fail-closed 方式声明三个 `streamable-http` MCP 客户端；缺少真实端点与凭据时容器会在启动阶段退出，使"装载是否成立"无法核验。为此适配层提供两个只用于受控技术装载核验的本地工具：
 

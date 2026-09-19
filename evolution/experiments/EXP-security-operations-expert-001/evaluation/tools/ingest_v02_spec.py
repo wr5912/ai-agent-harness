@@ -141,9 +141,14 @@ def split_label(cell: str, pattern: re.Pattern) -> tuple[str, str]:
     return match.group(0), name
 
 
-def demote_headings(block: str) -> str:
-    """源文档小节标题整体降一级，保留其编号以便追溯，同时不与本文场景标题同级。"""
-    return re.sub(r"^(#{2,5}) ", r"#\1 ", block, flags=re.MULTILINE)
+def demote_headings(block: str, levels: int = 1) -> str:
+    """源文档小节标题整体降级，保留其编号以便追溯，同时不与本文标题争同级。
+
+    附录与共享契约降一级；场景小节的设计边界说明要落在需求条目之下，因此降两级。
+    """
+    for _ in range(max(1, levels)):
+        block = re.sub(r"^(#{2,5}) ", r"#\1 ", block, flags=re.MULTILINE)
+    return block
 
 
 def drop_table_with(block: str, key: str) -> str:
@@ -318,26 +323,52 @@ def main() -> None:
     req_sections: list[str] = []
     for scenario, _ in SCENARIO_ORDER:
         header, rows = req_tables[scenario]
-        mapped_rows = []
+        index_rows = []
+        detail_blocks = []
         for row in rows:
             if len(row) < 8:
                 fail(f"{scenario} 需求行缺列：{row}")
             req_source, req_name = split_label(row[0], REQ_ID_RE)
+            mapped = req_map[req_source]
             hard_gate = map_ids(row[7], ac_map)
-            mapped_rows.append([req_map[req_source], req_name, req_source] + row[1:7] + [hard_gate])
-        table_lines = [
-            "| 编号 | 需求名称 | 源编号 | 来源 | 触发 | 目标任务 | 最小输入 | 输出/动作 | 非目标/禁止 | 硬门禁 |",
-            "|---|---|---|---|---|---|---|---|---|---|",
+            index_rows.append([mapped, req_name, hard_gate, req_source])
+            # 长文本用段落，不放单元格：宽表只适合索引，读者要在条目里看清每个字段。
+            detail_blocks.append(
+                "\n".join(
+                    [
+                        f"### {mapped} {req_name}",
+                        "",
+                        f"**来源：**{row[1]}",
+                        "",
+                        f"**触发：**{row[2]}",
+                        "",
+                        f"**目标任务：**{row[3]}",
+                        "",
+                        f"**最小输入：**{row[4]}",
+                        "",
+                        f"**输出/动作：**{row[5]}",
+                        "",
+                        f"**非目标/禁止：**{row[6]}",
+                        "",
+                        f"**硬门禁：**{hard_gate}",
+                    ]
+                )
+            )
+        index_lines = [
+            "| 编号 | 需求名称 | 硬门禁 | 源编号 |",
+            "|---|---|---|---|",
         ]
-        table_lines.extend("| " + " | ".join(row) + " |" for row in mapped_rows)
-        # 原始需求表已投影到上面的转换表；这里只保留该小节的业务说明、设计边界与归并表。
-        remainder = demote_headings(drop_table_with(scenario_meta[scenario]["req_block"], "需求"))
+        index_lines.extend("| " + " | ".join(row) + " |" for row in index_rows)
+        # 原始需求表已逐列投影到索引表与下面的条目；这里只保留该小节的业务说明与设计边界。
+        remainder = demote_headings(drop_table_with(scenario_meta[scenario]["req_block"], "需求"), levels=2)
         req_sections.append(
             "\n".join(
                 [
                     f"## {scenario_meta[scenario]['title'].split('. ', 1)[1]} 需求定义",
                     "",
-                    "\n".join(table_lines),
+                    "\n".join(index_lines),
+                    "",
+                    "\n\n".join(detail_blocks),
                     "",
                     "源文档设计边界、动作族与归并说明（原始需求表已逐列投影到上表，不在此重复）：",
                     "",

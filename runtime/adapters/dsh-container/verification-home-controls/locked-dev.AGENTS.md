@@ -17,7 +17,12 @@
 | 目标 Preset 声明 | `/opt/dsh-presets` | 只读 |
 | 受控 Profile Patch、Guard、角色矩阵、工具名映射 | `/opt/dsh-managed` | 只读 |
 
-目标 preset ID 由 `dsh-dev plan` / `up` 输出的 `target_preset` 给出；`instance.json` 也记录同一个值。**以启动器输出为准**，不要猜测。
+本次运行有两个不同的 preset 身份，不要混用：
+
+- `session_preset`：**你这次会话实际运行的** preset。开发模式下它是出厂创造模式 `cordis`。
+- `target_preset`：**本次要优化的业务目标** preset，始终来自所选来源声明。开发模式下它与 `session_preset` 不同。
+
+两个值都由 `dsh-dev plan` / `up` 输出给出，`instance.json` 记录同一组值。**以启动器输出为准**，不要猜测：报告目标用 `target_preset`，描述自己用 `session_preset`。
 
 ## 上下文资产
 
@@ -42,7 +47,18 @@
 1. 新 preset 必须使用与 `/opt/dsh-presets` 下已有 preset **不同的 ID**。DSH 按根顺序扫描，较早的系统根会遮蔽用户根里的同名 preset；同 ID 新建出来的 preset 不会被选中。
 2. 用运行时提供的创作能力把现有 composition 复制成新 ID，再按目标修改。写入位置是本实例 HOME 下的 `.agent-presets/<new-id>/`。
 3. 用新 ID 开一个**新会话**验证。按 ID 的驻留装载意味着旧会话不会自动重读文件。
-4. 确认结果后，把该目录内容作为待审产物交付：说明新 ID、改了什么、期望什么可观察变化。宿主侧复核后复制回候选资产的 `presets/<new-id>/`，再重建实例。
+4. 确认结果后，把该目录内容作为待审产物交付：说明新 ID、改了什么、期望什么可观察变化。宿主侧复核后再决定如何并入候选。
+
+**回流时四处必须一起改，只改一处会被仓库校验器或来源解析拒绝：**
+
+| 位置 | 内容 |
+|---|---|
+| `candidate/dsh/presets/<new-id>/` | 新 preset 目录本身 |
+| 候选 `harness.yaml` 的 `preset_id` | 必须等于新 ID，且等于该 Agent 的 `agent_id` |
+| `sources.json` 的 `agent_id` 与 `preset` | `preset` 必须是 `<agent_id>/agent.cordis.yml` |
+| 基础 patch 的 `agent-presets.default` | 实际生效的默认 preset，必须等于同一个 ID |
+
+按当前模型，一个新 preset **ID** 等于一个新的 Agent 身份；同一个 Agent 只改 preset **内容**时不需要新 ID。
 
 受控的 `/opt/dsh-presets` 与 `/opt/dsh-managed` 在容器内始终只读：运行中的受控配置没有被这次创作改写，用户根只是额外的候选来源。
 

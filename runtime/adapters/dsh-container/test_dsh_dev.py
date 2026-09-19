@@ -9,6 +9,7 @@ from importlib.machinery import SourceFileLoader
 import os
 import socket
 import subprocess
+import sys
 import tempfile
 import threading
 import types
@@ -138,12 +139,21 @@ class ModeAndContextContractTest(unittest.TestCase):
             self.assertNotIn("COPY --chown=node:node verify-load.mjs", rendered)
 
     def test_target_preset_comes_from_selected_source(self):
-        self.assertEqual(dev.target_preset(self.contract(), "authoring"), "cordis")
-        self.assertEqual(dev.target_preset(self.contract(), "verification"), "security-operations-expert")
-        other = self.contract(preset_id="second-harness")
-        self.assertEqual(dev.target_preset(other, "verification"), "second-harness")
+        """目标是来源声明的业务 preset，与本次会话实际运行的 preset 分开。"""
+        self.assertEqual(dev.target_preset(self.contract()), "security-operations-expert")
+        self.assertEqual(dev.target_preset(self.contract(preset_id="second-harness")), "second-harness")
         with self.assertRaises(SystemExit):
-            dev.target_preset(self.contract(preset_id=None), "verification")
+            dev.target_preset(self.contract(preset_id=None))
+
+    def test_session_and_target_preset_are_distinct_in_development_mode(self):
+        """回归：开发会话身份是 cordis，待优化目标仍是来源声明的业务 preset。"""
+        contract = self.contract()
+        self.assertEqual(dev.session_preset(contract, "authoring"), "cordis")
+        self.assertEqual(dev.target_preset(contract), "security-operations-expert")
+        self.assertNotEqual(dev.session_preset(contract, "authoring"), dev.target_preset(contract))
+        # 评测模式两者一致：会话运行的就是目标本身。
+        self.assertEqual(dev.session_preset(contract, "verification"),
+                         dev.target_preset(contract))
 
     def test_context_assets_are_authoring_only_and_require_declared_roots(self):
         assets = dev.context_assets(self.contract(), "authoring")
@@ -217,7 +227,10 @@ class ModeAndContextContractTest(unittest.TestCase):
         self.assertEqual(plan["workspace_to_register"], "/work")
         self.assertIn("/work", plan["web_cold_start"])
         self.assertEqual(plan["dev_instructions"], "/work/AGENTS.md")
-        self.assertEqual(plan["target_preset"], "cordis")
+        # 开发会话身份是 cordis，待优化目标仍是业务 preset；两个字段不能混用。
+        self.assertEqual(plan["session_preset"], "cordis")
+        self.assertEqual(plan["target_preset"], "security-operations-expert")
+        self.assertEqual(plan["agent_id"], "security-operations-expert")
         rendered = dev.render_compose(
             (ADAPTER / "authoring.compose.yaml").read_text(encoding="utf-8"),
             mode="authoring", project="dsh-dev-author", port=3086)
@@ -280,6 +293,8 @@ class InstanceStateTest(unittest.TestCase):
             self.assertEqual(manifest["mount_modes"], {"workspace": "ro", "presets": "ro", "managed": "ro"})
             self.assertEqual(manifest["purpose"], "eval")
             self.assertEqual(manifest["target_preset"], "second-harness")
+            self.assertEqual(manifest["session_preset"], "second-harness")
+            self.assertEqual(manifest["agent_id"], "second-harness")
             # 被测目标会话不挂载任何判分材料。
             self.assertEqual(manifest["context_mounts"], [])
             self.assertIsNone(manifest["patch_overlay"])
@@ -311,7 +326,8 @@ class InstanceStateTest(unittest.TestCase):
                                         accepted_cordis_trust=True)
             manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["purpose"], "dev")
-            self.assertEqual(manifest["target_preset"], "cordis")
+            self.assertEqual(manifest["target_preset"], "security-operations-expert")
+            self.assertEqual(manifest["session_preset"], "cordis")
             self.assertTrue(manifest["cordis_trust_accepted"])
             self.assertEqual(manifest["mount_modes"]["workspace"], "rw")
             # 开发会话需要完整评测材料来修改和核对，且容器内路径标明它是判分材料。
@@ -436,9 +452,6 @@ class DownCommandTest(unittest.TestCase):
                          "/opt/dsh-managed/security-operations-expert.patch.yml")
         self.assertEqual(environment["DSH_WORKSPACE_HOST"], "/tmp/ws")
         self.assertNotIn("DSH_MANAGED_PATCH_OVERLAY", environment)
-        stale = dict(manifest, schema_version="1.0")
-        with self.assertRaises(SystemExit):
-            dev.instance_compose_env(stale)
 
 
 class UpCommandStateTest(unittest.TestCase):
@@ -451,10 +464,12 @@ class UpCommandStateTest(unittest.TestCase):
     def tearDown(self):
         self._temp.cleanup()
 
-    def args(self):
-        return types.SimpleNamespace(source="experiment:EXP-security-operations-expert-001",
-                                     mode="verification", name="up-probe", port=3212,
-                                     allow_missing_env=False, accept_cordis_trust=False)
+    def args(self, **overrides):
+        base = dict(source="experiment:EXP-security-operations-expert-001",
+                    mode="verification", name="up-probe", port=3212,
+                    allow_missing_env=False, accept_cordis_trust=False, replace=False)
+        base.update(overrides)
+        return types.SimpleNamespace(**base)
 
     def test_up_reports_failure_when_dsh_service_is_not_running(self):
         exited = subprocess.CompletedProcess(
@@ -509,6 +524,213 @@ class UpCommandStateTest(unittest.TestCase):
                 dev.command_up(self.args())
         report = json.loads(stdout.getvalue())
         self.assertEqual(report["dsh_running"], "unknown")
+
+
+class LegacyInstanceStateTest(unittest.TestCase):
+    """旧版状态文件必须仍能停止、查询与迁移，不能把新版升级变成死循环。"""
+
+    LEGACY_1_0 = {
+        "schema_version": "1.0",
+        "name": "legacy",
+        "project": "dsh-dev-legacy",
+        "source_id": "experiment:EXP-security-operations-expert-001",
+        "source_kind": "experiment",
+        "mode": "authoring",
+        "purpose": "dev",
+        "preset_default": "cordis",
+        "port": 3301,
+        "image_tag": "ai-agent-harness/dsh:c291e7961",
+        "agent_id": "security-operations-expert",
+        "mounts": {"workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed"},
+        "context_mounts": [{"key": "spec", "host": "/tmp/spec", "container": "/work/spec", "mode": "ro"}],
+        "mount_modes": {"workspace": "rw", "presets": "ro", "managed": "ro"},
+        "patch_overlay": "/opt/dsh-managed/x.development.patch.yml",
+        "cordis_trust_accepted": True,
+        "required_env_names": [],
+    }
+
+    def setUp(self):
+        self._temp = tempfile.TemporaryDirectory()
+        dev.STATE_ROOT = Path(self._temp.name)
+        target = dev.STATE_ROOT / "legacy"
+        target.mkdir(parents=True)
+        (target / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
+        (target / "instance.json").write_text(
+            json.dumps(self.LEGACY_1_0, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    def tearDown(self):
+        self._temp.cleanup()
+
+    def test_legacy_state_builds_compose_env_without_guessing(self):
+        """回归：旧状态缺少 adapter_root/managed_patch 时不报错，缺的字段交给 Compose 报。"""
+        environment = dev.instance_compose_env(self.LEGACY_1_0)
+        self.assertEqual(environment["DSH_IMAGE_TAG"], "ai-agent-harness/dsh:c291e7961")
+        self.assertEqual(environment["DSH_ADAPTER_HOST"], str(ADAPTER))
+        self.assertEqual(environment["DSH_WORKSPACE_HOST"], "/tmp/ws")
+        self.assertEqual(environment["DSH_SPEC_HOST"], "/tmp/spec")
+        # 记录里没有 managed_patch，就不猜一个路径出来。
+        self.assertNotIn("DSH_MANAGED_PATCH", environment)
+
+    def test_legacy_instance_can_be_stopped(self):
+        """回归：旧状态实例必须能被 down 停掉，否则用户会卡在"拒绝旧状态 + 端口被占"。"""
+        stopped = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        empty = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        volume = subprocess.CompletedProcess([], 0, stdout="dsh-dev-legacy-home\n", stderr="")
+        stdout = io.StringIO()
+        with mock.patch.object(dev, "run", side_effect=[stopped, empty, volume]), \
+                contextlib.redirect_stdout(stdout):
+            dev.command_down(types.SimpleNamespace(name="legacy"))
+        report = json.loads(stdout.getvalue())
+        self.assertTrue(report["stopped"])
+        self.assertTrue(report["home_preserved"])
+
+    def test_ps_marks_legacy_state_for_migration_and_keeps_listing(self):
+        stopped = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        listed = subprocess.CompletedProcess([], 0, stdout="not running", stderr="")
+        stdout = io.StringIO()
+        with mock.patch.object(dev, "run", side_effect=[stopped, listed]), \
+                contextlib.redirect_stdout(stdout):
+            dev.command_ps(types.SimpleNamespace())
+        instances = json.loads(stdout.getvalue())["instances"]
+        self.assertEqual(len(instances), 1)
+        self.assertEqual(instances[0]["state_schema"], "1.0")
+        self.assertTrue(instances[0]["needs_migration"])
+
+    def test_ps_reports_broken_record_without_aborting_the_list(self):
+        (dev.STATE_ROOT / "broken").mkdir()
+        (dev.STATE_ROOT / "broken" / "instance.json").write_text("{not json", encoding="utf-8")
+        stopped = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        listed = subprocess.CompletedProcess([], 0, stdout="not running", stderr="")
+        stdout = io.StringIO()
+        with mock.patch.object(dev, "run", side_effect=[stopped, listed]), \
+                contextlib.redirect_stdout(stdout):
+            dev.command_ps(types.SimpleNamespace())
+        instances = {item["name"]: item for item in json.loads(stdout.getvalue())["instances"]}
+        self.assertIn("error", instances["broken"])
+        self.assertIn("legacy", instances)
+
+
+class UpPortOwnershipTest(unittest.TestCase):
+    """端口归属决定出路：本实例自身占用可重载，其他占用者只能换端口。"""
+
+    def setUp(self):
+        self._temp = tempfile.TemporaryDirectory()
+        dev.STATE_ROOT = Path(self._temp.name)
+
+    def tearDown(self):
+        self._temp.cleanup()
+
+    @staticmethod
+    def contract():
+        return {
+            "source_id": "experiment:EXP-security-operations-expert-001",
+            "source_kind": "experiment",
+            "agent_id": "security-operations-expert",
+            "preset_id": "security-operations-expert",
+            "workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed",
+            "spec_root": "/tmp/spec", "eval_root": "/tmp/eval",
+            "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+            "patch_overlay": None, "required_env_names": [],
+            "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
+        }
+
+    def args(self, **overrides):
+        base = dict(source="experiment:EXP-security-operations-expert-001", mode="verification",
+                    name="probe", port=3302, allow_missing_env=True, accept_cordis_trust=False,
+                    replace=False)
+        base.update(overrides)
+        return types.SimpleNamespace(**base)
+
+    def write_existing(self, **overrides):
+        dev.STATE_ROOT.mkdir(parents=True, exist_ok=True)
+        target = dev.STATE_ROOT / "probe"
+        target.mkdir(exist_ok=True)
+        manifest = dict(self.contract(), schema_version="1.2", name="probe",
+                        project="dsh-dev-probe", mode="verification", purpose="eval",
+                        target_preset="security-operations-expert", port=3302,
+                        image_tag="ai-agent-harness/dsh:c291e7961",
+                        adapter_root=str(ADAPTER),
+                        managed_patch="/opt/dsh-managed/security-operations-expert.patch.yml",
+                        mounts={"workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed"},
+                        context_mounts=[], patch_overlay=None)
+        manifest.update(overrides)
+        (target / "instance.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    def test_own_instance_holding_the_port_gets_an_actionable_error(self):
+        self.write_existing()
+        stderr = io.StringIO()
+        with mock.patch.object(dev, "resolve", return_value=self.contract()), \
+                mock.patch.object(dev, "port_in_use", return_value=True), \
+                mock.patch.object(dev, "running_instance_service", return_value="dsh"), \
+                mock.patch.object(dev, "write_instance") as writer, \
+                contextlib.redirect_stderr(stderr):
+            with self.assertRaises(SystemExit):
+                dev.command_up(self.args())
+        message = stderr.getvalue()
+        self.assertIn("--replace", message)
+        self.assertIn("down", message)
+        writer.assert_not_called()
+
+    def test_other_holder_keeps_the_plain_port_error(self):
+        stderr = io.StringIO()
+        with mock.patch.object(dev, "resolve", return_value=self.contract()), \
+                mock.patch.object(dev, "port_in_use", return_value=True), \
+                mock.patch.object(dev, "running_instance_service", return_value=None), \
+                contextlib.redirect_stderr(stderr):
+            with self.assertRaises(SystemExit):
+                dev.command_up(self.args())
+        self.assertIn("已被占用", stderr.getvalue())
+
+    def test_replace_stops_own_instance_before_starting(self):
+        self.write_existing()
+        order = []
+        stdout = io.StringIO()
+        with mock.patch.object(dev, "resolve", return_value=self.contract()), \
+                mock.patch.object(dev, "migrate_existing_instance",
+                                  side_effect=lambda *_: order.append("stop") or {"previous_state_schema": "1.2"}), \
+                mock.patch.object(dev, "port_in_use", return_value=False), \
+                mock.patch.object(dev, "write_instance",
+                                  side_effect=lambda *a, **k: order.append("write") or dev.STATE_ROOT / "probe"), \
+                mock.patch.object(dev, "compose_env", return_value={}), \
+                mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, stdout="", stderr="")), \
+                mock.patch.object(dev, "wait_for_service", return_value=[{
+                    "id": "abc", "state": "running", "status": "Up", "name": "x-dsh-1", "service": "dsh"}]), \
+                contextlib.redirect_stdout(stdout):
+            dev.command_up(self.args(replace=True))
+        self.assertEqual(order, ["stop", "write"])
+        report = json.loads(stdout.getvalue())
+        self.assertEqual(report["replaced"], {"previous_state_schema": "1.2"})
+        self.assertEqual(report["session_preset"], "security-operations-expert")
+        self.assertEqual(report["target_preset"], "security-operations-expert")
+
+    def test_replace_refuses_to_change_the_recorded_port(self):
+        self.write_existing(port=3399)
+        stderr = io.StringIO()
+        with mock.patch.object(dev, "resolve", return_value=self.contract()), \
+                mock.patch.object(dev, "stop_instance") as stopper, \
+                contextlib.redirect_stderr(stderr):
+            with self.assertRaises(SystemExit):
+                dev.command_up(self.args(replace=True, port=3302))
+        self.assertIn("不得改端口", stderr.getvalue())
+        stopper.assert_not_called()
+
+
+class CliSurfaceTest(unittest.TestCase):
+    def test_source_help_lists_only_supported_selectors(self):
+        for command in ("plan", "up"):
+            completed = subprocess.run(
+                [sys.executable, str(ADAPTER / "dsh-dev"), command, "--help"],
+                capture_output=True, text=True, check=False, timeout=60)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertIn("experiment:<id>", completed.stdout)
+            self.assertNotIn("snapshot:", completed.stdout)
+
+    def test_up_help_documents_replace(self):
+        completed = subprocess.run(
+            [sys.executable, str(ADAPTER / "dsh-dev"), "up", "--help"],
+            capture_output=True, text=True, check=False, timeout=60)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("--replace", completed.stdout)
 
 
 class UrlCommandGuardTest(unittest.TestCase):

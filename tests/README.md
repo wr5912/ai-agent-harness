@@ -5,7 +5,7 @@
 运行方式：
 
 ```bash
-# Python 校验器与工具测试（156 项，含评测闭环契约）
+# Python 校验器与工具测试（161 项，含评测闭环契约）
 python3 -m unittest discover -s tests -v
 
 # 迁移工具自测（导入脚本随源放置）
@@ -19,7 +19,7 @@ node --test runtime/adapters/dsh-container/test_startup_vector.mjs \
   runtime/adapters/dsh-container/test_tree_identity.mjs \
   runtime/adapters/dsh-container/test_module_boundary.mjs
 node tests/experiments/test_security_guard.mjs
-python3 -m unittest discover -s runtime/adapters/dsh-container -p 'test_*.py' -v   # 66 项
+python3 -m unittest discover -s runtime/adapters/dsh-container -p 'test_*.py' -v   # 78 项
 ```
 
 `runtime/adapters/dsh-container/test_home_submounts.mjs` 是**容器内**挂载语义探针（读取 `/proc/self/mountinfo`、断言 HOME 可写、受控子挂载、适配层脚本目录只读、开发会话判分材料只读、开发身份文件只读且被测容器完全没有这些路径及 `EROFS`/`EACCES`），不能在宿主机直接运行；它需要把适配层目录以只读方式挂进核验容器后再执行，宿主机批量 `node --test .../test_*.mjs` 不应包含它。

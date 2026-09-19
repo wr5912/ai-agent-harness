@@ -2,7 +2,7 @@
 
 本项目用于在本地开发和比较基于 DSH（DeepSeek Harness）的智能体。开发者可以选择一套 Harness 启动 DSH 容器，修改提示词、技能、Preset 和插件配置，运行目标智能体，并用 Git 保存研究结果。项目重点研究 Harness 优化、Harness 资产管理，以及不同 Variant 的效果差异。
 
-当前已实现开发启动器 `runtime/adapters/dsh-container/dsh-dev` 的基础命令，以及来源解析、回执、Run 台账和仓库校验工具。让一次研究完整闭环所需的“修改—重新装载—运行—保存结果”已经可用，但尚未用真实模型与真实 MCP 完成端到端业务评估；已有证据只覆盖工具、挂载和配置组合。这些是当前状态，不是最终能力声明。
+当前已实现开发启动器 `runtime/adapters/dsh-container/dsh-dev` 的基础命令，以及来源解析、回执、Run 台账和仓库校验工具。**完整开发会话尚未验证**：从会话读到正确开发身份、改一处 preset 或技能、保存候选、用明确目标启动、观察到变化并留下一条 Run，这一串动作还没有在真实模型与 MCP 条件下跑通过；已有证据只覆盖工具行为、挂载、配置组合与静态字段。真实业务评估同样未完成。这些是当前状态，不是最终能力声明。
 
 ## 现在能做什么
 
@@ -10,6 +10,7 @@
 |---|---|---|
 | 解析所选来源，确定目标 Agent、preset、资产路径与容器挂载 | 已实现 | `source_contract.py` |
 | 启动开发会话（`--mode dev`）或被测目标会话（`--mode eval`） | 已实现，需要 Docker 与运行时环境变量 | `dsh-dev plan` / `up` / `ps` / `url` / `logs` / `down` |
+| 重载实例配置或迁移旧版实例状态 | 已实现 | `dsh-dev up --replace` |
 | 构建锁定 DSH 提交的本地镜像 | 已实现 | `dsh-dev image build` |
 | 记录变更前后回执，核对资产树摘要 | 已实现 | `mutation-receipt.py` |
 | 归档一次运行（输入锁、Trial、缺口、汇总） | 已实现 | `run_record.py` |
@@ -38,25 +39,44 @@
 
 ### 启动一个本地实例
 
+下面先起一个开发实例再起一个评测实例；两者的目标 preset 与要注册的工作区都不同。
+
 ```bash
-# 1. 只解析来源并打印计划，不启动任何容器
+# 1. 只解析来源并打印计划，不启动任何容器。计划里 session_preset 是本次会话身份，
+#    target_preset 是待优化目标，workspace_to_register 是随后要在界面注册的工作区。
 python3 runtime/adapters/dsh-container/dsh-dev plan \
   --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3081
 
-# 2. 构建锁定提交的镜像（首次或镜像过期时）
+# 2. 构建锁定提交的镜像（首次或镜像内容变化后；适配层脚本走挂载，不需要重建）
 python3 runtime/adapters/dsh-container/dsh-dev image build
 
-# 3. 注入运行时环境变量后启动。dev 模式等同 shell 权限，必须显式确认
+# 3. 注入运行时环境变量后启动开发实例。dev 模式等同 shell 权限，必须显式确认；
+#    注册工作区是 /work，会话身份来自受控只读的 /work/AGENTS.md。
 python3 runtime/adapters/dsh-container/dsh-dev up \
   --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3081 \
   --accept-cordis-trust
 
-# 4. 取本次进程的认证 URL；非交互终端必须显式加 --non-interactive
+# 4. 另起一个评测实例：注册工作区是 /work/harness/workspace，会话运行目标 preset。
+python3 runtime/adapters/dsh-container/dsh-dev up \
+  --source experiment:EXP-security-operations-expert-001 --mode eval --name secops-eval --port 3082
+
+# 5. 取本次进程的认证 URL；非交互终端必须显式加 --non-interactive
 python3 runtime/adapters/dsh-container/dsh-dev url secops-dev
 
-# 5. 查看状态与停止。停止失败或无法确认时不报告成功
+# 6. 查看状态与停止。停止失败或无法确认时不报告成功
 python3 runtime/adapters/dsh-container/dsh-dev ps
 python3 runtime/adapters/dsh-container/dsh-dev down secops-dev
+```
+
+改了 preset、managed 或适配层脚本之后，容器里的进程不会因为挂载内容变化而自动重启：
+
+```bash
+# 一条命令完成重载：先停同名实例自身的容器（HOME 数据卷保留）再按新配置启动
+python3 runtime/adapters/dsh-container/dsh-dev up \
+  --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3081 \
+  --accept-cordis-trust --replace
+
+# 等价做法：先 down，再同名 up
 ```
 
 前置条件与边界：
@@ -64,7 +84,8 @@ python3 runtime/adapters/dsh-container/dsh-dev down secops-dev
 - `up` 需要运行时环境变量已注入（变量名由所选来源声明，见 `sources.json`）。缺少时默认拒绝启动；只有技术装载核验才可用 `--allow-missing-env` 显式降级。
 - 实例配置生成在仓库外（`$XDG_STATE_HOME/dsh-dev/<name>/`），Token 不落盘、不入仓库、不回显到日志。
 - 容器使用 host 网络但只绑定 `127.0.0.1`。`--mode dev` 的会话具备 shell 与执行模型 JS 的能力，等同 shell 权限，需要 `--accept-cordis-trust` 显式确认。
-- 首次打开 DSH Web 需要手工注册工作区 `/work/harness/workspace`：DSH 在该锁定提交上没有受支持的工作区预注册入口。换实例名等于换 HOME 卷，需要重新选择一次。
+- 首次打开 DSH Web 需要手工注册工作区，路径按模式不同：`--mode dev` 注册 `/work`，`--mode eval` 注册 `/work/harness/workspace`；以 `plan.workspace_to_register` 为准。DSH 在该锁定提交上没有受支持的工作区预注册入口。换实例名等于换 HOME 卷，需要重新选择一次。
+- 同名实例不得改端口；`up` 检测到端口被本实例自身占用时，会提示先 `down` 或使用 `--replace`，不会自动改端口。
 
 ## 两类会话与判分材料
 
@@ -72,12 +93,16 @@ python3 runtime/adapters/dsh-container/dsh-dev down secops-dev
 
 | | `--mode dev`（开发会话） | `--mode eval`（被测目标会话） |
 |---|---|---|
-| 运行的身份 | 出厂 `cordis` 创造模式 | 所选来源声明的目标 preset |
+| `session_preset`（本次会话身份） | 出厂 `cordis` 创造模式 | 所选来源声明的目标 preset |
+| `target_preset`（待优化/待评估目标） | 所选来源声明的业务 preset | 同 `session_preset` |
+| 注册工作区 | `/work` | `/work/harness/workspace` |
 | 目标工作区 | 可写（同一候选源码） | 只读 |
 | `/work/spec`（需求、任务、验收标准） | 只读挂载 | 不挂载 |
 | `/work/eval-reference`（评估方法、测试预置、预期答案） | 只读挂载 | 不挂载 |
 
-判分材料不进入被测容器，是因为只读挂载只限制写入、不限制读取：把验收阈值和预期答案挂进被测容器，再依赖被测实现自己的文件访问限制去挡，等于用被测对象保护的边界来保护测试本身。开发会话需要这些材料来修改和核对，所以照常挂载，但容器内路径明确标为判分材料。
+开发会话运行的是创造模式，但它要优化的目标仍是来源声明的业务 preset——`session_preset` 与 `target_preset` 在开发模式下不同，报告目标时用后者。
+
+判分材料不进入被测容器，是因为只读挂载只限制写入、不限制读取：把验收阈值和预期答案挂进被测容器，再依赖被测实现自己的文件访问限制去挡，等于让被测对象保护的边界去保护测试本身。开发会话需要这些材料来阅读和核对，所以照常挂载；容器内它们是只读的，维护在宿主侧完成。
 
 ## 主要目录
 
