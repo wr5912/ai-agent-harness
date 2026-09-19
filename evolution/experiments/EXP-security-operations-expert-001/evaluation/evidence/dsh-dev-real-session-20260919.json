@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-09-19T05:12:31Z",
+  "purpose": "在真实模型与真实 MCP 条件下核验开发会话身份、目标传递与修改—保存—观察闭环",
+  "source_id": "experiment:EXP-security-operations-expert-001",
+  "environment": {
+    "model": "deepseek-flash (provider deepseek-official，headless profile 默认)",
+    "session_transport": "DSH headless profile（dsh --profile headless；镜像内仅 web 与 headless 等模板可直接组合）",
+    "container": "启动器渲染的实例 Compose，使用其 entrypoint（node --expose-internals）与卷挂载",
+    "mcp": "本地 openapi-mcp-server 发布的 Streamable HTTP 端点，后端为 mock_service 的 OpenAPI",
+    "credentials": "仅经进程环境注入；未写入仓库、实例状态文件或本证据"
+  },
+  "observations": {
+    "development_session_identity": {
+      "command_shape": "docker compose run --rm --no-deps -w /work dsh --profile headless --patch <基础 patch> --patch <开发叠加层> <提示>",
+      "agent_reply": "我是本 Harness 研究项目的开发者，运行在 DSH 开发模式（Cordis 创造模式）里……本次会话实际运行的 preset 是 cordis……本次待优化的目标 preset 是 security-operations-expert，目标 Agent 也是 security-operations-expert",
+      "conclusion": "开发会话注册 /work 后读到的是受控开发指令；会话身份与优化目标两个值都正确，未混用"
+    },
+    "subject_session_identity": {
+      "cwd": "/work/harness/workspace",
+      "agent_reply": "我是防御性网络安全运营专家（DSH 容器候选身份），工作目录是 /work/harness/workspace",
+      "conclusion": "被测会话注入的是目标业务指令，不是开发者身份"
+    },
+    "mcp_tool_chain": {
+      "prompt": "用你可用的工具列出当前资产清单",
+      "observed": "会话实际调用了 MCP 工具并返回模拟服务的资产记录，且在缺少 total 字段时明确标注该缺口",
+      "conclusion": "DSH 会话→MCP 客户端→openapi-mcp-server→mock_service 的真实链路可用"
+    },
+    "modify_save_observe_loop": {
+      "step1": "开发会话在 /work/harness/workspace/.agents/skills/ 下创建 dev-probe-catalog/SKILL.md",
+      "step2": "改动落到宿主候选目录，git 工作树可见（workspace 为 rw 挂载）",
+      "step3": "被测会话的技能清单里出现 dev-probe-catalog，并原样报出其 description",
+      "step4_reverse_check": "删除该技能后重建会话，被测会话回答「没有」",
+      "conclusion": "修改、保存到候选、以明确目标启动、观察到变化四步成立；反向检查排除了模型顺着回答的可能"
+    },
+    "workspace_root_instruction_variant": {
+      "probe": "把含标记的文件挂到 /work/AGENTS.local.md 后提问",
+      "observed": "会话读到了该标记",
+      "conclusion": "指令链会读取 AGENTS.md 的 .local.md 变体，目标声明据此注入"
+    }
+  },
+  "verified": [
+    "开发会话身份是创造模式 cordis，待优化目标是来源声明的业务 preset，两者可同时正确表达",
+    "被测会话不携带开发者身份",
+    "真实 MCP 工具链可用，会话能基于模拟数据作答并如实标注证据缺口",
+    "开发会话的改动进入宿主候选，并被目标会话观察到；回退后观察结果随之消失"
+  ],
+  "limitations": [
+    "本次经 headless profile 驱动会话；启动器面向操作者的是 web profile，两者共用同一组 patch、卷挂载与 preset 配置，但 web 界面的工作区注册流程本身未在本次会话中操作",
+    "MCP 端点由本地模拟服务提供且未启用鉴权，因此不能作为服务端鉴权、审批、租户隔离等控制已落实的证据",
+    "未执行正式 Eval Set、候选基线冻结或交付评估；本证据只覆盖开发闭环与工具链可用性"
+  ]
+}

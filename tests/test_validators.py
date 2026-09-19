@@ -1169,6 +1169,7 @@ class RepositoryValidatorTests(unittest.TestCase):
             ("verification.compose.yaml", "${DSH_MANAGED_HOST:?", "${DSH_MANAGED_HOST:-/var/run/docker.sock}${DSH_MANAGED_HOST_IGNORED:?", "DSH_COMPOSE_MOUNTS"),
             ("authoring.compose.yaml", "      - SEC_OPS_MCP_TOKEN\n", "      - SEC_OPS_MCP_TOKEN=inline-secret\n", "DSH_COMPOSE_ENV"),
             ("authoring.compose.yaml", "        target: /work/AGENTS.md\n        read_only: true\n", "", "DSH_COMPOSE_MOUNTS"),
+            ("authoring.compose.yaml", "        target: /work/AGENTS.local.md\n        read_only: true\n", "        target: /work/AGENTS.local.md\n        read_only: false\n", "DSH_DEV_TARGET"),
             ("verification.compose.yaml", "      - --no-open\n", "      - --no-open\n      - --patch\n      - /opt/dsh-managed/x.yml\n", "DSH_COMPOSE_LOAD"),
             ("authoring.compose.yaml", "        target: /work/eval-reference\n        read_only: true\n", "        target: /work/eval-reference\n        read_only: false\n", "DSH_COMPOSE_MOUNTS"),
             ("verification.compose.yaml", "      - --no-open\n", "      - --no-open\n      - --patch\n      - /opt/dsh-managed/x.patch.yml\n", "DSH_COMPOSE_LOAD"),

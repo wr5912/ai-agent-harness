@@ -72,6 +72,10 @@ services:
         target: /work/AGENTS.md
         read_only: true
       - type: bind
+        source: ${DSH_DEV_TARGET_HOST:?本次解析出的目标声明由启动器生成并注入}
+        target: /work/AGENTS.local.md
+        read_only: true
+      - type: bind
         source: ${DSH_ADAPTER_HOST:?适配层脚本目录由启动器注入}
         target: /opt/dsh-adapter
         read_only: true

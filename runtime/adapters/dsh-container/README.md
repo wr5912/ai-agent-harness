@@ -79,7 +79,7 @@ bash runtime/adapters/dsh-container/build-image.sh --build-network host
 | 开发模式 | `--mode dev`（内部 `authoring`） | 出厂 `cordis`（创造模式，额外 `--patch` 开发层） | `/work` | workspace RW，presets/managed RO | `/work/spec`、`/work/eval-reference` RO | 开发者修改/优化被测 harness，需要读判分材料来维护 |
 | 评测模式 | `--mode eval`（内部 `verification`） | 由所选来源声明（`plan.target_preset`） | `/work/harness/workspace` | 全部 RO + 受控 HOME 锁 | 不挂载 | 以目标定义装载并运行被测智能体 |
 
-开发会话的注册工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（`verification-home-controls/locked-dev.AGENTS.md`，内容通用、不含业务 Agent 名）；目标自己的业务 `AGENTS.md` 仍在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。被测容器不挂载该文件。
+开发会话的注册工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（`verification-home-controls/locked-dev.AGENTS.md`，内容通用、不含业务 Agent 名），本次解析出的实际目标值另由启动器生成并只读挂到 `/work/AGENTS.local.md`；目标自己的业务 `AGENTS.md` 仍在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。被测容器不挂载该文件。
 
 目标 preset 由 `sources.json` 的 `preset` 路径推出，适配层不内联任何业务 Agent 名；新增来源只需追加目录数据。
 

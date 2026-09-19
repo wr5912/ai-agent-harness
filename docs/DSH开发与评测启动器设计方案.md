@@ -170,7 +170,16 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 | 会话指令来源 | `/work/AGENTS.md`（受控只读） | `/work/harness/workspace/AGENTS.md`（目标业务指令） |
 | 目标业务 `AGENTS.md` | 作为编辑对象可读可写 | 作为会话身份注入 |
 
-开发指令文件由 `verification-home-controls/locked-dev.AGENTS.md` 提供，精确只读挂载。它的内容是**通用的**：说明开发者身份、目标位置（`/work/harness/workspace`、`/opt/dsh-presets`、`/opt/dsh-managed`）、上下文路径、修改与保存纪律，并区分本次会话身份（`session_preset`）与待优化目标（`target_preset`），两者都以启动器输出为准。它不内联任何业务 Agent 名——仓库校验器会核对这一点，同时要求文件非空、有界、不含 URL 或 `!!js`。
+开发会话的指令来自两个只读文件：
+
+| 挂载点 | 来源 | 内容 |
+|---|---|---|
+| `/work/AGENTS.md` | 受控文件 `verification-home-controls/locked-dev.AGENTS.md` | 通用的开发者身份、目标位置、上下文路径、修改与保存纪律 |
+| `/work/AGENTS.local.md` | 启动器按本次来源生成到实例目录 | **本次解析出的实际值**：来源、目标 Agent、`target_preset`、`session_preset`、资产与受控目录位置 |
+
+两者分开是有意的：受控指令保持通用，仓库校验器要求它不内联任何业务 Agent 名、非空、有界、不含 URL 或 `!!js`；实际目标值属于派生数据，由启动器生成，只在开发会话挂载（被测容器两个文件都不挂）。指令链会读取 `AGENTS.md` 的 `.local.md` 变体，因此会话无需额外工具即可直接读到目标。
+
+`plan`/`up` 输出与 `instance.json` 记录同一组值，开发者可用它们核对实例是否与本次任务一致。
 
 被测容器不挂载该文件：它运行的是目标智能体，读到开发者指令会让目标身份错位。
 

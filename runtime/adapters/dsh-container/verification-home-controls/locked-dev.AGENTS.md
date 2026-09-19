@@ -22,7 +22,7 @@
 - `session_preset`：**你这次会话实际运行的** preset。开发模式下它是出厂创造模式 `cordis`。
 - `target_preset`：**本次要优化的业务目标** preset，始终来自所选来源声明。开发模式下它与 `session_preset` 不同。
 
-两个值都由 `dsh-dev plan` / `up` 输出给出，`instance.json` 记录同一组值。**以启动器输出为准**，不要猜测：报告目标用 `target_preset`，描述自己用 `session_preset`。
+**本次的已解析实际值在本目录的 `AGENTS.local.md` 里**（由启动器按所选来源生成，只读）。直接读它，不要猜测，也不要再让开发者去别处对照：报告目标用 `target_preset`，描述自己用 `session_preset`。如果该文件不存在，说明实例的受控挂载不完整，先停下来报告，不要自行推断目标。
 
 ## 上下文资产
 

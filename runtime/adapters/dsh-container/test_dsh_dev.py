@@ -138,6 +138,45 @@ class ModeAndContextContractTest(unittest.TestCase):
                              f"{mode}: home-init 与 dsh 都必须挂载适配层脚本目录")
             self.assertNotIn("COPY --chown=node:node verify-load.mjs", rendered)
 
+    def test_dev_target_declaration_is_generated_with_resolved_values(self):
+        """回归：受控指令保持通用，实际目标值由启动器生成并挂到 /work/AGENTS.local.md。"""
+        contract = self.contract()
+        document = dev.dev_target_document(contract, "secops-dev")
+        self.assertIn("security-operations-expert", document)
+        self.assertIn("cordis", document)
+        self.assertIn("/work/harness/workspace", document)
+        self.assertIn("/opt/dsh-presets", document)
+        self.assertIn("/opt/dsh-managed", document)
+        self.assertIn("experiment:EXP-security-operations-expert-001", document)
+        # 生成的声明只读挂载，且模板里由必填变量给出。
+        rendered = dev.render_compose(
+            (ADAPTER / "authoring.compose.yaml").read_text(encoding="utf-8"),
+            mode="authoring", project="dsh-dev-author", port=3082)
+        self.assertIn("        target: /work/AGENTS.local.md\n", rendered)
+        self.assertIn("DSH_DEV_TARGET_HOST", rendered)
+
+    def test_development_instance_records_and_mounts_target_declaration(self):
+        with tempfile.TemporaryDirectory() as temp:
+            dev.STATE_ROOT = Path(temp)
+            target = dev.write_instance("secops-dev", mode="authoring", contract=self.contract(),
+                                        port=3084, accepted_cordis_trust=True)
+            manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+            declared = Path(manifest["dev_target_file"])
+            self.assertTrue(declared.is_file(), "开发实例必须生成目标声明文件")
+            self.assertIn("security-operations-expert", declared.read_text(encoding="utf-8"))
+            environment = dev.compose_env(self.contract(), "authoring", 3084, "secops-dev")
+            self.assertEqual(environment["DSH_DEV_TARGET_HOST"], str(declared))
+
+    def test_verification_instance_has_no_target_declaration(self):
+        with tempfile.TemporaryDirectory() as temp:
+            dev.STATE_ROOT = Path(temp)
+            target = dev.write_instance("secops-eval", mode="verification", contract=self.contract(),
+                                        port=3085)
+            manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+            self.assertIsNone(manifest["dev_target_file"])
+            environment = dev.compose_env(self.contract(), "verification", 3085, "secops-eval")
+            self.assertNotIn("DSH_DEV_TARGET_HOST", environment)
+
     def test_target_preset_comes_from_selected_source(self):
         """目标是来源声明的业务 preset，与本次会话实际运行的 preset 分开。"""
         self.assertEqual(dev.target_preset(self.contract()), "security-operations-expert")
@@ -170,23 +209,23 @@ class ModeAndContextContractTest(unittest.TestCase):
         """回归：适配层脚本走只读挂载，两种模式都必须注入其宿主目录。"""
         for mode in ("authoring", "verification"):
             contract = self.contract() if mode == "authoring" else self.contract(patch_overlay=None)
-            environment = dev.compose_env(contract, mode, 3082)
+            environment = dev.compose_env(contract, mode, 3082, f"probe-{mode}")
             self.assertEqual(environment["DSH_ADAPTER_HOST"], str(ADAPTER))
 
     def test_compose_env_injects_context_and_overlay_per_mode(self):
-        authoring_env = dev.compose_env(self.contract(), "authoring", 3082)
+        authoring_env = dev.compose_env(self.contract(), "authoring", 3082, "secops-dev")
         self.assertEqual(authoring_env["DSH_SPEC_HOST"], "/tmp/spec")
         self.assertEqual(authoring_env["DSH_EVAL_HOST"], "/tmp/eval")
         self.assertEqual(authoring_env["DSH_MANAGED_PATCH_OVERLAY"],
                          "/opt/dsh-managed/security-operations-expert.development.patch.yml")
-        verification_env = dev.compose_env(self.contract(), "verification", 3081)
+        verification_env = dev.compose_env(self.contract(), "verification", 3081, "secops-eval")
         self.assertNotIn("DSH_MANAGED_PATCH_OVERLAY", verification_env)
         self.assertNotIn("DSH_SPEC_HOST", verification_env)
         self.assertNotIn("DSH_EVAL_HOST", verification_env)
 
     def test_authoring_without_overlay_fails_closed(self):
         with self.assertRaises(SystemExit):
-            dev.compose_env(self.contract(patch_overlay=None), "authoring", 3082)
+            dev.compose_env(self.contract(patch_overlay=None), "authoring", 3082, "secops-dev")
 
     def test_dev_up_requires_explicit_cordis_trust(self):
         args = types.SimpleNamespace(source="experiment:EXP-security-operations-expert-001",

@@ -10,6 +10,7 @@ const expected = ['node', '--expose-internals', '/opt/dsh/apps/cli/lib/bin.js']
 const required = {
   DSH_IMAGE_TAG: 'ai-agent-harness/dsh:000000000',
   DSH_ADAPTER_HOST: '/tmp/placeholder/adapter',
+  DSH_DEV_TARGET_HOST: '/tmp/placeholder/dev-target.AGENTS.local.md',
   DSH_MANAGED_PATCH: '/opt/dsh-managed/placeholder.patch.yml',
   DSH_MANAGED_PATCH_OVERLAY: '/opt/dsh-managed/placeholder.development.patch.yml',
   DSH_WORKSPACE_HOST: '/tmp/placeholder/workspace',

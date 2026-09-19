@@ -12,6 +12,8 @@
 
 ### 变更
 
+- **开发会话直接读到本次目标**：受控开发指令保持通用（不含业务名），本次解析出的实际值（来源、目标 Agent、`target_preset`、`session_preset`、资产与受控目录）由启动器生成到实例目录，并只读挂到 `/work/AGENTS.local.md`。此前会话只能被告知"以启动器输出为准"，真实会话中确认它拿不到目标值。被测容器两个文件都不挂载。仓库校验器新增 `DSH_DEV_TARGET` 门禁。
+
 - **会话身份与优化目标分离**：`plan`、`up`、`instance.json` 统一给出 `session_preset`（本次会话实际运行的 preset）、`target_preset`（待优化/待评估目标，始终来自来源声明）与 `agent_id`。开发模式下前两者不同（`cordis` 对业务 preset），此前的单一 `target_preset` 字段在两种模式下含义不一致。受控开发指令同步说明两者的区别与用途。
 - **实例状态 schema `1.2` → `1.3`**，`target_preset` 含义收窄并新增 `session_preset`。`ps`、`logs`、`down` 不再要求状态文件是最新 schema：旧实例按记录里已有的字段重建 Compose 环境，缺失字段交给 Compose 报出变量名，因此旧实例仍可停止与查询。已停止的旧实例直接同名 `up` 即完成迁移；仍在运行的用 `up --replace` 或先 `down` 再同名 `up`；`ps` 以 `needs_migration` 标出待迁移实例。
 - 端口占用区分归属：被本实例自身容器占用时给出 `down` 与 `--replace` 两条出路；被其他占用者占用时按原样失败。同名实例记录端口与 `--port` 不一致时直接失败，不自动改端口。

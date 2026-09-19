@@ -52,6 +52,9 @@ CONTAINER_WORKSPACE = "/work/harness/workspace"
 # 开发会话注册 /work：受控只读的 /work/AGENTS.md 说明开发者身份与可编辑范围，
 # 目标智能体的业务 AGENTS.md 仍留在 /work/harness/workspace 供阅读和编辑，但不会被注入为会话身份。
 CONTAINER_DEV_WORKSPACE = "/work"
+# 受控开发指令是通用的、不含业务名；本次解析出的实际目标值由启动器生成到实例目录，
+# 并以 AGENTS.local.md 变体挂到项目根，供会话直接读到（指令链会读取 AGENTS.md 的 .local.md 变体）。
+DEV_TARGET_FILENAME = "dev-target.AGENTS.local.md"
 CONTAINER_SPEC = "/work/spec"
 CONTAINER_EVAL_REFERENCE = "/work/eval-reference"
 # 受控模板不含任何仓库内默认值，凡读取实例 Compose 的命令都必须按实例状态注入这些变量。
@@ -106,6 +109,29 @@ def target_preset(contract: dict) -> str:
     return preset
 
 
+def dev_target_document(contract: dict, instance: str) -> str:
+    """本次开发任务的实际目标声明，写入实例目录后以 AGENTS.local.md 挂进会话。
+
+    受控开发指令保持通用、不含业务名；这里给出已解析的真实值，避免会话只能"看启动器输出"。
+    """
+    lines = [
+        "# 本次开发任务的目标（由启动器解析生成，只读）",
+        "",
+        f"- 实例：{instance}",
+        f"- 来源：{contract['source_id']}",
+        f"- 目标 Agent：{contract['agent_id']}",
+        f"- 待优化目标 preset（target_preset）：{target_preset(contract)}",
+        f"- 本次会话实际运行的 preset（session_preset）：{AUTHORING_PRESET}",
+        f"- 目标 Harness 行为资产：{CONTAINER_WORKSPACE}",
+        f"- 目标 Preset 声明目录：/opt/dsh-presets（容器内只读）",
+        f"- 受控 Profile Patch 与 Guard 目录：/opt/dsh-managed（容器内只读）",
+        "",
+        "这些值已由启动器解析，直接按此执行；不要猜测，也不要把它当成会话身份。",
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def context_assets(contract: dict, mode: str) -> list[dict]:
     """只读上下文数据资产。
 
@@ -134,7 +160,7 @@ def run(command: list[str], *, check: bool = True, capture: bool = True, env: di
     return completed
 
 
-def compose_env(contract: dict, mode: str, port: int) -> dict:
+def compose_env(contract: dict, mode: str, port: int, name: str) -> dict:
     environment = dict(os.environ)
     environment.update(
         {
@@ -148,6 +174,8 @@ def compose_env(contract: dict, mode: str, port: int) -> dict:
     )
     for asset in context_assets(contract, mode):
         environment["DSH_SPEC_HOST" if asset["key"] == "spec" else "DSH_EVAL_HOST"] = asset["host"]
+    if mode == "authoring":
+        environment["DSH_DEV_TARGET_HOST"] = str(instance_dir(name) / DEV_TARGET_FILENAME)
     if mode == "authoring":
         if not contract.get("patch_overlay"):
             fail("所选来源未登记开发模式叠加层（development_patch_overlay），不能以 --mode dev 启动")
@@ -243,6 +271,10 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
             fail(f"实例目录已存在但缺少 instance.json：{target}")
     else:
         target.mkdir(parents=True, exist_ok=False)
+    dev_target_file = None
+    if mode == "authoring":
+        dev_target_file = target / DEV_TARGET_FILENAME
+        dev_target_file.write_text(dev_target_document(contract, name), encoding="utf-8")
     template = (ADAPTER / f"{mode}.compose.yaml").read_text(encoding="utf-8")
     rendered = render_compose(template, mode=mode, project=project_name(name), port=port)
     (target / "compose.yaml").write_text(rendered, encoding="utf-8")
@@ -260,6 +292,7 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         "port": port,
         "image_tag": contract["image"]["local_image_tag"],
         "adapter_root": str(ADAPTER),
+        "dev_target_file": str(dev_target_file) if dev_target_file else None,
         "managed_patch": contract["patch"],
         "mounts": {
             "workspace": contract["workspace"],
@@ -300,6 +333,7 @@ def instance_compose_env(manifest: dict) -> dict:
     values = {
         "DSH_IMAGE_TAG": manifest.get("image_tag"),
         "DSH_ADAPTER_HOST": manifest.get("adapter_root") or str(ADAPTER),
+        "DSH_DEV_TARGET_HOST": manifest.get("dev_target_file"),
         "DSH_MANAGED_PATCH": manifest.get("managed_patch"),
         "DSH_MANAGED_PATCH_OVERLAY": manifest.get("patch_overlay"),
         "DSH_WORKSPACE_HOST": mounts.get("workspace"),
@@ -423,7 +457,7 @@ def command_up(args: argparse.Namespace) -> None:
         fail(f"端口 {args.port} 已被占用；本工具不自动改端口，请显式指定其它端口")
     target = write_instance(args.name, mode=args.mode, contract=contract, port=args.port,
                             accepted_cordis_trust=args.accept_cordis_trust)
-    environment = compose_env(contract, args.mode, args.port)
+    environment = compose_env(contract, args.mode, args.port, args.name)
     run(compose_command(target, args.name, "config", "--quiet"), env=environment)
     run(compose_command(target, args.name, "up", "-d", "--no-build"), env=environment)
     # `docker compose up -d` 返回 0 只说明命令成功，不说明容器在运行：容器可能立刻退出。

@@ -2792,6 +2792,7 @@ def validate_dsh_verification_home_controls(root: Path, adapter: Path, errors: L
 DEV_INSTRUCTIONS_REQUIRED_TEXT = (
     "/work/harness/workspace", "/opt/dsh-presets", "/opt/dsh-managed",
     "/work/spec", "/work/eval-reference", "target_preset", "session_preset", ".agent-presets",
+    "AGENTS.local.md",
 )
 
 
@@ -2937,7 +2938,7 @@ def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str,
         "/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules",
     }
     seen_targets: Set[str] = set()
-    expected_count = 18 if mode == "authoring" else 15
+    expected_count = 19 if mode == "authoring" else 15
     if not isinstance(volumes, list):
         errors.append(issue("DSH_COMPOSE_MOUNTS", "Compose 必须精确挂载 Candidate、独立数据卷和受控 HOME/Bootstrap/Module deny-layer", relative(path, root)))
         return
@@ -2976,6 +2977,14 @@ def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str,
                     or set(volume) != {"type", "source", "target", "read_only"}:
                 errors.append(issue("DSH_ADAPTER_MOUNT", "适配层脚本必须由启动器按只读 bind 注入", relative(path, root)))
             continue
+        if target == "/work/AGENTS.local.md":
+            # 受控指令保持通用；本次解析出的实际目标值由启动器生成，只挂给开发会话。
+            if volume.get("type") != "bind" \
+                    or not required_var_expression(volume.get("source"), "DSH_DEV_TARGET_HOST") \
+                    or volume.get("read_only") is not True \
+                    or set(volume) != {"type", "source", "target", "read_only"}:
+                errors.append(issue("DSH_DEV_TARGET", "本次开发目标声明必须由启动器生成并只读挂载", relative(path, root)))
+            continue
         if target == "/work/AGENTS.md":
             if not dev_instructions or volume.get("type") != "bind" \
                     or volume.get("source") != "./verification-home-controls/locked-dev.AGENTS.md" \
@@ -3003,9 +3012,11 @@ def validate_dsh_compose(root: Path, adapter: Path, mode: str, image_tag: str,
             errors.append(issue("DSH_COMPOSE_MOUNTS", "只允许精确 Candidate 工作区/预设/受控配置挂载及对应 RW/RO", relative(path, root)))
     expected_targets = set(expected_sources) | set(context_targets) | {"/opt/dsh-adapter", "/var/lib/dsh", "/var/lib/dsh/profiles/node_modules"} | module_deny_targets | set(controlled_targets)
     if mode == "authoring":
-        expected_targets = expected_targets | {"/work/AGENTS.md"}
-    elif "/work/AGENTS.md" in seen_targets:
-        errors.append(issue("DSH_DEV_INSTRUCTIONS", "被测容器不得挂载开发会话指令", relative(path, root)))
+        expected_targets = expected_targets | {"/work/AGENTS.md", "/work/AGENTS.local.md"}
+    else:
+        for forbidden in ("/work/AGENTS.md", "/work/AGENTS.local.md"):
+            if forbidden in seen_targets:
+                errors.append(issue("DSH_DEV_INSTRUCTIONS", "被测容器不得挂载开发会话指令或目标声明", relative(path, root)))
     if seen_targets != expected_targets:
         errors.append(issue("DSH_COMPOSE_MOUNTS", "挂载目标必须精确覆盖三类资产、开发者会话判分材料、独立 HOME、受信 fallback 与受控遮蔽文件/目录", relative(path, root)))
     declared_volumes = doc.get("volumes")
