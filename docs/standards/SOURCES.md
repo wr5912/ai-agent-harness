@@ -1,19 +1,19 @@
 # 规范来源锁定
 
-本文件记录本仓库初始化时实际采用的规范版本、不可变定位信息和内容摘要。受控原文不得直接修改；上游规范升级时应新增版本副本、更新本文件并评估迁移影响。
+本文件记录本仓库初始化时参考的规范版本、不可变定位信息和内容摘要。受控原文不得直接修改；上游规范升级时应新增版本副本、更新本文件并评估迁移影响。各来源在 Research Mode 中的适用范围见[《项目规范解释》](./PROJECT-INTERPRETATION.md)。
 
 核对日期：2026-09-15。
 
-## 仓库结构与资产生命周期规范
+## 目录与资产模型参考
 
 | 规范 | 受控副本 | SHA-256 | 状态 |
 |---|---|---|---|
 | Harness Repo 目录结构设计说明 v1.1 | [`Harness_Repo目录结构设计说明_v1.1.md`](./Harness_Repo目录结构设计说明_v1.1.md) | `47e91605ebff45baf269c7f85218ce69c58ada0a6cd78c8f7d8e5524bea44705` | 与提供的原文件逐字节一致 |
 | Harness Asset Repository 规范 v1.0 | [`Harness_Asset_Repository规范_v1.0.md`](./Harness_Asset_Repository规范_v1.0.md) | `9a83b79a4b48cac99f8f56e69f9b63e2d9c78bb3db5f75be6f7e4501685fd502` | 与提供的原文件逐字节一致 |
 
-上述摘要用于证明本仓库受控副本在初始化时与输入文件一致，不表示规范内容已经经过外部标准组织认证。
+上述摘要用于证明受控副本在初始化时与输入文件一致，不表示规范内容已经经过外部标准组织认证，也不表示其中全部生产化目录或流程都是本项目当前合同。
 
-## 智能体研发规范
+## 未来生产化参考
 
 - 仓库：`git@github.com:wr5912/agent-engineering-spec.git`
 - 锁定提交：[`1afe0eec1bb786e5313bb0a06717871fd14ebe28`](https://github.com/wr5912/agent-engineering-spec/commit/1afe0eec1bb786e5313bb0a06717871fd14ebe28)
@@ -21,7 +21,9 @@
 - Tag 边界：`v1.2` 是一个 annotated tag；其 Tag Object 为 `f97358c964fc96f05e3b8202e127fcf5a5c038f1`，解引用后指向 Commit `fa51364796c6c338d45372527a1c6733d3236198`，不是当前锁定提交。不得以 `v1.2` 替代本文件记录的 Commit 引用。
 - 保留方式：仅记录 Git 来源、Commit、采用文件和文件摘要，不在本仓库复制整套规范正文。
 
-| 采用文件 | SHA-256 | 本项目采用内容摘要 |
+下表只记录当时检查过的文件和摘要，便于未来需要生产化时准确回到来源。当前 Research Mode 不默认采用其中的固定 Case 数、R1/R2/R3、安全控制映射、候选基线或生产发布门禁。
+
+| 参考文件 | SHA-256 | 内容索引 |
 |---|---|---|
 | `README.md` | `7bc832778351844ec2e10310ff496b5266b64c9cc1ecfc735f8433db7d7d412e` | 使用入口、主线与文档导航 |
 | `00_总纲.md` | `d2c8400cf1ba3174b421ab3442c65d04f0d92931775c007278600585f341a85f` | 权威术语、角色、状态、风险与证据红线 |
@@ -38,6 +40,6 @@
 ## 更新与核验规则
 
 1. 受控副本内容发生变化时，必须把它视为新来源版本，不得只更新摘要后继续声称是原 v1.1/v1.0。
-2. `agent-engineering-spec` 升级时，先锁定新的 Commit，再逐项比较采用文件和硬门禁；Tag 只作辅助名称，不能代替 Commit。
-3. 来源升级不会自动修改已有 Agent/Harness Release。需要采用新规则时，记录影响范围；影响冻结项的变化进入新的 Experiment 和候选基线。
-4. 项目如何消解三项来源之间的目录与术语差异，见[《项目规范解释与裁决》](./PROJECT-INTERPRETATION.md)。
+2. `agent-engineering-spec` 升级时，先锁定新的 Commit，再比较相关文件；Tag 只作辅助名称，不能代替 Commit。
+3. 来源升级不会自动改变已有 Experiment 或 Research Release。若决定采用某项新规则，应在对应 Experiment 说明原因和影响范围。
+4. 三项来源在本项目中的适用关系见[《项目规范解释》](./PROJECT-INTERPRETATION.md)。

@@ -570,32 +570,43 @@ def main() -> int:
     history_readme += "\n摄取脚本默认只允许一次写入。若需要显式刷新，先确认本目录 `source-manifest.json` 与 Experiment 的 `evaluation/source-inventory.json` 摘要相同，再传入 `--refresh-generated --expect-existing-manifests-sha256 <确认过的摘要>`；任一旧清单或生成目标漂移均拒绝覆盖。\n"
     plan(history / "README.md", history_readme.encode("utf-8"))
 
-    delivery_record = """# security-operations-expert 迁移候选交付记录\n\n- Agent ID：`security-operations-expert`\n- Experiment：`EXP-security-operations-expert-001`\n- 风险等级：高\n- 最低复核等级：R3\n- 当前唯一结论：退回整改\n- 结论依据：已有历史实质失败，且 200 条输入尚未完成业务逐条复核、AC 绑定和正式 DSH Trial。\n\n## 一、智能体需求定义（迁移草稿）\n\n四个能力域的旧需求已完成稳定编号映射：响应处置 `REQ-001..010`、巡检 `REQ-011..018`、故障排查 `REQ-019..028`、策略配置 `REQ-029..038`。原始需求正文保存在迁移历史中。业务负责人尚未确认项目特有 `AC-xxx`、硬门禁阈值和需求到 AC 的关联，因此本文件不伪造正式 AC。\n\nDSH 迁移新增的技术硬门禁包括：仅在容器中装载、开发 Candidate 与受控 Runtime 平面隔离、正式快照只读、凭据仅由 Runtime 注入、角色工具权限衰减，以及变更后必须重建新 Session。它们将在业务 AC 明确后建立 `CTRL → AC → Case` 映射。\n\n## 二、用户场景与输入覆盖矩阵（待业务复核）\n\n200 条不同输入已迁移至 `eval/cases.pending.jsonl`，Case ID 全部保留且无重复。它们覆盖响应处置、巡检、故障排查和策略配置，但旧矩阵存在一格多需求、缩写 Case ID 和非规范输入变体矩阵等问题；正式矩阵须在 AC 绑定时从经复核 Case 元数据重新生成。\n\n## 三、任务与评估数据集说明\n\n当前文件是迁移候选，不是正式 Eval Set。所有 Case 的 `review_status` 和 `acceptance_mapping_status` 均为 `pending`；旧 `synthetic_reviewed` 声明仅作为 `migration.original_source_type` 保存，因为原材料同时标注 `technical_only_pending_domain_signoff`。本轮不生成 `cases.jsonl` 或 `results.csv`。\n\n## 四、安全与控制边界\n\n旧 Prompt、权限配置和 Hook 不能充当 DSH 强制控制。候选以 DSH native guard、角色 `toolFilter`、只读 managed 挂载、Runtime 审批、MCP 服务端权限及独立审计重建控制。生产 Release 不允许自修改；开发态自修改只产生待审 Candidate diff，不授予激活或晋升权。\n\n## 五、候选基线状态\n\n当前尚未冻结 `bl-<UUIDv4>`。DSH Commit、镜像、Profile、Preset、插件、MCP roster/schema、模型、控制、Eval Set、评估器和环境尚未形成完整冻结组合。不得把本 Experiment、旧 Commit 或空结果表称为候选基线。\n\n## 六、自测与交付评估报告\n\n### 已确认的实质失败\n\n- 巡检历史 Workspace 测试存在 7 项失败。\n- 故障排查历史 Manifest 契约存在 1 项失败，Live 检查有 3 项跳过。\n- 策略配置历史跨域路由存在 2 项失败，Console 测试未执行。\n- 响应处置没有正式 Trial，材料不能证明完整交付。\n\n### 材料缺口\n\n- 200 条 Case 缠绕 `synthetic_reviewed` 与待业务签字的矛盾状态。\n- 全部 Case 缺少 `acceptance_id`，旧结果文件没有 Trial，且不符合当前 17 列契约。\n- 威胁研判、知识检索和通用安全调查虽随 Harness 迁入，但没有独立交付评估；启用前必须补齐范围或在 Release 中禁用。\n- 真实模型、真实 MCP、最终业务状态与审计链尚未执行 R3。\n\n### 唯一结论\n\n退回整改。机器结构检查或 Mock MCP 集成验证均不得改写此结论。\n\n### 历史正文索引\n\n"""
-    delivery_record = delivery_record.replace(
-        "以及变更后必须重建新 Session。",
-        "以及进入 Candidate Verification 或正式评估前必须使用复核后的快照、新容器和新 Session。",
-    ).replace(
-        "生产 Release 不允许自修改；开发态自修改只产生待审 Candidate diff，不授予激活或晋升权。",
-        "生产 Release 不允许自修改；隔离 Authoring 当前 Session 可实时看到探索行为，但模型写入只形成待审 Candidate diff，不授予 Candidate Verification 或正式评估的激活、Baseline 冻结或 Release 晋升权。",
-    ).replace(
-        "- 响应处置没有正式 Trial，材料不能证明完整交付。\n", ""
-    ).replace(
-        "### 材料缺口\n\n",
-        "### 材料缺口\n\n- 响应处置没有正式 Trial，材料不能证明完整交付；这不是已确认的实质失败。\n",
-    ).replace(
-        "### 历史正文索引\n\n",
-        "### 历史正文索引\n\n来源的 50 个文件均逐项列入摘要清单，但并非全部复制进仓库：六件套与非执行 README 仅清洗保存在历史目录，200 个 Case 仅转成待复核候选；旧 `.env.example`、部署/测试脚本和无 Trial 的旧空结果表仅保留 SHA-256、大小及拒绝物化原因，未执行或激活。\n\n",
-    )
+    delivery_record = """# 迁移来源研究评估
+
+- Agent ID：`security-operations-expert`
+- Experiment：`EXP-security-operations-expert-001`
+- 用途：记录旧 Harness 与初版交付材料能为后续研究提供什么；不是当前交付或生产结论。
+
+## 已观察的来源事实
+
+- 四个旧能力域的 200 条输入已迁移为待复核材料，Case ID 保留且无重复。
+- 巡检、故障排查和策略配置的历史材料包含已记录失败；响应处置缺少真实 Trial。
+- 旧 Prompt、权限配置、Hook、脚本和部署文件没有被直接执行或激活。
+
+## 对研究的意义
+
+旧需求、输入、行为说明和失败案例可以作为新 Experiment 的素材，但不能证明 DSH 行为等价。后续应从一个明确假设和少量有区分力的输入开始，按实际问题决定是否扩大覆盖。无需先补齐生产交付门禁。
+
+## 已知限制
+
+- 200 条输入仍需要按具体研究问题筛选和复核；旧 `synthetic_reviewed` 声明不能替代当前判断。
+- 旧结果没有现行 Run 记录，不能据此声称候选已经验证。
+- 真实模型、真实 MCP 和最终业务状态只在对应 Experiment 实际运行后才能判断。
+
+## 历史正文索引
+
+来源的 50 个文件均逐项列入摘要清单，但并非全部复制进仓库：非执行正文保存在历史目录，200 条 Case 转成待复核输入；环境、部署与测试脚本只保留摘要和处置原因。
+
+"""
     for label, name, target_path in sorted(delivery_doc_targets):
         rel = target_path.relative_to(repo).as_posix()
         delivery_record += f"- {label} / {name}：`{rel}`\n"
-    record_path = experiment / "candidate" / "delivery" / "交付记录.md"
+    record_path = experiment / "evaluation" / "evidence" / "migration-source-assessment.md"
     plan(record_path, delivery_record.encode("utf-8"))
 
-    audit = f"""# 交付迁移审计\n\n## 已观察事实\n\n- 旧 Harness：86 个文件、43 个目录，归档摘要 `{ARCHIVE_SHA256}`，接收状态 `review_required`。\n- 初版交付：50 个文件、12 个目录，目录树摘要 `{DELIVERY_TREE_SHA256}`，接收状态 `review_required`。\n- 四域合计 200 个 Case，Case ID 唯一；全部为 blocking。正式 `acceptance_id` 和 Trial 均缺失。\n- 来源中的脚本、Hook、MCP 与部署文件均未执行。逐文件处置见 `source-inventory.json`。\n\n## 迁移判断\n\n历史内容可作为需求、行为和安全控制的迁移输入，但不能证明 DSH 行为等价。当前材料存在实质失败，故唯一交付结论为“退回整改”，最低独立复核等级为 R3。\n\n## 后续硬门禁\n\n业务负责人逐条复核输入并确认 AC 后，才能物化正式 `cases.jsonl`。真实 Trial 必须使用冻结的 DSH 容器组合和 17 列结果契约；完整 R3 通过前不得创建稳定 Baseline、Release 或 `current/`。\n"""
-    plan(experiment / "evaluation" / "delivery-migration-audit.md", audit.encode("utf-8"))
+    audit = f"""# 迁移摄取审计\n\n## 已观察事实\n\n- 旧 Harness：86 个文件、43 个目录，归档摘要 `{ARCHIVE_SHA256}`，接收状态 `review_required`。\n- 初版交付：50 个文件、12 个目录，目录树摘要 `{DELIVERY_TREE_SHA256}`，接收状态 `review_required`。\n- 四域合计 200 个待复核输入；来源中的脚本、Hook、MCP 与部署文件均未执行。\n\n## 研究解释\n\n这些材料可以提供需求线索、输入和失败案例，但不能证明迁移后的 DSH Harness 行为。历史失败应作为后续实验的观察输入，不转换为生产复核等级或发布阻断流程。\n\n## 下一步\n\n从明确的研究问题选择少量输入，建立独立 Run 并记录真实观察；是否扩大范围或生成 Research Release 由实验结果决定。\n"""
+    plan(experiment / "evaluation" / "evidence" / "migration-intake-audit.md", audit.encode("utf-8"))
 
-    agent_manifest = """schema_version: "1.0"\nagent_id: security-operations-expert\nlifecycle_status: experiment\nruntime_family: dsh\nload_mode: container-only\nactive_experiment: EXP-security-operations-expert-001\ndelivery_status: returned-for-remediation\nminimum_review_level: R3\n"""
+    agent_manifest = """schema_version: \"1.0\"\nagent_id: security-operations-expert\nruntime_family: dsh\nresearch_status: active\nactive_experiment: EXP-security-operations-expert-001\n"""
     agent_path = repo / "agents" / AGENT_ID / "manifest.yaml"
     plan(agent_path, agent_manifest.encode("utf-8"))
 

@@ -18,7 +18,7 @@ controls:
     authoring_live_behavior: experiment-only
     verification_activation: host-review-new-container-new-session
   - id: CTRL-DSH-003
-    boundary: verification-and-release-read-only
+    boundary: subject-read-only
     enforcement: bind-mount-plus-native-guard
     failure_mode: stop
   - id: CTRL-DSH-004
@@ -50,8 +50,7 @@ controls:
     trusted_gate_env: DSH_SEC_OPS_INSPECTION_EXECUTION_ENABLED
     idempotency_digest_env: DSH_SEC_OPS_INSPECTION_KEY_SHA256
     external_service_must_enforce_tenant_object_approval_and_one_time_idempotency: true
-promotion_limits:
-  formal_eval_materialized: false
-  baseline_frozen: false
-  release_created: false
-  dsh_business_acceptance: false
+research_state:
+  current_run_recorded: false
+  research_release_created: false
+  web_path_verified: false

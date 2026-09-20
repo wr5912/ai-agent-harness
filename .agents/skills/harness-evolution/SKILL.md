@@ -1,34 +1,33 @@
 ---
 name: harness-evolution
-description: 治理 Agent/Harness 从任务与验收标准到 Experiment、候选基线、评估和不可变 Release 的演进。适用于创建、变更、迁移或审计仓库管理的 Harness 资产。
+description: 以 Research Mode 创建、修改、迁移或审计 DSH Harness Experiment，记录 Baseline 引用、Candidate、Evaluation、Decision 和可选 Research Release。用于 Harness 资产演进；不用于建设生产发布或权限治理平台。
 ---
 
-# Harness 演进治理
+# Harness 研究演进
 
-从业务任务和 `AC-xxx` 开始，而不是从 Runtime 目录或配置格式开始。任何语义性 Harness 变更都进入独立 Experiment；禁止直接修改生产挂载资产。
+用最短的可复现路径验证 Harness 变化是否有价值。不要把未来生产需求提前变成当前实验的基础设施。
 
-## 决策流程
+## 工作流程
 
-1. 先按根级 `AGENTS.md` 判断本次涉及哪些对象——开发智能体的运行配置、被开发或优化的 Harness 资产、需求与评测资料、运行状态与运行记录——并据此确定修改位置、保存位置和验证方式。根级定义是唯一分类依据，本技能不另立一套。
-2. 绑定可核验的 `REQ-xxx`、唯一验收事实源中的 `AC-xxx`、影响范围和安全边界。
-3. 只有关键不确定性会改变实施路线时，才用 5～20 条真实或近真实输入探索；否则记录 `development_path: direct` 并直接实现。
-4. 将变更判为 A（普通优化）、B（能力边界）或 C（控制边界）；多类同时适用时叠加要求，无法判断时取更高影响。
-5. 在 Experiment 中保留假设、变更、候选、评估和决定。针对性检查不能替代冻结范围的正式自测。
-6. 冻结完整候选基线，评估并完成交付复核。只有通过的候选才沉淀为稳定 Baseline 和不可变 Release。
-7. DSH 仅在容器中装载本仓库资产。隔离 Authoring 容器可读写当前 Experiment Candidate 的行为工作区并产生待审变更；受控配置、证据与生产 Release 不由模型改写。DSH 生产挂载具体 Release；`current/` 只能在发布通过后更新为同一 Release 的校验镜像。
+1. 按根级 `AGENTS.md` 确认本次涉及的对象、修改范围、保存位置和验证方式。
+2. 选择 Baseline 引用：`git:<commit>`、`release:<id>` 或首次实验的 `none:first-experiment`。
+3. 建立 `EXP-<agent-id>-NNN`，写清假设、预期观察、停止条件和 Candidate 变化。
+4. 使用足以回答当前问题的最小 Evaluation。先从少量高价值输入开始；需要扩大结论时再补覆盖和回归。
+5. 保存真实观察、失败、未知状态和限制，作出 `adopt`、`continue`、`reject` 或 `inconclusive` 决定。
+6. 只有版本确实值得独立复用时，才生成自包含、不可变、可校验的 Research Release。
 
-涉及目录、命名、晋升关系或 Runtime 迁移时，先读 [仓库演进不变量](references/repository-invariants.md)。需要检查仓库时运行：
+涉及目录、身份或 Release 时，读取[仓库演进不变量](references/repository-invariants.md)。需要检查仓库时运行：
 
 ```bash
 python3 -m pip install -r .agents/skills/harness-evolution/scripts/requirements.txt
 python3 .agents/skills/harness-evolution/scripts/validate_repository.py [repo-root]
 ```
 
-校验器使用 PyYAML 的安全、节点与 alias 受限解析器检查 Harness YAML；缺少依赖时，对已物化 YAML 资产 fail-closed，不把文本外观当作有效配置。
-
 ## 边界
 
-- Agent/Harness 是仅供容器内 DSH 装载的业务资产；DSH Preset 是其 Runtime 表达之一，不能把旧 Runtime 配置或宿主机 Codex 技能当作 DSH 可装载资产。
-- 不存在或不适用的组件不得用空目录、空文件或虚假制品补齐。
-- Runtime 迁移必须建立 Experiment。完成逐条领域复核、正式 Eval Set 和完整冻结组合后才能建立新候选基线；配置字段相似、容器构建或 Mock MCP 不构成行为等价证据。
-- 验证器退出 `0` 只表示其机器不变量通过，不表示交付评估或发布通过。
+- 每一处结构和字段都应服务当前研究、复现或装载；不添加未被当前问题使用的治理层。
+- `candidate/` 是可修改工作树，不是生产候选或准入状态。
+- Evaluation 不要求固定数量、REQ/AC、R1/R2/R3 或安全控制映射。
+- DSH 源码、Session、缓存、附件、秘钥和整个 `$DSH_HOME` 不进入 Harness 资产。
+- 源码修改后，用新进程或新 Session 核对实际装载；文件存在和脚本退出码 `0` 不等于假设成立。
+- 校验器只检查确定性合同，不评价研究价值，也不授予发布或生产结论。

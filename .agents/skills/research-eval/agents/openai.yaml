@@ -1,0 +1,6 @@
+interface:
+  display_name: "Harness 研究评估"
+  short_description: "设计轻量比较并校验 Experiment 与 Run 记录"
+  default_prompt: "使用 $research-eval 设计或检查这个 Harness Experiment 的研究评估。"
+policy:
+  allow_implicit_invocation: true

@@ -20,7 +20,7 @@
 
 
 
-> 以下各节为源文档第 2 章统一契约的原文；2.5 的机器契约由仓库交付契约替代。
+> 以下各节保留源文档第 2 章原文以便追溯。固定 50 Case、正式交付、R1/R2/R3 与生产化门禁均只作来源背景，不是本项目当前合同；当前 Run 使用本仓库轻量研究合同。
 
 
 
@@ -92,7 +92,9 @@
 
 
 
-> 源文档 2.5（正式 Case 与结果契约）的机器契约以本仓库交付契约为准（.agents/skills/baseline-eval/references/delivery-contract.md），不在此重复导入。
+> 当前 Trial 最小字段与研究总结口径见 .agents/skills/research-eval/references/experiment-contract.md；不采用源文档的固定生产交付门槛。
+
+> 各场景末尾保留的风险分级与 R1/R2/R3 表述只用于追溯源文档及理解业务后果，不是本项目当前的评估级别、发布门禁或能力承诺。
 
 
 

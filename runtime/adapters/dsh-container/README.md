@@ -1,6 +1,6 @@
 # DSH 容器薄适配层
 
-本目录固定官方 DeepSeek Harness（DSH）源码构建身份和卷装载方式；不开发、不复制 DSH Runtime 源码到本仓库，也不把宿主机 Codex 项目协作配置交给 DSH。`sources.json` 声明可选择的 Experiment Candidate；当前只有 `EXP-security-operations-expert-001`，它不是 Baseline、Release 或生产上线配置。新增来源须提供自己的 Candidate 资产及锁定身份，不能只改卷路径。
+本目录固定官方 DeepSeek Harness（DSH）源码构建身份和卷装载方式；不开发、不复制 DSH Runtime 源码到本仓库，也不把宿主机 Codex 项目协作配置交给 DSH。`sources.json` 声明可选择的 Experiment Candidate；当前只有 `EXP-security-operations-expert-001`。新增来源须提供自己的 Candidate 资产及锁定身份，不能只改卷路径。
 
 ## 源码与镜像身份
 
@@ -13,7 +13,7 @@ bash runtime/adapters/dsh-container/build-image.sh
 
 APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 IPv4；失败必须中止，而非沿用不完整索引。默认使用基础镜像内官方 `http://deb.debian.org/debian` 及 `debian-security`。当该站点在本机网络过慢时，可显式加 `--apt-mirror http://mirrors.tuna.tsinghua.edu.cn/debian`；脚本**只允许这一精确 HTTP 地址**，同时切换 security 到精确 `http://mirrors.tuna.tsinghua.edu.cn/debian-security`。构建前先用同一锁定 Node 底座执行 Debian archive keyring 签名的 APT 更新预检，main、updates、security 任一签名或索引失败即停；Dockerfile 中再次校验，构建证据记录两条实际镜像 URI。非默认镜像改变了构建期软件包的分发路径、可用性和更新时间边界，虽未降低 Debian 签名校验，也不能把它说成与官方源的网络来源完全相同。
 
-本机 Docker 构建网络异常时还可显式加 `--build-network host`，但这会让构建步骤直接使用宿主网络命名空间、扩大构建期网络接触面；默认仍为 Docker 隔离网络。镜像源与网络选项都不改变锁定 DSH 源码和 Node 基础镜像身份，实际值写入构建证据。不得把这些选项用于绕过凭据、来源校验或生产 Runtime 网络策略。
+本机 Docker 构建网络异常时还可显式加 `--build-network host`，但这会让构建步骤直接使用宿主网络命名空间；默认仍为 Docker 隔离网络。镜像源与网络选项都不改变锁定 DSH 源码和 Node 基础镜像身份，实际值写入构建证据。
 
 成功构建后脚本打印实际本地 Image ID 和 CLI 版本，并向本 Experiment 的 `evaluation/evidence/dsh-image-build-<UTC>-<PID>.json` 写入只追加的本地构建证据。也可以指定 `--evidence-output FILE`。`source.lock.json` 仅锁构建输入，不填写未取得的 Registry digest；本地标签可重指向，不能代替 Image ID 或发布时验证的不可变 Registry digest。
 
@@ -29,7 +29,7 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 | `/work/eval-input` | 显式声明的被测输入根 | 不适用 | 仅在显式声明时只读 |
 | `/var/lib/dsh` | 分别命名的 DSH_HOME 数据卷 | 读写 | 读写 |
 
-`/work/spec` 提供需求定义、任务定义与验收标准，`/work/eval-reference` 提供测试预置、评估方法与待复核输入。两者都是**判分材料**：只读挂载限制写入但不限制读取，所以它们只挂给编写态（开发者会话只读阅读与核对，维护在宿主侧完成），核验态（运行被测目标）完全不挂载，`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。来源未物化对应根时编写态启动失败关闭，不创建空目录。`eval/pending/**` 是待领域复核输入而非正式 Eval Case；`cases.jsonl` 尚未物化，容器内不得把它当作正式用例。
+`/work/spec` 提供研究目标、任务与判断标准，`/work/eval-reference` 提供测试预置、方法与待复核输入。两者是比较参考：只读挂载限制写入但不限制读取，所以只挂给编写态；核验态完全不挂载，`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。来源未物化对应根时编写态启动失败，不创建空目录。`eval/pending/**` 是待复核输入；是否转成可复用 Case 由具体研究决定。
 
 两种模式都使用同一组受控 HOME 边界：`locked-user.patch.yml`（顶层 `[]`）精确只读覆盖 HOME 与 Web Profile 的用户 Patch，`web-profile.package.json` 固定官方 `base`、`web-app` Bundle 和 `patchReload: startup`，阻断可写 HOME 的额外启动 Plugin。真正 **0 字节**的 `locked-global.AGENTS.md` 精确只读覆盖 HOME 全局 Agent instructions，不向 Session 注入任何额外语义。`locked-bootstrap.env` 只含一行注释，精确只读覆盖 HOME 与 Candidate workspace 两处 `.env`；模型/MCP Endpoint 和凭据只能由受信容器调用环境或 Runtime 受控凭据提供，不能由可写工作区在 Boot 前暗改。Candidate workspace 中的 `.env` 只是与受控文件字节相同的宿主挂载目标，不存任何变量或凭据。编写态仍可写其他 Candidate workspace 资产，`skill-filesystem.watch: true` 仍可实时看到 Skill 改动；这不授予改受控 Profile、MCP 或 Boot 环境的权限。
 
@@ -52,13 +52,13 @@ docker compose -f runtime/adapters/dsh-container/authoring.compose.yaml down
 
 直接运行 Compose 使用当前安全运营 Candidate 的默认来源；选择其他来源或快照做局部装载核验时，使用 `verify-load.sh --source`，它会从 `sources.json` 解析镜像、Patch 和三棵卷。Compose 中的凭据环境名称和 HOME 卷目前仍按默认样例配置；第二来源的完整业务启动需要实例化对应环境、独立 HOME 和实际依赖后另行验证。Compose 的变量覆盖不是独立的来源授权接口，不能仅靠替换路径后宣称完成另一 Agent 的装载验收。
 
-只有在受信 Runtime/服务端提供模型与 MCP 端点、认证、租户/对象授权和审批控制后才启动实际 Agent。环境变量按名称从调用环境传入，不在 Compose 或仓库写入凭据；不得把 `docker compose config` 的完整展开结果、启动 Token URL 或原始日志作为可公开证据。若任一 MCP 缺失，候选 Profile 配置要求启动失败，不应绕过或改为宽松回退。
+实际 Agent 需要模型与 MCP 端点时，由调用环境提供相应配置。环境变量按名称传入，不在 Compose 或仓库写入凭据；不得把 `docker compose config` 的完整展开结果、启动 Token URL 或原始日志作为公开研究证据。当前 Candidate 声明为必需的 MCP 缺失时会启动失败，应如实记录依赖缺口。
 
-`DSH_PERMISSION_MODE=workspace-write|read-only` 是官方 base Profile 的新 Session *进程后备预设*；Web 中持久化的 General Settings 可影响后续 Session，不能只凭该变量声称权限已经强制生效。受控 `.env` 只阻断两处 Boot 文件层；调用环境、HOME 中持久化的 settings/credentials 与模型/MCP 实际连接状态仍是独立 Runtime 事实，正式核验要取其受控来源、版本和有效值状态，不能只凭 Candidate 文件摘要认定运行组合已冻结。真正的文件只读边界是核验态三棵资产的 Docker `read_only` bind mount；工具权限、MCP 高风险控制和租户审批还须由 Runtime 与服务端核验。编写态容器内 DSH 可以自组合、自修改工作区内的 Candidate 行为资产，但不能写受控 Preset、Guard、MCP 绑定或 Release。
+`DSH_PERMISSION_MODE=workspace-write|read-only` 是官方 base Profile 的新 Session *进程后备预设*；Web 中持久化的 General Settings 可影响后续 Session，不能只凭该变量推断实际状态。调用环境、HOME 中的 settings/credentials 与模型/MCP 连接状态是独立 Runtime 事实，应在需要比较时记录。核验态三棵资产使用 Docker `read_only` bind mount；编写态 DSH 可以修改工作区内的 Candidate 行为资产，但不能写受控 Preset、Guard 或 MCP 绑定。
 
-编写态 `skill-filesystem.watch: true` 与 Agent instructions 的重投影可能让**当前 Session** 实时看到刚写入的工作区新行为；这只算 Experiment 探索。只有宿主侧审查 Candidate diff、核对回执及受控边界，并以核验态的新容器、新 Session 重建加载后，才可称为“已按新候选组合激活”；不能把编写态的实时变化写成 Verification、正式评估或 Release 证据。
+编写态 `skill-filesystem.watch: true` 与 Agent instructions 的重投影可能让**当前 Session** 实时看到刚写入的工作区新行为；这只算即时观察。要比较变更前后行为，先核对 Candidate diff 和回执，再用核验态的新容器、新 Session 重建加载，避免把旧 Session 状态误当成源码效果。
 
-官方 Web 当前默认只绑定容器内 `127.0.0.1`，本适配层未发布宿主端口，因此不会提供可从宿主浏览器使用的 URL。需要真实对外协议验收时，应在目标环境另行明确入口、认证、网络暴露与回滚方案；不能以本 Compose 的容器启动或配置展开代替完整业务链。
+官方 Web 当前默认只绑定容器内 `127.0.0.1`，两份基础 Compose 不发布宿主端口。需要浏览器访问时使用 `dsh-dev` 生成的本地 host-network 实例；容器启动或配置展开仍不能替代 `PA-08` 的实际 Web 交互。
 
 ## 构建镜像
 
@@ -144,7 +144,7 @@ python3 runtime/adapters/dsh-container/mutation-receipt.py before
 python3 runtime/adapters/dsh-container/mutation-receipt.py after <上一步打印的 before.json 绝对路径>
 ```
 
-回执写入本 Experiment 的 `evaluation/evidence/mutation-receipts/mr-<UUIDv4>/`，比较三棵资产树的文件、目录权限与前后摘要，记录工作区变化及是否需重新审查冻结组合。如果受控 Preset 或 Managed/Guard 树在编写期间变化，脚本保留失败回执并以非零状态明确拒绝；它不是评估、候选基线、发布或生产变更批准。若要单独取得三棵装载树或所选来源的 `spec`/`eval` 上下文根的文件摘要，可使用 `mutation-receipt.py digest <精确资产源路径>`（其他路径仍被拒绝）。
+回执写入本 Experiment 的 `evaluation/evidence/mutation-receipts/mr-<UUIDv4>/`，比较三棵资产树的文件、目录权限与前后摘要。受控 Preset 或 Managed/Guard 树在编写期间变化时，脚本保留失败回执并以非零状态报告；回执只说明文件变化，不说明假设成立。若要取得三棵装载树或所选来源的 `spec`/`eval` 根摘要，可使用 `mutation-receipt.py digest <精确资产源路径>`。
 
 局部装载比较前可物化三棵 Candidate 挂载树的实际字节（含未提交文件），并在只读容器装载前复核摘要：
 
@@ -154,8 +154,8 @@ python3 runtime/adapters/dsh-container/mutation-receipt.py freeze
 bash runtime/adapters/dsh-container/verify-load.sh verification --frozen SNAPSHOT_DIR
 ```
 
-副本位于所选 Experiment 的 `snapshots/frozen-sources/fr-<UUIDv4>/`；`snapshot.json` 记录三树文件、目录权限摘要和来源，`frozen-digest` 会核对副本字节与权限。冻结拒绝空资产目录、被 Git 忽略的文件和非受控 `.env`；仍需人工检查资产是否含敏感内容。`restore SNAPSHOT_DIR` 仅在 Candidate 根目录不存在时恢复三棵挂载树，绝不覆盖现有工作树。这只是可还原的**挂载源**，并未单独归档候选元数据、插件构建制品或运行有效配置。它也不是经评估的 `bl-<UUIDv4>`、Release 或防宿主侧修改的存储锁；比较运行前后还须复核摘要并确保单写者。
+副本位于所选 Experiment 的 `snapshots/frozen-sources/fr-<UUIDv4>/`；`snapshot.json` 记录三树文件、目录权限摘要和来源，`frozen-digest` 会核对副本字节与权限。`restore SNAPSHOT_DIR` 仅在 Candidate 根目录不存在时恢复三棵挂载树，绝不覆盖现有工作树。这只是一次局部装载探针使用的可还原挂载源，不是项目 Baseline 或 Research Release；长期研究版本仍由 Git 保存。
 
 整套源码研究快照（`snapshots/research/`）的创建与复核已退役：它与 Git 重复保存同一份内容，并要求跨环境重现宿主机完整 POSIX 权限。历史内容按 `evolution/experiments/<id>/snapshots/README.md` 的映射从 Git 提交恢复。
 
-发布后必须用具体不可变 Release 替换这三棵 Candidate 源，所有 Harness 资产只读，并按 `dsh-release-verify` 核对通过评估的 `baseline_id`、`run_id`、Release 摘要、实际 DSH 加载及完整业务链。当前没有通过的 Release，不能把核验态 Candidate 说成生产发布。
+未来若实现 `release:<id>`，启动器应直接装载具体、不可变的 Research Release，并核对清单摘要与实际 DSH 身份。当前没有 Research Release，也没有对应解析入口，不能把 Candidate 装载写成 Release 复现完成。

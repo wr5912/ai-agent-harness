@@ -19,7 +19,7 @@
   "profile": "web",
   "profile_patch": "dsh/managed/security-operations-expert.patch.yml",
   "runtime_adapter": "runtime/adapters/dsh-container",
-  "lifecycle": "experiment-candidate",
+  "lifecycle": "research-experiment",
   "build_identity_policy": "actual local image ID is recorded in evaluation evidence, never substituted for registry OCI digest",
-  "promotion_status": "not-evaluated"
+  "observation_status": "partially-observed"
 }

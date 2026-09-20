@@ -397,7 +397,7 @@ def command_plan(args: argparse.Namespace) -> None:
     if args.mode == "authoring":
         plan["cordis_trust_notice"] = CORDIS_TRUST_NOTICE
     if args.mode == "verification" and contract["source_kind"] == "experiment":
-        plan["evaluation_source_notice"] = "评测模式绑定的是可变宿主候选（非冻结副本）；该结果只能作为局部技术核验，不得作为正式评估结论。"
+        plan["evaluation_source_notice"] = "评测模式绑定当前宿主 Candidate；运行期间不要改写该来源，并在 Run 中记录实际 Git 与 dirty 状态。"
     print(json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True))
 
 

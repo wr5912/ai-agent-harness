@@ -1,9 +1,9 @@
 # 仓库治理版本
 
-当前版本：`0.4.1`
+当前版本：`0.5.0`
 
-该版本标识本仓库的目录语义、协作规则和演进工具契约，不是 Agent/Harness Release，也不表示已经创建同名 Git Tag。
+该版本标识仓库协作规则、研究资产语义和本地工具合同，不是 Agent/Harness Research Release，也不表示已经创建同名 Git Tag。
 
-本版本主要变化：`up --replace` 在停旧实例前核对来源、模式、端口并预检新 Compose；独立 `verify-load.sh authoring` 复用来源合同生成本次目标声明，核对 `/work/AGENTS.local.md` 的只读挂载、摘要和目标字段；业务 Agent ID 与运行时 preset ID 改为显式映射，不再要求字符串相等，默认用稳定 ID 回流；阅读视图拒绝指向未来 JSONL 输入的悬空软链；项目验收矩阵与证据范围同步更新。
+本版本将项目明确收敛为 Research Mode：研究优先，禁止过度工程化和过度安全化；采用简洁优先与精准修改；Baseline 改为 Git/Release/首次实验引用；移除稳定 Baseline、`current/`、R1/R2/R3 和生产发布门禁的默认要求；Research Release 只表示可复现研究版本。
 
-当前状态：Headless 下的 Skill 修改小闭环和模拟 MCP 工具链已有真实模型记录；Web 工作区注册与 preset 的创建、回流、显式选择仍是 `PA-08`/`PA-09` 的未完成路径。未发布的 `security-operations-expert` 仍只是 Experiment Candidate，交付结论"退回整改"，尚无可部署 Agent/Harness Release。
+项目技能收敛为 `legacy-asset-intake`、`harness-evolution`、`research-eval` 和 `ai-correction-log`。Run 使用轻量观察合同。当前仍没有 Research Release，`release:<id>` 解析与装载尚未实现；DSH Web 完整交互和新 Preset Web 选择仍分别是 `PA-08`、`PA-09` 的缺口。

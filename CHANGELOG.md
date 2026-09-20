@@ -2,6 +2,20 @@
 
 本文件记录仓库治理、目录契约和公共演进工具的变化。单个 Agent/Harness Release 的变更应记录在对应不可变 Release 中。
 
+## [0.5.0]
+
+### 变更
+
+- 项目明确采用 Research Mode：研究优先，禁止过度工程化和过度安全化；新增中文的简洁优先（Simplicity First）与精准修改（Surgical Changes），并将项目级安全收敛为“不提交秘钥、不自动执行不可信资产、不做未授权破坏/外部写入、如实记录结果与限制”四项底线。
+- 研究生命周期改为 `Baseline 引用 → Experiment → Evaluation → Decision → 可选 Research Release`。Baseline 使用 `git:<commit>`、`release:<id>` 或 `none:first-experiment`，不再维护 `evolution/baselines/` 与 `agents/<agent-id>/current/`；Research Release 表示自包含、不可变、可校验的研究版本，不表示生产准入。
+- `agent-engineering-spec` 锁定提交调整为未来生产化参考；当前 Experiment 不再默认要求固定 50 Case、17 列 Trial、REQ/AC、R1/R2/R3、安全控制映射或生产发布门禁。
+- 项目技能移除 `security-control-boundary`、`delivery-review`、`dsh-release-verify`，将 `baseline-eval` 替换为轻量 `research-eval`；`harness-evolution`、仓库不变量和校验器同步研究语义。
+- `run_record.py` 的 Trial 最小合同收敛为 `run_id`、`trial_id`、`input_id`、`status`、`observation`，失败/错误另记原因；Run 只区分 `research` 与 `technical`。
+- 仓库校验器改为检查 Research Mode 入口、受控来源身份、四个项目技能、Experiment、Run 与 Research Release 的最小可复现合同，并明确拒绝物理 Baseline、`current/` 和已退役生产化技能。
+- `security-operations-expert` 的迁移“交付记录”改为迁移来源研究评估，Experiment 状态和 Candidate 元数据不再使用退回整改、候选基线、R3 或晋升状态；历史来源与既有运行证据保持原貌。
+- README、项目解释、验收矩阵、Variant 方法、研究管理 CLI 和 DSH 适配说明统一 Research Mode。项目验收仍保留 11 条一级路径，但三层结论调整为项目工具链、Experiment Evaluation 和 Research Release 复现。
+- 仓库治理版本升级为 `0.5.0`；该版本号不等同于 Git Tag 或 Harness Research Release。
+
 ## [0.4.1]
 
 ### 变更

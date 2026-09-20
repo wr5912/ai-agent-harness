@@ -1,109 +1,72 @@
 # DSH 容器开发启动器设计方案
 
-> 状态：`dsh-dev` 已实现 `image build`、`plan`、`up`、`ps`、`url`、`logs`、`down`，并提供**开发模式 `--mode dev`（出厂 Cordis 创造模式）**与**评测模式 `--mode eval`（被测智能体 preset）**：按来源选择器 `experiment:<id>` 启动 host 网络实例（只绑定宿主回环）、渲染实例 Compose、挂载 harness 三树，开发会话另挂判分材料而评测会话不挂、按本次进程日志交付认证 URL 并做 Token→Cookie→根页探针（非交互输出须显式 `--non-interactive`）；`open`、`resume`、`fresh` 和 `release:<id>` 选择器仍是待实施合同。运行方式、挂载矩阵与异常处理见[DSH 开发与评测启动器设计方案](./DSH开发与评测启动器设计方案.md)。本轮实例级装载证据：[dsh-dev-live-load-20260918.json](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-live-load-20260918.json)。
->
-> 范围：同一台 Linux Docker Engine 主机上的本地开发和候选技术核验。本文不设计生产部署入口，不改变 DSH Runtime 源码，也不替代 Agent 交付评估或 Release 验收。
->
-> 依据：[规范来源锁定](./standards/SOURCES.md)、[项目规范解释](./standards/PROJECT-INTERPRETATION.md)、[当前 DSH 容器适配层](../runtime/adapters/dsh-container/README.md)。dev/eval 两种模式的取舍、创造链缺口与目标设计见[DSH 开发与评测启动器设计方案](./DSH开发与评测启动器设计方案.md)。研发管理 CLI 是[另一项提案](./DSH智能体研发管理平台边界设计方案.md)，两者不共用命令、权限或运行态数据。
+> 状态：`dsh-dev` 已实现 `image build`、`plan`、`up`、`ps`、`url`、`logs`、`down` 和 `up --replace`。完整操作说明见[《DSH 开发与评测启动器设计方案》](./DSH开发与评测启动器设计方案.md)。
 
-## 1. 要解决的问题与当前事实
+本文只说明为什么采用当前容器结构。研究管理入口见[《DSH Harness 研究管理 CLI 设计方案》](./DSH-Harness研究管理CLI设计方案.md)；它是本地 CLI 方向，不是平台提案。
 
-开发者需要明确选择本仓库中的 Harness 来源和运行模式，快速启动容器内 DSH Web，并取得**宿主机浏览器可访问、包含本次进程 Token 的完整 URL**。启动器属于宿主侧开发工具；容器内运行的仍是锁定镜像中的官方 DSH，Harness 仍通过卷装载，`DSH_HOME` 仍是独立运行态数据根。
+## 1. 目标
 
-适配层提供 Authoring/Verification 两套受控 Compose（`dsh` 服务不发布宿主机端口、官方 Web 绑定容器内回环），`dsh-dev` 则按实例在仓库外渲染一份启用了 host 网络、只绑定宿主回环的实例 Compose。现有[技术预检](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json)验证过隔离环境内 Token 入口 `303`、取得 Cookie 后根页面 `200`，但没有验证本文拟议的 host 网络、真实模型/MCP 或完整业务任务。当前仍没有已晋升的业务 Agent Release。
+启动器解决三个容易混淆的问题：
 
-锁定的 DSH 镜像身份见 [`source.lock.json`](../runtime/adapters/dsh-container/source.lock.json)。官方文档说明 `dsh web` 默认监听回环，支持 `--port`，并在启动后打印带进程 Token 的认证链接；Token 经根页面换取浏览器 Cookie。[DSH Web 应用说明](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/bundle/web-app/README.md)、[DSH HTTP Server](https://deepseek-harness.github.io/deepseek-harness/en/reference/subsystems/web-server)。官方在线文档可能随版本变化，实施时仍须在本仓库锁定镜像上实测参数与链接格式。
+- 本次到底选择了哪个 Experiment、Agent 和 Preset；
+- 开发会话和被测会话分别能读写什么；
+- 源码修改后是否由新容器、新 Session 实际装载。
 
-## 2. 组件、数据与网络边界
+它不评价 Harness 效果，也不建设生产部署入口、权限平台或审批流程。
+
+## 2. 当前结构
 
 ```text
-开发者终端 ── dsh-dev（宿主侧，拟议） ── Docker Compose
-                                         ├── home-init：network_mode: none
-                                         └── dsh：network_mode: host
-                                              ├── Web 监听宿主回环 127.0.0.1:<port>
-                                              ├── Harness 资产按模式挂载
-                                              └── 独立 DSH_HOME 数据卷
-宿主机浏览器 ── 带 Token 的本次启动 URL ──> DSH Web
+开发者终端 ── dsh-dev ── Docker Compose
+                           ├── home-init：初始化独立 DSH_HOME
+                           └── dsh：锁定镜像中的官方 DSH
+                                ├── 127.0.0.1:<port> Web
+                                ├── 按模式挂载 Candidate
+                                └── 每实例独立 HOME 数据卷
 ```
 
-仅启动器管理的**本地开发实例**把 `dsh` 服务设为 `network_mode: host`，显式使用 `--host 127.0.0.1 --port <port> --no-open`；`home-init` 继续无网络。host 模式不能再配置 Compose `ports:`，容器监听的回环端口就是宿主机端口，无需转写 DSH 打印的 URL。[Docker host 网络](https://docs.docker.com/engine/network/drivers/host/)、[Compose 网络模式](https://docs.docker.com/compose/how-tos/networking/)。启动器不得把监听地址扩展为 `0.0.0.0`，也不得将该网络模式默认为生产装载方式。
+`dsh-dev` 在仓库外的用户状态目录生成实例配置。Harness 通过 bind mount 装载；Session、设置、附件和缓存留在独立 DSH_HOME，不写进 Candidate。
 
-host 网络消除了此处的回环可达性问题，**也消除了容器与宿主机之间的网络命名空间隔离**：容器内代码可访问宿主机回环服务，Candidate 自修改或不可信输入可能扩大影响；其他 Plugin 新增的监听口也可能出现在宿主机。文件只读挂载、`cap_drop` 和 Web Token 不能抵消这项网络权限。实施前应清点目标主机上不可暴露给该 Candidate 的服务和实际出站路径；无法接受此风险时，不启动 host 网络实例，而不是宣称其已被 Token 消除。`home-init`、受控 Profile/Guard/MCP 挂载、容器用户、只读根文件系统与不挂 Docker Socket 的现有控制保持不变。
+## 3. 两种模式
 
-| 来源与模式 | 默认 Agent preset | 工作区 | Preset/managed | 只读数据资产 | `DSH_HOME` | 结论边界 |
-|---|---|---|---|---|---|---|
-| `experiment:<id>` + `dev`（内部 authoring） | 出厂 `cordis`（创造模式，第二层 `--patch` 开发层） | 该实验独立工作区 RW，至少保证同一工作区单写者 | RO | `/work/spec`、`/work/eval-reference` RO（开发者需要读判分材料来维护它） | 该实例专用数据卷 | 只供隔离探索；创造模式会话等同 shell 权限且无 Guard 约束，必须显式 `--accept-cordis-trust`；源码变化显示为 dirty，不使实例身份自动失效。 |
-| `experiment:<id>` + `eval`（内部 verification） | 被测智能体 `security-operations-expert` | 可变宿主候选 RO | RO | 同上 RO | 该实例专用数据卷 | 只供局部技术核验；非冻结来源不得作为正式评估结论。 |
-| `release:<id>` + `eval`（后续扩展） | 具体 Release 声明的 preset | 全部 RO | RO | Release 内声明只读 | 新数据卷 | 只供本地装载检查，不表示生产部署；当前尚无此类 Release。 |
-
-不得把 `current/`、仓库根目录、**评估结果与证据**（`runs/`、`evaluation/evidence/`）、交付结论、历史归档或开发者个人 DSH_HOME 当作启动来源。判分材料（`agents/<agent-id>/spec` 的验收阈值与 `agents/<agent-id>/eval` 的评估方法、测试预置、预期答案）只挂给开发会话和评分角色，不进入被测容器；它们不进入工作区树摘要，也不因此获得任何执行权限。当前适配层的 `experiment:<id>` Verification 只读绑定宿主候选，仅能提供局部技术检查：它不复制冻结副本，因此评测期间不修改相关资产由开发者保证，而不是由挂载方式保证；Run 记录会如实记下实际提交与未提交状态。Authoring 与 Verification 不复用 Session；正式评估还须按[项目规范解释](./standards/PROJECT-INTERPRETATION.md#7-dsh-双平面与挂载契约)补齐完整候选基线、复核 Candidate diff，并用新容器、新 Session 重新加载。启动器不自动形成正式 Baseline、不运行 R3、不生成 Release。
-
-## 3. `dsh-dev` 命令合同
-
-可执行入口为仓库内 `runtime/adapters/dsh-container/dsh-dev`，文中的 `dsh-dev` 表示开发者把该目录加入 `PATH` 后的命令名；直接调用时使用 `./runtime/adapters/dsh-container/dsh-dev`。只依赖 Python 3 标准库、Docker CLI 和 Compose，不在容器内安装管理工具。下表命令中 `image build`、`plan`、`up`、`ps`、`url`、`logs`、`down` 已实现；`open`、`resume`、`fresh` 尚未实现。
-
-```bash
-dsh-dev image build
-dsh-dev plan --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3084
-dsh-dev up --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3084 --accept-cordis-trust
-dsh-dev ps
-dsh-dev url secops
-dsh-dev open secops
-dsh-dev logs secops
-dsh-dev down secops
-dsh-dev resume secops
-dsh-dev fresh --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-new --port 3086
-```
-
-| 命令 | 行为与输出 | 必须避免 |
+| 内容 | `--mode dev` | `--mode eval` |
 |---|---|---|
-| `image build` | 调用现有锁定来源构建脚本，报告镜像 ID/版本。 | 隐式拉取其他 DSH 版本或把本地标签当不可变身份。 |
-| `plan` | 只读解析来源、镜像、模式、挂载、环境变量**名称**、端口及风险，检查来源/端口/实例名；输出脱敏计划。 | 创建容器、数据卷、基线或打印变量值/Token。 |
-| `up` | 再次检查计划条件，使用隔离 Compose 项目和数据卷启动。实例创建身份由来源选择器、模式、镜像、Profile/插件组合、端口与 HOME 绑定组成；开发模式工作区后续内容变化显示 dirty，不直接判身份冲突。`--mode dev` 缺 `--accept-cordis-trust` 即失败关闭，`--mode eval` 拒绝该旗标；开发模式来源缺少 `spec`/`eval` 根时失败关闭。配置/插件变化提示需重新构建或启动新进程；评测模式绑定的是可变宿主候选，只能作局部技术核验。 | 端口被占仍自动改端口、覆写已有 HOME、把启动成功写成交付通过，或在未显式确认下启动等同 shell 权限的创造模式实例。 |
-| `ps` | 显示启动器管理的实例、来源、模式与用途、默认 preset、上下文挂载、镜像、实际端口、运行状态和不带 Token 的回环基址。 | 显示 Token、Cookie、环境变量值或未经核验的“业务就绪”。 |
-| `url <name>` | 从**正在运行的该实例、本次 DSH 进程**取得原样完整认证 URL，核对地址、端口与认证入口后向交互终端输出；显式 `--non-interactive` 可向脚本输出同一 URL，并提示调用者自行保护标准输出。 | 只打印裸 `http://127.0.0.1:<port>/`、拼造 Token、返回历史进程链接或把 URL 写入状态文件。 |
-| `open <name>` | 使用与 `url` 同一个经核对的认证 URL 打开宿主机默认浏览器；浏览器打开失败只报告无凭据错误，DSH 保持运行。 | 在普通输出中再打印 URL，或把“请求打开浏览器”当作页面已可用。 |
-| `logs <name>` | 默认输出有界、尽力脱敏的错误类型、插件名、错误码和必要栈；显式本地详细诊断可读取原始运行日志，但不得自动归档入资产仓库。 | 误称任意自由文本都已完全脱敏，或把原始日志复制入库。 |
-| `down <name>` | 停止该实例，默认保留 HOME 与资产；不等于重置会话。 | 删除其他实例、数据卷、Candidate 资产或外部服务。 |
-| `resume <name>` / `fresh ...` | 前者显式复用已保留 HOME，后者创建全新实例、HOME 与 Session；Verification 默认 fresh。清理旧 HOME 另设确认目标的操作，不由 `down` 隐式执行。 | 把恢复旧会话和新运行混为一谈，或在比较运行中复用旧状态。 |
+| 会话身份 | 出厂 `cordis` 创造模式 | 来源声明的目标 Preset |
+| Candidate workspace | 读写 | 只读 |
+| Preset / managed | 只读 | 只读 |
+| spec / eval reference | 只读提供给开发者 | 不挂载 |
+| DSH_HOME | 独立数据卷 | 独立数据卷 |
 
-`dsh` 容器的 `working_dir` 只是进程工作目录，**不等于 DSH 工作区**：Web 会话必须绑定一个已注册工作区，注册表存在 `$DSH_HOME/storages/workspace.json`（domain version 2，只从已存会话头 bootstrap，初始化标记写入后不再重建）。新实例的 HOME 卷为空，因此首次打开必然是“选择一个工作区开始”的冷启动态。当前锁定 DSH 提交没有受支持的工作区预注册入口（`dsh web` 无工作区参数；工作区命令只走浏览器 typert RPC）；启动器因此**只交付路径与操作步骤**（`plan.web_cold_start`、`up` 的 stderr 提示），不写 Runtime 存储内部格式，也不在适配层实现私有 RPC 客户端。若要“打开即可用”，需要 DSH 侧提供受支持的预注册接口，或由操作者在同一实例 HOME 上注册一次后复用该实例。
+开发模式可以修改当前 Experiment 的行为资产；被测模式观察同一 Candidate。源码变化不会让旧进程或旧 Session 自动更新，必须重启并创建新 Session 后再判断是否生效。
 
-`<name>` 使用小写 kebab-case，映射到唯一 Compose 项目；不同实例有独立容器和 HOME 卷。`--port` 默认 `3080`，必须是合法 TCP 端口且同机唯一。为保证 URL 可预测，端口冲突时失败，不自动换端口；第二个实例应显式指定其他端口。`plan` 与 `up` 都检查端口，但 `plan` 结果不保留端口，`up` 仍须处理两次检查之间的占用竞争。开发模式（`--mode dev`/authoring）允许行为工作区改变但标记 dirty，受控 Profile/插件组合或镜像改变则必须新装载；评测模式（`--mode eval`/verification）只接受同一冻结摘要。所选来源必须能解析 `spec`/`eval` 事实源，供开发会话与 Run 输入锁使用；只有开发会话挂载这些判分材料，评测会话不挂载。固定 DSH 版本的 `--port` 语义、两个实例不同端口及 Cookie 隔离均需实测。
+当前只支持 `experiment:<id>`。未来 `release:<id>` 若实现，也只表示装载具体 Research Release，不增加生产部署含义。
 
-## 4. 实例生成与认证 URL 的正确性
+## 4. 网络选择
 
-启动器在宿主侧解析 `experiment:<id>` 或后续的 `release:<id>` 到**精确、已核验的来源**，拒绝路径穿越、符号链接越界、不存在的来源、错误模式及仓库外来源。现有适配层已有 `sources.json` 和共享来源解析器；当前仅登记 `EXP-security-operations-expert-001`，`verify-load.sh --source` 可展开镜像、Patch 和三棵卷用于局部技术核验。`release:<id>` 选择器仍待实现，不为它创建空制品。凭据环境变量名与 HOME 卷由所选来源声明，启动器为每个 Agent 实例化环境与隔离 HOME，并验证实际装载，不能只替换资产卷便假称完整支持。
+本地 Web 使用 `network_mode: host`，DSH 明确绑定 `127.0.0.1:<port>`。这样浏览器可以直接访问 DSH 自己打印的认证 URL，也意味着容器能访问宿主回环服务。
 
-对每个实例生成位于仓库外用户状态目录的非秘密配置；调用 Docker Compose 前运行 `config --quiet`，保留现有适配层的挂载/权限控制，只改变所选资产来源、实例身份、Web 端口和 `dsh` 服务的 host 网络。Compose 项目名和卷名按 `<name>` 隔离，不能复用现有固定 Compose 的默认 HOME。受信调用环境按变量名提供模型/MCP 端点和凭据；环境值不进入生成配置、计划输出或仓库。不得通过 DSH_HOME 或 Candidate `.env` 偷偷补齐配置。
+因此当前规则只有几项：
 
-`url` 不根据端口生成 `/?token=...`，而是从该实例当前容器的启动时间之后读取 DSH 自己打印的 `dsh web:` 行，严格提取唯一的本机认证 URL，核对 `127.0.0.1`、实例端口、Token 参数及进程仍在运行。输出前以进程内临时 Cookie 访问该 URL，确认 Token 入口重定向、认证后根页面可达；任何一步失败均不输出 URL，也不回退到旧日志或裸根地址。探针不能把 Token/Cookie 放入子进程命令参数、诊断、证据或文件。实施验收还须核对主 JS 资源可达。DSH 重启后 Token 会随进程变化，旧 URL 不得由启动器返回。
+- 仅用于本地受信任研究；
+- 不把监听地址扩展为 `0.0.0.0`；
+- 不挂 Docker Socket；
+- 开发模式等同 shell 权限，启动时需要 `--accept-cordis-trust`；
+- 不适合接受这一网络边界时，不启动该实例。
 
-`dsh-dev url <name>` 本身就是用户主动要求展示认证 URL 的动作，不再增加 `--show-token` 参数。默认只在本地交互终端输出；脚本或 IDE 确需消费时，必须显式指定 `--non-interactive`，输出仍仅含本次进程 URL，并在诊断中提示调用方标准输出含敏感值。不能把 URL 写入状态文件、普通日志或仓库；调用方负责自己的管道和终端记录。
+这些是当前本地工具的直接边界，不扩展成通用安全平台。
 
-根级 [`AGENTS.md`](../AGENTS.md) 只允许操作者明确请求时展示本地当前进程认证 URL，不允许写入资产或一般证据。DSH 自身按官方行为打印认证 URL，Docker 日志可能持久保存该行；这些日志属于敏感 Runtime 数据，应限制访问和有界保留，不能声称“没有落盘”。启动器不建立第二份 Token 存储；详细诊断仅本地显式开启，未经分类的 DSH 原始日志不纳入 Git、机器评估证据或公开报告。
+## 5. 认证 URL
 
-## 5. 失败、安全门禁与验收
+`dsh-dev url <name>` 从该实例当前进程日志中提取 DSH 生成的 URL，核对回环地址、端口和认证交接后输出。它不拼造 Token，也不回退到旧进程链接。
 
-| 场景 | 预期处理 |
-|---|---|
-| 端口被其他进程占用，或 DSH 实际监听地址/端口与计划不同 | `up` 失败并标注非秘密端口与原因；不杀占用进程、不自动改端口。 |
-| 镜像身份、Profile、受控挂载或 HOME 初始化不匹配 | 失败关闭，保留可审日志；不改受控文件、不清空旧卷。 |
-| Authoring 工作区在启动后改变 | `ps` 显示 dirty；行为文件继续按探索语义使用，受控配置/插件变化提示重新构建和启动，不覆写旧 Run。 |
-| Verification 来源改变 | 评测模式绑定宿主候选树；本次运行期间不修改相关资产由开发者保证，Run 记录如实写下实际提交与未提交状态。需要长期保留的比较结论，先把源码提交到 Git 再运行。 |
-| DSH 未打印当前 URL、Token 交换失败、Web 未完成启动 | `url`/`open` 返回非零且不暴露历史链接；`ps` 标注未就绪。 |
-| 配置展开或 Web 等待超时、进程取消 | 使用明确总截止时间，清理子进程并区分超时、退出失败和配置非法；保留无秘密的定位信息。 |
-| 宿主 UID/GID 与容器用户不匹配 | 启动前检查目标目录权限；支持经核验的用户映射或给出具体修复信息，不以 root 掩盖问题。 |
-| 浏览器未打开、模型或 MCP 不可用 | 分别报告对应失败；不能把 Web `200`、端口监听或容器运行说成 Agent 可用。 |
-| `down` 时仍有待审 Candidate 改动或未完成 Session | 提示可能的运行影响，停止容器但保留资产和 HOME；不自动提交、删除或晋升。 |
+认证 URL 只在操作者明确调用时显示；非交互消费必须显式使用 `--non-interactive`。URL、Token 和 Cookie 不写入实例状态、仓库或研究证据。DSH 自身日志可能含认证 URL，因此原始容器日志仍按敏感运行状态处理。
 
-本方案是**高风险的本地开发接入设计**，因为 host 网络扩大了 Agent/Candidate 对宿主机服务的可达范围。可执行强制点至少包括：DSH 只绑定回环、固定端口并拒绝冲突；Docker 精确挂载、非 root 用户及不挂 Docker Socket；Runtime/领域服务端继续负责工具、MCP、租户/对象、审批、幂等和失败安全。Token 只解决浏览器身份，不授予 Harness 发布许可，也不能代替这些控制。本文不是具体 Agent 的 `CTRL → AC → Case` 事实源；若 host 网络或 URL 展示方式进入某 Agent 的正式冻结运行组合，须在该 Agent 唯一交付需求源中关联适用 `AC`、安全 Case、实际强制点与审计证据，否则安全硬门禁状态是**未验证**，不得用于 R3/Release 结论。
+## 6. 结论边界
 
-实施时按下列顺序验收，不以静态检查代替真实运行：
+- `plan` 成功只说明来源可以解析。
+- Compose 展开成功只说明配置可以生成。
+- 容器运行和 HTTP `200` 只说明对应进程或页面状态。
+- 实际装载需要在新容器、新 Session 核对目标 Preset、Skill 和行为。
+- Harness 改动是否有价值由对应 Experiment 的 Run、观察和 Decision 回答。
 
-1. 用锁定镜像核验 `--host 127.0.0.1 --port <port> --no-open`；比较启动器生成的 Compose 与现有 Authoring/Verification 控制，核 `home-init` 仍无网络、`dsh` 仅在本地开发实例用 host 网络且没有 `ports:`，开发会话精确只读挂载 `/work/spec` 与 `/work/eval-reference`，评测会话不挂载任何判分材料。
-2. 在同机浏览器链路验证默认与自定义端口：`url` 输出的原始完整 URL 可取得 Token 入口 `303`、Cookie 根页 `200`、`__DSH_BOOT__` 与主 JS `200`；错误或旧 Token 不可被当作当前入口。验证重启、双实例、端口冲突及 `url` 非交互调用。
-3. 验证 `ps`、`plan`、默认 `logs`、错误输出和生成配置不意外泄露 Token/凭据；显式详细诊断与 `url --non-interactive` 的敏感输出边界单独测试。确认 Docker 日志保留配置。核开发模式单写者和 dirty 状态、评测模式来源只读、HOME 分离、无 Docker Socket 和仓库根挂载；检查两种模式的 preset 生效证据（开发=`cordis`/`includeShippedRoot: true`，评测=`security-operations-expert`/不出厂根）、超时、取消、非默认 UID/GID 与双实例恢复。
-4. 对模型/MCP/权限和至少一条真实任务链另行验收，记录用户可见结果、工具/审批行为、最终业务状态和审计；若缺少这些证据，只报告“本地 Web 接入通过”，不报告 Agent 交付或 Release 通过。
-
-当前实现覆盖第 1、2、3 条中的来源解析（`experiment:<id>`）、单实例 `image build/plan/up/ps/url/logs/down`、两种模式（`dev`/`eval`）与按来源声明的目标 preset、判分材料按角色挂载、host 网络渲染、认证 URL 探针、脱敏日志与 Token 不落盘，并有 `dsh-dev-live-load-20260918.json` 记录实例级装载证据；开发模式的 shell/`tool-cordis` 能力只在显式 `--accept-cordis-trust` 下启动，属已披露风险而非强制控制。主 JS 资源 `200`、双实例并发、`open`、`resume`、`fresh`、`release:<id>` 选择器与完整业务链仍未验收。已实现的子集必须明确标注，不得把本文示例命令加入可执行快速开始流程。
+当前完整路径和缺口见项目验收矩阵的 `PA-04` 至 `PA-09`。Web 完整交互、新 Preset Web 选择和 `release:<id>` 仍未完成，不能由静态测试或旧证据代替。

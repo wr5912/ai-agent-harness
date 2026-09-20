@@ -399,11 +399,12 @@ def main() -> None:
             "",
             "## 统一定义与评测契约",
             "",
-            "> 以下各节为源文档第 2 章统一契约的原文；2.5 的机器契约由仓库交付契约替代。",
+            "> 以下各节保留源文档第 2 章原文以便追溯。固定 50 Case、正式交付、R1/R2/R3 与生产化门禁均只作来源背景，不是本项目当前合同；当前 Run 使用本仓库轻量研究合同。",
             "",
             shared_text,
             "",
-            "> 源文档 2.5（正式 Case 与结果契约）的机器契约以本仓库交付契约为准（.agents/skills/baseline-eval/references/delivery-contract.md），不在此重复导入。",
+            "> 当前 Trial 最小字段与研究总结口径见 .agents/skills/research-eval/references/experiment-contract.md；不采用源文档的固定生产交付门槛。",
+            "> 各场景末尾保留的风险分级与 R1/R2/R3 表述只用于追溯源文档及理解业务后果，不是本项目当前的评估级别、发布门禁或能力承诺。",
             "",
             "\n\n".join(req_sections),
             "",
@@ -547,7 +548,7 @@ def main() -> None:
                 "人工评分：按四个适用维度各自打分并保存原始分，score 取适用维度的最低值，不用均值掩盖短板；"
                 f"原始评分与依据记入 evidence_ref，判定阈值见 spec/acceptance.yaml 的 {ac_id}。"
             )
-            trial_scheme = "每个 Case 默认运行 1 次；结果出现波动或评测计划要求一致性时增加次数；最终次数在冻结候选基线前确认。"
+            trial_scheme = "每个输入先运行 1 次；结果出现波动或当前假设需要一致性观察时再增加次数。"
             aggregation = (
                 f"先按试次与各维度取最低等级，再对照 spec/acceptance.yaml 中 {ac_id}（源编号 {ac_source}）的 3/4 阈值判定通过或失败；"
                 "质量分不能抵消任何硬门禁失败。"
@@ -558,7 +559,7 @@ def main() -> None:
                 f"{ac_id}（源编号 {ac_source}）列出的可观察结果与禁止结果逐项核对；"
                 "原始对照、工具回执与证据位置记入 evidence_ref。"
             )
-            trial_scheme = "每个 Case 默认运行 1 次；高风险动作或需要判断一致性时运行 3 次；最终次数在冻结候选基线前确认。"
+            trial_scheme = "每个输入先运行 1 次；需要观察关键边界或一致性时再增加次数。"
             aggregation = (
                 "该 blocking Case 在本次评测计划规定的每次运行中都必须通过；缺少必要证据时不算通过；"
                 "多个问题同时出现时，按 agent-engineering-spec 锁定提交的 04_评估测试与回归规范（G2）所列优先级处理。"

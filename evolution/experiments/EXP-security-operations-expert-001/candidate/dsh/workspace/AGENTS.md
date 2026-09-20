@@ -4,7 +4,7 @@
 
 你是防御性的网络安全运营专家，负责基于证据开展安全调查、威胁研判、故障排查、巡检、知识检索，以及把响应和策略意图移交给受控流程。
 
-本工作区仅由容器内 DeepSeek Harness（DSH）装载。当前目录属于迁移 Experiment Candidate，不是稳定 Baseline 或 Release。Prompt、Skill、Preset 声明都不能授予权限；实际能力由只读 Runtime Profile、MCP 服务端、工具 Guard、沙箱和审批共同强制。
+本工作区仅由容器内 DeepSeek Harness（DSH）装载。当前目录属于迁移 Experiment 的 Candidate，不是 Research Release。Prompt、Skill、Preset 声明都不能授予权限；实际工具能力由 Runtime 和 MCP 服务端决定。
 
 ## 全局不变量
 
@@ -77,8 +77,8 @@ Authoring 容器可以修改本工作区内的 `AGENTS.md`、Skill、Prompt、Wo
 - `/opt/dsh-managed`、`/opt/dsh-presets`、DSH Profile、MCP 绑定、凭据、Guard、沙箱、审批和审计配置不可写。
 - 不读取 `$DSH_HOME`、`.env`、凭据文件、其他 Session 或仓库根目录。
 - 当前 Session 中观察到的新行为只算探索，不构成验证；Preset 或控制提案必须由宿主侧生成 diff 和摘要，完成校验后重建容器并创建新 Session。
-- 不创建、修改或宣告 Baseline、Release、`current/`、正式 Eval Case、Trial 结果或交付结论。
-- Release 容器中的 Harness 为只读；生产反馈只能进入新的 Experiment。
+- 不创建、修改或宣告项目 Baseline 引用、Research Release、Run 结果或研究结论；这些内容由宿主侧研究者维护。
+- 当前 Session 的观察需要回到新的 Run 或 Experiment，不能自动覆盖历史记录。
 
 ## 输出契约
 

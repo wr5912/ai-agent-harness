@@ -6,14 +6,14 @@
 |---|---|
 | 状态 | `image build`、`plan`、`up`、`ps`、`url`、`logs`、`down` 已实现；`open`、`resume`、`fresh` 与 `release:<id>` 选择器未实现 |
 | 适用范围 | 同一台 Linux Docker Engine 主机上的本地开发、调试与候选技术核验 |
-| 不在范围 | 生产部署入口、DSH Runtime 源码修改、Agent 交付评估结论、Release 验收 |
+| 不在范围 | DSH Runtime 源码修改、Experiment 结论判断、Research Release 打包与复现 |
 | 依据 | [来源锁定](./standards/SOURCES.md)、[项目规范解释](./standards/PROJECT-INTERPRETATION.md)、[适配层 README](../runtime/adapters/dsh-container/README.md)、锁定 DSH 提交 `c291e7961a515f6d7af9304e7fd1d257929aef26`（CLI `0.1.5-rc.2`） |
 
 ## 1. 背景与目标
 
 研究一套基于 DSH 的 Harness，需要反复做四件事：改提示词、技能、Preset 或插件配置；让改后的内容真正被 DSH 装载；运行目标智能体看行为；把值得保留的版本和观察结果存下来。手工拼 `docker compose` 命令时，这四步容易出错的地方是路径、目标和版本对不上：改了 A 目录、装的是 B 目录；以为换了 preset、其实会话还在用驻留的旧配置；命令失败了却以为已经停干净。
 
-`dsh-dev` 的目标是把这些容易出错的地方固定下来：来源解析唯一确定目标 Agent、preset 与资产路径；两种模式给出不同的可见范围；命令如实报告成功、失败或状态未知。它不判断研究结论，也不替代交付评估。
+`dsh-dev` 的目标是把这些容易出错的地方固定下来：来源解析唯一确定目标 Agent、preset 与资产路径；两种模式给出不同的可见范围；命令如实报告成功、失败或状态未知。它不判断研究结论，也不替代 Experiment Evaluation。
 
 ## 2. 当前能力与本次范围
 
@@ -44,7 +44,7 @@
 
 开发会话里读到的业务角色指令（例如目标是安全运营专家）是第二类资产的正文，读它是为了修改它，不代表开发工具要切换成业务智能体。这一点不能只靠文字提醒：开发会话注册的工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（见 5.2 节），目标自己的 `AGENTS.md` 仍留在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。
 
-`dsh-dev`、`source_contract.py`、核验脚本、`verification.compose.yaml`、`Dockerfile` 与 `source.lock.json` 是仓库治理工具或 Runtime Adapter 实现，不因为服务于本流程就自动成为“开发智能体的运行配置”或业务 Harness。只有它们在某次运行中形成的有效身份、配置和 Runtime 投影，才按本次用途归入相应对象；若改变候选冻结组合，须重新确定影响范围。
+`dsh-dev`、`source_contract.py`、核验脚本、`verification.compose.yaml`、`Dockerfile` 与 `source.lock.json` 是仓库工具或 Runtime Adapter，不因为服务于本流程就自动成为业务 Harness。它们改变实际来源或运行条件时，应在对应 Run 中如实记录。
 
 ## 4. 完整使用过程
 
@@ -98,7 +98,7 @@ dsh-dev down secops-dev && dsh-dev up ...
 
 DSH Web 首次打开需要在界面注册工作区：点击"选择工作区" → 目录对话框"编辑路径" → 粘贴本次模式对应的路径 → "打开"。开发会话注册 `/work`，被测会话注册 `/work/harness/workspace`；以 `plan.workspace_to_register` 为准。锁定提交没有受支持的工作区预注册入口，因此启动器只交付路径与步骤，不改写 Runtime 存储格式。该注册写入本实例 HOME 卷并跨重启保留；换实例名等于换 HOME 卷，需要重新选择一次。
 
-### 4.4 运行评测
+### 4.4 运行研究比较
 
 开发者自行保证：本次运行期间不修改本次使用的 Harness、测试数据、评估方法和验收标准；不让多个实例同时改写同一份资产；基线与候选使用相同口径，口径变化后重新执行受影响的对比。
 

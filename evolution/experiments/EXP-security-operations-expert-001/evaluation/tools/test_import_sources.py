@@ -80,13 +80,13 @@ class ImportSourceRegression(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "已修改"):
                 IMPORTER.verify_generated_targets(repo, [old_target], prior_hashes)
 
-    def test_delivery_record_limits_new_session_to_verification(self) -> None:
-        record = (SOURCE.parents[2] / "candidate" / "delivery" / "交付记录.md").read_text(encoding="utf-8")
-        self.assertIn("隔离 Authoring 当前 Session 可实时看到探索行为", record)
-        self.assertIn("进入 Candidate Verification 或正式评估前必须使用复核后的快照、新容器和新 Session", record)
-        self.assertIn("不授予 Candidate Verification 或正式评估的激活", record)
-        self.assertNotIn("变更后必须重建新 Session", record)
-        self.assertNotIn("不授予激活或晋升权", record)
+    def test_migration_output_is_research_input_not_delivery_gate(self) -> None:
+        record = (SOURCE.parents[2] / "evaluation" / "evidence" / "migration-source-assessment.md").read_text(encoding="utf-8")
+        self.assertIn("不是当前交付或生产结论", record)
+        self.assertIn("少量有区分力的输入", record)
+        self.assertIn("无需先补齐生产交付门禁", record)
+        self.assertNotIn("最低复核等级", record)
+        self.assertNotIn("完整 R3", record)
 
 
 if __name__ == "__main__":
