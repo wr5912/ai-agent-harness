@@ -84,7 +84,7 @@ python3 runtime/adapters/dsh-container/dsh-dev up \
 python3 runtime/adapters/dsh-container/dsh-dev url secops-dev
 ```
 
-**源码改了不等于已经生效。** 容器里的进程不会因为 bind 挂载内容变化而自动重启，普通 `docker compose up -d` 也不会仅因挂载内容变化重建容器；Preset 又存在按 ID 的驻留装载。因此改完 preset、managed 或岗位脚本后必须真正重启实例：
+**源码改了不等于已经生效。** 容器里的进程不会因为 bind 挂载内容变化而自动重启，普通 `docker compose up -d` 也不会仅因挂载内容变化重建容器；Preset 又存在按 ID 的驻留装载。因此改完 preset、managed 或适配层脚本后必须真正重启实例：
 
 ```bash
 # 一条命令：先停同名实例自身的容器（保留 HOME 数据卷）再按新配置启动
@@ -138,7 +138,7 @@ python3 runtime/adapters/dsh-container/dsh-dev down secops-dev
 
 HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测——Compose 会给卷名加上项目前缀。`stopped` 与 `home_preserved` 是两个独立事实：保留 HOME 不等于停止成功，停止成功也不代表卷还在。
 
-`ps`、`logs`、`down` 都按实例状态文件重建读取该实例 Compose 所需的环境变量：受控模板用 `${VAR:?}` 声明必填变量（不内联任何仓库内默认路径），所以这些命令不能依赖调用者当前环境，否则停止和查询会随环境漂移而失败。状态文件版本不匹配时直接失败并提示对该实例重新执行 `up`，不猜测缺失字段。
+`ps`、`logs`、`down` 都按实例状态文件重建读取该实例 Compose 所需的环境变量：受控模板用 `${VAR:?}` 声明必填变量（不内联任何仓库内默认路径），所以这些命令不能依赖调用者当前环境，否则停止和查询会随环境漂移而失败。状态文件不是最新 schema 时仍可查询和停止；记录里缺失的值不猜，旧模板用自身默认值，新模板缺少必填变量时由 Compose 报出变量名。
 
 ## 5. 目录与配置关系
 
@@ -214,16 +214,18 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 开发层同时打开出厂根与**可写用户根**（HOME 下的 `.agent-presets`），因此创造者在容器内可以新建一份候选 preset 并试跑：受控的 `/opt/dsh-presets` 与 `/opt/dsh-managed` 仍然只读，运行中的受控配置没有被改写，用户根只是额外的候选来源。新建 preset 必须用与现有 preset 不同的 ID——DSH 按根顺序扫描，较早的系统根会遮蔽用户根里的同名 preset。容器内产物只算探索；完整步骤见受控开发指令 `/work/AGENTS.md`。
 
-并入候选时以下四处必须一起改，只改一处会被拒绝：
+**默认采用稳定 ID 回流。**用户根里的不同 ID 只用于临时试验；审查后把有价值的内容合并回本次 `AGENTS.local.md` 声明的 `target_preset` 目录，保留原 `agent_id` 与目标 preset ID，再用 `up --replace` 重载并开新会话验证。回流要检查整套资产，而不是只复制一个目录名：preset 本身回到 `candidate/dsh/presets/<target_preset>/`，技能与业务指令回到 workspace，Profile Patch、角色矩阵、工具名映射在宿主侧复核后修改，非秘密依赖声明按实际影响更新。
 
-| 位置 | 内容 |
+如果确实需要同一 Agent 同时保留多个运行时 preset ID，则使用显式映射，不重命名业务 Agent：
+
+| 位置 | 要求 |
 |---|---|
-| 候选 `presets/<new-id>/` | 新 preset 目录本身 |
-| 候选 `harness.yaml` 的 `preset_id` | 必须等于新 ID，且等于该 Agent 的 `agent_id` |
-| `sources.json` 的 `agent_id` 与 `preset` | `preset` 必须是 `<agent_id>/agent.cordis.yml`，来源解析与仓库校验器都会核对 |
-| 基础 patch 的 `agent-presets.default` | DSH 实际生效的默认 preset，必须等于同一个 ID |
+| 候选 `presets/<new-id>/` | 新运行时 preset 目录 |
+| 候选 `harness.yaml` 的 `preset_id` | 等于新 ID；`agent.id` 保持原业务 Agent ID |
+| `sources.json.preset` | 指向 `<new-id>/agent.cordis.yml`；`agent_id` 与 Experiment 身份保持不变 |
+| 基础 patch 的 `agent-presets.default` | 等于同一个新 ID，保证实际生效默认目标与计划一致 |
 
-按当前模型，一个新 preset **ID** 等于一个新的 Agent 身份；同一个 Agent 只改 preset **内容**时不需要新 ID。多 Variant（一个 Agent 对应多个 preset ID）需要改资产模型，不属于当前实现。
+仓库校验器核对候选 `preset_id`、来源 preset 路径和基础 patch 默认值三者一致。一个 Agent 对多个 preset ID 的长期 Variant 管理仍需独立设计，但普通候选研究不再被迫重命名 Agent、Experiment 或 spec/eval。
 
 评测模式两种根都保持关闭：`includeShippedRoot: false`、`includeUserRoot: false`，创造模式与用户 preset 在该容器内都不可选。`--mode dev` 缺 `--accept-cordis-trust` 即失败关闭，`--mode eval` 拒绝该旗标。
 
@@ -303,7 +305,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 | 落状态迁移 | 对一份旧 schema 状态目录执行 `ps` 与 `down` | `ps` 标出 `needs_migration: true`，`down` 能停掉容器并保留 HOME，不因旧状态被拒 |
 | 同名重载 | `up --replace`，或 `down` 后同名同端口 `up` | 旧进程确实停止，新配置被读取；输出含 `replaced.previous_state_schema` |
 | 重载生效 | 按文档重新装载并验证预先定义的可观察变化 | 不把驻留旧配置的结果误认成新配置 |
-| 新建 preset | 在 `--mode dev` 内复制一份 composition 为新 ID，用新 ID 开新会话 | 组合配置中出现 `includeUserRoot: true`；新 ID 不被系统根遮蔽；产物可复制回候选 |
+| Preset 试验与回流 | 在 `--mode dev` 用户根用临时新 ID 试验；审查后把内容合并回稳定 `target_preset`，`up --replace` 重载并在 Web 新会话核对 | 原业务 Agent 与稳定目标 ID 不变；候选 `preset_id`、来源 preset 路径和 Profile 默认值一致。该 Web 路径仍待实测 |
 | 判分材料隔离 | 在 `--mode eval` 容器内检查 `/work/spec`、`/work/eval-reference`、`/work/eval-input` | 三条路径都不存在，也不在 `/proc/self/mountinfo` 中 |
 | 运行记录 | 记录实际提交、未提交状态、镜像、模型与测试范围 | 记录与实际使用一致，不虚构完整冻结 |
 | 停止失败 | 模拟 `docker compose down` 返回非零退出码 | 命令失败，不输出 `stopped: true` |

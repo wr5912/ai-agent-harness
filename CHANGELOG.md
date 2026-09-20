@@ -2,6 +2,17 @@
 
 本文件记录仓库治理、目录契约和公共演进工具的变化。单个 Agent/Harness Release 的变更应记录在对应不可变 Release 中。
 
+## [0.4.1]
+
+### 变更
+
+- `up --replace` 在任何停止动作前统一核对同名实例的来源、模式、端口，并在临时目录预检新 Compose 可展开；身份冲突或明显无效配置保持旧实例原状。`write_instance` 继续保留同一兼容性检查作为防御层。
+- 独立 `verify-load.sh authoring` 通过来源合同生成本次目标声明并注入 `DSH_DEV_TARGET_HOST`；容器探针核对 `/work/AGENTS.local.md` 是精确只读挂载、摘要一致，且来源、Agent、`target_preset`、`session_preset` 与本次解析结果一致。verification 反向断言该路径不存在。
+- 业务 `agent_id` 与运行时 `preset_id` 改为显式映射：候选 `harness.yaml.preset_id`、`sources.json.preset` 路径和基础 patch 的 `agent-presets.default` 必须相等，但不再要求等于业务 Agent ID。默认回流方法是把用户根临时候选内容合并回原稳定 ID；只有确需多个运行时 ID 时才修改三处映射，业务 Agent、Experiment 和 spec/eval 保持不变。
+- 阅读视图的未来输入检查使用输出软链解析后的最终父目录和后缀，拒绝 `report.md -> eval/pending/new.jsonl` 这类悬空软链；既有同文件、硬链接、已有软链和直接 `pending/*.jsonl` 拒写规则不变。
+- README、启动器方案、适配层说明和项目验收矩阵同步当前边界：Headless Skill 小闭环已验证；Web 注册与 preset Web 会话选择仍属 `PA-08`/`PA-09`。真实会话证据的正反向结论改为“降低仅凭提示重复回答的疑虑”，并提供无凭据复现说明。
+- `dsh-review-followup-20260920.json` 记录 Docker 身份冲突保持原实例运行、两种独立 `verify-load` 路径、悬空软链拒写、preset 显式映射与 Web 未验证边界。
+
 ## [0.4.0]
 
 ### 新增

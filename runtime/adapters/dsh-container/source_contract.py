@@ -128,13 +128,9 @@ def _experiment_contract(
     for name in item["required_env_names"]:
         if not re.fullmatch(r"[A-Z][A-Z0-9_]*", name):
             raise ValueError("invalid required environment name")
+    # preset_id 是运行时组合身份，agent_id 是业务 Agent 身份；两者允许不同。
+    # 实际装载一致性由候选 harness.yaml、sources.json 与基础 patch 默认值的交叉门禁保证。
     declared_preset = preset_id(item["preset"])
-    if declared_preset != item["agent_id"]:
-        # 一个来源声明一个 Agent 与一个 preset ID；路径与 agent_id 不一致会让"计划显示的目标"
-        # 与"来源所代表的 Agent"分叉，因此在此失败关闭，而不是留给下游各自解释。
-        raise ValueError(
-            "source preset 目录与 agent_id 不一致：%s != %s" % (declared_preset, item["agent_id"])
-        )
     contract = {
         "schema_version": "1.0",
         "source_kind": "experiment",
@@ -166,6 +162,26 @@ def preset_id(preset_relative: str) -> str:
     if len(parts) < 2:
         raise ValueError("preset 必须声明为 <preset-id>/<file>，以便确定运行目标身份")
     return parts[0]
+
+
+def dev_target_document(contract: dict, instance: str, session_preset: str) -> str:
+    """生成开发会话本次目标声明；调用方只负责把它只读挂进指令链。"""
+    lines = [
+        "# 本次开发任务的目标（由启动器解析生成，只读）",
+        "",
+        f"- 实例：{instance}",
+        f"- 来源：{contract['source_id']}",
+        f"- 目标 Agent：{contract['agent_id']}",
+        f"- 待优化目标 preset（target_preset）：{contract['preset_id']}",
+        f"- 本次会话实际运行的 preset（session_preset）：{session_preset}",
+        "- 目标 Harness 行为资产：/work/harness/workspace",
+        "- 目标 Preset 声明目录：/opt/dsh-presets（容器内只读）",
+        "- 受控 Profile Patch 与 Guard 目录：/opt/dsh-managed（容器内只读）",
+        "",
+        "这些值已由启动器解析，直接按此执行；不要猜测，也不要把它当成会话身份。",
+        "",
+    ]
+    return "\n".join(lines)
 
 
 def _resolve_experiment(source_id: str, *, repo: Path, sources: Path, lock_path: Path, require_assets: bool) -> dict:
@@ -272,6 +288,10 @@ def main() -> None:
     parser.add_argument("--source", default=DEFAULT_SOURCE)
     parser.add_argument("--field", help="print one top-level scalar field")
     parser.add_argument("--env-names", action="store_true", help="print selected Runtime environment names, one per line")
+    parser.add_argument("--dev-target-document", action="store_true",
+                        help="print a development-session target declaration derived from this source")
+    parser.add_argument("--instance-name", default="verify-load", help="instance name used in --dev-target-document")
+    parser.add_argument("--session-preset", default="cordis", help="session preset used in --dev-target-document")
     parser.add_argument("--allow-missing-assets", action="store_true", help="resolve identity for frozen recovery")
     parser.add_argument("--mount-plan", choices=ROLES, help="print the role mount plan instead of the contract")
     parser.add_argument("--task-dir", help="task workspace host path for the mount plan")
@@ -280,10 +300,13 @@ def main() -> None:
     args = parser.parse_args()
     try:
         contract = resolve(args.source, require_assets=not args.allow_missing_assets)
-        selected = sum(flag is not None and flag is not False for flag in (args.field, args.env_names, args.mount_plan))
+        selected = sum(flag is not None and flag is not False
+                       for flag in (args.field, args.env_names, args.mount_plan, args.dev_target_document))
         if selected > 1:
-            raise ValueError("choose only one of --field、--env-names、--mount-plan")
-        if args.mount_plan:
+            raise ValueError("choose only one of --field、--env-names、--mount-plan、--dev-target-document")
+        if args.dev_target_document:
+            print(dev_target_document(contract, args.instance_name, args.session_preset), end="")
+        elif args.mount_plan:
             plan = mount_plan(
                 contract,
                 args.mount_plan,

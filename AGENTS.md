@@ -58,6 +58,20 @@
 
 研究版本使用普通 Git 工作流管理。临时调试可以不提交，但不得把未提交内容说成仅凭 `HEAD` 即可完整恢复；需要保留的结果在 Run 记录中写明提交、未提交状态、镜像、模型与测试范围。
 
+## 验收层级
+
+本项目验收路径的唯一维护位置是 [`docs/ai-agent-harness项目验收矩阵.md`](docs/ai-agent-harness项目验收矩阵.md)。开始任务时先确定本次涉及的 `PA-xx` 和验收层级，完成时按层分别报告证据、缺口与范围：
+
+- **本项目验收**确认仓库治理、开发工具链和 DSH 开发接入路径，不证明具体业务 Agent 已满足需求。
+- **Harness 交付验收**针对某个冻结候选，以该 Agent 的 `acceptance.yaml`、正式 Eval Case、Trial、Run 和交付复核为准；项目单元测试不能替代。
+- **DSH Release 验收**针对具体不可变 Release 的实际装载与真实协议业务链；Harness 离线评估、容器启动或健康检查不能替代。
+
+## Memory
+
+`.codex/config.toml` 显式开启项目级 Memory，只作为受信任 Codex 开发会话的辅助上下文。配置文件存在不等于每个会话一定生效，实际状态还受项目信任、用户级配置和启动参数影响，必要时现场观察。Memory 不是规范事实源、验收标准、运行证据、Harness 资产或 DSH 配置；长期规则写入 `AGENTS.md`，项目状态写入验收矩阵，业务事实写入对应 Agent 与 Run 资产。其他 AI 工具以仓库文件为准，不假设能够读取 Codex Memory。
+
+Memory 保留在仓库外的 `$CODEX_HOME/memories`，不得复制进仓库、Release 或评估证据，不得记录密钥、Token、Cookie、私有 URL 或其他秘密；其中的易变事实在使用前仍须回到仓库或运行环境核验。
+
 ## 文档与数据质量
 
 文档和数据要由开发者阅读、修改和复核。字段齐全、格式可解析，不等于语义正确或内容完整。
@@ -93,8 +107,9 @@
 
 1. 阅读 `docs/standards/SOURCES.md`，确认规范来源、版本、提交与摘要仍然匹配。
 2. 阅读 `docs/standards/PROJECT-INTERPRETATION.md`，使用其中对 Baseline、Experiment、Eval Set、Release 和 DSH 装载的统一语义。
-3. 按任务读取对应项目技能：旧资产使用 `legacy-asset-intake`；演进使用 `harness-evolution`；评估使用 `baseline-eval`；安全边界使用 `security-control-boundary`；交付审查使用 `delivery-review`；DSH 验收使用 `dsh-release-verify`。
-4. 先检查 Git 工作树和现有资产。其他人的改动不得擅自覆盖、回退或混入当前工作。
+3. 阅读 `docs/ai-agent-harness项目验收矩阵.md`，确定本次验收层级、涉及的 `PA-xx`、已有证据和未验证路径。
+4. 按任务读取对应项目技能：旧资产使用 `legacy-asset-intake`；演进使用 `harness-evolution`；评估使用 `baseline-eval`；安全边界使用 `security-control-boundary`；交付审查使用 `delivery-review`；DSH 验收使用 `dsh-release-verify`。
+5. 先检查 Git 工作树和现有资产。其他人的改动不得擅自覆盖、回退或混入当前工作。
 
 ## 规范权威与冲突处理
 
@@ -146,9 +161,10 @@
 ## 变更与验证
 
 - 先区分仓库治理变更、Agent 资产变更和 Runtime 运行变更；只有后两者影响冻结组合时才触发候选基线更新。
+- 仓库治理、启动器或适配层变更先映射到项目验收矩阵的 `PA-xx`；确定性合同进入测试，容器、Web、真实模型/MCP 和生产装载保留与其环境相称的运行证据。
 - 优先使用已有格式和简单脚本。除非真实瓶颈已反复出现且收益明确，不引入额外平台或复杂基础设施。
 - 机器校验成功只表示已实现的确定性检查通过，不等于内容真实性、业务能力、交付评估或发布获准。
 - DSH 验收前必须记录镜像版本或摘要、Profile、宿主机与容器挂载路径、挂载模式、启动方式、实际加载的 Release 摘要和停止方法。
 - Candidate 容器的构建、Profile 展开或挂载测试只证明局部技术集成，不得写成 Release 验收或 R3 业务通过。Authoring 与 Verification 使用不同挂载模式；运行态 `$DSH_HOME` 是独立数据根，绝不随 Harness 资产归档。
 - 运行验收必须通过实际对外协议和完整任务链，核对用户可见结果、工具行为、最终业务状态及必要审计记录；健康检查不能替代。
-- 完成修改后检查文档链接、格式、配置解析、来源摘要、敏感信息和 Git diff，并清楚报告已验证项、未验证项与适用边界。
+- 完成修改后检查文档链接、格式、配置解析、来源摘要、敏感信息和 Git diff，并按本项目验收、Harness 交付验收、DSH Release 验收分别报告已验证项、未验证项与适用边界。

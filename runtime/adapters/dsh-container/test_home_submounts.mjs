@@ -63,8 +63,10 @@ if (process.env.DSH_HARNESS_MODE !== 'authoring') {
     assert.ok(!existsSync(path), `${path} must be absent in the subject container`)
     assert.ok(!mounts.some(item => item.target === path), `${path} must not be mounted in the subject container`)
   }
-  assert.ok(!existsSync('/work/AGENTS.md'), 'the subject container must not carry the development session instructions')
-  assert.ok(!mounts.some(item => item.target === '/work/AGENTS.md'))
+  for (const path of ['/work/AGENTS.md', '/work/AGENTS.local.md']) {
+    assert.ok(!existsSync(path), `the subject container must not carry development instructions: ${path}`)
+    assert.ok(!mounts.some(item => item.target === path))
+  }
 } else {
   // 开发会话身份来自受控只读的 /work/AGENTS.md：模板不得内联业务身份，也不得可写。
   assert.ok(existsSync('/work/AGENTS.md'), '/work/AGENTS.md must be mounted in the development session')
@@ -73,6 +75,14 @@ if (process.env.DSH_HARNESS_MODE !== 'authoring') {
   assert.match(instructions, /开发者/)
   assert.ok(!instructions.includes('security-operations-expert'))
   assert.throws(() => writeFileSync('/work/AGENTS.md', 'forbidden'),
+    error => error.code === 'EROFS' || error.code === 'EACCES')
+  // 本次来源的实际值由启动器生成到 .local.md；它同样必须只读且不能被测侧继承。
+  assert.ok(existsSync('/work/AGENTS.local.md'), '/work/AGENTS.local.md must be mounted in authoring')
+  assert.ok(mounts.some(item => item.target === '/work/AGENTS.local.md' && item.options.includes('ro')))
+  const target = readFileSync('/work/AGENTS.local.md', 'utf8')
+  assert.match(target, /target_preset/)
+  assert.match(target, /session_preset/)
+  assert.throws(() => writeFileSync('/work/AGENTS.local.md', 'forbidden'),
     error => error.code === 'EROFS' || error.code === 'EACCES')
 }
 

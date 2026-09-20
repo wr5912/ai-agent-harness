@@ -5,6 +5,12 @@ task_adapter_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 task_mode="verification"
 task_source_id="EXP-security-operations-expert-001"
 task_frozen_root=""
+task_dev_target_file=""
+
+cleanup() {
+  if [[ -n "$task_dev_target_file" ]]; then rm -f -- "$task_dev_target_file"; fi
+}
+trap cleanup EXIT
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -93,6 +99,12 @@ export DSH_MANAGED_PATCH="$task_patch"
 # 模板以 ${VAR:?} 声明必填变量：开发模式还必须给出叠加层路径，否则 compose 无法展开。
 if [[ "$task_mode" == authoring ]]; then
   export DSH_MANAGED_PATCH_OVERLAY="$task_patch_overlay"
+  task_dev_target_file="$(mktemp /tmp/dsh-dev-target.XXXXXXXX)"
+  python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" \
+    "${task_source_resolve_options[@]}" --dev-target-document \
+    --instance-name verify-load --session-preset cordis >"$task_dev_target_file"
+  chmod 0444 "$task_dev_target_file"
+  export DSH_DEV_TARGET_HOST="$task_dev_target_file"
 fi
 export DSH_WORKSPACE_HOST="$task_candidate_root/workspace"
 export DSH_PRESETS_HOST="$task_candidate_root/presets"
@@ -121,6 +133,7 @@ task_prepare_script_sha=""
 task_verify_script_sha=""
 task_tree_script_sha=""
 task_dev_instructions_sha=""
+task_dev_target_sha=""
 
 # 开发模式下按所选来源的实际根计算判分材料摘要，与三树摘要同一工具语义；
 # 冻结三树副本不含它们，因此这里也记录活动事实源身份。
@@ -142,6 +155,7 @@ task_tree_script_sha="sha256:$(sha256sum "$task_adapter_dir/tree-digest.mjs" | c
 # 开发会话身份来自受控只读指令文件；评测模式不挂载它，因此只在该模式核对摘要。
 if [[ "$task_mode" == authoring ]]; then
   task_dev_instructions_sha="sha256:$(sha256sum "$task_adapter_dir/verification-home-controls/locked-dev.AGENTS.md" | cut -d ' ' -f 1)"
+  task_dev_target_sha="sha256:$(sha256sum "$task_dev_target_file" | cut -d ' ' -f 1)"
 fi
 
 # Docker 会在 RW parent bind 下为缺失的 nested file target 隐式创建宿主文件。
@@ -191,6 +205,7 @@ done
   -e "DSH_EXPECT_PRESETS_TREE_SHA=$task_presets_sha" \
   -e "DSH_EXPECT_MANAGED_TREE_SHA=$task_managed_sha" \
   -e "DSH_EXPECT_DEV_INSTRUCTIONS_SHA=$task_dev_instructions_sha" \
+  -e "DSH_EXPECT_DEV_TARGET_SHA=$task_dev_target_sha" \
   -e "DSH_EXPECT_SPEC_TREE_SHA=$task_spec_sha" \
   -e "DSH_EXPECT_EVAL_TREE_SHA=$task_eval_sha" \
   -e "DSH_EXPECT_USER_PATCH_SHA=$task_user_patch_sha" \

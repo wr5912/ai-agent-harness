@@ -81,7 +81,7 @@ bash runtime/adapters/dsh-container/build-image.sh --build-network host
 
 挂载模式以“候选资产装载”表为准：开发模式仅 Workspace 可写，Preset/Managed 与判分材料只读；评测模式的 Harness 三棵树全部只读，且不挂载判分材料。
 
-开发会话的注册工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（`verification-home-controls/locked-dev.AGENTS.md`，内容通用、不含业务 Agent 名），本次解析出的实际目标值另由启动器生成并只读挂到 `/work/AGENTS.local.md`；目标自己的业务 `AGENTS.md` 仍在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。被测容器不挂载该文件。
+开发会话的注册工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（`verification-home-controls/locked-dev.AGENTS.md`，内容通用、不含业务 Agent 名），本次解析出的实际目标值由来源合同生成并只读挂到 `/work/AGENTS.local.md`；`dsh-dev up` 与独立 `verify-load.sh authoring` 复用同一生成函数。目标自己的业务 `AGENTS.md` 仍在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。被测容器两个开发指令文件都不挂载。
 
 目标 preset 由 `sources.json` 的 `preset` 路径推出，适配层不内联任何业务 Agent 名；新增来源只需追加目录数据。
 

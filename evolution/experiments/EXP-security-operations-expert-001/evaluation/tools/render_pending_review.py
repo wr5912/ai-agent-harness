@@ -166,6 +166,9 @@ def render_file(path: Path) -> str:
 def refuse_reason(output: Path, sources: list[Path], pending_dir: Path | None, cases: Path) -> str | None:
     """输出路径落在输入集合内时给出拒绝原因；允许覆盖普通报告文件。"""
     target = output.absolute()
+    # resolve() 会沿悬空软链解析到尚不存在的最终目标；未来输入位置判断必须使用这个结果，
+    # 不能用软链别名自己的扩展名和父目录，否则 report.md -> pending/new.jsonl 会漏过。
+    resolved_target = target.resolve()
     for source in sources:
         if target == source.absolute():
             return f"输出路径就是输入文件：{source}"
@@ -174,14 +177,15 @@ def refuse_reason(output: Path, sources: list[Path], pending_dir: Path | None, c
                 return f"输出路径与输入文件是同一个文件（硬链接或符号链接别名）：{source}"
         except OSError:
             continue
-        if target.resolve() == source.resolve():
+        if resolved_target == source.resolve():
             return f"输出路径解析后指向输入文件：{source}"
     # 尚未存在的输出也要拦：写进 pending/ 的 *.jsonl 会在下次渲染时被当作输入解析。
-    if target.resolve() == cases.resolve():
+    # 检查解析后的最终目标，才能覆盖 report.md -> pending/new.jsonl 这种悬空软链。
+    if resolved_target == cases.resolve():
         return f"输出路径是 Case 事实源：{cases}"
-    if pending_dir is not None and output.suffix == ".jsonl" \
-            and target.parent.resolve() == pending_dir.resolve():
-        return f"输出路径落在待复核输入目录内（下次渲染会把它当输入）：{pending_dir}"
+    if pending_dir is not None and resolved_target.suffix == ".jsonl" \
+            and resolved_target.parent == pending_dir.resolve():
+        return f"输出路径解析后落在待复核输入目录内（下次渲染会把它当输入）：{pending_dir}"
     return None
 
 

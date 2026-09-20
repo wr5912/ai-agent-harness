@@ -49,18 +49,18 @@
 3. 用新 ID 开一个**新会话**验证。按 ID 的驻留装载意味着旧会话不会自动重读文件。
 4. 确认结果后，把该目录内容作为待审产物交付：说明新 ID、改了什么、期望什么可观察变化。宿主侧复核后再决定如何并入候选。
 
-**回流时四处必须一起改，只改一处会被仓库校验器或来源解析拒绝：**
+**默认采用稳定 ID 回流：**用户根里的不同 ID 只用于临时试验。审查后把有价值的内容合并回本次 `AGENTS.local.md` 声明的 `target_preset` 目录，保留原 `agent_id` 与目标 preset ID；然后用 `up --replace` 重载并开新会话验证。回流时检查整套变更，不只复制 preset 目录：
 
-| 位置 | 内容 |
+| 内容 | 回流位置 |
 |---|---|
-| `candidate/dsh/presets/<new-id>/` | 新 preset 目录本身 |
-| 候选 `harness.yaml` 的 `preset_id` | 必须等于新 ID，且等于该 Agent 的 `agent_id` |
-| `sources.json` 的 `agent_id` 与 `preset` | `preset` 必须是 `<agent_id>/agent.cordis.yml` |
-| 基础 patch 的 `agent-presets.default` | 实际生效的默认 preset，必须等于同一个 ID |
+| preset 的身份、指令、Guard 绑定 | `candidate/dsh/presets/<target_preset>/` |
+| 技能与业务 `AGENTS.md` | `candidate/dsh/workspace/` |
+| Profile Patch、角色矩阵、工具名映射 | `candidate/dsh/managed/`（宿主侧复核后修改） |
+| 非秘密依赖声明 | 候选 `harness.yaml` / `runtime.lock.json` 的适用字段 |
 
-按当前模型，一个新 preset **ID** 等于一个新的 Agent 身份；同一个 Agent 只改 preset **内容**时不需要新 ID。
+只有确实需要同一 Agent 同时保留多个运行时 preset ID 时，才把候选 `harness.yaml.preset_id`、`sources.json.preset` 和基础 patch 的 `agent-presets.default` 显式改为同一个新 ID；业务 `agent_id`、Experiment、spec/eval 不因此自动重命名。仓库校验器会核对这三处与实际 preset 目录一致。
 
-受控的 `/opt/dsh-presets` 与 `/opt/dsh-managed` 在容器内始终只读：运行中的受控配置没有被这次创作改写，用户根只是额外的候选来源。
+受控的 `/opt/dsh-presets` 与 `/opt/dsh-managed` 在容器内始终只读：运行中的受控配置没有被这次创作改写，用户根只是额外的临时候选来源。
 
 ## 操作纪律
 

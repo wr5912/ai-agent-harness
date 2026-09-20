@@ -82,29 +82,30 @@ class SourceContractTest(unittest.TestCase):
             self.assertEqual(result["required_env_names"], [])
             self.assertIsNone(result["guard"])
 
-    def test_preset_directory_must_match_agent_id(self):
-        """回归：来源声明的 preset 目录必须等于 agent_id，否则计划显示的目标会与来源代表的对象分叉。"""
+    def test_preset_id_may_differ_from_agent_id(self):
+        """运行时 preset ID 与业务 Agent ID 是显式映射，不要求字符串相等。"""
         with tempfile.TemporaryDirectory(prefix="dsh-source-contract-") as location:
             repo = Path(location)
             source_id = "EXP-second-harness-002"
             root = repo / "evolution/experiments" / source_id / "candidate/dsh"
-            for name in ("workspace", "presets/other-harness", "managed"):
+            for name in ("workspace", "presets/second-harness-variant", "managed"):
                 (root / name).mkdir(parents=True)
-            (root / "presets/other-harness/agent.cordis.yml").write_text("guard", encoding="utf-8")
+            (root / "presets/second-harness-variant/agent.cordis.yml").write_text("guard", encoding="utf-8")
             (root / "managed/second.patch.yml").write_text("[]", encoding="utf-8")
             (root / "managed/second.development.patch.yml").write_text("[]", encoding="utf-8")
             catalog = {"schema_version": "1.0", "sources": {source_id: {
                 "agent_id": "second-harness",
                 "candidate_root": f"evolution/experiments/{source_id}/candidate/dsh",
                 "profile": "web", "patch": "second.patch.yml",
-                "preset": "other-harness/agent.cordis.yml", "guard": None,
+                "preset": "second-harness-variant/agent.cordis.yml", "guard": None,
                 "development_patch_overlay": "second.development.patch.yml",
                 "config_markers": ["second-harness"], "required_env_names": [],
             }}}
             catalog_path = repo / "sources.json"
             catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "preset 目录与 agent_id 不一致"):
-                source_contract.resolve(source_id, repo=repo, sources=catalog_path)
+            result = source_contract.resolve(source_id, repo=repo, sources=catalog_path)
+            self.assertEqual(result["agent_id"], "second-harness")
+            self.assertEqual(result["preset_id"], "second-harness-variant")
 
     def test_wrong_experiment_directory_is_rejected(self):
         with tempfile.TemporaryDirectory(prefix="dsh-source-contract-") as location:

@@ -15,6 +15,14 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 
 try:
+    import tomllib
+except ImportError:  # Python 3.10 及更早版本使用 requirements.txt 中的兼容包
+    try:
+        import tomli as tomllib
+    except ImportError:  # pragma: no cover - 缺少依赖时由配置合同检查 fail-closed
+        tomllib = None
+
+try:
     import yaml
 except ImportError:  # pragma: no cover - 缺少依赖时由资产结构检查 fail-closed
     yaml = None
@@ -33,8 +41,13 @@ REQUIRED_ROOT_FILES = (
     "CHANGELOG.md",
     ".gitignore",
     ".codex/config.toml",
+    "docs/ai-agent-harness项目验收矩阵.md",
     "docs/standards/SOURCES.md",
     "docs/standards/PROJECT-INTERPRETATION.md",
+)
+PROJECT_ACCEPTANCE_MATRIX = "docs/ai-agent-harness项目验收矩阵.md"
+PROJECT_ACCEPTANCE_MATRIX_LINK_RE = re.compile(
+    r"\]\((?:\./)?" + re.escape(PROJECT_ACCEPTANCE_MATRIX) + r"(?:#[^)]+)?\)"
 )
 REQUIRED_SKILLS = (
     "legacy-asset-intake",
@@ -119,11 +132,11 @@ DSH_ADAPTER_PINNED_SHA256 = {
     "Dockerfile": "9834c1a852bd8bb7ad7c6f2574da9ff66bef89fdff6f7dacbfede5dd631fb184",
     "build-image.sh": "f2df860c6cdebb452143415a3c6b62ba495ad25598b32a0e0fc7f7838136d931",
     "prepare-verification-home.mjs": "96e5495d29da68d1a106f9cd5462180b898edaf70456de263e3150220be620b4",
-    "verify-load.mjs": "e1d39ffdb86d65146da3f7c6e20f639fe985c7a7970db7306dd296af40e934d8",
-    "verify-load.sh": "aaa955b01b3cd566c828779ab44d42374922ca8195b8b9cbc4124c0dced18e96",
+    "verify-load.mjs": "0399df56a7478c85a5a41abf6ca9a4a669350ef6a89873e22e787bed504e4de6",
+    "verify-load.sh": "3905f33ad63453e91590e86cfb185a8ea49e2309313461ed58784cdea10c1097",
     "tree-digest.mjs": "ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
     "mutation-receipt.py": "f063d103074bf845ab9aafa170e156464e8e8b8b51203de887837ff29df2ede7",
-    "source_contract.py": "0273f0ace4b240acfcc50915c3399683c34ef76705add8353737ca1dbe9653c9",
+    "source_contract.py": "2236da8ce66a7d954b3cd20f7ea047cc9e513c9995cd08f1c017324e238feef1",
     "preflight-access.py": "44cf075c4e299845829fbc2f2e8d0b1fb7aea15cf93ddc2ae6cd9776bf75780c",
 }
 
@@ -217,6 +230,48 @@ def substantive_text(root: Path, path: Path) -> Optional[str]:
     except (OSError, UnicodeError, ValueError):
         return None
     return text if text.strip() else None
+
+
+def validate_project_governance_contract(root: Path, errors: List[Dict[str, str]]) -> None:
+    """校验项目级 Memory 开关和验收矩阵的稳定入口。"""
+
+    config_path = root / ".codex" / "config.toml"
+    if tomllib is None:
+        errors.append(issue(
+            "CODEX_MEMORY_CONFIG_INVALID",
+            "无法解析项目 Codex 配置；Python 3.10 及更早版本必须安装 tomli",
+            relative(config_path, root),
+        ))
+    else:
+        try:
+            config = tomllib.loads(read_text_limited(root, config_path))
+        except (OSError, UnicodeError, ValueError) as exc:
+            errors.append(issue(
+                "CODEX_MEMORY_CONFIG_INVALID",
+                "项目 Codex 配置必须是有效 TOML，且可读取：%s" % exc,
+                relative(config_path, root),
+            ))
+        else:
+            features = config.get("features")
+            if not isinstance(features, dict) or features.get("memories") is not True:
+                errors.append(issue(
+                    "CODEX_MEMORY_CONFIG_INVALID",
+                    "项目 Codex 配置必须显式设置 [features] memories = true（布尔值）",
+                    relative(config_path, root),
+                ))
+
+    for entry_name in ("README.md", "AGENTS.md"):
+        entry_path = root / entry_name
+        try:
+            entry_text = read_text_limited(root, entry_path)
+        except (OSError, UnicodeError, ValueError):
+            continue
+        if PROJECT_ACCEPTANCE_MATRIX_LINK_RE.search(entry_text) is None:
+            errors.append(issue(
+                "PROJECT_ACCEPTANCE_MATRIX_UNREFERENCED",
+                "稳定项目入口必须以 Markdown 链接引用项目验收矩阵",
+                entry_name,
+            ))
 
 
 def path_present(path: Path) -> bool:
@@ -1667,9 +1722,13 @@ def validate_security_migration_candidate(
         "profile_patch": "dsh/managed/%s.patch.yml" % agent_id,
         "runtime_lock": "runtime.lock.json",
     }
-    if not isinstance(loadable, dict) or loadable.get("preset_id") != agent_id:
-        errors.append(issue("DSH_LOADABLE_ASSETS", "loadable_assets 必须绑定当前 Preset", relative(harness_path, root)))
+    if not isinstance(loadable, dict):
+        errors.append(issue("DSH_LOADABLE_ASSETS", "loadable_assets 必须声明当前 Preset 与装载路径", relative(harness_path, root)))
         loadable = {}
+    preset_id = loadable.get("preset_id")
+    if not isinstance(preset_id, str) or not KEBAB_RE.fullmatch(preset_id):
+        errors.append(issue("DSH_LOADABLE_ASSETS", "loadable_assets.preset_id 必须是合法的运行时 Preset 身份", relative(harness_path, root)))
+        preset_id = agent_id
     for key, expected in expected_paths.items():
         value = loadable.get(key)
         target = dsh_path_within(candidate, value)
@@ -1735,7 +1794,7 @@ def validate_security_migration_candidate(
         if not is_nonempty_regular_file(entry, root):
             errors.append(issue("DSH_SKILL_DISCOVERY", "技能入口必须为非空普通文件", relative(entry, root)))
 
-    preset_path = dsh / "presets" / agent_id / "agent.cordis.yml"
+    preset_path = dsh / "presets" / preset_id / "agent.cordis.yml"
     preset = dsh_yaml(root, preset_path)
     if not isinstance(preset, list) or not preset:
         errors.append(issue("DSH_PRESET_INVALID", "Preset 必须是可装载的插件列表", relative(preset_path, root)))
@@ -1769,13 +1828,13 @@ def validate_security_migration_candidate(
             }
             if not isinstance(config, dict) or set(config) - allowed_config_keys.get(name, set()):
                 errors.append(issue("DSH_PRESET_SCOPED_TOOLS", "Preset 配置不得扩展为工具注册、脚本或额外 Runtime 能力", relative(preset_path, root)))
-    preset_metadata = dsh_yaml(root, dsh / "presets" / agent_id / "preset.yml")
+    preset_metadata = dsh_yaml(root, dsh / "presets" / preset_id / "preset.yml")
     if not isinstance(preset_metadata, dict) or not preset_metadata.get("name") or not preset_metadata.get("description"):
-        errors.append(issue("DSH_PRESET_INVALID", "Preset 元数据缺少名称和说明", relative(dsh / "presets" / agent_id / "preset.yml", root)))
+        errors.append(issue("DSH_PRESET_INVALID", "Preset 元数据缺少名称和说明", relative(dsh / "presets" / preset_id / "preset.yml", root)))
 
     profile_path = dsh / "managed" / ("%s.patch.yml" % agent_id)
     profile = dsh_yaml(root, profile_path, allow_js=True)
-    validate_dsh_profile(root, profile_path, profile, agent_id, errors)
+    validate_dsh_profile(root, profile_path, profile, preset_id, errors)
     validate_dsh_mcp_manifest(root, dsh / "managed" / "mcp-servers.yaml", errors)
     validate_dsh_role_matrix(root, dsh / "managed" / "role-tool-matrix.yaml", profile, errors)
     validate_dsh_public_tool_map(root, dsh / "managed" / "mcp-tool-name-map.json", dsh / "managed" / "role-tool-matrix.yaml", profile, candidate / "runtime.lock.json", dsh / "workspace" / ".agents" / "skills", errors)
@@ -1783,7 +1842,7 @@ def validate_security_migration_candidate(
         errors.append(issue("DSH_PENDING_IS_NOT_FORMAL_EVAL", "迁移 pending Case 不得与正式 Case/Trial 文件混用", relative(candidate / "delivery" / "eval", root)))
 
 
-def validate_dsh_profile(root: Path, path: Path, profile: object, agent_id: str,
+def validate_dsh_profile(root: Path, path: Path, profile: object, expected_preset_id: str,
                          errors: List[Dict[str, str]]) -> None:
     if not isinstance(profile, list):
         errors.append(issue("DSH_PROFILE_INVALID", "DSH Profile patch 必须是 YAML patch 列表", relative(path, root)))
@@ -1852,7 +1911,7 @@ def validate_dsh_profile(root: Path, path: Path, profile: object, agent_id: str,
     presets = ordinary.get("agent-presets", {}).get("config")
     # 生效默认 preset 必须等于候选声明的 preset_id（== agent_id），这样"计划里显示的目标"
     # 与"DSH 实际装载的默认目标"由门禁绑定，不靠两处各自硬编码恰好相同。
-    if not isinstance(presets, dict) or set(presets) != {"default", "roots", "includeShippedRoot", "includeUserRoot"} or presets.get("default") != agent_id or presets.get("roots") != [{"path": "/opt/dsh-presets", "trust": "system"}] or presets.get("includeShippedRoot") is not False or presets.get("includeUserRoot") is not False:
+    if not isinstance(presets, dict) or set(presets) != {"default", "roots", "includeShippedRoot", "includeUserRoot"} or presets.get("default") != expected_preset_id or presets.get("roots") != [{"path": "/opt/dsh-presets", "trust": "system"}] or presets.get("includeShippedRoot") is not False or presets.get("includeUserRoot") is not False:
         errors.append(issue("DSH_PRESET_ROOT", "Preset 必须仅从受控容器挂载根发现，且生效默认 preset 必须等于本 Agent 的 preset_id", relative(path, root)))
     if set(ordinary.get("agent-presets", {})) != {"id", "disabled", "config"} or ordinary.get("agent-presets", {}).get("disabled") is not False:
         errors.append(issue("DSH_PRESET_DISABLED", "Profile 的 agent-presets 必须显式启用，不能落入无 Guard 的 bare Agent", relative(path, root)))
@@ -2581,6 +2640,9 @@ def validate_dsh_adapter(root: Path, adapter: Path, errors: List[Dict[str, str]]
         "'/var/lib/dsh/AGENTS.md'",
         "'/var/lib/dsh/.env'",
         "'/work/harness/workspace/.env'",
+        "'/work/AGENTS.local.md'",
+        "DSH_EXPECT_DEV_TARGET_SHA",
+        "development_target_declaration",
         "'/var/lib/dsh/node_modules'",
         "'/var/lib/dsh/profiles/node_modules'",
         "'/var/lib/dsh/profiles/web/node_modules'",
@@ -2597,10 +2659,13 @@ def validate_dsh_adapter(root: Path, adapter: Path, errors: List[Dict[str, str]]
         "DSH_EXPECT_PREPARE_SCRIPT_SHA",
         "DSH_EXPECT_VERIFY_SCRIPT_SHA",
         "DSH_EXPECT_TREE_SCRIPT_SHA",
+        "--dev-target-document",
+        "DSH_DEV_TARGET_HOST",
+        "DSH_EXPECT_DEV_TARGET_SHA",
         DSH_BOOTSTRAP_DENY_SHA256,
     )
     if any(marker not in probe_invocation for marker in invocation_safety):
-        errors.append(issue("DSH_PROBE_INVOCATION", "宿主核验脚本必须先核镜像脚本、再运行 home-init 和受控 Probe", relative(adapter / "verify-load.sh", root)))
+        errors.append(issue("DSH_PROBE_INVOCATION", "宿主核验脚本必须核对只读挂载脚本，生成本次目标声明，再运行 home-init 和受控 Probe", relative(adapter / "verify-load.sh", root)))
     for expected in (
         'source_contract.py" --source "$task_source_id"',
         'git -C "$task_source_dir" fetch --depth=1 origin "$task_source_commit"',
@@ -2688,13 +2753,17 @@ def validate_dsh_source_catalog(root: Path, adapter: Path, lock: Mapping[str, ob
         if not match or not isinstance(item, dict) or set(item) != required or item.get("agent_id") != match.group(1) or item.get("candidate_root") != expected_root or item.get("profile") != "web":
             errors.append(issue("DSH_SOURCE_CATALOG", "来源身份、候选根、web Profile 或字段不符合合同", relative(path, root)))
             continue
-        # 来源声明的 preset 目录决定 preset_id；它与 agent_id 不一致会让"来源声明的目标"
-        # 与"该来源代表的 Agent"分叉，后续的计划与生效默认值核对都会失去意义。
-        preset_parts = item["preset"].split("/") if isinstance(item.get("preset"), str) else []
-        if len(preset_parts) < 2 or preset_parts[0] != item["agent_id"]:
-            errors.append(issue("DSH_SOURCE_CATALOG", "preset 必须声明为 <agent_id>/<file>，与 agent_id 一致", relative(path, root)))
-            continue
         candidate_dsh = root / expected_root
+        # agent_id 是业务身份，preset_id 是运行时组合身份；允许不同，但来源声明必须与候选
+        # harness.yaml 的显式 preset_id 一致，后者又由 Profile 默认值门禁绑定到实际装载目标。
+        candidate_harness = dsh_yaml(root, candidate_dsh.parent / "harness.yaml")
+        loadable = candidate_harness.get("loadable_assets") if isinstance(candidate_harness, dict) else None
+        candidate_preset_id = loadable.get("preset_id") if isinstance(loadable, dict) else None
+        preset_parts = item["preset"].split("/") if isinstance(item.get("preset"), str) else []
+        if not isinstance(candidate_preset_id, str) or not KEBAB_RE.fullmatch(candidate_preset_id) \
+                or len(preset_parts) < 2 or preset_parts[0] != candidate_preset_id:
+            errors.append(issue("DSH_SOURCE_CATALOG", "preset 路径必须与候选 harness.yaml 的 preset_id 一致", relative(path, root)))
+            continue
         for key, folder in (("patch", "managed"), ("preset", "presets"), ("guard", "managed"),
                             ("development_patch_overlay", "managed")):
             part = item[key]
@@ -3130,6 +3199,8 @@ def run(root: Path) -> Tuple[Dict[str, object], int]:
         elif not is_nonempty_regular_file(target, root) or substantive_text(root, target) is None:
             errors.append(issue("ROOT_FILE_INVALID", "项目治理文件必须是非空普通文件", name))
 
+    validate_project_governance_contract(root, errors)
+
     standards_dir = root / "docs" / "standards"
     sources_file = standards_dir / "SOURCES.md"
     try:
@@ -3174,6 +3245,7 @@ def run(root: Path) -> Tuple[Dict[str, object], int]:
         "errors": errors,
         "warnings": warnings,
         "manual_checks": [
+            "确认项目 Memory 在本次受信任开发会话是否实际启用；静态配置检查只验证默认合同。",
             "确认 Experiment 的假设、影响范围、变更分类和决策具有真实业务依据。",
             "确认稳定 Baseline 和 Release 确由对应候选基线完成正式评估与交付复核后晋升。",
             "确认 evaluation-report.md 的人工证据语义与固定机器结论一致。",

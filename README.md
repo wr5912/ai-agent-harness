@@ -2,7 +2,9 @@
 
 本项目用于在本地开发和比较基于 DSH（DeepSeek Harness）的智能体。开发者可以选择一套 Harness 启动 DSH 容器，修改提示词、技能、Preset 和插件配置，运行目标智能体，并用 Git 保存研究结果。项目重点研究 Harness 优化、Harness 资产管理，以及不同 Variant 的效果差异。
 
-当前已实现开发启动器 `runtime/adapters/dsh-container/dsh-dev` 的基础命令，以及来源解析、回执、Run 台账和仓库校验工具。**开发闭环已在真实模型与本地模拟 MCP 条件下走通一次**：开发会话读到开发者身份与解析出的目标、在目标工作区完成修改、改动保存到候选、被测会话观察到该变化；回退后观察结果随之消失（见 `dsh-dev-real-session-20260919.json`）。仍待完成的是正式 Eval Set 与候选基线下的业务评估，以及 web 界面工作区注册流程本身的操作核验。这些是当前状态，不是最终能力声明。
+当前已实现开发启动器 `runtime/adapters/dsh-container/dsh-dev` 的基础命令，以及来源解析、回执、Run 台账和仓库校验工具。**Headless 下的技能修改小闭环已用真实模型与本地模拟 MCP 验证一次**：开发会话读到开发者身份与解析出的目标、创建一项技能、改动保存到候选、被测会话观察到该变化；删除技能后的新会话不再报告它，正反向观察一致（见 [`dsh-dev-real-session-20260919.json`](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json)；无凭据复现步骤见 [`dsh-dev-real-session-reproduce.md`](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-reproduce.md)）。这不等于所有开发路径已经验证。
+
+项目级验证路径的总数、一页总览、逐条操作顺序和当前缺口见[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)：DSH Web 完整交互尚未验证，新 Preset 路径和 Run 实录只有部分覆盖，`release:<id>` 尚未实现。具体业务 Agent 的正式 Eval Set、候选基线和交付结论属于 Harness 交付验收，不是本项目工具链验收。这些是当前状态，不是最终能力声明。
 
 ## 现在能做什么
 
@@ -23,7 +25,8 @@
 
 1. 读根级 [`AGENTS.md`](./AGENTS.md)。它的“开发对象与修改边界”定义了本项目的四类对象——开发智能体的运行配置、被开发或优化的 Harness 资产、需求、测试数据与评估标准、运行状态与运行记录——并说明每一类由谁负责、允许怎么改。后面的开发对象判断都以它为准。
 2. 读[来源锁定](./docs/standards/SOURCES.md)和[项目规范解释](./docs/standards/PROJECT-INTERPRETATION.md)，确认规范版本与本地取舍。
-3. 按任务选择项目技能：
+3. 读[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)，先区分本项目验收、具体 Harness 交付验收和 DSH Release 验收，并确定本次涉及的 `PA-xx`。
+4. 按任务选择项目技能：
 
    | 技能 | 使用时机 |
    |---|---|
@@ -35,7 +38,7 @@
    | `dsh-release-verify` | 验证 Release、DSH 装载结果和真实协议任务链 |
    | `ai-correction-log` | 用户反馈纠错时抽取问题要点，按天追加到 `AI纠错记录/` |
 
-4. 需要启动容器时，先确认 Docker 可用、目标镜像已构建，并按 `.env` 之外的方式注入运行时环境变量（见下一节）。
+5. 需要启动容器时，先确认 Docker 可用、目标镜像已构建，并按 `.env` 之外的方式注入运行时环境变量（见下一节）。
 
 ### 启动一个本地实例
 
@@ -115,6 +118,7 @@ AGENTS.md                                # 项目级协作规则，含四类对�
 .codex/config.toml                       # 当前开发智能体配置，不是业务 Harness 或 DSH 配置
 .agents/skills/                          # 维护本仓库的 Codex 技能，不是业务 Agent Skill
 docs/
+  ai-agent-harness项目验收矩阵.md      # 本项目路径、证据、状态和缺口的唯一维护位置
   standards/                             # 受控规范副本、来源锁定与项目解释
 agents/<agent-id>/
   spec/                                  # 需求、任务与验收标准的唯一事实源
@@ -213,7 +217,15 @@ python3 evolution/experiments/EXP-<agent-id>-NNN/evaluation/tools/render_pending
 
 ## 验收口径
 
-正式交付必须能够追溯 `REQ → AC → Eval Case → Trial → Run 归档 → 交付结论 → Release`。DSH 发布验收必须核对装载的 Release 与通过的候选基线一致，并通过对外实际协议完成至少一条完整任务链；涉及工具或写操作时还要检查最终业务状态和审计证据。
+本仓库明确区分三层验收，详细路径和当前缺口只在[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)维护：
+
+| 层级 | 核心问题 | 主要证据 |
+|---|---|---|
+| 本项目验收 | 仓库规则、开发工具链与接入路径是否按设计工作 | `PA-01..PA-11`、仓库测试、容器探针和项目技术证据 |
+| Harness 交付验收 | 某个冻结业务 Agent 是否满足其需求和评估门禁 | `acceptance.yaml`、正式 Eval Case、Trial、Run 归档和交付复核 |
+| DSH Release 验收 | 目标 DSH 是否实际装载一致的不可变 Release 并完成业务链 | 具体 Release、实际协议结果、最终业务状态和必要审计证据 |
+
+Harness 正式交付必须能够追溯 `REQ → AC → Eval Case → Trial → Run 归档 → 交付结论 → Release`。DSH Release 验收还必须核对实际装载的 Release 与通过的候选基线一致，并通过对外实际协议完成至少一条完整任务链；涉及工具或写操作时还要检查最终业务状态和审计证据。
 
 静态校验、脚本退出码 `0`、进程存在、端口监听、HTTP `200` 或 `/health` 只证明对应局部检查通过，不构成交付评估或发布授权。真实安全动作仍由 DSH Runtime 与领域 MCP 服务端强制执行鉴权、租户/对象绑定、参数与数量约束、幂等、审批及审计；仓库中的策略文字不能替代这些服务端控制。
 

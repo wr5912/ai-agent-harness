@@ -22,6 +22,7 @@ if (source?.schema_version !== '1.0' || !sourceSelector.test(source.source_id) |
   || source.profile !== 'web' || !source.patch?.startsWith('/opt/dsh-managed/')
   || !source.preset?.startsWith('/opt/dsh-presets/')
   || (source.guard !== null && !source.guard?.startsWith('/opt/dsh-managed/'))
+  || typeof source.preset_id !== 'string' || source.preset_id.length === 0
   || !Array.isArray(source.config_markers) || source.config_markers.length === 0
   || typeof source.spec_root !== 'string' || typeof source.eval_root !== 'string'
   || (mode === 'authoring' && typeof source.patch_overlay !== 'string')) {
@@ -79,7 +80,9 @@ const mountEvidence = {}
 // 角色分离必须在容器内正向核对：判分材料只出现在开发者会话，
 // 开发会话身份文件只出现在开发者会话。两者都按"路径不存在 + 不是挂载点"双重判断。
 const devInstructionPath = '/work/AGENTS.md'
+const devTargetPath = '/work/AGENTS.local.md'
 let devInstructionEvidence = null
+let devTargetEvidence = null
 if (mode === 'authoring') {
   const mount = mounts.find(entry => entry.target === devInstructionPath)
   if (!mount || !mount.options.includes('ro')) {
@@ -90,8 +93,25 @@ if (mode === 'authoring') {
     throw new Error('development session instructions differ from the reviewed controlled file')
   }
   devInstructionEvidence = { mount_mode: 'ro', sha256: digest, size: lstatSync(devInstructionPath).size }
+
+  const targetMount = mounts.find(entry => entry.target === devTargetPath)
+  if (!targetMount || !targetMount.options.includes('ro')) {
+    throw new Error('development target declaration is not an exact read-only bind mount')
+  }
+  const targetDigest = fileSha(devTargetPath, 64 * 1024)
+  if (!process.env.DSH_EXPECT_DEV_TARGET_SHA || targetDigest !== process.env.DSH_EXPECT_DEV_TARGET_SHA) {
+    throw new Error('development target declaration differs from the host-generated file')
+  }
+  const targetText = readFileSync(devTargetPath, 'utf8')
+  for (const value of [source.source_id, source.agent_id, source.preset_id, 'session_preset）：cordis']) {
+    if (!targetText.includes(value)) {
+      throw new Error(`development target declaration does not match selected source: ${value}`)
+    }
+  }
+  devTargetEvidence = { mount_mode: 'ro', sha256: targetDigest, size: lstatSync(devTargetPath).size,
+    source_id: source.source_id, agent_id: source.agent_id, target_preset: source.preset_id, session_preset: 'cordis' }
 } else {
-  for (const path of [...gradingMaterialPaths, devInstructionPath]) {
+  for (const path of [...gradingMaterialPaths, devInstructionPath, devTargetPath]) {
     if (existsSync(path) || mounts.some(entry => entry.target === path)) {
       throw new Error(`the subject container must not carry grading material or development instructions: ${path}`)
     }
@@ -331,6 +351,7 @@ console.log(JSON.stringify({
     },
   adapter_scripts: adapterScriptEvidence,
   development_session_instructions: devInstructionEvidence,
+  development_target_declaration: devTargetEvidence,
   dsh_home_mount_mode: 'rw',
   controlled_home_controls: homeControlEvidence,
   controlled_module_resolution: moduleEvidence,

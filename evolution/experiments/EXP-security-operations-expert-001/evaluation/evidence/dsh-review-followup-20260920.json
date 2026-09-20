@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-09-20T05:27:22Z",
+  "base_commit": "84cf8d23bb571a7fe1e0110611521d9068793e2a",
+  "purpose": "核对复审报告列出的替换前置检查、独立 authoring 核验入口、preset 映射与阅读视图边界",
+  "affected_project_acceptance": [
+    "PA-03",
+    "PA-05",
+    "PA-06",
+    "PA-07",
+    "PA-09"
+  ],
+  "observations": {
+    "replace_conflict": {
+      "setup": "先启动 verification 同名实例，再用相同来源和端口请求 authoring --replace",
+      "result": "命令退出 1；来源/模式冲突在停止前拒绝；原 dsh 容器 ID 前后一致并继续运行",
+      "home_volume_deleted": false
+    },
+    "independent_verify_load": {
+      "setup": "未在终端预设 DSH_DEV_TARGET_HOST，直接运行 verify-load.sh authoring 与 verification",
+      "authoring": {
+        "exit_code": 0,
+        "development_target_declaration": {
+          "mount_mode": "ro",
+          "source_id": "experiment:EXP-security-operations-expert-001",
+          "agent_id": "security-operations-expert",
+          "target_preset": "security-operations-expert",
+          "session_preset": "cordis"
+        }
+      },
+      "verification": {
+        "exit_code": 0,
+        "development_target_declaration": null
+      }
+    },
+    "renderer_dangling_symlink": {
+      "setup": "report.md 软链指向尚不存在的 eval/pending/new.jsonl",
+      "exit_code": 2,
+      "future_jsonl_created": false,
+      "source_input_unchanged": true
+    },
+    "preset_mapping": {
+      "static_contract": "候选 harness.yaml.preset_id、sources.json preset 路径首段、基础 patch agent-presets.default 必须一致；agent_id 可以保持原业务身份",
+      "stable_id_flow": "用户根不同 ID 只作临时试验，默认把内容合并回稳定 target_preset 后用 --replace 重载",
+      "test_result": "显式把同一 Agent 映射到另一运行时 preset ID 时，三处同时修改可通过仓库校验；只改一处失败",
+      "web_session_status": "not_verified"
+    },
+    "preset_session_probe": {
+      "headless": "不会组成 Agent preset，不能用 workspace 业务身份冒充 preset 生效",
+      "acp": "官方实现明确 No preset composition，不能替代 Web preset 选择",
+      "conclusion": "本轮不宣称 preset Web 回流路径已通过"
+    }
+  },
+  "verified": [
+    "不支持的 --replace 在任何停止动作前拒绝，旧实例保持运行",
+    "独立 authoring 核验入口自行生成并核对本次目标声明，不依赖父终端额外导出变量",
+    "verification 容器不携带开发目标声明",
+    "悬空软链指向未来 JSONL 输入时拒绝写出且不创建目标文件",
+    "Agent ID 与运行时 preset ID 可以显式映射，三处实际装载身份由门禁保持一致"
+  ],
+  "limitations": [
+    "没有操作 Web UI 的 preset 复制、回流和新会话选择；PA-09 仍是部分验证",
+    "Headless 与 ACP 的会话结果不构成 Agent preset 生效证据",
+    "本证据是项目开发工具链的技术核验，不是业务 Harness 交付评估或 Release 验收"
+  ]
+}

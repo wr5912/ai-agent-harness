@@ -31,7 +31,7 @@
       "step2": "改动落到宿主候选目录，git 工作树可见（workspace 为 rw 挂载）",
       "step3": "被测会话的技能清单里出现 dev-probe-catalog，并原样报出其 description",
       "step4_reverse_check": "删除该技能后重建会话，被测会话回答「没有」",
-      "conclusion": "修改、保存到候选、以明确目标启动、观察到变化四步成立；反向检查排除了模型顺着回答的可能"
+      "conclusion": "修改、保存到候选、以明确目标启动、观察到变化四步成立；正反向观察一致，降低了仅凭提示重复回答的疑虑"
     },
     "workspace_root_instruction_variant": {
       "probe": "把含标记的文件挂到 /work/AGENTS.local.md 后提问",
@@ -46,7 +46,7 @@
     "开发会话的改动进入宿主候选，并被目标会话观察到；回退后观察结果随之消失"
   ],
   "limitations": [
-    "本次经 headless profile 驱动会话；启动器面向操作者的是 web profile，两者共用同一组 patch、卷挂载与 preset 配置，但 web 界面的工作区注册流程本身未在本次会话中操作",
+    "本次经 headless profile 驱动会话；它复用启动器的卷挂载与 patch，但官方 Headless/ACP host plane 不组成 Agent preset，因此本证据不证明目标 preset 已在会话层选中。启动器面向操作者的 Web 工作区注册与 preset 选择流程仍未操作",
     "MCP 端点由本地模拟服务提供且未启用鉴权，因此不能作为服务端鉴权、审批、租户隔离等控制已落实的证据",
     "未执行正式 Eval Set、候选基线冻结或交付评估；本证据只覆盖开发闭环与工具链可用性"
   ]

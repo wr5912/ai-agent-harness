@@ -18,6 +18,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -25,7 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from source_contract import REPO, resolve  # noqa: E402
+from source_contract import REPO, dev_target_document, resolve  # noqa: E402
 
 ADAPTER = Path(__file__).resolve().parent
 STATE_ROOT = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "dsh-dev"
@@ -109,29 +110,6 @@ def target_preset(contract: dict) -> str:
     return preset
 
 
-def dev_target_document(contract: dict, instance: str) -> str:
-    """本次开发任务的实际目标声明，写入实例目录后以 AGENTS.local.md 挂进会话。
-
-    受控开发指令保持通用、不含业务名；这里给出已解析的真实值，避免会话只能"看启动器输出"。
-    """
-    lines = [
-        "# 本次开发任务的目标（由启动器解析生成，只读）",
-        "",
-        f"- 实例：{instance}",
-        f"- 来源：{contract['source_id']}",
-        f"- 目标 Agent：{contract['agent_id']}",
-        f"- 待优化目标 preset（target_preset）：{target_preset(contract)}",
-        f"- 本次会话实际运行的 preset（session_preset）：{AUTHORING_PRESET}",
-        f"- 目标 Harness 行为资产：{CONTAINER_WORKSPACE}",
-        f"- 目标 Preset 声明目录：/opt/dsh-presets（容器内只读）",
-        f"- 受控 Profile Patch 与 Guard 目录：/opt/dsh-managed（容器内只读）",
-        "",
-        "这些值已由启动器解析，直接按此执行；不要猜测，也不要把它当成会话身份。",
-        "",
-    ]
-    return "\n".join(lines)
-
-
 def context_assets(contract: dict, mode: str) -> list[dict]:
     """只读上下文数据资产。
 
@@ -160,7 +138,8 @@ def run(command: list[str], *, check: bool = True, capture: bool = True, env: di
     return completed
 
 
-def compose_env(contract: dict, mode: str, port: int, name: str) -> dict:
+def compose_env(contract: dict, mode: str, port: int, name: str,
+                dev_target_file: Path | None = None) -> dict:
     environment = dict(os.environ)
     environment.update(
         {
@@ -175,7 +154,8 @@ def compose_env(contract: dict, mode: str, port: int, name: str) -> dict:
     for asset in context_assets(contract, mode):
         environment["DSH_SPEC_HOST" if asset["key"] == "spec" else "DSH_EVAL_HOST"] = asset["host"]
     if mode == "authoring":
-        environment["DSH_DEV_TARGET_HOST"] = str(instance_dir(name) / DEV_TARGET_FILENAME)
+        target_file = dev_target_file or (instance_dir(name) / DEV_TARGET_FILENAME)
+        environment["DSH_DEV_TARGET_HOST"] = str(target_file)
     if mode == "authoring":
         if not contract.get("patch_overlay"):
             fail("所选来源未登记开发模式叠加层（development_patch_overlay），不能以 --mode dev 启动")
@@ -258,23 +238,16 @@ def project_name(name: str) -> str:
 def write_instance(name: str, *, mode: str, contract: dict, port: int,
                    accepted_cordis_trust: bool = False) -> Path:
     target = instance_dir(name)
-    if target.exists():
-        manifest = target / "instance.json"
-        if manifest.is_file():
-            existing = json.loads(manifest.read_text(encoding="utf-8"))
-            if existing.get("source_id") != contract["source_id"] or existing.get("mode") != mode:
-                fail(
-                    f"实例 {name} 已存在且来源/模式不同（{existing.get('source_id')}/{existing.get('mode')}）；"
-                    "请改用新的实例名"
-                )
-        else:
-            fail(f"实例目录已存在但缺少 instance.json：{target}")
+    current = existing_instance(name)
+    if current is not None:
+        _, manifest = current
+        validate_existing_identity(name, manifest, contract, mode)
     else:
         target.mkdir(parents=True, exist_ok=False)
     dev_target_file = None
     if mode == "authoring":
         dev_target_file = target / DEV_TARGET_FILENAME
-        dev_target_file.write_text(dev_target_document(contract, name), encoding="utf-8")
+        dev_target_file.write_text(dev_target_document(contract, name, AUTHORING_PRESET), encoding="utf-8")
     template = (ADAPTER / f"{mode}.compose.yaml").read_text(encoding="utf-8")
     rendered = render_compose(template, mode=mode, project=project_name(name), port=port)
     (target / "compose.yaml").write_text(rendered, encoding="utf-8")
@@ -446,7 +419,13 @@ def command_up(args: argparse.Namespace) -> None:
                               "missing_env_names": missing}, ensure_ascii=False), file=sys.stderr)
     else:
         check_environment(contract)
-    replaced = migrate_existing_instance(args, contract)
+    current = existing_instance(args.name)
+    if current is not None:
+        _, manifest = current
+        validate_existing_identity(args.name, manifest, contract, args.mode)
+    # Compose 插值、模板结构与本次目标文件都可以在停旧实例前检查；明显无效的新配置不得先触发停机。
+    preflight_new_instance(args, contract)
+    replaced = migrate_existing_instance(args, contract, current)
     if port_in_use(args.port):
         holder = running_instance_service(args.name)
         if holder == "dsh":
@@ -723,16 +702,56 @@ def command_down(args: argparse.Namespace) -> None:
     stop_instance(args.name, manifest)
 
 
-def migrate_existing_instance(args: argparse.Namespace, contract: dict) -> dict | None:
-    """`up --replace` 的前置步骤：停掉同名实例自身的容器并保留 HOME 数据卷。
+def validate_existing_identity(name: str, manifest: dict, contract: dict, mode: str) -> None:
+    """在任何停止或改写动作之前，核对同名实例能否被本次命令替换。"""
+    existing_source = manifest.get("source_id")
+    existing_mode = manifest.get("mode")
+    if existing_source != contract["source_id"] or existing_mode != mode:
+        fail(
+            f"实例 {name} 已存在且来源/模式不同（{existing_source}/{existing_mode}）；"
+            "拒绝替换并保持原实例运行，请改用新的实例名"
+        )
 
-    返回迁移说明（供 `up` 输出），没有需要替换的实例时返回 None。
-    """
-    target = instance_dir(args.name)
+
+def existing_instance(name: str) -> tuple[Path, dict] | None:
+    target = instance_dir(name)
+    if not target.exists():
+        return None
     manifest_path = target / "instance.json"
     if not manifest_path.is_file():
+        fail(f"实例目录已存在但缺少 instance.json：{target}")
+    return target, json.loads(manifest_path.read_text(encoding="utf-8"))
+
+
+def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
+    """在停旧实例前校验新 Compose 可展开，不写入实例目录。"""
+    with tempfile.TemporaryDirectory(prefix="dsh-dev-preflight-") as location:
+        root = Path(location)
+        dev_target = None
+        if args.mode == "authoring":
+            dev_target = root / DEV_TARGET_FILENAME
+            dev_target.write_text(dev_target_document(contract, args.name), encoding="utf-8")
+            dev_target.chmod(0o444)
+        rendered = render_compose(
+            (ADAPTER / f"{args.mode}.compose.yaml").read_text(encoding="utf-8"),
+            mode=args.mode,
+            project=project_name(args.name),
+            port=args.port,
+        )
+        compose = root / "compose.yaml"
+        compose.write_text(rendered, encoding="utf-8")
+        environment = compose_env(contract, args.mode, args.port, args.name, dev_target_file=dev_target)
+        run(compose_command(root, args.name, "config", "--quiet"), env=environment)
+
+
+def migrate_existing_instance(args: argparse.Namespace, contract: dict,
+                              current: tuple[Path, dict] | None = None) -> dict | None:
+    """`up --replace` 的前置步骤：兼容性检查通过后，停同名实例并保留 HOME。"""
+    current = current if current is not None else existing_instance(args.name)
+    if current is None:
         return None
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    _, manifest = current
+    validate_existing_identity(args.name, manifest, contract, args.mode)
     if not args.replace:
         return None
     recorded = instance_recorded_port(manifest)

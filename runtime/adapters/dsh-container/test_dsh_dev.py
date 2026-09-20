@@ -141,7 +141,7 @@ class ModeAndContextContractTest(unittest.TestCase):
     def test_dev_target_declaration_is_generated_with_resolved_values(self):
         """回归：受控指令保持通用，实际目标值由启动器生成并挂到 /work/AGENTS.local.md。"""
         contract = self.contract()
-        document = dev.dev_target_document(contract, "secops-dev")
+        document = dev.dev_target_document(contract, "secops-dev", "cordis")
         self.assertIn("security-operations-expert", document)
         self.assertIn("cordis", document)
         self.assertIn("/work/harness/workspace", document)
@@ -232,6 +232,7 @@ class ModeAndContextContractTest(unittest.TestCase):
                                      mode="authoring", name="secops-dev", port=3084,
                                      allow_missing_env=True, accept_cordis_trust=False)
         with mock.patch.object(dev, "port_in_use", return_value=False), \
+                mock.patch.object(dev, "preflight_new_instance"), \
                 mock.patch.object(dev, "compose_env") as compose_env:
             with self.assertRaises(SystemExit):
                 dev.command_up(args)
@@ -516,6 +517,7 @@ class UpCommandStateTest(unittest.TestCase):
             stdout="abc123\texited\tExited (1) 2 seconds ago\tdsh-dev-up-probe-dsh-1\tdsh\n", stderr="")
         stdout, stderr = io.StringIO(), io.StringIO()
         with mock.patch.object(dev, "port_in_use", return_value=False), \
+                mock.patch.object(dev, "preflight_new_instance"), \
                 mock.patch.object(dev, "check_environment"), \
                 mock.patch.object(dev, "compose_env", return_value={}), \
                 mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, stdout="", stderr="")), \
@@ -537,6 +539,7 @@ class UpCommandStateTest(unittest.TestCase):
             stderr="")
         stdout = io.StringIO()
         with mock.patch.object(dev, "port_in_use", return_value=False), \
+                mock.patch.object(dev, "preflight_new_instance"), \
                 mock.patch.object(dev, "check_environment"), \
                 mock.patch.object(dev, "compose_env", return_value={}), \
                 mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, stdout="", stderr="")), \
@@ -554,6 +557,7 @@ class UpCommandStateTest(unittest.TestCase):
     def test_up_reports_unknown_when_state_cannot_be_queried(self):
         stdout, stderr = io.StringIO(), io.StringIO()
         with mock.patch.object(dev, "port_in_use", return_value=False), \
+                mock.patch.object(dev, "preflight_new_instance"), \
                 mock.patch.object(dev, "check_environment"), \
                 mock.patch.object(dev, "compose_env", return_value={}), \
                 mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, stdout="", stderr="")), \
@@ -700,6 +704,7 @@ class UpPortOwnershipTest(unittest.TestCase):
         stderr = io.StringIO()
         with mock.patch.object(dev, "resolve", return_value=self.contract()), \
                 mock.patch.object(dev, "port_in_use", return_value=True), \
+                mock.patch.object(dev, "preflight_new_instance"), \
                 mock.patch.object(dev, "running_instance_service", return_value="dsh"), \
                 mock.patch.object(dev, "write_instance") as writer, \
                 contextlib.redirect_stderr(stderr):
@@ -714,11 +719,53 @@ class UpPortOwnershipTest(unittest.TestCase):
         stderr = io.StringIO()
         with mock.patch.object(dev, "resolve", return_value=self.contract()), \
                 mock.patch.object(dev, "port_in_use", return_value=True), \
+                mock.patch.object(dev, "preflight_new_instance"), \
                 mock.patch.object(dev, "running_instance_service", return_value=None), \
                 contextlib.redirect_stderr(stderr):
             with self.assertRaises(SystemExit):
                 dev.command_up(self.args())
         self.assertIn("已被占用", stderr.getvalue())
+
+    def test_replace_rejects_mode_conflict_before_stopping(self):
+        self.write_existing(mode="verification")
+        stopper = mock.Mock()
+        stderr = io.StringIO()
+        with mock.patch.object(dev, "resolve", return_value=self.contract()), \
+                mock.patch.object(dev, "stop_instance", stopper), \
+                mock.patch.object(dev, "preflight_new_instance") as preflight, \
+                contextlib.redirect_stderr(stderr):
+            with self.assertRaises(SystemExit):
+                dev.command_up(self.args(replace=True, mode="authoring", accept_cordis_trust=True))
+        self.assertIn("来源/模式不同", stderr.getvalue())
+        stopper.assert_not_called()
+        preflight.assert_not_called()
+
+    def test_replace_rejects_source_conflict_before_stopping(self):
+        self.write_existing()
+        other = dict(self.contract(), source_id="experiment:EXP-other-agent-001")
+        stopper = mock.Mock()
+        stderr = io.StringIO()
+        with mock.patch.object(dev, "resolve", return_value=other), \
+                mock.patch.object(dev, "stop_instance", stopper), \
+                mock.patch.object(dev, "preflight_new_instance") as preflight, \
+                contextlib.redirect_stderr(stderr):
+            with self.assertRaises(SystemExit):
+                dev.command_up(self.args(replace=True, source="experiment:EXP-other-agent-001"))
+        self.assertIn("来源/模式不同", stderr.getvalue())
+        stopper.assert_not_called()
+        preflight.assert_not_called()
+
+    def test_replace_preflights_new_config_before_stopping(self):
+        self.write_existing()
+        order = []
+        with mock.patch.object(dev, "resolve", return_value=self.contract()), \
+                mock.patch.object(dev, "preflight_new_instance", side_effect=lambda *_: order.append("preflight")), \
+                mock.patch.object(dev, "migrate_existing_instance",
+                                  side_effect=lambda *_: order.append("stop") or {"previous_state_schema": "1.2"}), \
+                mock.patch.object(dev, "port_in_use", side_effect=SystemExit):
+            with self.assertRaises(SystemExit):
+                dev.command_up(self.args(replace=True))
+        self.assertEqual(order, ["preflight", "stop"])
 
     def test_replace_stops_own_instance_before_starting(self):
         self.write_existing()
@@ -728,6 +775,7 @@ class UpPortOwnershipTest(unittest.TestCase):
                 mock.patch.object(dev, "migrate_existing_instance",
                                   side_effect=lambda *_: order.append("stop") or {"previous_state_schema": "1.2"}), \
                 mock.patch.object(dev, "port_in_use", return_value=False), \
+                mock.patch.object(dev, "preflight_new_instance"), \
                 mock.patch.object(dev, "write_instance",
                                   side_effect=lambda *a, **k: order.append("write") or dev.STATE_ROOT / "probe"), \
                 mock.patch.object(dev, "compose_env", return_value={}), \

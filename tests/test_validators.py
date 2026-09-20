@@ -708,6 +708,48 @@ class RepositoryValidatorTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, payload)
         self.assertEqual(payload["status"], "pass")
 
+    def test_project_memory_feature_must_be_explicit_boolean_true(self) -> None:
+        valid_block = "[features]\nmemories = true\n\n"
+        invalid_blocks = {
+            "missing": "",
+            "false": "[features]\nmemories = false\n\n",
+            "wrong-type": "[features]\nmemories = \"true\"\n\n",
+            "malformed": "[features]\nmemories = [\n\n",
+        }
+        for case_name, replacement in invalid_blocks.items():
+            with self.subTest(case=case_name), tempfile.TemporaryDirectory() as temp:
+                clone = copy_initialized_repository(Path(temp))
+                config = clone / ".codex" / "config.toml"
+                original = config.read_text(encoding="utf-8")
+                self.assertIn(valid_block, original)
+                config.write_text(original.replace(valid_block, replacement, 1), encoding="utf-8")
+                completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+            self.assertEqual(completed.returncode, 1, payload)
+            self.assertIn("CODEX_MEMORY_CONFIG_INVALID", error_codes(payload))
+
+    def test_project_acceptance_matrix_must_be_linked_from_stable_entries(self) -> None:
+        matrix_path = "docs/ai-agent-harness项目验收矩阵.md"
+        for entry_name in ("README.md", "AGENTS.md"):
+            with self.subTest(entry=entry_name), tempfile.TemporaryDirectory() as temp:
+                clone = copy_initialized_repository(Path(temp))
+                entry = clone / entry_name
+                original = entry.read_text(encoding="utf-8")
+                self.assertIn(matrix_path, original)
+                without_link = original.replace(f"(./{matrix_path})", "(#已移除项目验收矩阵)")
+                without_link = without_link.replace(f"({matrix_path})", "(#已移除项目验收矩阵)")
+                entry.write_text(without_link + f"\n`{matrix_path}`\n", encoding="utf-8")
+                completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+            self.assertEqual(completed.returncode, 1, payload)
+            self.assertIn("PROJECT_ACCEPTANCE_MATRIX_UNREFERENCED", error_codes(payload))
+
+    def test_project_acceptance_matrix_is_required(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            clone = copy_initialized_repository(Path(temp))
+            (clone / "docs" / "ai-agent-harness项目验收矩阵.md").unlink()
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+        self.assertEqual(completed.returncode, 1, payload)
+        self.assertIn("ROOT_FILE_MISSING", error_codes(payload))
+
     def test_generic_dsh_candidate_accepts_distinct_agent_plugin_composition(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             clone = copy_initialized_repository(Path(temp))
@@ -3022,11 +3064,15 @@ class SpecDataSemanticsTests(unittest.TestCase):
             alias.symlink_to(source)
             hardlink = root / "hard.jsonl"
             os.link(source, hardlink)
+            # 别名本身是 .md，但最终目标是尚不存在的 pending/new.jsonl；未来输入检查必须看解析后路径。
+            future_alias = root / "future-report.md"
+            future_alias.symlink_to(agent / "eval" / "pending" / "new.jsonl")
             outputs = (
                 source,                                   # 同一路径
                 (agent / "eval" / "pending").resolve() / "synthetic.jsonl",  # 绝对路径指向同文件
                 alias,                                    # 符号链接别名
                 hardlink,                                 # 硬链接
+                future_alias,                             # 悬空软链 -> 尚不存在的 pending/new.jsonl
                 agent / "eval" / "pending" / "review.jsonl",  # 尚不存在但会落进输入集合
             )
             for output in outputs:
@@ -3077,8 +3123,8 @@ class SpecDataSemanticsTests(unittest.TestCase):
             self.assertEqual(completed.returncode, 1, payload)
             self.assertIn("DSH_PRESET_ROOT", error_codes(payload))
 
-    def test_source_catalog_preset_must_match_agent_id(self) -> None:
-        """回归：来源的 preset 路径必须声明为 <agent_id>/<file>。"""
+    def test_source_catalog_preset_must_match_candidate_preset_id(self) -> None:
+        """回归：来源 preset 路径与候选 preset_id 不一致时拒绝，但不要求等于 agent_id。"""
         catalog = "runtime/adapters/dsh-container/sources.json"
         with tempfile.TemporaryDirectory() as temp:
             clone = copy_initialized_repository(Path(temp))
@@ -3090,6 +3136,35 @@ class SpecDataSemanticsTests(unittest.TestCase):
             completed, payload = run_json(VALIDATE_REPOSITORY, clone)
             self.assertEqual(completed.returncode, 1, payload)
             self.assertIn("DSH_SOURCE_CATALOG", error_codes(payload))
+
+    def test_agent_can_explicitly_map_to_a_distinct_runtime_preset_id(self) -> None:
+        """同一 Agent 可显式映射到新 preset ID；候选、来源和 Profile 默认值必须一起变化。"""
+        with tempfile.TemporaryDirectory() as temp:
+            clone = copy_initialized_repository(Path(temp))
+            experiment = clone / "evolution/experiments/EXP-security-operations-expert-001/candidate"
+            old_id = "security-operations-expert"
+            new_id = "security-operations-expert-variant"
+            shutil.copytree(experiment / "dsh/presets" / old_id, experiment / "dsh/presets" / new_id)
+
+            harness_path = experiment / "harness.yaml"
+            harness = yaml.safe_load(harness_path.read_text(encoding="utf-8"))
+            harness["loadable_assets"]["preset_id"] = new_id
+            harness_path.write_text(yaml.safe_dump(harness, allow_unicode=True, sort_keys=False), encoding="utf-8")
+
+            catalog_path = clone / "runtime/adapters/dsh-container/sources.json"
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+            item = catalog["sources"]["EXP-security-operations-expert-001"]
+            item["preset"] = f"{new_id}/agent.cordis.yml"
+            catalog_path.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+            patch_path = experiment / "dsh/managed/security-operations-expert.patch.yml"
+            patch = patch_path.read_text(encoding="utf-8").replace(
+                f"    default: {old_id}\n", f"    default: {new_id}\n", 1)
+            patch_path.write_text(patch, encoding="utf-8")
+
+            completed, payload = run_json(VALIDATE_REPOSITORY, clone)
+            self.assertEqual(completed.returncode, 0, payload)
+            self.assertEqual(yaml.safe_load(harness_path.read_text(encoding="utf-8"))["agent"]["id"], old_id)
 
     def test_design_doc_matches_code_contract_values(self) -> None:
         """回归：设计方案里的实例 schema 与用户根开关必须与代码/受控文件一致。"""
