@@ -21,7 +21,7 @@
 
 ## 从哪里开始
 
-1. 读根级 [`AGENTS.md`](./AGENTS.md)。它的“开发对象与修改边界”定义了本项目的四类对象——开发智能体的运行配置、被开发或优化的 Harness 资产、需求与评测资料、运行状态与运行记录——并说明每一类由谁负责、允许怎么改。后面的开发对象判断都以它为准。
+1. 读根级 [`AGENTS.md`](./AGENTS.md)。它的“开发对象与修改边界”定义了本项目的四类对象——开发智能体的运行配置、被开发或优化的 Harness 资产、需求、测试数据与评估标准、运行状态与运行记录——并说明每一类由谁负责、允许怎么改。后面的开发对象判断都以它为准。
 2. 读[来源锁定](./docs/standards/SOURCES.md)和[项目规范解释](./docs/standards/PROJECT-INTERPRETATION.md)，确认规范版本与本地取舍。
 3. 按任务选择项目技能：
 
@@ -39,7 +39,7 @@
 
 ### 启动一个本地实例
 
-下面先起一个开发实例再起一个评测实例；两者的目标 preset 与要注册的工作区都不同。
+下面先起一个开发实例再起一个评测实例；两者的 `session_preset` 与要注册的工作区不同，但 `target_preset` 都是所选来源声明的同一业务目标。
 
 ```bash
 # 1. 只解析来源并打印计划，不启动任何容器。计划里 session_preset 是本次会话身份，
@@ -106,26 +106,53 @@ python3 runtime/adapters/dsh-container/dsh-dev up \
 
 ## 主要目录
 
-目录按实际内容创建，不预建空 Agent、空 Eval、空报告或空平台。
+本仓库按资产职责、生命周期和证据等级组织目录，而不是按文件类型、物理服务或权限层机械分层。需求与评测输入、可修改的 Candidate、按次归档且完成后不可改写的 Run 事实、不可变 Release 和 Runtime 运行状态分别维护；每类事实只设一个主要维护位置，索引、报告和镜像不得成为第二套可编辑事实源。资产越接近生产，可变性越低，生产只使用明确版本的不可变 Release。目录位置说明维护和追溯关系，本身不等于权限或安全控制。
+
+目录只在出现真实内容时物化，不预建空 Agent、空 Eval、空报告或空平台。下列路径同时包含当前入口，以及到达对应生命周期后才会物化的关键位置。
 
 ```text
-AGENTS.md                          # 项目级协作规则，含四类对象定义
-.agents/skills/                    # 维护本仓库的 Codex 项目技能
-docs/                              # 设计方案与受控规范
+AGENTS.md                                # 项目级协作规则，含四类对象定义
+.codex/config.toml                       # 当前开发智能体配置，不是业务 Harness 或 DSH 配置
+.agents/skills/                          # 维护本仓库的 Codex 技能，不是业务 Agent Skill
+docs/
+  standards/                             # 受控规范副本、来源锁定与项目解释
 agents/<agent-id>/
-  spec/                            # 需求、任务与验收标准的唯一事实源
-  eval/                            # 评测输入；cases.jsonl、fixtures/、methods.yaml、pending/
-  delivery/                        # 正式交付内容
+  spec/                                  # 需求、任务与验收标准的唯一事实源
+  eval/
+    cases.jsonl                          # 正式 Eval Case 唯一事实源；通过复核后才物化
+    methods.yaml                         # 评估方法与聚合规则
+    fixtures/                            # 测试预置与前置状态，不是 Runtime 状态
+    pending/                             # 待人工复核输入，不得用于正式 Run 或通过结论
+  delivery/                              # 正式交付文档与引用视图，不存 Trial 事实
+  current/                               # Release 后生成的同摘要校验镜像，不作为生产挂载源
 evolution/
-  experiments/EXP-<agent-id>-NNN/  # candidate/、runs/、evaluation/、snapshots/（仅历史恢复映射）
-  baselines/                       # 通过评估后晋升的稳定资产
-  history/                         # 清洗后的历史证据，不随候选装载
-plugins/                           # 有真实内容才纳入的自定义扩展
-runtime/adapters/dsh-container/    # 锁定 DSH 的容器装载适配层
-tests/                             # 仓库工具、校验器与解析器测试
-releases/<agent-id>-v<semver>/     # 不可变、自包含的 Release
-AI纠错记录/                         # 按天追加的 AI 纠错记录
+  experiments/EXP-<agent-id>-NNN/
+    candidate/
+      dsh/
+        workspace/                       # 行为资产；Authoring 可写，核验只读
+        presets/                         # DSH Preset 源码；运行容器只读装载
+        managed/                         # Guard、MCP、Profile/Patch 等受控配置；容器内只读
+      delivery/                          # 候选交付记录，不表示评估或发布通过
+    evaluation/
+      evidence/                          # 迁移、构建、装载与审计证据，不代替业务验收
+      tools/                             # 摄入、派生与审阅工具，不是 DSH 资产
+    runs/run-<UUIDv4>/                   # 每次执行的独立 Trial 事实，完成后不可覆盖
+    snapshots/
+      README.md                          # 已退役研究快照到 Git 提交的恢复映射
+      frozen-sources/fr-<UUIDv4>/        # 可选三树冻结副本，不是 Baseline 或 Release
+  baselines/<agent-id>-v<semver>/        # 通过评估后与 Release 同时晋升的稳定资产
+  history/
+    imports/<agent-id>-YYYY-MM-DD/       # 按接收批次保存来源副本、清洗材料和处置清单
+plugins/                                 # 自定义扩展源码；治理工具或业务资产按本次用途判断
+runtime/adapters/dsh-container/          # 锁定 DSH 的容器装载适配层
+tests/                                   # 仓库工具、校验器与解析器测试，不存业务 Eval Case
+releases/<agent-id>-v<semver>/           # 不可变、自包含的生产装载资产
+AI纠错记录/                               # 按天追加的 AI 纠错记录
 ```
+
+`evolution/history/imports/` 只用于来源追溯和迁移审计。每个批次可以包含归档来源副本、清洗后的历史材料、批次说明和来源处置清单；它们不是现行 `spec/`、`eval/` 或 Candidate 的第二套可编辑事实源，也不会随目标 Harness 装载。需要改变当前需求、评估资料或 Harness 时，应修改对应现行资产并按演进流程保存，不回写历史批次来改变当前行为。
+
+上表只展开会影响修改位置、事实源、装载方式或结论判断的边界目录。Plugin Profile、Runtime 核验控制和测试分组等实现细节继续由各目录的局部 README 说明，根 README 不维护一份重复的完整文件树。
 
 ## 演进主线
 
@@ -138,7 +165,7 @@ AI纠错记录/                         # 按天追加的 AI 纠错记录
                                       → 反馈、失败案例与下一轮回归
 ```
 
-每项语义性 Harness 变更都进入 Experiment。研究实验可以停止、不采用或证据不足；研究版本用 Git 保存和比较，**不默认复制整套源码快照**。早期物化的 `snapshots/research/` 副本已从工作树移除，其内容按 [`snapshots/README.md`](./evolution/experiments/EXP-security-operations-expert-001/snapshots/README.md) 的映射从 Git 提交恢复。进入正式交付后，必须补齐候选基线、正式自测、交付复核和发布一致性检查。
+每项语义性 Harness 变更都进入 Experiment。研究实验可以停止、不采用或证据不足；研究版本用 Git 保存和比较，**不默认复制整套源码快照**。早期物化的 `snapshots/research/` 副本已从工作树移除，其内容按 [`snapshots/README.md`](./evolution/experiments/EXP-security-operations-expert-001/snapshots/README.md) 的映射从 Git 提交恢复。按需生成的 `snapshots/frozen-sources/` 只冻结 Candidate 的三棵实际挂载树，用于字节核对和恢复；它不包含完整冻结组合，也不是研究版本、候选基线、稳定 Baseline 或 Release。进入正式交付后，必须补齐候选基线、正式自测、交付复核和发布一致性检查。
 
 ## 当前进度
 

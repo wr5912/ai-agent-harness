@@ -22,7 +22,7 @@
 | 命令 | 作用 |
 |---|---|
 | `image build` | 按 `source.lock.json` 的固定提交构建本地 DSH 镜像 |
-| `plan` | 只解析来源并打印计划：模式、目标 preset、要注册的工作区、判分材料是否挂载、挂载清单、缺失环境变量、冷启动步骤；不启动容器 |
+| `plan` | 只解析来源并打印计划：模式、`session_preset`、`target_preset`、要注册的工作区、判分材料是否挂载、挂载清单、缺失环境变量、冷启动步骤；不启动容器 |
 | `up` | 渲染实例 Compose 并启动；确认 `dsh` 服务真的在运行后才报告成功，输出实例状态目录与工作区注册步骤 |
 | `ps` | 列出启动器管理的实例；查询失败时标为 `unknown`，不当作"没有运行" |
 | `url` | 从本次进程日志提取认证 URL 并做 Token→Cookie→根页探针；非交互终端需显式 `--non-interactive` |
@@ -33,16 +33,18 @@
 
 ## 3. 核心对象与职责
 
-按根级 [`AGENTS.md`](../AGENTS.md) 的四类对象，启动器相关资产分工如下：
+按根级 [`AGENTS.md`](../AGENTS.md) 的四类对象，启动器直接操作或呈现的内容分工如下：
 
 | 对象 | 在本方案中的具体内容 | 谁维护 |
 |---|---|---|
-| 开发智能体的运行配置 | `authoring.compose.yaml`、`verification.compose.yaml`、`verification-home-controls/`、`Dockerfile`、`source.lock.json`、本目录的 Python/Node 工具 | 开发者；改动属于开发环境变更 |
+| 开发智能体的运行配置 | 开发模式实际采用的 `session_preset=cordis`、`/work/AGENTS.md` 与 `/work/AGENTS.local.md` 指令链，以及 `authoring.compose.yaml` 渲染出的有效启动与挂载配置 | 开发者；改变这些有效值属于开发环境变更 |
 | 被开发或优化的 Harness 资产 | 所选 Experiment 的 `candidate/dsh/{workspace,presets,managed}` | 开发者在任务范围内编辑，经 Git 管理 |
-| 需求与评测资料 | `agents/<agent-id>/spec/`（需求、任务、验收标准）与 `agents/<agent-id>/eval/`（方法、预置、待复核输入） | 开发者维护；单次评测期间保持不变 |
-| 运行状态与运行记录 | 实例 `DSH_HOME` 数据卷、`evolution/experiments/<id>/runs/`、`evaluation/evidence/` | 临时状态按运行保留；结果与证据按研究需要保存 |
+| 需求、测试数据与评估标准 | `agents/<agent-id>/spec/`（需求、任务、验收标准）与 `agents/<agent-id>/eval/`（方法、预置、待复核输入） | 开发者维护；单次评测期间保持不变 |
+| 运行状态与运行记录 | 运行状态是实例 `DSH_HOME` 数据卷；持久记录是 `evolution/experiments/<id>/runs/` 与 `evaluation/evidence/` | 状态按实例生命周期管理；受管执行的 Run 事实和必要证据独立保留，不当作缓存丢弃 |
 
 开发会话里读到的业务角色指令（例如目标是安全运营专家）是第二类资产的正文，读它是为了修改它，不代表开发工具要切换成业务智能体。这一点不能只靠文字提醒：开发会话注册的工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（见 5.2 节），目标自己的 `AGENTS.md` 仍留在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。
+
+`dsh-dev`、`source_contract.py`、核验脚本、`verification.compose.yaml`、`Dockerfile` 与 `source.lock.json` 是仓库治理工具或 Runtime Adapter 实现，不因为服务于本流程就自动成为“开发智能体的运行配置”或业务 Harness。只有它们在某次运行中形成的有效身份、配置和 Runtime 投影，才按本次用途归入相应对象；若改变候选冻结组合，须重新确定影响范围。
 
 ## 4. 完整使用过程
 

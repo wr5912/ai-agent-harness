@@ -128,9 +128,11 @@ Release 是可部署 Harness Artifact，不是 Git Tag。每个 Release 必须�
 
 本项目资产仅供容器内 DSH Agent Runtime 装载。Harness Candidate 或 Release 说明“运行什么”；DSH Runtime 强制“如何运行、允许做什么”。二者必须同时可核验：
 
-| Harness 资产平面 | DSH Runtime 平面 |
+| 仓库受控资产与交付平面 | DSH Runtime 平面 |
 |---|---|
 | Task、AC、Prompt、Skill、Workflow、Policy 声明、Preset/Plugin/MCP 声明、Eval、Release | 镜像、Profile、实际 Plugin/MCP、工具 allowlist、沙箱、网络、凭据、资源限制、挂载和运行态数据 |
+
+这组双平面回答“由仓库声明运行什么”与“Runtime 实际如何运行和强制控制”，不是根级 `AGENTS.md` 的四类开发对象。左侧会横跨被开发 Harness、需求与评测资料及正式 Release，但不会因此把验收阈值、Eval 或交付记录变成可由业务 Agent 自修改的行为资产；四类对象各自的修改与保存规则仍分别适用。
 
 开发、验证和发布按阶段隔离：
 

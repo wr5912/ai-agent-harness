@@ -12,6 +12,8 @@
 
 ### 变更
 
+- **四类开发对象术语收口**：根级 `AGENTS.md` 明确四类对象与运行角色、Harness/Runtime 双平面及治理变更类型是正交关系；开发智能体“运行配置”不再泛指 Runtime Adapter 与校验工具的全部源码；运行状态与持久 Run 事实分开说明。README、启动器方案和适配层说明统一使用 `session_preset`/`target_preset`，交付记录把旧双模式上下文挂载标为历史行为并指向后续角色隔离证据。该整改不改变业务 Harness、REQ/AC、Eval 阈值或候选冻结组合。
+
 - **开发会话直接读到本次目标**：受控开发指令保持通用（不含业务名），本次解析出的实际值（来源、目标 Agent、`target_preset`、`session_preset`、资产与受控目录）由启动器生成到实例目录，并只读挂到 `/work/AGENTS.local.md`。此前会话只能被告知"以启动器输出为准"，真实会话中确认它拿不到目标值。被测容器两个文件都不挂载。仓库校验器新增 `DSH_DEV_TARGET` 门禁。
 
 - **会话身份与优化目标分离**：`plan`、`up`、`instance.json` 统一给出 `session_preset`（本次会话实际运行的 preset）、`target_preset`（待优化/待评估目标，始终来自来源声明）与 `agent_id`。开发模式下前两者不同（`cordis` 对业务 preset），此前的单一 `target_preset` 字段在两种模式下含义不一致。受控开发指令同步说明两者的区别与用途。

@@ -72,12 +72,14 @@ bash runtime/adapters/dsh-container/build-image.sh --build-network host
 
 ## 开发启动器与本地装载核验
 
-`dsh-dev` 是宿主侧开发启动器（只依赖 Python 3 标准库、Docker CLI 和 Compose），把本目录的受控 Compose 渲染成仓库外实例。两种模式都挂载 harness 三棵树，但判分材料只给开发会话：
+`dsh-dev` 是宿主侧开发启动器（只依赖 Python 3 标准库、Docker CLI 和 Compose），把本目录的受控 Compose 渲染成仓库外实例。两种模式都挂载 Harness 三棵树，但判分材料只给开发会话。会话身份、优化目标和工作区关系如下：
 
-| 模式 | CLI | 目标 DSH Agent preset | 注册工作区 | harness 挂载 | 判分材料 | 用途 |
-|---|---|---|---|---|---|---|
-| 开发模式 | `--mode dev`（内部 `authoring`） | 出厂 `cordis`（创造模式，额外 `--patch` 开发层） | `/work` | workspace RW，presets/managed RO | `/work/spec`、`/work/eval-reference` RO | 开发者修改/优化被测 harness，需要读判分材料来维护 |
-| 评测模式 | `--mode eval`（内部 `verification`） | 由所选来源声明（`plan.target_preset`） | `/work/harness/workspace` | 全部 RO + 受控 HOME 锁 | 不挂载 | 以目标定义装载并运行被测智能体 |
+| 模式 | CLI | `session_preset`（会话实际运行） | `target_preset`（待优化/待评估目标） | 注册工作区 |
+|---|---|---|---|---|
+| 开发模式 | `--mode dev`（内部 `authoring`） | 出厂 `cordis` 创造模式 | 由所选来源声明（`plan.target_preset`） | `/work` |
+| 评测模式 | `--mode eval`（内部 `verification`） | 由所选来源声明 | 同 `session_preset` | `/work/harness/workspace` |
+
+挂载模式以“候选资产装载”表为准：开发模式仅 Workspace 可写，Preset/Managed 与判分材料只读；评测模式的 Harness 三棵树全部只读，且不挂载判分材料。
 
 开发会话的注册工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（`verification-home-controls/locked-dev.AGENTS.md`，内容通用、不含业务 Agent 名），本次解析出的实际目标值另由启动器生成并只读挂到 `/work/AGENTS.local.md`；目标自己的业务 `AGENTS.md` 仍在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。被测容器不挂载该文件。
 
