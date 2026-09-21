@@ -19,7 +19,7 @@ const modulePaths = [
 ]
 // 判分材料（需求/任务/验收阈值、评估方法、测试预置、预期答案）只出现在开发会话里。
 const gradingPaths = process.env.DSH_HARNESS_MODE === 'authoring'
-  ? ['/work/spec', '/work/eval-reference']
+  ? ['/work/reference']
   : []
 const mounts = readFileSync('/proc/self/mountinfo', 'utf8')
   .split('\n')
@@ -59,7 +59,7 @@ for (const path of gradingPaths) {
 }
 // 评测模式运行被测目标：答案、验收阈值与评估方法必须完全不在容器里，不能只靠只读挂载或业务 Guard。
 if (process.env.DSH_HARNESS_MODE !== 'authoring') {
-  for (const path of ['/work/spec', '/work/eval-reference', '/work/eval-input']) {
+  for (const path of ['/work/reference', '/work/eval-input']) {
     assert.ok(!existsSync(path), `${path} must be absent in the subject container`)
     assert.ok(!mounts.some(item => item.target === path), `${path} must not be mounted in the subject container`)
   }
@@ -112,7 +112,7 @@ console.log(JSON.stringify({
   home_mount: 'rw',
   controlled_file_mounts: paths.length,
   controlled_module_mounts: modulePaths.length,
-  read_only_context_mounts: contextPaths.length,
+  read_only_context_mounts: gradingPaths.length,
   controlled_patch_sha256: createHash('sha256').update(first).digest('hex'),
   note: 'Docker mount semantics only; no DSH Profile or Plugin activation was tested.',
 }))

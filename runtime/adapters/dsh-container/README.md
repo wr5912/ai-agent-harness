@@ -24,12 +24,11 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 | `/work/harness/workspace` | `candidate/dsh/workspace` | 读写 | 只读 |
 | `/opt/dsh-presets` | `candidate/dsh/presets` | 只读 | 只读 |
 | `/opt/dsh-managed` | `candidate/dsh/managed` | 只读 | 只读 |
-| `/work/spec` | `agents/<agent-id>/spec` | 只读 | 不挂载 |
-| `/work/eval-reference` | `agents/<agent-id>/eval` | 只读 | 不挂载 |
+| `/work/reference` | `agents/<agent-id>`（含唯一 `definition.md`） | 只读 | 不挂载 |
 | `/work/eval-input` | 显式声明的被测输入根 | 不适用 | 仅在显式声明时只读 |
 | `/var/lib/dsh` | 分别命名的 DSH_HOME 数据卷 | 读写 | 读写 |
 
-`/work/spec` 提供研究目标、任务与判断标准，`/work/eval-reference` 提供测试预置、方法与待复核输入。两者是比较参考：只读挂载限制写入但不限制读取，所以只挂给编写态；核验态完全不挂载，`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。来源未物化对应根时编写态启动失败，不创建空目录。`eval/pending/**` 是待复核输入；是否转成可复用 Case 由具体研究决定。
+`/work/reference` 中的 `definition.md` 是需求、任务、测试数据、评估方法和测试验收的唯一当前来源。只读挂载限制写入但不限制读取，所以该目录只挂给编写态；核验态完全不挂载，`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。来源没有安全的普通 `definition.md` 时编写态启动失败，不创建空目录。
 
 两种模式都使用同一组受控 HOME 边界：`locked-user.patch.yml`（顶层 `[]`）精确只读覆盖 HOME 与 Web Profile 的用户 Patch，`web-profile.package.json` 固定官方 `base`、`web-app` Bundle 和 `patchReload: startup`，阻断可写 HOME 的额外启动 Plugin。真正 **0 字节**的 `locked-global.AGENTS.md` 精确只读覆盖 HOME 全局 Agent instructions，不向 Session 注入任何额外语义。`locked-bootstrap.env` 只含一行注释，精确只读覆盖 HOME 与 Candidate workspace 两处 `.env`；模型/MCP Endpoint 和凭据只能由受信容器调用环境或 Runtime 受控凭据提供，不能由可写工作区在 Boot 前暗改。Candidate workspace 中的 `.env` 只是与受控文件字节相同的宿主挂载目标，不存任何变量或凭据。编写态仍可写其他 Candidate workspace 资产，`skill-filesystem.watch: true` 仍可实时看到 Skill 改动；这不授予改受控 Profile、MCP 或 Boot 环境的权限。
 
@@ -138,7 +137,7 @@ bash runtime/adapters/dsh-container/verify-load.sh authoring
 # 其他已登记来源：verify-load.sh verification --source EXP-<agent-id>-NNN
 ```
 
-适配层脚本不烘焙进镜像：`prepare-verification-home.mjs`、`verify-load.mjs`、`tree-digest.mjs` 由 Compose 把本目录只读挂载到 `/opt/dsh-adapter`，因此改脚本只要重启实例，不必重建镜像。脚本先在无卷、无网络容器中以同一只读挂载比对这三个文件的 SHA-256，确认容器读到的字节与宿主审查的文件一致后再触碰 HOME 卷。随后比对宿主机与容器内三棵精确资产树；编写态另比 `/work/spec`、`/work/eval-reference` 两棵只读判分材料树的文件、权限、大小和 SHA-256 摘要，核验态则断言这三条判分材料路径在容器内既不存在也未挂载。同时检查 `/proc/self/mountinfo` 的读写模式与独立 HOME 卷。编写态还会核对开发叠加层确实把 `includeShippedRoot` 打开且默认 preset 为 `cordis`，核验态则断言组合配置中不出现该开放（创造模式在评测容器内不可选）。两种模式都核六处受控只读子文件（两个空用户 Patch、Web manifest、零字节全局指令、两处注释 `.env`）、四处模块目录挂载及共享 fallback 的 277 个镜像安装 symlink（数量以实际锁定安装闭包为准），并核关键模块从 Web Profile 的首个解析位置的 `realpath` 在 `/opt/dsh/`。然后调用 DSH 的 `--dump-config` 核对全局 Profile/Patch 组合标识。单个 Agent 的 Guard 声明单独在 Preset/Managed 文件中核对，因为全局配置展开不会包含 Preset 子树。脚本不输出可能含私有 URL、Token 的原始配置或日志。该结果仅是“挂载身份、模块解析及配置组合证据”；**不证明 Plugin 实际激活**、MCP 连接成功、Preset/Skill 被真实 Session 调用、上下文资产被智能体消费、用户任务、最终业务状态或 Release 验收。
+适配层脚本不烘焙进镜像：`prepare-verification-home.mjs`、`verify-load.mjs`、`tree-digest.mjs` 由 Compose 把本目录只读挂载到 `/opt/dsh-adapter`，因此改脚本只要重启实例，不必重建镜像。脚本先在无卷、无网络容器中以同一只读挂载比对这三个文件的 SHA-256，确认容器读到的字节与宿主审查的文件一致后再触碰 HOME 卷。随后比对宿主机与容器内三棵精确资产树；编写态另比 `/work/reference` 这棵只读判分材料树的文件、权限、大小和 SHA-256 摘要，核验态则断言 `/work/reference` 与 `/work/eval-input` 两条判分材料路径在容器内既不存在也未挂载。同时检查 `/proc/self/mountinfo` 的读写模式与独立 HOME 卷。编写态还会核对开发叠加层确实把 `includeShippedRoot` 打开且默认 preset 为 `cordis`，核验态则断言组合配置中不出现该开放（创造模式在评测容器内不可选）。两种模式都核六处受控只读子文件（两个空用户 Patch、Web manifest、零字节全局指令、两处注释 `.env`）、四处模块目录挂载及共享 fallback 的 277 个镜像安装 symlink（数量以实际锁定安装闭包为准），并核关键模块从 Web Profile 的首个解析位置的 `realpath` 在 `/opt/dsh/`。然后调用 DSH 的 `--dump-config` 核对全局 Profile/Patch 组合标识。单个 Agent 的 Guard 声明单独在 Preset/Managed 文件中核对，因为全局配置展开不会包含 Preset 子树。脚本不输出可能含私有 URL、Token 的原始配置或日志。该结果仅是“挂载身份、模块解析及配置组合证据”；**不证明 Plugin 实际激活**、MCP 连接成功、Preset/Skill 被真实 Session 调用、上下文资产被智能体消费、用户任务、最终业务状态或 Release 验收。
 
 在编写态自修改前后留下只追加回执：
 
@@ -147,7 +146,7 @@ python3 runtime/adapters/dsh-container/mutation-receipt.py before
 python3 runtime/adapters/dsh-container/mutation-receipt.py after <上一步打印的 before.json 绝对路径>
 ```
 
-回执写入本 Experiment 的 `evaluation/evidence/mutation-receipts/mr-<UUIDv4>/`，比较三棵资产树的文件、目录权限与前后摘要。受控 Preset 或 Managed/Guard 树在编写期间变化时，脚本保留失败回执并以非零状态报告；回执只说明文件变化，不说明假设成立。若要取得三棵装载树或所选来源的 `spec`/`eval` 根摘要，可使用 `mutation-receipt.py digest <精确资产源路径>`。
+回执写入本 Experiment 的 `evaluation/evidence/mutation-receipts/mr-<UUIDv4>/`，比较三棵资产树的文件、目录权限与前后摘要。受控 Preset 或 Managed/Guard 树在编写期间变化时，脚本保留失败回执并以非零状态报告；回执只说明文件变化，不说明假设成立。若要取得三棵装载树或所选来源的研究定义根摘要，可使用 `mutation-receipt.py digest <精确资产源路径>`。
 
 局部装载比较前可物化三棵 Candidate 挂载树的实际字节（含未提交文件），并在只读容器装载前复核摘要：
 

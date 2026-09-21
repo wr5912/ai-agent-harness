@@ -75,18 +75,15 @@ task_patch="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_sou
 task_patch_overlay="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field patch_overlay)"
 # 需求/任务/验收与评估方法、测试预置、预期答案都是判分材料：只有开发会话读取，
 # 评测模式运行的是被测目标，不挂载任何判分材料（负向断言在 verify-load.mjs 中执行）。
-task_spec_root=""
-task_eval_root=""
+task_reference_root=""
 task_context_args=()
 if [[ "$task_mode" == authoring ]]; then
-  task_spec_root="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field spec_root)" \
-    || { printf 'Selected source declares no spec root for the read-only context mount.\n' >&2; exit 1; }
-  task_eval_root="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field eval_root)" \
-    || { printf 'Selected source declares no eval root for the read-only context mount.\n' >&2; exit 1; }
-  task_context_args=("$task_spec_root" "$task_eval_root")
+  task_reference_root="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field reference_root)" \
+    || { printf 'Selected source declares no current research definition root.\n' >&2; exit 1; }
+  task_context_args=("$task_reference_root")
   if [[ -n "$task_frozen_root" ]]; then
-    printf 'Note: frozen three-tree copy carries no spec/eval; mounting the live source context (%s, %s).\n' \
-      "$task_spec_root" "$task_eval_root" >&2
+    printf 'Note: frozen three-tree copy carries no research definition; mounting the live source context (%s).\n' \
+      "$task_reference_root" >&2
   fi
 fi
 if [[ -n "$task_frozen_root" ]]; then
@@ -109,10 +106,9 @@ fi
 export DSH_WORKSPACE_HOST="$task_candidate_root/workspace"
 export DSH_PRESETS_HOST="$task_candidate_root/presets"
 export DSH_MANAGED_HOST="$task_candidate_root/managed"
-# authoring 模板以 ${VAR:?} 要求这两个根；verification 模板不挂载它们，因此仅开发模式导出。
+# authoring 模板要求当前研究定义根；verification 模板不挂载它，因此仅开发模式导出。
 if [[ "$task_mode" == authoring ]]; then
-  export DSH_SPEC_HOST="$task_spec_root"
-  export DSH_EVAL_HOST="$task_eval_root"
+  export DSH_REFERENCE_HOST="$task_reference_root"
 fi
 
 if [[ -n "$task_frozen_root" ]]; then
@@ -137,11 +133,9 @@ task_dev_target_sha=""
 
 # 开发模式下按所选来源的实际根计算判分材料摘要，与三树摘要同一工具语义；
 # 冻结三树副本不含它们，因此这里也记录活动事实源身份。
-task_spec_sha=""
-task_eval_sha=""
+task_reference_sha=""
 if [[ "$task_mode" == authoring ]]; then
-  task_spec_sha="$(python3 "$task_adapter_dir/mutation-receipt.py" --source "$task_source_id" digest "$task_spec_root")"
-  task_eval_sha="$(python3 "$task_adapter_dir/mutation-receipt.py" --source "$task_source_id" digest "$task_eval_root")"
+  task_reference_sha="$(python3 "$task_adapter_dir/mutation-receipt.py" --source "$task_source_id" digest "$task_reference_root")"
 fi
 
 task_user_patch_sha="sha256:$(sha256sum "$task_adapter_dir/verification-home-controls/locked-user.patch.yml" | cut -d ' ' -f 1)"
@@ -206,8 +200,7 @@ done
   -e "DSH_EXPECT_MANAGED_TREE_SHA=$task_managed_sha" \
   -e "DSH_EXPECT_DEV_INSTRUCTIONS_SHA=$task_dev_instructions_sha" \
   -e "DSH_EXPECT_DEV_TARGET_SHA=$task_dev_target_sha" \
-  -e "DSH_EXPECT_SPEC_TREE_SHA=$task_spec_sha" \
-  -e "DSH_EXPECT_EVAL_TREE_SHA=$task_eval_sha" \
+  -e "DSH_EXPECT_REFERENCE_TREE_SHA=$task_reference_sha" \
   -e "DSH_EXPECT_USER_PATCH_SHA=$task_user_patch_sha" \
   -e "DSH_EXPECT_WEB_MANIFEST_SHA=$task_web_manifest_sha" \
   -e "DSH_EXPECT_GLOBAL_AGENTS_SHA=$task_global_agents_sha" \

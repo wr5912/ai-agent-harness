@@ -39,7 +39,7 @@
 |---|---|---|
 | 开发智能体的运行配置 | 开发模式实际采用的 `session_preset=cordis`、`/work/AGENTS.md` 与 `/work/AGENTS.local.md` 指令链，以及 `authoring.compose.yaml` 渲染出的有效启动与挂载配置 | 开发者；改变这些有效值属于开发环境变更 |
 | 被开发或优化的 Harness 资产 | 所选 Experiment 的 `candidate/dsh/{workspace,presets,managed}` | 开发者在任务范围内编辑，经 Git 管理 |
-| 需求、测试数据与评估标准 | `agents/<agent-id>/spec/`（需求、任务、验收标准）与 `agents/<agent-id>/eval/`（方法、预置、待复核输入） | 开发者维护；单次评测期间保持不变 |
+| 需求、测试数据与评估标准 | `agents/<agent-id>/definition.md`，或确有机器消费者时使用一个 JSONL | 开发者维护唯一事实源；单次评测期间保持不变 |
 | 运行状态与运行记录 | 运行状态是实例 `DSH_HOME` 数据卷；持久记录是 `evolution/experiments/<id>/runs/` 与 `evaluation/evidence/` | 状态按实例生命周期管理；受管执行的 Run 事实和必要证据独立保留，不当作缓存丢弃 |
 
 开发会话里读到的业务角色指令（例如目标是安全运营专家）是第二类资产的正文，读它是为了修改它，不代表开发工具要切换成业务智能体。这一点不能只靠文字提醒：开发会话注册的工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（见 5.2 节），目标自己的 `AGENTS.md` 仍留在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。
@@ -115,7 +115,7 @@ python3 runtime/adapters/dsh-container/run_record.py --repo . init \
   --source experiment:EXP-security-operations-expert-001 --kind research
 ```
 
-`inputs.lock.json` 会记录三棵 Harness 树与 spec/eval 的树摘要，以及 `git_version`（提交、是否含未提交修改、变更路径数）。**未提交修改无法仅凭 `HEAD` 还原**，所以该字段必须如实保留，不能把带未提交修改的运行写成某个提交的完整内容。
+`inputs.lock.json` 会记录三棵 Harness 树与研究定义树的摘要，以及 `git_version`（提交、是否含未提交修改、变更路径数）。**未提交修改无法仅凭 `HEAD` 还原**，所以该字段必须如实保留，不能把带未提交修改的运行写成某个提交的完整内容。
 
 开发过程中产生的新 preset、技能或插件即使暂存在容器 HOME 的 `/var/lib/dsh/.agent-presets/`，仍属于待保存的开发产物，不是缓存：在结束实例前把它复制回 `candidate/dsh/presets/`，宿主复核后再重建容器核验。不清理时一并删除。
 
@@ -155,8 +155,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 | `/work/harness/workspace` | 读写 | 只读 |
 | `/opt/dsh-presets` | 只读 | 只读 |
 | `/opt/dsh-managed` | 只读 | 只读 |
-| `/work/spec` | 只读挂载 | 不挂载 |
-| `/work/eval-reference` | 只读挂载 | 不挂载 |
+| `/work/reference` | 只读挂载 | 不挂载 |
 | `/work/eval-input` | 不适用 | 仅在显式声明时只读挂载 |
 | `/var/lib/dsh` | 每实例独立数据卷 | 每实例独立数据卷 |
 | 受控 HOME 子文件 | 空用户 Patch、web profile manifest、零字节全局指令、注释 `.env`、模块 deny-layer 只读覆盖 | 同左 |
@@ -190,13 +189,13 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 ### 5.3 判分材料不进入被测容器
 
-`/work/spec` 含验收阈值，`/work/eval-reference` 含评估方法、测试预置和预期答案——它们都是判分材料。只读挂载只限制写入、不限制读取，所以判分材料不能靠"挂成只读"来隔离：把它们挂进被测容器，再依赖被测实现自己的文件访问限制去挡，等于让被测对象保护的边界去保护测试本身。
+`/work/reference` 挂载唯一研究定义，其中的需求、任务、测试数据、评估方法和测试验收都属于判分材料。只读挂载只限制写入、不限制读取，所以判分材料不能靠"挂成只读"来隔离：把它挂进被测容器，再依赖被测实现自己的文件访问限制去挡，等于让被测对象保护的边界去保护测试本身。
 
 因此：
 
 - 判分材料只挂给开发会话（供其阅读与核对，维护在宿主侧完成）和评分角色；
 - 被测角色默认不挂任何评测材料，`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言——不只是"没挂"，而是这些路径在容器里不存在；
-- 确需给被测侧数据的，必须显式声明一个已确认不含预期答案的输入根（`mount_plan --eval-input`），不能把整个 `eval` 目录当作"被测输入"。
+- 确需给被测侧数据的，必须显式声明一个已确认不含预期答案的输入根（`mount_plan --eval-input`），不能把整个研究定义根当作"被测输入"。
 
 ### 5.4 开发叠加层
 
@@ -226,7 +225,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 | `sources.json.preset` | 指向 `<new-id>/agent.cordis.yml`；`agent_id` 与 Experiment 身份保持不变 |
 | 基础 patch 的 `agent-presets.default` | 等于同一个新 ID，保证实际生效默认目标与计划一致 |
 
-仓库校验器核对候选 `preset_id`、来源 preset 路径和基础 patch 默认值三者一致。一个 Agent 对多个 preset ID 的长期 Variant 管理仍需独立设计，但普通候选研究不再被迫重命名 Agent、Experiment 或 spec/eval。
+仓库校验器核对候选 `preset_id`、来源 preset 路径和基础 patch 默认值三者一致。一个 Agent 对多个 preset ID 的长期 Variant 管理仍需独立设计，但普通候选研究不再被迫重命名 Agent、Experiment 或研究定义。
 
 评测模式两种根都保持关闭：`includeShippedRoot: false`、`includeUserRoot: false`，创造模式与用户 preset 在该容器内都不可选。`--mode dev` 缺 `--accept-cordis-trust` 即失败关闭，`--mode eval` 拒绝该旗标。
 
@@ -307,7 +306,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 | 同名重载 | `up --replace`，或 `down` 后同名 `up` | 旧进程确实停止，新配置被读取；成功输出含 `replaced.previous_state_schema` 和 `replaced.stop` |
 | 重载生效 | 按文档重新装载并验证预先定义的可观察变化 | 不把驻留旧配置的结果误认成新配置 |
 | Preset 试验与回流 | 在 `--mode dev` 用户根用临时新 ID 试验；审查后把内容合并回稳定 `target_preset`，`up --replace` 重载并在 Web 新会话核对 | 原业务 Agent 与稳定目标 ID 不变；候选 `preset_id`、来源 preset 路径和 Profile 默认值一致。该 Web 路径仍待实测 |
-| 判分材料隔离 | 在 `--mode eval` 容器内检查 `/work/spec`、`/work/eval-reference`、`/work/eval-input` | 三条路径都不存在，也不在 `/proc/self/mountinfo` 中 |
+| 判分材料隔离 | 在 `--mode eval` 容器内检查 `/work/reference`、`/work/eval-input` | 两条路径都不存在，也不在 `/proc/self/mountinfo` 中 |
 | 运行记录 | 记录实际提交、未提交状态、镜像、模型与测试范围 | 记录与实际使用一致，不虚构完整冻结 |
 | 停止失败 | 模拟 `docker compose down` 返回非零退出码 | 命令失败，不输出 `stopped: true` |
 | 启动未生效 | 模拟 `up -d` 返回 0 但 `dsh` 容器已退出 | 在 stderr 报告 `dsh_running: false` 并以非零退出码结束，stdout 为空 |

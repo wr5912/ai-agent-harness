@@ -96,8 +96,7 @@ python3 runtime/adapters/dsh-container/dsh-dev up \
 | 待研究目标 | 来源声明的业务 Preset | 同本次会话身份 |
 | 注册工作区 | `/work` | `/work/harness/workspace` |
 | Candidate 工作区 | 可写 | 只读 |
-| `/work/spec` | 只读 | 不挂载 |
-| `/work/eval-reference` | 只读 | 不挂载 |
+| `/work/reference` | 只读 | 不挂载 |
 
 开发会话的 `session_preset` 与 `target_preset` 不同：前者说明谁在开发，后者说明正在优化谁。被测会话不挂载判分材料，避免把参考答案误当成目标能力；这项隔离不应扩展成通用权限平台。
 
@@ -114,8 +113,7 @@ docs/
   standards/                             # 受控来源、副本摘要与项目解释
 agents/<agent-id>/
   manifest.yaml                          # Agent 研究入口和当前 Experiment
-  spec/                                  # 研究目标、任务或判断标准；按需使用
-  eval/                                  # 可复用输入、方法与待复核材料；按需使用
+  definition.md                          # 需求、任务、测试数据、评估方法与测试验收的单一事实源
 evolution/
   experiments/EXP-<agent-id>-NNN/
     change.yaml                          # 基线引用、状态与结果
@@ -133,6 +131,8 @@ AI纠错记录/                               # 按天追加的 AI 纠错记录
 ```
 
 `evolution/history/imports/` 只保存来源追溯和迁移审计。需要改变当前 Harness、研究目标或比较材料时，修改现行资产并进入新的 Experiment，不回写历史批次来改变当前行为。
+
+研究定义按主要消费方式选择一个 Markdown 或一个 JSONL，不同时维护多种投影。当前示例见 [`agents/security-operations-expert/definition.md`](agents/security-operations-expert/definition.md)。
 
 本项目不维护 `evolution/baselines/` 和 `agents/<agent-id>/current/`。Baseline 使用 `git:<commit>`、`release:<id>` 或 `none:first-experiment` 引用；Git 和不可变 Research Release 已足以恢复版本，额外镜像会制造重复事实源。
 

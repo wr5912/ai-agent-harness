@@ -5,11 +5,10 @@
 ## 运行方式
 
 ```bash
-# 项目技能、仓库合同、Research Run 和生成器
+# 项目技能、仓库合同和 Research Run
 python3 -m unittest discover -s tests -v
 
-# 迁移与 MCP 桩的 owning tests
-python3 -B evolution/experiments/EXP-security-operations-expert-001/evaluation/tools/test_import_sources.py
+# MCP 桩的 owning tests
 python3 -B evolution/experiments/EXP-security-operations-expert-001/evaluation/tools/test_derive_mcp_stub_tools.py
 
 # DSH 适配层

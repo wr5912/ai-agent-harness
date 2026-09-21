@@ -28,8 +28,7 @@ ROLES = ("authoring", "subject", "scoring")
 # 需求/任务/验收与评估方法、预置、预期答案都是判分材料：开发与评分角色可读，被测角色不可读。
 GRADING_ROLES = ("authoring", "scoring")
 CONTAINER_WORKSPACE = "/work/harness/workspace"
-CONTAINER_SPEC = "/work/spec"
-CONTAINER_EVAL_REFERENCE = "/work/eval-reference"
+CONTAINER_REFERENCE = "/work/reference"
 CONTAINER_EVAL_INPUT = "/work/eval-input"
 
 
@@ -77,13 +76,11 @@ def real_file_below(root: Path, relative: Path) -> bool:
 
 
 def _agent_asset_roots(repo: Path, agent_id: str) -> dict:
-    """Agent 级规格与评测输入根；不存在时返回 None，不伪造空目录。"""
+    """Agent 当前研究定义根；不存在时返回 None，不伪造空目录。"""
     agent_dir = repo / "agents" / agent_id
-    result = {"agent_dir": str(agent_dir) if agent_dir.is_dir() and not agent_dir.is_symlink() else None}
-    for key, folder in (("spec_root", "spec"), ("eval_root", "eval")):
-        target = agent_dir / folder
-        result[key] = str(target) if target.is_dir() and not target.is_symlink() else None
-    return result
+    valid = agent_dir.is_dir() and not agent_dir.is_symlink() \
+        and real_file_below(agent_dir, Path("definition.md"))
+    return {"reference_root": str(agent_dir) if valid else None}
 
 
 def _experiment_contract(
@@ -132,7 +129,7 @@ def _experiment_contract(
     # 实际装载一致性由候选 harness.yaml、sources.json 与基础 patch 默认值的交叉门禁保证。
     declared_preset = preset_id(item["preset"])
     contract = {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "source_kind": "experiment",
         "source_id": "experiment:" + source_id,
         "experiment_id": source_id,
@@ -246,9 +243,8 @@ def mount_plan(contract: dict, role: str, *, task_dir: str = None, output_dir: s
                eval_input: str = None) -> dict:
     """按运行角色生成挂载视图。
 
-    判分材料（`spec` 的需求/任务/验收标准，以及 `eval` 的评估方法、测试预置与预期答案）
-    只挂给开发与评分角色。被测角色默认不挂任何评测材料；确需给被测侧数据时，必须显式
-    声明一个已确认不含预期答案的输入根，而不是把整个 `eval` 目录当作"被测输入"。
+    当前研究定义只挂给开发与评分角色。被测角色默认不挂任何评测材料；确需给被测侧数据时，
+    必须显式声明一个已确认不含预期答案的输入根。
     """
     if role not in ROLES:
         raise ValueError("role must be authoring、subject 或 scoring")
@@ -262,11 +258,9 @@ def mount_plan(contract: dict, role: str, *, task_dir: str = None, output_dir: s
     ]
     grading = role in GRADING_ROLES
     if grading:
-        for key, container, purpose in (("spec_root", CONTAINER_SPEC, "spec"),
-                                        ("eval_root", CONTAINER_EVAL_REFERENCE, "eval-reference")):
-            host = contract.get(key)
-            if host:
-                mounts.append({"host": host, "container": container, "mode": "ro", "purpose": purpose})
+        host = contract.get("reference_root")
+        if host:
+            mounts.append({"host": host, "container": CONTAINER_REFERENCE, "mode": "ro", "purpose": "reference"})
     elif eval_input:
         mounts.append({"host": eval_input, "container": CONTAINER_EVAL_INPUT, "mode": "ro", "purpose": "eval-input"})
     if task_dir:
@@ -274,7 +268,7 @@ def mount_plan(contract: dict, role: str, *, task_dir: str = None, output_dir: s
     if output_dir:
         mounts.append({"host": output_dir, "container": "/work/output", "mode": "rw", "purpose": "run-output"})
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "role": role,
         "source_id": contract["source_id"],
         "grading_material_exposed": grading,

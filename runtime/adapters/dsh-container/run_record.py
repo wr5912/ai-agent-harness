@@ -183,8 +183,7 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
                 "presets": tree_digest(repo, Path(contract["presets"])),
                 "managed": tree_digest(repo, Path(contract["managed"])),
             },
-            "spec_tree": tree_digest(repo, Path(contract["spec_root"])) if contract.get("spec_root") else None,
-            "eval_tree": tree_digest(repo, Path(contract["eval_root"])) if contract.get("eval_root") else None,
+            "reference_tree": tree_digest(repo, Path(contract["reference_root"])) if contract.get("reference_root") else None,
             "git_version": git_version(repo),
         }
         plan_ref = ""

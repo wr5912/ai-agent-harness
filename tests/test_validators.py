@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import tarfile
@@ -362,28 +363,24 @@ class RunRecordTests(unittest.TestCase):
             module.validate_trial_row(base["run_id"], base)
 
 
-class GeneratedDataTests(unittest.TestCase):
-    def test_spec_generator_reproduces_maintained_data(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            repository = copy_repository(Path(temp))
-            tool = repository / f"evolution/experiments/{EXPERIMENT_ID}/evaluation/tools/ingest_v02_spec.py"
-            completed = subprocess.run(
-                ["python3", str(tool), "--repo", str(repository), "--refresh"],
-                cwd=repository, text=True, capture_output=True, check=False, timeout=180,
-                env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
-            )
-            self.assertEqual(completed.returncode, 0, completed.stderr)
-            relative_paths = (
-                "spec/requirements.md",
-                "spec/tasks.yaml",
-                "spec/acceptance.yaml",
-                "eval/methods.yaml",
-                "eval/pending/scenario-design.pending.jsonl",
-            )
-            for relative in relative_paths:
-                expected = ROOT / "agents" / AGENT_ID / relative
-                actual = repository / "agents" / AGENT_ID / relative
-                self.assertEqual(expected.read_bytes(), actual.read_bytes(), relative)
+class DefinitionSourceTests(unittest.TestCase):
+    def test_agent_definition_is_the_only_current_source(self) -> None:
+        definition = ROOT / "agents" / AGENT_ID / "definition.md"
+        text = definition.read_text(encoding="utf-8")
+        self.assertEqual(
+            re.findall(r"^## (.+)$", text, re.MULTILINE),
+            ["需求定义", "任务定义", "测试数据", "评估方法", "测试验收"],
+        )
+        self.assertEqual(len(re.findall(r"^### task-", text, re.MULTILINE)), 34)
+        self.assertEqual(len(re.findall(r"^##### (?:D|U)-[A-Z]+-[0-9]+$", text, re.MULTILINE)), 121)
+        self.assertEqual(len(re.findall(r"^### m-", text, re.MULTILINE)), 39)
+        self.assertEqual(len(re.findall(r"^### AC-", text, re.MULTILINE)), 39)
+        retired = (
+            "spec/requirements.md", "spec/tasks.yaml", "spec/acceptance.yaml",
+            "eval/methods.yaml", "eval/fixtures", "eval/pending",
+        )
+        for relative in retired:
+            self.assertFalse((definition.parent / relative).exists(), relative)
 
 
 if __name__ == "__main__":

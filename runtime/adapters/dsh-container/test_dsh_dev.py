@@ -67,8 +67,7 @@ class ModeAndContextContractTest(unittest.TestCase):
             "workspace": "/tmp/ws",
             "presets": "/tmp/presets",
             "managed": "/tmp/managed",
-            "spec_root": "/tmp/spec",
-            "eval_root": "/tmp/eval",
+            "reference_root": "/tmp/reference",
             "preset_id": "security-operations-expert",
             "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
             "patch_overlay": "/opt/dsh-managed/security-operations-expert.development.patch.yml",
@@ -90,8 +89,7 @@ class ModeAndContextContractTest(unittest.TestCase):
         template = (ADAPTER / "authoring.compose.yaml").read_text(encoding="utf-8")
         rendered = dev.render_compose(template, mode="authoring", project="dsh-dev-author", port=3082)
         self.assertIn("      - --patch\n      - ${DSH_MANAGED_PATCH_OVERLAY:?", rendered)
-        self.assertIn("        target: /work/spec\n", rendered)
-        self.assertIn("        target: /work/eval-reference\n", rendered)
+        self.assertIn("        target: /work/reference\n", rendered)
 
     def test_dev_instruction_file_is_generic_and_bounded(self):
         """开发指令文件不得内联任何业务 Agent 身份，也不得含凭据或可执行内容。"""
@@ -103,7 +101,7 @@ class ModeAndContextContractTest(unittest.TestCase):
         self.assertNotIn("http://", text)
         self.assertNotIn("https://", text)
         for required in ("/work/harness/workspace", "/opt/dsh-presets", "/opt/dsh-managed",
-                         "/work/spec", "/work/eval-reference", "target_preset", ".agent-presets"):
+                         "/work/reference", "target_preset", ".agent-presets"):
             self.assertIn(required, text)
 
     def test_verification_template_exposes_no_grading_material(self):
@@ -111,11 +109,9 @@ class ModeAndContextContractTest(unittest.TestCase):
         template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
         rendered = dev.render_compose(template, mode="verification", project="dsh-dev-probe", port=3081)
         self.assertNotIn("DSH_MANAGED_PATCH_OVERLAY", rendered)
-        self.assertNotIn("/work/spec\n", rendered)
+        self.assertNotIn("/work/reference\n", rendered)
         self.assertNotIn("/work/eval-input\n", rendered)
-        self.assertNotIn("/work/eval-reference\n", rendered)
-        self.assertNotIn("DSH_SPEC_HOST", rendered)
-        self.assertNotIn("DSH_EVAL_HOST", rendered)
+        self.assertNotIn("DSH_REFERENCE_HOST", rendered)
 
     def test_templates_declare_no_business_agent_identity(self):
         """通用启动器模板不得内联某个业务 Agent 的路径、preset 或 patch 名。"""
@@ -196,14 +192,12 @@ class ModeAndContextContractTest(unittest.TestCase):
 
     def test_context_assets_are_authoring_only_and_require_declared_roots(self):
         assets = dev.context_assets(self.contract(), "authoring")
-        self.assertEqual([asset["container"] for asset in assets], ["/work/spec", "/work/eval-reference"])
+        self.assertEqual([asset["container"] for asset in assets], ["/work/reference"])
         self.assertTrue(all(asset["mode"] == "ro" for asset in assets))
         self.assertEqual(dev.context_assets(self.contract(), "verification"), [])
-        self.assertEqual(dev.context_assets(self.contract(spec_root=None), "verification"), [])
+        self.assertEqual(dev.context_assets(self.contract(reference_root=None), "verification"), [])
         with self.assertRaises(SystemExit):
-            dev.context_assets(self.contract(spec_root=None), "authoring")
-        with self.assertRaises(SystemExit):
-            dev.context_assets(self.contract(eval_root=None), "authoring")
+            dev.context_assets(self.contract(reference_root=None), "authoring")
 
     def test_compose_env_injects_adapter_root_for_both_modes(self):
         """回归：适配层脚本走只读挂载，两种模式都必须注入其宿主目录。"""
@@ -214,14 +208,12 @@ class ModeAndContextContractTest(unittest.TestCase):
 
     def test_compose_env_injects_context_and_overlay_per_mode(self):
         authoring_env = dev.compose_env(self.contract(), "authoring", 3082, "secops-dev")
-        self.assertEqual(authoring_env["DSH_SPEC_HOST"], "/tmp/spec")
-        self.assertEqual(authoring_env["DSH_EVAL_HOST"], "/tmp/eval")
+        self.assertEqual(authoring_env["DSH_REFERENCE_HOST"], "/tmp/reference")
         self.assertEqual(authoring_env["DSH_MANAGED_PATCH_OVERLAY"],
                          "/opt/dsh-managed/security-operations-expert.development.patch.yml")
         verification_env = dev.compose_env(self.contract(), "verification", 3081, "secops-eval")
         self.assertNotIn("DSH_MANAGED_PATCH_OVERLAY", verification_env)
-        self.assertNotIn("DSH_SPEC_HOST", verification_env)
-        self.assertNotIn("DSH_EVAL_HOST", verification_env)
+        self.assertNotIn("DSH_REFERENCE_HOST", verification_env)
 
     def test_authoring_without_overlay_fails_closed(self):
         with self.assertRaises(SystemExit):
@@ -320,8 +312,7 @@ class InstanceStateTest(unittest.TestCase):
                 "workspace": "/tmp/ws",
                 "presets": "/tmp/presets",
                 "managed": "/tmp/managed",
-                "spec_root": "/tmp/spec",
-                "eval_root": "/tmp/eval",
+                "reference_root": "/tmp/reference",
                 "preset_id": "second-harness",
                 "patch": "/opt/dsh-managed/second.patch.yml",
                 "patch_overlay": None,
@@ -354,8 +345,7 @@ class InstanceStateTest(unittest.TestCase):
                 "workspace": "/tmp/ws",
                 "presets": "/tmp/presets",
                 "managed": "/tmp/managed",
-                "spec_root": "/tmp/spec",
-                "eval_root": "/tmp/eval",
+                "reference_root": "/tmp/reference",
                 "preset_id": "security-operations-expert",
                 "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
                 "patch_overlay": "/opt/dsh-managed/security-operations-expert.development.patch.yml",
@@ -370,9 +360,9 @@ class InstanceStateTest(unittest.TestCase):
             self.assertEqual(manifest["session_preset"], "cordis")
             self.assertTrue(manifest["cordis_trust_accepted"])
             self.assertEqual(manifest["mount_modes"]["workspace"], "rw")
-            # 开发会话需要完整评测材料来修改和核对，且容器内路径标明它是判分材料。
+            # 开发会话只挂载一份完整定义文档来修改和核对。
             self.assertEqual([item["container"] for item in manifest["context_mounts"]],
-                             ["/work/spec", "/work/eval-reference"])
+                             ["/work/reference"])
             self.assertIn("DSH_MANAGED_PATCH_OVERLAY", (target / "compose.yaml").read_text(encoding="utf-8"))
 
     def test_instance_name_must_be_kebab(self):
@@ -389,8 +379,7 @@ class InstanceStateTest(unittest.TestCase):
                 "workspace": "/tmp/ws",
                 "presets": "/tmp/presets",
                 "managed": "/tmp/managed",
-                "spec_root": "/tmp/spec",
-                "eval_root": "/tmp/eval",
+                "reference_root": "/tmp/reference",
                 "preset_id": "security-operations-expert",
                 "patch": "/opt/dsh-managed/x.patch.yml",
                 "patch_overlay": "/opt/dsh-managed/x.development.patch.yml",
@@ -414,7 +403,7 @@ class DownCommandTest(unittest.TestCase):
             "source_kind": "experiment",
             "agent_id": "security-operations-expert",
             "workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed",
-            "spec_root": "/tmp/spec", "eval_root": "/tmp/eval",
+            "reference_root": "/tmp/reference",
             "preset_id": "security-operations-expert",
             "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
             "patch_overlay": None, "required_env_names": [],
@@ -587,7 +576,7 @@ class LegacyInstanceStateTest(unittest.TestCase):
         "image_tag": "ai-agent-harness/dsh:c291e7961",
         "agent_id": "security-operations-expert",
         "mounts": {"workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed"},
-        "context_mounts": [{"key": "spec", "host": "/tmp/spec", "container": "/work/spec", "mode": "ro"}],
+        "context_mounts": [{"key": "reference", "host": "/tmp/reference", "container": "/work/reference", "mode": "ro"}],
         "mount_modes": {"workspace": "rw", "presets": "ro", "managed": "ro"},
         "patch_overlay": "/opt/dsh-managed/x.development.patch.yml",
         "cordis_trust_accepted": True,
@@ -612,7 +601,7 @@ class LegacyInstanceStateTest(unittest.TestCase):
         self.assertEqual(environment["DSH_IMAGE_TAG"], "ai-agent-harness/dsh:c291e7961")
         self.assertEqual(environment["DSH_ADAPTER_HOST"], str(ADAPTER))
         self.assertEqual(environment["DSH_WORKSPACE_HOST"], "/tmp/ws")
-        self.assertEqual(environment["DSH_SPEC_HOST"], "/tmp/spec")
+        self.assertEqual(environment["DSH_REFERENCE_HOST"], "/tmp/reference")
         # 记录里没有 managed_patch，就不猜一个路径出来。
         self.assertNotIn("DSH_MANAGED_PATCH", environment)
 
@@ -673,7 +662,7 @@ class UpPortOwnershipTest(unittest.TestCase):
             "agent_id": "security-operations-expert",
             "preset_id": "security-operations-expert",
             "workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed",
-            "spec_root": "/tmp/spec", "eval_root": "/tmp/eval",
+            "reference_root": "/tmp/reference",
             "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
             "patch_overlay": None, "required_env_names": [],
             "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},

@@ -29,8 +29,8 @@ class SourceContractTest(unittest.TestCase):
         self.assertEqual(result["patch"], "/opt/dsh-managed/security-operations-expert.patch.yml")
         self.assertEqual(result["patch_overlay"],
                          "/opt/dsh-managed/security-operations-expert.development.patch.yml")
-        self.assertTrue(result["spec_root"].endswith("agents/security-operations-expert/spec"))
-        self.assertTrue(result["eval_root"].endswith("agents/security-operations-expert/eval"))
+        self.assertTrue(result["reference_root"].endswith("agents/security-operations-expert"))
+        self.assertEqual(result["schema_version"], "2.0")
         self.assertNotIn("TOKEN=", json.dumps(result))
 
     def test_development_overlay_must_exist_inside_managed(self):

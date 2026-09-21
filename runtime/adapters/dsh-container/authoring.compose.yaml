@@ -92,12 +92,8 @@ services:
         target: /opt/dsh-managed
         read_only: true
       - type: bind
-        source: ${DSH_SPEC_HOST:?开发模式必须由启动器给出需求/任务/验收事实源根}
-        target: /work/spec
-        read_only: true
-      - type: bind
-        source: ${DSH_EVAL_HOST:?开发模式必须由启动器给出评测材料根}
-        target: /work/eval-reference
+        source: ${DSH_REFERENCE_HOST:?开发模式必须由启动器给出当前研究定义根}
+        target: /work/reference
         read_only: true
       - type: volume
         source: dsh-authoring-home

@@ -28,10 +28,9 @@
 
 | 内容 | 容器内位置 | 读写 |
 |---|---|---|
-| 需求、任务、验收标准 | `/work/spec` | 只读 |
-| 测试预置、评估方法、待复核输入 | `/work/eval-reference` | 只读 |
+| 需求定义、任务定义、测试数据、评估方法、测试验收 | `/work/reference/definition.md` | 只读 |
 
-两者都是**判分材料**。开发会话需要读它们来保持修改与验收口径一致；它们不会进入被测目标容器。`eval/pending/**` 是待领域复核输入，不是正式用例。
+这是当前唯一的**研究定义与判分材料**。开发会话需要读它来保持修改与验收口径一致；它不会进入被测目标容器。
 
 ## 修改与保存
 
@@ -58,7 +57,7 @@
 | Profile Patch、角色矩阵、工具名映射 | `candidate/dsh/managed/`（宿主侧复核后修改） |
 | 非秘密依赖声明 | 候选 `harness.yaml` / `runtime.lock.json` 的适用字段 |
 
-只有确实需要同一 Agent 同时保留多个运行时 preset ID 时，才把候选 `harness.yaml.preset_id`、`sources.json.preset` 和基础 patch 的 `agent-presets.default` 显式改为同一个新 ID；业务 `agent_id`、Experiment、spec/eval 不因此自动重命名。仓库校验器会核对这三处与实际 preset 目录一致。
+只有确实需要同一 Agent 同时保留多个运行时 preset ID 时，才把候选 `harness.yaml.preset_id`、`sources.json.preset` 和基础 patch 的 `agent-presets.default` 显式改为同一个新 ID；业务 `agent_id`、Experiment 和研究定义不因此自动重命名。仓库校验器会核对这三处与实际 preset 目录一致。
 
 受控的 `/opt/dsh-presets` 与 `/opt/dsh-managed` 在容器内始终只读：运行中的受控配置没有被这次创作改写，用户根只是额外的临时候选来源。
 

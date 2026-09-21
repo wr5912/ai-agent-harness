@@ -42,8 +42,7 @@ AUTO_PORT_START = 3081
 # 不在通用启动器里硬编码任何业务 Agent 名。
 AUTHORING_PRESET = "cordis"
 CONTEXT_ASSETS = (
-    ("spec", "/work/spec", "spec_root", "需求定义、任务定义、验收标准"),
-    ("eval", "/work/eval-reference", "eval_root", "测试数据、评估方法、待复核输入"),
+    ("reference", "/work/reference", "reference_root", "需求定义、任务定义、测试数据、评估方法、测试验收"),
 )
 CORDIS_TRUST_NOTICE = (
     "开发模式（--mode dev）以出厂 cordis（创造模式）preset 启动：该会话具备 shell 与对实时 runtime 执行模型 JS 的 "
@@ -57,11 +56,10 @@ CONTAINER_DEV_WORKSPACE = "/work"
 # 受控开发指令是通用的、不含业务名；本次解析出的实际目标值由启动器生成到实例目录，
 # 并以 AGENTS.local.md 变体挂到项目根，供会话直接读到（指令链会读取 AGENTS.md 的 .local.md 变体）。
 DEV_TARGET_FILENAME = "dev-target.AGENTS.local.md"
-CONTAINER_SPEC = "/work/spec"
-CONTAINER_EVAL_REFERENCE = "/work/eval-reference"
+CONTAINER_REFERENCE = "/work/reference"
 # 受控模板不含任何仓库内默认值，凡读取实例 Compose 的命令都必须按实例状态注入这些变量。
-# 1.3：区分会话身份与优化目标（session_preset / target_preset），target_preset 含义收窄为目标本身。
-INSTANCE_SCHEMA_VERSION = "1.3"
+# 2.0：当前研究定义改为单一只读挂载。
+INSTANCE_SCHEMA_VERSION = "2.0"
 # DSH Web 首次打开是冷启动：会话必须先绑定一个**已注册工作区**，而新实例的 DSH_HOME 里工作区注册表为空
 # （注册表 storages/workspace.json 只从已存会话头 bootstrap，且初始化标记一经写入不再重建）。DSH 在该锁定提交上
 # 没有受支持的工作区预注册入口，因此启动器只如实交付路径与操作步骤，不改写 Runtime 存储内部格式。
@@ -122,7 +120,7 @@ def context_assets(contract: dict, mode: str) -> list[dict]:
         return []
     missing = [key for _, _, key, _ in CONTEXT_ASSETS if not contract.get(key)]
     if missing:
-        fail("所选来源缺少只读上下文数据资产根（%s）；不伪造空目录，请改用具备 spec/eval 的来源" % "、".join(missing))
+        fail("所选来源缺少只读研究定义根（%s）；不伪造空目录" % "、".join(missing))
     return [
         {"key": name, "host": contract[key], "container": container, "mode": "ro", "content": content}
         for name, container, key, content in CONTEXT_ASSETS
@@ -153,7 +151,7 @@ def compose_env(contract: dict, mode: str, port: int, name: str,
         }
     )
     for asset in context_assets(contract, mode):
-        environment["DSH_SPEC_HOST" if asset["key"] == "spec" else "DSH_EVAL_HOST"] = asset["host"]
+        environment["DSH_REFERENCE_HOST"] = asset["host"]
     if mode == "authoring":
         target_file = dev_target_file or (instance_dir(name) / DEV_TARGET_FILENAME)
         environment["DSH_DEV_TARGET_HOST"] = str(target_file)
@@ -317,7 +315,8 @@ def instance_compose_env(manifest: dict) -> dict:
     for asset in manifest.get("context_mounts") or []:
         if not isinstance(asset, dict) or not asset.get("host"):
             continue
-        values["DSH_SPEC_HOST" if asset.get("container") == CONTAINER_SPEC else "DSH_EVAL_HOST"] = asset["host"]
+        if asset.get("container") == CONTAINER_REFERENCE:
+            values["DSH_REFERENCE_HOST"] = asset["host"]
     environment = dict(os.environ)
     environment.update({key: value for key, value in values.items() if value})
     return environment
@@ -431,7 +430,7 @@ def build_plan(args: argparse.Namespace, contract: dict) -> dict:
     assets = context_assets(contract, args.mode)
     missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
     plan = {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "name": args.name,
         "project": project_name(args.name),
         "mode": args.mode,

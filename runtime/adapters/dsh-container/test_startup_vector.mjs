@@ -16,8 +16,7 @@ const required = {
   DSH_WORKSPACE_HOST: '/tmp/placeholder/workspace',
   DSH_PRESETS_HOST: '/tmp/placeholder/presets',
   DSH_MANAGED_HOST: '/tmp/placeholder/managed',
-  DSH_SPEC_HOST: '/tmp/placeholder/spec',
-  DSH_EVAL_HOST: '/tmp/placeholder/eval',
+  DSH_REFERENCE_HOST: '/tmp/placeholder/reference',
 }
 function composeConfig(mode, env) {
   return spawnSync('docker', [

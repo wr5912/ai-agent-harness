@@ -18,13 +18,13 @@ try {
 }
 const sourceSelector = /^experiment:EXP-[a-z0-9-]+-[0-9]{3}$/
 const sourceKinds = new Set(['experiment'])
-if (source?.schema_version !== '1.0' || !sourceSelector.test(source.source_id) || !sourceKinds.has(source.source_kind)
+if (source?.schema_version !== '2.0' || !sourceSelector.test(source.source_id) || !sourceKinds.has(source.source_kind)
   || source.profile !== 'web' || !source.patch?.startsWith('/opt/dsh-managed/')
   || !source.preset?.startsWith('/opt/dsh-presets/')
   || (source.guard !== null && !source.guard?.startsWith('/opt/dsh-managed/'))
   || typeof source.preset_id !== 'string' || source.preset_id.length === 0
   || !Array.isArray(source.config_markers) || source.config_markers.length === 0
-  || typeof source.spec_root !== 'string' || typeof source.eval_root !== 'string'
+  || typeof source.reference_root !== 'string'
   || (mode === 'authoring' && typeof source.patch_overlay !== 'string')) {
   throw new Error('selected DSH source contract is incomplete')
 }
@@ -34,10 +34,9 @@ const roots = [
   { key: 'presets', path: '/opt/dsh-presets', expected: process.env.DSH_EXPECT_PRESETS_TREE_SHA },
   { key: 'managed', path: '/opt/dsh-managed', expected: process.env.DSH_EXPECT_MANAGED_TREE_SHA },
 ]
-const gradingMaterialPaths = ['/work/spec', '/work/eval-reference', '/work/eval-input']
+const gradingMaterialPaths = ['/work/reference', '/work/eval-input']
 if (mode === 'authoring') {
-  roots.push({ key: 'spec', path: '/work/spec', expected: process.env.DSH_EXPECT_SPEC_TREE_SHA })
-  roots.push({ key: 'eval_reference', path: '/work/eval-reference', expected: process.env.DSH_EXPECT_EVAL_TREE_SHA })
+  roots.push({ key: 'reference', path: '/work/reference', expected: process.env.DSH_EXPECT_REFERENCE_TREE_SHA })
 }
 
 const mounts = readFileSync('/proc/self/mountinfo', 'utf8')
@@ -341,8 +340,7 @@ console.log(JSON.stringify({
   mounts: mountEvidence,
   grading_material: mode === 'authoring'
     ? {
-      spec: { host: source.spec_root, container: '/work/spec', mount_mode: 'ro' },
-      eval_reference: { host: source.eval_root, container: '/work/eval-reference', mount_mode: 'ro' },
+      reference: { host: source.reference_root, container: '/work/reference', mount_mode: 'ro' },
       note: 'Read-only grading-material identity for the developer session only; it does not prove any agent consumed it.',
     }
     : {

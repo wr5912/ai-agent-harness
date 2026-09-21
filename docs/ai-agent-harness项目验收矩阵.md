@@ -45,7 +45,7 @@
 
 ### PA-01 Research Mode、AI 协作入口与项目 Memory
 
-- **要回答**：新的 AI 开发会话能否读到 Research Mode、中文优先、简洁优先、精准修改和四项安全底线；Memory 是否只作为辅助上下文。
+- **要回答**：新的 AI 开发会话能否读到 Research Mode、中文优先、简洁优先、单一事实源、根因整改、精准修改和四项安全底线；Memory 是否只作为辅助上下文。
 - **操作链**：读取根级 `AGENTS.md` 和 README → 解析 `.codex/config.toml` → 在受信任的新会话观察规则和 Memory 是否生效 → 确认会话能找到本矩阵。
 - **当前证据**：仓库检查可确认稳定入口和 `features.memories = true`。
 - **缺口**：实际生效还受项目是否受信任、用户配置和启动参数影响，需要新会话观察，因此是部分验证。
@@ -60,15 +60,15 @@
 
 ### PA-03 仓库结构、项目技能与研究资产合同
 
-- **要回答**：研究资产是否放在正确位置，是否避免重复 Baseline/current，Experiment、Run 和 Research Release 是否具备最小可复现内容。
-- **操作链**：只读检查外部资产 → 运行仓库校验 → 运行 Experiment 校验 → 用负向样例验证非法身份、空资产、危险链接和重复目录会被拒绝。
+- **要回答**：研究资产是否放在正确位置，是否避免重复 Baseline/current 和定义投影，Experiment、Run 和 Research Release 是否具备最小可复现内容。
+- **操作链**：只读检查外部资产 → 核对 Agent 当前研究定义只有一个可编辑源 → 运行仓库校验 → 运行 Experiment 校验 → 用负向样例验证非法身份、空资产、危险链接和重复目录会被拒绝。
 - **当前证据**：`inspect_source.py`、`validate_repository.py`、`validate_experiment.py` 及其测试覆盖当前确定性合同。
 - **自动化边界**：结构、格式、引用和摘要进入测试；研究内容是否真实、有价值不由校验器打分。
 
 ### PA-04 Experiment 来源解析、会话身份与材料隔离
 
 - **要回答**：选择的 Experiment 是否解析到正确 Agent、Preset 和资产；开发会话与被测会话是否看见正确内容。
-- **操作链**：解析 `experiment:<id>` → 分别生成 authoring、subject、scoring 计划 → 核对 `session_preset` 与 `target_preset` → 反向确认被测会话没有参考答案和判断材料。
+- **操作链**：解析 `experiment:<id>` → 分别生成 authoring、subject、scoring 计划 → 核对 `session_preset` 与 `target_preset` → 开发/评分角色只挂一个 `/work/reference` → 反向确认被测会话没有参考答案和判断材料。
 - **当前证据**：来源合同、挂载计划和角色隔离测试覆盖当前机器合同。
 - **自动化边界**：路径、字段和挂载计划进入测试；实际 DSH 加载属于 `PA-06`。
 
@@ -83,7 +83,7 @@
 ### PA-06 开发/被测容器的真实装载与边界
 
 - **要回答**：两种模式是否实际加载同一来源，并形成预期的可写/只读视图。
-- **操作链**：确认镜像身份 → 启动开发实例 → 核对开发身份、目标声明和挂载 → 启动被测实例 → 核对目标 Preset、Skill、Plugin/MCP 声明及材料不可见性。
+- **操作链**：确认镜像身份 → 启动开发实例 → 核对开发身份、目标声明和单一研究定义挂载 → 启动被测实例 → 核对目标 Preset、Skill、Plugin/MCP 声明及材料不可见性。
 - **当前证据**：[`dsh-dev-live-load-20260918.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-live-load-20260918.json) 和 [`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json) 记录当前镜像下的主要探针。
 - **缺口**：镜像、Profile、适配层或挂载合同变化后需要重跑；技术装载不说明业务能力有效。
 - **自动化边界**：Compose 和计划合同进入测试；真实容器内可见内容用容器探针。

@@ -1,8 +1,9 @@
 {
-  "acceptance_id_policy": "pending；不得机械发明业务 AC 或阈值",
-  "case_id_policy": "保留原 case-rsp/ins/flt/pol-*；四域合并后仍唯一",
+  "acceptance_id_policy": "旧迁移未机械发明业务 AC；当前测试验收在 agents/security-operations-expert/definition.md 维护",
+  "case_id_policy": "旧 case-rsp/ins/flt/pol-* 仅保留历史标识；当前用例在 agents/security-operations-expert/definition.md 维护",
   "experiment_id": "EXP-security-operations-expert-001",
-  "pending_case_count": 200,
+  "historical_case_count": 200,
+  "historical_case_status": "仅保留来源摘要，不进入当前事实源",
   "requirement_ranges": {
     "REQ-FLT-001..010": "REQ-019..028",
     "REQ-INS-001..008": "REQ-011..018",
