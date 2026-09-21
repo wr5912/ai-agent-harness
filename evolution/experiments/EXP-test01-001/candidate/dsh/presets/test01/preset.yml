@@ -1,0 +1,3 @@
+name: test01
+description: 用于验证 DSH Harness 创建、装载与身份响应的最小研究 Preset。
+order: 10

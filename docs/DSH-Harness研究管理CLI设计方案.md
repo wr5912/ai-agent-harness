@@ -12,7 +12,7 @@
 
 | 入口 | 当前用途 | 边界 |
 |---|---|---|
-| `dsh-dev` | 解析 Experiment，构建镜像，启动、查看和停止本地 DSH 实例 | 不判断 Harness 效果 |
+| `dsh-dev` | 创建最小 Agent/首次 Experiment，解析来源，构建镜像，启动、查看和停止本地 DSH 实例 | `init` 不覆盖已有资产；CLI 不判断 Harness 效果 |
 | `source_contract.py` | 把来源解析成 Agent、Preset 和挂载计划 | 当前只支持 `experiment:<id>` |
 | `mutation-receipt.py` | 记录变更前后资产摘要和差异 | 不替代 Git 或人工复核 |
 | `run_record.py` | 创建、追加和封存 Research Run | 不执行任务，不给研究结论打分 |
@@ -25,9 +25,9 @@
 ## 3. 最小研究闭环
 
 ```text
-选择 Experiment
+创建或选择 Experiment
       ↓
-dsh-dev up --dry-run / up
+dsh-dev init（仅首次需要）→ up --dry-run / up
       ↓
 修改 Candidate + mutation receipt
       ↓

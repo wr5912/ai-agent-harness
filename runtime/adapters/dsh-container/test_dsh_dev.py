@@ -29,6 +29,98 @@ SPEC.loader.exec_module(dev)
 TOKEN = "dsh web: http://127.0.0.1:3081/?token=secret-token-value\n"
 
 
+class HarnessInitTest(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.repo = Path(self.temporary.name)
+        (self.repo / "agents").mkdir()
+        (self.repo / "evolution/experiments").mkdir(parents=True)
+        adapter = self.repo / "runtime/adapters/dsh-container"
+        adapter.mkdir(parents=True)
+        self.sources = adapter / "sources.json"
+        self.sources.write_text('{"schema_version":"1.0","sources":{}}\n', encoding="utf-8")
+        self.lock = adapter / "source.lock.json"
+        self.lock.write_bytes((ADAPTER / "source.lock.json").read_bytes())
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def create(self, agent_id="test01"):
+        return dev.create_harness(
+            agent_id, repo=self.repo, sources=self.sources, lock_path=self.lock
+        )
+
+    def test_creates_minimal_resolvable_first_experiment(self):
+        result = self.create()
+        self.assertEqual(result, {
+            "agent_id": "test01",
+            "experiment_id": "EXP-test01-001",
+            "source_id": "experiment:EXP-test01-001",
+        })
+        contract = dev.resolve(
+            result["source_id"], repo=self.repo, sources=self.sources, lock_path=self.lock
+        )
+        self.assertEqual(contract["agent_id"], "test01")
+        self.assertEqual(contract["preset_id"], "test01")
+        expected = {
+            "agents/test01/manifest.yaml",
+            "agents/test01/definition.md",
+            "agents/test01/evaluation.md",
+            "evolution/experiments/EXP-test01-001/change.yaml",
+            "evolution/experiments/EXP-test01-001/hypothesis.md",
+            "evolution/experiments/EXP-test01-001/candidate/harness.yaml",
+            "evolution/experiments/EXP-test01-001/candidate/runtime.lock.json",
+            "evolution/experiments/EXP-test01-001/candidate/dsh/workspace/.env",
+            "evolution/experiments/EXP-test01-001/candidate/dsh/workspace/AGENTS.md",
+            "evolution/experiments/EXP-test01-001/candidate/dsh/managed/test01.patch.yml",
+            "evolution/experiments/EXP-test01-001/candidate/dsh/managed/test01.development.patch.yml",
+            "evolution/experiments/EXP-test01-001/candidate/dsh/presets/test01/agent.cordis.yml",
+            "evolution/experiments/EXP-test01-001/candidate/dsh/presets/test01/preset.yml",
+        }
+        actual = {
+            path.relative_to(self.repo).as_posix()
+            for root in (self.repo / "agents/test01", self.repo / "evolution/experiments/EXP-test01-001")
+            for path in root.rglob("*") if path.is_file()
+        }
+        self.assertEqual(actual, expected)
+        self.assertEqual(
+            (self.repo / "evolution/experiments/EXP-test01-001/candidate/dsh/workspace/.env").read_bytes(),
+            (ADAPTER / "verification-home-controls/locked-bootstrap.env").read_bytes(),
+        )
+        generated = "\n".join(
+            path.read_text(encoding="utf-8") for path in self.repo.rglob("*")
+            if path.is_file() and path != self.lock
+        )
+        self.assertNotRegex(generated, r"sk-[A-Za-z0-9]{16,}")
+        self.assertIn("DEEPSEEK_API_KEY", generated)
+
+    def test_invalid_id_and_collisions_do_not_overwrite(self):
+        original = self.sources.read_bytes()
+        with self.assertRaisesRegex(ValueError, "kebab-case"):
+            self.create("Test01")
+        self.assertEqual(self.sources.read_bytes(), original)
+        self.assertFalse((self.repo / "agents/Test01").exists())
+
+        agent = self.repo / "agents/test01"
+        agent.mkdir()
+        marker = agent / "keep.txt"
+        marker.write_text("keep", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "拒绝覆盖"):
+            self.create()
+        self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
+        self.assertEqual(self.sources.read_bytes(), original)
+        self.assertFalse((self.repo / "evolution/experiments/EXP-test01-001").exists())
+
+    def test_resolution_failure_rolls_back_files_and_catalog(self):
+        original = self.sources.read_bytes()
+        with mock.patch.object(dev, "resolve", side_effect=ValueError("invalid source")):
+            with self.assertRaisesRegex(ValueError, "invalid source"):
+                self.create()
+        self.assertEqual(self.sources.read_bytes(), original)
+        self.assertFalse((self.repo / "agents/test01").exists())
+        self.assertFalse((self.repo / "evolution/experiments/EXP-test01-001").exists())
+
+
 class RenderComposeTest(unittest.TestCase):
     def test_verification_template_gets_host_network_and_port(self):
         template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
@@ -170,6 +262,17 @@ class ModeAndContextContractTest(unittest.TestCase):
             mode="authoring", project="dsh-dev-author", port=3082)
         self.assertIn("        target: /work/AGENTS.local.md\n", rendered)
         self.assertIn("DSH_DEV_TARGET_HOST", rendered)
+
+    def test_authoring_preflight_generates_target_with_session_preset(self):
+        args = types.SimpleNamespace(mode="authoring", name="secops-dev", port=3084)
+        observed = {}
+
+        def inspect_target(_command, *, env):
+            observed["document"] = Path(env["DSH_DEV_TARGET_HOST"]).read_text(encoding="utf-8")
+
+        with mock.patch.object(dev, "run", side_effect=inspect_target):
+            dev.preflight_new_instance(args, self.contract())
+        self.assertIn("session_preset）：cordis", observed["document"])
 
     def test_development_instance_records_and_mounts_target_declaration(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -872,6 +975,14 @@ class UpPortOwnershipTest(unittest.TestCase):
 
 
 class CliSurfaceTest(unittest.TestCase):
+    def test_root_help_lists_init_and_not_plan(self):
+        completed = subprocess.run(
+            [sys.executable, str(ADAPTER / "dsh-dev"), "--help"],
+            capture_output=True, text=True, check=False, timeout=60)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("init", completed.stdout)
+        self.assertNotIn("  plan", completed.stdout)
+
     def test_source_help_lists_only_supported_selectors(self):
         completed = subprocess.run(
             [sys.executable, str(ADAPTER / "dsh-dev"), "up", "--help"],

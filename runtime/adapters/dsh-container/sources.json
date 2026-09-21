@@ -163,6 +163,21 @@
         "LOCAL_LLM_BASE_URL",
         "LOCAL_LLM_API_KEY"
       ]
+    },
+    "EXP-test01-001": {
+      "agent_id": "test01",
+      "candidate_root": "evolution/experiments/EXP-test01-001/candidate/dsh",
+      "profile": "web",
+      "patch": "test01.patch.yml",
+      "preset": "test01/agent.cordis.yml",
+      "guard": null,
+      "development_patch_overlay": "test01.development.patch.yml",
+      "config_markers": [
+        "/opt/dsh-presets"
+      ],
+      "required_env_names": [
+        "DEEPSEEK_API_KEY"
+      ]
     }
   }
 }

@@ -85,6 +85,7 @@ bash runtime/adapters/dsh-container/build-image.sh --build-network host
 目标 preset 由 `sources.json` 的 `preset` 路径推出，适配层不内联任何业务 Agent 名；新增来源只需追加目录数据。
 
 ```bash
+python3 runtime/adapters/dsh-container/dsh-dev init test01
 python3 runtime/adapters/dsh-container/dsh-dev up --source experiment:EXP-security-operations-expert-001 --mode dev --dry-run
 python3 runtime/adapters/dsh-container/dsh-dev up --source experiment:EXP-security-operations-expert-001 --mode dev --accept-cordis-trust
 python3 runtime/adapters/dsh-container/dsh-dev up --source experiment:EXP-security-operations-expert-001 --mode eval --dry-run
@@ -95,9 +96,11 @@ python3 runtime/adapters/dsh-container/dsh-dev logs security-operations-expert-d
 python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-dev
 ```
 
+`init <agent-id>` 创建最小 Agent、`EXP-<agent-id>-001` Candidate，并把该 Experiment 登记到 `sources.json`；已有 Agent、Experiment 或来源登记时拒绝覆盖。它只创建研究资产，不启动实例、不执行 Evaluation，也不创建 Research Release。
+
 `--source` 和 `--mode` 始终由用户显式选择；缺失或无值时命令会列出当前可用值并以用法错误退出。`--name` 默认为 `<agent-id>-<dev|eval>`。新实例未指定 `--port` 时从 `3081` 起选第一个未监听且未被有效实例记录占用的端口；已有同名实例复用记录端口。`--dry-run` 只给出建议，不写状态、不调用 Docker，也不要求运行时环境变量或开发模式信任确认。
 
-`--mode dev` 使用 `authoring.compose.yaml` 并在基础受控 patch 之后叠加 `security-operations-expert.development.patch.yml`（仅打开 DSH 出厂 preset 根并把默认 preset 设为 `cordis`；校验器对该文件实施行白名单）。因为创造模式会话具备 shell 与对实时 runtime 执行模型 JS 的 `tool-cordis` 能力（等同 shell 权限），且容器使用 host 网络、可直达宿主回环服务（含本机 DSH Web），`up --mode dev` 必须显式加 `--accept-cordis-trust`；`--mode eval` 拒绝该旗标。创造模式会话不加载 `security-operations-guard`，注入的 SOC MCP 工具与 delegate 因此**没有角色矩阵约束**——这是开发模式的已知边界，不是已隔离状态。`--mode eval` 不叠加开发层，`includeShippedRoot` 保持关闭，创造模式在该容器内不在 preset 名册中，判分材料也不进入该容器。
+`--mode dev` 使用 `authoring.compose.yaml` 并在基础受控 patch 之后叠加来源登记的 `development_patch_overlay`（仅打开 DSH 出厂 preset 根并把默认 preset 设为 `cordis`；校验器对该文件实施行白名单）。因为创造模式会话具备 shell 与对实时 runtime 执行模型 JS 的 `tool-cordis` 能力（等同 shell 权限），且容器使用 host 网络、可直达宿主回环服务（含本机 DSH Web），`up --mode dev` 必须显式加 `--accept-cordis-trust`；`--mode eval` 拒绝该旗标。创造模式会话不加载目标 Guard，来源注入的业务工具或 delegate 因此不受目标角色约束——这是开发模式的已知边界，不是已隔离状态。`--mode eval` 不叠加开发层，`includeShippedRoot` 保持关闭，创造模式在该容器内不在 preset 名册中，判分材料也不进入该容器。
 
 `up` 不只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的在运行（`home-init` 是一次性服务，正常结束不算失败），否则报告失败或 `dsh_running: "unknown"` 并以非零退出码结束。成功时 stdout 只输出一个 JSON 结果；进度、提示和错误输出到 stderr，失败时 stdout 保持为空。`up --replace` 的成功 JSON 在 `replaced.stop` 中包含完整停止结果。
 

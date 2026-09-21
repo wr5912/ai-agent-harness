@@ -4,7 +4,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | `image build`、`up`（含 `--dry-run`）、`ps`、`url`、`logs`、`down` 已实现；`open`、`resume`、`fresh` 与 `release:<id>` 选择器未实现 |
+| 状态 | `init`、`image build`、`up`（含 `--dry-run`）、`ps`、`url`、`logs`、`down` 已实现；`open`、`resume`、`fresh` 与 `release:<id>` 选择器未实现 |
 | 适用范围 | 同一台 Linux Docker Engine 主机上的本地开发、调试与候选技术核验 |
 | 不在范围 | DSH Runtime 源码修改、Experiment 结论判断、Research Release 打包与复现 |
 | 依据 | [来源锁定](./standards/SOURCES.md)、[项目规范解释](./standards/PROJECT-INTERPRETATION.md)、[适配层 README](../runtime/adapters/dsh-container/README.md)、锁定 DSH 提交 `c291e7961a515f6d7af9304e7fd1d257929aef26`（CLI `0.1.5-rc.2`） |
@@ -21,6 +21,7 @@
 
 | 命令 | 作用 |
 |---|---|
+| `init <agent-id>` | 创建最小 Agent、首次 Experiment 和可装载 Candidate，并登记 `experiment:<id>` 来源；碰撞时拒绝覆盖 |
 | `image build` | 按 `source.lock.json` 的固定提交构建本地 DSH 镜像 |
 | `up --dry-run` | 只解析来源并预览模式、Preset、自动实例名、建议端口、工作区、挂载与缺失环境变量；不写状态、不调用 Docker |
 | `up` | 渲染实例 Compose 并启动；确认 `dsh` 服务真的在运行后才在 stdout 输出一个 JSON 结果 |
@@ -49,6 +50,14 @@
 ## 4. 完整使用过程
 
 ### 4.1 选择来源并确认目标
+
+首次创建研究对象时可运行：
+
+```bash
+python3 runtime/adapters/dsh-container/dsh-dev init test01
+```
+
+该命令创建 `agents/test01/`、`EXP-test01-001` 的最小 Candidate 和对应 `sources.json` 登记。它不启动实例、不执行 Evaluation、不生成 Decision 或 Research Release；已有 Agent、Experiment 或来源登记时直接失败。
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-dev up \

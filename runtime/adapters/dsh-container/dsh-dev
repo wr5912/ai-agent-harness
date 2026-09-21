@@ -78,6 +78,288 @@ def fail(message: str) -> None:
     raise SystemExit(1)
 
 
+def _atomic_replace(path: Path, data: bytes) -> None:
+    """以同目录临时文件原子替换来源目录，并保留原权限。"""
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(data)
+        os.chmod(temporary, path.stat().st_mode & 0o777)
+        os.replace(temporary, path)
+    except Exception:
+        Path(temporary).unlink(missing_ok=True)
+        raise
+
+
+def create_harness(agent_id: str, *, repo: Path = REPO, sources: Path = SOURCES,
+                   lock_path: Path = ADAPTER / "source.lock.json") -> dict:
+    """创建最小 Agent、首次 Experiment 与可解析的 DSH 来源登记。"""
+    if not NAME_RE.fullmatch(agent_id):
+        raise ValueError("agent-id 必须是小写 kebab-case")
+
+    experiment_id = f"EXP-{agent_id}-001"
+    agent_dir = repo / "agents" / agent_id
+    experiment_dir = repo / "evolution/experiments" / experiment_id
+    original_catalog = sources.read_bytes()
+    catalog = strict_json(sources)
+    if catalog.get("schema_version") != "1.0" or not isinstance(catalog.get("sources"), dict):
+        raise ValueError("unsupported source catalog")
+    collisions = [str(path.relative_to(repo)) for path in (agent_dir, experiment_dir) if path.exists()]
+    if experiment_id in catalog["sources"]:
+        collisions.append(f"sources.json:{experiment_id}")
+    if collisions:
+        raise ValueError("目标已存在，拒绝覆盖：" + "、".join(collisions))
+
+    lock = strict_json(lock_path)
+    required_lock = (
+        "repository", "commit", "tree", "cli_package", "cli_version", "package_manager",
+        "pnpm_lock_sha256", "node_base", "platform",
+    )
+    missing = [key for key in required_lock if not isinstance(lock.get(key), str) or not lock[key]]
+    if missing:
+        raise ValueError("source.lock.json 缺少字段：" + "、".join(missing))
+    node_digest = lock["node_base"].rsplit("@", 1)[-1]
+
+    source_item = {
+        "agent_id": agent_id,
+        "candidate_root": f"evolution/experiments/{experiment_id}/candidate/dsh",
+        "profile": "web",
+        "patch": f"{agent_id}.patch.yml",
+        "preset": f"{agent_id}/agent.cordis.yml",
+        "guard": None,
+        "development_patch_overlay": f"{agent_id}.development.patch.yml",
+        "config_markers": ["/opt/dsh-presets"],
+        "required_env_names": ["DEEPSEEK_API_KEY"],
+    }
+    runtime_lock = {
+        "schema_version": "1.0",
+        "agent_id": agent_id,
+        "experiment_id": experiment_id,
+        "runtime_family": "dsh",
+        "container_only": True,
+        "official_source": lock["repository"],
+        "source_commit": lock["commit"],
+        "source_tree": lock["tree"],
+        "cli_package": lock["cli_package"],
+        "cli_version": lock["cli_version"],
+        "package_manager": lock["package_manager"],
+        "pnpm_lock_sha256": lock["pnpm_lock_sha256"],
+        "node_base_oci_index_digest": node_digest,
+        "platform": lock["platform"],
+        "profile": "web",
+        "profile_patch": f"dsh/managed/{agent_id}.patch.yml",
+        "runtime_adapter": "runtime/adapters/dsh-container",
+        "lifecycle": "research-experiment",
+    }
+    agent_files = {
+        "manifest.yaml": f'''schema_version: "1.0"
+agent_id: {agent_id}
+runtime_family: dsh
+research_status: active
+active_experiment: {experiment_id}
+''',
+        "definition.md": f'''# {agent_id}
+
+`{agent_id}` 是用于研究 DSH Harness 创建、装载与身份响应的最小 Agent。
+
+## 研究任务
+
+- 以 `{agent_id}` 身份使用简洁中文回答。
+- 不声称未由 Runtime 提供的工具、权限或执行结果。
+- 当前测试口径见 [evaluation.md](./evaluation.md)。
+''',
+        "evaluation.md": f'''# {agent_id} 评估定义
+
+## 测试数据
+
+##### T-HARNESS-IDENTITY
+
+输入：`你是谁？请用一句中文回答。`
+
+选择理由：用最小身份问题观察新 Preset 是否在真实 DSH Session 中生效。
+
+## 评估方法
+
+### m-fresh-web-session
+
+启动所选 Experiment 的 dev 实例，在 DSH Web 中注册 `/work/harness/workspace`，新建 Session，显式选择 `{agent_id}` Preset 后发送测试输入并记录可见回复。
+
+## 测试验收
+
+### AC-001
+
+回复包含 `{agent_id}`，使用一句简洁中文；不冒充 Cordis 或其他业务角色，且没有模型或工具错误。
+
+## Experiment 评估选择
+
+### {experiment_id}
+
+- 测试用例：`T-HARNESS-IDENTITY`
+- 评估方法：`m-fresh-web-session`
+- 测试验收：`AC-001`
+''',
+    }
+    experiment_files = {
+        "change.yaml": f'''schema_version: "1.0"
+experiment_id: {experiment_id}
+agent_id: {agent_id}
+baseline_ref: none:first-experiment
+status: active
+research_question: 最小 Harness 能否被 DSH 装载并在全新 Web Session 中保持 {agent_id} 身份
+''',
+        "hypothesis.md": f'''# 研究假设
+
+Baseline 为 `none:first-experiment`。若最小 Candidate 声明 `{agent_id}` Preset，并由来源合同装载到 DSH Web Profile，则全新 Session 对身份问题的回复会明确包含 `{agent_id}`。
+
+## 预期观察
+
+- 来源合同、Candidate 资产与运行锁可通过静态校验。
+- 全新 dev 实例可选择 `{agent_id}` Preset。
+- 全新 Session 的回复满足 `AC-001`。
+
+## 停止条件
+
+- 来源或 Candidate 不能被 DSH 装载。
+- Web 中无法选择目标 Preset 或真实消息失败。
+- 验证需要把凭据值写入仓库或研究记录。
+
+## 限制
+
+本实验只验证一个身份输入，不外推到工具能力、复杂任务质量或生产可用性。
+''',
+        "candidate/harness.yaml": f'''schema_version: "1.0"
+agent:
+  id: {agent_id}
+  name: {agent_id}
+  language: zh-CN
+  lifecycle_status: experiment
+  runtime_family: dsh
+  load_mode: container-only
+experiment:
+  id: {experiment_id}
+  baseline_ref: none:first-experiment
+  status: active
+loadable_assets:
+  workspace: dsh/workspace
+  preset_root: dsh/presets
+  managed_root: dsh/managed
+  preset_id: {agent_id}
+  profile_patch: dsh/managed/{agent_id}.patch.yml
+  runtime_lock: runtime.lock.json
+runtime_contract:
+  workspace_container_path: /work/harness/workspace
+  preset_container_path: /opt/dsh-presets
+  managed_container_path: /opt/dsh-managed
+  dsh_home_container_path: /var/lib/dsh
+  authoring_workspace_mode: rw
+  authoring_preset_mode: ro
+  authoring_managed_mode: ro
+  verification_candidate_mode: ro
+credential_environment_keys:
+  - DEEPSEEK_API_KEY
+''',
+        "candidate/runtime.lock.json": json.dumps(runtime_lock, ensure_ascii=False, indent=2) + "\n",
+        "candidate/dsh/workspace/.env": (
+            ADAPTER / "verification-home-controls/locked-bootstrap.env"
+        ).read_text(encoding="utf-8"),
+        "candidate/dsh/workspace/AGENTS.md": f'''# {agent_id}
+
+你是 `{agent_id}`，一个用于验证 DSH Harness 创建与装载流程的研究智能体。
+
+- 使用简洁中文回答，并明确保持 `{agent_id}` 身份。
+- 不声称未提供的工具、权限或执行结果。
+''',
+        f"candidate/dsh/managed/{agent_id}.patch.yml": f'''# 最小 Web Profile Patch：只注册本 Experiment 的受控 Preset 根。
+- id: agent-presets
+  disabled: false
+  config:
+    default: {agent_id}
+    includeShippedRoot: false
+    includeUserRoot: false
+    roots:
+      - path: /opt/dsh-presets
+        trust: system
+''',
+        f"candidate/dsh/managed/{agent_id}.development.patch.yml": '''# 开发模式叠加层：恢复出厂 Cordis，并保留受控 Preset 根。
+- id: agent-presets
+  config:
+    default: cordis
+    includeShippedRoot: true
+    includeUserRoot: true
+    roots:
+      - path: /opt/dsh-presets
+        trust: system
+''',
+        f"candidate/dsh/presets/{agent_id}/agent.cordis.yml": f'''- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  disabled: false
+  config:
+    prefix: >-
+      你是 {agent_id}，一个用于验证 DSH Harness 创建与装载流程的研究智能体。
+      使用简洁中文回答，并明确保持 {agent_id} 身份；不要声称未提供的工具或权限。
+    suffix: 你的工作目录是 {{{{cwd}}}}。
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  disabled: false
+  config:
+    maxBytes: 65536
+''',
+        f"candidate/dsh/presets/{agent_id}/preset.yml": f'''name: {agent_id}
+description: 用于验证 DSH Harness 创建、装载与身份响应的最小研究 Preset。
+order: 10
+''',
+    }
+
+    moved: list[Path] = []
+    catalog_replaced = False
+    try:
+        with tempfile.TemporaryDirectory(prefix=".dsh-dev-init-", dir=repo) as temporary:
+            stage = Path(temporary)
+            staged_agent = stage / "agent"
+            staged_experiment = stage / "experiment"
+            for root, files in ((staged_agent, agent_files), (staged_experiment, experiment_files)):
+                for relative, content in files.items():
+                    path = root / relative
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(content, encoding="utf-8")
+            staged_agent.replace(agent_dir)
+            moved.append(agent_dir)
+            staged_experiment.replace(experiment_dir)
+            moved.append(experiment_dir)
+
+        catalog["sources"][experiment_id] = source_item
+        _atomic_replace(
+            sources,
+            (json.dumps(catalog, ensure_ascii=False, indent=2) + "\n").encode("utf-8"),
+        )
+        catalog_replaced = True
+        resolve(f"experiment:{experiment_id}", repo=repo, sources=sources, lock_path=lock_path)
+    except Exception:
+        if catalog_replaced:
+            try:
+                _atomic_replace(sources, original_catalog)
+            except Exception as rollback_error:
+                raise RuntimeError("来源目录回滚失败；为避免悬空登记，已保留新建目录") from rollback_error
+        for path in reversed(moved):
+            shutil.rmtree(path)
+        raise
+
+    return {
+        "agent_id": agent_id,
+        "experiment_id": experiment_id,
+        "source_id": f"experiment:{experiment_id}",
+    }
+
+
+def command_init(args: argparse.Namespace) -> None:
+    try:
+        result = create_harness(args.agent_id)
+    except (OSError, ValueError, RuntimeError) as exc:
+        fail(str(exc))
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
 def normalize_mode(value: str) -> str:
     """把用户可见模式名（dev/eval）规范化为内部 harness 阶段名。"""
     mode = MODE_ALIASES.get(value, value)
@@ -806,7 +1088,10 @@ def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
         dev_target = None
         if args.mode == "authoring":
             dev_target = root / DEV_TARGET_FILENAME
-            dev_target.write_text(dev_target_document(contract, args.name), encoding="utf-8")
+            dev_target.write_text(
+                dev_target_document(contract, args.name, session_preset(contract, args.mode)),
+                encoding="utf-8",
+            )
             dev_target.chmod(0o444)
         rendered = render_compose(
             (ADAPTER / f"{args.mode}.compose.yaml").read_text(encoding="utf-8"),
@@ -855,6 +1140,10 @@ def command_image_build(args: argparse.Namespace) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
+
+    init = commands.add_parser("init", help="创建最小 Harness Agent 与首次 Experiment")
+    init.add_argument("agent_id", help="小写 kebab-case Agent ID")
+    init.set_defaults(handler=command_init)
 
     build = commands.add_parser("image", help="构建锁定 DSH 镜像")
     build_sub = build.add_subparsers(dest="image_command", required=True)

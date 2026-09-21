@@ -1,0 +1,13 @@
+schema_version: 1.0
+run_id: run-6338d841-fdcd-42ff-a8c0-cb7b7b95f820
+experiment_id: EXP-test01-001
+agent_id: test01
+kind: research
+status: completed
+created_at: 2026-09-21T11:39:07Z
+source_id: experiment:EXP-test01-001
+baseline_ref: none:first-experiment
+evaluation_ref: agents/test01/evaluation.md#EXP-test01-001
+finished_at: 2026-09-21T11:42:20Z
+results_sha256: 356c48de18cac12c85c3ec28466df802d97abadbce27cf6152e9c3351dbde3f5
+summary_sha256: 18f610ce9a75b826a3583e2d894221ba67c38c7ecfe412cd8f3f18a63d7e451f

@@ -1,0 +1,10 @@
+# 最小 Web Profile Patch：只注册本 Experiment 的受控 Preset 根。
+- id: agent-presets
+  disabled: false
+  config:
+    default: test01
+    includeShippedRoot: false
+    includeUserRoot: false
+    roots:
+      - path: /opt/dsh-presets
+        trust: system
