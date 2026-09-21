@@ -17,7 +17,7 @@
 | 启动 | `PA-05` | `dsh-dev` 实例完整生命周期 | 部分验证 |
 | 装载 | `PA-06` | 开发/被测容器的真实装载与边界 | 部分验证 |
 | 修改 | `PA-07` | Headless 修改、回流、观察与回退闭环 | 部分验证 |
-| 交互 | `PA-08` | DSH Web 工作区、Session、消息与结果闭环 | 未验证 |
+| 交互 | `PA-08` | DSH Web 工作区、Session、消息与结果闭环 | 部分验证 |
 | 派生 | `PA-09` | 新 Preset 创建、回流、重载与选择闭环 | 部分验证 |
 | 记录 | `PA-10` | Research Run 的创建、记录、缺口与封存 | 部分验证 |
 | 复用 | `PA-11` | Research Release 打包、解析与复现装载 | 未实现 |
@@ -100,8 +100,8 @@
 
 - **要回答**：浏览器用户能否从工作区注册走到可核对结果。
 - **操作链**：启动 Web → 使用本次认证 URL → 注册 `up --dry-run` 或启动提示给出的工作区 → 新建正确 Preset 的 Session → 发送消息 → 核对回答、工具行为或明确错误。
-- **当前证据**：[`dsh-web-technical-preflight-20260915T054223Z.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json) 只有技术预检。
-- **缺口**：没有完整浏览器交互证据，因此仍是未验证。
+- **当前证据**：[`dsh-web-technical-preflight-20260915T054223Z.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json) 记录技术预检；[`EXP-security-operations-expert-003`](../evolution/experiments/EXP-security-operations-expert-003/decision.md) 记录一次 Playwright 用户结果与同一 Session 完成轨迹的交叉验证。
+- **缺口**：当前实录只覆盖锁定镜像、模型和该 Agent 的少量边界输入，尚不能替代其他 Harness 的 E2E。
 - **自动化边界**：可稳定的页面/协议检查可逐步自动化；真实工作区选择与用户可见结果需浏览器 E2E 或人工记录。
 
 ### PA-09 新 Preset 创建、回流、重载与选择闭环
@@ -116,8 +116,8 @@
 
 - **要回答**：一次运行能否说明“用的哪版、输入是什么、观察到什么、有哪些失败和限制”。
 - **操作链**：`init` → 逐项 `record` → 必要时 `gap` → `finalize` → 反向确认封存后不能追加结果。
-- **当前证据**：`run_record.py` 的机器合同已有测试。
-- **缺口**：当前没有可作为示范的现行 `runs/run-<UUIDv4>/` 研究实录。
+- **当前证据**：`run_record.py` 的机器合同已有测试；[`run-bb2c0162-0a09-40bf-85fc-c70eefefa066`](../evolution/experiments/EXP-security-operations-expert-003/runs/run-bb2c0162-0a09-40bf-85fc-c70eefefa066/run.yaml) 已记录并封存 7 项真实试验。
+- **缺口**：仍需在后续不同类型的 Experiment 中检验该记录方式是否足够复现比较结论。
 - **自动化边界**：schema、唯一 ID、状态转换和封存进入测试；观察是否支持假设由人审阅。
 
 ### PA-11 Research Release 打包、解析与复现装载

@@ -1,0 +1,7 @@
+schema_version: "1.0"
+experiment_id: EXP-security-operations-expert-002
+agent_id: security-operations-expert
+baseline_ref: git:fe472a1fefa49be4a59ee5364eaa43c5538805e6
+status: completed
+outcome: continue
+research_question: 真实 MCP 工具合同收敛后，能否消除无效路由并在 DSH Web 新会话中保持可解释的能力边界
