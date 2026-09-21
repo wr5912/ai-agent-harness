@@ -12,6 +12,8 @@
 - 实际运行环境和来源；
 - 本次结论不能外推到哪里。
 
+测试数据、评估方法、测试验收和 Experiment 选择只维护在 `agents/<agent-id>/evaluation.md`。Experiment 不保存本地 `evaluation/plan.yaml`。Run 的 `evaluation_ref` 指向该文件中的 Experiment 选择，`inputs.lock.json` 锁定当次文件摘要与所选 ID；这些运行事实不回写为第二份评测源。
+
 ## Trial 记录
 
 `results.jsonl` 每行是一个 JSON 对象，必填字段为：
@@ -22,7 +24,7 @@
 - `status`: `completed`、`failed`、`error` 或 `skipped`
 - `observation`
 
-`failed` 或 `error` 还需非空 `failure_reason`。以下字段按需使用：`evidence_ref`、`score`、`metrics`、`model`、`duration_ms`、`input_tokens`、`output_tokens`、`cost_amount`、`cost_currency`。不相关的字段不要用空字符串填充。
+`input_id` 必须属于该 Run 锁定的 Experiment 选择。`failed` 或 `error` 还需非空 `failure_reason`。以下字段按需使用：`evidence_ref`、`score`、`metrics`、`model`、`duration_ms`、`input_tokens`、`output_tokens`、`cost_amount`、`cost_currency`。不相关的字段不要用空字符串填充。
 
 ## 研究总结
 

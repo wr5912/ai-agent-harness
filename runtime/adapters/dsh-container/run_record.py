@@ -15,9 +15,14 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-if str(Path(__file__).resolve().parent) not in sys.path:
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
+REPO = Path(__file__).resolve().parents[3]
+ADAPTER = Path(__file__).resolve().parent
+EVALUATION_SCRIPTS = REPO / ".agents/skills/research-eval/scripts"
+for import_root in (ADAPTER, EVALUATION_SCRIPTS):
+    if str(import_root) not in sys.path:
+        sys.path.insert(0, str(import_root))
 
+from evaluation_contract import selection_for
 from source_contract import resolve
 
 
@@ -27,7 +32,6 @@ _mutation_receipt = importlib.util.module_from_spec(_MUTATION_SPEC)
 _MUTATION_SPEC.loader.exec_module(_mutation_receipt)
 snapshot = _mutation_receipt.snapshot
 
-REPO = Path(__file__).resolve().parents[3]
 EXPERIMENT_RE = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3,}$")
 RUN_ID_RE = re.compile(
     r"^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -55,13 +59,6 @@ def valid_baseline_ref(value: str) -> bool:
     if value.startswith("release:"):
         return bool(RELEASE_RE.fullmatch(value[8:]))
     return False
-
-
-def repo_relative(repo: Path, value: str) -> Path:
-    path = Path(value)
-    if not value or "\\" in value or path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
-        raise ValueError(f"unsafe relative path: {value}")
-    return repo / path
 
 
 def tree_digest(repo: Path, root: Path) -> dict:
@@ -132,7 +129,16 @@ def load_run_manifest(repo: Path, run_id: str) -> tuple[Path, dict[str, str]]:
     return run_dir, read_flat_yaml(run_dir / "run.yaml")
 
 
-def validate_trial_row(run_id: str, row: dict) -> None:
+def selected_input_ids(run_dir: Path) -> set[str]:
+    value = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+    identifiers = value.get("evaluation_selection", {}).get("case_ids") if isinstance(value, dict) else None
+    if not isinstance(identifiers, list) or not identifiers \
+            or any(not isinstance(identifier, str) or not identifier for identifier in identifiers):
+        raise ValueError("inputs.lock.json 缺少有效的 evaluation_selection.case_ids")
+    return set(identifiers)
+
+
+def validate_trial_row(run_id: str, row: dict, allowed_input_ids: set[str] | None = None) -> None:
     missing = [field for field in RESULT_FIELDS if field not in row]
     if missing:
         raise ValueError("trial row missing fields: " + ", ".join(missing))
@@ -141,6 +147,8 @@ def validate_trial_row(run_id: str, row: dict) -> None:
     for field in ("trial_id", "input_id", "observation"):
         if not isinstance(row[field], str) or not row[field].strip():
             raise ValueError(f"{field} must be a non-empty string")
+    if allowed_input_ids is not None and row["input_id"] not in allowed_input_ids:
+        raise ValueError("input_id must be selected by this Run's evaluation contract")
     if row["status"] not in RESULT_STATUSES:
         raise ValueError("status must be one of completed/failed/error/skipped")
     if row["status"] in {"failed", "error"} and not (
@@ -167,6 +175,10 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
     contract = resolve(args.source, repo=repo)
     if contract.get("agent_id") != args.agent:
         raise ValueError("source agent does not match --agent")
+    evaluation_relative = Path("agents") / args.agent / "evaluation.md"
+    evaluation_path = repo / evaluation_relative
+    evaluation_selection = selection_for(evaluation_path, args.experiment)
+    evaluation_ref = f"{evaluation_relative.as_posix()}#{args.experiment}"
     run_id = "run-" + str(uuid.uuid4())
     run_dir = experiment / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
@@ -184,15 +196,10 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
                 "managed": tree_digest(repo, Path(contract["managed"])),
             },
             "reference_tree": tree_digest(repo, Path(contract["reference_root"])) if contract.get("reference_root") else None,
+            "evaluation_sha256": hashlib.sha256(evaluation_path.read_bytes()).hexdigest(),
+            "evaluation_selection": evaluation_selection,
             "git_version": git_version(repo),
         }
-        plan_ref = ""
-        if args.plan:
-            plan_path = repo_relative(repo, args.plan)
-            if not plan_path.is_file() or plan_path.is_symlink():
-                raise ValueError(f"plan file missing or unsafe: {args.plan}")
-            inputs["plan_sha256"] = hashlib.sha256(plan_path.read_bytes()).hexdigest()
-            plan_ref = args.plan
         if args.model:
             inputs["model"] = args.model
         with (run_dir / "inputs.lock.json").open("w", encoding="utf-8") as handle:
@@ -208,9 +215,8 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
             "created_at": utc_now(),
             "source_id": contract["source_id"],
             "baseline_ref": baseline_ref,
+            "evaluation_ref": evaluation_ref,
         }
-        if plan_ref:
-            manifest["plan_ref"] = plan_ref
         write_flat_yaml(run_dir / "run.yaml", manifest)
     except BaseException:
         shutil.rmtree(run_dir)
@@ -228,7 +234,7 @@ def command_record(repo: Path, args: argparse.Namespace) -> None:
         row = json.loads(Path(args.trial_file).read_text(encoding="utf-8"))
     if not isinstance(row, dict):
         raise ValueError("trial must be a JSON object")
-    validate_trial_row(args.run, row)
+    validate_trial_row(args.run, row, selected_input_ids(run_dir))
     results = run_dir / "results.jsonl"
     if results.is_file():
         for line in results.read_text(encoding="utf-8").splitlines():
@@ -267,12 +273,13 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
         raise ValueError("Run is already finalized")
     results = run_dir / "results.jsonl"
     counts = {name: 0 for name in RESULT_STATUSES}
+    allowed_input_ids = selected_input_ids(run_dir)
     if results.is_file():
         for line in results.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
             row = json.loads(line)
-            validate_trial_row(args.run, row)
+            validate_trial_row(args.run, row, allowed_input_ids)
             counts[row["status"]] += 1
     summary = {"schema_version": "1.0", "run_id": args.run, "trial_count": sum(counts.values()), **counts}
     summary_path = run_dir / "summary.json"
@@ -300,7 +307,6 @@ def main() -> None:
     init_parser.add_argument("--source", required=True, help="当前支持 experiment:<id>")
     init_parser.add_argument("--kind", default="research", choices=RUN_KINDS)
     init_parser.add_argument("--baseline-ref", help="默认读取 Experiment change.yaml")
-    init_parser.add_argument("--plan", help="可选研究计划的仓库相对路径")
     init_parser.add_argument("--model", help="可选的实际模型标识")
     record_parser = commands.add_parser("record", help="追加一条观察")
     record_parser.add_argument("--run", required=True)

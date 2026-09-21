@@ -53,6 +53,7 @@ REQUIRED_SKILLS = {
         "references/repository-invariants.md",
     ),
     "research-eval": (
+        "scripts/evaluation_contract.py",
         "scripts/validate_experiment.py",
         "scripts/requirements.txt",
         "references/experiment-contract.md",
@@ -320,6 +321,10 @@ def validate_agents(root: Path, errors: list[dict[str, str]]) -> None:
             continue
         if manifest.get("agent_id") != agent.name:
             errors.append(issue("AGENT_ID", "manifest agent_id 必须与目录一致", relative(manifest_path, root)))
+        for name in ("definition.md", "evaluation.md"):
+            source = agent / name
+            if not is_material_file(source):
+                errors.append(issue("AGENT_SOURCE", "Agent 缺少当前事实源", relative(source, root)))
         active = manifest.get("active_experiment")
         if active:
             match = EXPERIMENT_RE.fullmatch(str(active))

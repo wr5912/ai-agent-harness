@@ -24,11 +24,11 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 | `/work/harness/workspace` | `candidate/dsh/workspace` | 读写 | 只读 |
 | `/opt/dsh-presets` | `candidate/dsh/presets` | 只读 | 只读 |
 | `/opt/dsh-managed` | `candidate/dsh/managed` | 只读 | 只读 |
-| `/work/reference` | `agents/<agent-id>`（含唯一 `definition.md`） | 只读 | 不挂载 |
+| `/work/reference` | `agents/<agent-id>`（含 `definition.md` 与 `evaluation.md`） | 只读 | 不挂载 |
 | `/work/eval-input` | 显式声明的被测输入根 | 不适用 | 仅在显式声明时只读 |
 | `/var/lib/dsh` | 分别命名的 DSH_HOME 数据卷 | 读写 | 读写 |
 
-`/work/reference` 中的 `definition.md` 是需求、任务、测试数据、评估方法和测试验收的唯一当前来源。只读挂载限制写入但不限制读取，所以该目录只挂给编写态；核验态完全不挂载，`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。来源没有安全的普通 `definition.md` 时编写态启动失败，不创建空目录。
+`/work/reference/definition.md` 是需求与任务的唯一当前来源，`evaluation.md` 是测试数据、评估方法、验收标准和 Experiment 选择的唯一当前来源。只读挂载限制写入但不限制读取，所以该目录只挂给编写态；核验态完全不挂载，`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。任一文件缺失或不是安全的普通文件时，编写态启动失败，不创建空目录。
 
 两种模式都使用同一组受控 HOME 边界：`locked-user.patch.yml`（顶层 `[]`）精确只读覆盖 HOME 与 Web Profile 的用户 Patch，`web-profile.package.json` 固定官方 `base`、`web-app` Bundle 和 `patchReload: startup`，阻断可写 HOME 的额外启动 Plugin。真正 **0 字节**的 `locked-global.AGENTS.md` 精确只读覆盖 HOME 全局 Agent instructions，不向 Session 注入任何额外语义。`locked-bootstrap.env` 只含一行注释，精确只读覆盖 HOME 与 Candidate workspace 两处 `.env`；模型/MCP Endpoint 和凭据只能由受信容器调用环境或 Runtime 受控凭据提供，不能由可写工作区在 Boot 前暗改。Candidate workspace 中的 `.env` 只是与受控文件字节相同的宿主挂载目标，不存任何变量或凭据。编写态仍可写其他 Candidate workspace 资产，`skill-filesystem.watch: true` 仍可实时看到 Skill 改动；这不授予改受控 Profile、MCP 或 Boot 环境的权限。
 

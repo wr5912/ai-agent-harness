@@ -42,7 +42,7 @@ AUTO_PORT_START = 3081
 # 不在通用启动器里硬编码任何业务 Agent 名。
 AUTHORING_PRESET = "cordis"
 CONTEXT_ASSETS = (
-    ("reference", "/work/reference", "reference_root", "需求定义、任务定义、测试数据、评估方法、测试验收"),
+    ("reference", "/work/reference", "reference_root", "需求与任务定义、共享评测口径"),
 )
 CORDIS_TRUST_NOTICE = (
     "开发模式（--mode dev）以出厂 cordis（创造模式）preset 启动：该会话具备 shell 与对实时 runtime 执行模型 JS 的 "

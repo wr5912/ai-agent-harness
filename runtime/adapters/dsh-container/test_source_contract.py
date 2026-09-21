@@ -33,6 +33,21 @@ class SourceContractTest(unittest.TestCase):
         self.assertEqual(result["schema_version"], "2.0")
         self.assertNotIn("TOKEN=", json.dumps(result))
 
+    def test_reference_root_requires_both_agent_sources(self):
+        with tempfile.TemporaryDirectory(prefix="dsh-source-contract-") as location:
+            repo = Path(location)
+            agent = repo / "agents/example-agent"
+            agent.mkdir(parents=True)
+            (agent / "definition.md").write_text("需求", encoding="utf-8")
+            self.assertIsNone(
+                source_contract._agent_asset_roots(repo, "example-agent")["reference_root"]
+            )
+            (agent / "evaluation.md").write_text("评测", encoding="utf-8")
+            self.assertEqual(
+                source_contract._agent_asset_roots(repo, "example-agent")["reference_root"],
+                str(agent),
+            )
+
     def test_development_overlay_must_exist_inside_managed(self):
         with tempfile.TemporaryDirectory(prefix="dsh-source-contract-") as location:
             catalog_path = Path(location) / "sources.json"

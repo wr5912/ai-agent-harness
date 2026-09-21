@@ -10,7 +10,7 @@ description: 为 DSH Harness Experiment 设计轻量比较，校验 Run 记录�
 ## 工作方式
 
 1. 写出假设、Baseline 引用、Candidate 变化和本次允许得出的结论范围。
-2. 选择最少但有区分力的输入；包括必要的反例或回归，不机械追求数量。
+2. 在 `agents/<agent-id>/evaluation.md` 为本 Experiment 选择最少但有区分力的输入、方法与验收；包括必要的反例或回归，不机械追求数量。
 3. 在一次比较运行期间保持 Harness、输入、方法和判断口径稳定。
 4. 每个实际执行使用新的 `run_id`，逐项记录输入、状态和实际观察。
 5. 先写失败和未知状态，再总结支持或反驳假设的证据。
@@ -28,6 +28,7 @@ python3 .agents/skills/research-eval/scripts/validate_experiment.py \
 ## 边界
 
 - 不要求固定 50 Case、固定 Trial 次数、REQ/AC、R1/R2/R3 或统一分数阈值。
+- 不创建 Experiment 本地 `evaluation/plan.yaml`；测试数据、方法、验收和选择只维护在 Agent 的 `evaluation.md`。
 - 一个输入可以支持早期探索，但不能据此扩大到未覆盖任务、模型或环境。
 - 自动校验只检查记录是否可解析、身份是否一致和必要字段是否存在，不判断观察是否真实或研究结论是否合理。
 - 技术装载、容器启动、HTTP `200` 和 `/health` 不等于 Harness 行为有效。

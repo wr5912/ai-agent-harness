@@ -39,7 +39,7 @@
 |---|---|---|
 | 开发智能体的运行配置 | 开发模式实际采用的 `session_preset=cordis`、`/work/AGENTS.md` 与 `/work/AGENTS.local.md` 指令链，以及 `authoring.compose.yaml` 渲染出的有效启动与挂载配置 | 开发者；改变这些有效值属于开发环境变更 |
 | 被开发或优化的 Harness 资产 | 所选 Experiment 的 `candidate/dsh/{workspace,presets,managed}` | 开发者在任务范围内编辑，经 Git 管理 |
-| 需求、测试数据与评估标准 | `agents/<agent-id>/definition.md`，或确有机器消费者时使用一个 JSONL | 开发者维护唯一事实源；单次评测期间保持不变 |
+| 需求、测试数据与评估标准 | `agents/<agent-id>/definition.md` 维护需求与任务；同目录 `evaluation.md` 维护测试数据、方法、验收与 Experiment 选择 | 每类事实只有一个可编辑来源；单次评测期间保持不变 |
 | 运行状态与运行记录 | 运行状态是实例 `DSH_HOME` 数据卷；持久记录是 `evolution/experiments/<id>/runs/` 与 `evaluation/evidence/` | 状态按实例生命周期管理；受管执行的 Run 事实和必要证据独立保留，不当作缓存丢弃 |
 
 开发会话里读到的业务角色指令（例如目标是安全运营专家）是第二类资产的正文，读它是为了修改它，不代表开发工具要切换成业务智能体。这一点不能只靠文字提醒：开发会话注册的工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（见 5.2 节），目标自己的 `AGENTS.md` 仍留在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。
@@ -115,7 +115,7 @@ python3 runtime/adapters/dsh-container/run_record.py --repo . init \
   --source experiment:EXP-security-operations-expert-001 --kind research
 ```
 
-`inputs.lock.json` 会记录三棵 Harness 树与研究定义树的摘要，以及 `git_version`（提交、是否含未提交修改、变更路径数）。**未提交修改无法仅凭 `HEAD` 还原**，所以该字段必须如实保留，不能把带未提交修改的运行写成某个提交的完整内容。
+`inputs.lock.json` 会记录三棵 Harness 树与研究资料树的摘要、`evaluation.md` 摘要和本 Experiment 所选 ID，以及 `git_version`（提交、是否含未提交修改、变更路径数）。这些值是当次 Run 的不可编辑输入锁，不是新的评测维护源。**未提交修改无法仅凭 `HEAD` 还原**，所以该字段必须如实保留，不能把带未提交修改的运行写成某个提交的完整内容。
 
 开发过程中产生的新 preset、技能或插件即使暂存在容器 HOME 的 `/var/lib/dsh/.agent-presets/`，仍属于待保存的开发产物，不是缓存：在结束实例前把它复制回 `candidate/dsh/presets/`，宿主复核后再重建容器核验。不清理时一并删除。
 
@@ -189,7 +189,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 ### 5.3 判分材料不进入被测容器
 
-`/work/reference` 挂载唯一研究定义，其中的需求、任务、测试数据、评估方法和测试验收都属于判分材料。只读挂载只限制写入、不限制读取，所以判分材料不能靠"挂成只读"来隔离：把它挂进被测容器，再依赖被测实现自己的文件访问限制去挡，等于让被测对象保护的边界去保护测试本身。
+`/work/reference` 挂载同一 Agent 的两份职责分离资料：`definition.md` 保存需求与任务，`evaluation.md` 保存测试数据、评估方法、验收标准和 Experiment 选择。两者都属于判分材料。只读挂载只限制写入、不限制读取，所以判分材料不能靠"挂成只读"来隔离：把它挂进被测容器，再依赖被测实现自己的文件访问限制去挡，等于让被测对象保护的边界去保护测试本身。
 
 因此：
 

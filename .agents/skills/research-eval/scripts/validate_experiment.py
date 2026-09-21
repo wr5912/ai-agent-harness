@@ -4,10 +4,16 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
 from pathlib import Path
+
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from evaluation_contract import selection_for
 
 try:
     import yaml
@@ -83,7 +89,12 @@ def valid_baseline_ref(value: object) -> bool:
     return False
 
 
-def validate_result(path: Path, expected_run: str, errors: list[dict[str, str]]) -> None:
+def validate_result(
+    path: Path,
+    expected_run: str,
+    allowed_input_ids: set[str],
+    errors: list[dict[str, str]],
+) -> None:
     seen: set[str] = set()
     for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if not line.strip():
@@ -112,6 +123,8 @@ def validate_result(path: Path, expected_run: str, errors: list[dict[str, str]])
             seen.add(trial_id)
         if not isinstance(row["input_id"], str) or not row["input_id"].strip():
             errors.append(issue("RESULT_INPUT", f"第 {line_number} 行 input_id 必须是非空字符串", path))
+        elif row["input_id"] not in allowed_input_ids:
+            errors.append(issue("RESULT_INPUT_SELECTION", f"第 {line_number} 行 input_id 未被本 Experiment 选择", path))
         if row["status"] not in TRIAL_STATUSES:
             errors.append(issue("RESULT_STATUS", f"第 {line_number} 行 status 不合法", path))
         if not isinstance(row["observation"], str) or not row["observation"].strip():
@@ -122,7 +135,15 @@ def validate_result(path: Path, expected_run: str, errors: list[dict[str, str]])
             errors.append(issue("RESULT_FAILURE_REASON", f"第 {line_number} 行失败或错误必须说明原因", path))
 
 
-def validate_run(run_dir: Path, experiment_id: str, agent_id: str, errors: list[dict[str, str]]) -> None:
+def validate_run(
+    run_dir: Path,
+    experiment_id: str,
+    agent_id: str,
+    evaluation_ref: str,
+    evaluation_sha256: str,
+    evaluation_selection: dict[str, list[str]],
+    errors: list[dict[str, str]],
+) -> None:
     if not RUN_RE.fullmatch(run_dir.name):
         errors.append(issue("RUN_NAME", "Run 目录必须使用 run-<UUIDv4>", run_dir))
         return
@@ -148,12 +169,31 @@ def validate_run(run_dir: Path, experiment_id: str, agent_id: str, errors: list[
     status = manifest.get("status")
     if status not in RUN_STATUSES:
         errors.append(issue("RUN_STATUS", "Run status 不合法", manifest_path))
+    if manifest.get("evaluation_ref") != evaluation_ref:
+        errors.append(issue("RUN_EVALUATION_REF", f"evaluation_ref 必须是 {evaluation_ref}", manifest_path))
+    if "plan_ref" in manifest:
+        errors.append(issue("RUN_PLAN_REF", "Run 不再允许引用 Experiment 本地 plan", manifest_path))
     inputs = run_dir / "inputs.lock.json"
     if not inputs.is_file() or inputs.stat().st_size == 0:
         errors.append(issue("RUN_INPUTS", "Run 缺少 inputs.lock.json", run_dir))
+        locked_inputs = {}
+    else:
+        try:
+            locked_inputs = json.loads(inputs.read_text(encoding="utf-8"))
+            if not isinstance(locked_inputs, dict):
+                raise ValueError("必须是 JSON object")
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            errors.append(issue("RUN_INPUTS", f"inputs.lock.json 无效：{exc}", inputs))
+            locked_inputs = {}
+    if "plan_sha256" in locked_inputs:
+        errors.append(issue("RUN_PLAN_REF", "Run 输入锁不再允许保存本地 plan 摘要", inputs))
+    if locked_inputs.get("evaluation_sha256") != evaluation_sha256:
+        errors.append(issue("RUN_EVALUATION_HASH", "Run 锁定的 evaluation.md 摘要与当前文件不一致", inputs))
+    if locked_inputs.get("evaluation_selection") != evaluation_selection:
+        errors.append(issue("RUN_EVALUATION_SELECTION", "Run 锁定的 Experiment 选择与当前文件不一致", inputs))
     results = run_dir / "results.jsonl"
     if results.is_file():
-        validate_result(results, run_dir.name, errors)
+        validate_result(results, run_dir.name, set(evaluation_selection["case_ids"]), errors)
     if status in {"completed", "failed", "cancelled"} and not (run_dir / "summary.json").is_file():
         errors.append(issue("RUN_SUMMARY", "已封存 Run 缺少 summary.json", run_dir))
 
@@ -166,6 +206,16 @@ def validate(experiment: Path) -> tuple[dict, int]:
         payload = {"schema_version": "1.0", "valid": False, "errors": [issue("EXPERIMENT_PATH", "输入必须是 EXP-<agent-id>-NNN 实体目录", experiment)], "warnings": []}
         return payload, 2
     agent_id = match.group(1)
+    repository = experiment.parents[2]
+    evaluation_path = repository / "agents" / agent_id / "evaluation.md"
+    evaluation_ref = f"agents/{agent_id}/evaluation.md#{experiment.name}"
+    try:
+        evaluation_selection = selection_for(evaluation_path, experiment.name)
+        evaluation_sha256 = hashlib.sha256(evaluation_path.read_bytes()).hexdigest()
+    except (OSError, ValueError) as exc:
+        errors.append(issue("EVALUATION_CONTRACT", str(exc), evaluation_path))
+        evaluation_selection = None
+        evaluation_sha256 = ""
     change_path = experiment / "change.yaml"
     try:
         change = load_yaml(change_path)
@@ -194,8 +244,9 @@ def validate(experiment: Path) -> tuple[dict, int]:
         errors.append(issue("HYPOTHESIS", "hypothesis.md 缺少实质内容", experiment / "hypothesis.md"))
     if not material_files(experiment / "candidate"):
         errors.append(issue("CANDIDATE", "candidate/ 缺少真实资产", experiment / "candidate"))
-    if not material_files(experiment / "evaluation"):
-        errors.append(issue("EVALUATION", "evaluation/ 缺少真实材料", experiment / "evaluation"))
+    local_plan = experiment / "evaluation/plan.yaml"
+    if local_plan.exists():
+        errors.append(issue("EVALUATION_PLAN", "评测口径只能维护在 Agent 的 evaluation.md", local_plan))
     if status == "completed" and not has_text(experiment / "decision.md"):
         errors.append(issue("DECISION", "完成的 Experiment 缺少实质 decision.md", experiment / "decision.md"))
     runs = experiment / "runs"
@@ -205,7 +256,16 @@ def validate(experiment: Path) -> tuple[dict, int]:
         else:
             for run_dir in sorted(path for path in runs.iterdir() if path.name not in {".DS_Store"}):
                 if run_dir.is_dir():
-                    validate_run(run_dir, experiment.name, agent_id, errors)
+                    if evaluation_selection is not None:
+                        validate_run(
+                            run_dir,
+                            experiment.name,
+                            agent_id,
+                            evaluation_ref,
+                            evaluation_sha256,
+                            evaluation_selection,
+                            errors,
+                        )
                 else:
                     errors.append(issue("RUN_ENTRY", "runs/ 只能包含 Run 目录", run_dir))
     payload = {

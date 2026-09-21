@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INSPECT_SOURCE = ROOT / ".agents/skills/legacy-asset-intake/scripts/inspect_source.py"
 VALIDATE_REPOSITORY = ROOT / ".agents/skills/harness-evolution/scripts/validate_repository.py"
 VALIDATE_EXPERIMENT = ROOT / ".agents/skills/research-eval/scripts/validate_experiment.py"
+EVALUATION_CONTRACT = ROOT / ".agents/skills/research-eval/scripts/evaluation_contract.py"
 RUN_RECORD = ROOT / "runtime/adapters/dsh-container/run_record.py"
 EXPERIMENT_ID = "EXP-security-operations-expert-001"
 AGENT_ID = "security-operations-expert"
@@ -56,9 +57,42 @@ def copy_repository(destination: Path) -> Path:
 
 
 def write_minimal_experiment(root: Path, *, status: str = "active", outcome: str | None = None) -> Path:
-    experiment = root / "EXP-example-agent-001"
+    experiment_id = "EXP-example-agent-001"
+    experiment = root / "evolution/experiments" / experiment_id
     (experiment / "candidate").mkdir(parents=True)
-    (experiment / "evaluation").mkdir()
+    evaluation = root / "agents/example-agent/evaluation.md"
+    evaluation.parent.mkdir(parents=True)
+    evaluation.write_text(
+        """# 示例评测
+
+## 测试数据
+
+##### T-EXAMPLE-001
+
+最小输入。
+
+## 评估方法
+
+### m-example
+
+记录实际观察。
+
+## 测试验收
+
+### AC-001
+
+观察与输入一致。
+
+## Experiment 评估选择
+
+### EXP-example-agent-001
+
+- 测试用例：`T-EXAMPLE-001`
+- 评估方法：`m-example`
+- 测试验收：`AC-001`
+""",
+        encoding="utf-8",
+    )
     lines = [
         'schema_version: "1.0"',
         "experiment_id: EXP-example-agent-001",
@@ -71,7 +105,6 @@ def write_minimal_experiment(root: Path, *, status: str = "active", outcome: str
     (experiment / "change.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
     (experiment / "hypothesis.md").write_text("# 假设\n\n比较一个具体变化。\n", encoding="utf-8")
     (experiment / "candidate/harness.yaml").write_text('schema_version: "1.0"\nvalue: candidate\n', encoding="utf-8")
-    (experiment / "evaluation/notes.md").write_text("# 观察\n\n尚未运行。\n", encoding="utf-8")
     if status == "completed":
         (experiment / "decision.md").write_text("# 决定\n\n根据观察停止本实验。\n", encoding="utf-8")
     return experiment
@@ -177,6 +210,14 @@ class RepositoryValidatorTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, json.dumps(payload, ensure_ascii=False, indent=2))
         self.assertTrue(payload["valid"])
         self.assertIn("不代表 Experiment 结果", payload["scope"])
+
+    def test_agent_evaluation_source_is_required(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = copy_repository(Path(temp))
+            (repository / "agents/security-operations-expert/evaluation.md").unlink()
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("AGENT_SOURCE", error_codes(payload))
 
     def test_memory_must_be_explicit_true(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -284,13 +325,28 @@ class ResearchEvalTests(unittest.TestCase):
                         "agent_id: example-agent",
                         "kind: research",
                         "status: running",
+                        "evaluation_ref: agents/example-agent/evaluation.md#EXP-example-agent-001",
                     ]
                 )
                 + "\n",
                 encoding="utf-8",
             )
-            (run_dir / "inputs.lock.json").write_text("{}\n", encoding="utf-8")
-            row = {"run_id": run_id, "trial_id": "trial-1", "input_id": "input-1", "status": "completed", "observation": "观察到预期变化"}
+            evaluation = experiment.parents[2] / "agents/example-agent/evaluation.md"
+            (run_dir / "inputs.lock.json").write_text(
+                json.dumps(
+                    {
+                        "evaluation_sha256": hashlib.sha256(evaluation.read_bytes()).hexdigest(),
+                        "evaluation_selection": {
+                            "case_ids": ["T-EXAMPLE-001"],
+                            "method_ids": ["m-example"],
+                            "acceptance_ids": ["AC-001"],
+                        },
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            row = {"run_id": run_id, "trial_id": "trial-1", "input_id": "T-EXAMPLE-001", "status": "completed", "observation": "观察到预期变化"}
             (run_dir / "results.jsonl").write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
             completed, payload = run_json(VALIDATE_EXPERIMENT, experiment)
             self.assertEqual(completed.returncode, 0, json.dumps(payload, ensure_ascii=False, indent=2))
@@ -299,6 +355,15 @@ class ResearchEvalTests(unittest.TestCase):
             completed, payload = run_json(VALIDATE_EXPERIMENT, experiment)
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("RESULT_FIELDS", error_codes(payload))
+
+    def test_local_plan_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            experiment = write_minimal_experiment(Path(temp))
+            (experiment / "evaluation").mkdir()
+            (experiment / "evaluation/plan.yaml").write_text("cases: []\n", encoding="utf-8")
+            completed, payload = run_json(VALIDATE_EXPERIMENT, experiment)
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("EVALUATION_PLAN", error_codes(payload))
 
 
 class RunRecordTests(unittest.TestCase):
@@ -323,7 +388,7 @@ class RunRecordTests(unittest.TestCase):
                     {
                         "run_id": run_id,
                         "trial_id": "trial-1",
-                        "input_id": "input-1",
+                        "input_id": "T-MIGRATION-SOURCE",
                         "status": "completed",
                         "observation": "目标会话观察到新增 Skill",
                     },
@@ -344,6 +409,25 @@ class RunRecordTests(unittest.TestCase):
             self.assertIn("baseline_ref: none:first-experiment", (run_dir / "run.yaml").read_text(encoding="utf-8"))
             inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
             self.assertIn("git_version", inputs)
+            self.assertEqual(inputs["evaluation_selection"]["case_ids"], ["T-MIGRATION-SOURCE", "T-DSH-LOAD-CYCLE"])
+            self.assertIn(
+                "evaluation_ref: agents/security-operations-expert/evaluation.md#EXP-security-operations-expert-001",
+                (run_dir / "run.yaml").read_text(encoding="utf-8"),
+            )
+
+    def test_unselected_input_is_rejected(self) -> None:
+        spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        row = {
+            "run_id": "run-" + str(uuid.uuid4()),
+            "trial_id": "trial-1",
+            "input_id": "T-NOT-SELECTED",
+            "status": "completed",
+            "observation": "不应写入",
+        }
+        with self.assertRaisesRegex(ValueError, "selected"):
+            module.validate_trial_row(row["run_id"], row, {"T-MIGRATION-SOURCE"})
 
     def test_old_pass_status_and_failed_without_reason_are_rejected(self) -> None:
         spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
@@ -364,23 +448,60 @@ class RunRecordTests(unittest.TestCase):
 
 
 class DefinitionSourceTests(unittest.TestCase):
-    def test_agent_definition_is_the_only_current_source(self) -> None:
+    def test_agent_definition_and_evaluation_have_one_concern_each(self) -> None:
         definition = ROOT / "agents" / AGENT_ID / "definition.md"
-        text = definition.read_text(encoding="utf-8")
+        definition_text = definition.read_text(encoding="utf-8")
+        evaluation = definition.with_name("evaluation.md")
+        evaluation_text = evaluation.read_text(encoding="utf-8")
         self.assertEqual(
-            re.findall(r"^## (.+)$", text, re.MULTILINE),
-            ["需求定义", "任务定义", "测试数据", "评估方法", "测试验收"],
+            re.findall(r"^## (.+)$", definition_text, re.MULTILINE),
+            ["需求定义", "任务定义"],
         )
-        self.assertEqual(len(re.findall(r"^### task-", text, re.MULTILINE)), 34)
-        self.assertEqual(len(re.findall(r"^##### (?:D|U)-[A-Z]+-[0-9]+$", text, re.MULTILINE)), 121)
-        self.assertEqual(len(re.findall(r"^### m-", text, re.MULTILINE)), 39)
-        self.assertEqual(len(re.findall(r"^### AC-", text, re.MULTILINE)), 39)
+        self.assertIn("[evaluation.md](./evaluation.md)", definition_text)
+        self.assertNotIn("以本文“测试数据”为准", definition_text)
+        self.assertEqual(
+            re.findall(r"^## (.+)$", evaluation_text, re.MULTILINE),
+            ["测试数据", "评估方法", "测试验收", "Experiment 评估选择"],
+        )
+        self.assertEqual(len(re.findall(r"^### task-", definition_text, re.MULTILINE)), 34)
+        self.assertEqual(len(re.findall(r"^##### (?:D|U|T)-[A-Z0-9-]+$", evaluation_text, re.MULTILINE)), 142)
+        self.assertEqual(len(re.findall(r"^### m-", evaluation_text, re.MULTILINE)), 43)
+        self.assertEqual(len(re.findall(r"^### AC-", evaluation_text, re.MULTILINE)), 44)
+        user_case_ids = re.findall(r"^##### (U-[A-Z0-9-]+)$", evaluation_text, re.MULTILINE)
+        self.assertEqual(len(user_case_ids), 8)
+        user_case_bodies = re.findall(
+            r"^##### U-[A-Z0-9-]+$(.*?)(?=^##### |\Z)",
+            evaluation_text,
+            re.MULTILINE | re.DOTALL,
+        )
+        self.assertEqual(len(user_case_bodies), len(user_case_ids))
+        self.assertTrue(all(body.count("**用户输入**") == 1 for body in user_case_bodies))
+        spec = importlib.util.spec_from_file_location("evaluation_contract", EVALUATION_CONTRACT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        selection = module.load_evaluation(evaluation)["selections"]["EXP-security-operations-expert-006"]
+        self.assertLessEqual(set(user_case_ids), set(selection["case_ids"]))
+        self.assertFalse(list((ROOT / "evolution/experiments").glob("EXP-*/evaluation/plan.yaml")))
         retired = (
             "spec/requirements.md", "spec/tasks.yaml", "spec/acceptance.yaml",
             "eval/methods.yaml", "eval/fixtures", "eval/pending",
         )
         for relative in retired:
             self.assertFalse((definition.parent / relative).exists(), relative)
+
+    def test_unknown_selection_id_is_rejected(self) -> None:
+        spec = importlib.util.spec_from_file_location("evaluation_contract", EVALUATION_CONTRACT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temp:
+            evaluation = Path(temp) / "evaluation.md"
+            text = (ROOT / "agents" / AGENT_ID / "evaluation.md").read_text(encoding="utf-8")
+            evaluation.write_text(
+                text.replace("`T-MIGRATION-SOURCE`、`T-DSH-LOAD-CYCLE`", "`T-NOT-DEFINED`、`T-DSH-LOAD-CYCLE`"),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "未定义"):
+                module.load_evaluation(evaluation)
 
 
 if __name__ == "__main__":

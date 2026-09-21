@@ -18,7 +18,7 @@ Baseline 引用 → Experiment（含 Candidate）→ Evaluation → Decision
 
 ## 目录职责
 
-- `agents/<agent-id>/`：Agent 的研究入口，以及按需存在的目标、输入和方法。
+- `agents/<agent-id>/`：Agent 的研究入口；`definition.md` 唯一维护需求与任务，`evaluation.md` 唯一维护测试数据、方法、验收和 Experiment 选择。
 - `evolution/experiments/<id>/`：假设、Candidate、Evaluation、Run 和 Decision。
 - `evolution/history/imports/`：外部来源原貌、清洗材料与处置记录；不作为现行 Harness 的第二份可编辑事实源。
 - `releases/`：自包含、不可变、可校验的 Research Release；不表示生产可用。
@@ -37,11 +37,11 @@ Baseline 引用 → Experiment（含 Candidate）→ Evaluation → Decision
 - `status: active|completed`
 - 完成时的 `outcome: adopt|continue|reject|inconclusive`
 
-`hypothesis.md`、`candidate/` 和 `evaluation/` 应有与当前实验相关的实质内容。完成的 Experiment 还必须有实质 `decision.md`，写清结果、依据、回归、限制和下一步。研究失败或证据不足是合法结果，不要求生成 Release。
+`hypothesis.md` 和 `candidate/` 应有与当前实验相关的实质内容。评测选择写在 Agent 的 `evaluation.md`，不得在 Experiment 下另存 `evaluation/plan.yaml`；`evaluation/` 只按需保存工具、证据或总结。完成的 Experiment 还必须有实质 `decision.md`，写清结果、依据、回归、限制和下一步。研究失败或证据不足是合法结果，不要求生成 Release。
 
 ## Run 最小合同
 
-Run 记录实际来源、Git 提交与 dirty 状态、必要资产摘要和逐项观察。每条结果至少包含：
+Run 的 `evaluation_ref` 指向 `agents/<agent-id>/evaluation.md#<experiment-id>`，输入锁保存当次文件摘要与所选 ID。它们是不可编辑的执行事实，不是另一份评测计划。Run 还记录实际来源、Git 提交与 dirty 状态、必要资产摘要和逐项观察。每条结果至少包含：
 
 ```json
 {
@@ -53,7 +53,7 @@ Run 记录实际来源、Git 提交与 dirty 状态、必要资产摘要和逐�
 }
 ```
 
-`failed` 和 `error` 需要 `failure_reason`。分数、耗时、Token、成本、模型和证据引用按研究需要增加，不设固定 17 列合同。
+`input_id` 必须属于该 Run 锁定的选择；`failed` 和 `error` 需要 `failure_reason`。分数、耗时、Token、成本、模型和证据引用按研究需要增加，不设固定 17 列合同。
 
 ## Research Release 最小合同
 

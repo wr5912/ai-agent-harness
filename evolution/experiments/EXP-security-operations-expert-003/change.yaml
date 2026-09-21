@@ -2,6 +2,5 @@ schema_version: "1.0"
 experiment_id: EXP-security-operations-expert-003
 agent_id: security-operations-expert
 baseline_ref: git:fe472a1fefa49be4a59ee5364eaa43c5538805e6
-status: completed
-outcome: adopt
+status: active
 research_question: 按 Agent 作用域收缩真实工具视图后，模型可见工具能否与角色合同一致并保持既有边界行为

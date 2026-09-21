@@ -113,13 +113,14 @@ docs/
   standards/                             # 受控来源、副本摘要与项目解释
 agents/<agent-id>/
   manifest.yaml                          # Agent 研究入口和当前 Experiment
-  definition.md                          # 需求、任务、测试数据、评估方法与测试验收的单一事实源
+  definition.md                          # 需求与任务的单一事实源
+  evaluation.md                          # 测试数据、评估方法、验收与 Experiment 选择的单一事实源
 evolution/
   experiments/EXP-<agent-id>-NNN/
     change.yaml                          # 基线引用、状态与结果
     hypothesis.md                        # 为什么改、怎样判断
     candidate/                           # 本实验的可修改 Harness 工作树
-    evaluation/                          # 计划、观察、证据与研究总结
+    evaluation/                          # 按需保存工具、证据与研究总结；不保存评测计划副本
     runs/run-<UUIDv4>/                   # 一次执行的独立事实记录
     decision.md                          # adopt/continue/reject/inconclusive 及理由
   history/imports/<agent-id>-YYYY-MM-DD/ # 外部来源原貌、清洗材料与处置记录
@@ -132,7 +133,7 @@ AI纠错记录/                               # 按天追加的 AI 纠错记录
 
 `evolution/history/imports/` 只保存来源追溯和迁移审计。需要改变当前 Harness、研究目标或比较材料时，修改现行资产并进入新的 Experiment，不回写历史批次来改变当前行为。
 
-研究定义按主要消费方式选择一个 Markdown 或一个 JSONL，不同时维护多种投影。当前示例见 [`agents/security-operations-expert/definition.md`](agents/security-operations-expert/definition.md)。
+需求与任务只在 [`definition.md`](agents/security-operations-expert/definition.md) 维护；测试数据、评估方法、验收标准和各 Experiment 的选择只在 [`evaluation.md`](agents/security-operations-expert/evaluation.md) 维护。Experiment 不再保存本地评测计划；Run 自动锁定当次摘要和所选 ID，这些不可编辑记录不是第二份维护源。
 
 本项目不维护 `evolution/baselines/` 和 `agents/<agent-id>/current/`。Baseline 使用 `git:<commit>`、`release:<id>` 或 `none:first-experiment` 引用；Git 和不可变 Research Release 已足以恢复版本，额外镜像会制造重复事实源。
 

@@ -61,7 +61,7 @@
 ### PA-03 仓库结构、项目技能与研究资产合同
 
 - **要回答**：研究资产是否放在正确位置，是否避免重复 Baseline/current 和定义投影，Experiment、Run 和 Research Release 是否具备最小可复现内容。
-- **操作链**：只读检查外部资产 → 核对 Agent 当前研究定义只有一个可编辑源 → 运行仓库校验 → 运行 Experiment 校验 → 用负向样例验证非法身份、空资产、危险链接和重复目录会被拒绝。
+- **操作链**：只读检查外部资产 → 核对 `definition.md` 与 `evaluation.md` 各自只有一个职责和一个可编辑源 → 运行仓库校验 → 运行 Experiment 校验 → 用负向样例验证未知选择、本地评测计划、非法身份、空资产和危险链接会被拒绝。
 - **当前证据**：`inspect_source.py`、`validate_repository.py`、`validate_experiment.py` 及其测试覆盖当前确定性合同。
 - **自动化边界**：结构、格式、引用和摘要进入测试；研究内容是否真实、有价值不由校验器打分。
 
@@ -83,7 +83,7 @@
 ### PA-06 开发/被测容器的真实装载与边界
 
 - **要回答**：两种模式是否实际加载同一来源，并形成预期的可写/只读视图。
-- **操作链**：确认镜像身份 → 启动开发实例 → 核对开发身份、目标声明和单一研究定义挂载 → 启动被测实例 → 核对目标 Preset、Skill、Plugin/MCP 声明及材料不可见性。
+- **操作链**：确认镜像身份 → 启动开发实例 → 核对开发身份、目标声明和共享研究资料挂载 → 启动被测实例 → 核对目标 Preset、Skill、Plugin/MCP 声明及材料不可见性。
 - **当前证据**：[`dsh-dev-live-load-20260918.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-live-load-20260918.json) 和 [`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json) 记录当前镜像下的主要探针。
 - **缺口**：镜像、Profile、适配层或挂载合同变化后需要重跑；技术装载不说明业务能力有效。
 - **自动化边界**：Compose 和计划合同进入测试；真实容器内可见内容用容器探针。
@@ -100,8 +100,8 @@
 
 - **要回答**：浏览器用户能否从工作区注册走到可核对结果。
 - **操作链**：启动 Web → 使用本次认证 URL → 注册 `up --dry-run` 或启动提示给出的工作区 → 新建正确 Preset 的 Session → 发送消息 → 核对回答、工具行为或明确错误。
-- **当前证据**：[`dsh-web-technical-preflight-20260915T054223Z.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json) 记录技术预检；[`EXP-security-operations-expert-004`](../evolution/experiments/EXP-security-operations-expert-004/decision.md) 记录一次 Playwright 用户结果与同一 Session 完成轨迹的交叉验证。
-- **缺口**：当前实录只覆盖锁定镜像、模型和该 Agent 的少量边界输入，尚不能替代其他 Harness 的 E2E。
+- **当前证据**：[`dsh-web-technical-preflight-20260915T054223Z.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json) 记录技术预检。
+- **缺口**：当前口径尚无已封存的 Playwright 用户结果与同一 Session 执行轨迹交叉验证。
 - **自动化边界**：可稳定的页面/协议检查可逐步自动化；真实工作区选择与用户可见结果需浏览器 E2E 或人工记录。
 
 ### PA-09 新 Preset 创建、回流、重载与选择闭环
@@ -116,8 +116,8 @@
 
 - **要回答**：一次运行能否说明“用的哪版、输入是什么、观察到什么、有哪些失败和限制”。
 - **操作链**：`init` → 逐项 `record` → 必要时 `gap` → `finalize` → 反向确认封存后不能追加结果。
-- **当前证据**：`run_record.py` 的机器合同已有测试；[`run-8d171c29-8c07-4fb7-91ec-cc580e45d585`](../evolution/experiments/EXP-security-operations-expert-004/runs/run-8d171c29-8c07-4fb7-91ec-cc580e45d585/run.yaml) 已记录并封存 5 项真实试验。
-- **缺口**：仍需在后续不同类型的 Experiment 中检验该记录方式是否足够复现比较结论。
+- **当前证据**：`run_record.py` 的机器合同已有测试，覆盖共享评测引用、输入锁、选择范围和封存。
+- **缺口**：当前口径尚无已封存 Run；仍需用实际 Experiment 检验记录是否足以复现比较结论。
 - **自动化边界**：schema、唯一 ID、状态转换和封存进入测试；观察是否支持假设由人审阅。
 
 ### PA-11 Research Release 打包、解析与复现装载

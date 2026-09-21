@@ -25,7 +25,7 @@ NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 EXPERIMENT = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3}$")
 RELEASE_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*-v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
 ROLES = ("authoring", "subject", "scoring")
-# 需求/任务/验收与评估方法、预置、预期答案都是判分材料：开发与评分角色可读，被测角色不可读。
+# definition.md 与 evaluation.md 都是判分材料：开发与评分角色可读，被测角色不可读。
 GRADING_ROLES = ("authoring", "scoring")
 CONTAINER_WORKSPACE = "/work/harness/workspace"
 CONTAINER_REFERENCE = "/work/reference"
@@ -76,10 +76,10 @@ def real_file_below(root: Path, relative: Path) -> bool:
 
 
 def _agent_asset_roots(repo: Path, agent_id: str) -> dict:
-    """Agent 当前研究定义根；不存在时返回 None，不伪造空目录。"""
+    """Agent 当前需求与评测事实源根；任一缺失时不伪造空目录。"""
     agent_dir = repo / "agents" / agent_id
     valid = agent_dir.is_dir() and not agent_dir.is_symlink() \
-        and real_file_below(agent_dir, Path("definition.md"))
+        and all(real_file_below(agent_dir, Path(name)) for name in ("definition.md", "evaluation.md"))
     return {"reference_root": str(agent_dir) if valid else None}
 
 

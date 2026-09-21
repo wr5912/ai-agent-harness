@@ -51,7 +51,7 @@ def main() -> None:
     parser.add_argument("presets", type=Path)
     parser.add_argument("managed", type=Path)
     parser.add_argument("context", type=Path, nargs="*",
-                        help="开发会话只读挂载的判分材料根（spec、eval-reference）；评测模式不传")
+                        help="开发会话只读挂载的需求与评测材料根；评测模式不传")
     args = parser.parse_args()
     try:
         check_source(args.workspace, writable=args.mode == "authoring")
