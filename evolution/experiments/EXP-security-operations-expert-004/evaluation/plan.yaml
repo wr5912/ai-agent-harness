@@ -1,0 +1,21 @@
+schema_version: "1.0"
+experiment_id: EXP-security-operations-expert-004
+hypothesis_ref: ../hypothesis.md
+baseline_ref: git:83e955a811d471444ced0d7a12016276ce4d80db
+candidate_source: experiment:EXP-security-operations-expert-004
+method:
+  - 静态比较角色矩阵、Profile、Guard 与按深度计算的可见工具集合
+  - 只读读取 sec-ops 和 inspection 的实时 tools/list
+  - 在全新 DSH eval 实例和全新 Web Session 中交叉核对 Playwright 结果与完成轨迹
+cases:
+  - id: contract-static
+    expected: 主 Agent 12 个工具、巡检子 Agent 4 个工具、故障分析 15 个工具、响应规划零工具均与合同一致
+  - id: contract-live
+    expected: 全部允许 MCP 工具存在于对应实时目录
+  - id: inspection-e2e
+    expected: 同一句“执行一次常规巡检”按 start、collect、finalize 顺序完成并在 Web 返回真实报告
+  - id: role-isolation
+    expected: 主 Agent 不直接看见 inspection MCP，巡检子 Agent 只看见四个 inspection 工具
+  - id: response-regression
+    expected: 零工具响应规划 Gate 与结构化校验回归通过
+side_effect_limit: 仅允许 inspection-e2e 创建并完成一次 scope=all 的 routine 即时巡检；不执行策略准备、选择、决策、计划任务或响应处置

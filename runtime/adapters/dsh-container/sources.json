@@ -80,6 +80,32 @@
         "INSPECTION_MCP_URL",
         "INSPECTION_MCP_TOKEN"
       ]
+    },
+    "EXP-security-operations-expert-004": {
+      "agent_id": "security-operations-expert",
+      "candidate_root": "evolution/experiments/EXP-security-operations-expert-004/candidate/dsh",
+      "profile": "web",
+      "patch": "security-operations-expert.patch.yml",
+      "preset": "security-operations-expert/agent.cordis.yml",
+      "guard": "security-operations-guard.mjs",
+      "development_patch_overlay": "security-operations-expert.development.patch.yml",
+      "config_markers": [
+        "/opt/dsh-presets",
+        "/work/harness/workspace/.agents/skills",
+        "security-operations-expert",
+        "security-operations-mcp-sec-ops",
+        "security-operations-mcp-inspection",
+        "security-operations-delegate-inspection",
+        "security-operations-delegate-fault-analysis",
+        "security-operations-delegate-response-planning"
+      ],
+      "required_env_names": [
+        "DEEPSEEK_API_KEY",
+        "SEC_OPS_MCP_URL",
+        "SEC_OPS_MCP_TOKEN",
+        "INSPECTION_MCP_URL",
+        "INSPECTION_MCP_TOKEN"
+      ]
     }
   }
 }

@@ -11,7 +11,7 @@ import {
   validateResponsePlanInput,
   validateResponsePlanOutput,
   visibleToolsForDepth,
-} from '../../evolution/experiments/EXP-security-operations-expert-003/candidate/dsh/managed/security-operations-guard.mjs'
+} from '../../evolution/experiments/EXP-security-operations-expert-004/candidate/dsh/managed/security-operations-guard.mjs'
 
 function agent(depth = 0) {
   return { session: { header: { delegationDepth: depth } } }
@@ -55,8 +55,8 @@ function frozenResponseOutput() {
 
 test('Agent 创建时按委派深度收缩真实工具视图', () => {
   const expected = [
-    [...TOOL_ROUTES.workspace, ...TOOL_ROUTES.policy, ...TOOL_ROUTES.inspection, ...TOOL_ROUTES.delegates],
-    [...TOOL_ROUTES.faultAnalysis],
+    [...TOOL_ROUTES.workspace, ...TOOL_ROUTES.policy, ...TOOL_ROUTES.delegates],
+    [...TOOL_ROUTES.inspection, ...TOOL_ROUTES.faultAnalysis],
     [],
   ]
   assert.deepEqual([0, 1, 2].map(visibleToolsForDepth), expected)
@@ -100,8 +100,8 @@ test('矩阵导出的 MCP 路由按父子深度精确执行', () => {
     assert.match(guard.decide(execution(tool, 1)), /主 Agent/)
   }
   for (const tool of TOOL_ROUTES.inspection) {
-    assert.equal(guard.decide(execution(tool, 0)), undefined)
-    assert.match(guard.decide(execution(tool, 1)), /主 Agent/)
+    assert.match(guard.decide(execution(tool, 0)), /巡检子 Agent/)
+    assert.equal(guard.decide(execution(tool, 1)), undefined)
   }
   for (const tool of TOOL_ROUTES.faultAnalysis) {
     assert.match(guard.decide(execution(tool, 0)), /故障分析子 Agent/)
@@ -119,6 +119,7 @@ test('危险、未知、Shell 与二次委派调用始终拒绝', () => {
   assert.match(guard.decide(execution('bash', 0)), /永久禁用/)
   assert.match(guard.decide(execution('delegate_fault_analysis', 1)), /再次委派/)
   assert.match(guard.decide(execution('skill', 1)), /不得加载/)
+  assert.equal(guard.decide(execution('delegate_inspection', 0)), undefined)
   assert.equal(guard.decide(execution('delegate_fault_analysis', 0)), undefined)
 })
 
@@ -171,7 +172,7 @@ test('post-execute 校验只接受纯文本 JSON，并把无效响应阻断为�
 
 test('角色矩阵、Profile 与 Guard 的合同校验器通过', () => {
   const checker = fileURLToPath(new URL(
-    '../../evolution/experiments/EXP-security-operations-expert-003/evaluation/tools/verify_mcp_contract.py',
+    '../../evolution/experiments/EXP-security-operations-expert-004/evaluation/tools/verify_mcp_contract.py',
     import.meta.url,
   ))
   for (const args of [[], ['--self-test']]) {

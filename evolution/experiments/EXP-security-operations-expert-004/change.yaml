@@ -1,0 +1,7 @@
+schema_version: "1.0"
+experiment_id: EXP-security-operations-expert-004
+agent_id: security-operations-expert
+baseline_ref: git:83e955a811d471444ced0d7a12016276ce4d80db
+status: completed
+outcome: adopt
+research_question: 明确的即时巡检请求能否由专用子 Agent 完成 start、collect、finalize 并忠实返回报告，同时保持其他角色的工具隔离
