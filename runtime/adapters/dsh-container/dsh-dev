@@ -26,7 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from source_contract import REPO, dev_target_document, resolve  # noqa: E402
+from source_contract import REPO, SOURCES, dev_target_document, resolve, strict_json  # noqa: E402
 
 ADAPTER = Path(__file__).resolve().parent
 STATE_ROOT = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "dsh-dev"
@@ -37,6 +37,7 @@ MODES = ("authoring", "verification")
 MODE_ALIASES = {"dev": "authoring", "eval": "verification"}
 MODE_CHOICES = ("dev", "eval") + MODES
 PURPOSES = {"authoring": "dev", "verification": "eval"}
+AUTO_PORT_START = 3081
 # 开发模式用出厂 cordis（创造模式），它是 Runtime 固定事实；评测模式的目标 preset 由所选来源声明决定，
 # 不在通用启动器里硬编码任何业务 Agent 名。
 AUTHORING_PRESET = "cordis"
@@ -82,7 +83,7 @@ def normalize_mode(value: str) -> str:
     """把用户可见模式名（dev/eval）规范化为内部 harness 阶段名。"""
     mode = MODE_ALIASES.get(value, value)
     if mode not in MODES:
-        fail("mode 只能是 dev、eval、authoring 或 verification")
+        fail("mode 只能是 dev 或 eval")
     return mode
 
 
@@ -323,8 +324,10 @@ def instance_compose_env(manifest: dict) -> dict:
 
 
 def instance_recorded_port(manifest: dict) -> int | None:
+    if not isinstance(manifest, dict):
+        return None
     port = manifest.get("port")
-    return port if isinstance(port, int) else None
+    return port if type(port) is int else None
 
 
 def compose_command(target: Path, name: str, *args: str) -> list[str]:
@@ -354,12 +357,77 @@ def port_in_use(port: int) -> bool:
     return True
 
 
-def command_plan(args: argparse.Namespace) -> None:
-    if not 1 <= args.port <= 65535:
-        fail("--port 必须是合法 TCP 端口")
+def require_up_arguments(args: argparse.Namespace) -> None:
+    """缺少核心参数时列出仓库当前可用值，并按 CLI 用法错误退出。"""
+    missing = [option for option in ("source", "mode") if not getattr(args, option, None)]
+    if not missing:
+        return
+    print("dsh-dev up 缺少必填参数：" + "、".join(f"--{option}" for option in missing), file=sys.stderr)
+    if "source" in missing:
+        sources = strict_json(SOURCES).get("sources") or {}
+        print("可用 --source：" + "、".join(f"experiment:{name}" for name in sorted(sources)), file=sys.stderr)
+    if "mode" in missing:
+        print("可用 --mode：dev、eval", file=sys.stderr)
+    raise SystemExit(2)
+
+
+def reserved_instance_ports(exclude_name: str) -> set[int]:
+    """读取其它有效实例记录占用的端口；损坏记录不参与自动分配。"""
+    ports = set()
+    if not STATE_ROOT.is_dir():
+        return ports
+    for target in STATE_ROOT.iterdir():
+        if target.name == exclude_name:
+            continue
+        try:
+            manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        port = instance_recorded_port(manifest)
+        if port is not None and 1 <= port <= 65535:
+            ports.add(port)
+    return ports
+
+
+def first_available_port(name: str) -> int:
+    reserved = reserved_instance_ports(name)
+    for port in range(AUTO_PORT_START, 65536):
+        if port not in reserved and not port_in_use(port):
+            return port
+    fail(f"从 {AUTO_PORT_START} 起没有可用 TCP 端口")
+
+
+def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None]:
+    """解析来源并补齐确定性的实例名与端口，不修改状态。"""
+    require_up_arguments(args)
     contract = resolve(args.source, repo=REPO)
     if args.mode == "authoring" and contract["source_kind"] != "experiment":
         fail("开发模式（authoring）只接受 experiment:<id> 来源；该来源必须可写才能作为开发目标")
+    args.name = args.name or f"{contract['agent_id']}-{PURPOSES[args.mode]}"
+    current = existing_instance(args.name)
+    if current is not None:
+        _, manifest = current
+        validate_existing_identity(args.name, manifest, contract, args.mode)
+    if args.port is None:
+        if current is not None:
+            args.port = instance_recorded_port(current[1])
+            if args.port is None:
+                fail(f"实例 {args.name} 没有合法的记录端口；请显式指定 --port")
+        else:
+            args.port = first_available_port(args.name)
+    if not isinstance(args.port, int) or not 1 <= args.port <= 65535:
+        fail("--port 必须是合法 TCP 端口")
+    if current is not None:
+        recorded = instance_recorded_port(current[1])
+        if recorded is not None and recorded != args.port:
+            fail(
+                f"实例 {args.name} 记录端口为 {recorded}，与本次 --port {args.port} 不一致；"
+                "同名实例不得改端口，请保持原端口或用新的实例名"
+            )
+    return contract, current
+
+
+def build_plan(args: argparse.Namespace, contract: dict) -> dict:
     assets = context_assets(contract, args.mode)
     missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
     plan = {
@@ -398,31 +466,26 @@ def command_plan(args: argparse.Namespace) -> None:
         plan["cordis_trust_notice"] = CORDIS_TRUST_NOTICE
     if args.mode == "verification" and contract["source_kind"] == "experiment":
         plan["evaluation_source_notice"] = "评测模式绑定当前宿主 Candidate；运行期间不要改写该来源，并在 Run 中记录实际 Git 与 dirty 状态。"
-    print(json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True))
+    return plan
 
 
 def command_up(args: argparse.Namespace) -> None:
-    if not 1 <= args.port <= 65535:
-        fail("--port 必须是合法 TCP 端口")
-    contract = resolve(args.source, repo=REPO)
-    if args.mode == "authoring" and contract["source_kind"] != "experiment":
-        fail("开发模式（authoring）只接受 experiment:<id> 来源；该来源必须可写才能作为开发目标")
-    if args.mode == "authoring" and not args.accept_cordis_trust:
+    contract, current = prepare_up(args)
+    if args.mode != "authoring" and getattr(args, "accept_cordis_trust", False):
+        fail("--accept-cordis-trust 只对开发模式（--mode dev）有效")
+    if getattr(args, "dry_run", False):
+        print(json.dumps(build_plan(args, contract), ensure_ascii=False, indent=2, sort_keys=True))
+        return
+    if args.mode == "authoring" and not getattr(args, "accept_cordis_trust", False):
         fail(CORDIS_TRUST_NOTICE + " 确认接受上述风险后，重新执行并显式加 --accept-cordis-trust。")
-    if args.mode != "authoring" and args.accept_cordis_trust:
-        fail("--accept-cordis-trust 只对开发模式（--mode dev / authoring）有效")
     context_assets(contract, args.mode)
-    if args.allow_missing_env:
+    if getattr(args, "allow_missing_env", False):
         missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
         if missing:
             print(json.dumps({"warning": "缺少运行时环境变量，按显式降级启动（仅技术装载核验）",
                               "missing_env_names": missing}, ensure_ascii=False), file=sys.stderr)
     else:
         check_environment(contract)
-    current = existing_instance(args.name)
-    if current is not None:
-        _, manifest = current
-        validate_existing_identity(args.name, manifest, contract, args.mode)
     # Compose 插值、模板结构与本次目标文件都可以在停旧实例前检查；明显无效的新配置不得先触发停机。
     preflight_new_instance(args, contract)
     replaced = migrate_existing_instance(args, contract, current)
@@ -433,7 +496,7 @@ def command_up(args: argparse.Namespace) -> None:
                 f"端口 {args.port} 正被本实例 {args.name} 自身占用。重载请先 dsh-dev down {args.name} 再同名 up，"
                 f"或直接加 --replace 由本命令先停后启；本工具不自动改端口。"
             )
-        fail(f"端口 {args.port} 已被占用；本工具不自动改端口，请显式指定其它端口")
+        fail(f"端口 {args.port} 已被占用；启动阶段不会静默改用其它端口，请重试或显式指定 --port")
     target = write_instance(args.name, mode=args.mode, contract=contract, port=args.port,
                             accepted_cordis_trust=args.accept_cordis_trust)
     environment = compose_env(contract, args.mode, args.port, args.name)
@@ -449,14 +512,15 @@ def command_up(args: argparse.Namespace) -> None:
         report["replaced"] = replaced
     if containers is None:
         report["dsh_running"] = "unknown"
-        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True), file=sys.stderr)
         fail("无法查询容器状态，不能确认 dsh 服务是否已启动；用 logs 查看实例日志")
     running = [item for item in containers if item["service"] == "dsh" and item["state"] == "running"]
     report["dsh_running"] = bool(running)
     report["containers"] = [{"service": item["service"], "state": item["state"]} for item in containers]
-    print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     if not running:
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True), file=sys.stderr)
         fail("docker compose up 返回 0，但 dsh 服务没有进入运行状态；用 logs 查看失败原因")
+    print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     print(json.dumps({"hint": web_cold_start_hint(args.mode), "workspace_to_register": workspace_to_register(args.mode)},
                      ensure_ascii=False), file=sys.stderr)
 
@@ -681,14 +745,14 @@ def stop_instance(name: str, manifest: dict) -> dict:
     if containers is None:
         report["stopped"] = "unknown"
         report["detail"] = "docker ps 查询失败，无法确认实例是否已停止；不报告停止成功"
-        print(json.dumps(report, ensure_ascii=False))
+        print(json.dumps(report, ensure_ascii=False), file=sys.stderr)
         raise SystemExit(1)
     running = [item for item in containers if item["state"] == "running"]
     report["containers"] = containers
     report["stopped"] = not running
     report["containers_removed"] = not containers
-    print(json.dumps(report, ensure_ascii=False))
     if running:
+        print(json.dumps(report, ensure_ascii=False), file=sys.stderr)
         fail("docker compose down 返回 0，但以下容器仍在运行：" + "、".join(item["name"] for item in running))
     return report
 
@@ -699,7 +763,7 @@ def command_down(args: argparse.Namespace) -> None:
     if not (target / "instance.json").is_file():
         fail(f"未找到实例 {args.name}")
     manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
-    stop_instance(args.name, manifest)
+    print(json.dumps(stop_instance(args.name, manifest), ensure_ascii=False))
 
 
 def validate_existing_identity(name: str, manifest: dict, contract: dict, mode: str) -> None:
@@ -752,7 +816,7 @@ def migrate_existing_instance(args: argparse.Namespace, contract: dict,
         return None
     _, manifest = current
     validate_existing_identity(args.name, manifest, contract, args.mode)
-    if not args.replace:
+    if not getattr(args, "replace", False):
         return None
     recorded = instance_recorded_port(manifest)
     if recorded is not None and recorded != args.port:
@@ -763,8 +827,8 @@ def migrate_existing_instance(args: argparse.Namespace, contract: dict,
     previous_schema = manifest.get("schema_version")
     print(json.dumps({"replacing": args.name, "previous_state_schema": previous_schema},
                      ensure_ascii=False), file=sys.stderr)
-    stop_instance(args.name, manifest)
-    return {"previous_state_schema": previous_schema}
+    stop = stop_instance(args.name, manifest)
+    return {"previous_state_schema": previous_schema, "stop": stop}
 
 
 def command_image_build(args: argparse.Namespace) -> None:
@@ -785,26 +849,20 @@ def main() -> None:
     build_parser.add_argument("--source", default="EXP-security-operations-expert-001")
     build_parser.set_defaults(handler=command_image_build)
 
-    for name, handler, needs_source in (
-        ("plan", command_plan, True),
-        ("up", command_up, True),
-    ):
-        sub = commands.add_parser(name, help="实例计划或启动")
-        if needs_source:
-            sub.add_argument("--source", required=True, help="来源选择器，当前只支持 experiment:<id>")
-        sub.add_argument("--mode", choices=MODE_CHOICES, required=True, type=normalize_mode,
-                         help="dev（开发模式/创造模式，内部 authoring）或 eval（评测模式，内部 verification）")
-        sub.add_argument("--name", required=True)
-        sub.add_argument("--port", type=int, required=True)
-        if name == "up":
-            sub.add_argument("--replace", action="store_true",
-                             help="先停止同名实例自身的容器（保留 HOME 数据卷）再启动；"
-                                  "用于重载配置或把旧版状态迁移到当前版本")
-            sub.add_argument("--allow-missing-env", action="store_true",
-                             help="显式允许缺少运行时环境变量，仅用于技术装载核验")
-            sub.add_argument("--accept-cordis-trust", action="store_true",
-                             help="显式确认开发模式（Cordis 创造模式）等同 shell 权限与 host 网络风险")
-        sub.set_defaults(handler=handler)
+    up = commands.add_parser("up", help="启动实例（可用 --dry-run 预览）")
+    up.add_argument("--source", nargs="?", help="来源选择器；未提供值时列出可用的 experiment:<id>")
+    up.add_argument("--mode", nargs="?", choices=MODE_CHOICES, metavar="{dev,eval}", type=normalize_mode,
+                    help="dev（开发模式/创造模式）或 eval（评测模式）")
+    up.add_argument("--name", help="实例名；默认 <agent-id>-<dev|eval>")
+    up.add_argument("--port", type=int, help=f"宿主回环端口；新实例默认从 {AUTO_PORT_START} 起自动选择")
+    up.add_argument("--dry-run", action="store_true", help="只输出实例计划，不写状态、不调用 Docker")
+    up.add_argument("--replace", action="store_true",
+                    help="先停止同名实例自身的容器（保留 HOME 数据卷）再启动；用于重载配置或迁移旧状态")
+    up.add_argument("--allow-missing-env", action="store_true",
+                    help="显式允许缺少运行时环境变量，仅用于技术装载核验")
+    up.add_argument("--accept-cordis-trust", action="store_true",
+                    help="显式确认开发模式（Cordis 创造模式）等同 shell 权限与 host 网络风险")
+    up.set_defaults(handler=command_up)
 
     commands.add_parser("ps", help="列出启动器管理的实例").set_defaults(handler=command_ps)
 

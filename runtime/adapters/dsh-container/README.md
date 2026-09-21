@@ -76,7 +76,7 @@ bash runtime/adapters/dsh-container/build-image.sh --build-network host
 
 | 模式 | CLI | `session_preset`（会话实际运行） | `target_preset`（待优化/待评估目标） | 注册工作区 |
 |---|---|---|---|---|
-| 开发模式 | `--mode dev`（内部 `authoring`） | 出厂 `cordis` 创造模式 | 由所选来源声明（`plan.target_preset`） | `/work` |
+| 开发模式 | `--mode dev`（内部 `authoring`） | 出厂 `cordis` 创造模式 | 由所选来源声明（`up --dry-run` 输出的 `target_preset`） | `/work` |
 | 评测模式 | `--mode eval`（内部 `verification`） | 由所选来源声明 | 同 `session_preset` | `/work/harness/workspace` |
 
 挂载模式以“候选资产装载”表为准：开发模式仅 Workspace 可写，Preset/Managed 与判分材料只读；评测模式的 Harness 三棵树全部只读，且不挂载判分材料。
@@ -86,18 +86,21 @@ bash runtime/adapters/dsh-container/build-image.sh --build-network host
 目标 preset 由 `sources.json` 的 `preset` 路径推出，适配层不内联任何业务 Agent 名；新增来源只需追加目录数据。
 
 ```bash
-python3 runtime/adapters/dsh-container/dsh-dev plan --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3084
-python3 runtime/adapters/dsh-container/dsh-dev up --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3084 --accept-cordis-trust
-python3 runtime/adapters/dsh-container/dsh-dev plan --source experiment:EXP-security-operations-expert-001 --mode eval --name secops-eval --port 3085
+python3 runtime/adapters/dsh-container/dsh-dev up --source experiment:EXP-security-operations-expert-001 --mode dev --dry-run
+python3 runtime/adapters/dsh-container/dsh-dev up --source experiment:EXP-security-operations-expert-001 --mode dev --accept-cordis-trust
+python3 runtime/adapters/dsh-container/dsh-dev up --source experiment:EXP-security-operations-expert-001 --mode eval --dry-run
+python3 runtime/adapters/dsh-container/dsh-dev up --source experiment:EXP-security-operations-expert-001 --mode eval
 python3 runtime/adapters/dsh-container/dsh-dev ps
-python3 runtime/adapters/dsh-container/dsh-dev url secops-dev --non-interactive   # 交互终端可省略该旗标
-python3 runtime/adapters/dsh-container/dsh-dev logs secops-dev --tail 200
-python3 runtime/adapters/dsh-container/dsh-dev down secops-dev
+python3 runtime/adapters/dsh-container/dsh-dev url security-operations-expert-dev --non-interactive   # 交互终端可省略该旗标
+python3 runtime/adapters/dsh-container/dsh-dev logs security-operations-expert-dev --tail 200
+python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-dev
 ```
+
+`--source` 和 `--mode` 始终由用户显式选择；缺失或无值时命令会列出当前可用值并以用法错误退出。`--name` 默认为 `<agent-id>-<dev|eval>`。新实例未指定 `--port` 时从 `3081` 起选第一个未监听且未被有效实例记录占用的端口；已有同名实例复用记录端口。`--dry-run` 只给出建议，不写状态、不调用 Docker，也不要求运行时环境变量或开发模式信任确认。
 
 `--mode dev` 使用 `authoring.compose.yaml` 并在基础受控 patch 之后叠加 `security-operations-expert.development.patch.yml`（仅打开 DSH 出厂 preset 根并把默认 preset 设为 `cordis`；校验器对该文件实施行白名单）。因为创造模式会话具备 shell 与对实时 runtime 执行模型 JS 的 `tool-cordis` 能力（等同 shell 权限），且容器使用 host 网络、可直达宿主回环服务（含本机 DSH Web），`up --mode dev` 必须显式加 `--accept-cordis-trust`；`--mode eval` 拒绝该旗标。创造模式会话不加载 `security-operations-guard`，注入的 SOC MCP 工具与 delegate 因此**没有角色矩阵约束**——这是开发模式的已知边界，不是已隔离状态。`--mode eval` 不叠加开发层，`includeShippedRoot` 保持关闭，创造模式在该容器内不在 preset 名册中，判分材料也不进入该容器。
 
-`up` 不只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的在运行（`home-init` 是一次性服务，正常结束不算失败），否则报告失败或 `dsh_running: "unknown"` 并以非零退出码结束。
+`up` 不只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的在运行（`home-init` 是一次性服务，正常结束不算失败），否则报告失败或 `dsh_running: "unknown"` 并以非零退出码结束。成功时 stdout 只输出一个 JSON 结果；进度、提示和错误输出到 stderr，失败时 stdout 保持为空。`up --replace` 的成功 JSON 在 `replaced.stop` 中包含完整停止结果。
 
 `ps`、`logs`、`down` 从实例状态文件重建读取该实例 Compose 所需的环境变量：受控模板用 `${VAR:?}` 声明必填变量、不内联仓库内默认路径，因此这些命令不依赖调用者的当前环境；状态文件不是最新 schema 时同样可用，`ps` 会标出 `needs_migration`。旧实例仍在运行时用 `up --replace`（保留 HOME 数据卷）或先 `down` 再同名 `up` 完成迁移。挂载内容变化不会自动重启进程，重载必须走这两条路径之一。`down` 先检查 `docker compose down` 的退出码，再核对实际容器状态与 HOME 卷：命令失败即报错，仍有容器运行或状态无法确认时输出 `stopped: false` / `stopped: "unknown"` 并以非零退出码结束；HOME 卷名按 Compose 卷标签解析，不按 `<project>-home` 猜测。
 
@@ -109,7 +112,7 @@ python3 runtime/adapters/dsh-container/dsh-dev down secops-dev
 2. 在“选择工作区目录”对话框点“编辑路径”，粘贴本次模式对应的路径：开发实例 `/work`，评测实例 `/work/harness/workspace`（或从“主目录”逐级进入）；
 3. 点“打开”，会话即在该工作区创建，随后可直接对话。
 
-该注册写入本实例 DSH_HOME 数据卷并跨重启保留；换用新的实例名等于新的 HOME 卷，需要重新选择一次。`plan` 输出与 `up` 的 stderr 都会带上本次模式对应的路径与步骤，以 `plan.workspace_to_register` 为准。
+该注册写入本实例 DSH_HOME 数据卷并跨重启保留；换用新的实例名等于新的 HOME 卷，需要重新选择一次。`up --dry-run` 输出与真正 `up` 的 stderr 提示都会带上本次模式对应的路径与步骤，以 `workspace_to_register` 为准。
 
 实例配置与 `instance.json` 写在 `${XDG_STATE_HOME:-~/.local/state}/dsh-dev/<name>/`，只记录环境变量**名称**、`purpose`、`agent_id`、`target_preset`、`session_preset`、`context_mounts` 与信任确认标记，不含 Token。渲染保留只读根文件系统、UID/GID 1000、能力裁剪和无端口发布，只把主 `dsh` 服务切到 host 网络并把 Web 绑定宿主回环。`url` 只读取**本次**进程启动后的日志并做 Token→Cookie→根页探针；标准输出不是交互终端时，必须显式加 `--non-interactive`，否则失败关闭，不把 Token 写进状态文件、普通日志或证据。
 

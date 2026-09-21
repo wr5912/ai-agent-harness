@@ -27,7 +27,7 @@
 ```text
 选择 Experiment
       ↓
-dsh-dev plan / up
+dsh-dev up --dry-run / up
       ↓
 修改 Candidate + mutation receipt
       ↓

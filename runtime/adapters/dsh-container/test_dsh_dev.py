@@ -238,14 +238,14 @@ class ModeAndContextContractTest(unittest.TestCase):
                 dev.command_up(args)
         compose_env.assert_not_called()
 
-    def test_plan_delivers_workspace_path_and_cold_start_hint(self):
+    def test_dry_run_delivers_workspace_path_and_cold_start_hint(self):
         """DSH Web 冷启动需要先在界面注册工作区；计划必须交付确切路径与步骤。"""
         args = types.SimpleNamespace(source="experiment:EXP-security-operations-expert-001",
-                                     mode="verification", name="secops-eval", port=3085)
+                                     mode="verification", name="secops-eval", port=3085, dry_run=True)
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout), \
                 mock.patch.object(dev, "context_assets", return_value=[]):
-            dev.command_plan(args)
+            dev.command_up(args)
         plan = json.loads(stdout.getvalue())
         self.assertEqual(plan["workspace_to_register"], "/work/harness/workspace")
         self.assertIn("/work/harness/workspace", plan["web_cold_start"])
@@ -259,10 +259,10 @@ class ModeAndContextContractTest(unittest.TestCase):
         self.assertEqual(dev.workspace_to_register("authoring"), "/work")
         self.assertEqual(dev.workspace_to_register("verification"), "/work/harness/workspace")
         args = types.SimpleNamespace(source="experiment:EXP-security-operations-expert-001",
-                                     mode="authoring", name="secops-dev", port=3086)
+                                     mode="authoring", name="secops-dev", port=3086, dry_run=True)
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            dev.command_plan(args)
+            dev.command_up(args)
         plan = json.loads(stdout.getvalue())
         self.assertEqual(plan["workspace_to_register"], "/work")
         self.assertIn("/work", plan["web_cold_start"])
@@ -426,41 +426,43 @@ class DownCommandTest(unittest.TestCase):
 
     def call(self, completed, containers, volume=None):
         volume = volume or subprocess.CompletedProcess([], 0, stdout="", stderr="")
-        stdout = io.StringIO()
+        stdout, stderr = io.StringIO(), io.StringIO()
         with mock.patch.object(dev, "run", side_effect=[
             completed,  # docker compose down
             containers,  # docker ps -a
             volume,  # docker volume ls
-        ]), contextlib.redirect_stdout(stdout):
+        ]), contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
             try:
                 dev.command_down(types.SimpleNamespace(name="soe-verify"))
             except SystemExit as stop:
-                return stop.code, stdout.getvalue()
-        return 0, stdout.getvalue()
+                return stop.code, stdout.getvalue(), stderr.getvalue()
+        return 0, stdout.getvalue(), stderr.getvalue()
 
     def test_compose_down_failure_is_not_reported_as_stopped(self):
         """回归：命令退出码非零时不得输出 stopped: true。"""
         failure = subprocess.CompletedProcess([], 1, stdout="", stderr="permission denied")
-        code, printed = self.call(failure, subprocess.CompletedProcess([], 0, stdout="", stderr=""))
+        code, printed, errors = self.call(failure, subprocess.CompletedProcess([], 0, stdout="", stderr=""))
         self.assertNotEqual(code, 0)
         self.assertNotIn("stopped", printed)
+        self.assertIn("停止 soe-verify 失败", errors)
 
     def test_surviving_container_is_reported_as_failure(self):
         ok = subprocess.CompletedProcess([], 0, stdout="", stderr="")
         listings = subprocess.CompletedProcess(
             [], 0,
             stdout="abc123\trunning\tUp 2 minutes\tdsh-dev-soe-verify-dsh-1\tdsh\n", stderr="")
-        with contextlib.redirect_stderr(io.StringIO()):
-            code, printed = self.call(ok, listings)
+        code, printed, errors = self.call(ok, listings)
         self.assertNotEqual(code, 0)
-        self.assertIn('"stopped": false', printed)
+        self.assertEqual(printed, "")
+        self.assertIn('"stopped": false', errors)
 
     def test_unqueryable_state_is_reported_as_unknown(self):
         ok = subprocess.CompletedProcess([], 0, stdout="", stderr="")
         unqueryable = subprocess.CompletedProcess([], 1, stdout="", stderr="daemon down")
-        code, printed = self.call(ok, unqueryable)
+        code, printed, errors = self.call(ok, unqueryable)
         self.assertNotEqual(code, 0)
-        self.assertIn('"stopped": "unknown"', printed)
+        self.assertEqual(printed, "")
+        self.assertIn('"stopped": "unknown"', errors)
 
     def test_confirmed_stop_reports_true_and_home_preservation(self):
         """回归：HOME 卷名由 Compose 标签解析，不能按 <project>-home 猜测。"""
@@ -468,7 +470,7 @@ class DownCommandTest(unittest.TestCase):
         empty = subprocess.CompletedProcess([], 0, stdout="", stderr="")
         preserved = subprocess.CompletedProcess(
             [], 0, stdout="dsh-dev-soe-verify_dsh-dev-soe-verify-home\n", stderr="")
-        code, printed = self.call(ok, empty, preserved)
+        code, printed, _ = self.call(ok, empty, preserved)
         self.assertEqual(code, 0)
         self.assertIn('"stopped": true', printed)
         self.assertIn('"home_preserved": true', printed)
@@ -478,7 +480,7 @@ class DownCommandTest(unittest.TestCase):
         ok = subprocess.CompletedProcess([], 0, stdout="", stderr="")
         empty = subprocess.CompletedProcess([], 0, stdout="", stderr="")
         gone = subprocess.CompletedProcess([], 0, stdout="", stderr="")
-        code, printed = self.call(ok, empty, gone)
+        code, printed, _ = self.call(ok, empty, gone)
         self.assertEqual(code, 0)
         self.assertIn('"home_preserved": false', printed)
 
@@ -527,8 +529,8 @@ class UpCommandStateTest(unittest.TestCase):
                 contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
             with self.assertRaises(SystemExit):
                 dev.command_up(self.args())
-        report = json.loads(stdout.getvalue())
-        self.assertIs(report["dsh_running"], False)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn('"dsh_running": false', stderr.getvalue())
         self.assertIn("没有进入运行状态", stderr.getvalue())
 
     def test_up_reports_running_service(self):
@@ -565,8 +567,8 @@ class UpCommandStateTest(unittest.TestCase):
                 contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
             with self.assertRaises(SystemExit):
                 dev.command_up(self.args())
-        report = json.loads(stdout.getvalue())
-        self.assertEqual(report["dsh_running"], "unknown")
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn('"dsh_running": "unknown"', stderr.getvalue())
 
 
 class LegacyInstanceStateTest(unittest.TestCase):
@@ -684,12 +686,12 @@ class UpPortOwnershipTest(unittest.TestCase):
         base.update(overrides)
         return types.SimpleNamespace(**base)
 
-    def write_existing(self, **overrides):
+    def write_existing(self, name="probe", **overrides):
         dev.STATE_ROOT.mkdir(parents=True, exist_ok=True)
-        target = dev.STATE_ROOT / "probe"
+        target = dev.STATE_ROOT / name
         target.mkdir(exist_ok=True)
-        manifest = dict(self.contract(), schema_version="1.2", name="probe",
-                        project="dsh-dev-probe", mode="verification", purpose="eval",
+        manifest = dict(self.contract(), schema_version="1.2", name=name,
+                        project=dev.project_name(name), mode="verification", purpose="eval",
                         target_preset="security-operations-expert", port=3302,
                         image_tag="ai-agent-harness/dsh:c291e7961",
                         adapter_root=str(ADAPTER),
@@ -698,6 +700,55 @@ class UpPortOwnershipTest(unittest.TestCase):
                         context_mounts=[], patch_overlay=None)
         manifest.update(overrides)
         (target / "instance.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    def test_dry_run_generates_name_and_port_without_starting(self):
+        args = self.args(name=None, port=None, dry_run=True)
+        stdout = io.StringIO()
+        with mock.patch.object(dev, "resolve", return_value=self.contract()), \
+                mock.patch.object(dev, "port_in_use", return_value=False), \
+                mock.patch.object(dev, "preflight_new_instance") as preflight, \
+                mock.patch.object(dev, "write_instance") as writer, \
+                mock.patch.object(dev, "run") as runner, \
+                contextlib.redirect_stdout(stdout):
+            dev.command_up(args)
+        plan = json.loads(stdout.getvalue())
+        self.assertEqual(plan["name"], "security-operations-expert-eval")
+        self.assertEqual(plan["port"], 3081)
+        preflight.assert_not_called()
+        writer.assert_not_called()
+        runner.assert_not_called()
+
+    def test_auto_port_skips_instance_records_and_listeners(self):
+        self.write_existing(port=3081)
+        with mock.patch.object(dev, "port_in_use", side_effect=lambda port: port == 3082):
+            self.assertEqual(dev.first_available_port("new-probe"), 3083)
+
+    def test_existing_default_name_reuses_recorded_port(self):
+        name = "security-operations-expert-eval"
+        self.write_existing(name=name, port=3090)
+        args = self.args(name=None, port=None)
+        with mock.patch.object(dev, "resolve", return_value=self.contract()), \
+                mock.patch.object(dev, "port_in_use") as probe:
+            _, current = dev.prepare_up(args)
+        self.assertIsNotNone(current)
+        self.assertEqual(args.name, name)
+        self.assertEqual(args.port, 3090)
+        probe.assert_not_called()
+
+    def test_auto_port_race_fails_without_silent_reselection(self):
+        args = self.args(name="new-probe", port=None)
+        stdout = io.StringIO()
+        with mock.patch.object(dev, "resolve", return_value=self.contract()), \
+                mock.patch.object(dev, "port_in_use", side_effect=[False, True]), \
+                mock.patch.object(dev, "preflight_new_instance"), \
+                mock.patch.object(dev, "running_instance_service", return_value=None), \
+                mock.patch.object(dev, "write_instance") as writer, \
+                contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                dev.command_up(args)
+        self.assertEqual(args.port, 3081)
+        self.assertEqual(stdout.getvalue(), "")
+        writer.assert_not_called()
 
     def test_own_instance_holding_the_port_gets_an_actionable_error(self):
         self.write_existing()
@@ -773,7 +824,8 @@ class UpPortOwnershipTest(unittest.TestCase):
         stdout = io.StringIO()
         with mock.patch.object(dev, "resolve", return_value=self.contract()), \
                 mock.patch.object(dev, "migrate_existing_instance",
-                                  side_effect=lambda *_: order.append("stop") or {"previous_state_schema": "1.2"}), \
+                                  side_effect=lambda *_: order.append("stop") or {
+                                      "previous_state_schema": "1.2", "stop": {"stopped": True}}), \
                 mock.patch.object(dev, "port_in_use", return_value=False), \
                 mock.patch.object(dev, "preflight_new_instance"), \
                 mock.patch.object(dev, "write_instance",
@@ -786,7 +838,8 @@ class UpPortOwnershipTest(unittest.TestCase):
             dev.command_up(self.args(replace=True))
         self.assertEqual(order, ["stop", "write"])
         report = json.loads(stdout.getvalue())
-        self.assertEqual(report["replaced"], {"previous_state_schema": "1.2"})
+        self.assertEqual(report["replaced"], {
+            "previous_state_schema": "1.2", "stop": {"stopped": True}})
         self.assertEqual(report["session_preset"], "security-operations-expert")
         self.assertEqual(report["target_preset"], "security-operations-expert")
 
@@ -801,16 +854,40 @@ class UpPortOwnershipTest(unittest.TestCase):
         self.assertIn("不得改端口", stderr.getvalue())
         stopper.assert_not_called()
 
+    def test_replace_result_nests_stop_report(self):
+        self.write_existing()
+        stopped = {"name": "probe", "stopped": True, "home_preserved": True}
+        with mock.patch.object(dev, "stop_instance", return_value=stopped):
+            result = dev.migrate_existing_instance(self.args(replace=True), self.contract())
+        self.assertEqual(result, {"previous_state_schema": "1.2", "stop": stopped})
+
 
 class CliSurfaceTest(unittest.TestCase):
     def test_source_help_lists_only_supported_selectors(self):
-        for command in ("plan", "up"):
-            completed = subprocess.run(
-                [sys.executable, str(ADAPTER / "dsh-dev"), command, "--help"],
-                capture_output=True, text=True, check=False, timeout=60)
-            self.assertEqual(completed.returncode, 0, completed.stderr)
-            self.assertIn("experiment:<id>", completed.stdout)
-            self.assertNotIn("snapshot:", completed.stdout)
+        completed = subprocess.run(
+            [sys.executable, str(ADAPTER / "dsh-dev"), "up", "--help"],
+            capture_output=True, text=True, check=False, timeout=60)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("experiment:<id>", completed.stdout)
+        self.assertNotIn("snapshot:", completed.stdout)
+        self.assertNotIn("authoring", completed.stdout)
+        self.assertNotIn("verification", completed.stdout)
+
+    def test_plan_command_is_removed(self):
+        completed = subprocess.run(
+            [sys.executable, str(ADAPTER / "dsh-dev"), "plan", "--help"],
+            capture_output=True, text=True, check=False, timeout=60)
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("invalid choice", completed.stderr)
+
+    def test_missing_source_and_mode_list_registered_values(self):
+        completed = subprocess.run(
+            [sys.executable, str(ADAPTER / "dsh-dev"), "up", "--source", "--mode"],
+            capture_output=True, text=True, check=False, timeout=60)
+        self.assertEqual(completed.returncode, 2)
+        self.assertEqual(completed.stdout, "")
+        self.assertIn("experiment:EXP-security-operations-expert-001", completed.stderr)
+        self.assertIn("dev、eval", completed.stderr)
 
     def test_up_help_documents_replace(self):
         completed = subprocess.run(
@@ -818,6 +895,7 @@ class CliSurfaceTest(unittest.TestCase):
             capture_output=True, text=True, check=False, timeout=60)
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("--replace", completed.stdout)
+        self.assertIn("--dry-run", completed.stdout)
 
 
 class UrlCommandGuardTest(unittest.TestCase):

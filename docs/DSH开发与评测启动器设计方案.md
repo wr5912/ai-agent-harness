@@ -4,7 +4,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | `image build`、`plan`、`up`、`ps`、`url`、`logs`、`down` 已实现；`open`、`resume`、`fresh` 与 `release:<id>` 选择器未实现 |
+| 状态 | `image build`、`up`（含 `--dry-run`）、`ps`、`url`、`logs`、`down` 已实现；`open`、`resume`、`fresh` 与 `release:<id>` 选择器未实现 |
 | 适用范围 | 同一台 Linux Docker Engine 主机上的本地开发、调试与候选技术核验 |
 | 不在范围 | DSH Runtime 源码修改、Experiment 结论判断、Research Release 打包与复现 |
 | 依据 | [来源锁定](./standards/SOURCES.md)、[项目规范解释](./standards/PROJECT-INTERPRETATION.md)、[适配层 README](../runtime/adapters/dsh-container/README.md)、锁定 DSH 提交 `c291e7961a515f6d7af9304e7fd1d257929aef26`（CLI `0.1.5-rc.2`） |
@@ -22,8 +22,8 @@
 | 命令 | 作用 |
 |---|---|
 | `image build` | 按 `source.lock.json` 的固定提交构建本地 DSH 镜像 |
-| `plan` | 只解析来源并打印计划：模式、`session_preset`、`target_preset`、要注册的工作区、判分材料是否挂载、挂载清单、缺失环境变量、冷启动步骤；不启动容器 |
-| `up` | 渲染实例 Compose 并启动；确认 `dsh` 服务真的在运行后才报告成功，输出实例状态目录与工作区注册步骤 |
+| `up --dry-run` | 只解析来源并预览模式、Preset、自动实例名、建议端口、工作区、挂载与缺失环境变量；不写状态、不调用 Docker |
+| `up` | 渲染实例 Compose 并启动；确认 `dsh` 服务真的在运行后才在 stdout 输出一个 JSON 结果 |
 | `ps` | 列出启动器管理的实例；查询失败时标为 `unknown`，不当作"没有运行" |
 | `url` | 从本次进程日志提取认证 URL 并做 Token→Cookie→根页探针；非交互终端需显式 `--non-interactive` |
 | `logs` | 输出有界、尽力脱敏的容器日志 |
@@ -51,13 +51,15 @@
 ### 4.1 选择来源并确认目标
 
 ```bash
-python3 runtime/adapters/dsh-container/dsh-dev plan \
-  --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3081
+python3 runtime/adapters/dsh-container/dsh-dev up \
+  --source experiment:EXP-security-operations-expert-001 --mode dev --dry-run
 ```
 
-`plan` 会打印本次的 `mode`、`agent_id`、`session_preset`、`target_preset`、`workspace_to_register`、`dev_instructions`、`grading_material_mounted`、挂载清单和缺失的环境变量名。先核对这些值与本次任务一致，再启动；报告目标用 `target_preset`，描述本次会话用 `session_preset`。
+`up --dry-run` 会打印本次的 `mode`、`agent_id`、`session_preset`、`target_preset`、`workspace_to_register`、`dev_instructions`、`grading_material_mounted`、挂载清单和缺失的环境变量名。先核对这些值与本次任务一致，再启动；报告目标用 `target_preset`，描述本次会话用 `session_preset`。该命令不要求运行时环境变量或 `--accept-cordis-trust`；自动端口是当下建议，不是保留。
 
 来源只接受 `experiment:<id>`。`source_contract.py` 校验 `sources.json` 中登记的 `candidate_root`、patch、preset、Guard 与开发叠加层确实存在且不是符号链接或硬链接，并从 preset 相对路径推出 `preset_id`——适配层不内联任何业务 Agent 名。
+
+`--source` 和 `--mode` 必须显式给出；缺失或旗标后没有值时，命令会列出当前登记的 `experiment:<id>` 和公开模式 `dev`、`eval`，然后以退出码 `2` 结束。`--name` 默认为 `<agent-id>-<dev|eval>`。新实例的 `--port` 默认从 `3081` 起选第一个未监听且未被有效实例记录占用的端口；已有同名实例则复用记录端口。两者仍可显式覆盖。
 
 ### 4.2 编辑资产
 
@@ -73,30 +75,29 @@ python3 runtime/adapters/dsh-container/dsh-dev image build
 
 # 开发会话：出厂 cordis 创造模式，等同 shell 权限，需要显式确认
 python3 runtime/adapters/dsh-container/dsh-dev up \
-  --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3081 \
-  --accept-cordis-trust
+  --source experiment:EXP-security-operations-expert-001 --mode dev --accept-cordis-trust
 
 # 被测目标会话：运行所选来源声明的目标 preset
 python3 runtime/adapters/dsh-container/dsh-dev up \
-  --source experiment:EXP-security-operations-expert-001 --mode eval --name secops-eval --port 3082
+  --source experiment:EXP-security-operations-expert-001 --mode eval
 
 # 取认证 URL 并打开界面
-python3 runtime/adapters/dsh-container/dsh-dev url secops-dev
+python3 runtime/adapters/dsh-container/dsh-dev url security-operations-expert-dev
 ```
 
 **源码改了不等于已经生效。** 容器里的进程不会因为 bind 挂载内容变化而自动重启，普通 `docker compose up -d` 也不会仅因挂载内容变化重建容器；Preset 又存在按 ID 的驻留装载。因此改完 preset、managed 或适配层脚本后必须真正重启实例：
 
 ```bash
 # 一条命令：先停同名实例自身的容器（保留 HOME 数据卷）再按新配置启动
-dsh-dev up --source <id> --mode dev --name secops-dev --port 3081 --accept-cordis-trust --replace
+dsh-dev up --source <id> --mode dev --accept-cordis-trust --replace
 
 # 等价做法：先 down，再同名同端口 up
-dsh-dev down secops-dev && dsh-dev up ...
+dsh-dev down security-operations-expert-dev && dsh-dev up ...
 ```
 
 重启后在界面上**新建会话**（不要复用旧会话），并确认预先定义的可观察变化真的出现。适配层脚本走只读挂载，只需重启实例，不必重建镜像。
 
-DSH Web 首次打开需要在界面注册工作区：点击"选择工作区" → 目录对话框"编辑路径" → 粘贴本次模式对应的路径 → "打开"。开发会话注册 `/work`，被测会话注册 `/work/harness/workspace`；以 `plan.workspace_to_register` 为准。锁定提交没有受支持的工作区预注册入口，因此启动器只交付路径与步骤，不改写 Runtime 存储格式。该注册写入本实例 HOME 卷并跨重启保留；换实例名等于换 HOME 卷，需要重新选择一次。
+DSH Web 首次打开需要在界面注册工作区：点击"选择工作区" → 目录对话框"编辑路径" → 粘贴本次模式对应的路径 → "打开"。开发会话注册 `/work`，被测会话注册 `/work/harness/workspace`；以 `up --dry-run` 输出的 `workspace_to_register` 为准。锁定提交没有受支持的工作区预注册入口，因此启动器只交付路径与步骤，不改写 Runtime 存储格式。该注册写入本实例 HOME 卷并跨重启保留；换实例名等于换 HOME 卷，需要重新选择一次。
 
 ### 4.4 运行研究比较
 
@@ -121,18 +122,18 @@ python3 runtime/adapters/dsh-container/run_record.py --repo . init \
 ### 4.6 停止
 
 ```bash
-python3 runtime/adapters/dsh-container/dsh-dev down secops-dev
+python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-dev
 ```
 
-`down` 先检查 `docker compose down` 的退出码，再查实际容器状态和 HOME 卷是否仍在：命令失败即报错；命令返回 0 但仍有容器运行、或状态查询失败时，输出 `stopped: false` 或 `stopped: "unknown"` 并以非零退出码结束，不会输出 `stopped: true`。
+`down` 先检查 `docker compose down` 的退出码，再查实际容器状态和 HOME 卷是否仍在：命令失败即报错；命令返回 0 但仍有容器运行、或状态查询失败时，在 stderr 输出 `stopped: false` 或 `stopped: "unknown"` 并以非零退出码结束，不会在 stdout 输出成功结果。
 
-同样，`up` 不再只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的进入运行状态（`home-init` 是一次性服务，正常结束不算失败）。未进入运行状态时报告失败，无法查询状态时报告 `dsh_running: "unknown"` 并以非零退出码结束。
+同样，`up` 不再只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的进入运行状态（`home-init` 是一次性服务，正常结束不算失败）。成功时 stdout 只输出一个 JSON，包含实例名、Compose 项目名、端口、状态目录、Agent/Preset 身份、`dsh_running` 和容器状态；`up --replace` 还在 `replaced.previous_state_schema` 和 `replaced.stop` 中返回旧状态版本与完整停止结果。进度、工作区提示和错误写入 stderr；失败时 stdout 保持为空，也不输出 Token。
 
 输出示例：
 
 ```json
-{"name":"secops-dev","project":"dsh-dev-secops-dev",
- "home_volume":"dsh-dev-secops-dev_dsh-dev-secops-dev-home",
+{"name":"security-operations-expert-dev","project":"dsh-dev-security-operations-expert-dev",
+ "home_volume":"dsh-dev-security-operations-expert-dev_dsh-dev-security-operations-expert-dev-home",
  "home_preserved":true,"containers":[],"stopped":true,"containers_removed":true}
 ```
 
@@ -150,7 +151,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 |---|---|---|
 | `session_preset`（本次会话实际运行） | 出厂 `cordis` 创造模式 | 所选来源声明的目标 preset |
 | `target_preset`（待优化/待评估目标） | 所选来源声明的业务 preset | 同 `session_preset` |
-| 注册工作区（`plan.workspace_to_register`） | `/work` | `/work/harness/workspace` |
+| 注册工作区（`up --dry-run` 输出的 `workspace_to_register`） | `/work` | `/work/harness/workspace` |
 | `/work/harness/workspace` | 读写 | 只读 |
 | `/opt/dsh-presets` | 只读 | 只读 |
 | `/opt/dsh-managed` | 只读 | 只读 |
@@ -168,7 +169,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 | | `--mode dev` | `--mode eval` |
 |---|---|---|
-| 注册工作区（`plan.workspace_to_register`） | `/work` | `/work/harness/workspace` |
+| 注册工作区（`up --dry-run` 输出的 `workspace_to_register`） | `/work` | `/work/harness/workspace` |
 | 会话指令来源 | `/work/AGENTS.md`（受控只读） | `/work/harness/workspace/AGENTS.md`（目标业务指令） |
 | 目标业务 `AGENTS.md` | 作为编辑对象可读可写 | 作为会话身份注入 |
 
@@ -181,7 +182,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 两者分开是有意的：受控指令保持通用，仓库校验器要求它不内联任何业务 Agent 名、非空、有界、不含 URL 或 `!!js`；实际目标值属于派生数据，由启动器生成，只在开发会话挂载（被测容器两个文件都不挂）。指令链会读取 `AGENTS.md` 的 `.local.md` 变体，因此会话无需额外工具即可直接读到目标。
 
-`plan`/`up` 输出与 `instance.json` 记录同一组值，开发者可用它们核对实例是否与本次任务一致。
+`up --dry-run`、`up` 成功输出与 `instance.json` 记录同一组核心值，开发者可用它们核对实例是否与本次任务一致。
 
 被测容器不挂载该文件：它运行的是目标智能体，读到开发者指令会让目标身份错位。
 
@@ -260,17 +261,17 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 | 情形 | 做法 |
 |---|---|
-| 旧状态实例已停止 | 直接同名同端口 `up`：重渲染 Compose 并按当前 schema 重写状态，即完成迁移 |
+| 旧状态实例已停止 | 直接同名 `up`（省略 `--port` 即复用记录端口）：重渲染 Compose 并按当前 schema 重写状态 |
 | 旧状态实例仍在运行 | `up --replace`（先停自身容器、保留 HOME，再启动），或先 `down` 再同名 `up` |
 | `ps` 显示 `needs_migration: true` | 说明该实例状态文件早于当前 schema；按上面两行之一迁移，查询与停止在此期间照常可用 |
 
-`--replace` 只停同名实例自身的容器，不带 `-v`，HOME 数据卷保留；同名但来源或模式不同的实例仍然拒绝（身份冲突）。同名实例不得改端口：记录端口与 `--port` 不一致时直接失败。
+`--replace` 只停同名实例自身的容器，不带 `-v`，HOME 数据卷保留；同名但来源或模式不同的实例仍然拒绝（身份冲突）。同名实例不得改端口：未给 `--port` 时自动复用记录值，显式给出不同值则直接失败。新实例的自动端口在写状态和启动前再检查一次；如果期间被占用，命令失败而不静默换另一个端口。
 
 ## 6. 异常与已有实例处理
 
 | 现象 | 处理 |
 |---|---|
-| 端口被占用 | `up` 直接失败，不自动改端口；显式换 `--port` |
+| 端口在启动前被占用 | `up` 直接失败，不在同一次命令中静默重选；自动分配时可重试命令，或显式指定 `--port` |
 | 缺运行时环境变量 | 默认失败并列出变量名。只有技术装载核验才用 `--allow-missing-env` 显式降级，并在输出中标注 |
 | 同名的实例已存在且来源或模式不同 | 直接失败；改用新的实例名，或先 `down` 旧实例 |
 | 界面提示选择工作区、输入栏无响应 | 这是 DSH 的冷启动流程：按模式注册 `/work`（dev）或 `/work/harness/workspace`（eval）。注册一次即写入该 HOME 卷并跨重启保留；换实例名需要重新选择 |
@@ -301,15 +302,15 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 | 开发角色 | 按说明启动 `--mode dev`，注册 `/work` 并核对实际加载的指令 | 会话读到 `/work/AGENTS.md` 的开发者身份，知道当前目标与可编辑位置；目标业务指令只作为编辑对象出现 |
 | 被测身份 | 启动 `--mode eval`，核对容器内不存在 `/work/AGENTS.md` | 目标只加载自己的业务指令，不会读到开发者身份 |
 | 目标编辑与保存 | 改一个 preset 配置和相关技能 | 修改进入候选资产目录；容器 HOME 中的新产物不被当缓存丢弃 |
-| 目标选择 | 用明确的 preset ID 启动 `--mode eval`，核对 `plan.target_preset` 与基础 patch 的 `agent-presets.default` | 两者相等且等于该 Agent 的 `preset_id`；仓库校验器在这三者不一致时失败 |
+| 目标选择 | 用明确的 preset ID 启动 `--mode eval`，核对 `up --dry-run` 的 `target_preset` 与基础 patch 的 `agent-presets.default` | 两者相等且等于该 Agent 的 `preset_id`；仓库校验器在这三者不一致时失败 |
 | 落状态迁移 | 对一份旧 schema 状态目录执行 `ps` 与 `down` | `ps` 标出 `needs_migration: true`，`down` 能停掉容器并保留 HOME，不因旧状态被拒 |
-| 同名重载 | `up --replace`，或 `down` 后同名同端口 `up` | 旧进程确实停止，新配置被读取；输出含 `replaced.previous_state_schema` |
+| 同名重载 | `up --replace`，或 `down` 后同名 `up` | 旧进程确实停止，新配置被读取；成功输出含 `replaced.previous_state_schema` 和 `replaced.stop` |
 | 重载生效 | 按文档重新装载并验证预先定义的可观察变化 | 不把驻留旧配置的结果误认成新配置 |
 | Preset 试验与回流 | 在 `--mode dev` 用户根用临时新 ID 试验；审查后把内容合并回稳定 `target_preset`，`up --replace` 重载并在 Web 新会话核对 | 原业务 Agent 与稳定目标 ID 不变；候选 `preset_id`、来源 preset 路径和 Profile 默认值一致。该 Web 路径仍待实测 |
 | 判分材料隔离 | 在 `--mode eval` 容器内检查 `/work/spec`、`/work/eval-reference`、`/work/eval-input` | 三条路径都不存在，也不在 `/proc/self/mountinfo` 中 |
 | 运行记录 | 记录实际提交、未提交状态、镜像、模型与测试范围 | 记录与实际使用一致，不虚构完整冻结 |
 | 停止失败 | 模拟 `docker compose down` 返回非零退出码 | 命令失败，不输出 `stopped: true` |
-| 启动未生效 | 模拟 `up -d` 返回 0 但 `dsh` 容器已退出 | 报告 `dsh_running: false` 并以非零退出码结束，不报启动成功 |
+| 启动未生效 | 模拟 `up -d` 返回 0 但 `dsh` 容器已退出 | 在 stderr 报告 `dsh_running: false` 并以非零退出码结束，stdout 为空 |
 
 至少完成一次有真实模型条件的"修改—装载—运行"验证，才能确认开发过程可用。暂时缺模型或服务时如实保留"仅技术检查通过"。
 

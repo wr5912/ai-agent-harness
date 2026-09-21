@@ -13,7 +13,7 @@
 | 能力 | 状态 | 入口 |
 |---|---|---|
 | 解析 Experiment 来源，确定目标 Agent、Preset、资产路径与挂载 | 已实现 | `source_contract.py` |
-| 启动开发会话（`--mode dev`）或被测会话（`--mode eval`） | 已实现；需要 Docker 和运行时环境变量 | `dsh-dev plan/up/ps/url/logs/down` |
+| 启动开发会话（`--mode dev`）或被测会话（`--mode eval`） | 已实现；需要 Docker 和运行时环境变量 | `dsh-dev up/ps/url/logs/down` |
 | 重载实例配置或迁移旧实例状态 | 已实现 | `dsh-dev up --replace` |
 | 构建锁定 DSH 提交的本地镜像 | 已实现 | `dsh-dev image build` |
 | 记录变更前后资产摘要与差异 | 已实现 | `mutation-receipt.py` |
@@ -40,13 +40,13 @@
 
 ### 启动本地实例
 
-下面先查看计划，再分别启动开发实例和被测实例：
+下面先预览实际参数，再分别启动开发实例和被测实例：
 
 ```bash
-# 只解析来源并打印计划
-python3 runtime/adapters/dsh-container/dsh-dev plan \
+# 只解析来源并预览参数；不写状态、不调用 Docker
+python3 runtime/adapters/dsh-container/dsh-dev up \
   --source experiment:EXP-security-operations-expert-001 \
-  --mode dev --name secops-dev --port 3081
+  --mode dev --dry-run
 
 # 首次使用或镜像内容变化后构建锁定镜像
 python3 runtime/adapters/dsh-container/dsh-dev image build
@@ -54,19 +54,18 @@ python3 runtime/adapters/dsh-container/dsh-dev image build
 # 开发实例；dev 模式具备 shell 能力，需要显式确认
 python3 runtime/adapters/dsh-container/dsh-dev up \
   --source experiment:EXP-security-operations-expert-001 \
-  --mode dev --name secops-dev --port 3081 \
-  --accept-cordis-trust
+  --mode dev --accept-cordis-trust
 
 # 被测实例只读装载同一 Candidate
 python3 runtime/adapters/dsh-container/dsh-dev up \
   --source experiment:EXP-security-operations-expert-001 \
-  --mode eval --name secops-eval --port 3082
+  --mode eval
 
 # 获取本次进程的认证 URL；非交互终端显式增加 --non-interactive
-python3 runtime/adapters/dsh-container/dsh-dev url secops-dev
+python3 runtime/adapters/dsh-container/dsh-dev url security-operations-expert-dev
 
 python3 runtime/adapters/dsh-container/dsh-dev ps
-python3 runtime/adapters/dsh-container/dsh-dev down secops-dev
+python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-dev
 ```
 
 修改 Preset、managed 配置或适配层脚本后，已有进程不会自动重载：
@@ -74,16 +73,19 @@ python3 runtime/adapters/dsh-container/dsh-dev down secops-dev
 ```bash
 python3 runtime/adapters/dsh-container/dsh-dev up \
   --source experiment:EXP-security-operations-expert-001 \
-  --mode dev --name secops-dev --port 3081 \
-  --accept-cordis-trust --replace
+  --mode dev --accept-cordis-trust --replace
 ```
 
 运行边界：
 
-- `up` 默认要求来源声明的运行时环境变量已经注入；仅做无凭据技术装载时可显式使用 `--allow-missing-env`。
+- `--source` 和 `--mode` 必须显式给出；缺失或只写旗标不写值时，命令会列出当前可用的 Experiment 和 `dev`/`eval`。
+- `--name` 默认为 `<agent-id>-<dev|eval>`。新实例未指定 `--port` 时从 `3081` 起选择第一个未监听且未被有效实例记录占用的端口；已有同名实例则复用其记录端口。
+- `up --dry-run` 不要求 `--accept-cordis-trust` 或运行时环境变量，不写状态、不调用 Docker；自动端口只是当下建议，真正启动前会重新检查。
+- `up` 默认要求来源声明的运行时环境变量已经注入；仅做无凭据技术装载时可显式使用 `--allow-missing-env`。开发模式仍必须显式加 `--accept-cordis-trust`，评测模式拒绝该旗标。
+- `up` 成功时 stdout 只输出一个 JSON 结果；进度、提示和错误写入 stderr，失败时不在 stdout 留下部分成功结果。
 - 实例状态位于仓库外的 `$XDG_STATE_HOME/dsh-dev/<name>/`。Token 不落盘、不进入仓库、不写入研究证据。
 - 容器使用 host 网络但只绑定 `127.0.0.1`。开发模式等同 shell 权限，仅用于本地受信任研究。
-- 首次打开 Web 需手工注册 `plan.workspace_to_register` 给出的路径。开发模式通常是 `/work`，被测模式通常是 `/work/harness/workspace`。
+- 首次打开 Web 需手工注册 `up --dry-run` 输出中 `workspace_to_register` 给出的路径。开发模式通常是 `/work`，被测模式通常是 `/work/harness/workspace`。
 - 同名实例不能静默改端口；需要重载时使用 `--replace` 或先 `down` 再同名 `up`。
 
 ## 两类会话

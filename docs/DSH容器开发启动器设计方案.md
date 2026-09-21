@@ -1,6 +1,6 @@
 # DSH 容器开发启动器设计方案
 
-> 状态：`dsh-dev` 已实现 `image build`、`plan`、`up`、`ps`、`url`、`logs`、`down` 和 `up --replace`。完整操作说明见[《DSH 开发与评测启动器设计方案》](./DSH开发与评测启动器设计方案.md)。
+> 状态：`dsh-dev` 已实现 `image build`、`up`（含 `--dry-run` 预览）、`ps`、`url`、`logs`、`down` 和 `up --replace`。完整操作说明见[《DSH 开发与评测启动器设计方案》](./DSH开发与评测启动器设计方案.md)。
 
 本文只说明为什么采用当前容器结构。研究管理入口见[《DSH Harness 研究管理 CLI 设计方案》](./DSH-Harness研究管理CLI设计方案.md)；它是本地 CLI 方向，不是平台提案。
 
@@ -63,7 +63,7 @@
 
 ## 6. 结论边界
 
-- `plan` 成功只说明来源可以解析。
+- `up --dry-run` 成功只说明来源可以解析并得到一组当下建议参数。
 - Compose 展开成功只说明配置可以生成。
 - 容器运行和 HTTP `200` 只说明对应进程或页面状态。
 - 实际装载需要在新容器、新 Session 核对目标 Preset、Skill 和行为。

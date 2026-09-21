@@ -74,9 +74,9 @@
 
 ### PA-05 `dsh-dev` 实例完整生命周期
 
-- **要回答**：本地实例能否从计划到停止完整运行，失败时是否如实报告。
-- **操作链**：`plan` → `up` → `ps` → `url` → `logs` → `up --replace` → `down`；同时检查错误来源、端口冲突、缺少环境变量和停止失败。
-- **当前证据**：单元测试、[`dsh-dev-identity-and-lifecycle-20260919.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-identity-and-lifecycle-20260919.json) 和 [`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json)。
+- **要回答**：本地实例能否从参数预览到停止完整运行，失败时是否如实报告。
+- **操作链**：`up --dry-run` → `up` → `ps` → `url` → `logs` → `up --replace` → `down`；同时检查缺参数时的可用值列表、自动实例名与端口、端口竞态、缺少环境变量、单一 stdout JSON 和停止失败。
+- **当前证据**：单元测试已覆盖当前 CLI 合同；既有实机证据见 [`dsh-dev-identity-and-lifecycle-20260919.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-identity-and-lifecycle-20260919.json) 和 [`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json)，其命令形式保留历史原貌。
 - **缺口**：不同 Docker/DSH 环境下的完整实机生命周期和异常恢复仍需持续观察。
 - **自动化边界**：参数、状态转换和失败报告进入测试；Docker 进程、认证交接和真实停止状态用实机探针。
 
@@ -99,7 +99,7 @@
 ### PA-08 DSH Web 工作区、Session、消息与结果闭环
 
 - **要回答**：浏览器用户能否从工作区注册走到可核对结果。
-- **操作链**：启动 Web → 使用本次认证 URL → 注册计划给出的工作区 → 新建正确 Preset 的 Session → 发送消息 → 核对回答、工具行为或明确错误。
+- **操作链**：启动 Web → 使用本次认证 URL → 注册 `up --dry-run` 或启动提示给出的工作区 → 新建正确 Preset 的 Session → 发送消息 → 核对回答、工具行为或明确错误。
 - **当前证据**：[`dsh-web-technical-preflight-20260915T054223Z.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json) 只有技术预检。
 - **缺口**：没有完整浏览器交互证据，因此仍是未验证。
 - **自动化边界**：可稳定的页面/协议检查可逐步自动化；真实工作区选择与用户可见结果需浏览器 E2E 或人工记录。
@@ -136,7 +136,7 @@
 | `SOURCES.md`、受控副本、项目解释 | `PA-02` |
 | 三个资产/研究校验工具 | `PA-03` |
 | `source_contract.py` 与角色挂载计划 | `PA-04` |
-| `dsh-dev plan/up/ps/url/logs/down` | `PA-05` |
+| `dsh-dev up/ps/url/logs/down` | `PA-05` |
 | 镜像构建、容器装载和边界探针 | `PA-06` |
 | `mutation-receipt.py` 与 Headless 会话 | `PA-07` |
 | DSH Web 工作区、Session 和消息 | `PA-08` |
