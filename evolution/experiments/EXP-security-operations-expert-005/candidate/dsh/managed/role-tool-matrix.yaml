@@ -1,0 +1,58 @@
+schema_version: "2.0"
+runtime: dsh-container-only
+delegation_provider: spawn
+max_depth: 1
+background_mode: one-shot
+roles:
+  inspection:
+    tool_name: delegate_inspection
+    tools:
+      - mcp__inspection__inspection_capabilities_list
+      - mcp__inspection__inspection_runs_start_with_plan
+      - mcp__inspection__inspection_runs_collect_evidence
+      - mcp__inspection__inspection_runs_finalize
+  fault-analysis:
+    tool_name: delegate_fault_analysis
+    tools:
+      - mcp__sec-ops__search_graph_assets
+      - mcp__sec-ops__get_graph_resolve_ip_host
+      - mcp__sec-ops__get_soc_asset_by_asset_id
+      - mcp__sec-ops__list_soc_asset
+      - mcp__sec-ops__get_soc_asset_biz_systems
+      - mcp__sec-ops__get_soc_asset_vulnerabilities
+      - mcp__sec-ops__get_ingest_devices_by_asset_by_asset_id
+      - mcp__sec-ops__get_graph_node_detail
+      - mcp__sec-ops__get_graph_path_query
+      - mcp__sec-ops__get_reachability_path_by_ip
+      - mcp__sec-ops__get_graph_flow_host_pair_ports
+      - mcp__sec-ops__get_reachability_cross_signal
+      - mcp__sec-ops__get_graph_compliance_violations
+      - mcp__sec-ops__get_graph_coverage
+      - mcp__sec-ops__get_event_by_id
+  response-planning:
+    tool_name: delegate_response_planning
+    tools: []
+    default_gate: deny
+    input_schema: schemas/response-plan-input.schema.json
+    output_schema: schemas/response-plan-output.schema.json
+parent_direct_tools:
+  workspace:
+    - read
+    - write
+    - edit
+    - glob
+    - grep
+    - skill
+  mcp:
+    policy:
+      - mcp__sec-ops__prepare_policy_configuration
+      - mcp__sec-ops__get_policy_configuration_status
+      - mcp__sec-ops__get_policy_configuration_result
+    inspection: []
+  delegates:
+    - delegate_inspection
+    - delegate_fault_analysis
+    - delegate_response_planning
+denied_mcp_tools:
+  - mcp__sec-ops__select_policy_configuration_candidate
+  - mcp__sec-ops__decide_policy_configuration

@@ -51,13 +51,6 @@ services:
       - DSH_HARNESS_MODE=authoring
       - DSH_PERMISSION_MODE=workspace-write
       - DSH_TELEMETRY_DISABLED=1
-      - DEEPSEEK_API_KEY
-      - SEC_OPS_MCP_URL
-      - SEC_OPS_MCP_TOKEN
-      - INSPECTION_MCP_URL
-      - INSPECTION_MCP_TOKEN
-      - THREAT_ANALYSIS_MCP_URL
-      - THREAT_ANALYSIS_MCP_TOKEN
     command:
       - --profile
       - web

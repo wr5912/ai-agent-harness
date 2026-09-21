@@ -1,0 +1,7 @@
+schema_version: "1.0"
+experiment_id: EXP-security-operations-expert-006
+agent_id: security-operations-expert
+baseline_ref: git:32ad39019c76db0f27088b8a239acf038166da18
+status: completed
+outcome: adopt
+research_question: 在保留 DeepSeek 默认路由的同时，DSH eval 实例能否从来源声明加载本地 OpenAI 兼容 Qwen 路由，并在全新 Web Session 中完成模型切换和真实请求

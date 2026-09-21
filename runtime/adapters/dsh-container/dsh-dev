@@ -59,7 +59,8 @@ DEV_TARGET_FILENAME = "dev-target.AGENTS.local.md"
 CONTAINER_REFERENCE = "/work/reference"
 # 受控模板不含任何仓库内默认值，凡读取实例 Compose 的命令都必须按实例状态注入这些变量。
 # 2.0：当前研究定义改为单一只读挂载。
-INSTANCE_SCHEMA_VERSION = "2.0"
+# 2.1：实例 Compose 按来源声明生成运行时环境变量透传项。
+INSTANCE_SCHEMA_VERSION = "2.1"
 # DSH Web 首次打开是冷启动：会话必须先绑定一个**已注册工作区**，而新实例的 DSH_HOME 里工作区注册表为空
 # （注册表 storages/workspace.json 只从已存会话头 bootstrap，且初始化标记一经写入不再重建）。DSH 在该锁定提交上
 # 没有受支持的工作区预注册入口，因此启动器只如实交付路径与操作步骤，不改写 Runtime 存储内部格式。
@@ -177,7 +178,8 @@ def check_environment(contract: dict) -> None:
         )
 
 
-def render_compose(template: str, *, mode: str, project: str, port: int) -> str:
+def render_compose(template: str, *, mode: str, project: str, port: int,
+                   runtime_env_names: list[str] = ()) -> str:
     """把受控 Compose 模板渲染为实例配置：宿主网络、回环端口、每实例卷名。"""
     if mode not in MODES:
         fail("mode 只能是 authoring 或 verification")
@@ -206,6 +208,11 @@ def render_compose(template: str, *, mode: str, project: str, port: int) -> str:
         command_tail,
         command_tail + f"      - --host\n      - 127.0.0.1\n      - --port\n      - \"{port}\"\n",
     )
+    environment_anchor = "      - DSH_TELEMETRY_DISABLED=1\n"
+    if text.count(environment_anchor) != 1:
+        fail("Compose 模板缺少唯一的 environment 锚点")
+    passthrough = "".join(f"      - {name}\n" for name in dict.fromkeys(runtime_env_names))
+    text = text.replace(environment_anchor, environment_anchor + passthrough)
     return text
 
 
@@ -248,7 +255,13 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         dev_target_file = target / DEV_TARGET_FILENAME
         dev_target_file.write_text(dev_target_document(contract, name, AUTHORING_PRESET), encoding="utf-8")
     template = (ADAPTER / f"{mode}.compose.yaml").read_text(encoding="utf-8")
-    rendered = render_compose(template, mode=mode, project=project_name(name), port=port)
+    rendered = render_compose(
+        template,
+        mode=mode,
+        project=project_name(name),
+        port=port,
+        runtime_env_names=required_env_names(contract),
+    )
     (target / "compose.yaml").write_text(rendered, encoding="utf-8")
     manifest = {
         "schema_version": INSTANCE_SCHEMA_VERSION,
@@ -800,6 +813,7 @@ def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
             mode=args.mode,
             project=project_name(args.name),
             port=args.port,
+            runtime_env_names=required_env_names(contract),
         )
         compose = root / "compose.yaml"
         compose.write_text(rendered, encoding="utf-8")

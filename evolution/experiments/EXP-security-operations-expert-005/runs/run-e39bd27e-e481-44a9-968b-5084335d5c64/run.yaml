@@ -1,0 +1,13 @@
+schema_version: 1.0
+run_id: run-e39bd27e-e481-44a9-968b-5084335d5c64
+experiment_id: EXP-security-operations-expert-005
+agent_id: security-operations-expert
+kind: research
+status: completed
+created_at: 2026-09-21T07:01:16Z
+source_id: experiment:EXP-security-operations-expert-005
+baseline_ref: git:32ad39019c76db0f27088b8a239acf038166da18
+plan_ref: evolution/experiments/EXP-security-operations-expert-005/evaluation/plan.yaml
+finished_at: 2026-09-21T07:03:51Z
+results_sha256: 5b8cd21e48e59a06499a192ddef3f0c9ffdb1389f7bf2f8aae1a5a17097c13b8
+summary_sha256: 16c5c30694f58f8a384a68c2b13e8790352a9dc566d62e3f48a867ceae333530

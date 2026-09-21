@@ -252,7 +252,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 ### 5.7 实例状态
 
-实例配置生成在仓库外：`$XDG_STATE_HOME/dsh-dev/<name>/{compose.yaml,instance.json}`（缺省 `~/.local/state/dsh-dev/`）。`instance.json`（schema `1.3`）记录来源、模式、`agent_id`、`target_preset`、`session_preset`、端口、镜像标签、profile patch、挂载与上下文挂载、环境变量名。它不含 Token，也不进入仓库。
+实例配置生成在仓库外：`$XDG_STATE_HOME/dsh-dev/<name>/{compose.yaml,instance.json}`（缺省 `~/.local/state/dsh-dev/`）。`instance.json`（schema `2.1`）记录来源、模式、`agent_id`、`target_preset`、`session_preset`、端口、镜像标签、profile patch、挂载与上下文挂载、环境变量名。它不含 Token，也不进入仓库。
 
 `ps`、`logs`、`down` 从实例状态文件重建读取该实例 Compose 所需的环境变量，并且**不要求状态文件是最新 schema**：一条旧实例必须仍然能被停止和查询，否则新版会卡在"旧状态拒绝操作、同名 `up` 又被端口挡住"的循环里。记录里缺失的字段不猜：旧模板用 `${VAR:-默认}`，缺值可解析；新模板用 `${VAR:?}`，缺值由 Compose 报出变量名。
 

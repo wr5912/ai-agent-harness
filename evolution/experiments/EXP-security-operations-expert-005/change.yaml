@@ -1,0 +1,7 @@
+schema_version: "1.0"
+experiment_id: EXP-security-operations-expert-005
+agent_id: security-operations-expert
+baseline_ref: git:32ad39019c76db0f27088b8a239acf038166da18
+status: completed
+outcome: adopt
+research_question: 在不改变巡检执行链与角色工具隔离的前提下，统一主 Agent 与巡检子 Agent 的输出合同，能否稳定生成报告链接靠前、结论与结果优先且不暴露内部执行字段的用户可见结果

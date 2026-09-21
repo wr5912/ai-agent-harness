@@ -50,6 +50,26 @@ class RenderComposeTest(unittest.TestCase):
         self.assertIn("    network_mode: host\n", rendered)
         self.assertIn("- \"3082\"", rendered)
 
+    def test_source_runtime_environment_names_are_rendered_once(self):
+        business_names = (
+            "DEEPSEEK_API_KEY", "SEC_OPS_MCP_URL", "SEC_OPS_MCP_TOKEN",
+            "INSPECTION_MCP_URL", "INSPECTION_MCP_TOKEN",
+            "THREAT_ANALYSIS_MCP_URL", "THREAT_ANALYSIS_MCP_TOKEN",
+        )
+        for name in ("authoring.compose.yaml", "verification.compose.yaml"):
+            template = (ADAPTER / name).read_text(encoding="utf-8")
+            for business_name in business_names:
+                self.assertNotIn(business_name, template)
+            rendered = dev.render_compose(
+                template,
+                mode="authoring" if name.startswith("authoring") else "verification",
+                project="dsh-dev-models",
+                port=3082,
+                runtime_env_names=["DEEPSEEK_API_KEY", "LOCAL_LLM_BASE_URL", "LOCAL_LLM_BASE_URL"],
+            )
+            self.assertEqual(rendered.count("      - DEEPSEEK_API_KEY\n"), 1)
+            self.assertEqual(rendered.count("      - LOCAL_LLM_BASE_URL\n"), 1)
+
     def test_missing_anchor_fails_closed(self):
         with self.assertRaises(SystemExit):
             dev.render_compose("services:\n  dsh:\n    working_dir: /tmp\n", mode="verification",
