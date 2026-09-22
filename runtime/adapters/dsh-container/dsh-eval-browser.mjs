@@ -30,6 +30,15 @@ async function readInput() {
 
 const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
 
+function diagnostic(error) {
+  const name = typeof error?.name === 'string' ? error.name : 'Error'
+  const message = typeof error?.message === 'string' ? error.message : 'unknown'
+  return `${name}:${message}`
+    .replace(/https?:\/\/\S+/g, '<redacted-url>')
+    .replace(/token=[^&\s]+/g, 'token=<redacted>')
+    .slice(0, 300)
+}
+
 async function poll(action, accept, timeoutMs) {
   const deadline = Date.now() + timeoutMs
   let value
@@ -47,30 +56,30 @@ async function poll(action, accept, timeoutMs) {
 }
 
 async function listSessions(page) {
-  return await page.evaluate(async () => {
-    const transport = globalThis.__DSH_TRANSPORT__
-    if (transport === undefined) throw new Error('transport-unavailable')
-    const response = await transport.fetch('/api/session/list', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        type: 'client-request',
-        rpcId: `dsh-eval-${crypto.randomUUID()}`,
-        method: 'session/list',
-        payload: { args: { _request: {} } },
-      }),
-    })
-    const body = await response.json()
-    if (!body?.result?.ok) throw new Error('session-list-failed')
-    return body.result.value.items
+  const response = await page.request.post(new URL('/api/session/list', page.url()).href, {
+    data: {
+      type: 'client-request',
+      rpcId: `dsh-eval-${crypto.randomUUID()}`,
+      method: 'session/list',
+      payload: { args: { _request: {} } },
+    },
   })
+  if (!response.ok()) throw new Error('session-list-failed')
+  const body = await response.json()
+  if (!body?.result?.ok) throw new Error('session-list-failed')
+  return body.result.value.items
 }
 
 async function newSession(page, existingIds, presetId, timeoutMs) {
   if (existingIds !== null) {
     await page.getByRole('button', { name: 'New session', exact: true }).last().click()
     await page.locator(COMPOSER).last().waitFor({ timeout: timeoutMs })
+    return null
   }
+  return await resolveSession(page, existingIds, presetId, timeoutMs)
+}
+
+async function resolveSession(page, existingIds, presetId, timeoutMs) {
   const item = await poll(
     async () => (await listSessions(page)).find(candidate => !existingIds?.has(candidate.sessionId)),
     candidate => candidate !== undefined,
@@ -80,16 +89,38 @@ async function newSession(page, existingIds, presetId, timeoutMs) {
   return item.sessionId
 }
 
-async function connectWorkspace(page, workspace, timeoutMs) {
-  // 复用同一 DSH Home 时工作区已经注册，界面不会再有 “Choose workspace” 选择器；
-  // 两种情况都要落到可输入的消息编辑器，避免把已注册状态误判为评测失败。
-  const chooser = page.getByRole('textbox', { name: 'Choose workspace' })
-  if (await chooser.count() === 0) {
-    await page.locator(COMPOSER).last().waitFor({ timeout: timeoutMs })
-    return
+async function dismissTestingNotice(page, timeoutMs) {
+  const continueButton = page.locator('button').filter({ hasText: /Continue/i }).last()
+  try {
+    await continueButton.waitFor({ state: 'visible', timeout: timeoutMs })
+    await continueButton.click({ timeout: timeoutMs })
+    return true
+  } catch (error) {
+    if (error?.name !== 'TimeoutError') throw error
+    return false
   }
-  await chooser.click()
-  const dialog = page.getByRole('dialog', { name: 'Select Workspace Directory' })
+}
+
+async function connectWorkspace(page, workspace, timeoutMs) {
+  // 复用同一 DSH Home 时工作区已经注册，界面会直接进入可输入状态。
+  const chooser = page.getByRole('textbox', { name: 'Choose workspace' })
+  const composer = page.locator(COMPOSER).last()
+  const state = await poll(async () => {
+    await dismissTestingNotice(page, 500)
+    return {
+      ready: await composer.isVisible().catch(() => false),
+      chooser: await chooser.isVisible().catch(() => false),
+    }
+  }, value => value.ready || value.chooser, timeoutMs)
+  if (state.ready) return
+  try {
+    await chooser.click({ timeout: 5000 })
+  } catch (error) {
+    if (error?.name !== 'TimeoutError') throw error
+    await dismissTestingNotice(page, timeoutMs)
+    await chooser.click({ timeout: timeoutMs })
+  }
+  const dialog = page.getByRole('dialog').last()
   await dialog.waitFor({ timeout: timeoutMs })
   await dialog.getByRole('button', { name: 'Edit path' }).click()
   const pathInput = dialog.getByRole('textbox', { name: 'Edit path' })
@@ -282,18 +313,18 @@ function toolBoundaryCheck(item, archive, routes) {
   }
 }
 
-async function runCase(page, payload, item, sessionId, catalog, defaultModel, toolRoutes) {
-  const baseChecks = {
-    schema_version: '1.0',
-    case_id: item.case_id,
-    executor: item.executor,
-    tool_boundary: item.tool_boundary,
-    side_effect_budget: item.side_effect_budget,
-    session_preset: payload.preset_id,
-    session_id: sessionId,
-    trace_format: 'dsh-session-export-envelope-v1',
-  }
+async function runCase(page, payload, item, sessionId, existingIds, catalog, defaultModel, toolRoutes) {
   if (item.case_id === 'T-MODEL-CATALOG') {
+    const baseChecks = {
+      schema_version: '1.0',
+      case_id: item.case_id,
+      executor: item.executor,
+      tool_boundary: item.tool_boundary,
+      side_effect_budget: item.side_effect_budget,
+      session_preset: payload.preset_id,
+      session_id: sessionId,
+      trace_format: 'dsh-session-export-envelope-v1',
+    }
     const checks = {
       ...baseChecks,
       catalog,
@@ -309,7 +340,18 @@ async function runCase(page, payload, item, sessionId, catalog, defaultModel, to
 
   await selectModel(page, MODEL_CASES.has(item.case_id) ? payload.target_model : defaultModel, payload.timeout_ms)
   await send(page, item.input, payload.timeout_ms)
+  if (sessionId === null) sessionId = await resolveSession(page, existingIds, payload.preset_id, payload.timeout_ms)
   const { archive, turn } = await waitForTurn(page, sessionId, item.input, payload.timeout_ms)
+  const baseChecks = {
+    schema_version: '1.0',
+    case_id: item.case_id,
+    executor: item.executor,
+    tool_boundary: item.tool_boundary,
+    side_effect_budget: item.side_effect_budget,
+    session_preset: payload.preset_id,
+    session_id: sessionId,
+    trace_format: 'dsh-session-export-envelope-v1',
+  }
   const completed = turn.turn_reason === 'completed'
   const routeMatches = turn.route?.provider === 'local-qwen' && turn.route?.model === payload.target_model
   const responseMatches = turn.assistant_text.trim() === '模型连通'
@@ -365,13 +407,6 @@ async function main() {
     const page = await context.newPage()
     await page.goto(payload.auth_url, { waitUntil: 'domcontentloaded', timeout: payload.timeout_ms })
     await page.locator('[class*="frame"]').waitFor({ timeout: payload.timeout_ms })
-    const testingNoticeContinue = page.locator('button').filter({ hasText: /Continue/i }).last()
-    try {
-      await testingNoticeContinue.waitFor({ state: 'visible', timeout: 5000 })
-      await testingNoticeContinue.click({ timeout: 5000 })
-    } catch (error) {
-      if (error?.name !== 'TimeoutError') throw error
-    }
     await connectWorkspace(page, payload.workspace, payload.timeout_ms)
     const catalog = await openModelCatalog(page, payload.timeout_ms)
     const defaultModel = catalog.find(entry => entry.selected)?.name
@@ -380,10 +415,20 @@ async function main() {
     let existingIds = null
     for (const item of payload.cases) {
       let sessionId
+      let stage = 'new-session'
       try {
-        sessionId = await newSession(page, existingIds, payload.preset_id, payload.timeout_ms)
-        existingIds = new Set((await listSessions(page)).map(session => session.sessionId))
-        rows.push(await runCase(page, payload, item, sessionId, catalog, defaultModel, toolRoutes))
+        // New Session 可能只是前端草稿；保留点击前的 durable ID 集合，
+        // 发送首条消息后再用它识别刚注册的 Session。
+        const knownIds = existingIds
+        sessionId = await newSession(page, knownIds, payload.preset_id, payload.timeout_ms)
+        existingIds = knownIds ?? new Set((await listSessions(page)).map(session => session.sessionId))
+        stage = 'run-case'
+        // 单个 Case 必须有兜底超时：驱动内部的 poll 超时只覆盖各自的轮询，
+        // 一旦某一阶段没有超时约束就会整轮挂死，既不产出证据也不结束评测。
+        rows.push(await Promise.race([
+          runCase(page, payload, item, sessionId, existingIds, catalog, defaultModel, toolRoutes),
+          delay(payload.timeout_ms * 2).then(() => { throw new Error('case-hard-timeout') }),
+        ]))
       } catch (error) {
         const reason = SAFETY_STOP_REASONS.has(error?.message) ? error.message : 'browser-case-error'
         const directory = join(payload.evidence_root, item.case_id)
@@ -392,7 +437,13 @@ async function main() {
         if (reason !== 'unauthorized-side-effect') {
           await saveEvidence(payload.evidence_root, item,
             { user_input: item.input, assistant_text: null, session_id: sessionId ?? null }, error?.archive ?? null,
-            { schema_version: '1.0', case_id: item.case_id, completed: false, failure_reason: reason })
+            {
+              schema_version: '1.0',
+              case_id: item.case_id,
+              completed: false,
+              failure_reason: reason,
+              failure_detail: `${stage}:${diagnostic(error)}`,
+            })
         }
         rows.push(result(item, 'error', 'inconclusive',
           reason === 'browser-case-error' ? '浏览器用例未完成，未产生语义结论。' : '评测身份、工具或证据边界失配，已安全停止。',
