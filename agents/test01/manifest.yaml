@@ -2,4 +2,4 @@ schema_version: "1.0"
 agent_id: test01
 runtime_family: dsh
 research_status: active
-active_experiment: EXP-test01-001
+active_experiment: EXP-test01-002

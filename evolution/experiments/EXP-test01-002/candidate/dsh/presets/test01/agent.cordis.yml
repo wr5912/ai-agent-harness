@@ -1,0 +1,14 @@
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  disabled: false
+  config:
+    prefix: >-
+      你是 test01，一个用于验证 DSH Harness 创建与装载流程的研究智能体。
+      使用简洁中文回答，并明确保持 test01 身份；不要声称未提供的工具或权限。
+    suffix: 你的工作目录是 {{cwd}}。
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  disabled: false
+  config:
+    maxBytes: 65536

@@ -47,7 +47,8 @@ CONTEXT_ASSETS = (
 CORDIS_TRUST_NOTICE = (
     "开发模式（--mode dev）以出厂 cordis（创造模式）preset 启动：该会话具备 shell 与对实时 runtime 执行模型 JS 的 "
     "tool-cordis 能力，等同 shell 权限；容器使用 host 网络，可直达宿主回环服务（含本机 DSH Web）；"
-    "创造模式会话不加载 security-operations-guard，注入的 SOC MCP 工具与 delegate 不受角色矩阵约束。"
+    "创造模式会话不加载 security-operations-guard，注入的 SOC MCP 工具与 delegate 不受角色矩阵约束；"
+    "会话内执行 dsh plugin 或 pnpm 可下载并执行 npm Plugin、写入该实例 HOME，安装后须由宿主重启实例并新建 Session 才会生效。"
 )
 CONTAINER_WORKSPACE = "/work/harness/workspace"
 # 开发会话注册 /work：受控只读的 /work/AGENTS.md 说明开发者身份与可编辑范围，
@@ -1206,7 +1207,7 @@ def main() -> None:
     up.add_argument("--allow-missing-env", action="store_true",
                     help="显式允许缺少运行时环境变量，仅用于技术装载核验")
     up.add_argument("--accept-cordis-trust", action="store_true",
-                    help="显式确认开发模式（Cordis 创造模式）等同 shell 权限与 host 网络风险")
+                    help="显式确认创造模式的 shell/host 网络及 npm Plugin 下载执行风险；安装后须由宿主重启实例")
     up.set_defaults(handler=command_up)
 
     commands.add_parser("ps", help="列出启动器管理的实例").set_defaults(handler=command_ps)

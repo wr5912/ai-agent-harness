@@ -2,21 +2,28 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { closeSync, existsSync, openSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import { decodeMountPath } from './tree-digest.mjs'
+import { validateAuthoringManifest } from './prepare-verification-home.mjs'
 
+const mode = process.env.DSH_HARNESS_MODE
+assert.ok(mode === 'authoring' || mode === 'verification')
+const manifestPath = '/var/lib/dsh/profiles/web/package.json'
 const paths = [
   '/var/lib/dsh/cordis.patch.yml',
   '/var/lib/dsh/profiles/web/cordis.patch.yml',
-  '/var/lib/dsh/profiles/web/package.json',
   '/var/lib/dsh/AGENTS.md',
   '/var/lib/dsh/.env',
   '/work/harness/workspace/.env',
 ]
+if (mode === 'verification') paths.splice(2, 0, manifestPath)
 const modulePaths = [
   '/var/lib/dsh/node_modules',
   '/var/lib/dsh/profiles/node_modules',
+]
+const localProfileModulePaths = [
   '/var/lib/dsh/profiles/web/node_modules',
   '/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules',
 ]
+if (mode === 'verification') modulePaths.push(...localProfileModulePaths)
 // 判分材料（需求/任务/验收阈值、评估方法、测试预置、预期答案）只出现在开发会话里。
 const gradingPaths = process.env.DSH_HARNESS_MODE === 'authoring'
   ? ['/work/reference']
@@ -49,6 +56,17 @@ for (const path of modulePaths) {
   assert.ok(mounts.some(item => item.target === path && item.options.includes('ro')))
   assert.throws(() => writeFileSync(`${path}/shadow-package.js`, 'forbidden'),
     error => error.code === 'EROFS' || error.code === 'EACCES')
+}
+if (mode === 'authoring') {
+  assert.ok(!mounts.some(item => item.target === manifestPath))
+  const descriptor = openSync(manifestPath, 'r+')
+  closeSync(descriptor)
+  for (const path of localProfileModulePaths) {
+    assert.ok(!mounts.some(item => item.target === path))
+    const probe = `${path}/.rw-proof`
+    writeFileSync(probe, 'writable', { flag: 'wx' })
+    unlinkSync(probe)
+  }
 }
 // 开发会话的判分材料必须只读且不可写入；评测模式必须完全没有这些挂载点。
 for (const path of gradingPaths) {
@@ -90,11 +108,17 @@ const first = readFileSync(paths[0])
 const second = readFileSync(paths[1])
 assert.deepEqual(first, second)
 assert.match(first.toString('utf8'), /^\s*(?:#[^\n]*\n)*\[\]\s*$/)
-const manifest = JSON.parse(readFileSync(paths[2], 'utf8'))
-assert.deepEqual(manifest.dsh.profile.bundles, [
+const manifest = mode === 'authoring'
+  ? validateAuthoringManifest(manifestPath)
+  : JSON.parse(readFileSync(manifestPath, 'utf8'))
+assert.deepEqual(manifest.dsh.profile.bundles.slice(0, 2), [
   '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app',
 ])
 assert.equal(manifest.dsh.profile.patchReload, 'startup')
+if (mode === 'verification') {
+  assert.equal(manifest.dsh.profile.bundles.length, 2)
+  assert.deepEqual(manifest.dependencies, {})
+}
 assert.equal(readFileSync('/var/lib/dsh/AGENTS.md').length, 0)
 for (const path of ['/var/lib/dsh/.env', '/work/harness/workspace/.env']) {
   assert.match(readFileSync(path, 'utf8'), /^(?:\s*#[^\n]*\n)+\s*$/)
@@ -109,9 +133,11 @@ unlinkSync(writableProbe)
 
 console.log(JSON.stringify({
   status: 'engine-subfile-bind-proof',
+  dsh_mode: mode,
   home_mount: 'rw',
   controlled_file_mounts: paths.length,
   controlled_module_mounts: modulePaths.length,
+  writable_profile_module_paths: mode === 'authoring' ? localProfileModulePaths.length : 0,
   read_only_context_mounts: gradingPaths.length,
   controlled_patch_sha256: createHash('sha256').update(first).digest('hex'),
   note: 'Docker mount semantics only; no DSH Profile or Plugin activation was tested.',

@@ -9,6 +9,8 @@ const controls = '/opt/dsh-verification-controls'
 const installAnchor = '/opt/dsh/apps/cli/package.json'
 const fallbackDir = join(home, 'profiles', 'node_modules')
 const installRoot = '/opt/dsh/'
+const officialWebBundles = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app']
+const packageName = /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/
 
 function insideInstall(path, trustedRoot = installRoot) {
   return path.startsWith(trustedRoot) && path !== trustedRoot
@@ -145,6 +147,38 @@ function readBoundedExisting(path, prior, allowEmpty = false) {
   }
 }
 
+export function validateAuthoringManifest(path) {
+  const state = lstatSync(path)
+  if (!state.isFile() || state.isSymbolicLink() || state.nlink !== 1) {
+    throw new Error(`authoring Profile manifest is not a single regular file: ${path}`)
+  }
+  const manifest = JSON.parse(readBoundedExisting(path, state).toString('utf8'))
+  const dependencies = manifest.dependencies
+  const bundles = manifest.dsh?.profile?.bundles
+  if (manifest.name !== 'dsh-profile-web' || manifest.private !== true
+    || !dependencies || typeof dependencies !== 'object' || Array.isArray(dependencies)
+    || !Array.isArray(bundles)
+    || bundles[0] !== officialWebBundles[0] || bundles[1] !== officialWebBundles[1]
+    || manifest.dsh?.profile?.patchReload !== 'startup') {
+    throw new Error('authoring Profile manifest differs from the required web Profile structure')
+  }
+  for (const [name, specifier] of Object.entries(dependencies)) {
+    if (!packageName.test(name) || typeof specifier !== 'string' || specifier.length === 0) {
+      throw new Error(`authoring Profile dependency is invalid: ${name}`)
+    }
+  }
+  if (new Set(bundles).size !== bundles.length) {
+    throw new Error('authoring Profile bundles contain duplicates')
+  }
+  for (const name of bundles.slice(2)) {
+    if (typeof name !== 'string' || !packageName.test(name)
+      || !Object.hasOwn(dependencies, name)) {
+      throw new Error(`authoring Profile bundle is not backed by a dependency: ${String(name)}`)
+    }
+  }
+  return manifest
+}
+
 function ensureTarget(path, source, allowEmpty = false) {
   const controlledState = lstatSync(source)
   if (!controlledState.isFile() || controlledState.isSymbolicLink() || controlledState.nlink !== 1) {
@@ -163,6 +197,10 @@ function ensureTarget(path, source, allowEmpty = false) {
 }
 
 export async function prepareControlledHome() {
+  const mode = process.env.DSH_HARNESS_MODE
+  if (mode !== 'authoring' && mode !== 'verification') {
+    throw new Error('DSH_HARNESS_MODE must be authoring or verification')
+  }
   ensureDirectory(home)
   ensureDirectory(join(home, 'profiles'))
   ensureDirectory(join(home, 'profiles', 'web'))
@@ -175,26 +213,33 @@ export async function prepareControlledHome() {
   const patch = join(controls, 'locked-user.patch.yml')
   ensureTarget(join(home, 'cordis.patch.yml'), patch)
   ensureTarget(join(home, 'profiles', 'web', 'cordis.patch.yml'), patch)
-  ensureTarget(join(home, 'profiles', 'web', 'package.json'), join(controls, 'web-profile.package.json'))
   ensureTarget(join(home, 'AGENTS.md'), join(controls, 'locked-global.AGENTS.md'), true)
   ensureTarget(join(home, '.env'), join(controls, 'locked-bootstrap.env'))
+
+  const appBoot = createRequire(installAnchor).resolve('@deepseek-ai/dsh-app-boot')
+  const { healProfilesModuleFallback, initProfile } = await import(pathToFileURL(appBoot).href)
+  const profileManifest = join(home, 'profiles', 'web', 'package.json')
+  if (mode === 'authoring') {
+    await initProfile(join(home, 'profiles', 'web'), officialWebBundles, 'startup')
+    validateAuthoringManifest(profileManifest)
+  } else {
+    ensureTarget(profileManifest, join(controls, 'web-profile.package.json'))
+  }
 
   // 仅 home-init 可写独立 fallback 卷；主 DSH 对这棵树只读挂载。
   // 旧卷已有任何非精确安装 symlink 均拒绝，绝不先调用 healer 修补或执行。
   const expected = installationClosure(installAnchor)
   validateFallback(fallbackDir, expected, true)
-  const appBoot = createRequire(installAnchor).resolve('@deepseek-ai/dsh-app-boot')
-  const { healProfilesModuleFallback } = await import(pathToFileURL(appBoot).href)
   await healProfilesModuleFallback({ installAnchor, home })
   validateFallback(fallbackDir, expected, false)
 
   console.log(JSON.stringify({
     status: 'controlled-home-targets-prepared',
-    dsh_mode: process.env.DSH_HARNESS_MODE ?? 'unspecified',
+    dsh_mode: mode,
     dsh_home: home,
-    controlled_targets: 5,
+    controlled_targets: mode === 'authoring' ? 4 : 5,
     trusted_fallback_modules: expected.size,
-    note: 'Controlled HOME targets and installation symlinks were prepared; this does not prove DSH loaded a Profile or Plugin.',
+    note: 'Controlled HOME targets, mode-specific Profile manifest, and installation symlinks were prepared; this does not prove DSH loaded a Profile or Plugin.',
   }))
 }
 

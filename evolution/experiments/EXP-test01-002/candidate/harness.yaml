@@ -1,0 +1,30 @@
+schema_version: "1.0"
+agent:
+  id: test01
+  name: test01
+  language: zh-CN
+  lifecycle_status: experiment
+  runtime_family: dsh
+  load_mode: container-only
+experiment:
+  id: EXP-test01-002
+  baseline_ref: git:70e805025a3bc90ec796597664fc3b2f53eea3bc
+  status: active
+loadable_assets:
+  workspace: dsh/workspace
+  preset_root: dsh/presets
+  managed_root: dsh/managed
+  preset_id: test01
+  profile_patch: dsh/managed/test01.patch.yml
+  runtime_lock: runtime.lock.json
+runtime_contract:
+  workspace_container_path: /work/harness/workspace
+  preset_container_path: /opt/dsh-presets
+  managed_container_path: /opt/dsh-managed
+  dsh_home_container_path: /var/lib/dsh
+  authoring_workspace_mode: rw
+  authoring_preset_mode: ro
+  authoring_managed_mode: ro
+  verification_candidate_mode: ro
+credential_environment_keys:
+  - DEEPSEEK_API_KEY

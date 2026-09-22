@@ -1,0 +1,7 @@
+schema_version: "1.0"
+experiment_id: EXP-test01-002
+agent_id: test01
+baseline_ref: git:70e805025a3bc90ec796597664fc3b2f53eea3bc
+status: completed
+outcome: adopt
+research_question: 创造模式能否用 DSH 原生命令安装锁定插件并在实例重启后保持装载

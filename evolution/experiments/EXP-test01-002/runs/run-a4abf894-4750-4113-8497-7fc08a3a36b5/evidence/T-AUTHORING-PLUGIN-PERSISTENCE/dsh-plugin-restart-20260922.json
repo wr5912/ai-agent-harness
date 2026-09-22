@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-09-22T02:08:17Z",
+  "source_id": "experiment:EXP-test01-002",
+  "agent_id": "test01",
+  "mode": "authoring",
+  "instance": {
+    "name": "test01-exp002-dev",
+    "port": 3095,
+    "container_id": "e017819911b68a5d2e4a9affe1ba783477ba421975f7e606b133613fc2196cd2",
+    "image_tag": "ai-agent-harness/dsh:c291e7961",
+    "image_id": "sha256:3aac3c06010e7ad074bba70ec37631acf57dcc084f5d758c2c576a75919598bb",
+    "state": "running",
+    "authenticated_http_status": 401
+  },
+  "restart": {
+    "launcher_action": "dsh-dev up --replace",
+    "previous_container_id_prefix": "eb4196d2f980",
+    "home_volume_preserved": true,
+    "scope": "容器替换与 HOME 保留；未模拟 Docker 守护进程重启"
+  },
+  "plugin": {
+    "package_spec": "dsh-codex-connect@0.1.0-alpha.4.39",
+    "integrity": "sha512-XUxCxqoRThQlhEDaYgMEJcb9TUFBzHVahLKwp4ZhkqOPRLF2gaxu70DAsKcXqKtz4XLf8ARMnAmeGnji3xwVKA==",
+    "manifest_version": "0.1.0-alpha.4.39",
+    "manifest_sha256": "6d4d6e110cc503706979ae653b235c587735386a3dfe9ae3a1a9d05d447b1a8f",
+    "lockfile_sha256": "056ae867b48b03cbaa579cbe855f87ef81cbefceba2f1c92432b031b6c355ca7",
+    "auth_file": "absent",
+    "installation_command": "dsh plugin --profile web add dsh-codex-connect@0.1.0-alpha.4.39"
+  },
+  "runtime_checks": {
+    "dsh_web_help": "pass",
+    "dump_config_plugin_bundle_sections": 1,
+    "dump_config_openai_codex_provider_rows": 1,
+    "plugin_doctor": "compatible; OAuth metadata missing as expected",
+    "plugin_status": "signed out as expected",
+    "harness_defaults": "unchanged",
+    "oauth_or_model_request": "not performed"
+  },
+  "verification_boundary": {
+    "mode": "verification",
+    "command": "bash runtime/adapters/dsh-container/verify-load.sh verification --source EXP-test01-002",
+    "result": "pass",
+    "workspace_mode": "ro",
+    "presets_mode": "ro",
+    "managed_mode": "ro",
+    "grading_material_paths_exposed": [],
+    "development_overlay_applied": false,
+    "controlled_targets": 5,
+    "trusted_fallback_modules": 277
+  },
+  "limitations": [
+    "未执行 ChatGPT OAuth，也未发起真实 Codex 模型请求。",
+    "未进行浏览器 Session 对话验收；HTTP 401 只证明端口存在且需要认证。",
+    "本证据不表示生产可用性或 Research Release 复现。"
+  ]
+}

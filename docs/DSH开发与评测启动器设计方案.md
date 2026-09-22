@@ -75,7 +75,7 @@ python3 runtime/adapters/dsh-container/dsh-dev up \
 
 直接在 `candidate/dsh/` 下编辑：`workspace/` 放技能与业务 `AGENTS.md`，`presets/<preset-id>/` 放 preset 声明，`managed/` 放 profile patch、Guard、角色矩阵与 MCP 绑定。
 
-`--mode dev` 只把 `workspace/` 挂成可写。Preset 与 managed 在容器内只读，这是受控配置的红线；要改它们，改宿主源码后按 4.3 重新装载。
+`--mode dev` 把 `workspace/` 挂成可写；Preset 与 managed 在容器内仍只读，这是受控配置的红线。编写态 DSH_HOME 仅额外允许 Web Profile manifest、本地 module 路径和运行状态写入，用于通过 DSH 原生 `dsh plugin`/`pnpm` 安装研究 Plugin；要改 Preset、managed 或 Guard，仍改宿主源码后按 4.3 重新装载。
 
 ### 4.3 重新装载并运行
 
@@ -95,7 +95,7 @@ python3 runtime/adapters/dsh-container/dsh-dev up \
 python3 runtime/adapters/dsh-container/dsh-dev url security-operations-expert-dev
 ```
 
-**源码改了不等于已经生效。** 容器里的进程不会因为 bind 挂载内容变化而自动重启，普通 `docker compose up -d` 也不会仅因挂载内容变化重建容器；Preset 又存在按 ID 的驻留装载。因此改完 preset、managed 或适配层脚本后必须真正重启实例：
+**源码或 Profile Plugin 改了不等于已经生效。** 容器里的进程不会因为 bind 挂载内容变化或 Profile 依赖变化而自动重启，普通 `docker compose up -d` 也不会仅因挂载内容变化重建容器；Preset 又存在按 ID 的驻留装载。因此改完 preset、managed、适配层脚本或执行 `dsh plugin` 安装后必须真正重启实例：
 
 ```bash
 # 一条命令：先停同名实例自身的容器（保留 HOME 数据卷）再按新配置启动
@@ -106,6 +106,8 @@ dsh-dev down security-operations-expert-dev && dsh-dev up ...
 ```
 
 重启后在界面上**新建会话**（不要复用旧会话），并确认预先定义的可观察变化真的出现。适配层脚本走只读挂载，只需重启实例，不必重建镜像。
+
+编写态会话可执行 `dsh plugin --profile web add <包名和版本>` 安装研究 Plugin；该操作会下载并执行 npm 包，风险由 `--accept-cordis-trust` 的创造模式确认覆盖。安装后由宿主执行上面的 `up --replace`（保留 HOME 卷）并在 Web 中新建 Session；`--mode eval` 仍通过受控 manifest 和 module deny-layer 禁止会话内私有 Plugin 注入。
 
 DSH Web 首次打开需要在界面注册工作区：点击"选择工作区" → 目录对话框"编辑路径" → 粘贴本次模式对应的路径 → "打开"。开发会话注册 `/work`，被测会话注册 `/work/harness/workspace`；以 `up --dry-run` 输出的 `workspace_to_register` 为准。锁定提交没有受支持的工作区预注册入口，因此启动器只交付路径与步骤，不改写 Runtime 存储格式。该注册写入本实例 HOME 卷并跨重启保留；换实例名等于换 HOME 卷，需要重新选择一次。
 
@@ -138,7 +140,7 @@ python3 runtime/adapters/dsh-container/run_record.py --repo . init \
 
 `inputs.lock.json` 会记录三棵 Harness 树与研究资料树的摘要、`evaluation.md` 摘要和本 Experiment 所选 ID，以及 `git_version`（提交、是否含未提交修改、变更路径数）。这些值是当次 Run 的不可编辑输入锁，不是新的评测维护源。**未提交修改无法仅凭 `HEAD` 还原**，所以该字段必须如实保留，不能把带未提交修改的运行写成某个提交的完整内容。
 
-开发过程中产生的新 preset、技能或插件即使暂存在容器 HOME 的 `/var/lib/dsh/.agent-presets/`，仍属于待保存的开发产物，不是缓存：在结束实例前把它复制回 `candidate/dsh/presets/`，宿主复核后再重建容器核验。不清理时一并删除。
+开发过程中产生的新 preset、技能或插件即使暂存在容器 HOME 的 `/var/lib/dsh/.agent-presets/` 或 Web Profile 目录，仍属于待保存的开发产物，不是缓存：宿主复核后把应保留的 Harness 资产回流 `candidate/`，并把插件的精确版本与完整性信息写入对应 Experiment 的 Candidate；不清理时一并删除。
 
 ### 4.6 停止
 
@@ -179,9 +181,9 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 | `/work/reference` | 只读挂载 | 不挂载 |
 | `/work/eval-input` | 不适用 | 仅在显式声明时只读挂载 |
 | `/var/lib/dsh` | 每实例独立数据卷 | 每实例独立数据卷 |
-| 受控 HOME 子文件 | 空用户 Patch、web profile manifest、零字节全局指令、注释 `.env`、模块 deny-layer 只读覆盖 | 同左 |
+| 受控 HOME 子文件 | 空用户 Patch、零字节全局指令、注释 `.env`、根 module deny；Web Profile manifest 与本地 module 路径在可写 HOME 中 | 在此基础上再以只读锁定 Web Profile manifest 和本地 module deny-layer |
 
-两种模式共用受控 HOME 边界，只有 `dev` 在主服务命令上多一层 `--patch` 开发叠加层。
+两种模式共用 Patch、全局指令、`.env`、共享 fallback 和根 module deny 等受控边界；`dev` 另外在主服务命令上叠加开发 Patch，并有意保留 Web Profile 的本地 manifest/module 写入能力以安装研究 Plugin。`eval` 锁定这些 Profile 本地路径，不能把开发态 HOME Plugin 带入被测运行。
 
 ### 5.2 开发会话身份与被测输入
 

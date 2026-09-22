@@ -19,7 +19,7 @@
 | 修改 | `PA-07` | Headless 修改、回流、观察与回退闭环 | 部分验证 |
 | 交互 | `PA-08` | DSH Web 工作区、Session、消息与结果闭环 | 部分验证 |
 | 派生 | `PA-09` | 新 Preset 创建、回流、重载与选择闭环 | 部分验证 |
-| 记录 | `PA-10` | Research Run 的创建、记录、缺口与封存 | 部分验证 |
+| 记录 | `PA-10` | Research Run 的创建、记录、缺口与封存 | 已验证（机器范围） |
 | 复用 | `PA-11` | Research Release 打包、解析与复现装载 | 未实现 |
 
 状态含义：
@@ -69,31 +69,31 @@
 
 - **要回答**：选择的 Experiment 是否解析到正确 Agent、Preset 和资产；开发会话与被测会话是否看见正确内容。
 - **操作链**：解析 `experiment:<id>` → 分别生成 authoring、subject、scoring 计划 → 核对 `session_preset` 与 `target_preset` → 开发/评分角色只挂一个 `/work/reference` → 反向确认被测会话没有参考答案和判断材料。
-- **当前证据**：来源合同、挂载计划和角色隔离测试覆盖当前机器合同。
+- **当前证据**：来源合同、挂载计划和角色隔离测试覆盖当前机器合同；[`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json) 记录同一 `EXP-test01-002` 来源在 authoring 与 verification 模式下的实际边界。
 - **自动化边界**：路径、字段和挂载计划进入测试；实际 DSH 加载属于 `PA-06`。
 
 ### PA-05 `dsh-dev` 实例完整生命周期
 
 - **要回答**：本地实例能否从参数预览到停止完整运行，失败时是否如实报告。
 - **操作链**：`up --dry-run` → `up` → `ps` → `url` → `logs` → `up --replace` → `down`；同时检查缺参数时的可用值列表、自动实例名与端口、端口竞态、缺少环境变量、单一 stdout JSON 和停止失败。
-- **当前证据**：单元测试已覆盖当前 CLI 合同；既有实机证据见 [`dsh-dev-identity-and-lifecycle-20260919.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-identity-and-lifecycle-20260919.json) 和 [`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json)，其命令形式保留历史原貌。
-- **缺口**：不同 Docker/DSH 环境下的完整实机生命周期和异常恢复仍需持续观察。
+- **当前证据**：单元测试已覆盖当前 CLI 合同；既有实机证据见 [`dsh-dev-identity-and-lifecycle-20260919.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-identity-and-lifecycle-20260919.json) 和 [`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json)，本次独立实例的 `up --replace` 与运行状态见 [`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json)。
+- **缺口**：本次未对同一实例重新跑完 `url`、`logs`、`down` 及异常恢复；不同 Docker/DSH 环境下的完整实机生命周期仍需持续观察。
 - **自动化边界**：参数、状态转换和失败报告进入测试；Docker 进程、认证交接和真实停止状态用实机探针。
 
 ### PA-06 开发/被测容器的真实装载与边界
 
 - **要回答**：两种模式是否实际加载同一来源，并形成预期的可写/只读视图。
 - **操作链**：确认镜像身份 → 启动开发实例 → 核对开发身份、目标声明和共享研究资料挂载 → 启动被测实例 → 核对目标 Preset、Skill、Plugin/MCP 声明及材料不可见性。
-- **当前证据**：[`dsh-dev-live-load-20260918.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-live-load-20260918.json) 和 [`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json) 记录当前镜像下的主要探针。
-- **缺口**：镜像、Profile、适配层或挂载合同变化后需要重跑；技术装载不说明业务能力有效。
+- **当前证据**：[`dsh-dev-live-load-20260918.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-live-load-20260918.json)、[`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json) 和 [`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json) 记录当前镜像下的主要探针、插件装载和 verification 负向边界。
+- **缺口**：镜像、Profile、适配层或挂载合同变化后需要重跑；本次未执行 OAuth、真实模型请求或浏览器 Session，技术装载不说明业务能力有效。
 - **自动化边界**：Compose 和计划合同进入测试；真实容器内可见内容用容器探针。
 
 ### PA-07 Headless 修改、回流、观察与回退闭环
 
 - **要回答**：修改是否真正进入受 Git 管理的 Candidate，并在新会话中产生可观察变化。
 - **操作链**：变更前回执 → 开发会话修改 → 变更后回执 → 宿主复核 → 新被测会话观察 → 回退 → 再建会话确认旧行为消失。
-- **当前证据**：[`dsh-dev-real-session-20260919.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json) 记录一次真实模型与本地模拟 MCP 的 Skill 闭环。
-- **缺口**：尚未覆盖 Prompt、Preset、Plugin 等其他资产类型和真实业务 MCP。
+- **当前证据**：[`dsh-dev-real-session-20260919.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json) 记录一次真实模型与本地模拟 MCP 的 Skill 闭环；本次插件命令和 HOME 持久化的技术观察见 [`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json)。
+- **缺口**：本次未修改 Candidate Harness 内容，也未执行回退和新 Session 语义观察；尚未覆盖 Prompt、Preset、Plugin 行为及真实业务 MCP 的完整闭环。
 - **自动化边界**：回执、摘要和回流路径进入测试；模型行为和真实工具效果由 Experiment Run 记录。
 
 ### PA-08 DSH Web 工作区、Session、消息与结果闭环
@@ -101,7 +101,8 @@
 - **要回答**：浏览器用户能否从工作区注册走到可核对结果。
 - **操作链**：启动 Web → 使用本次认证 URL → 注册 `up --dry-run` 或启动提示给出的工作区 → 新建正确 Preset 的 Session → 发送消息 → 核对回答、工具行为或明确错误。
 - **当前证据**：[`dsh-web-technical-preflight-20260915T054223Z.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json) 记录技术预检。`dsh-eval` 已实现工作区注册、逐 Case 新 Session、目标 Preset 核对、消息发送、Session 导出与 Run 证据封存；替身进程测试覆盖启动、认证入口、浏览器结果、停止和 Token 不落盘。
-- **缺口**：当前口径尚无本实现产生的真实 Playwright 封存 Run；页面定位器、模型目录和真实 MCP 行为仍需实机验证。
+- **当前证据**：[`dsh-web-technical-preflight-20260915T054223Z.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json) 记录技术预检；`dsh-eval` 已实现工作区注册、逐 Case 新 Session、目标 Preset 核对、消息发送、Session 导出与 Run 证据封存；插件实验另记录了宿主重启后的 Profile 持久化。
+- **缺口**：当前口径尚无本实现产生的真实 Playwright 封存 Run；页面定位器、模型目录和真实 MCP 行为仍需实机验证，本次插件实验也未执行浏览器对话验收。
 - **自动化边界**：确定性的编排与异常闭环进入测试；模型与 MCP 语义仍由真实浏览器 Run 和人工判读证明。
 
 ### PA-09 新 Preset 创建、回流、重载与选择闭环
@@ -116,8 +117,8 @@
 
 - **要回答**：一次运行能否说明“用的哪版、输入是什么、观察到什么、有哪些失败和限制”。
 - **操作链**：`init` → 逐项 `record` → 必要时 `gap` → `finalize` → 反向确认封存后不能追加结果；受管路径由 `dsh-eval` 完成同一闭环。
-- **当前证据**：Run v2 将 `execution_status` 与 `verdict` 分离，要求材料化 `evidence_ref`，并在 `completed` 封存前覆盖全部锁定 Case。`run_record.py` 与 `dsh-eval` 的机器测试覆盖输入子集锁定、证据、异常封存、摘要和封存后拒绝追加。
-- **缺口**：当前口径尚无本实现产生的真实 DSH 封存 Run；仍需用实际 Experiment 检验记录是否足以复现比较结论。
+- **当前证据**：Run v2 将 `execution_status` 与 `verdict` 分离，要求材料化 `evidence_ref`，并在 `completed` 封存前覆盖全部锁定 Case。`run_record.py` 与 `dsh-eval` 的机器测试覆盖输入子集锁定、证据、异常封存、摘要和封存后拒绝追加；插件实验另保留一次实际初始化、记录、缺口和封存回执。
+- **缺口**：当前口径尚无本实现产生的真实 DSH Playwright 封存 Run；插件实验 Run 未覆盖 OAuth、真实模型请求或生产验收，仍需用实际 Experiment 检验记录是否足以复现比较结论。
 - **自动化边界**：schema、唯一 ID、状态转换、证据引用和封存进入测试；观察是否支持假设由人审阅。
 
 ### PA-11 Research Release 打包、解析与复现装载

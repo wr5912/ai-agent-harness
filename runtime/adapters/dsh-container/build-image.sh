@@ -64,6 +64,7 @@ task_source_commit="$(python3 "$task_adapter_dir/source_contract.py" --source "$
 task_source_tree="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --field image.tree)"
 task_lock_sha="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --field image.pnpm_lock_sha256)"
 task_package_manager="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --field image.package_manager)"
+task_pnpm_version="${task_package_manager#pnpm@}"
 task_node_base="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --field image.node_base)"
 task_platform="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --field image.platform)"
 task_cli_version="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --field image.cli_version)"
@@ -122,10 +123,16 @@ docker buildx build \
 task_image_id="$(docker image inspect "$task_image_tag" --format '{{.Id}}')"
 task_image_platform="$(docker image inspect "$task_image_tag" --format '{{.Os}}/{{.Architecture}}')"
 task_runtime_version="$(docker run --rm --entrypoint node "$task_image_tag" /opt/dsh/apps/cli/lib/bin.js --version)"
+task_dsh_command_version="$(docker run --rm --entrypoint dsh "$task_image_tag" --version)"
+task_dsh_web_help="$(docker run --rm --entrypoint dsh "$task_image_tag" web --help)"
+task_pnpm_runtime_version="$(docker run --rm --entrypoint pnpm "$task_image_tag" --version)"
 [[ "$task_image_platform" == "$task_platform" ]]
 [[ "$task_runtime_version" == "$task_cli_version" ]]
+[[ "$task_dsh_command_version" == "$task_cli_version" ]]
+[[ "$task_dsh_web_help" == *"Usage: dsh --profile web"* ]]
+[[ "$task_pnpm_version" != "$task_package_manager" && "$task_pnpm_runtime_version" == "$task_pnpm_version" ]]
 
-python3 - "$task_evidence_file" "$task_source_id" "$task_source_repository" "$task_source_commit" "$task_source_tree" "$task_lock_sha" "$task_package_manager" "$task_node_base" "$task_image_tag" "$task_image_id" "$task_image_platform" "$task_runtime_version" "$task_build_network" "$task_apt_mirror" "$task_npm_registry" <<'PY'
+python3 - "$task_evidence_file" "$task_source_id" "$task_source_repository" "$task_source_commit" "$task_source_tree" "$task_lock_sha" "$task_package_manager" "$task_node_base" "$task_image_tag" "$task_image_id" "$task_image_platform" "$task_runtime_version" "$task_dsh_command_version" "$task_pnpm_runtime_version" "$task_build_network" "$task_apt_mirror" "$task_npm_registry" <<'PY'
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -148,14 +155,16 @@ evidence = {
     "local_image_id": sys.argv[10],
     "platform": sys.argv[11],
     "dsh_cli_version": sys.argv[12],
-    "build_network_mode": sys.argv[13],
-    "apt_mirror_main": sys.argv[14],
+    "dsh_command_version": sys.argv[13],
+    "pnpm_runtime_version": sys.argv[14],
+    "build_network_mode": sys.argv[15],
+    "apt_mirror_main": sys.argv[16],
     "apt_mirror_security": (
         "http://mirrors.aliyun.com/debian-security"
-        if sys.argv[14] == "http://mirrors.aliyun.com/debian"
+        if sys.argv[16] == "http://mirrors.aliyun.com/debian"
         else "http://deb.debian.org/debian-security"
     ),
-    "npm_registry": sys.argv[15],
+    "npm_registry": sys.argv[17],
     "apt_signed_metadata_preflight": "pass",
     "registry_digest_verified": False,
     "scope": "local image build and CLI identity only; no Harness or business acceptance",
@@ -169,6 +178,8 @@ printf 'DSH source commit: %s\n' "$task_source_commit"
 printf 'DSH image tag: %s\n' "$task_image_tag"
 printf 'Local image ID: %s\n' "$task_image_id"
 printf 'DSH CLI version: %s\n' "$task_runtime_version"
+printf 'dsh command version: %s\n' "$task_dsh_command_version"
+printf 'pnpm runtime version: %s\n' "$task_pnpm_runtime_version"
 printf 'Build network mode: %s\n' "$task_build_network"
 printf 'APT mirror main: %s\n' "$task_apt_mirror"
 printf 'npm registry: %s\n' "$task_npm_registry"

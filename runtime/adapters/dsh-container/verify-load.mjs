@@ -4,7 +4,7 @@ import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from '
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { decodeMountPath, fileSnapshot } from './tree-digest.mjs'
-import { installationClosure, validateFallback } from './prepare-verification-home.mjs'
+import { installationClosure, validateAuthoringManifest, validateFallback } from './prepare-verification-home.mjs'
 
 const mode = process.env.DSH_HARNESS_MODE
 if (mode !== 'authoring' && mode !== 'verification') {
@@ -151,11 +151,6 @@ const homeControlEvidence = {}
       expected: process.env.DSH_EXPECT_USER_PATCH_SHA,
     },
     {
-      key: 'web_profile_manifest',
-      path: '/var/lib/dsh/profiles/web/package.json',
-      expected: process.env.DSH_EXPECT_WEB_MANIFEST_SHA,
-    },
-    {
       key: 'global_agent_instructions',
       path: '/var/lib/dsh/AGENTS.md',
       expected: process.env.DSH_EXPECT_GLOBAL_AGENTS_SHA,
@@ -171,6 +166,13 @@ const homeControlEvidence = {}
       expected: process.env.DSH_EXPECT_BOOTSTRAP_ENV_SHA,
     },
   ]
+  if (mode === 'verification') {
+    controls.push({
+      key: 'web_profile_manifest',
+      path: '/var/lib/dsh/profiles/web/package.json',
+      expected: process.env.DSH_EXPECT_WEB_MANIFEST_SHA,
+    })
+  }
   for (const control of controls) {
     const mount = mounts.find(entry => entry.target === control.path)
     if (!mount || !mount.options.includes('ro')) {
@@ -195,14 +197,27 @@ const homeControlEvidence = {}
   if (homePatch !== profilePatch || !/^\s*(?:#[^\n]*\n)*\[\]\s*$/.test(homePatch)) {
     throw new Error('DSH_HOME user Patch is not the controlled empty deny-layer')
   }
-  const manifest = JSON.parse(readFileSync('/var/lib/dsh/profiles/web/package.json', 'utf8'))
-  if (manifest.name !== 'dsh-profile-web' || manifest.private !== true
-    || Object.keys(manifest.dependencies ?? {}).length !== 0
-    || manifest.dsh?.profile?.patchReload !== 'startup'
-    || JSON.stringify(manifest.dsh?.profile?.bundles) !== JSON.stringify([
-      '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app',
-    ])) {
-    throw new Error('web Profile manifest differs from locked startup tuple')
+  const manifestPath = '/var/lib/dsh/profiles/web/package.json'
+  if (mode === 'authoring') {
+    if (mounts.some(entry => entry.target === manifestPath)) {
+      throw new Error('authoring web Profile manifest must come from the writable HOME volume')
+    }
+    validateAuthoringManifest(manifestPath)
+    homeControlEvidence.web_profile_manifest = {
+      mount_mode: 'rw-home-volume',
+      sha256: fileSha(manifestPath, 64 * 1024),
+      size: lstatSync(manifestPath).size,
+    }
+  } else {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    if (manifest.name !== 'dsh-profile-web' || manifest.private !== true
+      || Object.keys(manifest.dependencies ?? {}).length !== 0
+      || manifest.dsh?.profile?.patchReload !== 'startup'
+      || JSON.stringify(manifest.dsh?.profile?.bundles) !== JSON.stringify([
+        '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app',
+      ])) {
+      throw new Error('web Profile manifest differs from locked startup tuple')
+    }
   }
   for (const path of ['/var/lib/dsh/.env', '/work/harness/workspace/.env']) {
     const content = readFileSync(path, 'utf8')
@@ -216,11 +231,14 @@ const homeControlEvidence = {}
 }
 
 const moduleEvidence = {}
-for (const path of [
-  '/var/lib/dsh/node_modules',
-  '/var/lib/dsh/profiles/web/node_modules',
-  '/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules',
-]) {
+const deniedModulePaths = ['/var/lib/dsh/node_modules']
+if (mode === 'verification') {
+  deniedModulePaths.push(
+    '/var/lib/dsh/profiles/web/node_modules',
+    '/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules',
+  )
+}
+for (const path of deniedModulePaths) {
   const mount = mounts.find(entry => entry.target === path)
   if (!mount || !mount.options.includes('ro')) {
     throw new Error(`DSH_HOME module deny-layer is not an exact read-only mount: ${path}`)
@@ -235,6 +253,21 @@ for (const path of [
     throw new Error(`DSH_HOME module deny-layer marker mismatch: ${path}`)
   }
   moduleEvidence[path] = { mount_mode: 'ro', module_entries: 0, policy_sha256: markerSha }
+}
+if (mode === 'authoring') {
+  for (const path of [
+    '/var/lib/dsh/profiles/web/node_modules',
+    '/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules',
+  ]) {
+    if (mounts.some(entry => entry.target === path)) {
+      throw new Error(`authoring Profile module path must come from the writable HOME volume: ${path}`)
+    }
+    const state = lstatSync(path)
+    if (!state.isDirectory() || state.isSymbolicLink()) {
+      throw new Error(`authoring Profile module path is not a real directory: ${path}`)
+    }
+    moduleEvidence[path] = { mount_mode: 'rw-home-volume' }
+  }
 }
 
 const fallbackPath = '/var/lib/dsh/profiles/node_modules'
@@ -358,5 +391,7 @@ console.log(JSON.stringify({
   development_overlay_applied: developmentOverlayApplied,
   writable_user_preset_root: userPresetRootEnabled,
   preset_guard_declaration_present: guardPresent,
-  limitations: 'Read-only HOME/Module/.env controls and a startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested.',
+  limitations: mode === 'authoring'
+    ? 'Locked Patch/.env/global instructions and writable Profile package paths prove the authoring boundary and config composition only; no Plugin behavior, Agent session, real protocol, final business state, or Release acceptance was tested.'
+    : 'Read-only HOME/Module/.env controls and a locked startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested.',
 }))

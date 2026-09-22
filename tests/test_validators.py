@@ -406,6 +406,85 @@ class ResearchEvalTests(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("RESULT_FIELDS", error_codes(payload))
 
+    def test_sealed_run_keeps_historical_evaluation_digest(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            experiment = write_minimal_experiment(Path(temp), status="completed", outcome="adopt")
+            run_id = "run-" + str(uuid.uuid4())
+            run_dir = experiment / "runs" / run_id
+            run_dir.mkdir(parents=True)
+            (run_dir / "run.yaml").write_text(
+                "\n".join(
+                    [
+                        'schema_version: "2.0"',
+                        f"run_id: {run_id}",
+                        "experiment_id: EXP-example-agent-001",
+                        "agent_id: example-agent",
+                        "kind: research",
+                        "status: running",
+                        "evaluation_ref: agents/example-agent/evaluation.md#EXP-example-agent-001",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            evaluation = experiment.parents[2] / "agents/example-agent/evaluation.md"
+            old_digest = hashlib.sha256(evaluation.read_bytes()).hexdigest()
+            (run_dir / "inputs.lock.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "2.0",
+                        "run_id": run_id,
+                        "evaluation_sha256": old_digest,
+                        "evaluation_selection": {
+                            "case_ids": ["T-EXAMPLE-001"],
+                            "method_ids": ["m-example"],
+                            "acceptance_ids": ["AC-001"],
+                        },
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            evidence = run_dir / "evidence/T-EXAMPLE-001/checks.json"
+            evidence.parent.mkdir(parents=True)
+            evidence.write_text('{"checked":true}\n', encoding="utf-8")
+            row = {
+                "run_id": run_id,
+                "trial_id": "trial-1",
+                "input_id": "T-EXAMPLE-001",
+                "execution_status": "completed",
+                "verdict": "passed",
+                "observation": "观察到预期变化",
+                "evidence_ref": "evidence/T-EXAMPLE-001",
+            }
+            (run_dir / "results.jsonl").write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+            (run_dir / "summary.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "2.0",
+                        "run_id": run_id,
+                        "trial_count": 1,
+                        "execution_status_counts": {"completed": 1, "error": 0, "skipped": 0},
+                        "verdict_counts": {"passed": 1, "failed": 0, "inconclusive": 0},
+                        "overall_verdict": "passed",
+                    }
+                ) + "\n",
+                encoding="utf-8",
+            )
+            evaluation.write_text(evaluation.read_text(encoding="utf-8") + "\n<!-- 后续 Experiment 定义 -->\n", encoding="utf-8")
+            completed, payload = run_json(VALIDATE_EXPERIMENT, experiment)
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("RUN_EVALUATION_HASH", error_codes(payload))
+            manifest = run_dir / "run.yaml"
+            manifest.write_text(
+                manifest.read_text(encoding="utf-8").replace("status: running", "status: completed")
+                + f"results_sha256: {hashlib.sha256((run_dir / 'results.jsonl').read_bytes()).hexdigest()}\n"
+                + f"summary_sha256: {hashlib.sha256((run_dir / 'summary.json').read_bytes()).hexdigest()}\n",
+                encoding="utf-8",
+            )
+            completed, payload = run_json(VALIDATE_EXPERIMENT, experiment)
+        self.assertEqual(completed.returncode, 0, json.dumps(payload, ensure_ascii=False, indent=2))
+
     def test_local_plan_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             experiment = write_minimal_experiment(Path(temp))

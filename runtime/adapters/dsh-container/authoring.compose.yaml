@@ -51,6 +51,8 @@ services:
       - DSH_HARNESS_MODE=authoring
       - DSH_PERMISSION_MODE=workspace-write
       - DSH_TELEMETRY_DISABLED=1
+      - pnpm_config_store_dir=/var/lib/dsh/.pnpm-store
+      - XDG_CACHE_HOME=/var/lib/dsh/.cache
     command:
       - --profile
       - web
@@ -100,24 +102,12 @@ services:
         target: /var/lib/dsh/node_modules
         read_only: true
       - type: bind
-        source: ./verification-home-controls/module-deny
-        target: /var/lib/dsh/profiles/web/node_modules
-        read_only: true
-      - type: bind
-        source: ./verification-home-controls/module-deny
-        target: /var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules
-        read_only: true
-      - type: bind
         source: ./verification-home-controls/locked-user.patch.yml
         target: /var/lib/dsh/cordis.patch.yml
         read_only: true
       - type: bind
         source: ./verification-home-controls/locked-user.patch.yml
         target: /var/lib/dsh/profiles/web/cordis.patch.yml
-        read_only: true
-      - type: bind
-        source: ./verification-home-controls/web-profile.package.json
-        target: /var/lib/dsh/profiles/web/package.json
         read_only: true
       - type: bind
         source: ./verification-home-controls/locked-global.AGENTS.md

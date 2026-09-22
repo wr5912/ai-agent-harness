@@ -46,5 +46,20 @@ for (const mode of ['authoring', 'verification']) {
   assert.ok(!config.services.dsh.volumes.some(volume =>
     volume.target === '/opt/dsh/node_modules/@deepseek-ai'),
   `${mode}: no root-scope alias volume may shadow the installation tree`)
+  const volumeTargets = new Set(config.services.dsh.volumes.map(volume => volume.target))
+  assert.ok(volumeTargets.has('/var/lib/dsh/node_modules'))
+  assert.ok(volumeTargets.has('/var/lib/dsh/profiles/node_modules'))
+  for (const target of [
+    '/var/lib/dsh/profiles/web/package.json',
+    '/var/lib/dsh/profiles/web/node_modules',
+    '/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules',
+  ]) {
+    assert.equal(volumeTargets.has(target), mode === 'verification',
+      `${mode}: ${target} has the wrong mode-specific mount boundary`)
+  }
+  if (mode === 'authoring') {
+    assert.equal(config.services.dsh.environment.pnpm_config_store_dir, '/var/lib/dsh/.pnpm-store')
+    assert.equal(config.services.dsh.environment.XDG_CACHE_HOME, '/var/lib/dsh/.cache')
+  }
 }
 console.log(JSON.stringify({ status: 'exact-main-dsh-startup-vectors-verified', modes: 2 }))

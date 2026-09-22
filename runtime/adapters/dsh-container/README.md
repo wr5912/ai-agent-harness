@@ -1,6 +1,6 @@
 # DSH 容器薄适配层
 
-本目录固定官方 DeepSeek Harness（DSH）源码构建身份和卷装载方式；不开发、不复制 DSH Runtime 源码到本仓库，也不把宿主机 Codex 项目协作配置交给 DSH。`sources.json` 声明可选择的 Experiment Candidate；新增来源须提供自己的 Candidate 资产及锁定身份，不能只改卷路径。
+本目录固定官方 DeepSeek Harness（DSH）源码构建身份和卷装载方式；不开发、不复制 DSH Runtime 源码到本仓库，也不把宿主机 Codex 项目协作配置交给 DSH。`sources.json` 声明可选择的 Experiment Candidate 及其锁定身份；新增来源须提供自己的 Candidate 资产，不能只改卷路径。
 
 ## 源码与镜像身份
 
@@ -30,11 +30,13 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 
 `/work/reference/definition.md` 是需求与任务的唯一当前来源，`evaluation.md` 是测试数据、评估方法、验收标准和 Experiment 选择的唯一当前来源。只读挂载限制写入但不限制读取，所以该目录只挂给编写态；核验态完全不挂载，`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。任一文件缺失或不是安全的普通文件时，编写态启动失败，不创建空目录。
 
-两种模式都使用同一组受控 HOME 边界：`locked-user.patch.yml`（顶层 `[]`）精确只读覆盖 HOME 与 Web Profile 的用户 Patch，`web-profile.package.json` 固定官方 `base`、`web-app` Bundle 和 `patchReload: startup`，阻断可写 HOME 的额外启动 Plugin。真正 **0 字节**的 `locked-global.AGENTS.md` 精确只读覆盖 HOME 全局 Agent instructions，不向 Session 注入任何额外语义。`locked-bootstrap.env` 只含一行注释，精确只读覆盖 HOME 与 Candidate workspace 两处 `.env`；模型/MCP Endpoint 和凭据只能由受信容器调用环境或 Runtime 受控凭据提供，不能由可写工作区在 Boot 前暗改。Candidate workspace 中的 `.env` 只是与受控文件字节相同的宿主挂载目标，不存任何变量或凭据。编写态仍可写其他 Candidate workspace 资产，`skill-filesystem.watch: true` 仍可实时看到 Skill 改动；这不授予改受控 Profile、MCP 或 Boot 环境的权限。
+两种模式都使用同一组受控 HOME 边界：`locked-user.patch.yml`（顶层 `[]`）精确只读覆盖 HOME 与 Web Profile 的用户 Patch。真正 **0 字节**的 `locked-global.AGENTS.md` 精确只读覆盖 HOME 全局 Agent instructions，不向 Session 注入任何额外语义。`locked-bootstrap.env` 只含一行注释，精确只读覆盖 HOME 与 Candidate workspace 两处 `.env`；模型/MCP Endpoint 和凭据只能由受信容器调用环境或 Runtime 受控凭据提供，不能由可写工作区在 Boot 前暗改。Candidate workspace 中的 `.env` 只是与受控文件字节相同的宿主挂载目标，不存任何变量或凭据。编写态仍可写其他 Candidate workspace 资产，`skill-filesystem.watch: true` 仍可实时看到 Skill 改动；这不授予改受控 Preset、Managed Patch、MCP 或 Boot 环境的权限。
 
-Node Loader 从 Web Profile 查找模块时会依次检查 `/var/lib/dsh/profiles/web/node_modules`、`/var/lib/dsh/profiles/node_modules`、`/var/lib/dsh/node_modules`。HOME 根与 Web 本地两处，以及 Web 私有 `.dsh-module-fallback/node_modules`，均由不含任何包的 `verification-home-controls/module-deny` 精确只读目录覆盖。官方 Web 启动仍需要共享安装 fallback；`home-init` 在**独立** trusted-fallback 数据卷中离线调用锁定 DSH 的官方 healer，按 `/opt/dsh/apps/cli/package.json` 的依赖与 peer 依赖闭包生成 symlink。它在调用前拒绝旧卷任何非精确条目，调用后核对完整包 roster、每个 symlink 的字面目标及 `realpath` 均在镜像内 `/opt/dsh/`。主 DSH 将这棵卷精确只读挂载到 `/var/lib/dsh/profiles/node_modules`，缺失或变更会失败关闭；不会通过上述 HOME Node fallback 路径从 RW 数据卷装载代码。
+两种模式对 Profile 本地文件采用不同边界：编写态的 `/var/lib/dsh/profiles/web/package.json`、`node_modules` 和 `.dsh-module-fallback/node_modules` 保留在可写 DSH_HOME 中。`home-init` 通过 DSH 原生 `initProfile` 保留官方 Web Bundle，并校验额外 Bundle 必须由 Profile dependency 支撑；会话内的 `dsh plugin`/`pnpm` 可以把研究 Plugin 安装到该 Profile。核验态则用受控 manifest 和空的本地 module deny-layer 锁定同一路径，禁止私有 Plugin 注入。两种模式的共享 `/var/lib/dsh/profiles/node_modules` 都来自独立 trusted-fallback 卷并只读挂载。
 
-首次使用空数据卷时，`home-init` 创建精确子文件/模块目录挂载目标；最终镜像预建这些目录并赋权 UID 1000，避免 Docker 嵌套卷首次创建 root-owned 父目录。已有 HOME Patch、manifest、全局 `AGENTS.md` 或 `.env` 若不同、为链接或不合限额，即失败，不覆盖。旧 fallback 卷若有非镜像安装 symlink、额外包或不完整条目也失败，不先“修复”旧内容；应备份审查后改用新的隔离卷。旧 HOME 中已有模块文件在只读 deny-layer 下会被隐藏、**不会被自动删除**，仍需作为旧运行态数据独立审查和处置。`dsh` 服务必须等 home-init 成功；`verify-load.sh` 使用 `run --no-deps`，两种模式都会显式先执行各自的 home-init。RW HOME 仍允许 Session/settings/credentials 持久化，但不能覆盖这些受控只读子挂载。
+Node Loader 从 Web Profile 查找模块时会依次检查 `/var/lib/dsh/profiles/web/node_modules`、`/var/lib/dsh/profiles/node_modules`、`/var/lib/dsh/node_modules`。编写态只把 HOME 根 `/var/lib/dsh/node_modules` 用不含任何包的 `module-deny` 精确只读覆盖；Web 本地两处保留给 Profile Plugin 的正常解析。核验态额外覆盖 Web 本地两处和 Web 私有 `.dsh-module-fallback/node_modules`，从而不从可写 HOME 装载代码。官方 Web 启动仍需要共享安装 fallback；`home-init` 在**独立** trusted-fallback 数据卷中离线调用锁定 DSH 的官方 healer，按 `/opt/dsh/apps/cli/package.json` 的依赖与 peer 依赖闭包生成 symlink。它在调用前拒绝旧卷任何非精确条目，调用后核对完整包 roster、每个 symlink 的字面目标及 `realpath` 均在镜像内 `/opt/dsh/`。主 DSH 将这棵卷精确只读挂载到 `/var/lib/dsh/profiles/node_modules`，缺失或变更会失败关闭。
+
+首次使用空数据卷时，`home-init` 创建精确子文件/模块目录挂载目标；最终镜像预建这些目录并赋权 UID 1000，避免 Docker 嵌套卷首次创建 root-owned 父目录。两种模式的 HOME Patch、全局 `AGENTS.md` 或 `.env` 若不同、为链接或不合限额，即失败，不覆盖。编写态的 Profile manifest 由原生 `initProfile` 初始化并按可扩展结构校验；核验态的 manifest 必须与受控文件一致。旧 fallback 卷若有非镜像安装 symlink、额外包或不完整条目也失败，不先“修复”旧内容；应备份审查后改用新的隔离卷。核验态旧 HOME 中已有本地模块文件会被只读 deny-layer 隐藏、**不会被自动删除**；编写态则把 Profile 文件视为可持久化的研究运行状态。`dsh` 服务必须等 home-init 成功；`verify-load.sh` 使用 `run --no-deps`，两种模式都会显式先执行各自的 home-init。RW HOME 仍允许 Session/settings/credentials 及编写态 Profile Plugin 持久化，但不能覆盖受控 Patch、全局指令或 `.env`。
 
 启动 `web` Profile，叠加 `/opt/dsh-managed/security-operations-expert.patch.yml`。锁定官方 Loader 在本 Node 镜像的无 internal-loader 路径会从 `/opt/dsh/vendor/loader` 相对查找 bare package，真实受控 startup 因缺包失败；只把 fallback 卷的 scoped 子目录覆盖镜像安装树虽能起 Web，却会隐藏镜像原有的 `dsh-tool-session-query` 包并改变解析优先级，因此不采用。两种模式**仅主 `dsh` 服务**显式使用精确向量 `node --expose-internals /opt/dsh/apps/cli/lib/bin.js`，让锁定 Loader 按 Web Profile 基准路径解析；`home-init` 与装载探针保持普通 `node`，不通过被 Node 禁止的 `NODE_OPTIONS` 传该旗标，也不改镜像默认 ENTRYPOINT。隔离、无 Candidate Managed Patch 的官方 base+web 技术预检可运行至少 15 秒；这不表示 Candidate 业务启动、MCP 或模型连接通过。
 
@@ -53,7 +55,7 @@ docker compose -f runtime/adapters/dsh-container/authoring.compose.yaml down
 
 实际 Agent 需要模型与 MCP 端点时，由调用环境提供相应配置。环境变量按名称传入，不在 Compose 或仓库写入凭据；不得把 `docker compose config` 的完整展开结果、启动 Token URL 或原始日志作为公开研究证据。当前 Candidate 声明为必需的 MCP 缺失时会启动失败，应如实记录依赖缺口。
 
-`DSH_PERMISSION_MODE=workspace-write|read-only` 是官方 base Profile 的新 Session *进程后备预设*；Web 中持久化的 General Settings 可影响后续 Session，不能只凭该变量推断实际状态。调用环境、HOME 中的 settings/credentials 与模型/MCP 连接状态是独立 Runtime 事实，应在需要比较时记录。核验态三棵资产使用 Docker `read_only` bind mount；编写态 DSH 可以修改工作区内的 Candidate 行为资产，但不能写受控 Preset、Guard 或 MCP 绑定。
+`DSH_PERMISSION_MODE=workspace-write|read-only` 是官方 base Profile 的新 Session *进程后备预设*；Web 中持久化的 General Settings 可影响后续 Session，不能只凭该变量推断实际状态。调用环境、HOME 中的 settings/credentials 与模型/MCP 连接状态是独立 Runtime 事实，应在需要比较时记录。核验态三棵资产使用 Docker `read_only` bind mount；编写态 DSH 可以修改工作区内的 Candidate 行为资产，也可以在 Profile HOME 中安装研究 Plugin，但不能写受控 Preset、Guard 或 MCP 绑定。
 
 编写态 `skill-filesystem.watch: true` 与 Agent instructions 的重投影可能让**当前 Session** 实时看到刚写入的工作区新行为；这只算即时观察。要比较变更前后行为，先核对 Candidate diff 和回执，再用核验态的新容器、新 Session 重建加载，避免把旧 Session 状态误当成源码效果。
 
@@ -78,7 +80,7 @@ bash runtime/adapters/dsh-container/build-image.sh --build-network host
 | 开发模式 | `--mode dev`（内部 `authoring`） | 出厂 `cordis` 创造模式 | 由所选来源声明（`up --dry-run` 输出的 `target_preset`） | `/work` |
 | 评测模式 | `--mode eval`（内部 `verification`） | 由所选来源声明 | 同 `session_preset` | `/work/harness/workspace` |
 
-挂载模式以“候选资产装载”表为准：开发模式仅 Workspace 可写，Preset/Managed 与判分材料只读；评测模式的 Harness 三棵树全部只读，且不挂载判分材料。
+挂载模式以“候选资产装载”表为准：开发模式的 Workspace 可写，Preset/Managed 与判分材料只读；其 DSH_HOME 只对 Profile manifest、本地 module 路径和运行状态保留写入，受控 Patch、全局指令、`.env` 与共享 fallback 仍受约束。评测模式的 Harness 三棵树和 Profile 本地 module 路径全部只读，且不挂载判分材料。
 
 开发会话的注册工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（`verification-home-controls/locked-dev.AGENTS.md`，内容通用、不含业务 Agent 名），本次解析出的实际目标值由来源合同生成并只读挂到 `/work/AGENTS.local.md`；`dsh-dev up` 与独立 `verify-load.sh authoring` 复用同一生成函数。目标自己的业务 `AGENTS.md` 仍在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。被测容器两个开发指令文件都不挂载。
 
@@ -155,7 +157,7 @@ bash runtime/adapters/dsh-container/verify-load.sh authoring
 # 其他已登记来源：verify-load.sh verification --source EXP-<agent-id>-NNN
 ```
 
-适配层脚本不烘焙进镜像：`prepare-verification-home.mjs`、`verify-load.mjs`、`tree-digest.mjs` 由 Compose 把本目录只读挂载到 `/opt/dsh-adapter`，因此改脚本只要重启实例，不必重建镜像。脚本先在无卷、无网络容器中以同一只读挂载比对这三个文件的 SHA-256，确认容器读到的字节与宿主审查的文件一致后再触碰 HOME 卷。随后比对宿主机与容器内三棵精确资产树；编写态另比 `/work/reference` 这棵只读判分材料树的文件、权限、大小和 SHA-256 摘要，核验态则断言 `/work/reference` 与 `/work/eval-input` 两条判分材料路径在容器内既不存在也未挂载。同时检查 `/proc/self/mountinfo` 的读写模式与独立 HOME 卷。编写态还会核对开发叠加层确实把 `includeShippedRoot` 打开且默认 preset 为 `cordis`，核验态则断言组合配置中不出现该开放（创造模式在评测容器内不可选）。两种模式都核六处受控只读子文件（两个空用户 Patch、Web manifest、零字节全局指令、两处注释 `.env`）、四处模块目录挂载及共享 fallback 的 277 个镜像安装 symlink（数量以实际锁定安装闭包为准），并核关键模块从 Web Profile 的首个解析位置的 `realpath` 在 `/opt/dsh/`。然后调用 DSH 的 `--dump-config` 核对全局 Profile/Patch 组合标识。单个 Agent 的 Guard 声明单独在 Preset/Managed 文件中核对，因为全局配置展开不会包含 Preset 子树。脚本不输出可能含私有 URL、Token 的原始配置或日志。该结果仅是“挂载身份、模块解析及配置组合证据”；**不证明 Plugin 实际激活**、MCP 连接成功、Preset/Skill 被真实 Session 调用、上下文资产被智能体消费、用户任务、最终业务状态或 Release 验收。
+适配层脚本不烘焙进镜像：`prepare-verification-home.mjs`、`verify-load.mjs`、`tree-digest.mjs` 由 Compose 把本目录只读挂载到 `/opt/dsh-adapter`，因此改脚本只要重启实例，不必重建镜像。脚本先在无卷、无网络容器中以同一只读挂载比对这三个文件的 SHA-256，确认容器读到的字节与宿主审查的文件一致后再触碰 HOME 卷。随后比对宿主机与容器内三棵精确资产树；编写态另比 `/work/reference` 这棵只读判分材料树的文件、权限、大小和 SHA-256 摘要，核验态则断言 `/work/reference` 与 `/work/eval-input` 两条判分材料路径在容器内既不存在也未挂载。同时检查 `/proc/self/mountinfo` 的读写模式与独立 HOME 卷。编写态还会核对开发叠加层确实把 `includeShippedRoot` 打开且默认 preset 为 `cordis`，并确认 Profile manifest 与本地 module 路径可写；核验态则断言组合配置中不出现该开放、manifest 与本地 module 路径均受 deny-layer 保护（创造模式在评测容器内不可选）。两种模式都核对受控 Patch、零字节全局指令、注释 `.env`、共享 fallback 及关键模块从 Web Profile 的解析位置 `realpath`；受控目标数量和模块数量以实际模式与锁定安装闭包为准。然后调用 DSH 的 `--dump-config` 核对全局 Profile/Patch 组合标识。单个 Agent 的 Guard 声明单独在 Preset/Managed 文件中核对，因为全局配置展开不会包含 Preset 子树。脚本不输出可能含私有 URL、Token 的原始配置或日志。该结果仅是“挂载身份、模块解析及配置组合证据”；**不证明 Plugin 实际激活**、MCP 连接成功、Preset/Skill 被真实 Session 调用、上下文资产被智能体消费、用户任务、最终业务状态或 Release 验收。
 
 在编写态自修改前后留下只追加回执：
 

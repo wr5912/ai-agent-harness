@@ -237,7 +237,8 @@ def validate_run(
         errors.append(issue("RUN_PLAN_REF", "Run 输入锁不再允许保存本地 plan 摘要", inputs))
     if locked_inputs.get("schema_version") != "2.0" or locked_inputs.get("run_id") != run_dir.name:
         errors.append(issue("RUN_INPUTS_SCHEMA", "输入锁必须是当前 Run 的 2.0 合同", inputs))
-    if locked_inputs.get("evaluation_sha256") != evaluation_sha256:
+    # 未封存 Run 必须仍对应当前评测口径；封存 Run 使用输入锁中的历史摘要。
+    if status in {"planned", "running"} and locked_inputs.get("evaluation_sha256") != evaluation_sha256:
         errors.append(issue("RUN_EVALUATION_HASH", "Run 锁定的 evaluation.md 摘要与当前文件不一致", inputs))
     locked_selection = locked_inputs.get("evaluation_selection")
     valid_selection = isinstance(locked_selection, dict) \

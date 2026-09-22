@@ -255,6 +255,16 @@ class ModeAndContextContractTest(unittest.TestCase):
                              f"{mode}: home-init 与 dsh 都必须挂载适配层脚本目录")
             self.assertNotIn("COPY --chown=node:node verify-load.mjs", rendered)
 
+    def test_dsh_command_preserves_required_node_flag(self):
+        """会话内 dsh 命令必须与主服务一样开放 Loader 所需的 Node internals。"""
+        dockerfile = (ADAPTER / "Dockerfile").read_text(encoding="utf-8")
+        launcher = (ADAPTER / "dsh-cli.sh").read_text(encoding="utf-8")
+        self.assertIn("COPY --chmod=0755 dsh-cli.sh /usr/local/bin/dsh", dockerfile)
+        self.assertEqual(
+            launcher,
+            '#!/bin/sh\nexec node --expose-internals /opt/dsh/apps/cli/lib/bin.js "$@"\n',
+        )
+
     def test_dev_target_declaration_is_generated_with_resolved_values(self):
         """回归：受控指令保持通用，实际目标值由启动器生成并挂到 /work/AGENTS.local.md。"""
         contract = self.contract()
@@ -361,6 +371,16 @@ class ModeAndContextContractTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 dev.command_up(args)
         compose_env.assert_not_called()
+
+    def test_cordis_trust_notice_covers_plugin_install_and_host_restart(self):
+        self.assertIn("npm Plugin", dev.CORDIS_TRUST_NOTICE)
+        self.assertIn("宿主重启实例", dev.CORDIS_TRUST_NOTICE)
+        help_text = subprocess.run(
+            [sys.executable, str(ADAPTER / "dsh-dev"), "up", "-h"],
+            check=True, capture_output=True, text=True,
+        ).stdout
+        self.assertIn("npm Plugin", help_text)
+        self.assertIn("宿主重启实例", help_text)
 
     def test_dry_run_delivers_workspace_path_and_cold_start_hint(self):
         """DSH Web 冷启动需要先在界面注册工作区；计划必须交付确切路径与步骤。"""
