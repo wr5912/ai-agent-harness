@@ -1047,6 +1047,17 @@ class CliSurfaceTest(unittest.TestCase):
         self.assertIn("--dry-run", completed.stdout)
 
 
+class ImageBuildCommandTest(unittest.TestCase):
+    def test_image_build_does_not_use_generic_command_timeout(self):
+        with mock.patch.object(dev.shutil, "which", return_value="/bin/bash"), \
+                mock.patch.object(dev, "run") as runner, \
+                contextlib.redirect_stdout(io.StringIO()):
+            dev.command_image_build(types.SimpleNamespace(source="EXP-test-001"))
+        runner.assert_called_once_with(
+            ["bash", str(ADAPTER / "build-image.sh"), "--source", "EXP-test-001"],
+            check=True, capture=False, timeout=None)
+
+
 class UrlCommandGuardTest(unittest.TestCase):
     """`url` 只在交互终端或显式 --non-interactive 下输出 Token URL。"""
 

@@ -449,9 +449,10 @@ def context_assets(contract: dict, mode: str) -> list[dict]:
     ]
 
 
-def run(command: list[str], *, check: bool = True, capture: bool = True, env: dict | None = None) -> subprocess.CompletedProcess:
+def run(command: list[str], *, check: bool = True, capture: bool = True,
+        env: dict | None = None, timeout: float | None = 300) -> subprocess.CompletedProcess:
     completed = subprocess.run(
-        command, text=True, capture_output=capture, check=False, env=env, timeout=300
+        command, text=True, capture_output=capture, check=False, env=env, timeout=timeout
     )
     if check and completed.returncode != 0:
         detail = (completed.stderr or completed.stdout or "").strip()
@@ -1177,7 +1178,7 @@ def command_image_build(args: argparse.Namespace) -> None:
     script = ADAPTER / "build-image.sh"
     if shutil.which("bash") is None:
         fail("缺少 bash，无法调用 build-image.sh")
-    run(["bash", str(script), "--source", args.source], check=True, capture=False)
+    run(["bash", str(script), "--source", args.source], check=True, capture=False, timeout=None)
     print(json.dumps({"built": True, "source": args.source}, ensure_ascii=False))
 
 

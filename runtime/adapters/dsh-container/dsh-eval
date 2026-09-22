@@ -272,6 +272,9 @@ def browser_command(image: str, evidence_root: Path, managed_root: Path) -> tupl
         "docker", "run", "--rm", "-i", "--network", "host", "--read-only",
         "--tmpfs", "/tmp:rw,nosuid,nodev,size=256m", "--shm-size", "256m",
         "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
+        # --read-only 下 HOME 仍指向只读根目录，Chromium 的 crashpad 无法创建数据库而启动即退出；
+        # 只把 HOME 指到 tmpfs，保持其余只读与降权边界不变。
+        "--env", "HOME=/tmp",
         "--entrypoint", "node",
         "--mount", f"type=bind,src={BROWSER_DRIVER},dst=/opt/dsh/apps/web/dsh-eval-browser.mjs,readonly",
         "--mount", f"type=bind,src={evidence_root},dst=/work/evidence",

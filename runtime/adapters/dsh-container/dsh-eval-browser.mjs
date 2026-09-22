@@ -81,7 +81,14 @@ async function newSession(page, existingIds, presetId, timeoutMs) {
 }
 
 async function connectWorkspace(page, workspace, timeoutMs) {
-  await page.getByRole('textbox', { name: 'Choose workspace' }).click()
+  // 复用同一 DSH Home 时工作区已经注册，界面不会再有 “Choose workspace” 选择器；
+  // 两种情况都要落到可输入的消息编辑器，避免把已注册状态误判为评测失败。
+  const chooser = page.getByRole('textbox', { name: 'Choose workspace' })
+  if (await chooser.count() === 0) {
+    await page.locator(COMPOSER).last().waitFor({ timeout: timeoutMs })
+    return
+  }
+  await chooser.click()
   const dialog = page.getByRole('dialog', { name: 'Select Workspace Directory' })
   await dialog.waitFor({ timeout: timeoutMs })
   await dialog.getByRole('button', { name: 'Edit path' }).click()
@@ -90,6 +97,12 @@ async function connectWorkspace(page, workspace, timeoutMs) {
   await pathInput.press('Enter')
   await dialog.getByRole('button', { name: 'Open', exact: true }).click()
   await page.locator(COMPOSER).last().waitFor({ timeout: timeoutMs })
+}
+
+async function closeModelMenu(page, trigger, timeoutMs) {
+  // 菜单打开后焦点已不在菜单内，Escape 不会关闭它；点击菜单外的空白区域才可靠收起。
+  await page.mouse.click(12, 12)
+  await poll(() => trigger.getAttribute('aria-expanded'), value => value !== 'true', timeoutMs)
 }
 
 async function openModelCatalog(page, timeoutMs) {
@@ -103,9 +116,7 @@ async function openModelCatalog(page, timeoutMs) {
     name: (node.textContent ?? '').trim(),
     selected: node.getAttribute('aria-checked') === 'true',
   })))
-  await page.keyboard.press('Escape')
-  await page.keyboard.press('Escape')
-  await poll(() => trigger.getAttribute('aria-expanded'), value => value !== 'true', timeoutMs)
+  await closeModelMenu(page, trigger, timeoutMs)
   return entries
 }
 
@@ -354,6 +365,13 @@ async function main() {
     const page = await context.newPage()
     await page.goto(payload.auth_url, { waitUntil: 'domcontentloaded', timeout: payload.timeout_ms })
     await page.locator('[class*="frame"]').waitFor({ timeout: payload.timeout_ms })
+    const testingNoticeContinue = page.locator('button').filter({ hasText: /Continue/i }).last()
+    try {
+      await testingNoticeContinue.waitFor({ state: 'visible', timeout: 5000 })
+      await testingNoticeContinue.click({ timeout: 5000 })
+    } catch (error) {
+      if (error?.name !== 'TimeoutError') throw error
+    }
     await connectWorkspace(page, payload.workspace, payload.timeout_ms)
     const catalog = await openModelCatalog(page, payload.timeout_ms)
     const defaultModel = catalog.find(entry => entry.selected)?.name
