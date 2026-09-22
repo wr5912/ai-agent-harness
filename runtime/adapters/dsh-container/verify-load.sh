@@ -71,6 +71,9 @@ for task_env_name in "${task_selected_env_names[@]}"; do
 done
 task_candidate_root="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field candidate_root)"
 task_image_tag="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field image.local_image_tag)"
+task_image_build_fingerprint="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field image.build_fingerprint)"
+task_image_platform_expected="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field image.platform)"
+task_image_label_key="org.ai-agent-harness.dsh.image-build-fingerprint"
 task_patch="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field patch)"
 task_patch_overlay="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field patch_overlay)"
 # 需求/任务/验收与评估方法、测试预置、预期答案都是判分材料：只有开发会话读取，
@@ -89,7 +92,6 @@ fi
 if [[ -n "$task_frozen_root" ]]; then
   task_candidate_root="$task_frozen_root"
 fi
-export DSH_IMAGE_TAG="$task_image_tag"
 # 适配层脚本不在镜像里，由本目录只读挂载进容器；因此脚本改动只需重启实例，不必重建镜像。
 export DSH_ADAPTER_HOST="$task_adapter_dir"
 export DSH_MANAGED_PATCH="$task_patch"
@@ -167,14 +169,35 @@ python3 "$task_adapter_dir/preflight-access.py" "$task_mode" \
   "$DSH_WORKSPACE_HOST" "$DSH_PRESETS_HOST" "$DSH_MANAGED_HOST" \
   "${task_context_args[@]}"
 
+if ! task_image_id="$(docker image inspect "$task_image_tag" --format '{{.Id}}')"; then
+  printf 'Locked image is missing; run dsh-dev image build --source %s first.\n' "$task_source_id" >&2
+  exit 1
+fi
+if [[ ! "$task_image_id" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+  printf 'Locked image returned an invalid Image ID: %s.\n' "$task_image_id" >&2
+  exit 1
+fi
+task_image_platform="$(docker image inspect "$task_image_tag" --format '{{.Os}}/{{.Architecture}}')"
+task_image_labels="$(docker image inspect "$task_image_tag" --format '{{json .Config.Labels}}')"
+task_image_label="$(python3 -c 'import json,sys; print((json.loads(sys.argv[1]) or {}).get(sys.argv[2], ""))' \
+  "$task_image_labels" "$task_image_label_key")"
+if [[ "$task_image_label" != "$task_image_build_fingerprint" ]]; then
+  printf 'Locked image build fingerprint mismatch; rebuild %s before verification.\n' "$task_image_tag" >&2
+  exit 1
+fi
+if [[ "$task_image_platform" != "$task_image_platform_expected" ]]; then
+  printf 'Locked image platform mismatch: expected %s, got %s.\n' "$task_image_platform_expected" "$task_image_platform" >&2
+  exit 1
+fi
+task_image_ref="$task_image_tag@$task_image_id"
+export DSH_IMAGE_TAG="$task_image_ref"
 "${task_compose_prefix[@]}" docker compose -f "$task_adapter_dir/$task_mode.compose.yaml" config --quiet
-docker image inspect "$task_image_tag" >/dev/null
 
 # 先在无卷、无网络的容器中核挂载进来的三脚本身份：脚本来自本目录的只读 bind，
 # 因此这里核对的是"容器实际读到的字节"与"宿主审查过的字节"一致，而不是镜像是否过期。
 task_mounted_script_hashes="$(docker run --rm --network none --read-only --user 1000:1000 \
   --mount "type=bind,src=$task_adapter_dir,dst=/opt/dsh-adapter,readonly" \
-  --entrypoint sha256sum "$task_image_tag" \
+  --entrypoint sha256sum "$task_image_ref" \
   /opt/dsh-adapter/prepare-verification-home.mjs \
   /opt/dsh-adapter/verify-load.mjs \
   /opt/dsh-adapter/tree-digest.mjs)"

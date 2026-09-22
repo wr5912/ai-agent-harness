@@ -627,10 +627,22 @@ class DshEvalTests(unittest.TestCase):
 
     def runtime_fixture(self, root: Path, *, mode: str = "pass") -> tuple[Path, dict[str, str], Path]:
         repository = copy_repository(root)
+        image_fingerprint = subprocess.check_output(
+            [
+                "python3",
+                str(repository / "runtime/adapters/dsh-container/source_contract.py"),
+                "--source",
+                "experiment:EXP-security-operations-expert-006",
+                "--field",
+                "image.build_fingerprint",
+            ],
+            cwd=repository,
+            text=True,
+        ).strip()
         command_log = root / "dsh-dev.jsonl"
         fake_dsh = root / "fake-dsh-dev"
         fake_dsh.write_text(
-            """#!/usr/bin/env python3
+            f"""#!/usr/bin/env python3
 import json
 import os
 import sys
@@ -639,8 +651,16 @@ with open(os.environ["TEST_DSH_LOG"], "a", encoding="utf-8") as handle:
     handle.write(json.dumps(sys.argv[1:]) + "\\n")
 if sys.argv[1] == "url":
     print("http://127.0.0.1:3090/?token=opaque-eval-auth-token")
+elif sys.argv[1] == "up":
+    print(json.dumps({{
+        "image_tag": "ai-agent-harness/dsh:test",
+        "image_id": "sha256:{'a' * 64}",
+        "image_ref": "ai-agent-harness/dsh:test@sha256:{'a' * 64}",
+        "image_build_fingerprint": "{image_fingerprint}",
+        "platform": "linux/amd64",
+    }}))
 else:
-    print("{}")
+    print("{{}}")
 """,
             encoding="utf-8",
         )

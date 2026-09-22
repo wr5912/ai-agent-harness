@@ -544,6 +544,103 @@ class InstanceStateTest(unittest.TestCase):
                 dev.write_instance("soe-verify", mode="verification", contract=other, port=3081)
 
 
+class ImageIdentityAndPsStateTest(unittest.TestCase):
+    def test_ps_hides_non_running_instances_by_default(self):
+        states = {"failed": "failed", "running": "running", "stopped": "stopped", "unknown": "unknown"}
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for name in states:
+                target = root / name
+                target.mkdir()
+                (target / "instance.json").write_text("{}\n", encoding="utf-8")
+
+            def fake_entry(target, _manifest):
+                return {"name": target.name, "state": states[target.name]}
+
+            with mock.patch.object(dev, "STATE_ROOT", root), \
+                    mock.patch.object(dev, "instance_entry", side_effect=fake_entry):
+                default_output = io.StringIO()
+                with contextlib.redirect_stdout(default_output):
+                    dev.command_ps(types.SimpleNamespace(all=False))
+                all_output = io.StringIO()
+                with contextlib.redirect_stdout(all_output):
+                    dev.command_ps(types.SimpleNamespace(all=True))
+
+        self.assertEqual(
+            [item["name"] for item in json.loads(default_output.getvalue())["instances"]],
+            ["running"],
+        )
+        self.assertEqual(
+            {item["name"] for item in json.loads(all_output.getvalue())["instances"]},
+            set(states),
+        )
+
+    def test_compose_output_normalizes_failure_and_unknown_states(self):
+        failed = dev.compose_ps_containers(
+            '{"ID":"failed","State":"exited","Status":"Exited (17) 1 second ago",'
+            '"Service":"dsh"}'
+        )
+        restarting = dev.compose_ps_containers(
+            '{"ID":"restarting","State":"restarting","Status":"Restarting",'
+            '"Service":"dsh"}'
+        )
+        self.assertEqual(dev.normalized_instance_state(failed), "failed")
+        self.assertEqual(dev.normalized_instance_state(restarting), "unknown")
+        self.assertEqual(dev.normalized_instance_state([]), "stopped")
+        self.assertIsNone(dev.compose_ps_containers("not-json"))
+
+    def test_validate_image_identity_returns_immutable_reference(self):
+        fingerprint = "sha256:" + "2" * 64
+        image_id = "sha256:" + "1" * 64
+        contract = {
+            "source_id": "experiment:EXP-security-operations-expert-001",
+            "image": {
+                "local_image_tag": "ai-agent-harness/dsh:c291e7961",
+                "build_fingerprint": fingerprint,
+                "platform": "linux/amd64",
+            },
+        }
+        metadata = {
+            "Id": image_id,
+            "Os": "linux",
+            "Architecture": "amd64",
+            "Config": {"Labels": {dev.IMAGE_LABEL_KEY: fingerprint}},
+        }
+        with mock.patch.object(
+            dev, "run", return_value=subprocess.CompletedProcess(
+                [], 0, stdout=json.dumps(metadata), stderr=""
+            )
+        ):
+            identity = dev.validate_image_identity(contract)
+        self.assertEqual(identity["image_id"], image_id)
+        self.assertEqual(identity["image_ref"], f"{contract['image']['local_image_tag']}@{image_id}")
+
+    def test_validate_image_identity_rejects_unlabelled_image(self):
+        fingerprint = "sha256:" + "2" * 64
+        metadata = {
+            "Id": "sha256:" + "1" * 64,
+            "Os": "linux",
+            "Architecture": "amd64",
+            "Config": {"Labels": {}},
+        }
+        contract = {
+            "source_id": "experiment:EXP-security-operations-expert-001",
+            "image": {
+                "local_image_tag": "ai-agent-harness/dsh:c291e7961",
+                "build_fingerprint": fingerprint,
+                "platform": "linux/amd64",
+            },
+        }
+        errors = io.StringIO()
+        with mock.patch.object(
+            dev, "run", return_value=subprocess.CompletedProcess(
+                [], 0, stdout=json.dumps(metadata), stderr=""
+            )
+        ), contextlib.redirect_stderr(errors), self.assertRaises(SystemExit):
+            dev.validate_image_identity(contract)
+        self.assertIn("构建指纹不匹配", errors.getvalue())
+
+
 class DownCommandTest(unittest.TestCase):
     """`down` 必须报告真实状态：命令失败、仍有容器运行或无法确认都不能输出 stopped: true。"""
 
@@ -643,8 +740,17 @@ class UpCommandStateTest(unittest.TestCase):
     def setUp(self):
         self._temp = tempfile.TemporaryDirectory()
         dev.STATE_ROOT = Path(self._temp.name)
+        self._image_identity = mock.patch.object(dev, "validate_image_identity", return_value={
+            "image_tag": "ai-agent-harness/dsh:c291e7961",
+            "image_id": "sha256:" + "1" * 64,
+            "image_ref": "ai-agent-harness/dsh:c291e7961@sha256:" + "1" * 64,
+            "image_build_fingerprint": "sha256:" + "2" * 64,
+            "platform": "linux/amd64",
+        })
+        self._image_identity.start()
 
     def tearDown(self):
+        self._image_identity.stop()
         self._temp.cleanup()
 
     def args(self, **overrides):
@@ -776,7 +882,7 @@ class LegacyInstanceStateTest(unittest.TestCase):
         stdout = io.StringIO()
         with mock.patch.object(dev, "run", side_effect=[stopped, listed]), \
                 contextlib.redirect_stdout(stdout):
-            dev.command_ps(types.SimpleNamespace())
+            dev.command_ps(types.SimpleNamespace(all=True))
         instances = json.loads(stdout.getvalue())["instances"]
         self.assertEqual(len(instances), 1)
         self.assertEqual(instances[0]["state_schema"], "1.0")
@@ -785,14 +891,17 @@ class LegacyInstanceStateTest(unittest.TestCase):
     def test_ps_reports_broken_record_without_aborting_the_list(self):
         (dev.STATE_ROOT / "broken").mkdir()
         (dev.STATE_ROOT / "broken" / "instance.json").write_text("{not json", encoding="utf-8")
+        (dev.STATE_ROOT / "wrong-root").mkdir()
+        (dev.STATE_ROOT / "wrong-root" / "instance.json").write_text("[]\n", encoding="utf-8")
         stopped = subprocess.CompletedProcess([], 0, stdout="", stderr="")
         listed = subprocess.CompletedProcess([], 0, stdout="not running", stderr="")
         stdout = io.StringIO()
         with mock.patch.object(dev, "run", side_effect=[stopped, listed]), \
                 contextlib.redirect_stdout(stdout):
-            dev.command_ps(types.SimpleNamespace())
+            dev.command_ps(types.SimpleNamespace(all=True))
         instances = {item["name"]: item for item in json.loads(stdout.getvalue())["instances"]}
         self.assertIn("error", instances["broken"])
+        self.assertIn("error", instances["wrong-root"])
         self.assertIn("legacy", instances)
 
 
@@ -802,8 +911,17 @@ class UpPortOwnershipTest(unittest.TestCase):
     def setUp(self):
         self._temp = tempfile.TemporaryDirectory()
         dev.STATE_ROOT = Path(self._temp.name)
+        self._image_identity = mock.patch.object(dev, "validate_image_identity", return_value={
+            "image_tag": "ai-agent-harness/dsh:c291e7961",
+            "image_id": "sha256:" + "1" * 64,
+            "image_ref": "ai-agent-harness/dsh:c291e7961@sha256:" + "1" * 64,
+            "image_build_fingerprint": "sha256:" + "2" * 64,
+            "platform": "linux/amd64",
+        })
+        self._image_identity.start()
 
     def tearDown(self):
+        self._image_identity.stop()
         self._temp.cleanup()
 
     @staticmethod

@@ -22,10 +22,10 @@
 | 命令 | 作用 |
 |---|---|
 | `init <agent-id>` | 创建最小 Agent、首次 Experiment 和可装载 Candidate，并登记 `experiment:<id>` 来源；碰撞时拒绝覆盖 |
-| `image build` | 按 `source.lock.json` 的固定提交构建本地 DSH 镜像 |
+| `image build` | 按 `source.lock.json` 和镜像构建输入构建带指纹 OCI label 的本地 DSH 镜像 |
 | `up --dry-run` | 只解析来源并预览模式、Preset、自动实例名、建议端口、工作区、挂载与缺失环境变量；不写状态、不调用 Docker |
 | `up` | 渲染实例 Compose 并启动；确认 `dsh` 服务真的在运行后才在 stdout 输出一个 JSON 结果 |
-| `ps` | 列出启动器管理的实例；查询失败时标为 `unknown`，不当作"没有运行" |
+| `ps` | 默认列出实际运行中的实例；`--all` 查看 `stopped`、`failed`、`unknown` 和损坏记录；查询失败时标为 `unknown` |
 | `url` | 从本次进程日志提取认证 URL 并做 Token→Cookie→根页探针；非交互终端需显式 `--non-interactive` |
 | `logs` | 输出有界、尽力脱敏的容器日志 |
 | `down` | 停止实例并保留 HOME；命令失败、仍有容器运行或状态无法确认时都不报告停止成功 |
@@ -150,7 +150,7 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-d
 
 `down` 先检查 `docker compose down` 的退出码，再查实际容器状态和 HOME 卷是否仍在：命令失败即报错；命令返回 0 但仍有容器运行、或状态查询失败时，在 stderr 输出 `stopped: false` 或 `stopped: "unknown"` 并以非零退出码结束，不会在 stdout 输出成功结果。
 
-同样，`up` 不再只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的进入运行状态（`home-init` 是一次性服务，正常结束不算失败）。成功时 stdout 只输出一个 JSON，包含实例名、Compose 项目名、端口、状态目录、Agent/Preset 身份、`dsh_running` 和容器状态；`up --replace` 还在 `replaced.previous_state_schema` 和 `replaced.stop` 中返回旧状态版本与完整停止结果。进度、工作区提示和错误写入 stderr；失败时 stdout 保持为空，也不输出 Token。
+同样，`up` 会先核对镜像标签对应的构建指纹、平台和 Image ID，再执行停旧实例、写状态和启动；Compose 使用 `tag@image-id` 不可变引用。它不再只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的进入运行状态（`home-init` 是一次性服务，正常结束不算失败）。成功时 stdout 只输出一个 JSON，包含实例名、Compose 项目名、端口、状态目录、Agent/Preset 身份、镜像标签、Image ID、不可变引用、构建指纹、`dsh_running` 和容器状态；`up --replace` 还在 `replaced.previous_state_schema` 和 `replaced.stop` 中返回旧状态版本与完整停止结果。进度、工作区提示和错误写入 stderr；失败时 stdout 保持为空，也不输出 Token。
 
 输出示例：
 
@@ -162,7 +162,7 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-d
 
 HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测——Compose 会给卷名加上项目前缀。`stopped` 与 `home_preserved` 是两个独立事实：保留 HOME 不等于停止成功，停止成功也不代表卷还在。
 
-`ps`、`logs`、`down` 都按实例状态文件重建读取该实例 Compose 所需的环境变量：受控模板用 `${VAR:?}` 声明必填变量（不内联任何仓库内默认路径），所以这些命令不能依赖调用者当前环境，否则停止和查询会随环境漂移而失败。状态文件不是最新 schema 时仍可查询和停止；记录里缺失的值不猜，旧模板用自身默认值，新模板缺少必填变量时由 Compose 报出变量名。
+`ps`、`logs`、`down` 都按实例状态文件重建读取该实例 Compose 所需的环境变量：受控模板用 `${VAR:?}` 声明必填变量（不内联任何仓库内默认路径），所以这些命令不能依赖调用者当前环境，否则停止和查询会随环境漂移而失败。`ps` 默认只列出 `running` 实例，`ps --all` 才列出 `stopped`、`failed`、`unknown` 和损坏记录；状态文件不是最新 schema 时仍可查询和停止，并标出 `needs_migration`。记录里缺失的值不猜，旧模板用自身默认值，新模板缺少必填变量时由 Compose 报出变量名。
 
 ## 5. 目录与配置关系
 
@@ -271,11 +271,11 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 - 容器实际读到的脚本字节与宿主上被审查的文件一致由同一份挂载保证，`verify-load.sh` 仍在容器内用 `sha256sum` 核对这三个文件的摘要并记录到证据里；
 - 镜像只在 DSH 源码提交、基础镜像、系统依赖或目录结构变化时才需要重建。
 
-真正的镜像内容变化仍须重建：改动 `Dockerfile`、`source.lock.json` 或 apt/npm 依赖后执行 `image build`，`verify-load.sh` 会核对该标签的 CLI 版本与平台。
+真正的镜像内容变化仍须重建：改动 `Dockerfile`、`source.lock.json` 或镜像构建输入后执行 `image build`。构建器把由锁定来源和这些输入派生的 `image_build_fingerprint` 写入 OCI label；`dsh-dev up` 与 `verify-load.sh` 都核对标签、Image ID 和平台，并拒绝无标签或过期标签的本地镜像。
 
 ### 5.7 实例状态
 
-实例配置生成在仓库外：`$XDG_STATE_HOME/dsh-dev/<name>/{compose.yaml,instance.json}`（缺省 `~/.local/state/dsh-dev/`）。`instance.json`（schema `2.1`）记录来源、模式、`agent_id`、`target_preset`、`session_preset`、端口、镜像标签、profile patch、挂载与上下文挂载、环境变量名。它不含 Token，也不进入仓库。
+实例配置生成在仓库外：`$XDG_STATE_HOME/dsh-dev/<name>/{compose.yaml,instance.json}`（缺省 `~/.local/state/dsh-dev/`）。`instance.json`（schema `2.2`）记录来源、模式、`agent_id`、`target_preset`、`session_preset`、端口、镜像标签、Image ID、不可变镜像引用对应的构建指纹、profile patch、挂载与上下文挂载、环境变量名。它不含 Token，也不进入仓库。
 
 `ps`、`logs`、`down` 从实例状态文件重建读取该实例 Compose 所需的环境变量，并且**不要求状态文件是最新 schema**：一条旧实例必须仍然能被停止和查询，否则新版会卡在"旧状态拒绝操作、同名 `up` 又被端口挡住"的循环里。记录里缺失的字段不猜：旧模板用 `${VAR:-默认}`，缺值可解析；新模板用 `${VAR:?}`，缺值由 Compose 报出变量名。
 

@@ -26,13 +26,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from source_contract import REPO, SOURCES, dev_target_document, resolve, strict_json  # noqa: E402
+from source_contract import IMAGE_LABEL_KEY, REPO, SOURCES, dev_target_document, resolve, strict_json  # noqa: E402
 
 ADAPTER = Path(__file__).resolve().parent
 STATE_ROOT = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "dsh-dev"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 TOKEN_URL_RE = re.compile(r"dsh web: (http://127\.0\.0\.1:(\d+)/\?token=[^\s()]+)")
 SECRET_RE = re.compile(r"(token=)[^\s&)\"']+")
+IMAGE_ID_RE = re.compile(r"sha256:[0-9a-f]{64}")
 MODES = ("authoring", "verification")
 MODE_ALIASES = {"dev": "authoring", "eval": "verification"}
 MODE_CHOICES = ("dev", "eval") + MODES
@@ -61,7 +62,8 @@ CONTAINER_REFERENCE = "/work/reference"
 # 受控模板不含任何仓库内默认值，凡读取实例 Compose 的命令都必须按实例状态注入这些变量。
 # 2.0：当前研究定义改为单一只读挂载。
 # 2.1：实例 Compose 按来源声明生成运行时环境变量透传项。
-INSTANCE_SCHEMA_VERSION = "2.1"
+# 2.2：记录实际镜像 ID 与构建指纹，运行时固定到不可变镜像引用。
+INSTANCE_SCHEMA_VERSION = "2.2"
 # DSH Web 首次打开是冷启动：会话必须先绑定一个**已注册工作区**，而新实例的 DSH_HOME 里工作区注册表为空
 # （注册表 storages/workspace.json 只从已存会话头 bootstrap，且初始化标记一经写入不再重建）。DSH 在该锁定提交上
 # 没有受支持的工作区预注册入口，因此启动器只如实交付路径与操作步骤，不改写 Runtime 存储内部格式。
@@ -460,12 +462,19 @@ def run(command: list[str], *, check: bool = True, capture: bool = True,
     return completed
 
 
+def image_reference(tag: str | None, image_id: str | None) -> str | None:
+    """优先用镜像 ID 固定 Compose；旧状态没有 ID 时保留标签兼容性。"""
+    if tag and image_id and IMAGE_ID_RE.fullmatch(image_id):
+        return f"{tag}@{image_id}"
+    return tag
+
+
 def compose_env(contract: dict, mode: str, port: int, name: str,
-                dev_target_file: Path | None = None) -> dict:
+                dev_target_file: Path | None = None, image_id: str | None = None) -> dict:
     environment = dict(os.environ)
     environment.update(
         {
-            "DSH_IMAGE_TAG": contract["image"]["local_image_tag"],
+            "DSH_IMAGE_TAG": image_reference(contract["image"]["local_image_tag"], image_id),
             "DSH_ADAPTER_HOST": str(ADAPTER),
             "DSH_MANAGED_PATCH": contract["patch"],
             "DSH_WORKSPACE_HOST": contract["workspace"],
@@ -564,7 +573,7 @@ def project_name(name: str) -> str:
 
 
 def write_instance(name: str, *, mode: str, contract: dict, port: int,
-                   accepted_cordis_trust: bool = False) -> Path:
+                   accepted_cordis_trust: bool = False, image_id: str | None = None) -> Path:
     target = instance_dir(name)
     current = existing_instance(name)
     if current is not None:
@@ -598,6 +607,8 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         "session_preset": session_preset(contract, mode),
         "port": port,
         "image_tag": contract["image"]["local_image_tag"],
+        "image_id": image_id,
+        "image_build_fingerprint": contract["image"].get("build_fingerprint"),
         "adapter_root": str(ADAPTER),
         "dev_target_file": str(dev_target_file) if dev_target_file else None,
         "managed_patch": contract["patch"],
@@ -638,7 +649,7 @@ def instance_compose_env(manifest: dict) -> dict:
     """
     mounts = manifest.get("mounts") or {}
     values = {
-        "DSH_IMAGE_TAG": manifest.get("image_tag"),
+        "DSH_IMAGE_TAG": image_reference(manifest.get("image_tag"), manifest.get("image_id")),
         "DSH_ADAPTER_HOST": manifest.get("adapter_root") or str(ADAPTER),
         "DSH_DEV_TARGET_HOST": manifest.get("dev_target_file"),
         "DSH_MANAGED_PATCH": manifest.get("managed_patch"),
@@ -779,6 +790,7 @@ def build_plan(args: argparse.Namespace, contract: dict) -> dict:
         "source_id": contract["source_id"],
         "source_kind": contract["source_kind"],
         "image_tag": contract["image"]["local_image_tag"],
+        "image_build_fingerprint": contract["image"].get("build_fingerprint"),
         "mounts": [
             {"container": "/work/harness/workspace", "mode": "rw" if args.mode == "authoring" else "ro"},
             {"container": "/opt/dsh-presets", "mode": "ro"},
@@ -803,6 +815,78 @@ def build_plan(args: argparse.Namespace, contract: dict) -> dict:
     return plan
 
 
+def running_dsh_image_id(name: str) -> tuple[str | None, bool]:
+    """返回本实例运行中 dsh 容器的镜像 ID；第二项表示查询失败。"""
+    listing = run(
+        ["docker", "ps", "--filter", f"label=com.docker.compose.project={project_name(name)}",
+         "--filter", "label=com.docker.compose.service=dsh", "--format", "{{.ID}}"],
+        check=False,
+    )
+    if listing.returncode != 0:
+        return None, True
+    container_ids = [value.strip() for value in (listing.stdout or "").splitlines() if value.strip()]
+    if not container_ids:
+        return None, False
+    inspected = run(["docker", "inspect", "--format", "{{.Image}}", container_ids[0]], check=False)
+    image_id = (inspected.stdout or "").strip()
+    if inspected.returncode != 0 or not IMAGE_ID_RE.fullmatch(image_id):
+        return None, True
+    return image_id, False
+
+
+def validate_image_identity(contract: dict, current: tuple[Path, dict] | None = None,
+                            replace: bool = False) -> dict:
+    """在停机或写状态前确认标签指向带正确构建指纹的平台镜像。"""
+    image = contract.get("image") or {}
+    tag = image.get("local_image_tag")
+    expected_fingerprint = image.get("build_fingerprint")
+    expected_platform = image.get("platform")
+    if not tag or not expected_fingerprint:
+        fail("来源合同缺少镜像构建指纹；请重新解析当前来源")
+    inspected = run(["docker", "image", "inspect", tag, "--format", "{{json .}}"], check=False)
+    if inspected.returncode != 0:
+        fail(f"本地镜像不存在：{tag}；请先执行 dsh-dev image build --source {contract['source_id']}")
+    try:
+        metadata = json.loads((inspected.stdout or "").strip())
+    except json.JSONDecodeError:
+        fail(f"无法解析镜像元数据：{tag}")
+    if not isinstance(metadata, dict):
+        fail(f"镜像元数据不是对象：{tag}")
+    image_id = metadata.get("Id")
+    config = metadata.get("Config")
+    labels = config.get("Labels") if isinstance(config, dict) else {}
+    if not isinstance(labels, dict):
+        labels = {}
+    actual_fingerprint = labels.get(IMAGE_LABEL_KEY)
+    platform = f"{metadata.get('Os')}/{metadata.get('Architecture')}"
+    if not IMAGE_ID_RE.fullmatch(str(image_id or "")):
+        fail(f"镜像 {tag} 没有有效的 immutable image ID")
+    if actual_fingerprint != expected_fingerprint:
+        fail(
+            f"镜像 {tag} 的构建指纹不匹配（期望 {expected_fingerprint}，实际 {actual_fingerprint or '缺失'}）；"
+            f"请先执行 dsh-dev image build --source {contract['source_id']}"
+        )
+    if platform != expected_platform:
+        fail(f"镜像 {tag} 平台不匹配（期望 {expected_platform}，实际 {platform}）")
+    if current is not None:
+        name = current[1].get("name") or current[0].name
+        running_id, query_failed = running_dsh_image_id(name)
+        if query_failed:
+            fail(f"无法确认实例 {name} 当前 dsh 容器的镜像身份；为避免误停机，已拒绝启动")
+        if running_id and running_id != image_id and not replace:
+            fail(
+                f"实例 {name} 当前运行镜像为 {running_id}，与待启动镜像 {image_id} 不同；"
+                "请使用 --replace 明确重建实例"
+            )
+    return {
+        "image_tag": tag,
+        "image_id": image_id,
+        "image_ref": image_reference(tag, image_id),
+        "image_build_fingerprint": expected_fingerprint,
+        "platform": platform,
+    }
+
+
 def command_up(args: argparse.Namespace) -> None:
     contract, current = prepare_up(args)
     if args.mode != "authoring" and getattr(args, "accept_cordis_trust", False):
@@ -820,6 +904,7 @@ def command_up(args: argparse.Namespace) -> None:
                               "missing_env_names": missing}, ensure_ascii=False), file=sys.stderr)
     else:
         check_environment(contract)
+    identity = validate_image_identity(contract, current=current, replace=getattr(args, "replace", False))
     # Compose 插值、模板结构与本次目标文件都可以在停旧实例前检查；明显无效的新配置不得先触发停机。
     preflight_new_instance(args, contract)
     replaced = migrate_existing_instance(args, contract, current)
@@ -832,8 +917,8 @@ def command_up(args: argparse.Namespace) -> None:
             )
         fail(f"端口 {args.port} 已被占用；启动阶段不会静默改用其它端口，请重试或显式指定 --port")
     target = write_instance(args.name, mode=args.mode, contract=contract, port=args.port,
-                            accepted_cordis_trust=args.accept_cordis_trust)
-    environment = compose_env(contract, args.mode, args.port, args.name)
+                            accepted_cordis_trust=args.accept_cordis_trust, image_id=identity["image_id"])
+    environment = compose_env(contract, args.mode, args.port, args.name, image_id=identity["image_id"])
     run(compose_command(target, args.name, "config", "--quiet"), env=environment)
     run(compose_command(target, args.name, "up", "-d", "--no-build"), env=environment)
     # `docker compose up -d` 返回 0 只说明命令成功，不说明容器在运行：容器可能立刻退出。
@@ -841,7 +926,7 @@ def command_up(args: argparse.Namespace) -> None:
     report = {"name": args.name, "project": project_name(args.name), "port": args.port,
               "state_dir": str(target), "agent_id": contract["agent_id"],
               "target_preset": target_preset(contract),
-              "session_preset": session_preset(contract, args.mode)}
+              "session_preset": session_preset(contract, args.mode), **identity}
     if replaced:
         report["replaced"] = replaced
     if containers is None:
@@ -859,7 +944,8 @@ def command_up(args: argparse.Namespace) -> None:
                      ensure_ascii=False), file=sys.stderr)
 
 
-def command_ps(_args: argparse.Namespace) -> None:
+def command_ps(args: argparse.Namespace) -> None:
+    show_all = bool(getattr(args, "all", False))
     entries = []
     if STATE_ROOT.is_dir():
         for target in sorted(STATE_ROOT.iterdir()):
@@ -869,17 +955,78 @@ def command_ps(_args: argparse.Namespace) -> None:
             # 单条实例记录损坏不应中断整张列表：该条如实报错，其余实例照常列出。
             try:
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                if not isinstance(manifest, dict):
+                    raise ValueError("状态文件根必须是 JSON 对象")
                 entry = instance_entry(target, manifest)
             except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as error:
-                entries.append({
+                entry = {
                     "name": target.name,
                     "state_dir": str(target),
                     "error": f"{type(error).__name__}: {error}",
+                    "state": "unknown",
                     "ps_query": "unknown",
-                })
+                }
+                if show_all:
+                    entries.append(entry)
                 continue
-            entries.append(entry)
+            if show_all or entry.get("state") == "running":
+                entries.append(entry)
     print(json.dumps({"schema_version": "1.0", "instances": entries}, ensure_ascii=False, indent=2, sort_keys=True))
+
+
+def compose_ps_containers(output: str) -> list[dict] | None:
+    """解析 Compose 的 JSON 输出；非空但非法的输出按未知处理。"""
+    text = (output or "").strip()
+    if not text:
+        return []
+    try:
+        parsed = json.loads(text)
+        values = parsed if isinstance(parsed, list) else [parsed]
+    except json.JSONDecodeError:
+        values = []
+        for line in text.splitlines():
+            try:
+                value = json.loads(line)
+            except json.JSONDecodeError:
+                return None
+            values.append(value)
+    if any(not isinstance(value, dict) for value in values):
+        return None
+    containers = []
+    for value in values:
+        state = str(value.get("State", value.get("state", ""))).lower()
+        status = str(value.get("Status", value.get("status", "")))
+        exit_code = value.get("ExitCode", value.get("exit_code"))
+        try:
+            exit_code = int(exit_code) if exit_code is not None else None
+        except (TypeError, ValueError):
+            exit_code = None
+        if exit_code is None:
+            match = re.search(r"Exited \((-?\d+)\)", status)
+            exit_code = int(match.group(1)) if match else None
+        containers.append({
+            "id": value.get("ID", value.get("id")),
+            "state": state,
+            "status": status,
+            "name": value.get("Name", value.get("name")),
+            "service": value.get("Service", value.get("service")),
+            "exit_code": exit_code,
+        })
+    return containers
+
+
+def normalized_instance_state(containers: list[dict] | None) -> str:
+    """把 Compose 观测归一为 running/stopped/failed/unknown。"""
+    if containers is None:
+        return "unknown"
+    dsh = [item for item in containers if item.get("service") == "dsh"]
+    if any(item.get("state") == "running" for item in dsh):
+        return "running"
+    if any(item.get("state") == "dead" or item.get("exit_code", 0) not in (None, 0) for item in dsh):
+        return "failed"
+    if any(item.get("state") in {"restarting", "paused"} for item in dsh):
+        return "unknown"
+    return "stopped"
 
 
 def instance_entry(target: Path, manifest: dict) -> dict:
@@ -887,14 +1034,16 @@ def instance_entry(target: Path, manifest: dict) -> dict:
     name = str(manifest.get("name") or target.name)
     recorded_schema = manifest.get("schema_version")
     port = manifest.get("port")
-    listing = run(compose_command(target, name, "ps", "--format", "json"),
+    listing = run(compose_command(target, name, "ps", "--all", "--format", "json"),
                   check=False, env=instance_compose_env(manifest))
     if listing.returncode != 0:
         ps_state = "unknown"
         ps_detail = (listing.stderr or listing.stdout or "").strip()[-200:] or "docker compose ps 查询失败"
+        state = "unknown"
     else:
         ps_state = "reported"
         ps_detail = (listing.stdout or "").strip() or "not running"
+        state = normalized_instance_state(compose_ps_containers(listing.stdout))
     return {
         "name": name,
         "source_id": manifest.get("source_id"),
@@ -905,6 +1054,7 @@ def instance_entry(target: Path, manifest: dict) -> dict:
         "session_preset": manifest.get("session_preset"),
         "state_schema": recorded_schema,
         "needs_migration": recorded_schema != INSTANCE_SCHEMA_VERSION,
+        "state": state,
         "port": port,
         "context_mounts": [item.get("container") for item in manifest.get("context_mounts") or []],
         "base_url": f"http://127.0.0.1:{port}/" if isinstance(port, int) else None,
@@ -1023,8 +1173,10 @@ def project_containers(name: str) -> list[dict] | None:
         fields = line.split("\t")
         if len(fields) != 5:
             return None
+        match = re.search(r"Exited \((-?\d+)\)", fields[2])
         containers.append({"id": fields[0], "state": fields[1], "status": fields[2],
-                           "name": fields[3], "service": fields[4]})
+                           "name": fields[3], "service": fields[4],
+                           "exit_code": int(match.group(1)) if match else None})
     return containers
 
 
@@ -1211,7 +1363,9 @@ def main() -> None:
                     help="显式确认创造模式的 shell/host 网络及 npm Plugin 下载执行风险；安装后须由宿主重启实例")
     up.set_defaults(handler=command_up)
 
-    commands.add_parser("ps", help="列出启动器管理的实例").set_defaults(handler=command_ps)
+    ps_parser = commands.add_parser("ps", help="默认列出运行中的实例；加 --all 查看全部状态记录")
+    ps_parser.add_argument("-a", "--all", action="store_true", help="包含 stopped、failed、unknown 和损坏记录")
+    ps_parser.set_defaults(handler=command_ps)
 
     url_parser = commands.add_parser("url", help="取得本次进程的认证 URL")
     url_parser.add_argument("name")

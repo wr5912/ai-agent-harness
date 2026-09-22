@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import uuid
@@ -232,13 +233,27 @@ def dsh_dev_path() -> str:
     return os.environ.get("DSH_EVAL_DSH_DEV", str(DSH_DEV))
 
 
-def start_instance(source: str, name: str) -> None:
-    checked_process(
+def start_instance(source: str, name: str) -> dict:
+    completed = checked_process(
         [dsh_dev_path(), "up", "--source", source, "--mode", "eval", "--name", name],
         label="启动 DSH 评测实例",
         timeout=240,
         env=os.environ.copy(),
     )
+    try:
+        report = json.loads(completed.stdout)
+    except json.JSONDecodeError as error:
+        raise EvaluationError("DSH 启动结果不是 JSON") from error
+    required = ("image_tag", "image_id", "image_ref", "image_build_fingerprint", "platform")
+    if not isinstance(report, dict) or any(not isinstance(report.get(key), str) for key in required):
+        raise EvaluationError("DSH 启动结果缺少有效镜像身份")
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", report["image_id"]):
+        raise EvaluationError("DSH 启动结果缺少有效镜像 ID")
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", report["image_build_fingerprint"]):
+        raise EvaluationError("DSH 启动结果缺少有效构建指纹")
+    if report["image_ref"] != f"{report['image_tag']}@{report['image_id']}":
+        raise EvaluationError("DSH 启动结果的不可变镜像引用不一致")
+    return report
 
 
 def authentication_url(name: str) -> str:
@@ -289,10 +304,11 @@ def run_browser(
     contract: dict,
     evidence_root: Path,
     timeout_seconds: int,
+    image_ref: str,
 ) -> dict:
     evidence_root.mkdir(parents=True, exist_ok=True)
     command, container_evidence = browser_command(
-        contract["image"]["local_image_tag"], evidence_root, Path(contract["managed"])
+        image_ref, evidence_root, Path(contract["managed"])
     )
     payload = {
         "schema_version": "1.0",
@@ -369,6 +385,7 @@ def dry_run_payload(contract: dict, cases: list[dict]) -> dict:
         "executors": {case["case_id"]: case["executor"] for case in cases},
         "runtime_required": runtime,
         "image": contract["image"]["local_image_tag"] if runtime else None,
+        "image_build_fingerprint": contract["image"]["build_fingerprint"] if runtime else None,
         "required_env_names": required,
         "missing_env_names": [name for name in required if not os.environ.get(name)],
     }
@@ -452,10 +469,23 @@ def execute(args: argparse.Namespace) -> int:
         if runtime_cases:
             progress("启动独立 DSH 评测实例")
             up_attempted = True
-            start_instance(args.source, instance_name)
+            image_identity = start_instance(args.source, instance_name)
+            if image_identity["image_build_fingerprint"] != contract["image"]["build_fingerprint"]:
+                raise EvaluationError("DSH 实际镜像身份与本次来源合同不一致")
+            write_json(run_dir / "evidence" / "dsh-image.json", {
+                "schema_version": "1.0",
+                "source_id": contract["source_id"],
+                "local_image_tag": image_identity["image_tag"],
+                "local_image_id": image_identity["image_id"],
+                "image_ref": image_identity["image_ref"],
+                "image_build_fingerprint": image_identity["image_build_fingerprint"],
+                "platform": image_identity["platform"],
+                "scope": "actual DSH evaluation runtime image identity; no semantic verdict",
+            })
             auth_url = authentication_url(instance_name)
             runtime_rows, safety_stop_reason = normalize_browser_rows(
-                run_browser(auth_url, runtime_cases, contract, run_dir / "evidence", args.timeout_seconds),
+                run_browser(auth_url, runtime_cases, contract, run_dir / "evidence",
+                            args.timeout_seconds, image_identity["image_ref"]),
                 runtime_cases,
             )
             auth_url = ""

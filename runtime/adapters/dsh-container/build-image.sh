@@ -69,6 +69,9 @@ task_node_base="$(python3 "$task_adapter_dir/source_contract.py" --source "$task
 task_platform="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --field image.platform)"
 task_cli_version="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --field image.cli_version)"
 task_image_tag="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --field image.local_image_tag)"
+task_image_build_fingerprint="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --field image.build_fingerprint)"
+task_image_input_digests="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --image-input-digests)"
+task_image_label_key="org.ai-agent-harness.dsh.image-build-fingerprint"
 task_source_repository="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --field image.repository)"
 task_experiment_root="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" --field experiment_root)"
 if [[ -z "$task_evidence_file" ]]; then
@@ -116,23 +119,30 @@ docker buildx build \
   --build-arg "DSH_APT_MIRROR=$task_apt_mirror" \
   --build-arg "DSH_NPM_REGISTRY=$task_npm_registry" \
   --load \
+  --label "$task_image_label_key=$task_image_build_fingerprint" \
   -t "$task_image_tag" \
   -f "$task_adapter_dir/Dockerfile" \
   "$task_adapter_dir"
 
 task_image_id="$(docker image inspect "$task_image_tag" --format '{{.Id}}')"
 task_image_platform="$(docker image inspect "$task_image_tag" --format '{{.Os}}/{{.Architecture}}')"
-task_runtime_version="$(docker run --rm --entrypoint node "$task_image_tag" /opt/dsh/apps/cli/lib/bin.js --version)"
-task_dsh_command_version="$(docker run --rm --entrypoint dsh "$task_image_tag" --version)"
-task_dsh_web_help="$(docker run --rm --entrypoint dsh "$task_image_tag" web --help)"
-task_pnpm_runtime_version="$(docker run --rm --entrypoint pnpm "$task_image_tag" --version)"
+task_image_labels="$(docker image inspect "$task_image_tag" --format '{{json .Config.Labels}}')"
+task_image_label="$(python3 -c 'import json,sys; print((json.loads(sys.argv[1]) or {}).get(sys.argv[2], ""))' \
+  "$task_image_labels" "$task_image_label_key")"
+task_image_ref="$task_image_tag@$task_image_id"
+task_runtime_version="$(docker run --rm --entrypoint node "$task_image_ref" /opt/dsh/apps/cli/lib/bin.js --version)"
+task_dsh_command_version="$(docker run --rm --entrypoint dsh "$task_image_ref" --version)"
+task_dsh_web_help="$(docker run --rm --entrypoint dsh "$task_image_ref" web --help)"
+task_pnpm_runtime_version="$(docker run --rm --entrypoint pnpm "$task_image_ref" --version)"
 [[ "$task_image_platform" == "$task_platform" ]]
+[[ "$task_image_label" == "$task_image_build_fingerprint" ]]
 [[ "$task_runtime_version" == "$task_cli_version" ]]
 [[ "$task_dsh_command_version" == "$task_cli_version" ]]
 [[ "$task_dsh_web_help" == *"Usage: dsh --profile web"* ]]
 [[ "$task_pnpm_version" != "$task_package_manager" && "$task_pnpm_runtime_version" == "$task_pnpm_version" ]]
+docker run --rm --entrypoint sh "$task_image_ref" -c 'test -x /usr/bin/chromium'
 
-python3 - "$task_evidence_file" "$task_source_id" "$task_source_repository" "$task_source_commit" "$task_source_tree" "$task_lock_sha" "$task_package_manager" "$task_node_base" "$task_image_tag" "$task_image_id" "$task_image_platform" "$task_runtime_version" "$task_dsh_command_version" "$task_pnpm_runtime_version" "$task_build_network" "$task_apt_mirror" "$task_npm_registry" <<'PY'
+python3 - "$task_evidence_file" "$task_source_id" "$task_source_repository" "$task_source_commit" "$task_source_tree" "$task_lock_sha" "$task_package_manager" "$task_node_base" "$task_image_tag" "$task_image_id" "$task_image_platform" "$task_runtime_version" "$task_dsh_command_version" "$task_pnpm_runtime_version" "$task_build_network" "$task_apt_mirror" "$task_npm_registry" "$task_image_build_fingerprint" "$task_image_label_key" "$task_image_input_digests" <<'PY'
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -141,7 +151,7 @@ import sys
 target = Path(sys.argv[1]).absolute()
 target.parent.mkdir(parents=True, exist_ok=True)
 evidence = {
-    "schema_version": "1.0",
+    "schema_version": "1.1",
     "recorded_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "build_status": "pass",
     "source_id": sys.argv[2],
@@ -165,6 +175,10 @@ evidence = {
         else "http://deb.debian.org/debian-security"
     ),
     "npm_registry": sys.argv[17],
+    "image_build_fingerprint": sys.argv[18],
+    "image_label_key": sys.argv[19],
+    "image_input_digests": json.loads(sys.argv[20]),
+    "chromium_executable": "/usr/bin/chromium",
     "apt_signed_metadata_preflight": "pass",
     "registry_digest_verified": False,
     "scope": "local image build and CLI identity only; no Harness or business acceptance",
@@ -177,6 +191,7 @@ PY
 printf 'DSH source commit: %s\n' "$task_source_commit"
 printf 'DSH image tag: %s\n' "$task_image_tag"
 printf 'Local image ID: %s\n' "$task_image_id"
+printf 'Image build fingerprint: %s\n' "$task_image_build_fingerprint"
 printf 'DSH CLI version: %s\n' "$task_runtime_version"
 printf 'dsh command version: %s\n' "$task_dsh_command_version"
 printf 'pnpm runtime version: %s\n' "$task_pnpm_runtime_version"

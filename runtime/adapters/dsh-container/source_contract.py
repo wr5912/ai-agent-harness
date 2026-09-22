@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import stat
@@ -30,6 +31,32 @@ GRADING_ROLES = ("authoring", "scoring")
 CONTAINER_WORKSPACE = "/work/harness/workspace"
 CONTAINER_REFERENCE = "/work/reference"
 CONTAINER_EVAL_INPUT = "/work/eval-input"
+IMAGE_FINGERPRINT_VERSION = "1"
+IMAGE_LABEL_KEY = "org.ai-agent-harness.dsh.image-build-fingerprint"
+IMAGE_BUILD_FILES = ("Dockerfile", "apt-mirror.sh", "build-image.sh", "dsh-cli.sh", "source_contract.py")
+
+
+def image_build_input_digests(*, lock_path: Path = LOCK, adapter: Path = ADAPTER) -> dict[str, str]:
+    """返回会改变本地镜像内容或构建方式的输入摘要。"""
+    paths = {"source.lock.json": lock_path}
+    paths.update({name: adapter / name for name in IMAGE_BUILD_FILES})
+    digests = {}
+    for name, path in paths.items():
+        if not path.is_file() or path.is_symlink():
+            raise ValueError(f"missing or symlinked image build input: {path}")
+        digests[name] = "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+    return dict(sorted(digests.items()))
+
+
+def image_build_fingerprint(lock: dict, *, lock_path: Path = LOCK, adapter: Path = ADAPTER) -> str:
+    """由锁定来源和镜像构建输入生成稳定的本地镜像身份。"""
+    payload = {
+        "version": IMAGE_FINGERPRINT_VERSION,
+        "source_lock": lock,
+        "input_digests": image_build_input_digests(lock_path=lock_path, adapter=adapter),
+    }
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
 def strict_json(path: Path, max_bytes: int = 1024 * 1024) -> dict:
@@ -89,6 +116,7 @@ def _experiment_contract(
     *,
     repo: Path,
     lock: dict,
+    lock_path: Path,
     require_assets: bool,
 ) -> dict:
     expected = Path("evolution/experiments") / source_id / "candidate/dsh"
@@ -128,6 +156,8 @@ def _experiment_contract(
     # preset_id 是运行时组合身份，agent_id 是业务 Agent 身份；两者允许不同。
     # 实际装载一致性由候选 harness.yaml、sources.json 与基础 patch 默认值的交叉门禁保证。
     declared_preset = preset_id(item["preset"])
+    image = dict(lock)
+    image["build_fingerprint"] = image_build_fingerprint(lock, lock_path=lock_path)
     contract = {
         "schema_version": "2.0",
         "source_kind": "experiment",
@@ -147,7 +177,7 @@ def _experiment_contract(
         "patch_overlay": "/opt/dsh-managed/" + item["development_patch_overlay"],
         "config_markers": item["config_markers"],
         "required_env_names": item["required_env_names"],
-        "image": lock,
+        "image": image,
     }
     contract.update(_agent_asset_roots(repo, item["agent_id"]))
     return contract
@@ -193,7 +223,7 @@ def _resolve_experiment(source_id: str, *, repo: Path, sources: Path, lock_path:
                      "development_patch_overlay", "config_markers", "required_env_names"}:
         raise ValueError("source fields differ from schema 1.0")
     lock = _read_source_lock(lock_path)
-    return _experiment_contract(source_id, item, repo=repo, lock=lock, require_assets=require_assets)
+    return _experiment_contract(source_id, item, repo=repo, lock=lock, lock_path=lock_path, require_assets=require_assets)
 
 
 def _read_source_lock(lock_path: Path) -> dict:
@@ -281,6 +311,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", default=DEFAULT_SOURCE)
     parser.add_argument("--field", help="print one top-level scalar field")
+    parser.add_argument("--image-input-digests", action="store_true",
+                        help="print image build input SHA-256 digests")
     parser.add_argument("--env-names", action="store_true", help="print selected Runtime environment names, one per line")
     parser.add_argument("--dev-target-document", action="store_true",
                         help="print a development-session target declaration derived from this source")
@@ -295,9 +327,10 @@ def main() -> None:
     try:
         contract = resolve(args.source, require_assets=not args.allow_missing_assets)
         selected = sum(flag is not None and flag is not False
-                       for flag in (args.field, args.env_names, args.mount_plan, args.dev_target_document))
+                       for flag in (args.field, args.image_input_digests, args.env_names,
+                                    args.mount_plan, args.dev_target_document))
         if selected > 1:
-            raise ValueError("choose only one of --field、--env-names、--mount-plan、--dev-target-document")
+            raise ValueError("choose only one of --field、--image-input-digests、--env-names、--mount-plan、--dev-target-document")
         if args.dev_target_document:
             print(dev_target_document(contract, args.instance_name, args.session_preset), end="")
         elif args.mount_plan:
@@ -309,6 +342,8 @@ def main() -> None:
                 eval_input=args.eval_input,
             )
             print(json.dumps(plan, ensure_ascii=False, separators=(",", ":")))
+        elif args.image_input_digests:
+            print(json.dumps(image_build_input_digests(), ensure_ascii=False, sort_keys=True, separators=(",", ":")))
         elif args.env_names:
             if contract["required_env_names"]:
                 print("\n".join(contract["required_env_names"]))

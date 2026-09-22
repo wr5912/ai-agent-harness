@@ -15,7 +15,7 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 
 本机 Docker 构建网络异常时还可显式加 `--build-network host`，但这会让构建步骤直接使用宿主网络命名空间；默认仍为 Docker 隔离网络。镜像源与网络选项都不改变锁定 DSH 源码和 Node 基础镜像身份，实际值写入构建证据。
 
-成功构建后脚本打印实际本地 Image ID 和 CLI 版本，并向本 Experiment 的 `evaluation/evidence/dsh-image-build-<UTC>-<PID>.json` 写入只追加的本地构建证据。也可以指定 `--evidence-output FILE`。`source.lock.json` 仅锁构建输入，不填写未取得的 Registry digest；本地标签可重指向，不能代替 Image ID 或发布时验证的不可变 Registry digest。
+成功构建后脚本根据 `source.lock.json` 和镜像构建输入计算 `image_build_fingerprint`，并把它写入 OCI label；同时打印实际本地 Image ID，并向本 Experiment 的 `evaluation/evidence/dsh-image-build-<UTC>-<PID>.json` 写入只追加的本地构建证据。也可以指定 `--evidence-output FILE`。`source.lock.json` 仅锁构建输入，不填写未取得的 Registry digest；本地标签可重指向，运行前会同时核对标签、Image ID、构建指纹和平台，不能把标签当作不可变身份。
 
 ## 候选资产装载
 
@@ -104,9 +104,9 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-d
 
 `--mode dev` 使用 `authoring.compose.yaml` 并在基础受控 patch 之后叠加来源登记的 `development_patch_overlay`（仅打开 DSH 出厂 preset 根并把默认 preset 设为 `cordis`；校验器对该文件实施行白名单）。因为创造模式会话具备 shell 与对实时 runtime 执行模型 JS 的 `tool-cordis` 能力（等同 shell 权限），且容器使用 host 网络、可直达宿主回环服务（含本机 DSH Web），`up --mode dev` 必须显式加 `--accept-cordis-trust`；`--mode eval` 拒绝该旗标。创造模式会话不加载目标 Guard，来源注入的业务工具或 delegate 因此不受目标角色约束——这是开发模式的已知边界，不是已隔离状态。`--mode eval` 不叠加开发层，`includeShippedRoot` 保持关闭，创造模式在该容器内不在 preset 名册中，判分材料也不进入该容器。
 
-`up` 不只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的在运行（`home-init` 是一次性服务，正常结束不算失败），否则报告失败或 `dsh_running: "unknown"` 并以非零退出码结束。成功时 stdout 只输出一个 JSON 结果；进度、提示和错误输出到 stderr，失败时 stdout 保持为空。`up --replace` 的成功 JSON 在 `replaced.stop` 中包含完整停止结果。
+`up` 会先核对镜像标签对应的构建指纹、平台和 Image ID，再执行停旧实例、写状态和启动；Compose 使用 `tag@image-id` 不可变引用。它仍不只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的在运行（`home-init` 是一次性服务，正常结束不算失败），否则报告失败或 `dsh_running: "unknown"` 并以非零退出码结束。成功时 stdout 只输出一个 JSON 结果，其中包含 `image_id`、`image_ref` 和 `image_build_fingerprint`；进度、提示和错误输出到 stderr，失败时 stdout 保持为空。`up --replace` 的成功 JSON 在 `replaced.stop` 中包含完整停止结果。
 
-`ps`、`logs`、`down` 从实例状态文件重建读取该实例 Compose 所需的环境变量：受控模板用 `${VAR:?}` 声明必填变量、不内联仓库内默认路径，因此这些命令不依赖调用者的当前环境；状态文件不是最新 schema 时同样可用，`ps` 会标出 `needs_migration`。旧实例仍在运行时用 `up --replace`（保留 HOME 数据卷）或先 `down` 再同名 `up` 完成迁移。挂载内容变化不会自动重启进程，重载必须走这两条路径之一。`down` 先检查 `docker compose down` 的退出码，再核对实际容器状态与 HOME 卷：命令失败即报错，仍有容器运行或状态无法确认时输出 `stopped: false` / `stopped: "unknown"` 并以非零退出码结束；HOME 卷名按 Compose 卷标签解析，不按 `<project>-home` 猜测。
+`ps`、`logs`、`down` 从实例状态文件重建读取该实例 Compose 所需的环境变量：受控模板用 `${VAR:?}` 声明必填变量、不内联仓库内默认路径，因此这些命令不依赖调用者的当前环境；`ps` 默认只列出实际运行中的实例，`ps --all` 才包含 `stopped`、`failed`、`unknown` 和损坏记录，并标出 `needs_migration`。旧实例仍在运行时用 `up --replace`（保留 HOME 数据卷）或先 `down` 再同名 `up` 完成迁移。挂载内容变化不会自动重启进程，重载必须走这两条路径之一。`down` 先检查 `docker compose down` 的退出码，再核对实际容器状态与 HOME 卷：命令失败即报错，仍有容器运行或状态无法确认时输出 `stopped: false` / `stopped: "unknown"` 并以非零退出码结束；HOME 卷名按 Compose 卷标签解析，不按 `<project>-home` 猜测。
 
 完整使用过程、挂载矩阵与异常处理见[DSH 开发与评测启动器设计方案](../../../docs/DSH开发与评测启动器设计方案.md)。
 
@@ -146,6 +146,8 @@ node runtime/adapters/dsh-container/stub-mcp-streamable-http.mjs --port 3099 --t
 派生脚本只从候选 `mcp-servers.yaml`、`mcp-tool-name-map.json`、`role-tool-matrix.yaml` 取工具原始名，无法解析到"服务名 + 原始名"的引用即非零退出；桩服务只实现 `initialize`、`notifications/initialized`、`tools/list` 的最小协议面，只监听回环、不校验凭据、无业务语义，并只记录"是否带鉴权头"而不记录凭据值；`tools/call` **默认返回 `isError: true` 并拒绝编造业务数据**（只有显式 `--stub-success` 才回显桩标记，供协议自测），因此用它补齐不可用的 MCP 分组时，相关工具调用会明确失败而不会产生假通过结果。它证明的是**受控 Profile 的 MCP 客户端配置、鉴权头注入与工具注册链路可装载**，不证明真实 MCP 服务集成、租户/对象授权、状态机、业务能力、评估结论或 Release 验收。真实业务核验必须在受信 Runtime 提供模型与 MCP 端点后进行。
 
 本轮候选的实例级装载证据见 [`dsh-dev-live-load-20260918.json`](../../../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-live-load-20260918.json)：容器保持运行、三个 MCP 客户端完成握手、三棵只读资产树与受控 HOME 摘要通过容器内探针、Web Token 入口探针通过；同时记录未验证项（无模型凭据，未建立 Agent Session）。
+
+在上述装载核验开始前，脚本会核对镜像构建指纹、平台和 Image ID，并把 Compose 固定到 `tag@image-id`；无 OCI 指纹 label 或指纹过期的本地镜像会直接拒绝。
 
 ## 局部加载核验与变更回执
 

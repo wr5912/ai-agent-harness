@@ -33,6 +33,34 @@ class SourceContractTest(unittest.TestCase):
         self.assertEqual(result["schema_version"], "2.0")
         self.assertNotIn("TOKEN=", json.dumps(result))
 
+    def test_image_fingerprint_is_derived_and_changes_with_build_input(self):
+        result = source_contract.resolve()
+        fingerprint = result["image"]["build_fingerprint"]
+        self.assertRegex(fingerprint, r"^sha256:[0-9a-f]{64}$")
+        with tempfile.TemporaryDirectory(prefix="dsh-image-inputs-") as location:
+            adapter = Path(location)
+            for name in source_contract.IMAGE_BUILD_FILES:
+                (adapter / name).write_bytes((source_contract.ADAPTER / name).read_bytes())
+            lock_path = adapter / "source.lock.json"
+            lock_path.write_bytes(source_contract.LOCK.read_bytes())
+            first = source_contract.image_build_fingerprint(
+                source_contract._read_source_lock(lock_path), lock_path=lock_path, adapter=adapter
+            )
+            (adapter / "Dockerfile").write_text("changed\n", encoding="utf-8")
+            second = source_contract.image_build_fingerprint(
+                source_contract._read_source_lock(lock_path), lock_path=lock_path, adapter=adapter
+            )
+        self.assertNotEqual(first, second)
+
+    def test_image_input_digest_cli_is_json_without_private_values(self):
+        completed = subprocess.run(
+            [sys.executable, str(source_contract.ADAPTER / "source_contract.py"), "--image-input-digests"],
+            capture_output=True, text=True, check=True,
+        )
+        values = json.loads(completed.stdout)
+        self.assertIn("Dockerfile", values)
+        self.assertTrue(all(value.startswith("sha256:") for value in values.values()))
+
     def test_reference_root_requires_both_agent_sources(self):
         with tempfile.TemporaryDirectory(prefix="dsh-source-contract-") as location:
             repo = Path(location)
