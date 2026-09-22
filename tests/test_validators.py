@@ -722,6 +722,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             **os.environ,
             "PYTHONDONTWRITEBYTECODE": "1",
             "DSH_EVAL_DSH_DEV": str(fake_dsh),
+            "DSH_EVAL_API_DRIVER": str(fake_browser),
             "DSH_EVAL_BROWSER_DRIVER": str(fake_browser),
             "TEST_DSH_LOG": str(command_log),
             "TEST_BROWSER_MODE": mode,
@@ -737,10 +738,12 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         env: dict[str, str],
         *case_ids: str,
         timeout: int = 240,
+        executor: str = "api",
     ) -> tuple[subprocess.CompletedProcess[str], dict]:
         command = [
             "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
             "--source", "experiment:EXP-security-operations-expert-006",
+            "--executor", executor,
             "--timeout-seconds", "10",
         ]
         for case_id in case_ids:
@@ -775,6 +778,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             payload = json.loads(completed.stdout)
             after = set(runs.glob("run-*")) if runs.is_dir() else set()
         self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(payload["executor"], "api")
         self.assertTrue(payload["runtime_required"])
         self.assertEqual(payload["missing_env_names"], list(self.REQUIRED_RUNTIME_ENV))
         self.assertEqual(before, after)
@@ -786,9 +790,13 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             completed, payload = self.run_eval(repository, env, "T-LOCAL-QWEN-CHAT")
             run_dir = (repository / payload["summary"]).parent
             summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+            report = (repository / payload["report"]).read_text(encoding="utf-8")
+            inputs = (run_dir / "inputs.lock.json").read_text(encoding="utf-8")
+            manifest = (run_dir / "run.yaml").read_text(encoding="utf-8")
             commands = [json.loads(line) for line in command_log.read_text(encoding="utf-8").splitlines()]
             persisted = b"\n".join(path.read_bytes() for path in run_dir.rglob("*") if path.is_file())
         self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(payload["executor"], "api")
         self.assertEqual(payload["verdict"], "passed")
         self.assertEqual(
             payload["cases"],
@@ -796,6 +804,14 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         )
         self.assertTrue(payload["instance_stopped"])
         self.assertEqual(summary["overall_verdict"], "passed")
+        self.assertIn("# 测试评估报告", report)
+        self.assertIn("`T-LOCAL-QWEN-CHAT`", report)
+        self.assertIn("| Case | 输入 | 执行状态 | 结论 | 观察 | 证据 |", report)
+        self.assertIn("只回复：模型连通", report)
+        self.assertIn("通过", report)
+        self.assertIn("不要求所有 Case 均为 `通过`", report)
+        self.assertIn('executor": "api"', inputs)
+        self.assertIn("report_sha256:", manifest)
         self.assertEqual([command[0] for command in commands], ["up", "url", "down"])
         self.assertNotIn("opaque-eval-auth-token", completed.stdout + completed.stderr)
         self.assertNotIn(b"opaque-eval-auth-token", persisted)
@@ -808,6 +824,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
                 env,
                 "T-LOCAL-QWEN-CHAT",
                 "T-SELECTED-ROUTE-TRACE",
+                executor="browser",
             )
             results = [
                 json.loads(line)
@@ -817,6 +834,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             ]
             commands = [json.loads(line)[0] for line in command_log.read_text().splitlines()]
         self.assertEqual(completed.returncode, 1, completed.stderr)
+        self.assertEqual(payload["executor"], "browser")
         self.assertEqual(payload["verdict"], "failed")
         self.assertEqual(
             payload["cases"],
@@ -827,6 +845,29 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             ["T-LOCAL-QWEN-CHAT", "T-SELECTED-ROUTE-TRACE"],
         )
         self.assertEqual(commands, ["up", "url", "down"])
+
+    def test_default_api_excludes_browser_only_case(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = copy_repository(Path(temp))
+            command = [
+                "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
+                "--source", "experiment:EXP-security-operations-expert-006", "--dry-run",
+            ]
+            api = subprocess.run(
+                command, cwd=repository, text=True, capture_output=True, check=False, timeout=180,
+            )
+            browser = subprocess.run(
+                [*command, "--executor", "browser", "--case", "T-MODEL-CATALOG"],
+                cwd=repository, text=True, capture_output=True, check=False, timeout=180,
+            )
+            api_payload = json.loads(api.stdout)
+            browser_payload = json.loads(browser.stdout)
+        self.assertEqual(api.returncode, 0, api.stderr)
+        self.assertIn("T-MODEL-CATALOG", api_payload["excluded_case_ids"])
+        self.assertNotIn("T-MODEL-CATALOG", api_payload["case_ids"])
+        self.assertEqual(browser.returncode, 0, browser.stderr)
+        self.assertEqual(browser_payload["case_ids"], ["T-MODEL-CATALOG"])
+        self.assertEqual(browser_payload["transports"], {"T-MODEL-CATALOG": "browser"})
 
     def test_preflight_failure_does_not_create_run_or_start_instance(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

@@ -283,6 +283,11 @@ def validate_run(
             expected_hash = hashlib.sha256(path.read_bytes() if path.is_file() else b"").hexdigest()
             if manifest.get(field) != expected_hash:
                 errors.append(issue("RUN_HASH", f"{field} 与文件不一致", manifest_path))
+        report_path = run_dir / "report.md"
+        if report_path.is_file() or manifest.get("report_sha256"):
+            expected_hash = hashlib.sha256(report_path.read_bytes() if report_path.is_file() else b"").hexdigest()
+            if manifest.get("report_sha256") != expected_hash:
+                errors.append(issue("RUN_HASH", "report_sha256 与文件不一致", manifest_path))
 
 
 def validate(experiment: Path) -> tuple[dict, int]:

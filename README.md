@@ -16,7 +16,7 @@
 | 启动开发会话（`--mode dev`）或被测会话（`--mode eval`） | 已实现；需要 Docker 和运行时环境变量 | `dsh-dev up/ps/url/logs/down` |
 | 重载实例配置或迁移旧实例状态 | 已实现 | `dsh-dev up --replace` |
 | 构建锁定 DSH 提交的本地镜像 | 已实现 | `dsh-dev image build` |
-| 按 `evaluation.md` 启动独立实例、逐 Case 新建 Session、导出轨迹并封存 Run | 已实现；需要 Docker、Chromium 镜像和运行时环境变量 | `dsh-eval` |
+| 按 `evaluation.md` 启动独立实例、逐 Case 新建 Session、导出轨迹并封存 Run | 已实现；默认走 DSH Runtime API，浏览器 UI 冒烟需显式选择；需要 Docker 和运行时环境变量 | `dsh-eval` |
 | 记录变更前后资产摘要与差异 | 已实现 | `mutation-receipt.py` |
 | 归档一次研究运行及其输入、观察、缺口与摘要 | 已实现 | `run_record.py` |
 | 校验项目结构、Experiment、Run 与 Research Release 合同 | 已实现 | `validate_repository.py` / `validate_experiment.py` |
@@ -170,13 +170,15 @@ python3 .agents/skills/research-eval/scripts/validate_experiment.py \
 
 脚本输出 JSON。退出码 `0` 只说明各自覆盖的确定性合同通过，`1` 表示发现问题，`2` 表示输入或读取错误；它们不替代对研究结果的人工判断。
 
-受管评测会自动完成 Run 创建、浏览器执行、证据导出、封存和实例停止；先用 `--dry-run` 核对选择与环境变量名称：
+受管评测会自动完成 Run 创建、执行、证据导出、封存和实例停止。默认通过 DSH Runtime Session API 执行业务 Case；浏览器通道只核对初始提示、工作区、模型、发送和显示等 UI 链路，需显式指定。先用 `--dry-run` 核对选择与环境变量名称：
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-<agent-id>-NNN --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-<agent-id>-NNN [--case <case-id>]
+python3 runtime/adapters/dsh-container/dsh-eval \
+  --source experiment:EXP-<agent-id>-NNN --executor browser [--case <case-id>]
 ```
 
 只需手工记录观察时，直接使用底层 Run 台账：

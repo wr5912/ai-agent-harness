@@ -13,7 +13,7 @@
 | 入口 | 当前用途 | 边界 |
 |---|---|---|
 | `dsh-dev` | 创建最小 Agent/首次 Experiment，解析来源，构建镜像，启动、查看和停止本地 DSH 实例 | `init` 不覆盖已有资产；CLI 不判断 Harness 效果 |
-| `dsh-eval` | 按 `evaluation.md` 执行所选 Case，保存浏览器回答与同一 Session 轨迹并封存 Run | 只自动判定确定性合同；业务语义保留 `inconclusive` |
+| `dsh-eval` | 默认通过 DSH Runtime API 执行所选业务 Case；显式选择浏览器时做 UI 冒烟；保存同一 Session 的回答与轨迹并封存 Run | 两种通道分别形成 Run；只自动判定确定性合同，业务语义保留 `inconclusive` |
 | `source_contract.py` | 把来源解析成 Agent、Preset 和挂载计划 | 当前只支持 `experiment:<id>` |
 | `mutation-receipt.py` | 记录变更前后资产摘要和差异 | 不替代 Git 或人工复核 |
 | `run_record.py` | 创建、追加和封存 Research Run | 不执行任务，不给研究结论打分 |

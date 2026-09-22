@@ -1,14 +1,24 @@
 #!/usr/bin/env node
 
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { chromium } from 'playwright'
-import { strFromU8, unzipSync } from 'fflate'
+import {
+  MODEL_CASES,
+  SAFETY_STOP_REASONS,
+  assertSessionIdentity,
+  loadToolRoutes,
+  parseArchive,
+  result,
+  rootToolCatalogCheck,
+  safetyError,
+  saveEvidence,
+  toolBoundaryCheck,
+  turnFromTrace,
+  withCaseTimeout,
+} from './dsh-eval-common.mjs'
 
 const COMPOSER = '[data-composer-input][contenteditable="true"]'
-const MODEL_CASES = new Set(['T-LOCAL-QWEN-CHAT', 'T-SELECTED-ROUTE-TRACE'])
-const SAFETY_STOP_REASONS = new Set(['identity-drift', 'unauthorized-side-effect', 'evidence-cross-turn'])
 
 async function readInput() {
   const chunks = []
@@ -21,7 +31,8 @@ async function readInput() {
   for (const item of payload.cases) {
     if (!item || typeof item !== 'object' || !/^[A-Z0-9-]+$/.test(item.case_id ?? '')) throw new Error('invalid-case')
     if (typeof item.input !== 'string' || typeof item.executor !== 'string'
-      || typeof item.tool_boundary !== 'string' || typeof item.side_effect_budget !== 'string') {
+      || typeof item.tool_boundary !== 'string' || typeof item.side_effect_budget !== 'string'
+      || !['browser', 'both'].includes(item.transport)) {
       throw new Error('invalid-case')
     }
   }
@@ -70,30 +81,32 @@ async function listSessions(page) {
   return body.result.value.items
 }
 
-async function newSession(page, existingIds, presetId, timeoutMs) {
+async function newSession(page, existingIds, presetId, workspace, timeoutMs) {
   if (existingIds !== null) {
     await page.getByRole('button', { name: 'New session', exact: true }).last().click()
     await page.locator(COMPOSER).last().waitFor({ timeout: timeoutMs })
     return null
   }
-  return await resolveSession(page, existingIds, presetId, timeoutMs)
+  return await resolveSession(page, existingIds, presetId, workspace, timeoutMs)
 }
 
-async function resolveSession(page, existingIds, presetId, timeoutMs) {
+async function resolveSession(page, existingIds, presetId, workspace, timeoutMs) {
   const item = await poll(
     async () => (await listSessions(page)).find(candidate => !existingIds?.has(candidate.sessionId)),
     candidate => candidate !== undefined,
     timeoutMs,
   )
-  if (item.projections?.values?.agentPreset !== presetId) throw new Error('identity-drift')
-  return item.sessionId
+  return {
+    session_id: item.sessionId,
+    ...assertSessionIdentity(item, presetId, workspace),
+  }
 }
 
 async function dismissTestingNotice(page, timeoutMs) {
-  const continueButton = page.locator('button').filter({ hasText: /Continue/i }).last()
+  const notice = page.getByRole('dialog', { name: 'Internal Testing Notice' })
   try {
-    await continueButton.waitFor({ state: 'visible', timeout: timeoutMs })
-    await continueButton.click({ timeout: timeoutMs })
+    await notice.waitFor({ state: 'visible', timeout: timeoutMs })
+    await notice.getByRole('button', { name: 'Continue', exact: true }).click({ timeout: timeoutMs })
     return true
   } catch (error) {
     if (error?.name !== 'TimeoutError') throw error
@@ -105,19 +118,27 @@ async function connectWorkspace(page, workspace, timeoutMs) {
   // 复用同一 DSH Home 时工作区已经注册，界面会直接进入可输入状态。
   const chooser = page.getByRole('textbox', { name: 'Choose workspace' })
   const composer = page.locator(COMPOSER).last()
+  let testingNoticeDismissed = false
   const state = await poll(async () => {
-    await dismissTestingNotice(page, 500)
+    testingNoticeDismissed = await dismissTestingNotice(page, 500) || testingNoticeDismissed
     return {
       ready: await composer.isVisible().catch(() => false),
       chooser: await chooser.isVisible().catch(() => false),
     }
   }, value => value.ready || value.chooser, timeoutMs)
-  if (state.ready) return
+  if (state.ready) {
+    return {
+      testing_notice_dismissed: testingNoticeDismissed,
+      workspace_prompt_visible: false,
+      workspace_action: 'already-registered',
+      composer_ready: true,
+    }
+  }
   try {
     await chooser.click({ timeout: 5000 })
   } catch (error) {
     if (error?.name !== 'TimeoutError') throw error
-    await dismissTestingNotice(page, timeoutMs)
+    testingNoticeDismissed = await dismissTestingNotice(page, timeoutMs) || testingNoticeDismissed
     await chooser.click({ timeout: timeoutMs })
   }
   const dialog = page.getByRole('dialog').last()
@@ -128,6 +149,12 @@ async function connectWorkspace(page, workspace, timeoutMs) {
   await pathInput.press('Enter')
   await dialog.getByRole('button', { name: 'Open', exact: true }).click()
   await page.locator(COMPOSER).last().waitFor({ timeout: timeoutMs })
+  return {
+    testing_notice_dismissed: testingNoticeDismissed,
+    workspace_prompt_visible: true,
+    workspace_action: 'selected',
+    composer_ready: true,
+  }
 }
 
 async function closeModelMenu(page, trigger, timeoutMs) {
@@ -169,20 +196,6 @@ async function send(page, text, timeoutMs) {
   await composer.press('Enter')
 }
 
-function parseArchive(bytes) {
-  const files = unzipSync(bytes)
-  const names = Object.keys(files).filter(name => name.endsWith('.jsonl')).sort()
-  const rootName = names.find(name => !name.includes('/'))
-  if (rootName === undefined) throw new Error('root-log-missing')
-  const trace = []
-  for (const name of names) {
-    for (const line of strFromU8(files[name]).split('\n')) {
-      if (line.trim()) trace.push({ session_log: name, event: JSON.parse(line) })
-    }
-  }
-  return { rootName, trace, root: trace.filter(row => row.session_log === rootName).map(row => row.event) }
-}
-
 async function exportSession(page, sessionId) {
   const url = new URL('/api/session.export', page.url())
   url.searchParams.set('sessionId', sessionId)
@@ -190,42 +203,6 @@ async function exportSession(page, sessionId) {
   const response = await page.request.get(url.href)
   if (!response.ok()) throw new Error('session-export-failed')
   return parseArchive(new Uint8Array(await response.body()))
-}
-
-function contentText(content) {
-  if (!Array.isArray(content)) return ''
-  return content.filter(block => block?.type === 'text' && typeof block.text === 'string')
-    .map(block => block.text).join('')
-}
-
-function safetyError(reason, archive) {
-  const error = new Error(reason)
-  if (archive !== undefined) error.archive = archive
-  return error
-}
-
-function turnFromTrace(archive, input) {
-  const userMessages = archive.root
-    .map((event, index) => ({ event, index }))
-    .filter(({ event }) => event.type === 'user/message' && event.data?.source?.kind === 'user')
-  if (userMessages.length === 0) return null
-  if (userMessages.length !== 1 || contentText(userMessages[0].event.data.content) !== input) {
-    throw safetyError('evidence-cross-turn', archive)
-  }
-  const { event: userMessage, index: userIndex } = userMessages[0]
-  const endOffset = archive.root.slice(userIndex + 1).findIndex(event => event.type === 'turn/end')
-  if (endOffset < 0) return null
-  const endIndex = userIndex + 1 + endOffset
-  const events = archive.root.slice(userIndex + 1, endIndex + 1)
-  const headers = events.filter(event => event.type === 'request/header')
-  const assistants = events.filter(event => event.type === 'assistant/message')
-  return {
-    assistant_text: assistants.map(event => contentText(event.data?.message?.content)).filter(Boolean).at(-1) ?? '',
-    route: headers.at(-1)?.data?.header?.config ?? null,
-    turn_reason: events.at(-1)?.data?.reason?.kind ?? null,
-    turn: events.at(-1)?.data?.turn ?? null,
-    input_message_id: userMessage.data?.id ?? null,
-  }
 }
 
 async function waitForTurn(page, sessionId, input, timeoutMs) {
@@ -237,93 +214,35 @@ async function waitForTurn(page, sessionId, input, timeoutMs) {
   return { archive, turn }
 }
 
-function jsonl(rows) {
-  return rows.length ? `${rows.map(row => JSON.stringify(row)).join('\n')}\n` : ''
+async function waitForDisplayedTurn(page, turn, timeoutMs) {
+  if (turn.input_message_id === null || turn.turn === null) throw new Error('turn-render-key-missing')
+  const userKey = `${'input-message'.length}:input-message${turn.input_message_id}`
+  const assistantPrefix = `${'assistant-step'.length}:assistant-step${turn.turn}:`
+  const user = page.locator(`[data-chat-anchor-key="${userKey}"]`)
+  const assistant = page.locator(`[data-chat-anchor-key^="${assistantPrefix}"]`).last()
+  return await poll(async () => ({
+    input_message_displayed: await user.isVisible().catch(() => false)
+      && await user.getAttribute('data-chat-flow-kind') === 'user',
+    assistant_message_displayed: await assistant.isVisible().catch(() => false)
+      && await assistant.getAttribute('data-chat-flow-kind') === 'assistant-step',
+  }), value => value.input_message_displayed && value.assistant_message_displayed, timeoutMs)
 }
 
-async function saveEvidence(root, item, response, archive, checks) {
-  const directory = join(root, item.case_id)
-  await mkdir(directory, { recursive: true })
-  await writeFile(join(directory, 'response.json'), `${JSON.stringify(response, null, 2)}\n`)
-  await writeFile(join(directory, 'trace.jsonl'), archive ? jsonl(archive.trace) : '')
-  const tools = archive?.trace.filter(row => row.event.type === 'tool/call' || row.event.type === 'tool/result') ?? []
-  await writeFile(join(directory, 'tools.jsonl'), jsonl(tools))
-  await writeFile(join(directory, 'checks.json'), `${JSON.stringify(checks, null, 2)}\n`)
-}
-
-function result(item, executionStatus, verdict, observation, failureReason) {
-  return {
-    case_id: item.case_id,
-    execution_status: executionStatus,
-    verdict,
-    observation,
-    evidence_ref: `evidence/${item.case_id}`,
-    ...(failureReason ? { failure_reason: failureReason } : {}),
-  }
-}
-
-async function loadToolRoutes(modulePath) {
-  const routes = (await import(pathToFileURL(modulePath).href)).TOOL_ROUTES
-  for (const name of ['policy', 'inspection', 'faultAnalysis', 'delegates']) {
-    if (!Array.isArray(routes?.[name]) || routes[name].some(tool => typeof tool !== 'string')) {
-      throw new Error('invalid-guard-tool-routes')
-    }
-  }
-  return routes
-}
-
-function toolBoundaryCheck(item, archive, routes) {
-  const calledTools = archive.trace
-    .filter(row => row.event.type === 'tool/call' && typeof row.event.data?.name === 'string')
-    .map(row => row.event.data.name)
-  let allowed
-  if (item.tool_boundary === 'inspection-role') {
-    allowed = [...routes.inspection, 'delegate_inspection']
-  } else if (item.tool_boundary === 'inspection-capability-read-only') {
-    allowed = [routes.inspection[0], 'delegate_inspection']
-  } else if (item.tool_boundary === 'policy-prepare-role') {
-    allowed = routes.policy
-  } else if (item.tool_boundary === 'fault-analysis-role') {
-    allowed = [...routes.faultAnalysis, 'delegate_fault_analysis']
-  } else if (['none', 'model-selector-only', 'mcp-tools-list-read-only',
-    'unavailable-routes-read-only', 'role-tools-list-read-only'].includes(item.tool_boundary)) {
-    allowed = []
-  } else {
-    throw new Error('unknown-tool-boundary')
-  }
-  const unauthorizedTools = [...new Set(calledTools.filter(tool => !allowed.includes(tool)))]
-  const mutationTools = [routes.policy[0], routes.inspection[1], routes.inspection[3]].filter(Boolean)
-  const budgetViolations = []
-  if (item.side_effect_budget === 'none') {
-    budgetViolations.push(...calledTools.filter(tool => mutationTools.includes(tool)))
-  } else if (item.side_effect_budget === 'policy-prepare-once') {
-    if (calledTools.filter(tool => tool === routes.policy[0]).length > 1) budgetViolations.push(routes.policy[0])
-  } else if (item.side_effect_budget === 'inspection-routine-all-once') {
-    for (const tool of [routes.inspection[1], routes.inspection[3], 'delegate_inspection']) {
-      if (calledTools.filter(name => name === tool).length > 1) budgetViolations.push(tool)
-    }
-  } else if (!['model-chat-once', 'web-session-only'].includes(item.side_effect_budget)) {
-    throw new Error('unknown-side-effect-budget')
-  }
-  return {
-    called_tools: calledTools,
-    unauthorized_tools: unauthorizedTools,
-    budget_violations: [...new Set(budgetViolations)],
-    matches: unauthorizedTools.length === 0 && budgetViolations.length === 0,
-  }
-}
-
-async function runCase(page, payload, item, sessionId, existingIds, catalog, defaultModel, toolRoutes) {
+async function runCase(page, payload, item, session, existingIds, catalog, defaultModel, toolRoutes, uiStartup) {
+  const uiStartupMatches = uiStartup.composer_ready
+    && ['selected', 'already-registered'].includes(uiStartup.workspace_action)
   if (item.case_id === 'T-MODEL-CATALOG') {
     const baseChecks = {
       schema_version: '1.0',
       case_id: item.case_id,
       executor: item.executor,
+      transport: 'browser',
       tool_boundary: item.tool_boundary,
       side_effect_budget: item.side_effect_budget,
-      session_preset: payload.preset_id,
-      session_id: sessionId,
+      ...session,
       trace_format: 'dsh-session-export-envelope-v1',
+      ui_startup: uiStartup,
+      ui_startup_matches: uiStartupMatches,
     }
     const checks = {
       ...baseChecks,
@@ -332,30 +251,41 @@ async function runCase(page, payload, item, sessionId, existingIds, catalog, def
       deepseek_is_default: /deepseek/i.test(defaultModel),
       target_model_present: catalog.some(entry => entry.name === payload.target_model),
     }
-    const passed = checks.deepseek_is_default && checks.target_model_present
+    const passed = uiStartupMatches && checks.deepseek_is_default && checks.target_model_present
     await saveEvidence(payload.evidence_root, item, { catalog, default_model: defaultModel }, null, checks)
     return result(item, 'completed', passed ? 'passed' : 'failed',
       passed ? '默认 DeepSeek 与本地 Qwen 模型均出现在真实 Web 模型目录。' : '真实 Web 模型目录不符合声明。')
   }
 
-  await selectModel(page, MODEL_CASES.has(item.case_id) ? payload.target_model : defaultModel, payload.timeout_ms)
+  const selectedModel = MODEL_CASES.has(item.case_id) ? payload.target_model : defaultModel
+  await selectModel(page, selectedModel, payload.timeout_ms)
   await send(page, item.input, payload.timeout_ms)
-  if (sessionId === null) sessionId = await resolveSession(page, existingIds, payload.preset_id, payload.timeout_ms)
+  if (session === null) {
+    session = await resolveSession(page, existingIds, payload.preset_id, payload.workspace, payload.timeout_ms)
+  }
+  const sessionId = session.session_id
   const { archive, turn } = await waitForTurn(page, sessionId, item.input, payload.timeout_ms)
+  const display = await waitForDisplayedTurn(page, turn, payload.timeout_ms)
   const baseChecks = {
     schema_version: '1.0',
     case_id: item.case_id,
     executor: item.executor,
+    transport: 'browser',
     tool_boundary: item.tool_boundary,
     side_effect_budget: item.side_effect_budget,
-    session_preset: payload.preset_id,
-    session_id: sessionId,
+    ...session,
     trace_format: 'dsh-session-export-envelope-v1',
+    ui_startup: uiStartup,
+    ui_startup_matches: uiStartupMatches,
+    ui_selected_model: selectedModel,
+    ui_message_submitted: true,
+    ui_display: display,
   }
   const completed = turn.turn_reason === 'completed'
   const routeMatches = turn.route?.provider === 'local-qwen' && turn.route?.model === payload.target_model
   const responseMatches = turn.assistant_text.trim() === '模型连通'
   const boundary = toolBoundaryCheck(item, archive, toolRoutes)
+  const toolCatalog = rootToolCatalogCheck(turn, toolRoutes)
   const checks = {
     ...baseChecks,
     completed,
@@ -363,10 +293,14 @@ async function runCase(page, payload, item, sessionId, existingIds, catalog, def
     input_message_id: turn.input_message_id,
     route: turn.route,
     route_matches: routeMatches,
+    guard_tool_catalog_matches: toolCatalog.matches,
+    expected_tools: toolCatalog.expected_tools,
+    actual_tools: toolCatalog.actual_tools,
     tool_boundary_matches: boundary.matches,
     called_tools: boundary.called_tools,
     unauthorized_tools: boundary.unauthorized_tools,
     budget_violations: boundary.budget_violations,
+    unsafe_side_effect: boundary.unsafe_side_effect,
   }
   if (item.case_id === 'T-LOCAL-QWEN-CHAT') checks.response_matches = responseMatches
   await saveEvidence(payload.evidence_root, item, {
@@ -378,8 +312,19 @@ async function runCase(page, payload, item, sessionId, existingIds, catalog, def
     input_message_id: turn.input_message_id,
     route: turn.route,
   }, archive, checks)
-  if (!boundary.matches) throw safetyError('unauthorized-side-effect', archive)
+  if (!toolCatalog.matches) {
+    const error = safetyError('identity-drift', archive)
+    error.evidenceSaved = true
+    throw error
+  }
+  if (boundary.unsafe_side_effect) throw safetyError('unauthorized-side-effect', archive)
+  if (!uiStartupMatches) {
+    return result(item, 'error', 'inconclusive', '浏览器首屏或 Workspace 选择路径未完整覆盖。', 'browser-startup-incomplete')
+  }
   if (!completed) return result(item, 'error', 'inconclusive', 'DSH Turn 未正常完成。', 'turn-not-completed')
+  if (boundary.unauthorized_tools.length > 0) {
+    return result(item, 'completed', 'failed', '工具调用超出该 Case 声明的工具边界。')
+  }
   if (item.case_id === 'T-LOCAL-QWEN-CHAT') {
     const passed = routeMatches && responseMatches
     return result(item, 'completed', passed ? 'passed' : 'failed',
@@ -407,39 +352,37 @@ async function main() {
     const page = await context.newPage()
     await page.goto(payload.auth_url, { waitUntil: 'domcontentloaded', timeout: payload.timeout_ms })
     await page.locator('[class*="frame"]').waitFor({ timeout: payload.timeout_ms })
-    await connectWorkspace(page, payload.workspace, payload.timeout_ms)
+    const uiStartup = await connectWorkspace(page, payload.workspace, payload.timeout_ms)
     const catalog = await openModelCatalog(page, payload.timeout_ms)
     const defaultModel = catalog.find(entry => entry.selected)?.name
     if (!defaultModel) throw new Error('default-model-missing')
 
     let existingIds = null
     for (const item of payload.cases) {
-      let sessionId
+      let session
       let stage = 'new-session'
       try {
-        // New Session 可能只是前端草稿；保留点击前的 durable ID 集合，
-        // 发送首条消息后再用它识别刚注册的 Session。
         const knownIds = existingIds
-        sessionId = await newSession(page, knownIds, payload.preset_id, payload.timeout_ms)
-        existingIds = knownIds ?? new Set((await listSessions(page)).map(session => session.sessionId))
+        session = await newSession(page, knownIds, payload.preset_id, payload.workspace, payload.timeout_ms)
         stage = 'run-case'
-        // 单个 Case 必须有兜底超时：驱动内部的 poll 超时只覆盖各自的轮询，
-        // 一旦某一阶段没有超时约束就会整轮挂死，既不产出证据也不结束评测。
-        rows.push(await Promise.race([
-          runCase(page, payload, item, sessionId, existingIds, catalog, defaultModel, toolRoutes),
-          delay(payload.timeout_ms * 2).then(() => { throw new Error('case-hard-timeout') }),
-        ]))
+        rows.push(await withCaseTimeout(
+          () => runCase(page, payload, item, session, knownIds, catalog, defaultModel, toolRoutes, uiStartup),
+          payload.timeout_ms * 2,
+        ))
+        existingIds = new Set((await listSessions(page)).map(item => item.sessionId))
       } catch (error) {
         const reason = SAFETY_STOP_REASONS.has(error?.message) ? error.message : 'browser-case-error'
         const directory = join(payload.evidence_root, item.case_id)
         await mkdir(directory, { recursive: true })
         try { await page.screenshot({ path: join(directory, 'failure.png'), fullPage: true }) } catch {}
-        if (reason !== 'unauthorized-side-effect') {
+        if (reason !== 'unauthorized-side-effect' && error?.evidenceSaved !== true) {
           await saveEvidence(payload.evidence_root, item,
-            { user_input: item.input, assistant_text: null, session_id: sessionId ?? null }, error?.archive ?? null,
+            { user_input: item.input, assistant_text: null, session_id: session?.session_id ?? null }, error?.archive ?? null,
             {
               schema_version: '1.0',
               case_id: item.case_id,
+              transport: 'browser',
+              ui_startup: uiStartup,
               completed: false,
               failure_reason: reason,
               failure_detail: `${stage}:${diagnostic(error)}`,
@@ -461,6 +404,7 @@ async function main() {
   }
   process.stdout.write(`${JSON.stringify({
     schema_version: '1.0',
+    executor: 'browser',
     rows,
     ...(stopReason ? { stop_reason: stopReason } : {}),
   })}\n`)

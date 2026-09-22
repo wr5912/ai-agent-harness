@@ -29,7 +29,7 @@
 | `url` | 从本次进程日志提取认证 URL 并做 Token→Cookie→根页探针；非交互终端需显式 `--non-interactive` |
 | `logs` | 输出有界、尽力脱敏的容器日志 |
 | `down` | 停止实例并保留 HOME；命令失败、仍有容器运行或状态无法确认时都不报告停止成功 |
-| `dsh-eval` | 按 `evaluation.md` 的执行元数据启动独立评测实例、运行浏览器 Case、导出同一 Session 轨迹并封存 Run |
+| `dsh-eval` | 按 `evaluation.md` 的执行元数据启动独立评测实例；默认经 DSH Runtime API 运行，显式选择浏览器时做 UI 冒烟；导出同一 Session 轨迹并封存 Run |
 
 本次范围之外：不新增容器编排、不引入审批或评分平台、不实现 Runtime 存储内部格式的写入。
 
@@ -122,9 +122,11 @@ python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-security-operations-expert-006 --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-security-operations-expert-006 [--case <case-id>]
+python3 runtime/adapters/dsh-container/dsh-eval \
+  --source experiment:EXP-security-operations-expert-006 --executor browser [--case <case-id>]
 ```
 
-`dsh-eval` 只执行 `evaluation.md` 当前 Experiment 已选择且带执行元数据的 Case。运行态 Case 使用独立评测实例，每项创建新的 Session 并确认目标 Preset；浏览器显示的回答与该 Session 导出的完整轨迹一起写入 Run。认证 URL 只通过标准输入传给浏览器，不落盘、不进入普通输出。执行器能确定判断的模型目录与路由 Case 自动给出 `passed` 或 `failed`；业务语义 Case 即使 Turn 完成也先记为 `inconclusive`，由研究者按唯一评测标准判读。
+`dsh-eval` 只执行 `evaluation.md` 当前 Experiment 已选择且带执行元数据的 Case。默认 API 执行器只通过 DSH Runtime 完成 Workspace 注册、逐 Case 新建 Session、目标 Preset 与 Workspace 核对、模型选择、消息发送、Turn 等待和 Session 导出，不直连底层模型 API。浏览器执行器只负责初始提示、工作区、模型、发送和显示等 UI 冒烟。两者复用 Case 定义、身份检查和证据格式，但分别运行、分别统计；认证 URL 只通过标准输入传给所选执行器，不落盘、不进入普通输出。执行器能确定判断的模型目录、身份、工具目录与路由 Case 自动给出 `passed` 或 `failed`；业务语义 Case 即使 Turn 完成也先记为 `inconclusive`，由研究者按唯一评测标准判读。
 
 评测模式运行的是被测目标，容器里没有判分材料（见第 5.3 节）。任务输入通过对话给出，环境状态由 MCP 服务端或受控预置提供。`dsh-eval` 无论成功、失败或中断都尝试停止实例；基础设施失败导致未执行的 Case 记为 `error/inconclusive`，中断或安全停机后未开始的 Case 记为 `skipped/inconclusive`，不把运行故障写成 Harness 语义失败。
 
@@ -265,7 +267,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 ### 5.6 镜像与脚本的关系
 
-**运行时适配层脚本不烘焙进镜像。** `verify-load.mjs`、`tree-digest.mjs`、`prepare-verification-home.mjs` 由 Compose 以只读 bind 把整个适配层目录挂到 `/opt/dsh-adapter`（`home-init` 与 `dsh` 两个服务都挂）；`dsh-eval-browser.mjs` 由评测命令单文件只读挂载到 Web 应用目录。最终镜像只增加浏览器运行所需的系统 Chromium。因此：
+**运行时适配层脚本不烘焙进镜像。** `verify-load.mjs`、`tree-digest.mjs`、`prepare-verification-home.mjs` 由 Compose 以只读 bind 把整个适配层目录挂到 `/opt/dsh-adapter`（`home-init` 与 `dsh` 两个服务都挂）；评测命令把所选的 `dsh-eval-api.mjs` 或 `dsh-eval-browser.mjs` 连同 `dsh-eval-common.mjs` 只读挂载到 Web 应用目录。最终镜像只增加浏览器运行所需的系统 Chromium。因此：
 
 - 改脚本只需重启实例（`down` + 同名 `up`，或 `up --replace`），不必重建镜像；
 - 容器实际读到的脚本字节与宿主上被审查的文件一致由同一份挂载保证，`verify-load.sh` 仍在容器内用 `sha256sum` 核对这三个文件的摘要并记录到证据里；
@@ -312,7 +314,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 |---|---|
 | 受控 Compose 模板 | `runtime/adapters/dsh-container/{authoring,verification}.compose.yaml` |
 | 启动器 | `runtime/adapters/dsh-container/dsh-dev` |
-| 受管评测 | `runtime/adapters/dsh-container/dsh-eval`、`dsh-eval-browser.mjs`、`run_record.py` |
+| 受管评测 | `runtime/adapters/dsh-container/dsh-eval`、`dsh-eval-{api,browser,common}.mjs`、`run_record.py` |
 | 来源解析 | `runtime/adapters/dsh-container/source_contract.py`、`sources.json` |
 | 评测合同 | `agents/<agent-id>/evaluation.md`、`.agents/skills/research-eval/scripts/evaluation_contract.py` |
 | 核验 | `verify-load.sh`、`verify-load.mjs`、`preflight-access.py`、`tree-digest.mjs` |
@@ -332,7 +334,8 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 | 重载生效 | 按文档重新装载并验证预先定义的可观察变化 | 不把驻留旧配置的结果误认成新配置 |
 | Preset 试验与回流 | 在 `--mode dev` 用户根用临时新 ID 试验；审查后把内容合并回稳定 `target_preset`，`up --replace` 重载并在 Web 新会话核对 | 原业务 Agent 与稳定目标 ID 不变；候选 `preset_id`、来源 preset 路径和 Profile 默认值一致。该 Web 路径仍待实测 |
 | 判分材料隔离 | 在 `--mode eval` 容器内检查 `/work/reference`、`/work/eval-input` | 两条路径都不存在，也不在 `/proc/self/mountinfo` 中 |
-| 浏览器评测与轨迹 | 用 `dsh-eval` 运行一个运行态 Case | 新实例、新 Session、目标 Preset、用户输入、可见回答与同一 Session 导出轨迹均可从封存 Run 核对；认证 Token 不在证据中 |
+| API 业务评测与轨迹 | 用默认 `dsh-eval` 运行一个运行态 Case | DSH Runtime 新 Session 的目标 Preset、Workspace、用户输入、Turn、回答、工具目录与调用轨迹均可从封存 Run 核对；认证 Token 不在证据中 |
+| 浏览器 UI 冒烟 | 用 `dsh-eval --executor browser` 运行适用 Case | 初始提示、工作区、模型、发送和回答显示可用；结果以 `executor=browser` 单独封存和统计，不替代 API 业务评测 |
 | 运行记录 | 记录实际提交、未提交状态、镜像、模型与测试范围 | 记录与实际使用一致，不虚构完整冻结 |
 | 停止失败 | 模拟 `docker compose down` 返回非零退出码 | 命令失败，不输出 `stopped: true` |
 | 启动未生效 | 模拟 `up -d` 返回 0 但 `dsh` 容器已退出 | 在 stderr 报告 `dsh_running: false` 并以非零退出码结束，stdout 为空 |

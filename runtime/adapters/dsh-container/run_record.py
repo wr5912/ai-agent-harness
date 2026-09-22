@@ -48,6 +48,9 @@ RUN_STATUSES = ("planned", "running", "completed", "failed", "cancelled")
 FINAL_STATUSES = ("completed", "failed", "cancelled")
 RUN_KINDS = ("research", "technical")
 GAP_CLASSIFICATIONS = ("harness", "input", "method", "environment", "unknown")
+STATUS_ZH = {"planned": "计划", "running": "运行中", "completed": "已完成", "failed": "失败", "cancelled": "已取消"}
+EXECUTION_STATUS_ZH = {"completed": "已完成", "error": "执行错误", "skipped": "已跳过"}
+VERDICT_ZH = {"passed": "通过", "failed": "失败", "inconclusive": "无法判定"}
 
 
 def utc_now() -> str:
@@ -116,6 +119,85 @@ def write_flat_yaml(path: Path, values: dict[str, str]) -> None:
 def append_jsonl(path: Path, value: dict) -> None:
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(value, ensure_ascii=False, separators=(",", ":")) + "\n")
+
+
+def write_report(
+    path: Path,
+    manifest: dict[str, str],
+    summary: dict,
+    rows: list[dict],
+    executor: str | None,
+    case_inputs: dict[str, str] | None = None,
+) -> None:
+    def cell(value: object) -> str:
+        return str(value).replace("\\", "\\\\").replace("|", "\\|").replace("\r", "").replace("\n", "<br>")
+
+    lines = [
+        "# 测试评估报告",
+        "",
+        "> 本文件由 `run_record.py finalize` 根据本 Run 的结构化记录自动生成，请勿手工编辑。",
+        "",
+        f"- Run：`{manifest['run_id']}`",
+        f"- Experiment：`{manifest['experiment_id']}`",
+        f"- Agent：`{manifest['agent_id']}`",
+        f"- 状态：{STATUS_ZH.get(manifest['status'], manifest['status'])}",
+        f"- 整体结论：{VERDICT_ZH.get(summary['overall_verdict'], summary['overall_verdict'])}",
+        f"- 开始时间：`{manifest['created_at']}`",
+        f"- 完成时间：`{manifest['finished_at']}`",
+    ]
+    if executor:
+        lines.append(f"- 执行通道：`{executor}`")
+    lines.extend([
+        "",
+        "## 统计",
+        "",
+        "| 类型 | 已完成 | 执行错误 | 已跳过 | 通过 | 失败 | 无法判定 |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        (
+            f"| Case | {summary['execution_status_counts']['completed']} | "
+            f"{summary['execution_status_counts']['error']} | "
+            f"{summary['execution_status_counts']['skipped']} | "
+            f"{summary['verdict_counts']['passed']} | "
+            f"{summary['verdict_counts']['failed']} | "
+            f"{summary['verdict_counts']['inconclusive']} |"
+        ),
+        "",
+        "`失败` 和 `无法判定` 是有效评估结果；报告不要求所有 Case 均为 `通过`。",
+        "",
+        "## Case 结果",
+        "",
+        "| Case | 输入 | 执行状态 | 结论 | 观察 | 证据 |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ])
+    for row in rows:
+        evidence_ref = row["evidence_ref"]
+        lines.append(
+            f"| `{cell(row['input_id'])}` | {cell((case_inputs or {}).get(row['input_id'], ''))} | "
+            f"{EXECUTION_STATUS_ZH.get(row['execution_status'], row['execution_status'])} | "
+            f"{VERDICT_ZH.get(row['verdict'], row['verdict'])} | {cell(row['observation'])} | "
+            f"[{cell(evidence_ref)}]({evidence_ref}) |"
+        )
+    if not rows:
+        lines.append("| - | - | - | - | 本 Run 未记录 Case 结果。 | - |")
+    lines.extend([
+        "",
+        "## 结构化记录",
+        "",
+        "机器校验与后续分析以 [`summary.json`](summary.json) 和 [`results.jsonl`](results.jsonl) 为准。",
+        "",
+    ])
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def case_inputs_for(repo: Path, manifest: dict[str, str], rows: list[dict]) -> dict[str, str]:
+    reference = manifest.get("evaluation_ref", "").split("#", 1)[0]
+    evaluation = repo / reference if reference else None
+    if evaluation is None or not evaluation.is_file():
+        return {}
+    case_ids = [row["input_id"] for row in rows]
+    return {case["case_id"]: case.get("input", "") for case in execution_for(
+        evaluation, manifest["experiment_id"], case_ids
+    )}
 
 
 def load_run_manifest(repo: Path, run_id: str) -> tuple[Path, dict[str, str]]:
@@ -232,6 +314,8 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
         }
         if args.model:
             inputs["model"] = args.model
+        if args.executor:
+            inputs["executor"] = args.executor
         with (run_dir / "inputs.lock.json").open("w", encoding="utf-8") as handle:
             json.dump(inputs, handle, ensure_ascii=False, indent=2)
             handle.write("\n")
@@ -305,12 +389,14 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
     execution_counts = {name: 0 for name in EXECUTION_STATUSES}
     verdict_counts = {name: 0 for name in VERDICTS}
     allowed_input_ids = selected_input_ids(run_dir)
+    rows = []
     if results.is_file():
         for line in results.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
             row = json.loads(line)
             validate_trial_row(args.run, row, allowed_input_ids, run_dir)
+            rows.append(row)
             execution_counts[row["execution_status"]] += 1
             verdict_counts[row["verdict"]] += 1
     if verdict_counts["failed"]:
@@ -341,8 +427,15 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
         handle.write("\n")
     manifest["status"] = args.status
     manifest["finished_at"] = utc_now()
+    inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+    report_path = run_dir / "report.md"
+    write_report(
+        report_path, manifest, summary, rows, inputs.get("executor"),
+        case_inputs_for(repo, manifest, rows),
+    )
     manifest["results_sha256"] = hashlib.sha256(results.read_bytes() if results.is_file() else b"").hexdigest()
     manifest["summary_sha256"] = hashlib.sha256(summary_path.read_bytes()).hexdigest()
+    manifest["report_sha256"] = hashlib.sha256(report_path.read_bytes()).hexdigest()
     gaps = run_dir / "gaps.jsonl"
     if gaps.is_file():
         manifest["gaps_sha256"] = hashlib.sha256(gaps.read_bytes()).hexdigest()
@@ -360,6 +453,7 @@ def main() -> None:
     init_parser.add_argument("--kind", default="research", choices=RUN_KINDS)
     init_parser.add_argument("--baseline-ref", help="默认读取 Experiment change.yaml")
     init_parser.add_argument("--model", help="可选的实际模型标识")
+    init_parser.add_argument("--executor", help="可选的执行通道标识")
     record_parser = commands.add_parser("record", help="追加一条观察")
     record_parser.add_argument("--run", required=True)
     record_parser.add_argument("trial_file", help="Trial JSON 文件；- 表示标准输入")

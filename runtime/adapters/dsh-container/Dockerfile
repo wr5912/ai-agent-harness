@@ -56,7 +56,10 @@ COPY apt-mirror.sh /opt/dsh-adapter/apt-mirror.sh
 RUN sh /opt/dsh-adapter/apt-mirror.sh "$DSH_APT_MIRROR" \
     && apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::ForceIPv4=true \
       install -y --no-install-recommends chromium \
-    && rm -rf /var/lib/apt/lists/* /opt/dsh-adapter
+    && rm -rf /var/lib/apt/lists/* /opt/dsh-adapter \
+    && cd /opt/dsh/apps/web \
+    && node --input-type=module -e "await import('playwright'); await import('fflate')" \
+    && chromium --version >/dev/null
 
 # 运行期适配层脚本不 COPY 进镜像：它们由 Compose 以只读 bind 挂载到 /opt/dsh-adapter。
 # 这样脚本改动只需重新启动实例，不必重建镜像，也不会出现"镜像内脚本过期"的中间状态。
