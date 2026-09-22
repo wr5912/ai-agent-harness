@@ -913,11 +913,11 @@ class DefinitionSourceTests(unittest.TestCase):
             ["测试数据", "评估方法", "测试验收", "Experiment 评估选择"],
         )
         self.assertEqual(len(re.findall(r"^### task-", definition_text, re.MULTILINE)), 34)
-        self.assertEqual(len(re.findall(r"^##### (?:D|U|T)-[A-Z0-9-]+$", evaluation_text, re.MULTILINE)), 142)
-        self.assertEqual(len(re.findall(r"^### m-", evaluation_text, re.MULTILINE)), 43)
+        self.assertEqual(len(re.findall(r"^##### (?:D|U|T)-[A-Z0-9-]+$", evaluation_text, re.MULTILINE)), 157)
+        self.assertEqual(len(re.findall(r"^### m-", evaluation_text, re.MULTILINE)), 44)
         self.assertEqual(len(re.findall(r"^### AC-", evaluation_text, re.MULTILINE)), 44)
         user_case_ids = re.findall(r"^##### (U-[A-Z0-9-]+)$", evaluation_text, re.MULTILINE)
-        self.assertEqual(len(user_case_ids), 8)
+        self.assertEqual(len(user_case_ids), 23)
         user_case_bodies = re.findall(
             r"^##### U-[A-Z0-9-]+$(.*?)(?=^##### |\Z)",
             evaluation_text,
@@ -932,7 +932,7 @@ class DefinitionSourceTests(unittest.TestCase):
         self.assertEqual(
             loaded["preset_ids"],
             [
-                "RSP-F01", "RSP-F02", "RSP-F03", "INS-F01", "INS-F02",
+                "RSP-F01", "RSP-F02", "RSP-F03", "INS-F01", "INS-F02", "INS-F03",
                 "FLT-F01", "FLT-F02", "FLT-F03", "FLT-F04", "POL-F01",
                 "POL-F02", "QA-F01", "QA-F02",
             ],
