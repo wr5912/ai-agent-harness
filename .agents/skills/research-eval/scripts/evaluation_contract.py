@@ -13,6 +13,16 @@ METHOD_RE = re.compile(r"^### (m-[a-z0-9-]+)$", re.MULTILINE)
 ACCEPTANCE_RE = re.compile(r"^### (AC-[0-9]{3})$", re.MULTILINE)
 EXPERIMENT_RE = re.compile(r"^### (EXP-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]{3,})$", re.MULTILINE)
 SELECTION_FIELDS = ("测试用例", "评估方法", "测试验收")
+EXECUTORS = {
+    "repository-contract",
+    "dsh-load-cycle",
+    "runtime-tool-contract",
+    "web-inspection-boundary",
+    "web-model-catalog",
+    "web-model-chat",
+    "web-route-trace",
+    "web-chat",
+}
 
 
 def _sections(text: str) -> dict[str, str]:
@@ -70,11 +80,32 @@ def _selections(text: str) -> dict[str, dict[str, list[str]]]:
     return selections
 
 
+def _case_bodies(text: str) -> dict[str, str]:
+    matches = list(CASE_RE.finditer(text))
+    return {
+        match.group(1): text[match.end():matches[index + 1].start() if index + 1 < len(matches) else len(text)]
+        for index, match in enumerate(matches)
+    }
+
+
+def _field(body: str, label: str) -> str | None:
+    matches = re.findall(rf"^\*\*{re.escape(label)}：?\*\*\s*`?([^`\n]+?)`?\s*$", body, re.MULTILINE)
+    if len(matches) > 1:
+        raise ValueError(f"{label}只能声明一次")
+    return matches[0].strip() if matches else None
+
+
+def _prompt(body: str) -> str | None:
+    match = re.search(r"^\*\*用户输入：?\*\*\s*\n+```(?:text)?\n(.*?)\n```", body, re.MULTILINE | re.DOTALL)
+    return match.group(1).strip() if match else None
+
+
 def load_evaluation(path: Path) -> dict[str, object]:
     if not path.is_file() or path.is_symlink():
         raise ValueError(f"缺少实体评测文件：{path}")
     sections = _sections(path.read_text(encoding="utf-8"))
     case_ids = _unique_ids(CASE_RE, sections["测试数据"], "测试用例")
+    bodies = _case_bodies(sections["测试数据"])
     method_ids = _unique_ids(METHOD_RE, sections["评估方法"], "评估方法")
     acceptance_ids = _unique_ids(ACCEPTANCE_RE, sections["测试验收"], "测试验收")
     selections = _selections(sections["Experiment 评估选择"])
@@ -90,6 +121,15 @@ def load_evaluation(path: Path) -> dict[str, object]:
                 raise ValueError(f"{experiment_id} 引用了未定义的 {field}：{', '.join(unknown)}")
     return {
         "case_ids": case_ids,
+        "cases": {
+            case_id: {
+                "input": _prompt(bodies[case_id]),
+                "executor": _field(bodies[case_id], "执行器"),
+                "tool_boundary": _field(bodies[case_id], "工具边界"),
+                "side_effect_budget": _field(bodies[case_id], "副作用预算"),
+            }
+            for case_id in case_ids
+        },
         "method_ids": method_ids,
         "acceptance_ids": acceptance_ids,
         "selections": selections,
@@ -102,3 +142,50 @@ def selection_for(path: Path, experiment_id: str) -> dict[str, list[str]]:
     if selection is None:
         raise ValueError(f"evaluation.md 未选择 Experiment：{experiment_id}")
     return selection
+
+
+def execution_for(
+    path: Path,
+    experiment_id: str,
+    selected_case_ids: list[str] | None = None,
+) -> list[dict[str, str]]:
+    evaluation = load_evaluation(path)
+    selection = evaluation["selections"].get(experiment_id)  # type: ignore[union-attr]
+    if selection is None:
+        raise ValueError(f"evaluation.md 未选择 Experiment：{experiment_id}")
+    declared = selection["case_ids"]
+    chosen = declared if selected_case_ids is None else selected_case_ids
+    if not chosen:
+        raise ValueError("至少选择一个测试用例")
+    if len(chosen) != len(set(chosen)):
+        raise ValueError("测试用例不能重复")
+    unknown = [case_id for case_id in chosen if case_id not in declared]
+    if unknown:
+        raise ValueError(f"测试用例未被 {experiment_id} 选择：{', '.join(unknown)}")
+    if chosen != [case_id for case_id in declared if case_id in chosen]:
+        raise ValueError("测试用例必须按 evaluation.md 声明顺序选择")
+    cases = evaluation["cases"]  # type: ignore[assignment]
+    result = []
+    for case_id in chosen:
+        case = cases[case_id]
+        executor = case["executor"]
+        missing = [
+            label for label, value in (
+                ("用户输入", case["input"]),
+                ("执行器", executor),
+                ("工具边界", case["tool_boundary"]),
+                ("副作用预算", case["side_effect_budget"]),
+            ) if not value
+        ]
+        if missing:
+            raise ValueError(f"{case_id} 缺少执行元数据：{'、'.join(missing)}")
+        if executor not in EXECUTORS:
+            raise ValueError(f"{case_id} 使用未知执行器：{executor}")
+        result.append({
+            "case_id": case_id,
+            "input": case["input"],
+            "executor": executor,
+            "tool_boundary": case["tool_boundary"],
+            "side_effect_budget": case["side_effect_budget"],
+        })
+    return result

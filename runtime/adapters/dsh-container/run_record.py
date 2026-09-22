@@ -22,7 +22,7 @@ for import_root in (ADAPTER, EVALUATION_SCRIPTS):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
 
-from evaluation_contract import selection_for
+from evaluation_contract import execution_for, selection_for
 from source_contract import resolve
 
 
@@ -39,8 +39,11 @@ RUN_ID_RE = re.compile(
 )
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 RELEASE_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*-v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
-RESULT_FIELDS = ("run_id", "trial_id", "input_id", "status", "observation")
-RESULT_STATUSES = ("completed", "failed", "error", "skipped")
+RESULT_FIELDS = (
+    "run_id", "trial_id", "input_id", "execution_status", "verdict", "observation", "evidence_ref"
+)
+EXECUTION_STATUSES = ("completed", "error", "skipped")
+VERDICTS = ("passed", "failed", "inconclusive")
 RUN_STATUSES = ("planned", "running", "completed", "failed", "cancelled")
 FINAL_STATUSES = ("completed", "failed", "cancelled")
 RUN_KINDS = ("research", "technical")
@@ -97,7 +100,9 @@ def read_flat_yaml(path: Path) -> dict[str, str]:
                 raise ValueError(f"duplicate key in {path.name}: {key}")
             raw = value.strip()
             if raw.startswith('"') and raw.endswith('"'):
-                raw = raw[1:-1]
+                raw = json.loads(raw)
+                if not isinstance(raw, str):
+                    raise ValueError(f"invalid string value in {path.name}: {key}")
             values[key] = raw
     return values
 
@@ -105,7 +110,7 @@ def read_flat_yaml(path: Path) -> dict[str, str]:
 def write_flat_yaml(path: Path, values: dict[str, str]) -> None:
     with path.open("w", encoding="utf-8") as handle:
         for key, value in values.items():
-            handle.write(f"{key}: {value}\n")
+            handle.write(f"{key}: {json.dumps(value, ensure_ascii=False)}\n")
 
 
 def append_jsonl(path: Path, value: dict) -> None:
@@ -138,7 +143,29 @@ def selected_input_ids(run_dir: Path) -> set[str]:
     return set(identifiers)
 
 
-def validate_trial_row(run_id: str, row: dict, allowed_input_ids: set[str] | None = None) -> None:
+def validate_evidence_ref(run_dir: Path | None, value: object) -> None:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("evidence_ref must be a non-empty relative path")
+    relative = Path(value)
+    if relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts):
+        raise ValueError("evidence_ref must be a safe relative path")
+    if run_dir is None:
+        return
+    target = run_dir / relative
+    material = target.is_file() and not target.is_symlink() and target.stat().st_size > 0
+    if target.is_dir() and not target.is_symlink():
+        material = any(path.is_file() and not path.is_symlink() and path.stat().st_size > 0
+                       for path in target.rglob("*"))
+    if not material:
+        raise ValueError("evidence_ref must point to material evidence inside the Run")
+
+
+def validate_trial_row(
+    run_id: str,
+    row: dict,
+    allowed_input_ids: set[str] | None = None,
+    run_dir: Path | None = None,
+) -> None:
     missing = [field for field in RESULT_FIELDS if field not in row]
     if missing:
         raise ValueError("trial row missing fields: " + ", ".join(missing))
@@ -149,42 +176,45 @@ def validate_trial_row(run_id: str, row: dict, allowed_input_ids: set[str] | Non
             raise ValueError(f"{field} must be a non-empty string")
     if allowed_input_ids is not None and row["input_id"] not in allowed_input_ids:
         raise ValueError("input_id must be selected by this Run's evaluation contract")
-    if row["status"] not in RESULT_STATUSES:
-        raise ValueError("status must be one of completed/failed/error/skipped")
-    if row["status"] in {"failed", "error"} and not (
+    if not isinstance(row["execution_status"], str) or row["execution_status"] not in EXECUTION_STATUSES:
+        raise ValueError("execution_status must be one of completed/error/skipped")
+    if not isinstance(row["verdict"], str) or row["verdict"] not in VERDICTS:
+        raise ValueError("verdict must be one of passed/failed/inconclusive")
+    if row["execution_status"] != "completed" and row["verdict"] != "inconclusive":
+        raise ValueError("error/skipped execution must have inconclusive verdict")
+    if row["execution_status"] == "error" and not (
         isinstance(row.get("failure_reason"), str) and row["failure_reason"].strip()
     ):
-        raise ValueError("failed/error trial must carry failure_reason")
-    if "evidence_ref" in row and not (
-        isinstance(row["evidence_ref"], str) and row["evidence_ref"].strip()
-    ):
-        raise ValueError("evidence_ref must be a non-empty string when provided")
+        raise ValueError("error execution must carry failure_reason")
+    validate_evidence_ref(run_dir, row["evidence_ref"])
 
 
 def command_init(repo: Path, args: argparse.Namespace) -> None:
-    match = EXPERIMENT_RE.fullmatch(args.experiment)
-    if not match or match.group(1) != args.agent:
-        raise ValueError("experiment must be EXP-<agent-id>-NNN for the selected agent")
-    experiment = repo / "evolution/experiments" / args.experiment
+    contract = resolve(args.source, repo=repo)
+    experiment_id = contract.get("experiment_id")
+    agent_id = contract.get("agent_id")
+    match = EXPERIMENT_RE.fullmatch(experiment_id or "")
+    if not match or match.group(1) != agent_id:
+        raise ValueError("source must resolve to a consistent Experiment and Agent")
+    experiment = repo / "evolution/experiments" / experiment_id
     if not experiment.is_dir() or experiment.is_symlink():
-        raise ValueError(f"unknown experiment: {args.experiment}")
+        raise ValueError(f"unknown experiment: {experiment_id}")
     change = read_flat_yaml(experiment / "change.yaml")
     baseline_ref = args.baseline_ref or change.get("baseline_ref", "")
     if not valid_baseline_ref(baseline_ref):
         raise ValueError("baseline_ref must be git:<commit>, release:<id> or none:first-experiment")
-    contract = resolve(args.source, repo=repo)
-    if contract.get("agent_id") != args.agent:
-        raise ValueError("source agent does not match --agent")
-    evaluation_relative = Path("agents") / args.agent / "evaluation.md"
+    evaluation_relative = Path("agents") / agent_id / "evaluation.md"
     evaluation_path = repo / evaluation_relative
-    evaluation_selection = selection_for(evaluation_path, args.experiment)
-    evaluation_ref = f"{evaluation_relative.as_posix()}#{args.experiment}"
+    evaluation_selection = selection_for(evaluation_path, experiment_id)
+    cases = execution_for(evaluation_path, experiment_id, args.case or None)
+    evaluation_selection = {**evaluation_selection, "case_ids": [case["case_id"] for case in cases]}
+    evaluation_ref = f"{evaluation_relative.as_posix()}#{experiment_id}"
     run_id = "run-" + str(uuid.uuid4())
     run_dir = experiment / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
     try:
         inputs = {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "run_id": run_id,
             "source_id": contract["source_id"],
             "source_kind": contract["source_kind"],
@@ -206,10 +236,10 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
             json.dump(inputs, handle, ensure_ascii=False, indent=2)
             handle.write("\n")
         manifest = {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "run_id": run_id,
-            "experiment_id": args.experiment,
-            "agent_id": args.agent,
+            "experiment_id": experiment_id,
+            "agent_id": agent_id,
             "kind": args.kind,
             "status": "planned",
             "created_at": utc_now(),
@@ -234,7 +264,7 @@ def command_record(repo: Path, args: argparse.Namespace) -> None:
         row = json.loads(Path(args.trial_file).read_text(encoding="utf-8"))
     if not isinstance(row, dict):
         raise ValueError("trial must be a JSON object")
-    validate_trial_row(args.run, row, selected_input_ids(run_dir))
+    validate_trial_row(args.run, row, selected_input_ids(run_dir), run_dir)
     results = run_dir / "results.jsonl"
     if results.is_file():
         for line in results.read_text(encoding="utf-8").splitlines():
@@ -272,16 +302,39 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
     if manifest.get("status") not in {"planned", "running"}:
         raise ValueError("Run is already finalized")
     results = run_dir / "results.jsonl"
-    counts = {name: 0 for name in RESULT_STATUSES}
+    execution_counts = {name: 0 for name in EXECUTION_STATUSES}
+    verdict_counts = {name: 0 for name in VERDICTS}
     allowed_input_ids = selected_input_ids(run_dir)
     if results.is_file():
         for line in results.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
             row = json.loads(line)
-            validate_trial_row(args.run, row, allowed_input_ids)
-            counts[row["status"]] += 1
-    summary = {"schema_version": "1.0", "run_id": args.run, "trial_count": sum(counts.values()), **counts}
+            validate_trial_row(args.run, row, allowed_input_ids, run_dir)
+            execution_counts[row["execution_status"]] += 1
+            verdict_counts[row["verdict"]] += 1
+    if verdict_counts["failed"]:
+        overall_verdict = "failed"
+    elif verdict_counts["inconclusive"] or not sum(verdict_counts.values()):
+        overall_verdict = "inconclusive"
+    else:
+        overall_verdict = "passed"
+    if args.status == "completed":
+        covered = {
+            json.loads(line)["input_id"]
+            for line in results.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        } if results.is_file() else set()
+        if covered != allowed_input_ids:
+            raise ValueError("completed Run must record every selected Case")
+    summary = {
+        "schema_version": "2.0",
+        "run_id": args.run,
+        "trial_count": sum(execution_counts.values()),
+        "execution_status_counts": execution_counts,
+        "verdict_counts": verdict_counts,
+        "overall_verdict": overall_verdict,
+    }
     summary_path = run_dir / "summary.json"
     with summary_path.open("w", encoding="utf-8") as handle:
         json.dump(summary, handle, ensure_ascii=False, indent=2)
@@ -302,9 +355,8 @@ def main() -> None:
     parser.add_argument("--repo", type=Path, default=REPO, help="仓库根目录")
     commands = parser.add_subparsers(dest="command", required=True)
     init_parser = commands.add_parser("init", help="创建 Run 并记录输入身份")
-    init_parser.add_argument("--agent", required=True)
-    init_parser.add_argument("--experiment", required=True)
     init_parser.add_argument("--source", required=True, help="当前支持 experiment:<id>")
+    init_parser.add_argument("--case", action="append", default=[], help="按 evaluation.md 顺序选择 Case；可重复")
     init_parser.add_argument("--kind", default="research", choices=RUN_KINDS)
     init_parser.add_argument("--baseline-ref", help="默认读取 Experiment change.yaml")
     init_parser.add_argument("--model", help="可选的实际模型标识")

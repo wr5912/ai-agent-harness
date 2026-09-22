@@ -1,6 +1,6 @@
 # ai-agent-harness 项目验收矩阵
 
-更新日期：2026-09-20
+更新日期：2026-09-21
 
 本文是 **ai-agent-harness 项目与工具链**验证路径、当前证据和缺口的唯一维护位置。它直接回答三个问题：总共有多少条路径、每条做到什么程度、哪些检查应该进入自动化测试。
 
@@ -100,9 +100,9 @@
 
 - **要回答**：浏览器用户能否从工作区注册走到可核对结果。
 - **操作链**：启动 Web → 使用本次认证 URL → 注册 `up --dry-run` 或启动提示给出的工作区 → 新建正确 Preset 的 Session → 发送消息 → 核对回答、工具行为或明确错误。
-- **当前证据**：[`dsh-web-technical-preflight-20260915T054223Z.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json) 记录技术预检。
-- **缺口**：当前口径尚无已封存的 Playwright 用户结果与同一 Session 执行轨迹交叉验证。
-- **自动化边界**：可稳定的页面/协议检查可逐步自动化；真实工作区选择与用户可见结果需浏览器 E2E 或人工记录。
+- **当前证据**：[`dsh-web-technical-preflight-20260915T054223Z.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json) 记录技术预检。`dsh-eval` 已实现工作区注册、逐 Case 新 Session、目标 Preset 核对、消息发送、Session 导出与 Run 证据封存；替身进程测试覆盖启动、认证入口、浏览器结果、停止和 Token 不落盘。
+- **缺口**：当前口径尚无本实现产生的真实 Playwright 封存 Run；页面定位器、模型目录和真实 MCP 行为仍需实机验证。
+- **自动化边界**：确定性的编排与异常闭环进入测试；模型与 MCP 语义仍由真实浏览器 Run 和人工判读证明。
 
 ### PA-09 新 Preset 创建、回流、重载与选择闭环
 
@@ -115,10 +115,10 @@
 ### PA-10 Research Run 的创建、记录、缺口与封存
 
 - **要回答**：一次运行能否说明“用的哪版、输入是什么、观察到什么、有哪些失败和限制”。
-- **操作链**：`init` → 逐项 `record` → 必要时 `gap` → `finalize` → 反向确认封存后不能追加结果。
-- **当前证据**：`run_record.py` 的机器合同已有测试，覆盖共享评测引用、输入锁、选择范围和封存。
-- **缺口**：当前口径尚无已封存 Run；仍需用实际 Experiment 检验记录是否足以复现比较结论。
-- **自动化边界**：schema、唯一 ID、状态转换和封存进入测试；观察是否支持假设由人审阅。
+- **操作链**：`init` → 逐项 `record` → 必要时 `gap` → `finalize` → 反向确认封存后不能追加结果；受管路径由 `dsh-eval` 完成同一闭环。
+- **当前证据**：Run v2 将 `execution_status` 与 `verdict` 分离，要求材料化 `evidence_ref`，并在 `completed` 封存前覆盖全部锁定 Case。`run_record.py` 与 `dsh-eval` 的机器测试覆盖输入子集锁定、证据、异常封存、摘要和封存后拒绝追加。
+- **缺口**：当前口径尚无本实现产生的真实 DSH 封存 Run；仍需用实际 Experiment 检验记录是否足以复现比较结论。
+- **自动化边界**：schema、唯一 ID、状态转换、证据引用和封存进入测试；观察是否支持假设由人审阅。
 
 ### PA-11 Research Release 打包、解析与复现装载
 
@@ -139,7 +139,7 @@
 | `dsh-dev up/ps/url/logs/down` | `PA-05` |
 | 镜像构建、容器装载和边界探针 | `PA-06` |
 | `mutation-receipt.py` 与 Headless 会话 | `PA-07` |
-| DSH Web 工作区、Session 和消息 | `PA-08` |
+| `dsh-eval`、DSH Web 工作区、Session、消息与轨迹导出 | `PA-08`、`PA-10` |
 | Preset 创建、回流、重载和选择 | `PA-09` |
 | `run_record.py` | `PA-10` |
 | Research Release 清单、解析和复现 | `PA-11` |

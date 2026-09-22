@@ -21,10 +21,14 @@
 - `run_id`
 - `trial_id`
 - `input_id`
-- `status`: `completed`、`failed`、`error` 或 `skipped`
+- `execution_status`: `completed`、`error` 或 `skipped`
+- `verdict`: `passed`、`failed` 或 `inconclusive`
 - `observation`
+- `evidence_ref`
 
-`input_id` 必须属于该 Run 锁定的 Experiment 选择。`failed` 或 `error` 还需非空 `failure_reason`。以下字段按需使用：`evidence_ref`、`score`、`metrics`、`model`、`duration_ms`、`input_tokens`、`output_tokens`、`cost_amount`、`cost_currency`。不相关的字段不要用空字符串填充。
+`execution_status` 只描述是否真正执行完成，`verdict` 只描述证据支持的判断，二者不得混用。`error` 和 `skipped` 只能对应 `inconclusive`，`error` 还需非空 `failure_reason`。`input_id` 必须属于该 Run 锁定的 Experiment 选择；`evidence_ref` 必须是 Run 内指向非空文件或目录的安全相对路径。以下字段按需使用：`score`、`metrics`、`model`、`duration_ms`、`input_tokens`、`output_tokens`、`cost_amount`、`cost_currency`。不相关的字段不要用空字符串填充。
+
+Run 创建时可以按 `evaluation.md` 中的顺序锁定全部选择或一个非空子集。只有每个锁定 Case 都至少记录一次结果，Run 才能以 `completed` 封存；基础设施失败应封存为 `failed` 或 `cancelled`，不能伪装成语义失败。
 
 ## 研究总结
 

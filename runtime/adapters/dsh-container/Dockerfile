@@ -46,6 +46,14 @@ FROM ${DSH_NODE_BASE}
 
 COPY --from=build --chown=node:node /opt/dsh /opt/dsh
 
+# 评测执行器复用 DSH 已安装的 Playwright，只补充无头浏览器二进制。
+ARG DSH_APT_MIRROR=http://mirrors.aliyun.com/debian
+COPY apt-mirror.sh /opt/dsh-adapter/apt-mirror.sh
+RUN sh /opt/dsh-adapter/apt-mirror.sh "$DSH_APT_MIRROR" \
+    && apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::ForceIPv4=true \
+      install -y --no-install-recommends chromium \
+    && rm -rf /var/lib/apt/lists/* /opt/dsh-adapter
+
 # 适配层脚本不 COPY 进镜像：它们由 Compose 以只读 bind 挂载到 /opt/dsh-adapter。
 # 这样脚本改动只需重新启动实例，不必重建镜像，也不会出现"镜像内脚本过期"的中间状态。
 RUN mkdir -p /opt/dsh-adapter \

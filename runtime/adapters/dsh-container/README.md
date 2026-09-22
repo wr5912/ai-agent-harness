@@ -1,6 +1,6 @@
 # DSH 容器薄适配层
 
-本目录固定官方 DeepSeek Harness（DSH）源码构建身份和卷装载方式；不开发、不复制 DSH Runtime 源码到本仓库，也不把宿主机 Codex 项目协作配置交给 DSH。`sources.json` 声明可选择的 Experiment Candidate；当前只有 `EXP-security-operations-expert-001`。新增来源须提供自己的 Candidate 资产及锁定身份，不能只改卷路径。
+本目录固定官方 DeepSeek Harness（DSH）源码构建身份和卷装载方式；不开发、不复制 DSH Runtime 源码到本仓库，也不把宿主机 Codex 项目协作配置交给 DSH。`sources.json` 声明可选择的 Experiment Candidate；新增来源须提供自己的 Candidate 资产及锁定身份，不能只改卷路径。
 
 ## 源码与镜像身份
 
@@ -11,7 +11,7 @@ bash runtime/adapters/dsh-container/build-image.sh
 # 多来源时显式选择：build-image.sh --source EXP-<agent-id>-NNN
 ```
 
-APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 IPv4；失败必须中止，而非沿用不完整索引。默认使用基础镜像内官方 `http://deb.debian.org/debian` 及 `debian-security`。当该站点在本机网络过慢时，可显式加 `--apt-mirror http://mirrors.tuna.tsinghua.edu.cn/debian`；脚本**只允许这一精确 HTTP 地址**，同时切换 security 到精确 `http://mirrors.tuna.tsinghua.edu.cn/debian-security`。构建前先用同一锁定 Node 底座执行 Debian archive keyring 签名的 APT 更新预检，main、updates、security 任一签名或索引失败即停；Dockerfile 中再次校验，构建证据记录两条实际镜像 URI。非默认镜像改变了构建期软件包的分发路径、可用性和更新时间边界，虽未降低 Debian 签名校验，也不能把它说成与官方源的网络来源完全相同。
+APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 IPv4；失败必须中止，而非沿用不完整索引。默认使用 `http://mirrors.aliyun.com/debian` 及同站 security；国内源不可达时可显式加 `--apt-mirror http://deb.debian.org/debian` 回退到官方源。构建前先用同一锁定 Node 底座执行 Debian archive keyring 签名的 APT 更新预检，main、updates、security 任一签名或索引失败即停；Dockerfile 中再次校验，构建证据记录两条实际镜像 URI。回退源改变了构建期软件包的分发路径、可用性和更新时间边界，虽未降低 Debian 签名校验，也不能把它说成与默认源的网络来源完全相同。
 
 本机 Docker 构建网络异常时还可显式加 `--build-network host`，但这会让构建步骤直接使用宿主网络命名空间；默认仍为 Docker 隔离网络。镜像源与网络选项都不改变锁定 DSH 源码和 Node 基础镜像身份，实际值写入构建证据。
 
@@ -107,6 +107,21 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-d
 `ps`、`logs`、`down` 从实例状态文件重建读取该实例 Compose 所需的环境变量：受控模板用 `${VAR:?}` 声明必填变量、不内联仓库内默认路径，因此这些命令不依赖调用者的当前环境；状态文件不是最新 schema 时同样可用，`ps` 会标出 `needs_migration`。旧实例仍在运行时用 `up --replace`（保留 HOME 数据卷）或先 `down` 再同名 `up` 完成迁移。挂载内容变化不会自动重启进程，重载必须走这两条路径之一。`down` 先检查 `docker compose down` 的退出码，再核对实际容器状态与 HOME 卷：命令失败即报错，仍有容器运行或状态无法确认时输出 `stopped: false` / `stopped: "unknown"` 并以非零退出码结束；HOME 卷名按 Compose 卷标签解析，不按 `<project>-home` 猜测。
 
 完整使用过程、挂载矩阵与异常处理见[DSH 开发与评测启动器设计方案](../../../docs/DSH开发与评测启动器设计方案.md)。
+
+## 受管评测
+
+`dsh-eval` 从 Agent 的 `evaluation.md` 读取 Experiment 选择和执行元数据，并复用 `dsh-dev`、`run_record.py` 与镜像中已有的 Playwright 依赖完成一次可封存评测：
+
+```bash
+python3 runtime/adapters/dsh-container/dsh-eval \
+  --source experiment:EXP-security-operations-expert-006 --dry-run
+python3 runtime/adapters/dsh-container/dsh-eval \
+  --source experiment:EXP-security-operations-expert-006 [--case <case-id>]
+```
+
+非 `--dry-run` 执行会先校验仓库和 Experiment，再创建独立评测实例。浏览器注册 `/work/harness/workspace`，每个运行态 Case 使用新的 Session 并核对目标 Preset；用户可见回答、同一 Session 的完整导出轨迹、工具事件和判定检查写入对应 Run 的 `evidence/<case-id>/`。认证 URL 只经进程标准输入交给浏览器，不写入 Run 或普通输出；无论成功、失败或中断都尝试停止实例。镜像提供系统 Chromium，浏览器脚本仍以只读挂载注入，因此修改脚本不需要重建镜像，修改 Chromium 系统依赖才需要。
+
+退出码 `0` 表示锁定 Case 均得到 `passed`；`1` 表示运行已完整封存但至少一个语义结论为 `failed` 或 `inconclusive`；`2` 表示参数、环境或执行基础设施失败。基础设施失败导致未执行的 Case 记为 `execution_status=error`；中断或安全停机后未开始的 Case 记为 `execution_status=skipped`，两者的 `verdict` 均为 `inconclusive`。业务语义不能由确定性检查可靠判断时，执行器只保存回答和轨迹，不自动给出通过结论。非 `--dry-run` 的 stdout 只输出一个不含凭据的 JSON，字段固定为 `run_id`、`experiment_id`、`verdict`、`cases`、`summary` 和 `instance_stopped`。
 
 **首次打开 Web 需要在界面注册工作区。** DSH Web 的输入栏在没有已打开会话时是惰性的，必须先选定一个**已注册工作区**才能开会话；工作区注册表（`$DSH_HOME/storages/workspace.json`）只从已存会话头 bootstrap，新实例的 HOME 卷里因此为空——容器的 `working_dir` 只是进程工作目录，不等于 DSH 工作区。该锁定 DSH 提交没有受支持的工作区预注册入口，启动器只交付路径与步骤、不改写 Runtime 存储内部格式：
 

@@ -48,12 +48,14 @@ Run 的 `evaluation_ref` 指向 `agents/<agent-id>/evaluation.md#<experiment-id>
   "run_id": "run-<UUIDv4>",
   "trial_id": "本次 Run 内唯一 ID",
   "input_id": "输入或场景标识",
-  "status": "completed|failed|error|skipped",
-  "observation": "实际观察"
+  "execution_status": "completed|error|skipped",
+  "verdict": "passed|failed|inconclusive",
+  "observation": "实际观察",
+  "evidence_ref": "Run 内的非空证据相对路径"
 }
 ```
 
-`input_id` 必须属于该 Run 锁定的选择；`failed` 和 `error` 需要 `failure_reason`。分数、耗时、Token、成本、模型和证据引用按研究需要增加，不设固定 17 列合同。
+`input_id` 必须属于该 Run 锁定的全部选择或非空子集。`execution_status` 与 `verdict` 分开记录；`error` 和 `skipped` 只能是 `inconclusive`，`error` 需要 `failure_reason`。以 `completed` 封存时必须覆盖全部锁定 Case。分数、耗时、Token、成本和模型按研究需要增加，不设固定 17 列合同。
 
 ## Research Release 最小合同
 

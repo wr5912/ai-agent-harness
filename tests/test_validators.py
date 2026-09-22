@@ -5,10 +5,12 @@ import importlib.util
 import json
 import os
 import re
+import signal
 import shutil
 import subprocess
 import tarfile
 import tempfile
+import time
 import unittest
 import uuid
 import zipfile
@@ -21,6 +23,7 @@ VALIDATE_REPOSITORY = ROOT / ".agents/skills/harness-evolution/scripts/validate_
 VALIDATE_EXPERIMENT = ROOT / ".agents/skills/research-eval/scripts/validate_experiment.py"
 EVALUATION_CONTRACT = ROOT / ".agents/skills/research-eval/scripts/evaluation_contract.py"
 RUN_RECORD = ROOT / "runtime/adapters/dsh-container/run_record.py"
+DSH_EVAL = ROOT / "runtime/adapters/dsh-container/dsh-eval"
 EXPERIMENT_ID = "EXP-security-operations-expert-001"
 AGENT_ID = "security-operations-expert"
 
@@ -69,7 +72,17 @@ def write_minimal_experiment(root: Path, *, status: str = "active", outcome: str
 
 ##### T-EXAMPLE-001
 
+**用户输入**
+
+```text
 最小输入。
+```
+
+**执行器：** `repository-contract`
+
+**工具边界：** `repository-read-only`
+
+**副作用预算：** `none`
 
 ## 评估方法
 
@@ -310,7 +323,7 @@ class ResearchEvalTests(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("EXPERIMENT_OUTCOME", error_codes(payload))
 
-    def test_result_uses_lightweight_five_field_contract(self) -> None:
+    def test_result_separates_execution_from_verdict_and_requires_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             experiment = write_minimal_experiment(Path(temp))
             run_id = "run-" + str(uuid.uuid4())
@@ -319,7 +332,7 @@ class ResearchEvalTests(unittest.TestCase):
             (run_dir / "run.yaml").write_text(
                 "\n".join(
                     [
-                        'schema_version: "1.0"',
+                        'schema_version: "2.0"',
                         f"run_id: {run_id}",
                         "experiment_id: EXP-example-agent-001",
                         "agent_id: example-agent",
@@ -335,6 +348,8 @@ class ResearchEvalTests(unittest.TestCase):
             (run_dir / "inputs.lock.json").write_text(
                 json.dumps(
                     {
+                        "schema_version": "2.0",
+                        "run_id": run_id,
                         "evaluation_sha256": hashlib.sha256(evaluation.read_bytes()).hexdigest(),
                         "evaluation_selection": {
                             "case_ids": ["T-EXAMPLE-001"],
@@ -346,7 +361,18 @@ class ResearchEvalTests(unittest.TestCase):
                 + "\n",
                 encoding="utf-8",
             )
-            row = {"run_id": run_id, "trial_id": "trial-1", "input_id": "T-EXAMPLE-001", "status": "completed", "observation": "观察到预期变化"}
+            evidence = run_dir / "evidence/T-EXAMPLE-001/checks.json"
+            evidence.parent.mkdir(parents=True)
+            evidence.write_text('{"checked":true}\n', encoding="utf-8")
+            row = {
+                "run_id": run_id,
+                "trial_id": "trial-1",
+                "input_id": "T-EXAMPLE-001",
+                "execution_status": "completed",
+                "verdict": "passed",
+                "observation": "观察到预期变化",
+                "evidence_ref": "evidence/T-EXAMPLE-001",
+            }
             (run_dir / "results.jsonl").write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
             completed, payload = run_json(VALIDATE_EXPERIMENT, experiment)
             self.assertEqual(completed.returncode, 0, json.dumps(payload, ensure_ascii=False, indent=2))
@@ -367,21 +393,34 @@ class ResearchEvalTests(unittest.TestCase):
 
 
 class RunRecordTests(unittest.TestCase):
+    def test_flat_yaml_round_trip_preserves_escaped_strings(self) -> None:
+        spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "run.yaml"
+            expected = {"schema_version": "2.0", "source_id": 'line\\break:"值"'}
+            module.write_flat_yaml(path, expected)
+            self.assertEqual(module.read_flat_yaml(path), expected)
+
     def test_lifecycle_records_and_seals_observations(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repository = copy_repository(Path(temp))
             init = subprocess.run(
                 [
                     "python3", str(repository / "runtime/adapters/dsh-container/run_record.py"),
-                    "--repo", str(repository), "init", "--agent", AGENT_ID,
-                    "--experiment", EXPERIMENT_ID, "--source", f"experiment:{EXPERIMENT_ID}",
-                    "--kind", "research",
+                    "--repo", str(repository), "init", "--source", f"experiment:{EXPERIMENT_ID}",
+                    "--case", "T-MIGRATION-SOURCE", "--kind", "research",
                 ],
                 cwd=repository, text=True, capture_output=True, check=False, timeout=180,
                 env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
             )
             self.assertEqual(init.returncode, 0, init.stderr)
             run_id = init.stdout.strip()
+            run_dir = repository / f"evolution/experiments/{EXPERIMENT_ID}/runs/{run_id}"
+            evidence = run_dir / "evidence/T-MIGRATION-SOURCE/checks.json"
+            evidence.parent.mkdir(parents=True)
+            evidence.write_text('{"loaded":true}\n', encoding="utf-8")
             trial = repository / "trial.json"
             trial.write_text(
                 json.dumps(
@@ -389,8 +428,10 @@ class RunRecordTests(unittest.TestCase):
                         "run_id": run_id,
                         "trial_id": "trial-1",
                         "input_id": "T-MIGRATION-SOURCE",
-                        "status": "completed",
+                        "execution_status": "completed",
+                        "verdict": "passed",
                         "observation": "目标会话观察到新增 Skill",
+                        "evidence_ref": "evidence/T-MIGRATION-SOURCE",
                     },
                     ensure_ascii=False,
                 ),
@@ -403,15 +444,16 @@ class RunRecordTests(unittest.TestCase):
             self.assertEqual(finalize.returncode, 0, finalize.stderr)
             sealed = subprocess.run(base + ["record", "--run", run_id, str(trial)], cwd=repository, text=True, capture_output=True, check=False, timeout=180)
             self.assertNotEqual(sealed.returncode, 0)
-            run_dir = repository / f"evolution/experiments/{EXPERIMENT_ID}/runs/{run_id}"
             summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
-            self.assertEqual(summary["completed"], 1)
-            self.assertIn("baseline_ref: none:first-experiment", (run_dir / "run.yaml").read_text(encoding="utf-8"))
+            self.assertEqual(summary["execution_status_counts"]["completed"], 1)
+            self.assertEqual(summary["verdict_counts"]["passed"], 1)
+            self.assertEqual(summary["overall_verdict"], "passed")
+            self.assertIn('baseline_ref: "none:first-experiment"', (run_dir / "run.yaml").read_text(encoding="utf-8"))
             inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
             self.assertIn("git_version", inputs)
-            self.assertEqual(inputs["evaluation_selection"]["case_ids"], ["T-MIGRATION-SOURCE", "T-DSH-LOAD-CYCLE"])
+            self.assertEqual(inputs["evaluation_selection"]["case_ids"], ["T-MIGRATION-SOURCE"])
             self.assertIn(
-                "evaluation_ref: agents/security-operations-expert/evaluation.md#EXP-security-operations-expert-001",
+                'evaluation_ref: "agents/security-operations-expert/evaluation.md#EXP-security-operations-expert-001"',
                 (run_dir / "run.yaml").read_text(encoding="utf-8"),
             )
 
@@ -423,13 +465,15 @@ class RunRecordTests(unittest.TestCase):
             "run_id": "run-" + str(uuid.uuid4()),
             "trial_id": "trial-1",
             "input_id": "T-NOT-SELECTED",
-            "status": "completed",
+            "execution_status": "completed",
+            "verdict": "passed",
             "observation": "不应写入",
+            "evidence_ref": "evidence/checks.json",
         }
         with self.assertRaisesRegex(ValueError, "selected"):
             module.validate_trial_row(row["run_id"], row, {"T-MIGRATION-SOURCE"})
 
-    def test_old_pass_status_and_failed_without_reason_are_rejected(self) -> None:
+    def test_execution_error_requires_inconclusive_verdict_and_reason(self) -> None:
         spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -437,14 +481,316 @@ class RunRecordTests(unittest.TestCase):
             "run_id": "run-" + str(uuid.uuid4()),
             "trial_id": "trial-1",
             "input_id": "input-1",
-            "status": "pass",
+            "execution_status": "error",
+            "verdict": "failed",
             "observation": "legacy row",
+            "evidence_ref": "evidence/checks.json",
         }
-        with self.assertRaisesRegex(ValueError, "completed/failed/error/skipped"):
+        with self.assertRaisesRegex(ValueError, "inconclusive"):
             module.validate_trial_row(base["run_id"], base)
-        base["status"] = "failed"
+        base["verdict"] = "inconclusive"
         with self.assertRaisesRegex(ValueError, "failure_reason"):
             module.validate_trial_row(base["run_id"], base)
+
+    def test_completed_run_requires_every_selected_case(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = copy_repository(Path(temp))
+            script = repository / "runtime/adapters/dsh-container/run_record.py"
+            initialized = subprocess.run(
+                ["python3", str(script), "--repo", str(repository), "init",
+                 "--source", f"experiment:{EXPERIMENT_ID}"],
+                cwd=repository, text=True, capture_output=True, check=False, timeout=180,
+            )
+            self.assertEqual(initialized.returncode, 0, initialized.stderr)
+            finalized = subprocess.run(
+                ["python3", str(script), "--repo", str(repository), "finalize",
+                 "--run", initialized.stdout.strip(), "--status", "completed"],
+                cwd=repository, text=True, capture_output=True, check=False, timeout=180,
+            )
+        self.assertNotEqual(finalized.returncode, 0)
+        self.assertIn("every selected Case", finalized.stderr)
+
+
+class DshEvalTests(unittest.TestCase):
+    REQUIRED_RUNTIME_ENV = (
+        "DEEPSEEK_API_KEY",
+        "SEC_OPS_MCP_URL",
+        "SEC_OPS_MCP_TOKEN",
+        "INSPECTION_MCP_URL",
+        "INSPECTION_MCP_TOKEN",
+        "LOCAL_LLM_BASE_URL",
+        "LOCAL_LLM_API_KEY",
+    )
+
+    def runtime_fixture(self, root: Path, *, mode: str = "pass") -> tuple[Path, dict[str, str], Path]:
+        repository = copy_repository(root)
+        command_log = root / "dsh-dev.jsonl"
+        fake_dsh = root / "fake-dsh-dev"
+        fake_dsh.write_text(
+            """#!/usr/bin/env python3
+import json
+import os
+import sys
+
+with open(os.environ["TEST_DSH_LOG"], "a", encoding="utf-8") as handle:
+    handle.write(json.dumps(sys.argv[1:]) + "\\n")
+if sys.argv[1] == "url":
+    print("http://127.0.0.1:3090/?token=opaque-eval-auth-token")
+else:
+    print("{}")
+""",
+            encoding="utf-8",
+        )
+        fake_dsh.chmod(0o755)
+        fake_browser = root / "fake-browser"
+        fake_browser.write_text(
+            """#!/usr/bin/env python3
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+payload = json.load(sys.stdin)
+mode = os.environ["TEST_BROWSER_MODE"]
+if mode == "exception":
+    raise SystemExit(9)
+if mode == "hang":
+    Path(os.environ["TEST_BROWSER_READY"]).write_text("ready\\n", encoding="utf-8")
+    time.sleep(120)
+
+rows = []
+for index, item in enumerate(payload["cases"]):
+    evidence = Path(payload["evidence_root"]) / item["case_id"]
+    evidence.mkdir(parents=True, exist_ok=True)
+    (evidence / "response.json").write_text(json.dumps({"assistant_text": "模型连通"}) + "\\n")
+    (evidence / "trace.jsonl").write_text(json.dumps({"route": "local-qwen"}) + "\\n")
+    (evidence / "tools.jsonl").write_text("")
+    (evidence / "checks.json").write_text(json.dumps({"completed": True}) + "\\n")
+    if mode == "safety-stop":
+        rows.append({
+            "case_id": item["case_id"],
+            "execution_status": "error",
+            "verdict": "inconclusive",
+            "observation": "Session 身份漂移",
+            "failure_reason": "identity-drift",
+            "evidence_ref": f"evidence/{item['case_id']}",
+        })
+        print(json.dumps({
+            "schema_version": "1.0",
+            "rows": rows,
+            "stop_reason": "identity-drift",
+        }))
+        raise SystemExit(0)
+    verdict = "failed" if mode == "case-failure" and index == 0 else "passed"
+    rows.append({
+        "case_id": item["case_id"],
+        "execution_status": "completed",
+        "verdict": verdict,
+        "observation": "替身浏览器完成评测链路",
+        "evidence_ref": f"evidence/{item['case_id']}",
+    })
+print(json.dumps({"schema_version": "1.0", "rows": rows}))
+""",
+            encoding="utf-8",
+        )
+        fake_browser.chmod(0o755)
+        env = {
+            **os.environ,
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "DSH_EVAL_DSH_DEV": str(fake_dsh),
+            "DSH_EVAL_BROWSER_DRIVER": str(fake_browser),
+            "TEST_DSH_LOG": str(command_log),
+            "TEST_BROWSER_MODE": mode,
+            "TEST_BROWSER_READY": str(root / "browser-ready"),
+        }
+        for name in self.REQUIRED_RUNTIME_ENV:
+            env[name] = "http://example.invalid" if name.endswith(("_URL", "BASE_URL")) else "test-value"
+        return repository, env, command_log
+
+    def run_eval(
+        self,
+        repository: Path,
+        env: dict[str, str],
+        *case_ids: str,
+        timeout: int = 240,
+    ) -> tuple[subprocess.CompletedProcess[str], dict]:
+        command = [
+            "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
+            "--source", "experiment:EXP-security-operations-expert-006",
+            "--timeout-seconds", "10",
+        ]
+        for case_id in case_ids:
+            command.extend(("--case", case_id))
+        completed = subprocess.run(
+            command,
+            cwd=repository,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=timeout,
+            env=env,
+        )
+        return completed, json.loads(completed.stdout)
+
+    def test_dry_run_has_no_runtime_side_effects(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = copy_repository(Path(temp))
+            runs = repository / "evolution/experiments/EXP-security-operations-expert-006/runs"
+            before = set(runs.glob("run-*")) if runs.is_dir() else set()
+            env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+            for name in self.REQUIRED_RUNTIME_ENV:
+                env.pop(name, None)
+            completed = subprocess.run(
+                [
+                    "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
+                    "--source", "experiment:EXP-security-operations-expert-006",
+                    "--case", "T-LOCAL-QWEN-CHAT", "--dry-run",
+                ],
+                cwd=repository, text=True, capture_output=True, check=False, timeout=180, env=env,
+            )
+            payload = json.loads(completed.stdout)
+            after = set(runs.glob("run-*")) if runs.is_dir() else set()
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertTrue(payload["runtime_required"])
+        self.assertEqual(payload["missing_env_names"], list(self.REQUIRED_RUNTIME_ENV))
+        self.assertEqual(before, after)
+
+    def test_runtime_flow_seals_run_stops_instance_and_does_not_persist_auth_url(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            repository, env, command_log = self.runtime_fixture(root)
+            completed, payload = self.run_eval(repository, env, "T-LOCAL-QWEN-CHAT")
+            run_dir = (repository / payload["summary"]).parent
+            summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+            commands = [json.loads(line) for line in command_log.read_text(encoding="utf-8").splitlines()]
+            persisted = b"\n".join(path.read_bytes() for path in run_dir.rglob("*") if path.is_file())
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(payload["verdict"], "passed")
+        self.assertEqual(
+            payload["cases"],
+            {"total": 1, "passed": 1, "failed": 0, "inconclusive": 0},
+        )
+        self.assertTrue(payload["instance_stopped"])
+        self.assertEqual(summary["overall_verdict"], "passed")
+        self.assertEqual([command[0] for command in commands], ["up", "url", "down"])
+        self.assertNotIn("opaque-eval-auth-token", completed.stdout + completed.stderr)
+        self.assertNotIn(b"opaque-eval-auth-token", persisted)
+
+    def test_case_failure_continues_and_returns_one(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository, env, command_log = self.runtime_fixture(Path(temp), mode="case-failure")
+            completed, payload = self.run_eval(
+                repository,
+                env,
+                "T-LOCAL-QWEN-CHAT",
+                "T-SELECTED-ROUTE-TRACE",
+            )
+            results = [
+                json.loads(line)
+                for line in ((repository / payload["summary"]).parent / "results.jsonl")
+                .read_text(encoding="utf-8")
+                .splitlines()
+            ]
+            commands = [json.loads(line)[0] for line in command_log.read_text().splitlines()]
+        self.assertEqual(completed.returncode, 1, completed.stderr)
+        self.assertEqual(payload["verdict"], "failed")
+        self.assertEqual(
+            payload["cases"],
+            {"total": 2, "passed": 1, "failed": 1, "inconclusive": 0},
+        )
+        self.assertEqual(
+            [row["input_id"] for row in results],
+            ["T-LOCAL-QWEN-CHAT", "T-SELECTED-ROUTE-TRACE"],
+        )
+        self.assertEqual(commands, ["up", "url", "down"])
+
+    def test_preflight_failure_does_not_create_run_or_start_instance(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository, env, command_log = self.runtime_fixture(Path(temp))
+            validator = repository / ".agents/skills/harness-evolution/scripts/validate_repository.py"
+            validator.write_text(
+                'import json\nprint(json.dumps({"valid": False, "errors": [{"code": "test-invalid"}]}))\nraise SystemExit(1)\n',
+                encoding="utf-8",
+            )
+            runs = repository / "evolution/experiments/EXP-security-operations-expert-006/runs"
+            before = set(runs.glob("run-*")) if runs.is_dir() else set()
+            completed, payload = self.run_eval(repository, env, "T-LOCAL-QWEN-CHAT")
+            after = set(runs.glob("run-*")) if runs.is_dir() else set()
+            instance_started = command_log.exists()
+        self.assertEqual(completed.returncode, 2, completed.stderr)
+        self.assertIsNone(payload["run_id"])
+        self.assertEqual(payload["verdict"], "inconclusive")
+        self.assertEqual(before, after)
+        self.assertFalse(instance_started)
+
+    def test_mid_run_exception_is_sealed_and_instance_is_stopped(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository, env, command_log = self.runtime_fixture(Path(temp), mode="exception")
+            completed, payload = self.run_eval(repository, env, "T-LOCAL-QWEN-CHAT")
+            run_dir = (repository / payload["summary"]).parent
+            result = json.loads((run_dir / "results.jsonl").read_text(encoding="utf-8"))
+            manifest = (run_dir / "run.yaml").read_text(encoding="utf-8")
+            commands = [json.loads(line)[0] for line in command_log.read_text().splitlines()]
+        self.assertEqual(completed.returncode, 2, completed.stderr)
+        self.assertEqual(payload["verdict"], "inconclusive")
+        self.assertEqual(result["execution_status"], "error")
+        self.assertIn('status: "failed"', manifest)
+        self.assertEqual(commands, ["up", "url", "down"])
+
+    def test_safety_stop_marks_remaining_cases_skipped(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository, env, _ = self.runtime_fixture(Path(temp), mode="safety-stop")
+            completed, payload = self.run_eval(
+                repository,
+                env,
+                "T-LOCAL-QWEN-CHAT",
+                "T-SELECTED-ROUTE-TRACE",
+            )
+            run_dir = (repository / payload["summary"]).parent
+            results = [
+                json.loads(line)
+                for line in (run_dir / "results.jsonl").read_text(encoding="utf-8").splitlines()
+            ]
+        self.assertEqual(completed.returncode, 1, completed.stderr)
+        self.assertEqual([row["execution_status"] for row in results], ["error", "skipped"])
+        self.assertEqual(
+            payload["cases"],
+            {"total": 2, "passed": 0, "failed": 0, "inconclusive": 2},
+        )
+
+    def test_sigint_seals_cancelled_run_and_stops_instance(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            repository, env, command_log = self.runtime_fixture(root, mode="hang")
+            process = subprocess.Popen(
+                [
+                    "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
+                    "--source", "experiment:EXP-security-operations-expert-006",
+                    "--case", "T-LOCAL-QWEN-CHAT", "--timeout-seconds", "10",
+                ],
+                cwd=repository,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+            )
+            ready = root / "browser-ready"
+            deadline = time.monotonic() + 180
+            while not ready.is_file() and process.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.05)
+            self.assertTrue(ready.is_file(), "浏览器替身未进入运行阶段")
+            process.send_signal(signal.SIGINT)
+            stdout, stderr = process.communicate(timeout=30)
+            payload = json.loads(stdout)
+            run_dir = (repository / payload["summary"]).parent
+            result = json.loads((run_dir / "results.jsonl").read_text(encoding="utf-8"))
+            manifest = (run_dir / "run.yaml").read_text(encoding="utf-8")
+            commands = [json.loads(line)[0] for line in command_log.read_text().splitlines()]
+        self.assertEqual(process.returncode, 2, stderr)
+        self.assertEqual(result["execution_status"], "skipped")
+        self.assertIn('status: "cancelled"', manifest)
+        self.assertEqual(commands, ["up", "url", "down"])
 
 
 class DefinitionSourceTests(unittest.TestCase):
@@ -502,6 +848,17 @@ class DefinitionSourceTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "未定义"):
                 module.load_evaluation(evaluation)
+
+    def test_selected_case_requires_execution_metadata(self) -> None:
+        spec = importlib.util.spec_from_file_location("evaluation_contract", EVALUATION_CONTRACT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temp:
+            evaluation = Path(temp) / "evaluation.md"
+            text = (ROOT / "agents" / AGENT_ID / "evaluation.md").read_text(encoding="utf-8")
+            evaluation.write_text(text.replace("**执行器：**`repository-contract`", "", 1), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "执行元数据"):
+                module.execution_for(evaluation, "EXP-security-operations-expert-001")
 
 
 if __name__ == "__main__":

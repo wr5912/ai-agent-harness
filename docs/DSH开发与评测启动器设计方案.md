@@ -1,10 +1,10 @@
 # DSH 开发与评测启动器设计方案
 
-本文说明 `dsh-dev` 的目标、当前能力、完整使用过程，以及每类资产在各模式下的位置与读写范围。全文只用「修改—重新装载—运行—保存」四个动作描述研究工作，不使用需要另行解释的别名。
+本文说明 `dsh-dev` 与 `dsh-eval` 的目标、当前能力、完整使用过程，以及每类资产在各模式下的位置与读写范围。全文只用「修改—重新装载—运行—保存」四个动作描述研究工作，不使用需要另行解释的别名。
 
 | 项目 | 内容 |
 |---|---|
-| 状态 | `init`、`image build`、`up`（含 `--dry-run`）、`ps`、`url`、`logs`、`down` 已实现；`open`、`resume`、`fresh` 与 `release:<id>` 选择器未实现 |
+| 状态 | `dsh-dev init/image build/up/ps/url/logs/down`（`up` 含 `--dry-run`）与 `dsh-eval` 已实现；`open`、`resume`、`fresh` 与 `release:<id>` 选择器未实现 |
 | 适用范围 | 同一台 Linux Docker Engine 主机上的本地开发、调试与候选技术核验 |
 | 不在范围 | DSH Runtime 源码修改、Experiment 结论判断、Research Release 打包与复现 |
 | 依据 | [来源锁定](./standards/SOURCES.md)、[项目规范解释](./standards/PROJECT-INTERPRETATION.md)、[适配层 README](../runtime/adapters/dsh-container/README.md)、锁定 DSH 提交 `c291e7961a515f6d7af9304e7fd1d257929aef26`（CLI `0.1.5-rc.2`） |
@@ -29,6 +29,7 @@
 | `url` | 从本次进程日志提取认证 URL 并做 Token→Cookie→根页探针；非交互终端需显式 `--non-interactive` |
 | `logs` | 输出有界、尽力脱敏的容器日志 |
 | `down` | 停止实例并保留 HOME；命令失败、仍有容器运行或状态无法确认时都不报告停止成功 |
+| `dsh-eval` | 按 `evaluation.md` 的执行元数据启动独立评测实例、运行浏览器 Case、导出同一 Session 轨迹并封存 Run |
 
 本次范围之外：不新增容器编排、不引入审批或评分平台、不实现 Runtime 存储内部格式的写入。
 
@@ -112,7 +113,18 @@ DSH Web 首次打开需要在界面注册工作区：点击"选择工作区" →
 
 开发者自行保证：本次运行期间不修改本次使用的 Harness、测试数据、评估方法和验收标准；不让多个实例同时改写同一份资产；基线与候选使用相同口径，口径变化后重新执行受影响的对比。
 
-评测模式运行的是被测目标，容器里没有判分材料（见第 5.3 节）。任务输入通过对话给出，环境状态由 MCP 服务端或受控预置提供。
+先预览实际选择、执行器、镜像和缺失环境变量，再运行全部或指定 Case：
+
+```bash
+python3 runtime/adapters/dsh-container/dsh-eval \
+  --source experiment:EXP-security-operations-expert-006 --dry-run
+python3 runtime/adapters/dsh-container/dsh-eval \
+  --source experiment:EXP-security-operations-expert-006 [--case <case-id>]
+```
+
+`dsh-eval` 只执行 `evaluation.md` 当前 Experiment 已选择且带执行元数据的 Case。运行态 Case 使用独立评测实例，每项创建新的 Session 并确认目标 Preset；浏览器显示的回答与该 Session 导出的完整轨迹一起写入 Run。认证 URL 只通过标准输入传给浏览器，不落盘、不进入普通输出。执行器能确定判断的模型目录与路由 Case 自动给出 `passed` 或 `failed`；业务语义 Case 即使 Turn 完成也先记为 `inconclusive`，由研究者按唯一评测标准判读。
+
+评测模式运行的是被测目标，容器里没有判分材料（见第 5.3 节）。任务输入通过对话给出，环境状态由 MCP 服务端或受控预置提供。`dsh-eval` 无论成功、失败或中断都尝试停止实例；基础设施失败导致未执行的 Case 记为 `error/inconclusive`，中断或安全停机后未开始的 Case 记为 `skipped/inconclusive`，不把运行故障写成 Harness 语义失败。
 
 ### 4.5 保存或放弃修改
 
@@ -120,8 +132,8 @@ DSH Web 首次打开需要在界面注册工作区：点击"选择工作区" →
 
 ```bash
 python3 runtime/adapters/dsh-container/run_record.py --repo . init \
-  --agent security-operations-expert --experiment EXP-security-operations-expert-001 \
-  --source experiment:EXP-security-operations-expert-001 --kind research
+  --source experiment:EXP-security-operations-expert-001 \
+  --case <case-id> --kind research
 ```
 
 `inputs.lock.json` 会记录三棵 Harness 树与研究资料树的摘要、`evaluation.md` 摘要和本 Experiment 所选 ID，以及 `git_version`（提交、是否含未提交修改、变更路径数）。这些值是当次 Run 的不可编辑输入锁，不是新的评测维护源。**未提交修改无法仅凭 `HEAD` 还原**，所以该字段必须如实保留，不能把带未提交修改的运行写成某个提交的完整内容。
@@ -244,14 +256,14 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 | 用途 | 默认源 | 覆盖方式 |
 |---|---|---|
-| Debian APT（安装 `ca-certificates`、`build-essential`、`musl-tools`） | `http://mirrors.aliyun.com/debian`（security 同站 `debian-security`） | `build-image.sh --apt-mirror http://deb.debian.org/debian`，仅在国内源不可达时使用 |
+| Debian APT（构建阶段安装编译依赖，最终镜像安装 `chromium`） | `http://mirrors.aliyun.com/debian`（security 同站 `debian-security`） | `build-image.sh --apt-mirror http://deb.debian.org/debian`，仅在国内源不可达时使用 |
 | npm/pnpm 依赖与 corepack 下载包管理器 | `https://registry.npmmirror.com` | `DSH_NPM_REGISTRY` 构建参数，由 `build-image.sh` 注入 |
 
 换源不改变锁定内容：APT 仍由 `debian-archive-keyring` 校验 Release/InRelease 签名与 `Valid-Until`；依赖仍按 `pnpm-lock.yaml` 的完整性摘要校验，`corepack` 与 `pnpm` 共用同一个 registry。实际使用的 APT 源与 npm registry 写入该次构建证据。
 
 ### 5.6 镜像与脚本的关系
 
-**适配层脚本不烘焙进镜像。** `verify-load.mjs`、`tree-digest.mjs`、`prepare-verification-home.mjs` 由 Compose 以只读 bind 把整个适配层目录挂到 `/opt/dsh-adapter`（`home-init` 与 `dsh` 两个服务都挂）。因此：
+**运行时适配层脚本不烘焙进镜像。** `verify-load.mjs`、`tree-digest.mjs`、`prepare-verification-home.mjs` 由 Compose 以只读 bind 把整个适配层目录挂到 `/opt/dsh-adapter`（`home-init` 与 `dsh` 两个服务都挂）；`dsh-eval-browser.mjs` 由评测命令单文件只读挂载到 Web 应用目录。最终镜像只增加浏览器运行所需的系统 Chromium。因此：
 
 - 改脚本只需重启实例（`down` + 同名 `up`，或 `up --replace`），不必重建镜像；
 - 容器实际读到的脚本字节与宿主上被审查的文件一致由同一份挂载保证，`verify-load.sh` 仍在容器内用 `sha256sum` 核对这三个文件的摘要并记录到证据里；
@@ -298,7 +310,9 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 |---|---|
 | 受控 Compose 模板 | `runtime/adapters/dsh-container/{authoring,verification}.compose.yaml` |
 | 启动器 | `runtime/adapters/dsh-container/dsh-dev` |
+| 受管评测 | `runtime/adapters/dsh-container/dsh-eval`、`dsh-eval-browser.mjs`、`run_record.py` |
 | 来源解析 | `runtime/adapters/dsh-container/source_contract.py`、`sources.json` |
+| 评测合同 | `agents/<agent-id>/evaluation.md`、`.agents/skills/research-eval/scripts/evaluation_contract.py` |
 | 核验 | `verify-load.sh`、`verify-load.mjs`、`preflight-access.py`、`tree-digest.mjs` |
 | 仓库校验器 | `.agents/skills/harness-evolution/scripts/validate_repository.py` |
 | 测试 | `runtime/adapters/dsh-container/test_*.py`、`test_*.mjs`、`tests/test_validators.py` |
@@ -316,6 +330,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 | 重载生效 | 按文档重新装载并验证预先定义的可观察变化 | 不把驻留旧配置的结果误认成新配置 |
 | Preset 试验与回流 | 在 `--mode dev` 用户根用临时新 ID 试验；审查后把内容合并回稳定 `target_preset`，`up --replace` 重载并在 Web 新会话核对 | 原业务 Agent 与稳定目标 ID 不变；候选 `preset_id`、来源 preset 路径和 Profile 默认值一致。该 Web 路径仍待实测 |
 | 判分材料隔离 | 在 `--mode eval` 容器内检查 `/work/reference`、`/work/eval-input` | 两条路径都不存在，也不在 `/proc/self/mountinfo` 中 |
+| 浏览器评测与轨迹 | 用 `dsh-eval` 运行一个运行态 Case | 新实例、新 Session、目标 Preset、用户输入、可见回答与同一 Session 导出轨迹均可从封存 Run 核对；认证 Token 不在证据中 |
 | 运行记录 | 记录实际提交、未提交状态、镜像、模型与测试范围 | 记录与实际使用一致，不虚构完整冻结 |
 | 停止失败 | 模拟 `docker compose down` 返回非零退出码 | 命令失败，不输出 `stopped: true` |
 | 启动未生效 | 模拟 `up -d` 返回 0 但 `dsh` 容器已退出 | 在 stderr 报告 `dsh_running: false` 并以非零退出码结束，stdout 为空 |

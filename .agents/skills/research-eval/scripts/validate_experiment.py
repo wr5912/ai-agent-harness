@@ -13,7 +13,7 @@ from pathlib import Path
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from evaluation_contract import selection_for
+from evaluation_contract import execution_for, selection_for
 
 try:
     import yaml
@@ -30,7 +30,8 @@ COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 RELEASE_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*-v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
 OUTCOMES = {"adopt", "continue", "reject", "inconclusive"}
 RUN_STATUSES = {"planned", "running", "completed", "failed", "cancelled"}
-TRIAL_STATUSES = {"completed", "failed", "error", "skipped"}
+EXECUTION_STATUSES = {"completed", "error", "skipped"}
+VERDICTS = {"passed", "failed", "inconclusive"}
 
 
 def issue(code: str, message: str, path: Path | None = None) -> dict[str, str]:
@@ -89,13 +90,43 @@ def valid_baseline_ref(value: object) -> bool:
     return False
 
 
+def ordered_subset(values: object, declared: list[str]) -> bool:
+    if not isinstance(values, list) or not values or len(values) != len(set(values)):
+        return False
+    position = -1
+    for value in values:
+        if not isinstance(value, str):
+            return False
+        try:
+            position = declared.index(value, position + 1)
+        except ValueError:
+            return False
+    return True
+
+
+def material_evidence(run_dir: Path, value: object) -> bool:
+    if not isinstance(value, str) or not value.strip():
+        return False
+    relative = Path(value)
+    if relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts):
+        return False
+    target = run_dir / relative
+    if target.is_file() and not target.is_symlink() and target.stat().st_size > 0:
+        return True
+    return target.is_dir() and not target.is_symlink() and any(
+        path.is_file() and not path.is_symlink() and path.stat().st_size > 0
+        for path in target.rglob("*")
+    )
+
+
 def validate_result(
     path: Path,
     expected_run: str,
     allowed_input_ids: set[str],
     errors: list[dict[str, str]],
-) -> None:
+) -> list[dict]:
     seen: set[str] = set()
+    rows: list[dict] = []
     for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if not line.strip():
             continue
@@ -107,7 +138,9 @@ def validate_result(
         if not isinstance(row, dict):
             errors.append(issue("RESULT_OBJECT", f"第 {line_number} 行必须是 object", path))
             continue
-        required = ("run_id", "trial_id", "input_id", "status", "observation")
+        required = (
+            "run_id", "trial_id", "input_id", "execution_status", "verdict", "observation", "evidence_ref"
+        )
         missing = [name for name in required if name not in row]
         if missing:
             errors.append(issue("RESULT_FIELDS", f"第 {line_number} 行缺少：{', '.join(missing)}", path))
@@ -125,14 +158,27 @@ def validate_result(
             errors.append(issue("RESULT_INPUT", f"第 {line_number} 行 input_id 必须是非空字符串", path))
         elif row["input_id"] not in allowed_input_ids:
             errors.append(issue("RESULT_INPUT_SELECTION", f"第 {line_number} 行 input_id 未被本 Experiment 选择", path))
-        if row["status"] not in TRIAL_STATUSES:
-            errors.append(issue("RESULT_STATUS", f"第 {line_number} 行 status 不合法", path))
+        execution_status = row["execution_status"]
+        verdict = row["verdict"]
+        execution_valid = isinstance(execution_status, str) and execution_status in EXECUTION_STATUSES
+        verdict_valid = isinstance(verdict, str) and verdict in VERDICTS
+        if not execution_valid:
+            errors.append(issue("RESULT_EXECUTION_STATUS", f"第 {line_number} 行 execution_status 不合法", path))
+        if not verdict_valid:
+            errors.append(issue("RESULT_VERDICT", f"第 {line_number} 行 verdict 不合法", path))
+        if execution_valid and verdict_valid \
+                and execution_status in {"error", "skipped"} and verdict != "inconclusive":
+            errors.append(issue("RESULT_DIMENSIONS", f"第 {line_number} 行 error/skipped 只能给出 inconclusive", path))
         if not isinstance(row["observation"], str) or not row["observation"].strip():
             errors.append(issue("RESULT_OBSERVATION", f"第 {line_number} 行 observation 必须非空", path))
-        if row["status"] in {"failed", "error"} and not (
+        if execution_status == "error" and not (
             isinstance(row.get("failure_reason"), str) and row["failure_reason"].strip()
         ):
-            errors.append(issue("RESULT_FAILURE_REASON", f"第 {line_number} 行失败或错误必须说明原因", path))
+            errors.append(issue("RESULT_FAILURE_REASON", f"第 {line_number} 行执行错误必须说明原因", path))
+        if not material_evidence(path.parent, row["evidence_ref"]):
+            errors.append(issue("RESULT_EVIDENCE", f"第 {line_number} 行 evidence_ref 未指向 Run 内的实质证据", path))
+        rows.append(row)
+    return rows
 
 
 def validate_run(
@@ -164,6 +210,8 @@ def validate_run(
     for key, value in expected.items():
         if manifest.get(key) != value:
             errors.append(issue("RUN_IDENTITY", f"{key} 必须是 {value}", manifest_path))
+    if manifest.get("schema_version") != "2.0":
+        errors.append(issue("RUN_SCHEMA", "Run schema_version 必须是 2.0", manifest_path))
     if manifest.get("kind") not in {"research", "technical"}:
         errors.append(issue("RUN_KIND", "kind 必须是 research 或 technical", manifest_path))
     status = manifest.get("status")
@@ -187,15 +235,53 @@ def validate_run(
             locked_inputs = {}
     if "plan_sha256" in locked_inputs:
         errors.append(issue("RUN_PLAN_REF", "Run 输入锁不再允许保存本地 plan 摘要", inputs))
+    if locked_inputs.get("schema_version") != "2.0" or locked_inputs.get("run_id") != run_dir.name:
+        errors.append(issue("RUN_INPUTS_SCHEMA", "输入锁必须是当前 Run 的 2.0 合同", inputs))
     if locked_inputs.get("evaluation_sha256") != evaluation_sha256:
         errors.append(issue("RUN_EVALUATION_HASH", "Run 锁定的 evaluation.md 摘要与当前文件不一致", inputs))
-    if locked_inputs.get("evaluation_selection") != evaluation_selection:
-        errors.append(issue("RUN_EVALUATION_SELECTION", "Run 锁定的 Experiment 选择与当前文件不一致", inputs))
+    locked_selection = locked_inputs.get("evaluation_selection")
+    valid_selection = isinstance(locked_selection, dict) \
+        and ordered_subset(locked_selection.get("case_ids"), evaluation_selection["case_ids"]) \
+        and locked_selection.get("method_ids") == evaluation_selection["method_ids"] \
+        and locked_selection.get("acceptance_ids") == evaluation_selection["acceptance_ids"]
+    if not valid_selection:
+        errors.append(issue("RUN_EVALUATION_SELECTION", "Run 必须锁定当前 Experiment 的非空有序 Case 子集及完整方法和验收", inputs))
+    selected_ids = set(locked_selection.get("case_ids", [])) if isinstance(locked_selection, dict) else set()
     results = run_dir / "results.jsonl"
+    rows: list[dict] = []
     if results.is_file():
-        validate_result(results, run_dir.name, set(evaluation_selection["case_ids"]), errors)
+        rows = validate_result(results, run_dir.name, selected_ids, errors)
+    if status == "completed" and {row.get("input_id") for row in rows} != selected_ids:
+        errors.append(issue("RUN_RESULT_COVERAGE", "completed Run 必须记录每个锁定 Case", results))
     if status in {"completed", "failed", "cancelled"} and not (run_dir / "summary.json").is_file():
         errors.append(issue("RUN_SUMMARY", "已封存 Run 缺少 summary.json", run_dir))
+    summary_path = run_dir / "summary.json"
+    if summary_path.is_file():
+        execution_counts = {name: sum(row.get("execution_status") == name for row in rows) for name in sorted(EXECUTION_STATUSES)}
+        verdict_counts = {name: sum(row.get("verdict") == name for row in rows) for name in sorted(VERDICTS)}
+        overall = "failed" if verdict_counts["failed"] else (
+            "inconclusive" if verdict_counts["inconclusive"] or not rows else "passed"
+        )
+        expected_summary = {
+            "schema_version": "2.0",
+            "run_id": run_dir.name,
+            "trial_count": len(rows),
+            "execution_status_counts": execution_counts,
+            "verdict_counts": verdict_counts,
+            "overall_verdict": overall,
+        }
+        try:
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(issue("RUN_SUMMARY", f"summary.json 无效：{exc}", summary_path))
+        else:
+            if summary != expected_summary:
+                errors.append(issue("RUN_SUMMARY_CONTENT", "summary.json 与逐项结果不一致", summary_path))
+    if status in {"completed", "failed", "cancelled"}:
+        for field, path in (("results_sha256", results), ("summary_sha256", summary_path)):
+            expected_hash = hashlib.sha256(path.read_bytes() if path.is_file() else b"").hexdigest()
+            if manifest.get(field) != expected_hash:
+                errors.append(issue("RUN_HASH", f"{field} 与文件不一致", manifest_path))
 
 
 def validate(experiment: Path) -> tuple[dict, int]:
@@ -211,6 +297,7 @@ def validate(experiment: Path) -> tuple[dict, int]:
     evaluation_ref = f"agents/{agent_id}/evaluation.md#{experiment.name}"
     try:
         evaluation_selection = selection_for(evaluation_path, experiment.name)
+        execution_for(evaluation_path, experiment.name)
         evaluation_sha256 = hashlib.sha256(evaluation_path.read_bytes()).hexdigest()
     except (OSError, ValueError) as exc:
         errors.append(issue("EVALUATION_CONTRACT", str(exc), evaluation_path))

@@ -1,0 +1,547 @@
+#!/usr/bin/env python3
+"""按 evaluation.md 的执行元数据运行一次可封存的 DSH Research Evaluation。"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import uuid
+from pathlib import Path
+
+
+ADAPTER = Path(__file__).resolve().parent
+REPO = ADAPTER.parents[2]
+EVALUATION_SCRIPTS = REPO / ".agents/skills/research-eval/scripts"
+for import_root in (ADAPTER, EVALUATION_SCRIPTS):
+    if str(import_root) not in sys.path:
+        sys.path.insert(0, str(import_root))
+
+from evaluation_contract import execution_for
+from source_contract import resolve
+
+
+RUN_RECORD = ADAPTER / "run_record.py"
+DSH_DEV = ADAPTER / "dsh-dev"
+BROWSER_DRIVER = ADAPTER / "dsh-eval-browser.mjs"
+VALIDATE_REPOSITORY = REPO / ".agents/skills/harness-evolution/scripts/validate_repository.py"
+VALIDATE_EXPERIMENT = REPO / ".agents/skills/research-eval/scripts/validate_experiment.py"
+STATIC_EXECUTORS = {"repository-contract"}
+BROWSER_STOP_REASONS = {
+    "identity-drift",
+    "unauthorized-side-effect",
+    "evidence-cross-turn",
+}
+
+
+class EvaluationError(RuntimeError):
+    pass
+
+
+def progress(message: str) -> None:
+    print(message, file=sys.stderr, flush=True)
+
+
+def run_process(
+    command: list[str],
+    *,
+    timeout: int,
+    input_text: str | None = None,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        cwd=REPO,
+        text=True,
+        input=input_text,
+        capture_output=True,
+        check=False,
+        timeout=timeout,
+        env=env,
+    )
+
+
+def checked_process(
+    command: list[str],
+    *,
+    label: str,
+    timeout: int,
+    input_text: str | None = None,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        completed = run_process(command, timeout=timeout, input_text=input_text, env=env)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise EvaluationError(f"{label} 未完成：{type(error).__name__}") from error
+    if completed.returncode != 0:
+        raise EvaluationError(f"{label} 失败（退出码 {completed.returncode}）")
+    return completed
+
+
+def validate_before_run(contract: dict) -> dict:
+    checks = {}
+    commands = {
+        "repository": ["python3", str(VALIDATE_REPOSITORY), str(REPO)],
+        "experiment": ["python3", str(VALIDATE_EXPERIMENT), contract["experiment_root"]],
+    }
+    for name, command in commands.items():
+        try:
+            completed = run_process(command, timeout=180)
+            payload = json.loads(completed.stdout)
+            checks[name] = {
+                "exit_code": completed.returncode,
+                "valid": completed.returncode == 0 and payload.get("valid") is True,
+                "error_codes": [item.get("code") for item in payload.get("errors", [])],
+            }
+        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as error:
+            checks[name] = {
+                "exit_code": None,
+                "valid": False,
+                "error": type(error).__name__,
+            }
+    return checks
+
+
+def validate_after_run(contract: dict) -> None:
+    try:
+        completed = run_process(
+            ["python3", str(VALIDATE_EXPERIMENT), contract["experiment_root"]],
+            timeout=180,
+        )
+        payload = json.loads(completed.stdout)
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as error:
+        raise EvaluationError("post-run-validation-error") from error
+    if completed.returncode != 0 or payload.get("valid") is not True:
+        raise EvaluationError("post-run-validation-failed")
+
+
+def initialize_run(source: str, cases: list[dict]) -> str:
+    command = [
+        "python3", str(RUN_RECORD), "--repo", str(REPO), "init",
+        "--source", source, "--kind", "research",
+    ]
+    for case in cases:
+        command.extend(("--case", case["case_id"]))
+    completed = checked_process(command, label="创建 Run", timeout=180)
+    run_id = completed.stdout.strip()
+    if not run_id.startswith("run-"):
+        raise EvaluationError("创建 Run 未返回有效 run_id")
+    return run_id
+
+
+def record_trial(run_id: str, case_id: str, result: dict) -> None:
+    row = {
+        "run_id": run_id,
+        "trial_id": "trial-" + str(uuid.uuid4()),
+        "input_id": case_id,
+        "execution_status": result["execution_status"],
+        "verdict": result["verdict"],
+        "observation": result["observation"],
+        "evidence_ref": result["evidence_ref"],
+    }
+    if result.get("failure_reason"):
+        row["failure_reason"] = result["failure_reason"]
+    checked_process(
+        ["python3", str(RUN_RECORD), "--repo", str(REPO), "record", "--run", run_id, "-"],
+        label=f"记录 {case_id}",
+        timeout=60,
+        input_text=json.dumps(row, ensure_ascii=False),
+    )
+
+
+def finalize_run(run_id: str, status: str) -> None:
+    checked_process(
+        [
+            "python3", str(RUN_RECORD), "--repo", str(REPO), "finalize",
+            "--run", run_id, "--status", status,
+        ],
+        label="封存 Run",
+        timeout=60,
+    )
+
+
+def write_json(path: Path, value: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def write_static_evidence(run_dir: Path, case: dict, checks: dict) -> dict:
+    target = run_dir / "evidence" / case["case_id"]
+    passed = all(item.get("valid") is True for item in checks.values())
+    write_json(target / "checks.json", {
+        "schema_version": "1.0",
+        "case_id": case["case_id"],
+        "executor": case["executor"],
+        "checks": checks,
+        "scope": "仓库与 Experiment 确定性合同；不代替该 Case 的语义判定",
+    })
+    if passed:
+        return {
+            "execution_status": "completed",
+            "verdict": "inconclusive",
+            "observation": "仓库与 Experiment 确定性合同通过；该 Case 的语义结论仍需人工判读。",
+            "evidence_ref": f"evidence/{case['case_id']}",
+        }
+    return {
+        "execution_status": "error",
+        "verdict": "inconclusive",
+        "observation": "确定性合同未通过，未继续推断该 Case 的语义结论。",
+        "failure_reason": "repository-or-experiment-contract-invalid",
+        "evidence_ref": f"evidence/{case['case_id']}",
+    }
+
+
+def write_unfinished_evidence(
+    run_dir: Path,
+    case: dict,
+    reason: str,
+    execution_status: str,
+) -> dict:
+    target = run_dir / "evidence" / case["case_id"]
+    target.mkdir(parents=True, exist_ok=True)
+    write_json(target / "response.json", {
+        "schema_version": "1.0", "case_id": case["case_id"], "response": None,
+    })
+    (target / "trace.jsonl").write_text("", encoding="utf-8")
+    (target / "tools.jsonl").write_text("", encoding="utf-8")
+    write_json(target / "checks.json", {
+        "schema_version": "1.0",
+        "case_id": case["case_id"],
+        "completed": False,
+        "failure_reason": reason,
+    })
+    value = {
+        "execution_status": execution_status,
+        "verdict": "inconclusive",
+        "observation": (
+            "评测已停止，该用例未执行。"
+            if execution_status == "skipped"
+            else "运行基础设施未完成该用例，未产生语义结论。"
+        ),
+        "evidence_ref": f"evidence/{case['case_id']}",
+    }
+    if execution_status == "error":
+        value["failure_reason"] = reason
+    return value
+
+
+def dsh_dev_path() -> str:
+    # 测试替身只改变进程边界，不改变公开 CLI。
+    return os.environ.get("DSH_EVAL_DSH_DEV", str(DSH_DEV))
+
+
+def start_instance(source: str, name: str) -> None:
+    checked_process(
+        [dsh_dev_path(), "up", "--source", source, "--mode", "eval", "--name", name],
+        label="启动 DSH 评测实例",
+        timeout=240,
+        env=os.environ.copy(),
+    )
+
+
+def authentication_url(name: str) -> str:
+    completed = checked_process(
+        [dsh_dev_path(), "url", name, "--non-interactive"],
+        label="取得 DSH 认证入口",
+        timeout=90,
+        env=os.environ.copy(),
+    )
+    url = completed.stdout.strip()
+    if not url.startswith("http://127.0.0.1:") or "token=" not in url:
+        raise EvaluationError("DSH 认证入口格式无效")
+    return url
+
+
+def stop_instance(name: str) -> bool:
+    try:
+        completed = run_process(
+            [dsh_dev_path(), "down", name], timeout=180, env=os.environ.copy()
+        )
+    except (OSError, subprocess.TimeoutExpired, KeyboardInterrupt):
+        return False
+    return completed.returncode == 0
+
+
+def browser_command(image: str, evidence_root: Path, managed_root: Path) -> tuple[list[str], str]:
+    override = os.environ.get("DSH_EVAL_BROWSER_DRIVER")
+    if override:
+        return [override], str(evidence_root)
+    return ([
+        "docker", "run", "--rm", "-i", "--network", "host", "--read-only",
+        "--tmpfs", "/tmp:rw,nosuid,nodev,size=256m", "--shm-size", "256m",
+        "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
+        "--entrypoint", "node",
+        "--mount", f"type=bind,src={BROWSER_DRIVER},dst=/opt/dsh/apps/web/dsh-eval-browser.mjs,readonly",
+        "--mount", f"type=bind,src={evidence_root},dst=/work/evidence",
+        "--mount", f"type=bind,src={managed_root},dst=/work/managed,readonly",
+        image, "/opt/dsh/apps/web/dsh-eval-browser.mjs",
+    ], "/work/evidence")
+
+
+def run_browser(
+    auth_url: str,
+    cases: list[dict],
+    contract: dict,
+    evidence_root: Path,
+    timeout_seconds: int,
+) -> dict:
+    evidence_root.mkdir(parents=True, exist_ok=True)
+    command, container_evidence = browser_command(
+        contract["image"]["local_image_tag"], evidence_root, Path(contract["managed"])
+    )
+    payload = {
+        "schema_version": "1.0",
+        "auth_url": auth_url,
+        "workspace": "/work/harness/workspace",
+        "preset_id": contract["preset_id"],
+        "target_model": "Qwen3.8-27B",
+        "timeout_ms": timeout_seconds * 1000,
+        "evidence_root": container_evidence,
+        "guard_module": "/work/managed/security-operations-guard.mjs",
+        "cases": cases,
+    }
+    completed = checked_process(
+        command,
+        label="浏览器评测",
+        timeout=timeout_seconds * len(cases) + 90,
+        input_text=json.dumps(payload, ensure_ascii=False),
+    )
+    try:
+        value = json.loads(completed.stdout)
+    except json.JSONDecodeError as error:
+        raise EvaluationError("浏览器评测未返回 JSON") from error
+    if not isinstance(value, dict) or not isinstance(value.get("rows"), list):
+        raise EvaluationError("浏览器评测缺少 rows")
+    return value
+
+
+def normalize_browser_rows(value: dict, cases: list[dict]) -> tuple[dict[str, dict], str | None]:
+    rows = value["rows"]
+    stop_reason = value.get("stop_reason")
+    if stop_reason is not None and stop_reason not in BROWSER_STOP_REASONS:
+        raise EvaluationError("浏览器评测返回未知 stop_reason")
+    expected_order = [case["case_id"] for case in cases]
+    expected = set(expected_order)
+    normalized = {}
+    returned_order = []
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("case_id"), str):
+            raise EvaluationError("浏览器评测返回无效 Case")
+        case_id = row["case_id"]
+        if case_id not in expected or case_id in normalized:
+            raise EvaluationError("浏览器评测返回未知或重复 Case")
+        returned_order.append(case_id)
+        for field in ("execution_status", "verdict", "observation", "evidence_ref"):
+            if not isinstance(row.get(field), str) or not row[field].strip():
+                raise EvaluationError(f"浏览器评测的 {case_id} 缺少 {field}")
+        if row["execution_status"] not in {"completed", "error", "skipped"}:
+            raise EvaluationError(f"浏览器评测的 {case_id} execution_status 无效")
+        if row["verdict"] not in {"passed", "failed", "inconclusive"}:
+            raise EvaluationError(f"浏览器评测的 {case_id} verdict 无效")
+        if row["execution_status"] != "completed" and row["verdict"] != "inconclusive":
+            raise EvaluationError(f"浏览器评测的 {case_id} 状态与 verdict 冲突")
+        if row["execution_status"] == "error" and not str(row.get("failure_reason", "")).strip():
+            raise EvaluationError(f"浏览器评测的 {case_id} 缺少 failure_reason")
+        normalized[case_id] = row
+    if stop_reason is None and returned_order != expected_order:
+        raise EvaluationError("浏览器评测未覆盖全部运行用例")
+    if stop_reason is not None:
+        if not returned_order or returned_order != expected_order[:len(returned_order)]:
+            raise EvaluationError("浏览器安全停止前的 Case 顺序无效")
+        if normalized[returned_order[-1]].get("failure_reason") != stop_reason:
+            raise EvaluationError("浏览器安全停止原因与最后一个 Case 不一致")
+    return normalized, stop_reason
+
+
+def dry_run_payload(contract: dict, cases: list[dict]) -> dict:
+    runtime = any(case["executor"] not in STATIC_EXECUTORS for case in cases)
+    required = contract["required_env_names"] if runtime else []
+    return {
+        "schema_version": "1.0",
+        "source_id": contract["source_id"],
+        "experiment_id": contract["experiment_id"],
+        "case_ids": [case["case_id"] for case in cases],
+        "executors": {case["case_id"]: case["executor"] for case in cases},
+        "runtime_required": runtime,
+        "image": contract["image"]["local_image_tag"] if runtime else None,
+        "required_env_names": required,
+        "missing_env_names": [name for name in required if not os.environ.get(name)],
+    }
+
+
+def result_payload(
+    experiment_id: str | None,
+    total: int,
+    *,
+    run_id: str | None = None,
+    summary_path: Path | None = None,
+    instance_stopped: bool = True,
+    verdict: str | None = None,
+) -> dict:
+    counts = {"total": total, "passed": 0, "failed": 0, "inconclusive": total}
+    summary_ref = None
+    if summary_path is not None and summary_path.is_file():
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        verdict = verdict or summary["overall_verdict"]
+        verdict_counts = summary["verdict_counts"]
+        counts = {
+            "total": sum(verdict_counts.values()),
+            "passed": verdict_counts["passed"],
+            "failed": verdict_counts["failed"],
+            "inconclusive": verdict_counts["inconclusive"],
+        }
+        summary_ref = str(summary_path.relative_to(REPO))
+    verdict = verdict or "inconclusive"
+    return {
+        "run_id": run_id,
+        "experiment_id": experiment_id,
+        "verdict": verdict,
+        "cases": counts,
+        "summary": summary_ref,
+        "instance_stopped": instance_stopped,
+    }
+
+
+def emit_result(*args, **kwargs) -> None:
+    print(json.dumps(result_payload(*args, **kwargs), ensure_ascii=False, separators=(",", ":")))
+
+
+def execute(args: argparse.Namespace) -> int:
+    contract = resolve(args.source, repo=REPO)
+    evaluation = REPO / "agents" / contract["agent_id"] / "evaluation.md"
+    cases = execution_for(evaluation, contract["experiment_id"], args.case or None)
+    plan = dry_run_payload(contract, cases)
+    if args.dry_run:
+        print(json.dumps(plan, ensure_ascii=False, indent=2))
+        return 0
+    if plan["missing_env_names"]:
+        progress("缺少运行时环境变量：" + "、".join(plan["missing_env_names"]))
+        emit_result(contract["experiment_id"], len(cases))
+        return 2
+
+    progress("执行仓库与 Experiment 前置校验")
+    static_checks = validate_before_run(contract)
+    invalid = [name for name, check in static_checks.items() if check.get("valid") is not True]
+    if invalid:
+        progress("前置校验未通过：" + "、".join(invalid))
+        emit_result(contract["experiment_id"], len(cases))
+        return 2
+
+    progress("创建并锁定 Research Run")
+    try:
+        run_id = initialize_run(args.source, cases)
+    except EvaluationError as error:
+        progress(f"创建 Run 失败：{error}")
+        emit_result(contract["experiment_id"], len(cases))
+        return 2
+    run_dir = Path(contract["experiment_root"]) / "runs" / run_id
+    recorded: set[str] = set()
+    runtime_cases = [case for case in cases if case["executor"] not in STATIC_EXECUTORS]
+    instance_name = f"{contract['agent_id']}-eval-{uuid.uuid4().hex[:8]}"
+    up_attempted = False
+    fatal_reason = None
+    interrupted = False
+    runtime_rows: dict[str, dict] = {}
+    safety_stop_reason = None
+    try:
+        if runtime_cases:
+            progress("启动独立 DSH 评测实例")
+            up_attempted = True
+            start_instance(args.source, instance_name)
+            auth_url = authentication_url(instance_name)
+            runtime_rows, safety_stop_reason = normalize_browser_rows(
+                run_browser(auth_url, runtime_cases, contract, run_dir / "evidence", args.timeout_seconds),
+                runtime_cases,
+            )
+            auth_url = ""
+        stop_index = None
+        if safety_stop_reason is not None:
+            stopped_case = next(reversed(runtime_rows))
+            stop_index = next(index for index, case in enumerate(cases) if case["case_id"] == stopped_case)
+            progress(f"浏览器触发安全停止：{safety_stop_reason}")
+        for index, case in enumerate(cases):
+            if stop_index is not None and index > stop_index:
+                value = write_unfinished_evidence(run_dir, case, safety_stop_reason, "skipped")
+            elif case["executor"] in STATIC_EXECUTORS:
+                value = write_static_evidence(run_dir, case, static_checks)
+            else:
+                value = runtime_rows[case["case_id"]]
+            record_trial(run_id, case["case_id"], value)
+            recorded.add(case["case_id"])
+    except KeyboardInterrupt:
+        interrupted = True
+        fatal_reason = "evaluation-interrupted"
+    except EvaluationError as error:
+        fatal_reason = str(error)
+    except Exception as error:
+        fatal_reason = f"evaluation-runtime-{type(error).__name__}"
+    finally:
+        stopped = stop_instance(instance_name) if up_attempted else True
+        if not stopped and fatal_reason is None:
+            fatal_reason = "instance-stop-unconfirmed"
+
+    if fatal_reason:
+        progress(f"评测未完整执行：{fatal_reason}")
+        unfinished_status = "skipped" if interrupted else "error"
+        for case in cases:
+            if case["case_id"] not in recorded:
+                record_trial(
+                    run_id,
+                    case["case_id"],
+                    write_unfinished_evidence(run_dir, case, fatal_reason, unfinished_status),
+                )
+        finalize_run(run_id, "cancelled" if interrupted else "failed")
+        summary_path = run_dir / "summary.json"
+        try:
+            validate_after_run(contract)
+        except EvaluationError as error:
+            progress(f"Run 后置校验失败：{error}")
+        emit_result(
+            contract["experiment_id"], len(cases), run_id=run_id,
+            summary_path=summary_path, instance_stopped=stopped, verdict="inconclusive",
+        )
+        return 2
+
+    finalize_run(run_id, "completed")
+    summary_path = run_dir / "summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    progress("执行 Experiment 后置校验")
+    try:
+        validate_after_run(contract)
+    except EvaluationError as error:
+        progress(f"Run 后置校验失败：{error}")
+        emit_result(
+            contract["experiment_id"], len(cases), run_id=run_id,
+            summary_path=summary_path, instance_stopped=stopped, verdict="inconclusive",
+        )
+        return 2
+    emit_result(
+        contract["experiment_id"], len(cases), run_id=run_id,
+        summary_path=summary_path, instance_stopped=stopped,
+    )
+    return 0 if summary["overall_verdict"] == "passed" else 1
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source", required=True, help="experiment:<id> 或已登记 Experiment ID")
+    parser.add_argument("--case", action="append", default=[], help="按 evaluation.md 顺序选择 Case；可重复")
+    parser.add_argument("--dry-run", action="store_true", help="只解析计划，不写 Run、不启动进程")
+    parser.add_argument("--timeout-seconds", type=int, default=300, help="每个浏览器用例的最长等待时间")
+    args = parser.parse_args()
+    if args.timeout_seconds < 10:
+        parser.error("--timeout-seconds 不能小于 10")
+    try:
+        raise SystemExit(execute(args))
+    except (EvaluationError, ValueError) as error:
+        progress(f"dsh-eval failed: {error}")
+        source = args.source.removeprefix("experiment:")
+        experiment_id = source if source.startswith("EXP-") else None
+        emit_result(experiment_id, 0)
+        raise SystemExit(2)
+
+
+if __name__ == "__main__":
+    main()

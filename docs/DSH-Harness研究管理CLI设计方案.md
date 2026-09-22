@@ -13,6 +13,7 @@
 | 入口 | 当前用途 | 边界 |
 |---|---|---|
 | `dsh-dev` | 创建最小 Agent/首次 Experiment，解析来源，构建镜像，启动、查看和停止本地 DSH 实例 | `init` 不覆盖已有资产；CLI 不判断 Harness 效果 |
+| `dsh-eval` | 按 `evaluation.md` 执行所选 Case，保存浏览器回答与同一 Session 轨迹并封存 Run | 只自动判定确定性合同；业务语义保留 `inconclusive` |
 | `source_contract.py` | 把来源解析成 Agent、Preset 和挂载计划 | 当前只支持 `experiment:<id>` |
 | `mutation-receipt.py` | 记录变更前后资产摘要和差异 | 不替代 Git 或人工复核 |
 | `run_record.py` | 创建、追加和封存 Research Run | 不执行任务，不给研究结论打分 |
@@ -33,7 +34,8 @@ dsh-dev init（仅首次需要）→ up --dry-run / up
       ↓
 新容器、新 Session 观察
       ↓
-run_record 记录输入、结果和限制
+dsh-eval 受管运行并封存 Run
+或 run_record 手工记录并封存 Run
       ↓
 Decision：adopt / continue / reject / inconclusive
       └──────────────→ 可选 Research Release
@@ -66,6 +68,7 @@ Git 是研究源码和版本历史的主要事实源。`runs/` 保存无法只�
 - 外部归档先用 `legacy-asset-intake` 只读检查，不自动执行其中内容。
 - CLI 不进行用户未授权的提交、推送、打 Tag、删除、覆盖、发布或外部写入。
 - 命令如实报告失败和未知状态，不把目录存在、容器启动或 HTTP `200` 写成研究成功。
+- 浏览器认证 URL 只在进程间传递，不进入 Run、状态文件或普通输出；每个运行态 Case 使用新的 Session。
 - Session、缓存、附件和整个 `$DSH_HOME` 不进入 Git、Candidate 或 Research Release。
 
 具体业务 Harness 的工具约束、Guard 或审批可以作为实验变量，但不要求 CLI 建设一套通用权限平台。

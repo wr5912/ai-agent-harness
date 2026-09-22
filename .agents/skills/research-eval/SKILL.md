@@ -12,7 +12,7 @@ description: 为 DSH Harness Experiment 设计轻量比较，校验 Run 记录�
 1. 写出假设、Baseline 引用、Candidate 变化和本次允许得出的结论范围。
 2. 在 `agents/<agent-id>/evaluation.md` 为本 Experiment 选择最少但有区分力的输入、方法与验收；包括必要的反例或回归，不机械追求数量。
 3. 在一次比较运行期间保持 Harness、输入、方法和判断口径稳定。
-4. 每个实际执行使用新的 `run_id`，逐项记录输入、状态和实际观察。
+4. 每个实际执行使用新的 `run_id`，把执行状态与证据结论分开记录，并保存可核对证据。
 5. 先写失败和未知状态，再总结支持或反驳假设的证据。
 6. 作出 `adopt`、`continue`、`reject` 或 `inconclusive` 决定，并写明限制和下一步。
 
@@ -22,6 +22,17 @@ description: 为 DSH Harness Experiment 设计轻量比较，校验 Run 记录�
 python3 .agents/skills/research-eval/scripts/validate_experiment.py \
   evolution/experiments/EXP-<agent-id>-NNN
 ```
+
+对已声明执行元数据的 Experiment，可先预览再运行受管评测：
+
+```bash
+python3 runtime/adapters/dsh-container/dsh-eval \
+  --source experiment:EXP-<agent-id>-NNN --dry-run
+python3 runtime/adapters/dsh-container/dsh-eval \
+  --source experiment:EXP-<agent-id>-NNN [--case <case-id>]
+```
+
+运行态 Case 必须使用新的被测实例和 Session；浏览器结果与同一 Session 导出的执行轨迹共同进入 Run。自动执行完成不代表业务语义通过，无法由确定性检查判断的 Case 记为 `inconclusive`，再由研究者按 `evaluation.md` 判读。
 
 详细字段见[研究评估合同](references/experiment-contract.md)。
 

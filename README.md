@@ -4,7 +4,7 @@
 
 项目默认且唯一采用 **Research Mode**：研究优先，禁止过度工程化和过度安全化；遵循简洁优先（Simplicity First）和精准修改（Surgical Changes）。这里不建设生产级 Agent 平台，也不把权限、审批、治理或多阶段发布机制作为每个实验的前置条件。完整规则见 [`AGENTS.md`](./AGENTS.md)。
 
-当前已实现开发启动器 `runtime/adapters/dsh-container/dsh-dev` 的基础命令，以及来源解析、变更回执、Run 台账和仓库校验工具。Headless 下的 Skill 修改小闭环已用真实模型与本地模拟 MCP 验证一次：开发会话读取目标、创建 Skill、回流 Candidate，新被测会话观察到变化；删除后的新会话不再报告该 Skill。证据见 [`dsh-dev-real-session-20260919.json`](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json)，无凭据复现步骤见 [`dsh-dev-real-session-reproduce.md`](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-reproduce.md)。这只覆盖该实验路径，不代表所有开发路径都已验证。
+当前已实现开发启动器 `runtime/adapters/dsh-container/dsh-dev`、受管评测入口 `runtime/adapters/dsh-container/dsh-eval`，以及来源解析、变更回执、Run 台账和仓库校验工具。Headless 下的 Skill 修改小闭环已用真实模型与本地模拟 MCP 验证一次：开发会话读取目标、创建 Skill、回流 Candidate，新被测会话观察到变化；删除后的新会话不再报告该 Skill。证据见 [`dsh-dev-real-session-20260919.json`](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json)，无凭据复现步骤见 [`dsh-dev-real-session-reproduce.md`](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-reproduce.md)。这只覆盖该实验路径，不代表所有开发路径都已验证。
 
 本项目共有多少条验证路径、当前完成到哪里、哪些适合进入自动化测试，统一见[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)。
 
@@ -16,10 +16,11 @@
 | 启动开发会话（`--mode dev`）或被测会话（`--mode eval`） | 已实现；需要 Docker 和运行时环境变量 | `dsh-dev up/ps/url/logs/down` |
 | 重载实例配置或迁移旧实例状态 | 已实现 | `dsh-dev up --replace` |
 | 构建锁定 DSH 提交的本地镜像 | 已实现 | `dsh-dev image build` |
+| 按 `evaluation.md` 启动独立实例、逐 Case 新建 Session、导出轨迹并封存 Run | 已实现；需要 Docker、Chromium 镜像和运行时环境变量 | `dsh-eval` |
 | 记录变更前后资产摘要与差异 | 已实现 | `mutation-receipt.py` |
 | 归档一次研究运行及其输入、观察、缺口与摘要 | 已实现 | `run_record.py` |
 | 校验项目结构、Experiment、Run 与 Research Release 合同 | 已实现 | `validate_repository.py` / `validate_experiment.py` |
-| DSH Web 完整交互和新 Preset Web 选择闭环 | 尚未完成 | `PA-08` / `PA-09` |
+| 新 Preset 的 Web 创建、回流与选择闭环 | 尚未完成 | `PA-09` |
 | 解析并装载 `release:<id>` | 尚未实现 | `PA-11` |
 
 当前来源选择器只支持 `experiment:<id>`。Research Release 的目录合同可以先用于保存可复现版本；只有 `release:<id>` 解析和实际装载入口完成后，才能声称启动器支持它。
@@ -169,12 +170,20 @@ python3 .agents/skills/research-eval/scripts/validate_experiment.py \
 
 脚本输出 JSON。退出码 `0` 只说明各自覆盖的确定性合同通过，`1` 表示发现问题，`2` 表示输入或读取错误；它们不替代对研究结果的人工判断。
 
-一次 Run 的最小闭环：
+受管评测会自动完成 Run 创建、浏览器执行、证据导出、封存和实例停止；先用 `--dry-run` 核对选择与环境变量名称：
+
+```bash
+python3 runtime/adapters/dsh-container/dsh-eval \
+  --source experiment:EXP-<agent-id>-NNN --dry-run
+python3 runtime/adapters/dsh-container/dsh-eval \
+  --source experiment:EXP-<agent-id>-NNN [--case <case-id>]
+```
+
+只需手工记录观察时，直接使用底层 Run 台账：
 
 ```bash
 python3 runtime/adapters/dsh-container/run_record.py --repo . init \
-  --agent <agent-id> --experiment EXP-<agent-id>-NNN \
-  --source experiment:EXP-<agent-id>-NNN --kind research
+  --source experiment:EXP-<agent-id>-NNN --case <case-id> --kind research
 python3 runtime/adapters/dsh-container/run_record.py --repo . record \
   --run <run-uuid> trial.json
 python3 runtime/adapters/dsh-container/run_record.py --repo . finalize \
