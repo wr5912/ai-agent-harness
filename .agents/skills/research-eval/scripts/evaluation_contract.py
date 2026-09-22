@@ -9,6 +9,7 @@ from pathlib import Path
 
 TOP_SECTIONS = ("测试数据", "评估方法", "测试验收", "Experiment 评估选择")
 CASE_RE = re.compile(r"^##### ((?:D|U|T)-[A-Z0-9-]+)$", re.MULTILINE)
+PRESET_HEADING_RE = re.compile(r"([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-F[0-9]{2})(?:\s+.+)?")
 METHOD_RE = re.compile(r"^### (m-[a-z0-9-]+)$", re.MULTILINE)
 ACCEPTANCE_RE = re.compile(r"^### (AC-[0-9]{3})$", re.MULTILINE)
 EXPERIMENT_RE = re.compile(r"^### (EXP-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]{3,})$", re.MULTILINE)
@@ -88,6 +89,47 @@ def _case_bodies(text: str) -> dict[str, str]:
     }
 
 
+def _preset_bodies(text: str) -> dict[str, str]:
+    headings = list(re.finditer(r"^### (.+)$", text, re.MULTILINE))
+    names = [heading.group(1) for heading in headings]
+    if names != ["测试预置", "测试用例"]:
+        raise ValueError("测试数据必须依次且只能包含测试预置和测试用例章节")
+    preset_text = text[headings[0].end():headings[1].start()]
+    matches = list(re.finditer(r"^#### (.+)$", preset_text, re.MULTILINE))
+    if not matches:
+        raise ValueError("测试预置不能为空")
+    parsed = [PRESET_HEADING_RE.fullmatch(match.group(1)) for match in matches]
+    invalid = [match.group(1) for match, value in zip(matches, parsed) if value is None]
+    if invalid:
+        raise ValueError(f"测试预置标题格式无效：{', '.join(invalid)}")
+    preset_ids = [value.group(1) for value in parsed if value is not None]
+    duplicates = sorted({value for value in preset_ids if preset_ids.count(value) > 1})
+    if duplicates:
+        raise ValueError(f"测试预置 ID 重复：{', '.join(duplicates)}")
+    bodies = {
+        preset_ids[index]: preset_text[
+            match.end():matches[index + 1].start() if index + 1 < len(matches) else len(preset_text)
+        ]
+        for index, match in enumerate(matches)
+    }
+    for preset_id, body in bodies.items():
+        for label in ("公共基线", "金标准", "适用边界"):
+            if body.count(f"**{label}**") != 1:
+                raise ValueError(f"{preset_id} 必须且只能声明一次{label}")
+        flow = re.search(r"^```mermaid\s*\nflowchart\s+", body, re.MULTILINE)
+        if flow is None:
+            raise ValueError(f"{preset_id} 缺少 Mermaid 主决策流程图")
+        positions = (
+            body.index("**公共基线**"),
+            flow.start(),
+            body.index("**金标准**"),
+            body.index("**适用边界**"),
+        )
+        if positions != tuple(sorted(positions)):
+            raise ValueError(f"{preset_id} 必须依次声明公共基线、主决策流程图、金标准和适用边界")
+    return bodies
+
+
 def _field(body: str, label: str) -> str | None:
     matches = re.findall(rf"^\*\*{re.escape(label)}：?\*\*\s*`?([^`\n]+?)`?\s*$", body, re.MULTILINE)
     if len(matches) > 1:
@@ -104,6 +146,7 @@ def load_evaluation(path: Path) -> dict[str, object]:
     if not path.is_file() or path.is_symlink():
         raise ValueError(f"缺少实体评测文件：{path}")
     sections = _sections(path.read_text(encoding="utf-8"))
+    presets = _preset_bodies(sections["测试数据"])
     case_ids = _unique_ids(CASE_RE, sections["测试数据"], "测试用例")
     bodies = _case_bodies(sections["测试数据"])
     method_ids = _unique_ids(METHOD_RE, sections["评估方法"], "评估方法")
@@ -120,6 +163,7 @@ def load_evaluation(path: Path) -> dict[str, object]:
             if unknown:
                 raise ValueError(f"{experiment_id} 引用了未定义的 {field}：{', '.join(unknown)}")
     return {
+        "preset_ids": list(presets),
         "case_ids": case_ids,
         "cases": {
             case_id: {

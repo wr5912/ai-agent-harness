@@ -87,6 +87,15 @@ class HarnessInitTest(unittest.TestCase):
             (self.repo / "evolution/experiments/EXP-test01-001/candidate/dsh/workspace/.env").read_bytes(),
             (ADAPTER / "verification-home-controls/locked-bootstrap.env").read_bytes(),
         )
+        evaluation = (self.repo / "agents/test01/evaluation.md").read_text(encoding="utf-8")
+        self.assertIn("#### HARNESS-F01 新会话装载", evaluation)
+        self.assertIn("**公共基线**", evaluation)
+        self.assertIn("```mermaid\nflowchart TD", evaluation)
+        self.assertIn("**金标准**", evaluation)
+        self.assertIn("**适用边界**", evaluation)
+        self.assertIn("**执行器：**`web-chat`", evaluation)
+        self.assertIn("**工具边界：**`none`", evaluation)
+        self.assertIn("**副作用预算：**`web-session-only`", evaluation)
         generated = "\n".join(
             path.read_text(encoding="utf-8") for path in self.repo.rglob("*")
             if path.is_file() and path != self.lock
@@ -1039,6 +1048,16 @@ class UrlCommandGuardTest(unittest.TestCase):
                 mock.patch.object(dev, "probe_url", return_value={"ok": True, "reason": "token(303)→cookie→root 200"}):
             printed = self.call(types.SimpleNamespace(name="soe-verify", non_interactive=True))
         self.assertIn("http://127.0.0.1:3081/?token=secret-token-value", printed)
+
+    def test_cold_start_waits_for_current_process_url(self):
+        logs = [mock.Mock(stdout=""), mock.Mock(stdout=TOKEN)]
+        with mock.patch.object(dev, "running_container", return_value=("cid", "2026-01-01T00:00:00Z")), \
+                mock.patch.object(dev, "run", side_effect=logs), \
+                mock.patch.object(dev, "probe_url", return_value={"ok": True, "reason": "token(303)→cookie→root 200"}), \
+                mock.patch.object(dev.time, "sleep") as sleeper:
+            printed = self.call(types.SimpleNamespace(name="soe-verify", non_interactive=True))
+        self.assertIn("http://127.0.0.1:3081/?token=secret-token-value", printed)
+        sleeper.assert_called_once_with(1.0)
 
 
 class PortProbeTest(unittest.TestCase):

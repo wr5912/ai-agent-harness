@@ -14,6 +14,10 @@
 
 测试数据、评估方法、测试验收和 Experiment 选择只维护在 `agents/<agent-id>/evaluation.md`。Experiment 不保存本地 `evaluation/plan.yaml`。Run 的 `evaluation_ref` 指向该文件中的 Experiment 选择，`inputs.lock.json` 锁定当次文件摘要与所选 ID；这些运行事实不回写为第二份评测源。
 
+### 评测预置
+
+`测试数据` 必须依次包含唯一的 `### 测试预置` 和 `### 测试用例`。每个命名预置使用 `#### <领域>-F<两位序号> <名称>`，并依次且各声明一次 `**公共基线**`、Mermaid `flowchart` 主决策流程图、`**金标准**` 和 `**适用边界**`；仅在异常交互确有表达价值时增加 `sequenceDiagram`。固定事实可以在公共基线中使用表格；主分支关系必须由流程图表达，金标准只定义判定，适用边界只说明不可外推范围，不另建一套流程。
+
 ## Trial 记录
 
 `results.jsonl` 每行是一个 JSON 对象，必填字段为：

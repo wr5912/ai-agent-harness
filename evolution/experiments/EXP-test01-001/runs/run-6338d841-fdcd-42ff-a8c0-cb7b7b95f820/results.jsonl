@@ -1,1 +1,0 @@
-{"run_id":"run-6338d841-fdcd-42ff-a8c0-cb7b7b95f820","trial_id":"trial-identity-001","input_id":"T-HARNESS-IDENTITY","status":"completed","observation":"在 test01-dev 的全新 DSH Web Session 中注册 /work/harness/workspace，显式选择 test01 Preset 后发送约定输入；界面显示回复“我是 test01，一个用于验证 DSH Harness 创建与装载流程的研究智能体。”，为一句中文、包含 test01，且未出现模型或工具错误，满足 AC-001。","evidence_ref":"runtime:test01-dev/web-session"}

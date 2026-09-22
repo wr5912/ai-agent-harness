@@ -10,7 +10,7 @@ description: 为 DSH Harness Experiment 设计轻量比较，校验 Run 记录�
 ## 工作方式
 
 1. 写出假设、Baseline 引用、Candidate 变化和本次允许得出的结论范围。
-2. 在 `agents/<agent-id>/evaluation.md` 为本 Experiment 选择最少但有区分力的输入、方法与验收；包括必要的反例或回归，不机械追求数量。
+2. 在 `agents/<agent-id>/evaluation.md` 按[研究评估合同](references/experiment-contract.md)的统一预置结构，为本 Experiment 选择最少但有区分力的输入、方法与验收；包括必要的反例或回归，不机械追求数量。
 3. 在一次比较运行期间保持 Harness、输入、方法和判断口径稳定。
 4. 每个实际执行使用新的 `run_id`，把执行状态与证据结论分开记录，并保存可核对证据。
 5. 先写失败和未知状态，再总结支持或反驳假设的证据。

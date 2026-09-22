@@ -70,6 +70,30 @@ def write_minimal_experiment(root: Path, *, status: str = "active", outcome: str
 
 ## 测试数据
 
+### 测试预置
+
+#### EXAMPLE-F01 最小研究输入
+
+**公共基线**
+
+使用当前 Candidate 和空白运行状态。
+
+```mermaid
+flowchart TD
+    START[装载 Candidate] --> RUN[执行最小输入]
+    RUN --> RECORD[记录实际观察]
+```
+
+**金标准**
+
+实际观察与输入一致。
+
+**适用边界**
+
+本预置只验证最小研究输入。
+
+### 测试用例
+
 ##### T-EXAMPLE-001
 
 **用户输入**
@@ -825,7 +849,16 @@ class DefinitionSourceTests(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("evaluation_contract", EVALUATION_CONTRACT)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        selection = module.load_evaluation(evaluation)["selections"]["EXP-security-operations-expert-006"]
+        loaded = module.load_evaluation(evaluation)
+        self.assertEqual(
+            loaded["preset_ids"],
+            [
+                "RSP-F01", "RSP-F02", "RSP-F03", "INS-F01", "INS-F02",
+                "FLT-F01", "FLT-F02", "FLT-F03", "FLT-F04", "POL-F01",
+                "POL-F02", "QA-F01", "QA-F02",
+            ],
+        )
+        selection = loaded["selections"]["EXP-security-operations-expert-006"]
         self.assertLessEqual(set(user_case_ids), set(selection["case_ids"]))
         self.assertFalse(list((ROOT / "evolution/experiments").glob("EXP-*/evaluation/plan.yaml")))
         retired = (
@@ -859,6 +892,30 @@ class DefinitionSourceTests(unittest.TestCase):
             evaluation.write_text(text.replace("**执行器：**`repository-contract`", "", 1), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "执行元数据"):
                 module.execution_for(evaluation, "EXP-security-operations-expert-001")
+
+    def test_named_preset_requires_complete_decision_structure(self) -> None:
+        spec = importlib.util.spec_from_file_location("evaluation_contract", EVALUATION_CONTRACT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temp:
+            evaluation = Path(temp) / "evaluation.md"
+            text = (ROOT / "agents" / AGENT_ID / "evaluation.md").read_text(encoding="utf-8")
+            evaluation.write_text(text.replace("```mermaid\nflowchart TD", "```text\nflowchart TD", 1), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "RSP-F01 缺少 Mermaid"):
+                module.load_evaluation(evaluation)
+            evaluation.write_text(text.replace("**公共基线**", "**固定事实**", 1), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "RSP-F01 必须且只能声明一次公共基线"):
+                module.load_evaluation(evaluation)
+            for label in ("金标准", "适用边界"):
+                evaluation.write_text(text.replace(f"**{label}**", f"**缺少{label}**", 1), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, f"RSP-F01 必须且只能声明一次{label}"):
+                    module.load_evaluation(evaluation)
+            evaluation.write_text(
+                text.replace("**公共基线**", "**临时标记**", 1).replace("**金标准**", "**公共基线**", 1).replace("**临时标记**", "**金标准**", 1),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "RSP-F01 必须依次声明"):
+                module.load_evaluation(evaluation)
 
 
 if __name__ == "__main__":

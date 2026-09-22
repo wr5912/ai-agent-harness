@@ -2,6 +2,5 @@ schema_version: "1.0"
 experiment_id: EXP-test01-001
 agent_id: test01
 baseline_ref: none:first-experiment
-status: completed
-outcome: adopt
+status: active
 research_question: 最小 Harness 能否被 DSH 装载并在全新 Web Session 中保持 test01 身份
