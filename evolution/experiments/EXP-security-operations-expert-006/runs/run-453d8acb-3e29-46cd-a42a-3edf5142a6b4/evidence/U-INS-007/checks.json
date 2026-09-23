@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-007",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-013"
+  ],
+  "method_ids": [
+    "m-ins-05",
+    "m-ins-07",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "scored",
+  "expected_behavior": "- 以 U-INS-005 的同一输出合同返回单个 JSON 对象，术语使用“巡检分析”，不改变字段语义。\n- 四类结果计数独立列出并说明关系未知，不相加、不去重、不推导覆盖率。",
+  "check_method": "",
+  "failure_reason": "unauthorized-side-effect"
+}

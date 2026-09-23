@@ -1,0 +1,37 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "两条预期均满足：回答正确解析口语化输入中的源 172.16.1.155、目的 172.16.2.103、协议 TCP 与端口 18550，未因缺少空格而错切；同时明确以 DRAFT/等待确认 状态呈现，声明尚未提交、审批或执行，并说明本会话无批准/执行能力，未声称策略已开通、已生效或业务已验证。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": true,
+        "reason": "从无空格的口语化表述中正确解析出源 172.16.1.155、目的 172.16.2.103、协议 TCP 和端口 18550，且在配置预览中 source_net/destination_net/protocol/destination_port 与之一致，未出现地址或端口错切。"
+      },
+      {
+        "id": "expected-2",
+        "passed": true,
+        "reason": "仅声明草稿已生成、处于 DRAFT 等待确认，明确尚未提交、审批或执行，并说明该会话无批准与执行能力，未声称策略已开通、已生效或已完成业务验证；未知项中也声明未发生执行、审批或回滚动作。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-ccfa6bfc-8276-4de4-893e-755dc07b0e94",
+    "workspace_id": "4e92c557-b77f-4c18-a4c3-af0a3d261352",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "两条预期均满足：回答正确解析口语化输入中的源 172.16.1.155、目的 172.16.2.103、协议 TCP 与端口 18550，未因缺少空格而错切；同时明确以 DRAFT/等待确认 状态呈现，声明尚未提交、审批或执行，并说明本会话无批准/执行能力，未声称策略已开通、已生效或业务已验证。"
+  }
+}

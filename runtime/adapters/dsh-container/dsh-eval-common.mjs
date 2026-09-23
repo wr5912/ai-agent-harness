@@ -1,9 +1,9 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { Script, createContext } from 'node:vm'
 import { strFromU8, unzipSync } from 'fflate'
 
-export const MODEL_CASES = new Set(['T-LOCAL-QWEN-CHAT', 'T-SELECTED-ROUTE-TRACE'])
 export const SAFETY_STOP_REASONS = new Set([
   'identity-drift', 'unauthorized-side-effect', 'evidence-cross-turn', 'case-hard-timeout',
 ])
@@ -74,7 +74,7 @@ export function turnFromTrace(archive, input) {
     route: header?.config ?? null,
     tool_names: Array.isArray(header?.tools)
       ? header.tools.map(tool => tool?.name).filter(name => typeof name === 'string')
-      : null,
+      : header && !Object.hasOwn(header, 'tools') ? [] : null,
     turn_reason: events.at(-1)?.data?.reason?.kind ?? null,
     turn: events.at(-1)?.data?.turn ?? null,
     input_message_id: userMessage.data?.id ?? null,
@@ -85,7 +85,7 @@ export function jsonl(rows) {
   return rows.length ? `${rows.map(row => JSON.stringify(row)).join('\n')}\n` : ''
 }
 
-export async function saveEvidence(root, item, response, archive, checks) {
+export async function saveEvidence(root, item, response, archive, checks, judge = null) {
   const directory = join(root, item.case_id)
   await mkdir(directory, { recursive: true })
   await writeFile(join(directory, 'response.json'), `${JSON.stringify(response, null, 2)}\n`)
@@ -93,6 +93,26 @@ export async function saveEvidence(root, item, response, archive, checks) {
   const tools = archive?.trace.filter(row => row.event.type === 'tool/call' || row.event.type === 'tool/result') ?? []
   await writeFile(join(directory, 'tools.jsonl'), jsonl(tools))
   await writeFile(join(directory, 'checks.json'), `${JSON.stringify(checks, null, 2)}\n`)
+  if (judge !== null) {
+    await writeFile(join(directory, 'judge.json'), `${JSON.stringify({
+      response: judge.response,
+      checks: judge.checks,
+    }, null, 2)}\n`)
+    await writeFile(join(directory, 'judge-trace.jsonl'), judge.archive ? jsonl(judge.archive.trace) : '')
+  }
+}
+
+export function runCheckScripts(scripts, context) {
+  return scripts.map(({ id, source }) => {
+    try {
+      const sandbox = createContext({ context })
+      const value = new Script(`(() => {\n${source}\n})()`).runInContext(sandbox, { timeout: 1000 })
+      if (typeof value !== 'boolean') throw new TypeError('检查脚本必须返回 boolean')
+      return { id, passed: value }
+    } catch (error) {
+      return { id, passed: false, error: error?.name ?? 'Error' }
+    }
+  })
 }
 
 export function result(item, executionStatus, verdict, observation, failureReason) {

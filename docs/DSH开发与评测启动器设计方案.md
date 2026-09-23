@@ -121,12 +121,12 @@ DSH Web 首次打开需要在界面注册工作区：点击"选择工作区" →
 python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-security-operations-expert-006 --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-security-operations-expert-006 [--case <case-id>]
+  --source experiment:EXP-security-operations-expert-006 --mode full
 python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-security-operations-expert-006 --executor browser [--case <case-id>]
 ```
 
-`dsh-eval` 只执行 `evaluation.md` 当前 Experiment 已选择且带执行元数据的 Case。默认 API 执行器只通过 DSH Runtime 完成 Workspace 注册、逐 Case 新建 Session、目标 Preset 与 Workspace 核对、模型选择、消息发送、Turn 等待和 Session 导出，不直连底层模型 API。浏览器执行器只负责初始提示、工作区、模型、发送和显示等 UI 冒烟。两者复用 Case 定义、身份检查和证据格式，但分别运行、分别统计；认证 URL 只通过标准输入传给所选执行器，不落盘、不进入普通输出。执行器能确定判断的模型目录、身份、工具目录与路由 Case 自动给出 `passed` 或 `failed`；业务语义 Case 即使 Turn 完成也先记为 `inconclusive`，由研究者按唯一评测标准判读。
+`dsh-eval` 只执行 `evaluation.md` 当前 Experiment 已选择且带执行元数据的 Case。未指定 `--mode` 时默认运行标为 `fast` 的核心 Case，`--mode full` 运行全部已选 Case；重复 `--case` 精确选择 Case 并优先于档位。`--dry-run` 会输出实际 `mode` 和最终列表。默认 API 执行器只通过 DSH Runtime 完成 Workspace 注册、逐 Case 新建 Session、目标 Preset 与 Workspace 核对、按 Case 声明选择模型、消息发送、Turn 等待和 Session 导出，不直连底层模型 API；未声明目标模型的 Case 使用 DSH 当前默认模型。浏览器执行器只负责初始提示、工作区、模型、发送和显示等 UI 冒烟。两者复用 Case 定义、身份检查和证据格式，但分别运行、分别统计；认证 URL 只通过标准输入传给所选执行器，不落盘、不进入普通输出。执行器先运行 `evaluation.md` 中受版本控制的 JavaScript 检查片段，再把剩余语义交给 `m-llm-judge-v1` 的独立无工具 Session。评审不设置专用模型变量，复用 DSH 当前默认模型、Endpoint 和凭据；无效输出或证据不足记为 `inconclusive`，同一路由自评限制写入证据。已完成但无法自动判定的 Case 在报告中显示“待人工判定”，执行错误或未执行的 `inconclusive` 显示“无法判定”。
 
 评测模式运行的是被测目标，容器里没有判分材料（见第 5.3 节）。任务输入通过对话给出，环境状态由 MCP 服务端或受控预置提供。`dsh-eval` 无论成功、失败或中断都尝试停止实例；基础设施失败导致未执行的 Case 记为 `error/inconclusive`，中断或安全停机后未开始的 Case 记为 `skipped/inconclusive`，不把运行故障写成 Harness 语义失败。
 

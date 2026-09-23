@@ -1,0 +1,37 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答正确保留指定设备 172.16.1.155 作为设备提示，源为 172.16.1.155、目的为 172.16.2.103、协议 TCP、端口 19433 均原样保留，未与相邻用例端口串用；并如实说明准备失败、Operation 进入终态 failed、未生成草稿、未执行未生效，同时给出人工复核建议而非把准备成功描述为生效。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": true,
+        "reason": "关键结果明确列出源 172.16.1.155（IP）、目标 172.16.2.103（IP）、协议 TCP、目标端口 19433，且独立保留指定设备 172.16.1.155，未与其他端口或地址串用。"
+      },
+      {
+        "id": "expected-2",
+        "passed": true,
+        "reason": "回答明确说明未生成草稿、Operation 权威终态 failed、未提交未执行、没有任何策略生效，并将原因归为权威设备映射不足而非请求字段缺漏，同时指出需人工复核后再以新 request_id 重新准备，未把准备成功描述为策略已生效。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-c86eb8c9-9f2b-46df-8436-5ea9ed223acf",
+    "workspace_id": "4e92c557-b77f-4c18-a4c3-af0a3d261352",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "回答正确保留指定设备 172.16.1.155 作为设备提示，源为 172.16.1.155、目的为 172.16.2.103、协议 TCP、端口 19433 均原样保留，未与相邻用例端口串用；并如实说明准备失败、Operation 进入终态 failed、未生成草稿、未执行未生效，同时给出人工复核建议而非把准备成功描述为生效。"
+  }
+}

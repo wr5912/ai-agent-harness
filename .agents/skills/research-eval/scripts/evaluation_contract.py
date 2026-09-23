@@ -89,6 +89,14 @@ def _case_bodies(text: str) -> dict[str, str]:
     }
 
 
+def _heading_bodies(pattern: re.Pattern[str], text: str) -> dict[str, str]:
+    matches = list(pattern.finditer(text))
+    return {
+        match.group(1): text[match.end():matches[index + 1].start() if index + 1 < len(matches) else len(text)]
+        for index, match in enumerate(matches)
+    }
+
+
 def _preset_bodies(text: str) -> dict[str, str]:
     headings = list(re.finditer(r"^### (.+)$", text, re.MULTILINE))
     names = [heading.group(1) for heading in headings]
@@ -142,6 +150,33 @@ def _prompt(body: str) -> str | None:
     return match.group(1).strip() if match else None
 
 
+def _table_field(body: str, label: str) -> str | None:
+    matches = re.findall(rf"^\|\s*{re.escape(label)}\s*\|\s*(.*?)\s*\|$", body, re.MULTILINE)
+    if len(matches) > 1:
+        raise ValueError(f"{label}只能声明一次")
+    return matches[0].strip() if matches else None
+
+
+def _markdown_block(body: str, label: str) -> str | None:
+    match = re.search(
+        rf"^\*\*{re.escape(label)}\*\*\s*\n+(.*?)(?=^\*\*[^*\n]+\*\*|^#{{1,5}} |\Z)",
+        body,
+        re.MULTILINE | re.DOTALL,
+    )
+    return match.group(1).strip() if match else None
+
+
+def _javascript_block(value: str | None, label: str) -> str | None:
+    matches = re.findall(r"```(?:javascript|js)\s*\n(.*?)\n```", value or "", re.DOTALL)
+    if len(matches) > 1:
+        raise ValueError(f"{label}只能包含一个 JavaScript 检查脚本")
+    return matches[0].strip() if matches else None
+
+
+def _referenced_ids(value: str | None, pattern: str) -> list[str]:
+    return re.findall(pattern, value or "")
+
+
 def load_evaluation(path: Path) -> dict[str, object]:
     if not path.is_file() or path.is_symlink():
         raise ValueError(f"缺少实体评测文件：{path}")
@@ -150,6 +185,7 @@ def load_evaluation(path: Path) -> dict[str, object]:
     case_ids = _unique_ids(CASE_RE, sections["测试数据"], "测试用例")
     bodies = _case_bodies(sections["测试数据"])
     method_ids = _unique_ids(METHOD_RE, sections["评估方法"], "评估方法")
+    method_bodies = _heading_bodies(METHOD_RE, sections["评估方法"])
     acceptance_ids = _unique_ids(ACCEPTANCE_RE, sections["测试验收"], "测试验收")
     selections = _selections(sections["Experiment 评估选择"])
     defined = {
@@ -162,19 +198,48 @@ def load_evaluation(path: Path) -> dict[str, object]:
             unknown = sorted(set(identifiers) - defined[field])
             if unknown:
                 raise ValueError(f"{experiment_id} 引用了未定义的 {field}：{', '.join(unknown)}")
+    cases = {}
+    for case_id in case_ids:
+        body = bodies[case_id]
+        evaluation_mode = _field(body, "评估档位")
+        if evaluation_mode not in (None, "fast"):
+            raise ValueError(f"{case_id} 评估档位只允许 fast；未声明即仅属于 full")
+        target_model_provider = _field(body, "目标模型 Provider")
+        target_model = _field(body, "目标模型")
+        if bool(target_model_provider) != bool(target_model):
+            raise ValueError(f"{case_id} 必须同时声明目标模型 Provider 和目标模型")
+        check_method = _markdown_block(body, "检查方法")
+        cases[case_id] = {
+            "modes": ["fast", "full"] if evaluation_mode == "fast" else ["full"],
+            "input": _prompt(body),
+            "executor": _field(body, "执行器"),
+            "tool_boundary": _field(body, "工具边界"),
+            "side_effect_budget": _field(body, "副作用预算"),
+            "acceptance_ids": _referenced_ids(_table_field(body, "关联验收"), r"AC-[0-9]{3}"),
+            "judgment_role": _table_field(body, "判定作用"),
+            "expected_behavior": _markdown_block(body, "预期行为"),
+            "check_method": check_method,
+            "check_script": _javascript_block(check_method, f"{case_id} 检查方法"),
+            "target_model_provider": target_model_provider,
+            "target_model": target_model,
+            "default_model_pattern": _field(body, "默认模型匹配"),
+        }
     return {
         "preset_ids": list(presets),
         "case_ids": case_ids,
-        "cases": {
-            case_id: {
-                "input": _prompt(bodies[case_id]),
-                "executor": _field(bodies[case_id], "执行器"),
-                "tool_boundary": _field(bodies[case_id], "工具边界"),
-                "side_effect_budget": _field(bodies[case_id], "副作用预算"),
-            }
-            for case_id in case_ids
-        },
+        "cases": cases,
         "method_ids": method_ids,
+        "method_acceptance_ids": {
+            method_id: _referenced_ids(_field(method_bodies[method_id], "关联验收"), r"AC-[0-9]{3}")
+            for method_id in method_ids
+        },
+        "method_check_scripts": {
+            method_id: _javascript_block(
+                _markdown_block(method_bodies[method_id], "检查脚本"),
+                f"{method_id} 检查脚本",
+            )
+            for method_id in method_ids
+        },
         "acceptance_ids": acceptance_ids,
         "selections": selections,
     }
@@ -192,7 +257,7 @@ def execution_for(
     path: Path,
     experiment_id: str,
     selected_case_ids: list[str] | None = None,
-) -> list[dict[str, str]]:
+) -> list[dict[str, object]]:
     evaluation = load_evaluation(path)
     selection = evaluation["selections"].get(experiment_id)  # type: ignore[union-attr]
     if selection is None:
@@ -209,6 +274,8 @@ def execution_for(
     if chosen != [case_id for case_id in declared if case_id in chosen]:
         raise ValueError("测试用例必须按 evaluation.md 声明顺序选择")
     cases = evaluation["cases"]  # type: ignore[assignment]
+    method_acceptance_ids = evaluation["method_acceptance_ids"]  # type: ignore[assignment]
+    method_check_scripts = evaluation["method_check_scripts"]  # type: ignore[assignment]
     result = []
     for case_id in chosen:
         case = cases[case_id]
@@ -225,11 +292,35 @@ def execution_for(
             raise ValueError(f"{case_id} 缺少执行元数据：{'、'.join(missing)}")
         if executor not in EXECUTORS:
             raise ValueError(f"{case_id} 使用未知执行器：{executor}")
+        acceptance_ids = case["acceptance_ids"]
+        if case_id.startswith(("D-", "U-")) and (not acceptance_ids or not case["expected_behavior"]):
+            raise ValueError(f"{case_id} 缺少判定依据：关联验收或预期行为")
+        selected_method_ids = [
+            method_id for method_id in selection["method_ids"]
+            if set(method_acceptance_ids[method_id]) & set(acceptance_ids)
+        ]
+        check_scripts = []
+        if case["check_script"]:
+            check_scripts.append({"id": f"case:{case_id}", "source": case["check_script"]})
+        check_scripts.extend(
+            {"id": f"method:{method_id}", "source": method_check_scripts[method_id]}
+            for method_id in selected_method_ids if method_check_scripts[method_id]
+        )
         result.append({
             "case_id": case_id,
+            "modes": case["modes"],
             "input": case["input"],
             "executor": executor,
             "tool_boundary": case["tool_boundary"],
             "side_effect_budget": case["side_effect_budget"],
+            "acceptance_ids": acceptance_ids,
+            "method_ids": selected_method_ids,
+            "judgment_role": case["judgment_role"] or "",
+            "expected_behavior": case["expected_behavior"] or "",
+            "check_method": case["check_method"] or "",
+            "check_scripts": check_scripts,
+            "target_model_provider": case["target_model_provider"] or "",
+            "target_model": case["target_model"] or "",
+            "default_model_pattern": case["default_model_pattern"] or "",
         })
     return result

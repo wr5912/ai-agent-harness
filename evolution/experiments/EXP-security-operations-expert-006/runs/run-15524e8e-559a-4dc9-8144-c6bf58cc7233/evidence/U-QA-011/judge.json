@@ -1,0 +1,42 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答分别解释了 IOC、TTP、MITRE ATT&CK Technique、告警、事件五类概念，明确区分了告警（检测器的机器判定，含误报）与已确认事件（经研判确认需处置）的证据等级差异，并明确声明为通用概念说明、不涉及本环境具体数据；三项预期行为均满足。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": true,
+        "reason": "以表格逐项定义五类概念的“本质/粒度/时效/回答的问题”，并指出“IOC 命中不等于告警，告警命中不等于事件”的三层收敛关系，说明单个指标命中不等于入侵成功。"
+      },
+      {
+        "id": "expected-2",
+        "passed": true,
+        "reason": "明确区分“告警是检测规则对单次观测的机器判定，海量且含误报”与“事件是经研判聚合、确认需处置的安全事实”，并指出二者之间隔着分诊（triage）步骤，证据等级差异表述充分。"
+      },
+      {
+        "id": "expected-3",
+        "passed": true,
+        "reason": "所有内容均为公共通用概念解释，示例明确标注“示例，非本轮工具结果”，并声明“不涉及任何当前环境的具体数据”“无法给出针对你所在环境的 ATT&CK 映射统计、本地告警命名规范或事件分级标准”，未编造本组织数据。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-584d503e-1fc9-4d67-b454-f663c119d216",
+    "workspace_id": "c868b1fa-dab2-4a6c-8af2-610e6e8f82ca",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "回答分别解释了 IOC、TTP、MITRE ATT&CK Technique、告警、事件五类概念，明确区分了告警（检测器的机器判定，含误报）与已确认事件（经研判确认需处置）的证据等级差异，并明确声明为通用概念说明、不涉及本环境具体数据；三项预期行为均满足。"
+  }
+}

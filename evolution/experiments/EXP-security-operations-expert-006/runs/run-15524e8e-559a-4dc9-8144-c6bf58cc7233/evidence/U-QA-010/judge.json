@@ -1,0 +1,42 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答分别解释了 CVSS（严重性评分，与资产无关）、EPSS（被利用概率预测）、CISA KEV（已知被利用目录，二元事实），并说明 CVSS 9.8 不一定最高优先级需结合暴露面/可达性、实际利用可能、业务影响与补偿控制；同时明确本轮未接入真实资产与情报数据、未对具体 CVE 排序、未配置内部知识库，需另行核验与转路由取证，未伪造本组织处置优先级标准。三项预期行为均满足。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": true,
+        "reason": "明确区分三者维度：CVSS 为“严重程度”而非概率，EPSS 为 30 天内真实环境被利用的概率估计，KEV 为“已被确认在真实攻击中被利用”的二元清单，三种概念均解释到位。"
+      },
+      {
+        "id": "expected-2",
+        "passed": true,
+        "reason": "给出 CVSS 9.8 不必然最高的理由，点名可达性与暴露面、被利用的现实可能性（EPSS/KEV）、业务影响与补偿控制（WAF/EDR/分段）等变量，并称 CVSS 是筛选门槛而非最终排序键。"
+      },
+      {
+        "id": "expected-3",
+        "passed": true,
+        "reason": "未捏造组织内部标准，所给排序逻辑与 SLA 建议表述为通用做法/建议；并在“范围与未知项”声明本轮未接入实时数据、未对贵司具体 CVE 排序、未配置知识库与威胁分析服务，需核验与转路由，符合引用内部标准需另行核验的要求。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-80e78e74-fc62-43ed-a5ae-2645084ca60b",
+    "workspace_id": "c868b1fa-dab2-4a6c-8af2-610e6e8f82ca",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "回答分别解释了 CVSS（严重性评分，与资产无关）、EPSS（被利用概率预测）、CISA KEV（已知被利用目录，二元事实），并说明 CVSS 9.8 不一定最高优先级需结合暴露面/可达性、实际利用可能、业务影响与补偿控制；同时明确本轮未接入真实资产与情报数据、未对具体 CVE 排序、未配置内部知识库，需另行核验与转路由取证，未伪造本组织处置优先级标准。三项预期行为均满足。"
+  }
+}

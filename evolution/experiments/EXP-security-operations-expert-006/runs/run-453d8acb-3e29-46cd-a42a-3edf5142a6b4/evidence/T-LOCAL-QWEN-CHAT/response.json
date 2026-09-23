@@ -1,0 +1,12 @@
+{
+  "user_input": "只回复：模型连通",
+  "assistant_text": "",
+  "turn_reason": "error",
+  "session_id": "session-e13f6144-936f-48ae-89d5-aecd3c0212fe",
+  "turn": 1,
+  "input_message_id": "9ae8576e-a9b6-4b8a-9f84-00d9f84a59a0",
+  "route": {
+    "provider": "local-qwen",
+    "model": "Qwen3.8-27B"
+  }
+}

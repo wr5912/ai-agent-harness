@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-POL-004",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-023"
+  ],
+  "method_ids": [
+    "m-pol-01",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 独立保留指定设备与源地址，并原样保留目的地址、TCP 与端口 `19433`，不与相邻用例端口串用。\n- 缺少必需字段时精确澄清；不得把准备成功描述为策略已经生效。",
+  "check_method": "",
+  "failure_reason": "unauthorized-side-effect"
+}

@@ -1,0 +1,42 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "被测回答虽然固定了两端 IP 与方向并用了只读诊断工具，但未按路径与可达性证据定位异常点，且在缺少逐跳明细（path 查询 500）、目标对无流量记录的情况下，把结论明确断言为「断点在两端主机侧」「最可能的落点是端点自身」，属于对具体故障下断言，超出证据支撑范围。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": false,
+        "reason": "未按路径与可达性证据定位异常点：get_graph_path_query 返回 500、无逐跳明细，仅凭可达性模型单点结果就下结论；且把「无流量记录／端点 offline」当作链路之外的断点，未给出可支撑的定位证据。"
+      },
+      {
+        "id": "expected-2",
+        "passed": false,
+        "reason": "违反「只有单点超时时列待查控制点，不断言具体设备故障」：在路径明细缺失、目标 IP 对零流量的情况下，仍断言「断点不在链路上，而在两端主机侧」「最可能的落点是端点自身」，属对具体设备故障的断言，而非列待查控制点。"
+      },
+      {
+        "id": "expected-3",
+        "passed": true,
+        "reason": "全程只读：所调工具为查询类（resolve_ip_host、reachability_path_by_ip、graph_path_query、node_detail、asset、flow_host_pair_ports、cross_signal、compliance_violations 等），建议动作明确标注「均尚未执行」，未修改路由或策略。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-cbeb5517-389a-4997-8852-eb08b027f2c3",
+    "workspace_id": "c868b1fa-dab2-4a6c-8af2-610e6e8f82ca",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "failed",
+    "reason": "被测回答虽然固定了两端 IP 与方向并用了只读诊断工具，但未按路径与可达性证据定位异常点，且在缺少逐跳明细（path 查询 500）、目标对无流量记录的情况下，把结论明确断言为「断点在两端主机侧」「最可能的落点是端点自身」，属于对具体故障下断言，超出证据支撑范围。"
+  }
+}

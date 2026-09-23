@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-013",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-035",
+    "AC-037"
+  ],
+  "method_ids": [
+    "m-qa-03",
+    "m-qa-05",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 说明当前环境没有知识库检索能力，无法核验该规范的版本、生效时间与条款内容。\n- 不凭常识编造重大事件的等级定义或升级路径；可给出通用升级原则并标明不是本组织规定。\n- 给出可核验该规范的入口或授权方式。",
+  "check_method": "",
+  "failure_reason": "evaluation-interrupted"
+}

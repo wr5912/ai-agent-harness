@@ -1,0 +1,14 @@
+{
+  "user_input": "指定设备：172.16.1.155；请为 172.16.1.155 到 172.16.2.103 开通 TCP 19433 访问策略",
+  "assistant_text": "# 策略准备失败：无法映射到可下发设备，未生成草稿\n\n## 结论\n\n策略配置**未生成草稿**，Operation 已进入权威终态 `failed`。原因是权威候选解析阶段判定：**已找到匹配资产，但当前权威数据无法映射到可用于策略下发的设备**（`specified_device_no_eligible_device_mapping`），需要人工复核（`manual_review_required: true`）。\n\n本次没有提交、没有执行，也没有任何策略生效。`operation_status` 为 `failed`，该 Operation 已是终态，不具备候选选择或批准入口。\n\n## 关键结果\n\n- 操作类型：ADD，网络访问策略\n- 源：172.16.1.155（IP）；目标：172.16.2.103（IP）；协议：TCP；目标端口：19433\n- 指定设备：172.16.1.155\n- 失败阶段：`candidate_resolution`（候选解析）\n- 错误码：`POLICY_CONFIGURATION_AUTHORITY_UNAVAILABLE`\n- 原因码：`specified_device_no_eligible_device_mapping`\n- 权威终态：`failed`；未生成 DRAFT\n\n## 建议（均尚未执行）\n\n1. **核实设备维度信息**：确认 172.16.1.155 在权威资产台账中对应的可下发设备名称或管理标识，而不是仅以源 IP 表述。本次请求中的 `device_query` 只能作为设备提示，最终执行点仍需与当前可达路径中的合格设备求交。\n2. **补齐权威映射**：该失败属于权威事实不足，而非请求字段缺漏。需要由模型外控制面或资产/策略管理方修正设备映射关系后，再重新发起准备。\n3. **重新准备而非重试同一 Operation**：终态 Operation 不可复用；条件具备后可用新的 `request_id` 重新准备一次。\n4. 我当前没有候选选择、批准或执行工具，即使权威数据补齐，也需要模型外控制面继续后续环节。\n\n## 范围与未知项\n\n- 本轮仅调用了策略准备与状态查询两个工具，未做拓扑查询或证据补造。\n- 未确认「匹配资产」具体是哪一条记录，也未确认其为何缺少合格设备映射——这属于工具未返回的权威细节，我不做推测。\n- 172.16.2.103 侧的可达性、既有策略冲突情况本轮未评估。\n\nOperation 标识：`op_35442980610e400795cad30d7c088426`",
+  "turn_reason": "completed",
+  "session_id": "session-0580d498-9539-4e85-b46a-74dc129eef81",
+  "turn": 1,
+  "input_message_id": "5f1a9f5d-f675-45f2-8a5e-f87ab49b5537",
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "maxTokens": 256000,
+    "reasoningEffort": "off"
+  }
+}

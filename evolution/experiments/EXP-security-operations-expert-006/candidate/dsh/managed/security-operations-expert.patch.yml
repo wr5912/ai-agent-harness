@@ -66,6 +66,15 @@
     includeShippedRoot: false
     includeUserRoot: false
 
+- id: agent-default-model
+  config:
+    provider: deepseek-official
+    model: deepseek-flash
+
+- id: llm-deepseek
+  config:
+    reasoningEffort: off
+
 - id: llm-pi-ai
   config:
     providers:

@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0",
+  "case_id": "T-MODEL-CATALOG",
+  "executor": "web-model-catalog",
+  "transport": "browser",
+  "tool_boundary": "model-selector-only",
+  "side_effect_budget": "web-session-only",
+  "acceptance_ids": [],
+  "method_ids": [],
+  "judgment_role": "",
+  "expected_behavior": "- Web 模型目录的默认项名称匹配 `DeepSeek`，并存在名为 `Qwen3.8-27B` 的可选模型。",
+  "check_method": "```javascript\nconst pattern = new RegExp(context.case.default_model_pattern, 'i')\nreturn pattern.test(context.default_model)\n  && context.catalog.some(entry => entry.name === context.case.target_model)\n```",
+  "target_model_provider": "local-qwen",
+  "target_model": "Qwen3.8-27B",
+  "default_model_pattern": "DeepSeek",
+  "session_id": "session-9765de57-cec2-45d8-bda7-a00afecb09d5",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "ui_startup": {
+    "testing_notice_dismissed": true,
+    "workspace_prompt_visible": true,
+    "workspace_action": "selected",
+    "composer_ready": true
+  },
+  "ui_startup_matches": true,
+  "catalog": [
+    {
+      "name": "DeepSeek-V41-Flash",
+      "selected": true
+    },
+    {
+      "name": "DeepSeek-V4-Flash",
+      "selected": false
+    },
+    {
+      "name": "DeepSeek-V4-Pro",
+      "selected": false
+    },
+    {
+      "name": "DeepSeek-V4-Flash-Vision-Exp",
+      "selected": false
+    },
+    {
+      "name": "Qwen3.8-27B",
+      "selected": false
+    }
+  ],
+  "default_model": "DeepSeek-V41-Flash",
+  "code_checks": [
+    {
+      "id": "case:T-MODEL-CATALOG",
+      "passed": true
+    }
+  ]
+}

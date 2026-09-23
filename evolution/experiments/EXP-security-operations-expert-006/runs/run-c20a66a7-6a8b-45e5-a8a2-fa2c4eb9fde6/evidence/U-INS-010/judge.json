@@ -1,0 +1,37 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答将请求识别为即时巡检并直接执行：调用了巡检启动、证据采集与终结工具，返回了已生成的巡检报告与结论，未转成操作教学、能力清单或待确认需求。覆盖范围与工具记录一致（39 项预期、39 项实际观测、2 项巡检能力至终态），异常（17 台/套、离线 13 台/套、高危漏洞 4 台/套）、未知项（异常清单及对应关系需查报告明细）与检查失败（失败 0、部分完成 0）分别呈现，并明确建议未执行、未做任何处置。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": true,
+        "reason": "输出为一次已完成的即时巡检结论（含报告链接、耗时、完成情况），调用了 skill、delegate_inspection、inspection_runs_start_with_plan、inspection_runs_collect_evidence、inspection_runs_finalize，表明实际执行而非教学、能力罗列或索要确认。"
+      },
+      {
+        "id": "expected-2",
+        "passed": true,
+        "reason": "范围与授权集合一致（常规全量，预期 39 项、实际观测 39 项）；异常项单列 17 台/套并给出离线 13、高危漏洞 4；未知项明确列出（异常清单、离线与漏洞对应关系需查报告明细），检查失败与部分完成分别记为 0 项，三类信息未混同。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-34f3cda5-8c87-4858-859f-95b369760956",
+    "workspace_id": "4e92c557-b77f-4c18-a4c3-af0a3d261352",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "回答将请求识别为即时巡检并直接执行：调用了巡检启动、证据采集与终结工具，返回了已生成的巡检报告与结论，未转成操作教学、能力清单或待确认需求。覆盖范围与工具记录一致（39 项预期、39 项实际观测、2 项巡检能力至终态），异常（17 台/套、离线 13 台/套、高危漏洞 4 台/套）、未知项（异常清单及对应关系需查报告明细）与检查失败（失败 0、部分完成 0）分别呈现，并明确建议未执行、未做任何处置。"
+  }
+}

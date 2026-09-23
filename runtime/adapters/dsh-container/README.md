@@ -118,14 +118,14 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-d
 python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-security-operations-expert-006 --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-security-operations-expert-006 [--case <case-id>]
+  --source experiment:EXP-security-operations-expert-006 --mode full
 python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-security-operations-expert-006 --executor browser [--case <case-id>]
 ```
 
-非 `--dry-run` 执行会先校验仓库和 Experiment，再创建独立评测实例。API 执行器只调用 DSH Runtime：注册 `/work/harness/workspace`，为每个运行态 Case 创建新 Session，精确核对目标 Preset 与 Workspace，选择模型、发送输入、等待 Turn 并导出消息和工具轨迹；它不直连底层模型 API。浏览器执行器只负责初始提示、工作区、模型、发送和回答显示等 UI 链路。两种执行器复用同一份 Case、身份检查和证据格式，但分别运行、分别统计；结果中的 `executor` 标明通道。认证 URL 只经进程标准输入交给执行器，不写入 Run 或普通输出；无论成功、失败或中断都尝试停止实例。镜像提供系统 Chromium，所选执行器与共享脚本均以只读挂载注入，因此修改脚本不需要重建镜像，修改 Chromium 系统依赖才需要。
+未指定 `--mode` 时默认运行 `evaluation.md` 中标为 `fast` 的核心 Case；`--mode full` 运行当前 Experiment 选择的全部 Case。重复 `--case` 用于精确选择并优先于档位，`--dry-run` 输出实际 `mode` 与最终 Case 列表。非 `--dry-run` 执行会先校验仓库和 Experiment，再创建独立评测实例。API 执行器只调用 DSH Runtime：注册 `/work/harness/workspace`，为每个运行态 Case 创建新 Session，精确核对目标 Preset 与 Workspace，按 Case 声明选择模型，发送输入、等待 Turn 并导出消息和工具轨迹；没有声明目标模型时使用 DSH 当前默认模型。它不直连底层模型 API。浏览器执行器只负责初始提示、工作区、模型、发送和回答显示等 UI 链路。两种执行器复用同一份 Case、身份检查和证据格式，但分别运行、分别统计；结果中的 `executor` 标明通道。认证 URL 只经进程标准输入交给执行器，不写入 Run 或普通输出；无论成功、失败或中断都尝试停止实例。镜像已经安装并验证系统 Chromium、Playwright 与 `fflate`；受信检查脚本使用 Node 标准库 `node:vm`，无需增加镜像依赖。所选执行器与共享脚本均以只读挂载注入，因此修改脚本不需要重建镜像。
 
-退出码 `0` 表示锁定 Case 均得到 `passed`；`1` 表示运行已完整封存但至少一个语义结论为 `failed` 或 `inconclusive`；`2` 表示参数、环境或执行基础设施失败。基础设施失败导致未执行的 Case 记为 `execution_status=error`；中断或安全停机后未开始的 Case 记为 `execution_status=skipped`，两者的 `verdict` 均为 `inconclusive`。业务语义不能由确定性检查可靠判断时，执行器只保存回答和轨迹，不自动给出通过结论。每次封存同时保留供机器校验的 `summary.json`、逐项事实 `results.jsonl`，并自动生成供人工阅读的 `report.md`；报告是只读视图，不能作为另一份可编辑事实源。非 `--dry-run` 的 stdout 只输出一个不含凭据的 JSON，字段固定为 `run_id`、`experiment_id`、`executor`、`excluded_case_ids`、`verdict`、`cases`、`summary`、`report` 和 `instance_stopped`。
+退出码 `0` 表示锁定 Case 均得到 `passed`；`1` 表示运行已完整封存但至少一个语义结论为 `failed` 或 `inconclusive`；`2` 表示参数、环境或执行基础设施失败。基础设施失败导致未执行的 Case 记为 `execution_status=error`；中断或安全停机后未开始的 Case 记为 `execution_status=skipped`，两者的 `verdict` 均为 `inconclusive`。执行器先运行 `evaluation.md` 中随 Case 或评估方法声明的受信 JavaScript 检查；这些脚本属于受版本控制的研究源码，不用于执行外部不可信代码。剩余业务语义可由 `m-llm-judge-v1` 在独立无工具 Session 中评审，该 Session 不单独配置模型，复用 DSH 当前默认模型、Endpoint 和凭据。无效评审输出或证据不足仍记为“待人工判定”；与被测回答使用同一路由时，报告会保留同模型自评限制。错误或未执行的 `inconclusive` 显示为“无法判定”。判定只使用 `evaluation.md` 中该 Case 的“关联验收”“预期行为”和所关联的 `m-*`、`AC-*`，不在报告或执行器中另写一套业务标准。每次封存同时保留供机器校验的 `summary.json`、逐项事实 `results.jsonl`，并自动生成供人工阅读的 `report.md`；报告是只读视图，不能作为另一份可编辑事实源。非 `--dry-run` 的 stdout 只输出一个不含凭据的 JSON，字段固定为 `run_id`、`experiment_id`、`executor`、`excluded_case_ids`、`verdict`、`cases`、`summary`、`report` 和 `instance_stopped`。
 
 **手工打开 Web 或使用浏览器执行器时，首次需要在界面注册工作区。** DSH Web 的输入栏在没有已打开会话时是惰性的，必须先选定一个**已注册工作区**才能开会话；工作区注册表（`$DSH_HOME/storages/workspace.json`）只从已存会话头 bootstrap，新实例的 HOME 卷里因此为空——容器的 `working_dir` 只是进程工作目录，不等于 DSH 工作区。API 执行器使用 Runtime 的 `workspace/create` 完成同一注册；启动器不改写 Runtime 存储内部格式。浏览器操作如下：
 

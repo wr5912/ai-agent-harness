@@ -1,0 +1,339 @@
+{
+  "schema_version": "2.0",
+  "run_id": "run-8a7245e8-f599-4f3a-ac21-5e163f497cdf",
+  "source_id": "experiment:EXP-security-operations-expert-006",
+  "source_kind": "experiment",
+  "baseline_ref": "git:32ad39019c76db0f27088b8a239acf038166da18",
+  "created_at": "2026-09-23T07:22:46Z",
+  "harness_trees": {
+    "workspace": {
+      "tree_sha256": "sha256:f7f5669836d8b456f4f0f4dc5d9b9f2502c7688d4bff88a1b6600522ec522dda",
+      "directory_sha256": "sha256:e037a329ea436c9ddfeabc9fa82cb6aefd096103cfa20c24001289a3721c1632",
+      "file_count": 8,
+      "total_bytes": 14279,
+      "files": [
+        {
+          "mode": "0664",
+          "path": ".agents/skills/fault-analysis/SKILL.md",
+          "sha256": "5bcc10d9be08e61bd2d94a473e6577e2ef501f22832caa9427e03a037585ec28",
+          "size": 1722
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/playbook-impact-assessment/SKILL.md",
+          "sha256": "9293f326283bbf5b9f6c7a0105a73d218f906ebfdcad01f7834a6effbfb004cb",
+          "size": 568
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/policy-configuration/SKILL.md",
+          "sha256": "d5130c2a6f9663555e0487e2ec975fa40e8f17164a0225efa0eb48591bac3f57",
+          "size": 1448
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/response-planning/SKILL.md",
+          "sha256": "76d84e82fd9c3edc85ec693a50b6881e54271eb89da77335ac11142998a056a4",
+          "size": 1443
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/security-inspection/SKILL.md",
+          "sha256": "08c6b572084b14bb404e6c83e2adc98cc568b6696e767ee9d513896ed89520c7",
+          "size": 2502
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/security-investigation/SKILL.md",
+          "sha256": "a622b794f20252224b7db2b10d9c7f76fd6fb61cb29756431080c63707f6ef40",
+          "size": 843
+        },
+        {
+          "mode": "0664",
+          "path": ".env",
+          "sha256": "e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+          "size": 84
+        },
+        {
+          "mode": "0664",
+          "path": "AGENTS.md",
+          "sha256": "b28369f908a140af78d67c3a3bceaa63ea2251ae26c9728c9e8f96d7dbe9e9f2",
+          "size": 5669
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/fault-analysis",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/playbook-impact-assessment",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/policy-configuration",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/response-planning",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/security-inspection",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/security-investigation",
+          "mode": "0775"
+        }
+      ]
+    },
+    "presets": {
+      "tree_sha256": "sha256:6fae4e514033f1b4dd8a6ffddd0c62dbc4b6f55cabb5523ad38b9bd1c070d2ae",
+      "directory_sha256": "sha256:a85004716b287f743a6b06e2dc1e2b34d6c643c1bc01cdee133eb04d2e34db3b",
+      "file_count": 4,
+      "total_bytes": 1758,
+      "files": [
+        {
+          "mode": "0664",
+          "path": "evaluation-judge/agent.cordis.yml",
+          "sha256": "633c2e3b0413154c1a84e8769daebd0010e10c64ceadcd10e5670dd96c4785bf",
+          "size": 609
+        },
+        {
+          "mode": "0664",
+          "path": "evaluation-judge/preset.yml",
+          "sha256": "df22cd2de4f05a31a21a2f041f44b2de57a48140797602ed4bf068e216a62a5e",
+          "size": 108
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-expert/agent.cordis.yml",
+          "sha256": "21ddcb3a02004afe30d166b5a8de3e1158823cce0825533b773fd958bf1a0a9f",
+          "size": 878
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-expert/preset.yml",
+          "sha256": "e2edf722ed79cc54419a5ac4efcc13693856945347715562f8940c706faf8742",
+          "size": 163
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "0775"
+        },
+        {
+          "path": "evaluation-judge",
+          "mode": "0775"
+        },
+        {
+          "path": "security-operations-expert",
+          "mode": "0775"
+        }
+      ]
+    },
+    "managed": {
+      "tree_sha256": "sha256:65992b247e2c7c227b126b831bcda6fdcd1b982764fc486cdc4bf8e49e0dda83",
+      "directory_sha256": "sha256:e0fc37c7c6c9e20d0b87d9462fb5d87b49b3b46665028d328ca29f284379a6fd",
+      "file_count": 9,
+      "total_bytes": 36145,
+      "files": [
+        {
+          "mode": "0664",
+          "path": "control-boundary.yaml",
+          "sha256": "7f6680f87d90a098b3f052193412caeee6aa12beec8f4eabb42f0244d3ca2ae4",
+          "size": 1519
+        },
+        {
+          "mode": "0664",
+          "path": "evaluation-judge-guard.mjs",
+          "sha256": "6ae572d3fa8fca9ac06847369f25cd985a0c27d8076733c594f95fcb0b9085a0",
+          "size": 201
+        },
+        {
+          "mode": "0664",
+          "path": "mcp-servers.yaml",
+          "sha256": "940dd4f59413a3c4b7f6faddc99630deaaaebcd65f8a81ed86f2b6d1d5f5559f",
+          "size": 824
+        },
+        {
+          "mode": "0664",
+          "path": "role-tool-matrix.yaml",
+          "sha256": "d21481dbc03d4403325c4679f51d2b189fcb388443cfbdcd5e85a23c0a988464",
+          "size": 1921
+        },
+        {
+          "mode": "0664",
+          "path": "schemas/response-plan-input.schema.json",
+          "sha256": "d5835c248c2e624c39a50c44cd5fc9dd734700d23e8f2ef580c565cb1bd861ce",
+          "size": 4119
+        },
+        {
+          "mode": "0664",
+          "path": "schemas/response-plan-output.schema.json",
+          "sha256": "c3d46e77f133bfee9ad8f6fd30b951f931013f4fee7e1381707d88d12e86c33d",
+          "size": 4750
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-expert.development.patch.yml",
+          "sha256": "712f21d9ca27f818eb1a430529361975e295afb00851f2b258951c2cdeb75b72",
+          "size": 1648
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-expert.patch.yml",
+          "sha256": "0f44ae0d70833d7becc79afa73e507169f09256a6131dfc61ff7cc94d33c4adc",
+          "size": 6634
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-guard.mjs",
+          "sha256": "f7a54aa853cb45d329c53f0c1e1edce493f6233c0bd762b0ff1e75ab294a7243",
+          "size": 14529
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "0775"
+        },
+        {
+          "path": "schemas",
+          "mode": "0775"
+        }
+      ]
+    }
+  },
+  "reference_tree": {
+    "tree_sha256": "sha256:14824ebec0ae2347eb6d1ff8853afe4b1e2613439cbad1bdb62965950686802c",
+    "directory_sha256": "sha256:c01d820dff4afde7654d513ed9f6b0f072fdd159b4ea8ae399bf0429b77227cb",
+    "file_count": 3,
+    "total_bytes": 382252,
+    "files": [
+      {
+        "mode": "0664",
+        "path": "definition.md",
+        "sha256": "619784a4d0042eecb4ed088ba8c60a592f8eb9391d3487809b998dd546146cdc",
+        "size": 87661
+      },
+      {
+        "mode": "0664",
+        "path": "evaluation.md",
+        "sha256": "df2dc9024a38fca139a611cec5cc747526e069ba12eed5133df8681aa14f4600",
+        "size": 294434
+      },
+      {
+        "mode": "0664",
+        "path": "manifest.yaml",
+        "sha256": "5461058602a5439429683e50000c4871a387c5ea6cd5984e9a8777aa90964bdb",
+        "size": 157
+      }
+    ],
+    "directories": [
+      {
+        "path": ".",
+        "mode": "0775"
+      }
+    ]
+  },
+  "evaluation_sha256": "df2dc9024a38fca139a611cec5cc747526e069ba12eed5133df8681aa14f4600",
+  "evaluation_selection": {
+    "case_ids": [
+      "T-MODEL-CATALOG"
+    ],
+    "method_ids": [
+      "m-ins-01",
+      "m-ins-05",
+      "m-ins-06",
+      "m-ins-07",
+      "m-pol-01",
+      "m-pol-02",
+      "m-pol-03",
+      "m-pol-04",
+      "m-pol-05",
+      "m-pol-06",
+      "m-pol-07",
+      "m-pol-08",
+      "m-pol-09",
+      "m-pol-q01",
+      "m-flt-01",
+      "m-flt-02",
+      "m-flt-03",
+      "m-flt-04",
+      "m-flt-05",
+      "m-flt-06",
+      "m-flt-q01",
+      "m-qa-01",
+      "m-qa-02",
+      "m-qa-03",
+      "m-qa-04",
+      "m-qa-05",
+      "m-qa-06",
+      "m-qa-q01",
+      "m-llm-judge-v1",
+      "m-technical-static",
+      "m-live-contract",
+      "m-browser-trace",
+      "m-runner-contract"
+    ],
+    "acceptance_ids": [
+      "AC-009",
+      "AC-010",
+      "AC-011",
+      "AC-012",
+      "AC-013",
+      "AC-014",
+      "AC-015",
+      "AC-023",
+      "AC-024",
+      "AC-025",
+      "AC-026",
+      "AC-027",
+      "AC-028",
+      "AC-029",
+      "AC-030",
+      "AC-031",
+      "AC-032",
+      "AC-016",
+      "AC-017",
+      "AC-018",
+      "AC-019",
+      "AC-020",
+      "AC-021",
+      "AC-022",
+      "AC-033",
+      "AC-034",
+      "AC-035",
+      "AC-036",
+      "AC-037",
+      "AC-038",
+      "AC-039",
+      "AC-040",
+      "AC-041",
+      "AC-042",
+      "AC-043",
+      "AC-044"
+    ]
+  },
+  "git_version": {
+    "commit": "d78abfca61b34503b3fa1747fa0a5b88ab0b0744",
+    "dirty": true,
+    "changed_path_count": 15
+  },
+  "executor": "browser"
+}

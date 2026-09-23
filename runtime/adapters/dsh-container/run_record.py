@@ -127,11 +127,17 @@ def write_report(
     summary: dict,
     rows: list[dict],
     executor: str | None,
-    case_inputs: dict[str, str] | None = None,
+    case_contracts: dict[str, dict] | None = None,
 ) -> None:
     def cell(value: object) -> str:
         return str(value).replace("\\", "\\\\").replace("|", "\\|").replace("\r", "").replace("\n", "<br>")
 
+    pending_review = sum(
+        row["execution_status"] == "completed" and row["verdict"] == "inconclusive" for row in rows
+    )
+    undetermined = summary["verdict_counts"]["inconclusive"] - pending_review
+    overall = summary["overall_verdict"]
+    overall_zh = "待人工判定" if overall == "inconclusive" and pending_review else VERDICT_ZH.get(overall, overall)
     lines = [
         "# 测试评估报告",
         "",
@@ -141,7 +147,7 @@ def write_report(
         f"- Experiment：`{manifest['experiment_id']}`",
         f"- Agent：`{manifest['agent_id']}`",
         f"- 状态：{STATUS_ZH.get(manifest['status'], manifest['status'])}",
-        f"- 整体结论：{VERDICT_ZH.get(summary['overall_verdict'], summary['overall_verdict'])}",
+        f"- 整体结论：{overall_zh}",
         f"- 开始时间：`{manifest['created_at']}`",
         f"- 完成时间：`{manifest['finished_at']}`",
     ]
@@ -151,34 +157,44 @@ def write_report(
         "",
         "## 统计",
         "",
-        "| 类型 | 已完成 | 执行错误 | 已跳过 | 通过 | 失败 | 无法判定 |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| 类型 | 已完成 | 执行错误 | 已跳过 | 通过 | 失败 | 待人工判定 | 无法判定 |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         (
             f"| Case | {summary['execution_status_counts']['completed']} | "
             f"{summary['execution_status_counts']['error']} | "
             f"{summary['execution_status_counts']['skipped']} | "
             f"{summary['verdict_counts']['passed']} | "
-            f"{summary['verdict_counts']['failed']} | "
-            f"{summary['verdict_counts']['inconclusive']} |"
+            f"{summary['verdict_counts']['failed']} | {pending_review} | {undetermined} |"
         ),
         "",
-        "`失败` 和 `无法判定` 是有效评估结果；报告不要求所有 Case 均为 `通过`。",
+        "`待人工判定` 表示 Turn 已完成但业务语义尚未按评测标准判读；`无法判定` 表示执行错误或未执行。报告不要求所有 Case 均为 `通过`。",
         "",
         "## Case 结果",
         "",
-        "| Case | 输入 | 执行状态 | 结论 | 观察 | 证据 |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| Case | 输入 | 判定依据 | 执行状态 | 结论 | 观察 | 证据 |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
     ])
     for row in rows:
         evidence_ref = row["evidence_ref"]
+        contract = (case_contracts or {}).get(row["input_id"], {})
+        ids = [*contract.get("method_ids", []), *contract.get("acceptance_ids", [])]
+        basis = "、".join(f"`{identifier}`" for identifier in ids)
+        expected = contract.get("expected_behavior", "")
+        if expected:
+            basis = f"{basis}<br>{cell(expected)}" if basis else cell(expected)
+        verdict = (
+            "待人工判定"
+            if row["execution_status"] == "completed" and row["verdict"] == "inconclusive"
+            else VERDICT_ZH.get(row["verdict"], row["verdict"])
+        )
         lines.append(
-            f"| `{cell(row['input_id'])}` | {cell((case_inputs or {}).get(row['input_id'], ''))} | "
+            f"| `{cell(row['input_id'])}` | {cell(contract.get('input', ''))} | {basis} | "
             f"{EXECUTION_STATUS_ZH.get(row['execution_status'], row['execution_status'])} | "
-            f"{VERDICT_ZH.get(row['verdict'], row['verdict'])} | {cell(row['observation'])} | "
+            f"{verdict} | {cell(row['observation'])} | "
             f"[{cell(evidence_ref)}]({evidence_ref}) |"
         )
     if not rows:
-        lines.append("| - | - | - | - | 本 Run 未记录 Case 结果。 | - |")
+        lines.append("| - | - | - | - | - | 本 Run 未记录 Case 结果。 | - |")
     lines.extend([
         "",
         "## 结构化记录",
@@ -189,13 +205,13 @@ def write_report(
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def case_inputs_for(repo: Path, manifest: dict[str, str], rows: list[dict]) -> dict[str, str]:
+def case_contracts_for(repo: Path, manifest: dict[str, str], rows: list[dict]) -> dict[str, dict]:
     reference = manifest.get("evaluation_ref", "").split("#", 1)[0]
     evaluation = repo / reference if reference else None
     if evaluation is None or not evaluation.is_file():
         return {}
     case_ids = [row["input_id"] for row in rows]
-    return {case["case_id"]: case.get("input", "") for case in execution_for(
+    return {case["case_id"]: case for case in execution_for(
         evaluation, manifest["experiment_id"], case_ids
     )}
 
@@ -431,7 +447,7 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
     report_path = run_dir / "report.md"
     write_report(
         report_path, manifest, summary, rows, inputs.get("executor"),
-        case_inputs_for(repo, manifest, rows),
+        case_contracts_for(repo, manifest, rows),
     )
     manifest["results_sha256"] = hashlib.sha256(results.read_bytes() if results.is_file() else b"").hexdigest()
     manifest["summary_sha256"] = hashlib.sha256(summary_path.read_bytes()).hexdigest()

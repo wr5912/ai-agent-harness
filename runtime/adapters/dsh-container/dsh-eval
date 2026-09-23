@@ -178,6 +178,11 @@ def write_static_evidence(run_dir: Path, case: dict, checks: dict) -> dict:
         "schema_version": "1.0",
         "case_id": case["case_id"],
         "executor": case["executor"],
+        "acceptance_ids": case["acceptance_ids"],
+        "method_ids": case["method_ids"],
+        "judgment_role": case["judgment_role"],
+        "expected_behavior": case["expected_behavior"],
+        "check_method": case["check_method"],
         "checks": checks,
         "scope": "仓库与 Experiment 确定性合同；不代替该 Case 的语义判定",
     })
@@ -214,6 +219,11 @@ def write_unfinished_evidence(
         "schema_version": "1.0",
         "case_id": case["case_id"],
         "completed": False,
+        "acceptance_ids": case["acceptance_ids"],
+        "method_ids": case["method_ids"],
+        "judgment_role": case["judgment_role"],
+        "expected_behavior": case["expected_behavior"],
+        "check_method": case["check_method"],
         "failure_reason": reason,
     })
     value = {
@@ -327,7 +337,7 @@ def run_driver(
         "auth_url": auth_url,
         "workspace": "/work/harness/workspace",
         "preset_id": contract["preset_id"],
-        "target_model": "Qwen3.8-27B",
+        "judge_preset_id": "evaluation-judge",
         "timeout_ms": timeout_seconds * 1000,
         "evidence_root": container_evidence,
         "guard_module": "/work/managed/security-operations-guard.mjs",
@@ -336,7 +346,7 @@ def run_driver(
     completed = checked_process(
         command,
         label=f"{executor} 评测",
-        timeout=timeout_seconds * 2 * len(cases) + 90,
+        timeout=timeout_seconds * (3 if executor == "api" else 2) * len(cases) + 90,
         input_text=json.dumps(payload, ensure_ascii=False),
     )
     try:
@@ -416,6 +426,7 @@ def dry_run_payload(
     cases: list[dict],
     executor: str,
     excluded_case_ids: list[str],
+    mode: str,
 ) -> dict:
     runtime = any(case["executor"] not in STATIC_EXECUTORS for case in cases)
     required = contract["required_env_names"] if runtime else []
@@ -423,6 +434,7 @@ def dry_run_payload(
         "schema_version": "1.0",
         "source_id": contract["source_id"],
         "experiment_id": contract["experiment_id"],
+        "mode": mode,
         "executor": executor,
         "case_ids": [case["case_id"] for case in cases],
         "executors": {case["case_id"]: case["executor"] for case in cases},
@@ -486,8 +498,15 @@ def execute(args: argparse.Namespace) -> int:
     contract = resolve(args.source, repo=REPO)
     evaluation = REPO / "agents" / contract["agent_id"] / "evaluation.md"
     available_cases = execution_for(evaluation, contract["experiment_id"], args.case or None)
+    if not args.case:
+        available_cases = [case for case in available_cases if args.mode in case["modes"]]
+        if not available_cases:
+            raise EvaluationError(f"{contract['experiment_id']} 未定义 {args.mode} Case")
     cases, excluded_case_ids = select_cases(available_cases, args.executor, bool(args.case))
-    plan = dry_run_payload(contract, cases, args.executor, excluded_case_ids)
+    plan = dry_run_payload(
+        contract, cases, args.executor, excluded_case_ids,
+        "case" if args.case else args.mode,
+    )
     if args.dry_run:
         print(json.dumps(plan, ensure_ascii=False, indent=2))
         return 0
@@ -631,7 +650,8 @@ def execute(args: argparse.Namespace) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, help="experiment:<id> 或已登记 Experiment ID")
-    parser.add_argument("--case", action="append", default=[], help="按 evaluation.md 顺序选择 Case；可重复")
+    parser.add_argument("--mode", choices=("fast", "full"), default="fast", help="评估档位；默认 fast")
+    parser.add_argument("--case", action="append", default=[], help="按 evaluation.md 顺序精确选择 Case；可重复并优先于 --mode")
     parser.add_argument("--executor", choices=("api", "browser"), default="api", help="运行态 Case 执行通道")
     parser.add_argument("--dry-run", action="store_true", help="只解析计划，不写 Run、不启动进程")
     parser.add_argument("--timeout-seconds", type=int, default=300, help="运行态单阶段等待上限；单 Case 兜底为两倍")

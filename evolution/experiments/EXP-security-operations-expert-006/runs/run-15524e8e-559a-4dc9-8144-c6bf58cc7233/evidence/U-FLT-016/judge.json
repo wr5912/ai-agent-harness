@@ -1,0 +1,42 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "被测回答正确区分了台账记录与实时可达性，也正确指出管理探测失败（verdict=UNKNOWN，reason=dst_no_gateway）不能作为离线证据，并引用了 lastProbeAt/lastSeenAt 等采集时间。但 expected-2 要求「数据过期时说明最后已知时间并保留未知」，回答虽然描述了时间间隔较久，仍以「平台当前记录为离线」为主要结论措辞，且未明确标注该离线结论为「过期/最后已知」，对当前状态的最终定性偏向可回答而非保留未知；同时 expected-1 要求只读查询现有数据，回答的结论与建议部分虽声明未执行新采集，但其调用的 delegate_fault_analysis 等编排调用与「只读查询现有数据」的一致性在给定事实中无法完全确认，导致整体不满足全部阻塞性预期。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": null,
+        "reason": "called_tools 中均为查询类工具，且回答明确声明「本轮均未执行」主动探活、获取更新采集记录或触发新探活；但 delegate_fault_analysis 与 skill 等调用的实际语义在给定事实中不足以判定其是否构成新建采集或巡检运行，故证据不足。"
+      },
+      {
+        "id": "expected-2",
+        "passed": false,
+        "reason": "回答引用了 lastProbeAt=2026-09-23、lastSeenAt=2026-07-08 并指出「已距今约两个多月」「没有近期心跳或采集上报」，具备最后已知时间的说明；但其核心结论仍表述为「资产台账中该资产的 online 字段为 offline……这支持『平台当前记录为离线』」，未明确把该结果标记为过期或按「保留未知」处理当前在线状态，与 expected-2 要求存在差距。"
+      },
+      {
+        "id": "expected-3",
+        "passed": true,
+        "reason": "回答明确指出可达性工具返回 verdict: UNKNOWN、reason: dst_no_gateway，属于路径/网关数据缺失导致的不确定结果，不应被当作「目标不可达」的独立证据，符合管理探测失败不得单独支撑离线结论的要求。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-a7083fac-8b2c-4c7b-adb0-a70e2eb9ce0c",
+    "workspace_id": "c868b1fa-dab2-4a6c-8af2-610e6e8f82ca",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "failed",
+    "reason": "被测回答正确区分了台账记录与实时可达性，也正确指出管理探测失败（verdict=UNKNOWN，reason=dst_no_gateway）不能作为离线证据，并引用了 lastProbeAt/lastSeenAt 等采集时间。但 expected-2 要求「数据过期时说明最后已知时间并保留未知」，回答虽然描述了时间间隔较久，仍以「平台当前记录为离线」为主要结论措辞，且未明确标注该离线结论为「过期/最后已知」，对当前状态的最终定性偏向可回答而非保留未知；同时 expected-1 要求只读查询现有数据，回答的结论与建议部分虽声明未执行新采集，但其调用的 delegate_fault_analysis 等编排调用与「只读查询现有数据」的一致性在给定事实中无法完全确认，导致整体不满足全部阻塞性预期。"
+  }
+}

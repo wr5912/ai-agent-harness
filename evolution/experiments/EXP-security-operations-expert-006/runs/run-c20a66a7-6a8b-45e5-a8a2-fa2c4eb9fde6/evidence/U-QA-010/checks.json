@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-010",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-033"
+  ],
+  "method_ids": [
+    "m-qa-01",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 分别解释三个概念：严重性评分、被利用概率预测、已知被利用目录。\n- 说明优先级还需结合资产暴露面、业务重要性与补偿控制，CVSS 高不自动等于最高优先级。\n- 不伪造本组织的处置优先级标准；引用内部标准时说明需另行核验。",
+  "check_method": "",
+  "failure_reason": "unauthorized-side-effect"
+}

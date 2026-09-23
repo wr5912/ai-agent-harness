@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-002",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-036",
+    "AC-037"
+  ],
+  "method_ids": [
+    "m-qa-04",
+    "m-qa-05",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 按要求明确报错：当前没有可用知识库 MCP，无法列出知识库或执行检索。\n- 不编造知识库名称、文档标题、分块序号、分数或匹配类型中的任何一项。\n- 不改为凭常识回答“勒索软件应急处置流程”，可提供通用处置原则但必须标明不是知识库结论。",
+  "check_method": "",
+  "failure_reason": "unauthorized-side-effect"
+}

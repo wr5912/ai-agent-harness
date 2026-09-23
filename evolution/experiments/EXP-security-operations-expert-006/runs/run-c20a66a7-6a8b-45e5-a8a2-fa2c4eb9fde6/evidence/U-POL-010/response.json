@@ -1,0 +1,14 @@
+{
+  "user_input": "只调用一次无状态 Preview,生成 PPV 后停在确认提示,不要确认、创建、提交或执行任务。",
+  "assistant_text": "I have the skill loaded. Now I need the actual policy intent fields — the request doesn't include them yet.\n\nBefore preparing anything, I need the specific intent parameters, because the v2 contract requires them exactly:\n\n**需要你补充的字段（缺一不可）：**\n\n| 字段 | 说明 |\n|---|---|\n| `operation` | `ADD` / `MODIFY` / `DELETE` |\n| `source` | 源，`selector_type` 为 `ASSET_REF` / `IP` / `CIDR` + `value` |\n| `destination` | 目标，同上 |\n| `protocol` | 大写协议名，如 `TCP` / `UDP` |\n| `destination_port` | 1–65535，或 null（如 ICMP 无端口） |\n\n**可选字段：** `validity`（生效期）、`change_reason`、`device_query`（仅 `ADD` 支持，设备名或 IP）、`target_external_id`（仅 `MODIFY`/`DELETE` 的既有策略引用，必须由你或受信控制面提供，我不会去查拓扑补造）。\n\n**关于你这轮的两个约束，先对齐事实：**\n\n1. **“只调用一次无状态 Preview”** —— 本路线没有名为 Preview 的工具。可用的只有 `prepare_policy_configuration`（准备）、`get_policy_configuration_status`（查状态）、`get_policy_configuration_result`（读结果）。我会把 `prepare_policy_configuration` 当作你指的那一次调用：**只调用它一次**，凭幂等 `request_id` 防重复。\n\n2. **“生成 PPV 后停在确认提示”** —— 术语需要澄清。准备接口返回的是权威投影（`operationId` 与状态），合同里不叫 PPV。而且这里有一个能力边界要先讲清：**本容器没有候选选择、批准、执行工具**。所以即使 `prepare` 返回 `DRAFT_READY`，我能做的也只是读回结果供你确认；没有可点击的“确认”按钮，任何确认或执行都必须由模型外控制面完成。\n\n还有个顺序上的张力要提醒你：按合同，`prepare` 只有返回 `created` / `running` 时才该查状态，返回 `DRAFT_READY` 就直接读结果。所以“只调一次”很可能意味着**我看不到状态也读不到结果**——那样我只能回报 `operationId` 和 `request_id`。请确认你要哪种：\n\n- **(A)** 严格只调 `prepare` 一次，不查状态、不读结果（最贴合你的原话，但可能停在无正文的 `operationId`）；\n- **(B)** 调 `prepare` 一次 + 同 `operationId` 查状态/读结果，把 `DRAFT_READY` 结果文本呈现给你确认（不确认、不执行）。\n\n我倾向 **(B)**，因为不查状态就无法给你可确认的内容。请回复选择的方案和上表字段，我再发起那一次调用。目前**尚未调用任何策略工具**，也未创建、提交或执行任何任务。",
+  "turn_reason": "completed",
+  "session_id": "session-88b1e928-a2fd-40bd-9d08-78bbda54cd3c",
+  "turn": 1,
+  "input_message_id": "ce50b012-409e-44be-939c-16e33d7de3b0",
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "maxTokens": 256000,
+    "reasoningEffort": "off"
+  }
+}

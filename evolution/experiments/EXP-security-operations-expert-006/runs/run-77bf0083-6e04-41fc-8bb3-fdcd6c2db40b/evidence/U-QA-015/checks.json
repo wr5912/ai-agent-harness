@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-015",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-033"
+  ],
+  "method_ids": [
+    "m-qa-01",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 未给出具体漏洞标识或权威描述时，先澄清对象，不编造具体组件、版本或根因。\n- 可解释通用缺陷类别（如输入校验缺失、权限判断错误、内存安全）并说明需要哪些证据确认。\n- 不把通用解释当成该漏洞的已确认结论。",
+  "check_method": "",
+  "failure_reason": "evaluation-interrupted"
+}

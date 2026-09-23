@@ -1,0 +1,42 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答正确解析了含多余反引号的输入中的设备 IP 172.16.138.214，明确说明在缺少配置基线/可核验差异项时无法判定配置漂移并列出所需事实与证据缺口，且全程仅做只读查询、未回改配置。三项预期行为均满足。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": true,
+        "reason": "输入中「172.16.138.214`」含不配对反引号，回答将其正确解析为资产 IP，并解析出 assetId 3616551、主机名与资产类型，说明未被反引号干扰。"
+      },
+      {
+        "id": "expected-2",
+        "passed": true,
+        "reason": "回答区分事实与推断，明确指出本轮无配置侧证据、工具集不提供配置基线比对，因而无法证实或排除配置漂移，并列出需要的事实（运行配置、配置基线、漂移判定记录、逐端口数据、coveragePct 口径等），符合可核验基线与差异项要求。"
+      },
+      {
+        "id": "expected-3",
+        "passed": true,
+        "reason": "回答仅报告观察到的差异/异常信号及其影响，建议项明确标注「均尚未执行」，并声明未调用写工具、未执行处置动作，未自动回改配置。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-fb066028-7c4f-4025-a20b-4580aaff4ef6",
+    "workspace_id": "c868b1fa-dab2-4a6c-8af2-610e6e8f82ca",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "被测回答正确解析了含多余反引号的输入中的设备 IP 172.16.138.214，明确说明在缺少配置基线/可核验差异项时无法判定配置漂移并列出所需事实与证据缺口，且全程仅做只读查询、未回改配置。三项预期行为均满足。"
+  }
+}

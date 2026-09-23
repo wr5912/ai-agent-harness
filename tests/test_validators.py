@@ -506,6 +506,34 @@ class RunRecordTests(unittest.TestCase):
             module.write_flat_yaml(path, expected)
             self.assertEqual(module.read_flat_yaml(path), expected)
 
+    def test_report_distinguishes_pending_review_from_unexecuted(self) -> None:
+        spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        rows = [
+            {"input_id": "U-ONE", "execution_status": "completed", "verdict": "inconclusive",
+             "observation": "已完成", "evidence_ref": "evidence/U-ONE"},
+            {"input_id": "U-TWO", "execution_status": "skipped", "verdict": "inconclusive",
+             "observation": "未执行", "evidence_ref": "evidence/U-TWO"},
+        ]
+        summary = {
+            "overall_verdict": "inconclusive",
+            "execution_status_counts": {"completed": 1, "error": 0, "skipped": 1},
+            "verdict_counts": {"passed": 0, "failed": 0, "inconclusive": 2},
+        }
+        manifest = {
+            "run_id": "run-test", "experiment_id": "EXP-test-001", "agent_id": "test",
+            "status": "completed", "created_at": "2026-01-01T00:00:00Z",
+            "finished_at": "2026-01-01T00:01:00Z",
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            report = Path(temp) / "report.md"
+            module.write_report(report, manifest, summary, rows, "api")
+            text = report.read_text(encoding="utf-8")
+        self.assertIn("| Case | 1 | 0 | 1 | 0 | 0 | 1 | 1 |", text)
+        self.assertIn("| `U-ONE` |  |  | 已完成 | 待人工判定 |", text)
+        self.assertIn("| `U-TWO` |  |  | 已跳过 | 无法判定 |", text)
+
     def test_lifecycle_records_and_seals_observations(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repository = copy_repository(Path(temp))
@@ -806,7 +834,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertEqual(summary["overall_verdict"], "passed")
         self.assertIn("# 测试评估报告", report)
         self.assertIn("`T-LOCAL-QWEN-CHAT`", report)
-        self.assertIn("| Case | 输入 | 执行状态 | 结论 | 观察 | 证据 |", report)
+        self.assertIn("| Case | 输入 | 判定依据 | 执行状态 | 结论 | 观察 | 证据 |", report)
         self.assertIn("只回复：模型连通", report)
         self.assertIn("通过", report)
         self.assertIn("不要求所有 Case 均为 `通过`", report)
@@ -851,7 +879,8 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             repository = copy_repository(Path(temp))
             command = [
                 "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
-                "--source", "experiment:EXP-security-operations-expert-006", "--dry-run",
+                "--source", "experiment:EXP-security-operations-expert-006",
+                "--mode", "full", "--dry-run",
             ]
             api = subprocess.run(
                 command, cwd=repository, text=True, capture_output=True, check=False, timeout=180,
@@ -868,6 +897,42 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertEqual(browser.returncode, 0, browser.stderr)
         self.assertEqual(browser_payload["case_ids"], ["T-MODEL-CATALOG"])
         self.assertEqual(browser_payload["transports"], {"T-MODEL-CATALOG": "browser"})
+
+    def test_default_fast_full_and_explicit_case_selection(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = copy_repository(Path(temp))
+            command = [
+                "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
+                "--source", "experiment:EXP-security-operations-expert-006", "--dry-run",
+            ]
+            fast = subprocess.run(
+                command, cwd=repository, text=True, capture_output=True, check=False, timeout=180,
+            )
+            full = subprocess.run(
+                [*command, "--mode", "full"], cwd=repository, text=True,
+                capture_output=True, check=False, timeout=180,
+            )
+            explicit = subprocess.run(
+                [*command, "--case", "U-INS-002"], cwd=repository, text=True,
+                capture_output=True, check=False, timeout=180,
+            )
+            fast_payload = json.loads(fast.stdout)
+            full_payload = json.loads(full.stdout)
+            explicit_payload = json.loads(explicit.stdout)
+        self.assertEqual(fast.returncode, 0, fast.stderr)
+        self.assertEqual(fast_payload["mode"], "fast")
+        self.assertEqual(fast_payload["case_ids"], [
+            "T-ADAPTER-ENV-PASSTHROUGH", "T-CONTRACT-STATIC", "T-CONTRACT-LIVE",
+            "U-INS-001", "U-INS-016", "U-POL-001", "U-POL-011",
+            "U-FLT-001", "U-QA-005", "U-QA-018",
+        ])
+        self.assertEqual(fast_payload["excluded_case_ids"], ["T-MODEL-CATALOG"])
+        self.assertEqual(full.returncode, 0, full.stderr)
+        self.assertEqual(full_payload["mode"], "full")
+        self.assertEqual(len(full_payload["case_ids"]), 71)
+        self.assertEqual(explicit.returncode, 0, explicit.stderr)
+        self.assertEqual(explicit_payload["mode"], "case")
+        self.assertEqual(explicit_payload["case_ids"], ["U-INS-002"])
 
     def test_preflight_failure_does_not_create_run_or_start_instance(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -963,6 +1028,10 @@ class DefinitionSourceTests(unittest.TestCase):
         definition_text = definition.read_text(encoding="utf-8")
         evaluation = definition.with_name("evaluation.md")
         evaluation_text = evaluation.read_text(encoding="utf-8")
+        profile_text = (
+            ROOT / "evolution/experiments/EXP-security-operations-expert-006"
+            / "candidate/dsh/managed/security-operations-expert.patch.yml"
+        ).read_text(encoding="utf-8")
         self.assertEqual(
             re.findall(r"^## (.+)$", definition_text, re.MULTILINE),
             ["需求定义", "任务定义"],
@@ -975,8 +1044,17 @@ class DefinitionSourceTests(unittest.TestCase):
         )
         self.assertEqual(len(re.findall(r"^### task-", definition_text, re.MULTILINE)), 34)
         self.assertEqual(len(re.findall(r"^##### (?:D|U|T)-[A-Z0-9-]+$", evaluation_text, re.MULTILINE)), 200)
-        self.assertEqual(len(re.findall(r"^### m-", evaluation_text, re.MULTILINE)), 44)
+        self.assertEqual(len(re.findall(r"^### m-", evaluation_text, re.MULTILINE)), 45)
         self.assertEqual(len(re.findall(r"^### AC-", evaluation_text, re.MULTILINE)), 44)
+        self.assertIn(
+            "- id: agent-default-model\n  config:\n"
+            "    provider: deepseek-official\n    model: deepseek-flash",
+            profile_text,
+        )
+        self.assertIn(
+            "- id: llm-deepseek\n  config:\n    reasoningEffort: off",
+            profile_text,
+        )
         user_case_ids = re.findall(r"^##### (U-[A-Z0-9-]+)$", evaluation_text, re.MULTILINE)
         self.assertEqual(len(user_case_ids), 66)
         user_case_bodies = re.findall(
@@ -1000,6 +1078,26 @@ class DefinitionSourceTests(unittest.TestCase):
         )
         selection = loaded["selections"]["EXP-security-operations-expert-006"]
         self.assertLessEqual(set(user_case_ids), set(selection["case_ids"]))
+        for selected in loaded["selections"].values():
+            self.assertTrue(any("fast" in loaded["cases"][case_id]["modes"]
+                                for case_id in selected["case_ids"]))
+        case = module.execution_for(evaluation, "EXP-security-operations-expert-006", ["U-INS-001"])[0]
+        self.assertEqual(case["modes"], ["fast", "full"])
+        self.assertEqual(case["acceptance_ids"], ["AC-009", "AC-042"])
+        self.assertEqual(case["method_ids"], ["m-ins-01", "m-llm-judge-v1"])
+        self.assertIn("start → collect → finalize", case["expected_behavior"])
+        structured = module.execution_for(
+            evaluation, "EXP-security-operations-expert-006", ["U-INS-005"]
+        )[0]
+        self.assertEqual([item["id"] for item in structured["check_scripts"]], ["method:m-ins-07"])
+        model = module.execution_for(
+            evaluation, "EXP-security-operations-expert-006", ["T-LOCAL-QWEN-CHAT"]
+        )[0]
+        self.assertEqual((model["target_model_provider"], model["target_model"]),
+                         ("local-qwen", "Qwen3.8-27B"))
+        self.assertEqual([item["id"] for item in model["check_scripts"]],
+                         ["case:T-LOCAL-QWEN-CHAT"])
+        self.assertEqual(model["modes"], ["full"])
         self.assertFalse(list((ROOT / "evolution/experiments").glob("EXP-*/evaluation/plan.yaml")))
         retired = (
             "spec/requirements.md", "spec/tasks.yaml", "spec/acceptance.yaml",

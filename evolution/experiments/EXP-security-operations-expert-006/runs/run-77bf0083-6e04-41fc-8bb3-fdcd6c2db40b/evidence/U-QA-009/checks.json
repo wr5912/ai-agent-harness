@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-009",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-033"
+  ],
+  "method_ids": [
+    "m-qa-01",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 解释 CVE 是公开漏洞标识，能定位具体漏洞条目与描述。\n- 说明它不能说明本组织资产是否受影响、是否可利用、是否已被利用。\n- 属于公共概念解释，不需要本地知识库检索，但也不得声称已核验内部台账。",
+  "check_method": "",
+  "failure_reason": "evaluation-interrupted"
+}

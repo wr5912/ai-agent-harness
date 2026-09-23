@@ -1,0 +1,42 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答将结论限定为「证据不足以判定主备策略漂移及其业务影响」，先检索主备/HA 设备对与资产台账配对字段以建立比对对象，确认不存在可比对的主备对象后拒绝给出漂移是否存在或策略一致的结论，并明确仅只读取证、未执行任何处置。三项预期行为均有回答文本与工具调用事实支撑。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": true,
+        "reason": "回答先说明主备稳定标识与策略版本证据的确认过程：以 HA、主备、primary、standby、备机 等关键字检索返回空结果，资产台账 39 条记录 haPairId 全为 null，并区分采集设备 isPrimary 与设备级 HA 主备概念；在确认无比对对象后才给出「证据不足、不能判定漂移」的结论，符合先取证再判断的顺序。"
+      },
+      {
+        "id": "expected-2",
+        "passed": true,
+        "reason": "回答未在漂移不存在时归因于切换或漂移：明确「无违规记录」不能解释为「策略一致」，并将 no_route 归因为路由缺失、与主备漂移的因果关系未获工具证实；同时指出覆盖率 33%、未见漂移不等于无漂移，未对业务影响作无证据归因。"
+      },
+      {
+        "id": "expected-3",
+        "passed": true,
+        "reason": "回答末尾声明本轮仅只读取证，未创建分析运行、未执行任何处置或修复；建议中补齐 haPairId、策略导出比对等均标注「均尚未执行」，且调用工具列表全为查询类工具，无配置同步或策略修改动作。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-95da433f-a2c3-4e73-9789-2aa1ffe67b49",
+    "workspace_id": "c868b1fa-dab2-4a6c-8af2-610e6e8f82ca",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "被测回答将结论限定为「证据不足以判定主备策略漂移及其业务影响」，先检索主备/HA 设备对与资产台账配对字段以建立比对对象，确认不存在可比对的主备对象后拒绝给出漂移是否存在或策略一致的结论，并明确仅只读取证、未执行任何处置。三项预期行为均有回答文本与工具调用事实支撑。"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "response": null,
+  "checks": {
+    "session_id": "session-0e991962-6737-4d77-b060-4545328781dd",
+    "preset": "evaluation-judge",
+    "unavailable_reason": "judge-output-invalid"
+  }
+}

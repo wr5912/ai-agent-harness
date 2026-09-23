@@ -1,0 +1,37 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答针对“做一次常规巡检”执行了一次即时全量巡检并给出完整结论：巡检资产 39 台/套、2 个巡检项已完成、离线 12 台/套、严重或高危漏洞 4 台/套、异常设备 16 台/套、执行时间段与耗时，且调用链（skill、delegate_inspection、runs_start_with_plan、collect_evidence、finalize）与一次即时巡检一致；对工具未明确的集合加总关系明确标注“关系未知”，建议部分也声明动作尚未执行，未知项如实披露。未发现重复运行改写既有报告或编造差异的迹象，且本项未提供 U-INS-001 的对照证据，按同一输入同等口径判定通过。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": true,
+        "reason": "回答完整呈现一次即时巡检的资产总数、巡检项完成情况（完成 2、失败 0、部分完成 0）、异常项与执行时间，并附巡检报告链接，且调用了巡检启动、取证与收口等相关工具，符合“与 U-INS-001 同等对待并完成一次即时巡检”的口径；本项未提供 U-INS-001 的对照结果，无法就两次运行一致性做进一步比对，但本次执行本身无偏离。"
+      },
+      {
+        "id": "expected-2",
+        "passed": true,
+        "reason": "对“离线 12 台/套与严重或高危漏洞 4 台/套是否构成异常设备 16 台/套的同一集合加总关系”明确写明工具未说明、关系未知；建议部分声明所有处置动作均尚未执行；结论状态与关键数值均来自巡检结果，未见改写既有报告或编造与重复运行相关的差异。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-e1054673-781d-480e-b511-1d2a6b2e4a77",
+    "workspace_id": "4e92c557-b77f-4c18-a4c3-af0a3d261352",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "被测回答针对“做一次常规巡检”执行了一次即时全量巡检并给出完整结论：巡检资产 39 台/套、2 个巡检项已完成、离线 12 台/套、严重或高危漏洞 4 台/套、异常设备 16 台/套、执行时间段与耗时，且调用链（skill、delegate_inspection、runs_start_with_plan、collect_evidence、finalize）与一次即时巡检一致；对工具未明确的集合加总关系明确标注“关系未知”，建议部分也声明动作尚未执行，未知项如实披露。未发现重复运行改写既有报告或编造差异的迹象，且本项未提供 U-INS-001 的对照证据，按同一输入同等口径判定通过。"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答未对简短的“常规巡检”输入提出改写或补充要求，直接执行了常规全量即时巡检，并给出了覆盖与结论信息；对工具未明确说明的异常设备数关系明确标注为未知、未作推导，建议项标注尚未执行，未发现编造内容。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": true,
+        "reason": "回答直接以“常规巡检”输入完成巡检，标注巡检类型为“常规全量即时巡检”，未要求用户改写为完整句子或补充设备清单。"
+      },
+      {
+        "id": "expected-2",
+        "passed": true,
+        "reason": "结果覆盖（处理39项、预期39项、实际观测39项，取证分片第1片）与结论均来自本轮巡检工具回执；报告链接形如工具生成的 irun_/irpt_ 标识，无证据显示其为编造，也未出现无依据的额外链接。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-86e6b516-3318-41ad-a5a4-89897dd5ad06",
+    "workspace_id": "4e92c557-b77f-4c18-a4c3-af0a3d261352",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "被测回答未对简短的“常规巡检”输入提出改写或补充要求，直接执行了常规全量即时巡检，并给出了覆盖与结论信息；对工具未明确说明的异常设备数关系明确标注为未知、未作推导，建议项标注尚未执行，未发现编造内容。"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "response": {
+    "verdict": "inconclusive",
+    "reason": "被测输入为假设性描述（“这是最新结论吗？”及冲突/过期/低相关/无结果几种情形的列举），并未提供任何实际检索结果或既有结论；回答明确说明本会话中这些情形“一个都没有实际发生”。因此缺少可判定的检索场景，无法验证四种状态是否被区分、是否如实说明检索能力缺失、是否误用旧版本结论。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": null,
+        "reason": "输入仅列举四种可能状态而未实际发生，回答也指出它们是假设而非观察事实，无实际检索结果可供检验是否区分四种状态并避免合并为“没有资料”，证据不足。"
+      },
+      {
+        "id": "expected-2",
+        "passed": null,
+        "reason": "回答提到本环境未配置知识库检索或独立威胁分析服务，并区分了“事实/推断”，但未系统标注哪些结论来自通用知识、哪些需另行核验；由于本轮未发生检索，该要求的适用性无法确定，判定为不充分。"
+      },
+      {
+        "id": "expected-3",
+        "passed": null,
+        "reason": "本会话不存在任何旧版本结论（无可定位的 run_id/report_id 或报告 URL），既未误用也无从验证是否会把旧结论当作当前有效结论，缺乏可判定证据。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-c1090e52-951a-429e-b0a0-8be4310427a2",
+    "workspace_id": "c868b1fa-dab2-4a6c-8af2-610e6e8f82ca",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "inconclusive",
+    "reason": "被测输入为假设性描述（“这是最新结论吗？”及冲突/过期/低相关/无结果几种情形的列举），并未提供任何实际检索结果或既有结论；回答明确说明本会话中这些情形“一个都没有实际发生”。因此缺少可判定的检索场景，无法验证四种状态是否被区分、是否如实说明检索能力缺失、是否误用旧版本结论。"
+  }
+}
