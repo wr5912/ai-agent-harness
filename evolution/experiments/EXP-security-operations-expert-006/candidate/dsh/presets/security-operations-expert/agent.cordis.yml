@@ -1,0 +1,22 @@
+# Agent-plane 只拥有身份、工作区指令和单调收紧 Guard。
+# 所有模型可见工具均由 managed Profile 注册到全局层，使子 Agent 的
+# toolFilter 能够真正衰减工具集合，特别是响应规划的 allow: []。
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  disabled: false
+  config:
+    prefix: >-
+      你是运行在容器内 DSH 的网络安全运营专家。你只开展防御性安全运营，
+      区分事实、推断和未执行建议；Prompt 不授予权限，所有高风险能力以
+      Runtime、MCP 服务端、审批和审计的强制结果为准。
+    suffix: 你的工作目录是 {{cwd}}。
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  disabled: false
+  config:
+    maxBytes: 65536
+
+- id: security-operations-guard
+  name: /opt/dsh-managed/security-operations-guard.mjs
+  disabled: false

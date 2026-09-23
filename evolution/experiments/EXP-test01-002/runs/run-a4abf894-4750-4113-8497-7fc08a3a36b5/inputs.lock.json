@@ -1,0 +1,141 @@
+{
+  "schema_version": "2.0",
+  "run_id": "run-a4abf894-4750-4113-8497-7fc08a3a36b5",
+  "source_id": "experiment:EXP-test01-002",
+  "source_kind": "experiment",
+  "baseline_ref": "git:70e805025a3bc90ec796597664fc3b2f53eea3bc",
+  "created_at": "2026-09-22T02:17:00Z",
+  "harness_trees": {
+    "workspace": {
+      "tree_sha256": "sha256:a6a9ff0abbb1e706f82d9f5740d5ea1ac5b52c9f94506264e27964d8e022d292",
+      "directory_sha256": "sha256:c01d820dff4afde7654d513ed9f6b0f072fdd159b4ea8ae399bf0429b77227cb",
+      "file_count": 2,
+      "total_bytes": 308,
+      "files": [
+        {
+          "mode": "0664",
+          "path": ".env",
+          "sha256": "e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+          "size": 84
+        },
+        {
+          "mode": "0664",
+          "path": "AGENTS.md",
+          "sha256": "39dc9ef6027649beb14ceea15a1376171af5a9265b88e43942e6158a3799b5a3",
+          "size": 224
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "0775"
+        }
+      ]
+    },
+    "presets": {
+      "tree_sha256": "sha256:5f3711518d35a18360344923312289bea791dc499136360b3ff73b77d669e23d",
+      "directory_sha256": "sha256:9a969348be7ef900ad65fc1e230be2b54989e135ebac62289ee277a534bb425e",
+      "file_count": 2,
+      "total_bytes": 578,
+      "files": [
+        {
+          "mode": "0664",
+          "path": "test01/agent.cordis.yml",
+          "sha256": "b1b4abe3654b3847e0eea984328800e1944457213ce01e133d446cc6a89742a3",
+          "size": 461
+        },
+        {
+          "mode": "0664",
+          "path": "test01/preset.yml",
+          "sha256": "f85ebb0fd312812a8bf65ca2ad5e5437c1048983a636de6147e223d75f6ed388",
+          "size": 117
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "0775"
+        },
+        {
+          "path": "test01",
+          "mode": "0775"
+        }
+      ]
+    },
+    "managed": {
+      "tree_sha256": "sha256:543e4632229584858b76b6452ad1ee5b7c1d48754b6d9bc4716d05d1c6f0df14",
+      "directory_sha256": "sha256:c01d820dff4afde7654d513ed9f6b0f072fdd159b4ea8ae399bf0429b77227cb",
+      "file_count": 2,
+      "total_bytes": 513,
+      "files": [
+        {
+          "mode": "0664",
+          "path": "test01.development.patch.yml",
+          "sha256": "453fe1a05dd149efc08846c495f5481077a4c167811dc0b3ed42263e725aaebd",
+          "size": 247
+        },
+        {
+          "mode": "0664",
+          "path": "test01.patch.yml",
+          "sha256": "84bec886222972569be5cc577b9c9b13bf5dc1cc439950195de5df29ef220609",
+          "size": 266
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "0775"
+        }
+      ]
+    }
+  },
+  "reference_tree": {
+    "tree_sha256": "sha256:e4c5d5964af03f9627c4c3b30d2af9597e3ea28a8a9f5e3735da95b12674866c",
+    "directory_sha256": "sha256:c01d820dff4afde7654d513ed9f6b0f072fdd159b4ea8ae399bf0429b77227cb",
+    "file_count": 3,
+    "total_bytes": 2352,
+    "files": [
+      {
+        "mode": "0664",
+        "path": "definition.md",
+        "sha256": "f4e74f0cb6ee63d7327de1725627cc80fd3c72c3fd1bd3356ede3cb5d4412430",
+        "size": 292
+      },
+      {
+        "mode": "0664",
+        "path": "evaluation.md",
+        "sha256": "52183437f3060970ee836b2e88ae1ceea0ee9d5ab328fda98b2df50b6f7eb2dc",
+        "size": 1943
+      },
+      {
+        "mode": "0664",
+        "path": "manifest.yaml",
+        "sha256": "769d00f9116e3637e10fb780cee8f6709bc2f9dc125842e78f87910146d87c49",
+        "size": 117
+      }
+    ],
+    "directories": [
+      {
+        "path": ".",
+        "mode": "0775"
+      }
+    ]
+  },
+  "evaluation_sha256": "52183437f3060970ee836b2e88ae1ceea0ee9d5ab328fda98b2df50b6f7eb2dc",
+  "evaluation_selection": {
+    "case_ids": [
+      "T-AUTHORING-PLUGIN-PERSISTENCE"
+    ],
+    "method_ids": [
+      "m-pinned-plugin-restart"
+    ],
+    "acceptance_ids": [
+      "AC-002"
+    ]
+  },
+  "git_version": {
+    "commit": "70e805025a3bc90ec796597664fc3b2f53eea3bc",
+    "dirty": true,
+    "changed_path_count": 17
+  }
+}

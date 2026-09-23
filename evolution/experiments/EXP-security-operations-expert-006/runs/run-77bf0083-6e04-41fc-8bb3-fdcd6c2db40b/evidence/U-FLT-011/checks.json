@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-011",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-018"
+  ],
+  "method_ids": [
+    "m-flt-03",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 两种表述都按只读取证处理：前者指向具体资产，后者指向纳管与关联状态。\n- 未纳管或关联异常时如实说明缺口，不把未纳管写成离线或不存在。\n- 缺少纳管与关联数据源时说明能力与数据缺口。",
+  "check_method": "",
+  "failure_reason": "evaluation-interrupted"
+}

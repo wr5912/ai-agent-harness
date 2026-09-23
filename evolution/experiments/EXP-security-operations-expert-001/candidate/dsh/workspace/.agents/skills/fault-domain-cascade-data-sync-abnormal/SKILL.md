@@ -33,6 +33,18 @@ description: "上下级 SOC 级联数据同步异常、资产告警拓扑上下�
 
 `evidence_gaps` 用来防止把“当前节点查不到”直接写成“级联同步异常”。
 
+## 方向选择
+
+契约域固定为 `cascade-data-sync-abnormal`。
+识别到下列线索时，在 `analysis_direction_ids` 中列出对应方向（可多选）：
+
+- `cascade-relation`：级联关系、上下级关系、节点关系异常。
+- `sync-task-state`：同步任务失败、同步状态异常、队列积压。
+- `data-latency`：同步延迟、数据滞后、长时间未同步。
+- `cross-node-data-diff`：上级查不到、下级有数据、上下级资产/告警/拓扑不一致。
+- `cascade-operation-failure`：级联运维指令失败、指令下发失败、级联操作失败。
+
+无专项线索时 `analysis_direction_ids` 可省略，由故障分析运行时按域展开取证计划。
 ## 规划契约
 
 `agent_planning_result` 必须包含：

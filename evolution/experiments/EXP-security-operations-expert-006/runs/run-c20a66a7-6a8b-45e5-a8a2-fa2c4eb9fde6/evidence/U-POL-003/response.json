@@ -1,0 +1,14 @@
+{
+  "user_input": "请为 172.16.138.214 到 172.16.2.103 开通 TCP 19720 访问策略",
+  "assistant_text": "**结论：策略草稿未生成。** SOC 权威拓扑判定 172.16.138.214 与 172.16.2.103 之间不可达（原因码 `network_path_not_reachable`），本次准备在候选解析阶段即以 `failed` 终态结束，未生成 DRAFT，也未提交或执行任何策略变更。\n\n**关键结果**\n\n- operationId：op_11540d61601b469b85ebe95667c2b2dd\n- 权威终态：failed（stage_code：terminal，phase：candidate_resolution）\n- 结果性质：`POLICY_CONFIGURATION_AUTHORITY_UNAVAILABLE` — SOC 只读权威事实不足，需人工复核（manual_review_required：true）\n- 幂等性：duplicate = false；accepted = true 仅表示请求被受理，不代表策略已建立\n\n**建议（均未执行）**\n\n1. 先核实两地址的实际可达路径与区域归属，确认是否为拓扑缺失、区域隔离或地址归属错误导致判定不可达。\n2. 若确认存在真实路径或属于需人工介入的场景，提交人工复核后再重新准备。\n3. 重新准备时使用新的 request_id；当前 operationId 已是终态，不要对其轮询或改名重试。\n\n**能力边界与未知项**\n\n当前仅有准备、状态查询和结果读取三个工具；候选选择、批准、执行、监控与回滚均不在能力范围内。上文的\"用户请求开通\"是意图，不等于已开通；该策略目前不存在。是否需要调整为其它源/目的或补充路径依据，请说明后再处理。",
+  "turn_reason": "completed",
+  "session_id": "session-173bb78e-129f-4610-924b-cd1bfbce1786",
+  "turn": 1,
+  "input_message_id": "4b2f60e3-014e-41a3-b494-744b7f545954",
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "maxTokens": 256000,
+    "reasoningEffort": "off"
+  }
+}

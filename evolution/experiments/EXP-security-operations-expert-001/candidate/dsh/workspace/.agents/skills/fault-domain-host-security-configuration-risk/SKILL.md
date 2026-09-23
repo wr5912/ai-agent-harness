@@ -30,6 +30,18 @@ description: "主机安全配置异常、安全基线核查失败、弱配置风
 
 `evidence_gaps` 用来避免把“基线风险方向”写成“已确认配置故障”。
 
+## 方向选择
+
+契约域固定为 `host-security-configuration-risk`。
+识别到下列线索时，在 `analysis_direction_ids` 中列出对应方向（可多选）：
+
+- `baseline-failure`：安全基线失败、基线核查不通过。
+- `weak-password`：弱口令、弱密码、默认口令风险。
+- `critical-config-noncompliance`：关键配置不合规、SSH 配置不合规、配置违规。
+- `service-config-risk`：服务配置、远程登录配置、端口配置或服务未加固。
+- `business-impact-scope`：配置风险影响的业务系统和影响范围。
+
+无专项线索时 `analysis_direction_ids` 可省略，由故障分析运行时按域展开取证计划。
 ## 规划契约
 
 `agent_planning_result` 必须包含：

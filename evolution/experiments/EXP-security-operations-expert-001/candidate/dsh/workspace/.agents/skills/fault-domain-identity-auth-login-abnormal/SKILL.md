@@ -38,6 +38,18 @@ description: "用户名口令、人脸、指纹、指静脉、认证服务器、
 
 `evidence_gaps` 用来防止把登录失败粗暴归因到密码错误、网络不通或权限缺失。
 
+## 方向选择
+
+契约域固定为 `identity-auth-login-abnormal`。
+识别到下列线索时，在 `analysis_direction_ids` 中列出对应方向（可多选）：
+
+- `account-password-auth`：用户名口令登录失败、密码错误、账号锁定、账号禁用或过期。
+- `biometric-auth-device`：人脸、指纹、指静脉、生物识别终端或采集设备异常。
+- `auth-server-abnormal`：认证服务器、认证网关、LDAP / AD / Radius / CAS 服务异常。
+- `auth-network-path`：认证终端到认证服务器链路不可达、超时或策略阻断。
+- `auth-policy-or-permission`：登录后无菜单、403、角色权限、菜单权限或认证策略异常。
+
+无专项线索时 `analysis_direction_ids` 可省略，由故障分析运行时按域展开取证计划。
 ## 规划契约
 
 `agent_planning_result` 必须包含：

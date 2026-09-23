@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-006",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-013"
+  ],
+  "method_ids": [
+    "m-ins-05",
+    "m-ins-07",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "scored",
+  "expected_behavior": "- 正文只有这一个 JSON 对象，不加前言、解释、标题或对象之外的 Markdown；键与取值要求同 U-INS-005。\n- 不因为“只返回 JSON”而省略事实、把未知写成正常，或把未纳入单元算入汇总。",
+  "check_method": "",
+  "failure_reason": "unauthorized-side-effect"
+}

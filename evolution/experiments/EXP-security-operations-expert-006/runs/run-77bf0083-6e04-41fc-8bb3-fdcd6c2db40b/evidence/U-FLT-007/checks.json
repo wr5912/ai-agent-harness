@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-007",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-017"
+  ],
+  "method_ids": [
+    "m-flt-02",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 两种表述都按资产状态问题处理，逐个唯一解析对象，不把两台设备混为一谈。\n- 区分“权威状态显示离线”“管理探测不可达”“数据过期”三类来源，不互相替代。\n- 缺少权威证据时保留未知并标明时效，不确认离线。",
+  "check_method": "",
+  "failure_reason": "evaluation-interrupted"
+}

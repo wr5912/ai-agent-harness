@@ -7,8 +7,25 @@ import { decodeMountPath, fileSnapshot } from './tree-digest.mjs'
 import { installationClosure, validateFallback } from './prepare-verification-home.mjs'
 
 const mode = process.env.DSH_HARNESS_MODE
-if (mode !== 'authoring' && mode !== 'verification') {
-  throw new Error('DSH_HARNESS_MODE must be authoring or verification')
+if (mode !== 'verification') {
+  throw new Error('DSH_HARNESS_MODE must be verification')
+}
+let source
+try {
+  source = JSON.parse(process.env.DSH_EXPECT_SOURCE_JSON ?? '')
+} catch {
+  throw new Error('missing or invalid selected DSH source contract')
+}
+const sourceSelector = /^experiment:EXP-[a-z0-9-]+-[0-9]{3}$/
+const sourceKinds = new Set(['experiment'])
+if (source?.schema_version !== '2.1' || !sourceSelector.test(source.source_id) || !sourceKinds.has(source.source_kind)
+  || source.profile !== 'web' || !source.patch?.startsWith('/opt/dsh-managed/')
+  || !source.preset?.startsWith('/opt/dsh-presets/')
+  || (source.guard !== null && !source.guard?.startsWith('/opt/dsh-managed/'))
+  || typeof source.preset_id !== 'string' || source.preset_id.length === 0
+  || !Array.isArray(source.config_markers) || source.config_markers.length === 0
+  || (source.reference_root !== null && typeof source.reference_root !== 'string')) {
+  throw new Error('selected DSH source contract is incomplete')
 }
 
 const roots = [
@@ -16,6 +33,7 @@ const roots = [
   { key: 'presets', path: '/opt/dsh-presets', expected: process.env.DSH_EXPECT_PRESETS_TREE_SHA },
   { key: 'managed', path: '/opt/dsh-managed', expected: process.env.DSH_EXPECT_MANAGED_TREE_SHA },
 ]
+const gradingMaterialPaths = ['/work/reference', '/work/eval-input']
 
 const mounts = readFileSync('/proc/self/mountinfo', 'utf8')
   .split('\n')
@@ -33,22 +51,39 @@ function fileSha(path, maxBytes = 256 * 1024, allowEmpty = false) {
   return `sha256:${createHash('sha256').update(readFileSync(path)).digest('hex')}`
 }
 
+// 适配层脚本由只读 bind 挂载提供，不烘焙进镜像：脚本改动只需重启实例。
+// 这里同时核对"是精确只读挂载"与"字节等于宿主审查过的文件"。
+const adapterMount = mounts.find(entry => entry.target === '/opt/dsh-adapter')
+if (!adapterMount || !adapterMount.options.includes('ro')) {
+  throw new Error('adapter scripts are not provided by an exact read-only bind mount')
+}
+const adapterScriptEvidence = {}
 for (const script of [
-  { path: '/opt/dsh-adapter/verify-load.mjs', expected: process.env.DSH_EXPECT_VERIFY_SCRIPT_SHA },
-  { path: '/opt/dsh-adapter/prepare-verification-home.mjs', expected: process.env.DSH_EXPECT_PREPARE_SCRIPT_SHA },
-  { path: '/opt/dsh-adapter/tree-digest.mjs', expected: process.env.DSH_EXPECT_TREE_SCRIPT_SHA },
+  { key: 'verify_load', path: '/opt/dsh-adapter/verify-load.mjs', expected: process.env.DSH_EXPECT_VERIFY_SCRIPT_SHA },
+  { key: 'prepare_home', path: '/opt/dsh-adapter/prepare-verification-home.mjs', expected: process.env.DSH_EXPECT_PREPARE_SCRIPT_SHA },
+  { key: 'tree_digest', path: '/opt/dsh-adapter/tree-digest.mjs', expected: process.env.DSH_EXPECT_TREE_SCRIPT_SHA },
 ]) {
-  if (!script.expected || fileSha(script.path) !== script.expected) {
-    throw new Error(`host/image adapter script digest mismatch: ${script.path}`)
+  const digest = fileSha(script.path, 64 * 1024)
+  if (!script.expected || digest !== script.expected) {
+    throw new Error(`mounted adapter script differs from the reviewed file: ${script.path}`)
   }
+  adapterScriptEvidence[script.key] = { mount_mode: 'ro', sha256: digest, size: lstatSync(script.path).size }
 }
 
 const mountEvidence = {}
+
+// 被测容器不能携带判分材料或已退役的开发会话指令。
+for (const path of [...gradingMaterialPaths, '/work/AGENTS.md', '/work/AGENTS.local.md']) {
+  if (existsSync(path) || mounts.some(entry => entry.target === path)) {
+    throw new Error(`the subject container must not carry grading material or development instructions: ${path}`)
+  }
+}
+
 for (const item of roots) {
   if (!existsSync(item.path)) throw new Error(`asset mount missing: ${item.key}`)
   const mount = mounts.find(entry => entry.target === item.path)
   if (!mount) throw new Error(`asset path is not an exact bind mount: ${item.key}`)
-  const expectedMode = item.key === 'workspace' && mode === 'authoring' ? 'rw' : 'ro'
+  const expectedMode = 'ro'
   if (!mount.options.includes(expectedMode)) {
     throw new Error(`asset mount mode mismatch: ${item.key}, expected ${expectedMode}`)
   }
@@ -78,11 +113,6 @@ const homeControlEvidence = {}
       expected: process.env.DSH_EXPECT_USER_PATCH_SHA,
     },
     {
-      key: 'web_profile_manifest',
-      path: '/var/lib/dsh/profiles/web/package.json',
-      expected: process.env.DSH_EXPECT_WEB_MANIFEST_SHA,
-    },
-    {
       key: 'global_agent_instructions',
       path: '/var/lib/dsh/AGENTS.md',
       expected: process.env.DSH_EXPECT_GLOBAL_AGENTS_SHA,
@@ -98,6 +128,11 @@ const homeControlEvidence = {}
       expected: process.env.DSH_EXPECT_BOOTSTRAP_ENV_SHA,
     },
   ]
+  controls.push({
+    key: 'web_profile_manifest',
+    path: '/var/lib/dsh/profiles/web/package.json',
+    expected: process.env.DSH_EXPECT_WEB_MANIFEST_SHA,
+  })
   for (const control of controls) {
     const mount = mounts.find(entry => entry.target === control.path)
     if (!mount || !mount.options.includes('ro')) {
@@ -122,7 +157,8 @@ const homeControlEvidence = {}
   if (homePatch !== profilePatch || !/^\s*(?:#[^\n]*\n)*\[\]\s*$/.test(homePatch)) {
     throw new Error('DSH_HOME user Patch is not the controlled empty deny-layer')
   }
-  const manifest = JSON.parse(readFileSync('/var/lib/dsh/profiles/web/package.json', 'utf8'))
+  const manifestPath = '/var/lib/dsh/profiles/web/package.json'
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
   if (manifest.name !== 'dsh-profile-web' || manifest.private !== true
     || Object.keys(manifest.dependencies ?? {}).length !== 0
     || manifest.dsh?.profile?.patchReload !== 'startup'
@@ -143,11 +179,12 @@ const homeControlEvidence = {}
 }
 
 const moduleEvidence = {}
-for (const path of [
+const deniedModulePaths = [
   '/var/lib/dsh/node_modules',
   '/var/lib/dsh/profiles/web/node_modules',
   '/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules',
-]) {
+]
+for (const path of deniedModulePaths) {
   const mount = mounts.find(entry => entry.target === path)
   if (!mount || !mount.options.includes('ro')) {
     throw new Error(`DSH_HOME module deny-layer is not an exact read-only mount: ${path}`)
@@ -200,59 +237,68 @@ moduleEvidence[fallbackPath] = {
 
 const dump = spawnSync(process.execPath, [
   '/opt/dsh/apps/cli/lib/bin.js',
-  '--profile', 'web',
-  '--patch', '/opt/dsh-managed/security-operations-expert.patch.yml',
+  '--profile', source.profile,
+  '--patch', source.patch,
   '--dump-config',
 ], {
   cwd: '/work/harness/workspace',
   encoding: 'utf8',
   maxBuffer: 32 * 1024 * 1024,
+  timeout: 20_000,
+  killSignal: 'SIGKILL',
 })
-if (dump.error || dump.status !== 0) {
+if (dump.error?.code === 'ETIMEDOUT') {
+  throw new Error('DSH profile composition timed out after 20 seconds; child was killed')
+}
+if (dump.error) {
+  throw new Error(`DSH profile composition could not start (${dump.error.code ?? 'unknown'})`)
+}
+if (dump.status !== 0) {
   // 不输出原始 stderr；它可能包含 MCP URL、Token 或其他私有配置。
   throw new Error(`DSH profile composition failed (exit=${String(dump.status ?? dump.signal)})`)
 }
 
-const markers = [
-  '/opt/dsh-presets',
-  '/work/harness/workspace/.agents/skills',
-  'security-operations-expert',
-  'security-operations-mcp-sec-ops',
-  'security-operations-mcp-inspection',
-  'security-operations-mcp-threat-analysis',
-  'security-operations-delegate-inspection',
-  'security-operations-delegate-fault-analysis',
-  'security-operations-delegate-response-planning',
-  'security-operations-delegate-threat-analysis',
-]
-for (const marker of markers) {
+for (const marker of source.config_markers) {
   if (!dump.stdout.includes(marker)) {
     throw new Error(`DSH composed config missing expected marker: ${marker}`)
   }
 }
 
+// 评测组合不开放出厂或用户 Preset 根。
+if (/\bincludeShippedRoot:\s*true\b/.test(dump.stdout) || /\bincludeUserRoot:\s*true\b/.test(dump.stdout)
+  || /\bdefault:\s*cordis\b/.test(dump.stdout)) {
+  throw new Error('verification composition must not expose the shipped cordis preset or a writable preset root')
+}
+
 // --dump-config 只展开全局 Profile，不展开每个 Agent Preset 的 agent.cordis.yml。
 // 因此 Guard 仅能在本探针里核对 Preset 声明与挂载文件；实际插件激活须另取证。
-const presetConfig = readFileSync(
-  '/opt/dsh-presets/security-operations-expert/agent.cordis.yml',
-  'utf8',
-)
-if (!presetConfig.includes('/opt/dsh-managed/security-operations-guard.mjs')
-  || !existsSync('/opt/dsh-managed/security-operations-guard.mjs')) {
-  throw new Error('Preset Guard declaration or managed Guard file is missing')
+let guardPresent = false
+if (source.guard !== null) {
+  const presetConfig = readFileSync(source.preset, 'utf8')
+  if (!presetConfig.includes(source.guard) || !existsSync(source.guard)) {
+    throw new Error('Preset Guard declaration or managed Guard file is missing')
+  }
+  guardPresent = true
 }
 
 console.log(JSON.stringify({
   status: 'mount-and-config-composition-only',
+  source_id: source.source_id,
+  agent_id: source.agent_id,
   dsh_mode: mode,
-  profile: 'web',
-  patch: '/opt/dsh-managed/security-operations-expert.patch.yml',
+  profile: source.profile,
+  patch: source.patch,
   mounts: mountEvidence,
+  grading_material: {
+    exposed_paths: [],
+    note: 'The subject role receives no grading material; the negative assertion above proves the requirement, acceptance-threshold and expected-answer paths are absent.',
+  },
+  adapter_scripts: adapterScriptEvidence,
   dsh_home_mount_mode: 'rw',
   controlled_home_controls: homeControlEvidence,
   controlled_module_resolution: moduleEvidence,
   composed_config_sha256: `sha256:${createHash('sha256').update(dump.stdout).digest('hex')}`,
-  expected_markers_present: markers.length,
-  preset_guard_declaration_present: true,
-  limitations: 'Read-only HOME/Module/.env controls and a startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested.',
+  expected_markers_present: source.config_markers.length,
+  preset_guard_declaration_present: guardPresent,
+  limitations: 'Read-only HOME/Module/.env controls and a locked startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested.',
 }))

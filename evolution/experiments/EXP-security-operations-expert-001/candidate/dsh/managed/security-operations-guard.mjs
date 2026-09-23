@@ -20,7 +20,9 @@ const DELEGATE_TOOLS = new Set([
 ])
 const POLICY_TOOLS = new Set([
   'mcp__sec-ops__ai_workbench_policy__prepare_policy_configuration',
-  'mcp__sec-ops__ai_workbench_policy__get_policy_configuration_status',
+  'mcp__sec-ops__ai_workbench_policy__get_policy_confi_e0cfa6659b3a',
+  'mcp__sec-ops__ai_workbench_policy__select_policy_co_2f4e6db04cde',
+  'mcp__sec-ops__ai_workbench_policy__get_policy_confi_7c4ff923bd1f',
 ])
 const KNOWLEDGE_TOOLS = new Set([
   'mcp__sec-ops__weknora_knowledge__list_knowledge_bases',

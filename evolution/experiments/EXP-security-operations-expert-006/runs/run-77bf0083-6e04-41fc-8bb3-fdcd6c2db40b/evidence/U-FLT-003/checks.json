@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-003",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-016"
+  ],
+  "method_ids": [
+    "m-flt-01",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 没有源、目的、业务对象或时间时集中澄清最小范围与症状，不猜 IP、端口或业务名。\n- 澄清只补必要字段，不重复已知信息；不得凭空启动不可执行的诊断计划。\n- 已有只读证据时可以列出待查控制点，但不把通用经验当作根因结论。",
+  "check_method": "",
+  "failure_reason": "evaluation-interrupted"
+}

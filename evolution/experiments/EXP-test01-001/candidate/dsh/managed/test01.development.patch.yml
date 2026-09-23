@@ -1,0 +1,9 @@
+# 开发模式叠加层：恢复出厂 Cordis，并保留受控 Preset 根。
+- id: agent-presets
+  config:
+    default: cordis
+    includeShippedRoot: true
+    includeUserRoot: true
+    roots:
+      - path: /opt/dsh-presets
+        trust: system

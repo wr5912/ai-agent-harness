@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-001",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-016"
+  ],
+  "method_ids": [
+    "m-flt-01",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 由故障分析角色做只读取证，始终保持源 `172.16.1.165`、业务“版本服务”、目的 `172.16.2.100` 的对应关系。\n- 业务名必须由权威服务目录解析，目录未登记时要求补充映射而不是按名称猜端口。\n- 结论区分已观察事实、推断与证据缺口；不调用策略变更、响应处置或其他写操作。",
+  "check_method": "",
+  "failure_reason": "evaluation-interrupted"
+}

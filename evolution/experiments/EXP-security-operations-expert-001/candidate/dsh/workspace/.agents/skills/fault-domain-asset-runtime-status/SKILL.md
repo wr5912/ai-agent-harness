@@ -30,6 +30,18 @@ description: "资产离线、不可达、探测失败、采集异常等资产运
 
 `evidence_gaps` 用来防止把“平台探测不到”直接写成“服务器宕机”。
 
+## 方向选择
+
+契约域固定为 `asset-runtime-status`。
+识别到下列线索时，在 `analysis_direction_ids` 中列出对应方向（可多选）：
+
+- `asset-offline-or-unreachable`：离线、探测不可达、设备不可达、主机离线。
+- `asset-collection-abnormal`：采集异常、不可采集、心跳异常、Agent 异常。
+- `asset-resource-abnormal`：CPU、内存、磁盘、负载等资源异常。
+- `asset-interface-abnormal`：接口 down、网卡异常、链路 down、端口 down。
+- `asset-hardware-software-abnormal`：硬件、电源、风扇、磁盘、进程或服务运行异常。
+
+无专项线索时 `analysis_direction_ids` 可省略，由故障分析运行时按域展开取证计划。
 ## 规划契约
 
 `agent_planning_result` 必须包含：

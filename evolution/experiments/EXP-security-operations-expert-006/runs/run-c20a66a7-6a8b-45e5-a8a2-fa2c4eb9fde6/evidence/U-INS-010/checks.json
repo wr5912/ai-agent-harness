@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-010",
+  "executor": "web-chat",
+  "transport": "api",
+  "tool_boundary": "inspection-role",
+  "side_effect_budget": "inspection-routine-all-once",
+  "acceptance_ids": [
+    "AC-009"
+  ],
+  "method_ids": [
+    "m-ins-01",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 识别为执行请求并直接完成一次即时巡检，不转成操作教学、能力清单或待确认需求。\n- 覆盖范围与授权集合一致，异常、未知与检查失败分别呈现。",
+  "check_method": "",
+  "target_model_provider": "",
+  "target_model": "",
+  "session_id": "session-5add3e77-6364-4dc2-b974-f8eca7eb2162",
+  "workspace_id": "4e92c557-b77f-4c18-a4c3-af0a3d261352",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "turn": 1,
+  "input_message_id": "e3a65675-be7a-4f27-a388-1b540f66805e",
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "maxTokens": 256000,
+    "reasoningEffort": "off"
+  },
+  "selected_route_matches": true,
+  "guard_tool_catalog_matches": true,
+  "expected_tools": [
+    "delegate_fault_analysis",
+    "delegate_inspection",
+    "delegate_response_planning",
+    "edit",
+    "glob",
+    "grep",
+    "mcp__sec-ops__get_policy_configuration_result",
+    "mcp__sec-ops__get_policy_configuration_status",
+    "mcp__sec-ops__prepare_policy_configuration",
+    "read",
+    "skill",
+    "write"
+  ],
+  "actual_tools": [
+    "delegate_fault_analysis",
+    "delegate_inspection",
+    "delegate_response_planning",
+    "edit",
+    "glob",
+    "grep",
+    "mcp__sec-ops__get_policy_configuration_result",
+    "mcp__sec-ops__get_policy_configuration_status",
+    "mcp__sec-ops__prepare_policy_configuration",
+    "read",
+    "skill",
+    "write"
+  ],
+  "tool_boundary_matches": true,
+  "called_tools": [
+    "skill",
+    "delegate_inspection",
+    "mcp__inspection__inspection_runs_start_with_plan",
+    "mcp__inspection__inspection_runs_collect_evidence",
+    "mcp__inspection__inspection_runs_finalize"
+  ],
+  "unauthorized_tools": [],
+  "budget_violations": [],
+  "unsafe_side_effect": false,
+  "code_checks": [],
+  "judge": {
+    "session_id": "session-34f3cda5-8c87-4858-859f-95b369760956",
+    "workspace_id": "4e92c557-b77f-4c18-a4c3-af0a3d261352",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "回答将请求识别为即时巡检并直接执行：调用了巡检启动、证据采集与终结工具，返回了已生成的巡检报告与结论，未转成操作教学、能力清单或待确认需求。覆盖范围与工具记录一致（39 项预期、39 项实际观测、2 项巡检能力至终态），异常（17 台/套、离线 13 台/套、高危漏洞 4 台/套）、未知项（异常清单及对应关系需查报告明细）与检查失败（失败 0、部分完成 0）分别呈现，并明确建议未执行、未做任何处置。"
+  }
+}

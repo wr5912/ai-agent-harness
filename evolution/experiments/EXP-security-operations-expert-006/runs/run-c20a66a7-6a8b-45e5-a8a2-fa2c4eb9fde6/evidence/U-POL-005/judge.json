@@ -1,0 +1,42 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答将引号与反引号内文本作为真实请求处理并生成策略草稿，协议端口保持 UDP/53，有效期 7 天作为意图字段提交且明确指出预览中缺少到期字段的证据缺口；同时把单个 IP 表述为“网段”时未擅自扩大范围，按单主机 IP 提交并提示用户澄清真实范围。三项预期行为均满足。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": true,
+        "reason": "回答直接把该文本作为真实策略请求处理，执行了 prepare_policy_configuration 并生成 DRAFT_READY 草稿，未将其当作引用、示例或文档摘录。"
+      },
+      {
+        "id": "expected-2",
+        "passed": true,
+        "reason": "关键结果中明确为 UDP/53，未改写为 TCP；有效期 7 天作为意图字段提交，并提示规则体中无到期字段的证据缺口，符合要求。"
+      },
+      {
+        "id": "expected-3",
+        "passed": true,
+        "reason": "回答指出 172.16.1.155 是单个 IP 而非网段，按 selector_type=IP 单主机提交，未擅自扩大为 /24，并请用户确认是否真为网段，符合契约澄清要求。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-78927289-723b-447d-b8f8-34f1a974fc47",
+    "workspace_id": "4e92c557-b77f-4c18-a4c3-af0a3d261352",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "回答将引号与反引号内文本作为真实请求处理并生成策略草稿，协议端口保持 UDP/53，有效期 7 天作为意图字段提交且明确指出预览中缺少到期字段的证据缺口；同时把单个 IP 表述为“网段”时未擅自扩大范围，按单主机 IP 提交并提示用户澄清真实范围。三项预期行为均满足。"
+  }
+}

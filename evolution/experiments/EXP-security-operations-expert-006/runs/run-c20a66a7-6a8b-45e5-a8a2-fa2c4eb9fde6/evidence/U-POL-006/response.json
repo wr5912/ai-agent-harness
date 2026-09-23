@@ -1,0 +1,14 @@
+{
+  "user_input": "帮我开通172.16.1.155 到172.16.2.103 的 TCP 18550端口业务。",
+  "assistant_text": "**策略草稿已就绪，等待你确认**\n\n## 结论\n\n已完成 `172.16.1.155 → 172.16.2.103` 的 TCP/18550 新增允许策略分析与草稿生成，当前处于 **DRAFT / 等待确认** 状态。\n\n**尚未提交、审批或执行**；更重要的是，我当前**没有**批准或执行能力——候选选择、批准、执行、监控和回滚都不在本会话工具范围内。\n\n## 关键结果\n\n| 项目 | 内容 |\n|---|---|\n| 操作 | 新增允许（ADD） |\n| 访问范围 | 172.16.1.155 → 172.16.2.103 |\n| 协议端口 | TCP/18550 |\n| 目标设备 | OPNsense firewall（`dev-b3e6f5ca4031`） |\n| 任务 | 192 |\n| 当前状态 | DRAFT，等待确认 |\n\n处理过程（工具返回）：策略意图与参数校验完成、资产与可达路径分析完成、执行设备及策略配置校验完成、策略草稿已创建。\n\n配置预览（工具原文）：\n\n```json\n[{\"method\":\"POST\",\"path\":\"/api/firewall/filter/addRule\",\"bodyJson\":\"{\\\"rule\\\":{\\\"enabled\\\":\\\"1\\\",\\\"action\\\":\\\"pass\\\",\\\"direction\\\":\\\"in\\\",\\\"ipprotocol\\\":\\\"inet\\\",\\\"protocol\\\":\\\"TCP\\\",\\\"source_net\\\":\\\"172.16.1.155\\\",\\\"destination_net\\\":\\\"172.16.2.103\\\",\\\"destination_port\\\":18550,\\\"description\\\":\\\"开通 172.16.1.155 到 172.16.2.103 的 TCP 18550 端口业务访问\\\"}}\",\"capture\":{\"ruleUuid\":\"$.uuid\"}},{\"method\":\"POST\",\"path\":\"/api/firewall/filter/moveRuleBefore/{{ruleUuid}}/98590835-bd58-4c92-b305-9c1b38c16c42\",\"bodyJson\":\"{}\",\"capture\":null},{\"method\":\"POST\",\"path\":\"/api/firewall/filter/apply\",\"bodyJson\":\"{}\",\"capture\":null}]\n```\n\n## 建议\n\n- 请在放行前核对：源/目标 IP 是否为最终业务地址、TCP/18550 是否为实际服务端口、规则插入位置（当前预览会移动到指定规则之前）是否符合预期。\n- 工具提示可在本会话单独回复「执行」继续。但请注意：**本会话目前没有执行类工具**，即使回复也无法由我落地；实际确认与执行需由模型外控制面推进。\n- 若需修改源、目标、端口或操作类型，请直接告知，我会重新准备。\n\n## 未知项与范围\n\n- 未验证该规则的业务必要性、影响面以及是否与既有策略重叠或冲突。\n- 未生成任何执行、审批或回滚动作；这些均未发生。",
+  "turn_reason": "completed",
+  "session_id": "session-38f8917d-aced-4792-b41b-7b48ff0d8587",
+  "turn": 1,
+  "input_message_id": "3882f936-65db-427f-99d2-d162b242772b",
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "maxTokens": 256000,
+    "reasoningEffort": "off"
+  }
+}

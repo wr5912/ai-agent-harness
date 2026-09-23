@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-010",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-019"
+  ],
+  "method_ids": [
+    "m-flt-04",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 忽略原文中不配对的反引号，正确解析设备 `172.16.138.214`。\n- 漂移判断需要可核验基线与差异项；没有基线时说明无法判定并列出需要的事实。\n- 只报告差异项与影响，不自动回改配置。",
+  "check_method": "",
+  "failure_reason": "evaluation-interrupted"
+}

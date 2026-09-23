@@ -1,0 +1,249 @@
+{
+  "container_level_probe": {
+    "composed_config_sha256": "sha256:d2ecae03e11e1234e06fd7066785647ba7eb114323ab557606582a352a900503",
+    "controlled_home_controls": {
+      "global_agent_instructions": {
+        "mount_mode": "ro",
+        "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      "home_bootstrap_env": {
+        "mount_mode": "ro",
+        "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+        "size": 84
+      },
+      "home_user_patch": {
+        "mount_mode": "ro",
+        "sha256": "sha256:eace3c98f4cadfa8b3853b72ed261e8c2cecbb136726da5d22788fe446c677e7",
+        "size": 191
+      },
+      "web_profile_manifest": {
+        "mount_mode": "ro",
+        "sha256": "sha256:d18317531a037cac1efc616948a68308eb91d32ad4a1032cf1cba3e86a37b274",
+        "size": 239
+      },
+      "web_user_patch": {
+        "mount_mode": "ro",
+        "sha256": "sha256:eace3c98f4cadfa8b3853b72ed261e8c2cecbb136726da5d22788fe446c677e7",
+        "size": 191
+      },
+      "workspace_bootstrap_env": {
+        "mount_mode": "ro",
+        "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+        "size": 84
+      }
+    },
+    "exit_code": 0,
+    "expected_markers_present": 10,
+    "frozen": false,
+    "frozen_note": "本次核验对象是可变候选树 experiment:EXP-...；未使用 --frozen 研究快照。研究快照 snap-d0802d2a-ae8f-4d51-8101-b52bee291a2b 生成于 role-tool-matrix.yaml 修正之前，仅供历史比较，不代表本次核验内容。",
+    "limitations": "Read-only HOME/Module/.env controls and a startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested.",
+    "mode": "verification",
+    "preset_guard_declaration_present": true,
+    "script": "runtime/adapters/dsh-container/verify-load.sh",
+    "source": "experiment:EXP-security-operations-expert-001"
+  },
+  "launcher": {
+    "env_injection": "按名从调用环境传入；本证据与实例状态文件均不记录任何 Token 值",
+    "instance": "soe-verify-live",
+    "missing_env_names": [
+      "DEEPSEEK_API_KEY"
+    ],
+    "mode": "verification",
+    "mount_modes": {
+      "managed": "ro",
+      "presets": "ro",
+      "workspace": "ro"
+    },
+    "port": 3082,
+    "project": "dsh-dev-soe-verify-live",
+    "required_env_names": [
+      "DEEPSEEK_API_KEY",
+      "SEC_OPS_MCP_URL",
+      "SEC_OPS_MCP_TOKEN",
+      "INSPECTION_MCP_URL",
+      "INSPECTION_MCP_TOKEN",
+      "THREAT_ANALYSIS_MCP_URL",
+      "THREAT_ANALYSIS_MCP_TOKEN"
+    ],
+    "source_id": "experiment:EXP-security-operations-expert-001",
+    "source_kind": "experiment",
+    "state_dir": "/home/cmp/.local/state/dsh-dev/soe-verify-live",
+    "tool": "runtime/adapters/dsh-container/dsh-dev",
+    "up_command": "dsh-dev up --source experiment:EXP-security-operations-expert-001 --mode verification --name soe-verify-live --port 3082 --allow-missing-env",
+    "url_command": "dsh-dev url soe-verify-live --non-interactive（非交互输出需显式授权，输出含本次进程 Token，未写入本证据）"
+  },
+  "mcp": {
+    "boundary": "桩只提供 initialize/tools/list 最小协议面：它证明受控 Profile 的 MCP 客户端配置、鉴权头注入与工具注册链路可装载；不证明真实 MCP 服务集成、鉴权、状态机或业务能力。",
+    "endpoint_kind": "本地受控桩（无业务语义、无鉴权、仅回环监听）",
+    "handshake": {
+      "authorization_header_present": true,
+      "initialize": 3,
+      "notifications_initialized": 3,
+      "servers": [
+        "inspection",
+        "sec-ops",
+        "threat-analysis"
+      ],
+      "tools_list": 3
+    },
+    "stub_inventory_source": "由 candidate/dsh/managed 的 mcp-servers.yaml、mcp-tool-name-map.json、role-tool-matrix.yaml 派生",
+    "stub_tool_counts": {
+      "inspection": 10,
+      "sec-ops": 24,
+      "threat-analysis": 13
+    },
+    "transport": "streamable-http"
+  },
+  "mounts": [
+    {
+      "container_path": "/var/lib/dsh/profiles/web/package.json",
+      "host_source": "/home/cmp/work/luopeng/ai-agent-harness/runtime/adapters/dsh-container/verification-home-controls/web-profile.package.json",
+      "mode": "ro",
+      "volume": null
+    },
+    {
+      "container_path": "/work/harness/workspace/.env",
+      "host_source": "/home/cmp/work/luopeng/ai-agent-harness/runtime/adapters/dsh-container/verification-home-controls/locked-bootstrap.env",
+      "mode": "ro",
+      "volume": null
+    },
+    {
+      "container_path": "/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules",
+      "host_source": "/home/cmp/work/luopeng/ai-agent-harness/runtime/adapters/dsh-container/verification-home-controls/module-deny",
+      "mode": "ro",
+      "volume": null
+    },
+    {
+      "container_path": "/var/lib/dsh/profiles/web/cordis.patch.yml",
+      "host_source": "/home/cmp/work/luopeng/ai-agent-harness/runtime/adapters/dsh-container/verification-home-controls/locked-user.patch.yml",
+      "mode": "ro",
+      "volume": null
+    },
+    {
+      "container_path": "/var/lib/dsh/.env",
+      "host_source": "/home/cmp/work/luopeng/ai-agent-harness/runtime/adapters/dsh-container/verification-home-controls/locked-bootstrap.env",
+      "mode": "ro",
+      "volume": null
+    },
+    {
+      "container_path": "/var/lib/dsh/AGENTS.md",
+      "host_source": "/home/cmp/work/luopeng/ai-agent-harness/runtime/adapters/dsh-container/verification-home-controls/locked-global.AGENTS.md",
+      "mode": "ro",
+      "volume": null
+    },
+    {
+      "container_path": "/opt/dsh-managed",
+      "host_source": "/home/cmp/work/luopeng/ai-agent-harness/evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/managed",
+      "mode": "ro",
+      "volume": null
+    },
+    {
+      "container_path": "/var/lib/dsh",
+      "host_source": null,
+      "mode": "rw",
+      "volume": "dsh-dev-soe-verify-live_dsh-dev-soe-verify-live-home"
+    },
+    {
+      "container_path": "/var/lib/dsh/profiles/node_modules",
+      "host_source": null,
+      "mode": "ro",
+      "volume": "dsh-dev-soe-verify-live_dsh-dev-soe-verify-live-fallback"
+    },
+    {
+      "container_path": "/var/lib/dsh/node_modules",
+      "host_source": "/home/cmp/work/luopeng/ai-agent-harness/runtime/adapters/dsh-container/verification-home-controls/module-deny",
+      "mode": "ro",
+      "volume": null
+    },
+    {
+      "container_path": "/var/lib/dsh/profiles/web/node_modules",
+      "host_source": "/home/cmp/work/luopeng/ai-agent-harness/runtime/adapters/dsh-container/verification-home-controls/module-deny",
+      "mode": "ro",
+      "volume": null
+    },
+    {
+      "container_path": "/work/harness/workspace",
+      "host_source": "/home/cmp/work/luopeng/ai-agent-harness/evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/workspace",
+      "mode": "ro",
+      "volume": null
+    },
+    {
+      "container_path": "/opt/dsh-presets",
+      "host_source": "/home/cmp/work/luopeng/ai-agent-harness/evolution/experiments/EXP-security-operations-expert-001/candidate/dsh/presets",
+      "mode": "ro",
+      "volume": null
+    },
+    {
+      "container_path": "/var/lib/dsh/cordis.patch.yml",
+      "host_source": "/home/cmp/work/luopeng/ai-agent-harness/runtime/adapters/dsh-container/verification-home-controls/locked-user.patch.yml",
+      "mode": "ro",
+      "volume": null
+    }
+  ],
+  "notes": [
+    "本次核验期间宿主 Docker 守护进程出现过一次瞬时不可达，以及一次容器移除操作卡死（Dead 容器 + 'removal ... already in progress'）；守护进程恢复后同一镜像脚本核验命令 0 秒通过，卡死容器已清理，现象与适配层逻辑无关。",
+    "MCP 缺失时容器按 fail-closed 退出，属候选设计预期；本次以显式 --allow-missing-env 降级并接入本地桩端点完成装载核验。"
+  ],
+  "recorded_at": "2026-09-18T01:52:51Z",
+  "runtime": {
+    "cap_drop": [
+      "ALL"
+    ],
+    "container": "dsh-dev-soe-verify-live-dsh-1",
+    "dsh_source_commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+    "image_id": "sha256:544dcddbdf440f5cd62fa4f533242062b5c74b4950068ec8fbb0de26b4e54f0f",
+    "image_tag": "ai-agent-harness/dsh:c291e7961",
+    "network_mode": "host",
+    "pids_limit": 256,
+    "published_ports": [],
+    "read_only_rootfs": true,
+    "security_opt": [
+      "no-new-privileges:true"
+    ],
+    "status": "running",
+    "user": "1000:1000"
+  },
+  "schema_version": "1.0",
+  "scope": "受控技术装载核验（C2）：开发启动器启动 dsh 容器后，Profile/Patch/技能树/MCP 客户端与工具注册能否实际装载。不构成 Release 验收、R3 业务通过或评估结论。",
+  "source_trees": {
+    "managed": {
+      "file_count": 8,
+      "mount_mode": "ro",
+      "total_bytes": 43257,
+      "tree_sha256": "sha256:e3b26b75b8e3c9590df3f0871c5b969a08bdceb02586be013c426054e0e1071b"
+    },
+    "presets": {
+      "file_count": 2,
+      "mount_mode": "ro",
+      "total_bytes": 1041,
+      "tree_sha256": "sha256:71d3b1ea06c1d0ede0c55f95953d8800851e2da63e5ab2e3230887eb231bed10"
+    },
+    "workspace": {
+      "file_count": 34,
+      "mount_mode": "ro",
+      "total_bytes": 235857,
+      "tree_sha256": "sha256:3cd193c3f28e89d9ed6022323b1f21673eadbcac953d0597d70b53c8388f653b"
+    }
+  },
+  "unverified": [
+    "无 DEEPSEEK_API_KEY：未建立 Agent Session，模型推理、技能路由、委派与最终业务状态均未执行",
+    "真实 MCP 服务的鉴权、租户/对象授权、审批、幂等与审计未验证（本次端点为本地桩）",
+    "未做 Release 冻结、未形成基线、未执行 R2/R3 评估结论",
+    "verify-load.sh 的 --frozen 研究快照路径未针对当前候选内容重跑"
+  ],
+  "verified": [
+    "锁定镜像身份与镜像内三个适配器脚本摘要同宿主一致",
+    "开发启动器按名注入环境变量并以 host 网络、仅回环端口启动实例，容器保持运行",
+    "三个 streamable-http MCP 客户端完成 initialize/notifications/initialized/tools/list 并能注册工具（鉴权头已按配置注入）",
+    "受控 HOME 边界、模块 deny-layer 与三棵只读资产树的挂载身份与组合配置摘要通过容器内探针复核",
+    "Web 端点 Token 入口 303 → 会话 Cookie → 根页面 200 且含 __DSH_BOOT__"
+  ],
+  "web_endpoint": {
+    "ok": true,
+    "port": 3082,
+    "probe": "dsh-dev url soe-verify-live --non-interactive",
+    "reason": "token(303)→cookie→root 200 且根页面含 __DSH_BOOT__",
+    "token_recorded": false
+  }
+}

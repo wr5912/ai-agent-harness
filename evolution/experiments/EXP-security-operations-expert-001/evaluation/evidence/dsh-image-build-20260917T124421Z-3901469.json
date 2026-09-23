@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-09-17T12:58:47Z",
+  "build_status": "pass",
+  "source_id": "EXP-security-operations-expert-001",
+  "source_repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+  "source_commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+  "source_tree": "e482b49bef64726be8f79380bb35bae569dc3c48",
+  "pnpm_lock_sha256": "66d87ed26fe3205172560351e13fe4aa736b66c15a29f7dd873c629fc80906de",
+  "package_manager": "pnpm@11.7.0",
+  "node_base": "node:24-bookworm-slim@sha256:2fe369e969550cde8e867afc3fe370b260140cab4a23d467074295b42163d553",
+  "local_image_tag": "ai-agent-harness/dsh:c291e7961",
+  "local_image_id": "sha256:187c6cff9064c1405bc6eaf430ecef3dd03fa231337534dc5f0e2be761b57300",
+  "platform": "linux/amd64",
+  "dsh_cli_version": "0.1.5-rc.2",
+  "build_network_mode": "default",
+  "apt_mirror_main": "http://deb.debian.org/debian",
+  "apt_mirror_security": "http://deb.debian.org/debian-security",
+  "apt_signed_metadata_preflight": "pass",
+  "registry_digest_verified": false,
+  "scope": "local image build and CLI identity only; no Harness or business acceptance"
+}

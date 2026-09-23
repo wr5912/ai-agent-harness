@@ -35,6 +35,19 @@ description: "检测规则、关联规则、日志到告警链路、检测任务
 
 `evidence_gaps` 用来防止把“未检索到告警”误写成“没有异常”。
 
+## 方向选择
+
+契约域固定为 `detection-alert-pipeline-abnormal`。
+识别到下列线索时，在 `analysis_direction_ids` 中列出对应方向（可多选）：
+
+- `log-collection`：日志采集中断、数据源无数据、日志延迟、采集任务失败。
+- `detection-rule`：检测规则未命中、规则禁用、规则版本或规则配置异常。
+- `correlation-rule`：关联规则异常、多事件未关联、关联失败。
+- `alert-generation`：日志有但无告警、告警漏报、误报、告警生成失败。
+- `alert-sync-or-display`：告警同步延迟、告警列表无数据、页面展示异常。
+- `whitelist-suppression`：告警白名单命中、误加白名单、告警被抑制。
+
+无专项线索时 `analysis_direction_ids` 可省略，由故障分析运行时按域展开取证计划。
 ## 规划契约
 
 `agent_planning_result` 必须包含：

@@ -1,0 +1,14 @@
+{
+  "user_input": "指定设备：172.16.1.155；请为 172.16.1.155 到 172.16.2.103 开通 TCP 19730 访问策略",
+  "assistant_text": "策略草稿未生成，Operation 已进入权威终态 failed，需人工复核。\n\n## 结论\n\n- 已按 ADD 提交 172.16.1.155 → 172.16.2.103、TCP 19730 的网络访问策略意图，但**未生成策略草稿**，不会提交或执行。\n- 失败阶段：`candidate_resolution`；错误码 `POLICY_CONFIGURATION_AUTHORITY_UNAVAILABLE`，原因 `specified_device_no_eligible_device_mapping`。\n- 权威状态：`operation_status = failed`，`stage_code = terminal`，`stage_status = failed`，`manual_review_required = true`，`can_decide = false`。\n- 该 Operation 上 draft、candidate、selection、execution、verification 均为空。\n\n## 关键结果\n\n- 权威说明：已找到匹配资产，但当前权威数据无法将指定设备 172.16.1.155 映射到可用于策略下发的合格设备。\n- 未生成 `result_code`，`task_id`、`task_status` 为空；本次没有进入 DRAFT_READY，因此无可读取的策略结果。\n- 事实边界：失败原因是设备映射缺失，属权威数据不足；这不等于策略已被拒绝、已被批准或已生效。\n\n## 建议（均未执行）\n\n1. 由具备设备台账权限的人员核实 172.16.1.155 在权威数据中的设备登记与可下发状态，补齐设备映射后重新准备。\n2. 若该地址实际应通过资产引用（ASSET_REF）或 CIDR 表达，请提供受信控制面确认的标识或网段，再重新提交。\n3. 本次未创建任何待批准候选，不存在可选择或可批准的入口；请勿将本会话文字视为批准或执行凭据。\n\n## 过程与未知项\n\n- 本轮只调用了策略准备与状态查询：Operation `op_d1e37c35f1204c42aeec2cd98ba16094`，请求 `req-172.16.1.155-to-172.16.2.103-tcp-19730-001`，合同 `workbench-policy-configuration/v2`。\n- 当前能力不含候选选择、批准、执行、监控与回滚；也未使用 SOC 取证工具核查设备映射缺失的根因。",
+  "turn_reason": "completed",
+  "session_id": "session-9af92138-73b4-40f7-83e4-5a872570bd4a",
+  "turn": 1,
+  "input_message_id": "d1a77f49-5d96-4336-b362-f93356ed5ebb",
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "maxTokens": 256000,
+    "reasoningEffort": "off"
+  }
+}

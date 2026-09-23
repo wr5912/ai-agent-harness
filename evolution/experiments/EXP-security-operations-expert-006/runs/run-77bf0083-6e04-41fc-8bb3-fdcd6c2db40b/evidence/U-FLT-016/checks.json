@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-016",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-017"
+  ],
+  "method_ids": [
+    "m-flt-02",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 只读查询现有数据，不新建采集或巡检运行。\n- 有权威当前状态时按来源与采集时间回答；数据过期时说明最后已知时间并保留未知。\n- 管理探测失败不得单独支撑离线结论。",
+  "check_method": "",
+  "failure_reason": "evaluation-interrupted"
+}

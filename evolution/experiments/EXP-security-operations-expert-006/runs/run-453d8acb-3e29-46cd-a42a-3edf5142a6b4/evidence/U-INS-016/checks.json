@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-016",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-013"
+  ],
+  "method_ids": [
+    "m-ins-05",
+    "m-ins-07",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 同一会话中上一轮已给出本轮巡检事实时，直接按 U-INS-005 的输出合同返回单个 JSON 对象，不重新发起巡检、不要求用户重贴事实。\n- 评测执行器为每个 Case 新建 Session，本用例默认在无上文的新会话中运行：此时如实说明会话中没有可引用的巡检事实，不得凭常识补齐或编造结论、数量与报告链接。",
+  "check_method": "",
+  "failure_reason": "unauthorized-side-effect"
+}

@@ -8,24 +8,22 @@ agent:
   load_mode: container-only
 experiment:
   id: EXP-security-operations-expert-001
-  development_path: exploration
-  risk_level: high
-  change_classes:
-    - B
-    - C
+  baseline_ref: none:first-experiment
+  status: active
 capabilities:
-  delivered_pending_review:
+  migrated_for_research:
     - response.intake
     - response.plan
     - fault.analyze
     - inspection.run
     - policy.prepare
     - policy.status
-  migrated_unassessed:
+    - policy.select
+    - policy.result
+  not_yet_observed:
     - soc.investigate
     - knowledge.search
     - threat.analyze
-  release_rule: migrated_unassessed capabilities must be evaluated in the frozen R3 scope or disabled
 loadable_assets:
   workspace: dsh/workspace
   preset_root: dsh/presets
@@ -33,8 +31,6 @@ loadable_assets:
   preset_id: security-operations-expert
   profile_patch: dsh/managed/security-operations-expert.patch.yml
   runtime_lock: runtime.lock.json
-  pending_delivery: delivery/交付记录.md
-  pending_cases: delivery/eval/cases.pending.jsonl
 runtime_contract:
   workspace_container_path: /work/harness/workspace
   preset_container_path: /opt/dsh-presets
@@ -54,7 +50,6 @@ credential_environment_keys:
   - THREAT_ANALYSIS_MCP_URL
   - THREAT_ANALYSIS_MCP_TOKEN
 security:
-  production_self_modification: forbidden
   authoring_change_activation: host-reviewed-new-container-and-session
   user_text_is_authority: false
   mcp_startup_failure: fail-closed
@@ -63,8 +58,7 @@ security:
 provenance:
   archive_manifest: ../../../history/imports/security-operations-expert-2026-09-15/source-manifest.json
   migration_id_map: migration-id-map.json
-promotion:
-  baseline_created: false
-  release_created: false
-  current_created: false
-  delivery_status: returned-for-remediation
+research_state:
+  current_run_recorded: false
+  research_release_created: false
+  web_path_verified: false

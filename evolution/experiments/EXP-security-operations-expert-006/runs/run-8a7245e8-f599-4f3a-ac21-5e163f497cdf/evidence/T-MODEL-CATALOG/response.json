@@ -1,0 +1,25 @@
+{
+  "catalog": [
+    {
+      "name": "DeepSeek-V41-Flash",
+      "selected": true
+    },
+    {
+      "name": "DeepSeek-V4-Flash",
+      "selected": false
+    },
+    {
+      "name": "DeepSeek-V4-Pro",
+      "selected": false
+    },
+    {
+      "name": "DeepSeek-V4-Flash-Vision-Exp",
+      "selected": false
+    },
+    {
+      "name": "Qwen3.8-27B",
+      "selected": false
+    }
+  ],
+  "default_model": "DeepSeek-V41-Flash"
+}

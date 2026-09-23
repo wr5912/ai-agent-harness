@@ -3,65 +3,145 @@
 ## 语言
 
 - 默认使用中文编写对话、计划、文档、代码注释和提交说明。
-- 代码标识符、命令、日志、错误信息、文件名及第三方 API 名称保留原文。
+- 代码标识符、命令、日志、错误信息、文件名、第三方 API 名称及必要英文术语保留原文。
+
+## Research Mode
+
+本仓库是面向个人开发者的 DSH-only Harness 研究与资产管理仓库。默认且唯一的工作模式是 **Research Mode**：探索 Harness 的创建、修改、评估和持续优化，用可复现的实验判断变化是否有价值。
+
+工作时遵守以下最高优先级原则：
+
+- **研究优先**：先验证研究假设，再最小工具化验证价值，最后考虑工程固化；先保证可复现，再考虑治理。
+- **禁止过度工程化和过度安全化**：不得仅以“未来可能生产化”为由引入 RBAC、审批流、租户体系、策略引擎、控制编号、审计平台、数据库、任务调度、管理平台或多阶段发布门禁。
+- **简洁优先（Simplicity First）**：只实现当前问题所需的最少内容。不添加未要求的功能、只使用一次的抽象、假想的灵活性、额外配置项或不可能场景的防御逻辑；存在明显更短、更直接的实现时应当简化。
+- **单一事实源（Single Source of Truth）**：同一项当前事实只保留一个可编辑来源。禁止同时维护内容重叠的 Markdown、YAML、JSONL 或“生成器 + 可编辑投影”；其他位置只能引用该来源。
+- **根因整改（Root-cause Changes）**：从共同根因整体修正，并检查同一根因直接影响的调用方、生成器、消费者和同类路径。禁止只给已暴露症状打补丁；举一反三仅限当前目标的直接影响范围，不借机重构无关内容。
+- **精准修改（Surgical Changes）**：只修改完成当前目标所必需的内容。不顺手重构、润色、格式化或删除相邻代码；遵循现有风格，只清理由本次改动产生的无用内容；每一处变更都应能直接追溯到用户要求。
+
+`Simplicity First` 和 `Surgical Changes` 的来源是 [andrej-karpathy-skills 的 `CLAUDE.md`](https://github.com/multica-ai/andrej-karpathy-skills/blob/main/CLAUDE.md)。本仓库以这里的中文规则为准，不依赖远程文件运行，也不据此增加评分系统、检查平台或审批流程。
+
+项目级安全只保留四项底线：
+
+- 不提交秘钥；运行时凭据不进入 Harness 资产、普通日志或研究证据。
+- 不自动执行不可信归档、脚本、Hook、Plugin、Skill、Workflow 或配置；旧资产先只读清点。
+- 不实施未经用户授权的提交、推送、打 Tag、删除、覆盖、发布、外部写入或其他破坏性动作。
+- 如实记录结果、失败、未知状态和适用限制，不把局部技术检查写成研究假设已成立。
+
+具体 Harness 中的 Guard、工具限制、安全用例和权限配置可以是研究对象，但不得反向成为所有 Experiment 必须建设的仓库基础设施。生产平台、生产权限治理和生产部署验收不属于本项目；将来确有需要时，应在独立工程或明确的新项目阶段处理。
 
 ## 项目使命与边界
 
-- 本仓库管理仅供容器内 DSH Agent Runtime 装载的 Agent/Harness 工程资产及其任务、验收、评估、实验、发布和回归证据。
-- 不在本仓库开发 DSH Runtime，不复制 Runtime 内部目录，不把会话、缓存、凭据或其他运行态数据作为 Harness Release。
-- `agents/` 是待交付的业务 Agent 资产；`.agents/skills/` 是维护本仓库的 Codex 项目技能。两者不得混用。
-- `.codex/` 和根级 `AGENTS.md` 只约束仓库研发协作，不是 DSH Runtime 策略、权限或生产资产。
+- 核心研究是 Harness 改进、资产演化、多 Variant 派生与比较；资产仅供容器内 DSH Agent Runtime 装载。
+- 优先复用 DSH 现有能力和插件；只有扩展接口确实不足时，才考虑有记录、可回退的最小框架修改。DSH Runtime 源码不混入本仓库。
+- 不复制 Runtime 内部目录，不把 Session、缓存、附件、凭据或整个 `$DSH_HOME` 作为 Harness 资产。
+- `agents/` 保存业务 Agent 的研究资料；`.agents/skills/` 保存维护本仓库的 Codex 项目技能，两者不得混用。
+- `.codex/` 和根级 `AGENTS.md` 只约束仓库研发协作，不是 DSH Runtime 策略或业务 Harness 资产。
+- 研究管理当前只建设必要的本地 CLI；未来可能演化为平台，但平台建设不是当前阶段的任务。
+
+## 开发对象与修改边界
+
+同一个文件在不同任务中可以属于不同对象。判断依据是本次用途，不是文件名或目录；这四类对象不要求对应四个目录、服务、权限层或台账。
+
+### 开发智能体的运行配置
+
+用于当前开发任务的身份、编辑与检查能力、开发插件和启动配置。它帮助开发者修改目标，不等于目标业务智能体的配置。维护这类配置时应说明这是开发环境变化，不得因修改目标 Harness 而无意替换当前开发身份。
+
+### 被开发或优化的 Harness 资产
+
+本次要创建、修改或比较的提示词、业务 `AGENTS.md`、DSH Preset、Skill、插件及其配置源码。按任务范围编辑并通过 Git 管理。源码写入不等于运行实例已经加载；按 DSH 实际装载机制用新进程或新 Session 核验。
+
+阅读业务角色指令是为了理解和编辑资产，不代表开发工具要切换成目标业务智能体。以开发身份读取业务 `AGENTS.md`，不要覆盖或删除它。
+
+### 需求、测试数据与评估标准
+
+说明研究目标、比较输入和结果判断方式。开发阶段允许维护，但同一次比较运行期间保持口径稳定；口径改变后重新执行受影响的比较。不得为了让当前结果更好看而隐瞒失败或无说明降低标准。
+
+同一研究口径的需求定义、任务定义、测试数据、评估方法和测试验收集中在一个当前事实源；按主要消费方式选择一个 Markdown 或一个 JSONL，不同时维护多种投影。这些资料是研究工具，不要求每个 Experiment 都物化 `REQ-xxx`、`AC-xxx`、固定数量的 Case 或正式交付模板。只创建当前研究确实需要的内容。
+
+### 运行状态与运行记录
+
+- **运行状态**：Session、缓存、附件、实例设置和临时文件支撑当前运行，可以按实例生命周期保留或清理，不作为 Harness 的另一份维护副本。
+- **运行记录**：需要比较或复现的 Run 保存实际来源、Git 提交及 dirty 状态、镜像、模型、输入、观察和限制。结果不得静默覆盖；不值得保留的临时探针无需包装成正式 Run。
+
+开发过程中产生或修改的 Harness 资产，即使暂存在容器 HOME，也不得把容器内副本作为唯一事实源；完成任务或清理实例前，确认其已回流当前 Experiment 的 `candidate/`。不要回流 Session、缓存、附件、凭据或普通运行设置。
+
+## 研究演进
+
+本项目采用轻量演进主线：
+
+```text
+Baseline 引用 → Experiment（含 candidate 工作树）→ Evaluation → Decision
+                                                        └→ 可选 Research Release
+```
+
+- Baseline 是 `git:<commit>`、`release:<id>` 或 `none:first-experiment` 引用，不复制稳定 Baseline 目录。
+- `candidate/` 是 Experiment 中的待比较工作树，不表示生产候选或发布准入。
+- 每个语义性 Harness 变化建立 Experiment，至少说明为什么改、改了什么、怎样比较、结果与回归、限制和下一步。
+- Evaluation 规模由研究假设决定；可以从一个或少量高价值输入开始，不设固定 Case 数、R1/R2/R3 或安全控制映射。
+- Decision 使用 `adopt`、`continue`、`reject` 或 `inconclusive`，失败和证据不足都是合法研究结果。
+- Research Release 是值得保留的、自包含、不可变、可校验的研究版本，不表示生产可用或上线批准。
+- 不维护 `evolution/baselines/` 或 `agents/<agent-id>/current/`；Git 与 Research Release 已足以恢复和比较版本。
+- 运行记录使用 `run-<UUIDv4>`；完成后不改写原始事实。研究版本主要由 Git 保存，不复制整套源码快照。
+
+## 验收层级
+
+项目验收路径的唯一维护位置是 [`docs/ai-agent-harness项目验收矩阵.md`](docs/ai-agent-harness项目验收矩阵.md)。开始任务时确定涉及的 `PA-xx`，完成时分别说明：
+
+- **项目与工具链验证**：仓库规则、开发 CLI、来源解析和 DSH 接入是否按设计工作。
+- **Experiment Evaluation**：某个研究假设是否获得足够证据，结果、回归和限制是什么。
+- **Research Release 复现**：某个研究版本能否按清单恢复并重新装载。
+
+三者不能互相替代，也都不构成生产部署验收。静态校验、文件存在、容器启动、HTTP `200` 或 `/health` 只证明对应局部状态。
+
+## Memory
+
+`.codex/config.toml` 显式开启项目级 Memory，只作为受信任 Codex 开发会话的辅助上下文。Memory 不是规范事实源、评估结果、Harness 资产或 DSH 配置；长期规则写入 `AGENTS.md`，项目状态写入验收矩阵，研究事实写入对应 Experiment 与 Run。
+
+Memory 位于仓库外的 `$CODEX_HOME/memories`，不得复制进仓库、Research Release 或评估证据，不得记录秘钥、Token、Cookie、私有 URL 或其他凭据；易变事实使用前回到仓库或运行环境核验。
+
+## 文档与数据质量
+
+- README 先说明用途、当前能力和使用入口，再介绍目录与约束；不把计划写成现有能力。
+- 使用完整、直接的中文句子。术语首次出现时解释，代码、命令、协议字段和稳定 ID 保持准确。
+- 表格用于比较和索引，长解释使用段落；不为短文档机械套模板。
+- 原始输入、历史记录和外部证据保留原貌，不以润色为由改写事实。
+- 只有存在实际机器消费者时才使用 JSONL；以人工维护为主时直接使用 Markdown。不得为同一内容同时维护 Markdown、YAML、JSONL 等投影。
+- 确需生成临时阅读视图时，视图不可编辑且不作为事实入口；生成需求消失后删除生成器与投影。
+- 同一事实只保留一个可编辑维护位置，其他位置只引用。
+- 不以“去 AI 味”、禁词数、英文数量或固定字数判断质量，也不为写作整改新增平台或评分系统。
 
 ## 开始工作前
 
-1. 阅读 `docs/standards/SOURCES.md`，确认规范来源、版本、提交与摘要仍然匹配。
-2. 阅读 `docs/standards/PROJECT-INTERPRETATION.md`，使用其中对 Baseline、Experiment、Eval Set、Release 和 DSH 装载的统一语义。
-3. 按任务读取对应项目技能：旧资产使用 `legacy-asset-intake`；演进使用 `harness-evolution`；评估使用 `baseline-eval`；安全边界使用 `security-control-boundary`；交付审查使用 `delivery-review`；DSH 验收使用 `dsh-release-verify`。
-4. 先检查 Git 工作树和现有资产。其他人的改动不得擅自覆盖、回退或混入当前工作。
+1. 阅读 `docs/standards/SOURCES.md` 与 `docs/standards/PROJECT-INTERPRETATION.md`，确认 Research Mode 下哪些来源适用。
+2. 阅读项目验收矩阵，确定涉及的 `PA-xx`、已有证据和缺口。
+3. 新建、迁移、修改或优化 Harness 时先使用 `harness-guided-workflow`；它会按需衔接 `legacy-asset-intake`、`harness-evolution` 和 `research-eval`。
+4. 检查 Git 工作树和现有资产；不得覆盖、回退或混入他人的改动。
 
-## 规范权威与冲突处理
+## 规范来源
 
-- 研发、评估、安全、交付和发布门禁以 `agent-engineering-spec` 锁定提交为准。
-- 仓库拓扑以《Harness Repo 目录结构设计说明（v1.1）》为准；资产模型和生命周期以《Harness Asset Repository 规范（v1.0）》为准。
-- `docs/standards/PROJECT-INTERPRETATION.md` 只解决上述来源应用到本项目时的空白或歧义。它不得降低任一上游硬门禁。
-- 若来源之间出现无法按适用范围消解的实质冲突，停止相关晋升或发布，记录冲突并请求维护者裁决；不得静默选择较宽松规则。
-
-## 资产演进不变量
-
-- 从可核验的需求来源、`REQ-xxx`、非目标和 `AC-xxx` 开始。每个需求至少关联一个定义最低可接受任务结果的硬门禁。
-- 项目特有验收标准的唯一事实源是具体 Agent 的交付记录模板一。`tasks/**/acceptance.yaml` 只能引用或生成投影，不得成为第二套可编辑阈值。
-- 每项语义性 Harness 变更都建立 Experiment。路径字段使用 `direct` 或 `exploration`：只有会改变实施路线的关键不确定性才使用后者；探索样本不能形成正式交付结论。
-- 任一候选基线冻结项变化都生成新的 `bl-<UUIDv4>`；同一基线重跑只生成新的 `run-<UUIDv4>`，历史结果不得覆盖。
-- 每个 Agent 只维护一个 Eval Set 事实源。`core`、`boundary`、`safety`、`regression` 是 `cases.jsonl` 的标签；smoke/capability 等只允许成为选择器或视图，不得复制 Case。
-- 正式评估一般门槛为不少于 50 个有效 Eval Case 和 50 条逐条质量复核的实质不同 User Input。只有满足锁定规范全部条件的确定性或影响范围明确交付才可采用有限范围；无法证明时回退一般门槛。
-- R2 只形成范围结论，不得表述为正式评估运行通过；R3 才能对完整冻结范围形成独立正式运行结论。
-- 只有交付评估通过的同一候选基线可以生成 Release。Release 必须自包含、不可变、可校验，且包含兼容范围、评估报告和变更记录；Git Tag 不能替代 Release。
-- `agents/<agent-id>/current/` 只在 Release 制品完成晋升后更新为同一内容摘要的校验镜像；这不表示已经完成 DSH 上线。生产 DSH 必须挂载具体 Release，不挂载可变 `current/`。
-
-## 安全红线
-
-- 归档、外部交付或旧 Harness 默认不可信。先做只读清点，不直接提取到仓库、不加载、不执行脚本、Hook、Plugin、Skill、Workflow 或配置。
-- 不回显、复制、提交或记录密钥、Token、Cookie、私有 URL、凭据文件内容及其他秘密。配置只引用运行时注入的环境变量或受控凭据标识。
-- 不允许生产环境自修改 Harness。运行反馈和失败案例必须回到新的 Experiment、Candidate、Evaluation 和 Release。
-- 隔离的 Authoring 容器可让 DSH 自组合、自修改当前 Experiment Candidate 的工作区行为资产；当前 Session 可实时观察新行为，但只算探索。受控 Profile、Guard 和 MCP 绑定保持只读，评估证据与旧历史不挂载，凭据只由受信 Runtime 注入而不作为 Candidate 资产。任何写入只形成待审 Candidate diff；进入核验态或正式评估前，须完成宿主侧校验和复核，再用新容器、新 Session 重建加载。不能自动冻结基线、改交付结论或生成 Release。
-- 高风险动作必须由 Runtime 或服务端强制执行权限、审批、参数、租户、对象、数量、幂等和失败安全；提示词中的禁止语句不等于控制已经落实。
-- 不创建空 Agent、空配置、空报告、空 Eval、空证据目录或占位平台。只有出现真实内容时才创建相应目录。
-- 未经用户明确要求，不提交、不推送、不打 Tag、不删除或覆盖外部资产。
+- 本项目的当前行为以根级 `AGENTS.md` 和 `PROJECT-INTERPRETATION.md` 的 Research Mode 解释为准。
+- 两份受控 Harness 规范保留原始副本和摘要，作为目录与资产模型的设计输入；与简化后的 Research Mode 冲突时，不自动引入其生产化结构。
+- `agent-engineering-spec` 锁定提交中的任务分流、多轮澄清和外部资产复用原则可经 `harness-guided-workflow` 采用；固定 Case、R1/R2/R3、安全控制映射和生产发布门禁仍只作为未来生产化参考。
+- 受控原文不得原地修改；适用关系在 `SOURCES.md` 和 `PROJECT-INTERPRETATION.md` 中说明。
 
 ## 文件与命名
 
 - Agent ID、技能名和普通目录使用小写 kebab-case。
-- Experiment 使用 `EXP-<agent-id>-NNN`；稳定资产和 Release 使用 `<agent-id>-v<semver>`。
-- 交付内容默认位于 `agents/<agent-id>/delivery/`：六项内容可合并为唯一 `交付记录.md`，或拆分为规范指定的六份文件；禁止同时维护内容重复的两种形态。
-- 机器证据使用唯一 `delivery/eval/cases.jsonl` 和 `delivery/eval/results.csv`。大型或敏感证据外置时记录受控 URI、对象版本、SHA-256 和访问方式，不创建空替代文件。
-- 受控规范原文禁止直接修改。上游升级时添加新版本副本、更新 `SOURCES.md` 并记录迁移影响；不得原地覆写后仍沿用旧版本和摘要。
+- Experiment 使用 `EXP-<agent-id>-NNN`；Research Release 使用 `<agent-id>-v<semver>`。
+- Agent 的需求、任务、测试数据、评估方法和测试验收按主要消费方式保存在一个 Markdown 或一个 JSONL；没有真实内容时不创建。
+- 研究 Run 位于 `evolution/experiments/EXP-<agent-id>-NNN/runs/<run-uuid>/`。
+- 只有出现真实内容时才创建目录，不创建空 Agent、空 Eval、空报告、空证据或占位平台。
 
-## 变更与验证
+## AI 纠错记录
 
-- 先区分仓库治理变更、Agent 资产变更和 Runtime 运行变更；只有后两者影响冻结组合时才触发候选基线更新。
-- 优先使用已有格式和简单脚本。除非真实瓶颈已反复出现且收益明确，不引入额外平台或复杂基础设施。
-- 机器校验成功只表示已实现的确定性检查通过，不等于内容真实性、业务能力、交付评估或发布获准。
-- DSH 验收前必须记录镜像版本或摘要、Profile、宿主机与容器挂载路径、挂载模式、启动方式、实际加载的 Release 摘要和停止方法。
-- Candidate 容器的构建、Profile 展开或挂载测试只证明局部技术集成，不得写成 Release 验收或 R3 业务通过。Authoring 与 Verification 使用不同挂载模式；运行态 `$DSH_HOME` 是独立数据根，绝不随 Harness 资产归档。
-- 运行验收必须通过实际对外协议和完整任务链，核对用户可见结果、工具行为、最终业务状态及必要审计记录；健康检查不能替代。
-- 完成修改后检查文档链接、格式、配置解析、来源摘要、敏感信息和 Git diff，并清楚报告已验证项、未验证项与适用边界。
+- 用户明确指出上一轮错误并要求修正时，在正常完成回复后按 `.agents/skills/ai-correction-log/SKILL.md` 追加一条记录；同一轮只写一次。
+- 只记录被违反的约束、错误点、修正要求、反思、根因和改进方法，不复制完整对话，不记录秘钥或凭据。
+- 记录随仓库版本控制，按天追加；不得重写或删除既有记录。
+
+## 完成验证
+
+- 优先使用现有格式和简单脚本；没有当前研究需求时不增加抽象、配置或兼容层。
+- 机器校验成功只表示确定性合同通过，不表示研究假设成立。
+- 需要证明 DSH 行为时，核对实际来源、装载结果和用户可见行为；需要证明 Research Release 可复现时，核对清单、摘要和重新装载结果。
+- 完成前检查文档链接、配置解析、敏感信息、Git diff 和测试结果；逐项报告已验证内容、未验证内容和适用边界。
+- 最后审查每个改动文件和主要代码块能否直接对应用户要求；移除本次改动产生的无用内容，不处理无关旧问题。

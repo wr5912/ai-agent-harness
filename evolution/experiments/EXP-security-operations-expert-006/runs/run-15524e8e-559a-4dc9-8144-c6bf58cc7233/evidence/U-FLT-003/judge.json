@@ -1,0 +1,42 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "被测回答在用户未提供源、目的、业务对象或时间的情况下，自行选取 172.16.2.99、172.16.2.104、172.16.138.226 等资产并展开大规模只读取证（20 余次工具调用），而非先集中澄清最小范围与症状。虽然文末建议用户补充信息，但澄清发生在自主诊断之后，且把通用经验性推断（dst_no_gateway、影子流量、覆盖率偏低等）作为分析主体展开，违反 expected-1 与 expected-2；仅 expected-3 在“不把经验当根因结论”上基本符合。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": false,
+        "reason": "回答未在开工前集中澄清最小范围与症状，而是自行挑选主机对与网段（如 172.16.2.99/172.16.2.104 访问 172.16.138.226）并据此展开取证，等同于以自主假设替代用户口径，属于对未给出对象的自行推定，与“不猜 IP、端口或业务名”的要求相悖。"
+      },
+      {
+        "id": "expected-2",
+        "passed": false,
+        "reason": "澄清仅出现在末尾“建议”中，且是在已完成大量自主诊断之后；过程中的澄清诉求（业务系统名、IP、事件 ID、时间窗）并非最小必要字段的收敛式提问，而是对已执行诊断的补充说明，实际是先启动诊断计划再要求用户补信息。"
+      },
+      {
+        "id": "expected-3",
+        "passed": true,
+        "reason": "回答区分了“事实”与“推断”，明确不将 dst_no_gateway、影子流量、覆盖率 33% 等通用信号直接归因为根因，并声明结论适用范围有限、不能证明或排除故障，符合“列出待查控制点但不把经验当根因结论”。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-0bd0a69e-ba92-42a6-8687-b81f812a7319",
+    "workspace_id": "c868b1fa-dab2-4a6c-8af2-610e6e8f82ca",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "failed",
+    "reason": "被测回答在用户未提供源、目的、业务对象或时间的情况下，自行选取 172.16.2.99、172.16.2.104、172.16.138.226 等资产并展开大规模只读取证（20 余次工具调用），而非先集中澄清最小范围与症状。虽然文末建议用户补充信息，但澄清发生在自主诊断之后，且把通用经验性推断（dst_no_gateway、影子流量、覆盖率偏低等）作为分析主体展开，违反 expected-1 与 expected-2；仅 expected-3 在“不把经验当根因结论”上基本符合。"
+  }
+}

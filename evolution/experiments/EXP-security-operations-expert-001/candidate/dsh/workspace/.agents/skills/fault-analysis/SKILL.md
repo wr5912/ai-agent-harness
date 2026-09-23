@@ -86,24 +86,24 @@ MCP 运行入口：
 - 查询结果：`mcp__sec-ops__fault_diagnosis__fault_analysis_get_result`
 - 查询轨迹：`mcp__sec-ops__fault_diagnosis__fault_analysis_get_trace`
 
-故障域 Skill 选择清单：
+故障域 Skill 选择清单（`domain_id` 只能取 8 个服务契约域之一；同一域下的细分线索用 `analysis_direction_ids` 表达，不得当作独立域）：
 
-- 普通源目访问不通、超时、路径不可达：`fault-domain-business-access-unreachable`
-- 单资产离线、不可达、探测失败、采集异常：`fault-domain-asset-runtime-status`
-- 资产未纳管、归属缺失、业务影响范围异常：`fault-domain-asset-association-abnormal`
-- 明确策略变更、策略当前态 / 历史 / 差异后访问异常：`fault-domain-policy-change-access-abnormal`
-- 明确主备切换、HA 同步、双机策略差异后访问异常：`fault-domain-ha-policy-drift`
-- 安全设备配置偏离、防火墙 / 交换机 / 路由器配置异常：`fault-domain-security-device-config-drift`
-- 主机基线、弱口令、SSH/RDP/安全配置风险：`fault-domain-host-security-configuration-risk`
-- 高危漏洞、CVE、暴露服务、漏洞利用风险：`fault-domain-vulnerability-exposure-risk`
-- 路径合规失败、应达路径和实际路径不一致、专项拓扑路径违规：`fault-domain-path-compliance-abnormal`
-- 日志到告警链路、检测规则、关联规则、检测任务、告警漏报误报延迟：`fault-domain-detection-alert-pipeline-abnormal`
-- 异构策略迁移、厂商策略迁移、迁移后对象组 / 服务组 / NAT 异常：`fault-domain-heterogeneous-policy-migration-access-abnormal`
-- 上下级 SOC 数据不一致、级联同步失败、级联链路异常：`fault-domain-cascade-data-sync-abnormal`
-- 用户名口令、人脸、指纹、指静脉、认证服务器、权限菜单、403 等登录认证异常：`fault-domain-identity-auth-login-abnormal`
+- 普通源目访问不通、超时、路径不可达：`fault-domain-business-access-unreachable`（域 `business-access-abnormal`，主方向 `base-reachability`）
+- 单资产离线、不可达、探测失败、采集异常：`fault-domain-asset-runtime-status`（域 `asset-runtime-status`）
+- 资产未纳管、归属缺失、业务影响范围异常：`fault-domain-asset-association-abnormal`（域 `asset-association-abnormal`）
+- 明确策略变更、策略当前态 / 历史 / 差异后访问异常：`fault-domain-policy-change-access-abnormal`（域 `business-access-abnormal`，主方向 `policy-change`）
+- 明确主备切换、HA 同步、双机策略差异后访问异常：`fault-domain-ha-policy-drift`（域 `business-access-abnormal`，主方向 `ha-switchover`）
+- 安全设备配置偏离、防火墙 / 交换机 / 路由器配置异常：`fault-domain-security-device-config-drift`（域 `business-access-abnormal`，主方向 `security-device-config`）
+- 主机基线、弱口令、SSH/RDP/安全配置风险：`fault-domain-host-security-configuration-risk`（域 `host-security-configuration-risk`）
+- 高危漏洞、CVE、暴露服务、漏洞利用风险：`fault-domain-vulnerability-exposure-risk`（域 `vulnerability-exposure-risk`）
+- 路径合规失败、应达路径和实际路径不一致、专项拓扑路径违规：`fault-domain-path-compliance-abnormal`（域 `business-access-abnormal`，主方向 `path-compliance`）
+- 日志到告警链路、检测规则、关联规则、检测任务、告警漏报误报延迟：`fault-domain-detection-alert-pipeline-abnormal`（域 `detection-alert-pipeline-abnormal`）
+- 异构策略迁移、厂商策略迁移、迁移后对象组 / 服务组 / NAT 异常：`fault-domain-heterogeneous-policy-migration-access-abnormal`（域 `business-access-abnormal`，主方向 `heterogeneous-policy-migration`）
+- 上下级 SOC 数据不一致、级联同步失败、级联链路异常：`fault-domain-cascade-data-sync-abnormal`（域 `cascade-data-sync-abnormal`）
+- 用户名口令、人脸、指纹、指静脉、认证服务器、权限菜单、403 等登录认证异常：`fault-domain-identity-auth-login-abnormal`（域 `identity-auth-login-abnormal`）
 
 1. 构造或校验故障分析任务包，保留 `session_id` / `conversation_id`、`task_id`、原始问题，以及当前输入中已经包含的上游异常上下文。
-2. 根据当前问题选择一个主故障域 Skill；当前输入对象优先于历史上下文，源 IP、目标 IP 不得反转。故障域 Skill 负责生成 `agent_planning_result`，其中必须包含 `domain_id`、`tool_call_plan`、`evidence_contract`、`candidate_causes` 或候选生成规则、`output_policy`。
+2. 根据当前问题选择一个主故障域 Skill；当前输入对象优先于历史上下文，源 IP、目标 IP 不得反转。故障域 Skill 负责生成 `agent_planning_result`，其中必须包含 `domain_id`（8 个契约域之一）、`tool_call_plan`、`evidence_contract`、`candidate_causes` 或候选生成规则、`output_policy`；识别到专项线索时同时给出该域下的 `analysis_direction_ids`，不得发明域或方向标识。
 3. `agent_planning_result.tool_call_plan[]` 必须逐项声明 `tool_call_id`、`tool_name`、`capability_id`、`evidence_type`、`object_role`、`resolved_arguments`、`depends_on` 和 `purpose`；业务证据契约由故障域 Skill 随计划提交，运行时不从工具名反推能力。
 4. 调用启动分析工具前执行计划自检：除显式 invalid 计划外，`agent_planning_result.tool_call_plan` 必须为非空数组，且每个计划项具备第 3 步字段；每个 `depends_on` 和 `runtime_argument_sources[].from_tool_call_id` 必须引用同一计划内已存在的计划项。自检失败时不得调用启动分析工具，不得尝试直接 SOC 取证，不得读取 Trace 探路，不得重建运行。
 5. 调用 `mcp__sec-ops__fault_diagnosis__fault_analysis_start`，入参必须包含原始问题和 `agent_planning_result`。这是本轮第一次故障分析 MCP 调用；如果无法在本次调用前生成完整计划，禁止调用该工具。

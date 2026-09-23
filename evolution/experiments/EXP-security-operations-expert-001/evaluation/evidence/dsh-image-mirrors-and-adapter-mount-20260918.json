@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-09-18T15:14:24Z",
+  "purpose": "核对镜像构建统一使用国内阿里云源，以及适配层脚本改为只读挂载后脚本改动不再需要重建镜像",
+  "image": {
+    "tag": "ai-agent-harness/dsh:c291e7961",
+    "id": "sha256:8727724a43223e80c8b3f490c2e3c11ab04cb39bbcd0719322bee3ac8325b3c8",
+    "source_commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+    "source_tree": "e482b49bef64726be8f79380bb35bae569dc3c48",
+    "cli_version": "0.1.5-rc.2",
+    "apt_mirror_main": "http://mirrors.aliyun.com/debian",
+    "apt_mirror_security": "http://mirrors.aliyun.com/debian-security",
+    "npm_registry": "https://registry.npmmirror.com",
+    "apt_signed_metadata_preflight": "pass",
+    "build_evidence": "dsh-image-build-20260918T145549Z-2295228.json"
+  },
+  "adapter_scripts_not_baked_into_image": {
+    "dockerfile_copies_adapter_scripts": false,
+    "mount_target": "/opt/dsh-adapter",
+    "method": "Compose 只读 bind 挂载适配层目录，home-init 与 dsh 两个服务都挂载"
+  },
+  "observations": {
+    "script_change_without_rebuild": {
+      "procedure": "在 tree-digest.mjs 与 verify-load.mjs 末尾各追加一行注释后直接重跑 verify-load.sh verification，不重建镜像",
+      "image_id_before": "sha256:8727724a43223e80c8b3f490c2e3c11ab04cb39bbcd0719322bee3ac8325b3c8",
+      "image_id_after": "sha256:8727724a43223e80c8b3f490c2e3c11ab39bbcd0719322bee3ac8325b3c8",
+      "tree_digest_size_after_change": 4392,
+      "verify_load_exit_code": 0,
+      "result": "镜像 ID 未变，容器读到的是改动后的脚本"
+    },
+    "restored_and_reverified": {
+      "procedure": "还原两个脚本后再次运行两种模式",
+      "authoring_exit_code": 0,
+      "verification_exit_code": 0,
+      "image_id": "sha256:8727724a43223e80c8b3f490c2e3c11ab04cb39bbcd0719322bee3ac8325b3c8"
+    }
+  },
+  "verified": [
+    "构建期 APT 使用 mirrors.aliyun.com/debian 与 mirrors.aliyun.com/debian-security，npm/pnpm 与 corepack 使用 registry.npmmirror.com",
+    "APT 元数据签名与 Valid-Until 预检通过（apt_signed_metadata_preflight=pass）",
+    "适配层脚本不再 COPY 进镜像，改由只读 bind 挂载到 /opt/dsh-adapter",
+    "改动适配层脚本后不重建镜像即可生效，verify-load 两种模式均退出 0"
+  ],
+  "limitations": [
+    "本次只核对构建源与挂载/脚本身份，未验证 DSH 业务行为；镜像内脚本变化仍不在本证据范围内（已无此类脚本）",
+    "本地镜像未推送，registry digest 不可用；跨机器可用性依赖同一 registry 与平台"
+  ]
+}

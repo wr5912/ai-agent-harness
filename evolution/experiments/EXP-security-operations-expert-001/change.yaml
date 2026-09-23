@@ -1,11 +1,6 @@
 schema_version: "1.0"
 experiment_id: EXP-security-operations-expert-001
 agent_id: security-operations-expert
-development_path: exploration
-change_classes: B+C
-risk_level: high
-source_kind: legacy-runtime-migration
-target_runtime: dsh-container-only
-candidate_goal: migrate-legacy-harness-and-initial-delivery-without-promotion
-mutable_scope: candidate-behavior-assets-only
-release_scope: none
+baseline_ref: none:first-experiment
+status: active
+research_question: 能否把旧 Harness 的可用业务语义迁入 DSH，并建立可重复的本地修改与观察闭环

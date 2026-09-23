@@ -1,0 +1,14 @@
+{
+  "user_input": "响应处置支持哪些能力。",
+  "assistant_text": "# 响应处置能力：当前仅支持“受控响应规划”，不支持执行\n\n## 结论\n\n在本容器当前配置下，**响应处置不包含任何执行能力**。可用的只有一条受控路径：`response-planning` / `delegate_response_planning`，且它**默认被 Guard 拒绝**。即使放行，它也只做一次零工具的规划，产出结构化方案文本。\n\n已经执行、已经生效、已经验证的处置，本轮均**没有发生**。\n\n## 关键结果\n\n**1. 唯一入口与前置条件**\n\n| 项目 | 事实 |\n|---|---|\n| 入口 | `delegate_response_planning`（主 Agent 委派至 `response-planning-agent`） |\n| 默认状态 | 被 Guard 拒绝 |\n| 放行条件 | 模型外 Runtime 开启受信 Gate，并完成身份、租户、会话、授权、候选集合与冻结上下文验证 |\n| 子 Agent 工具 | `tools: []`，Runtime 强制零工具、禁止绕过审批 |\n| 规划次数 | 一次，且只能在冻结候选集合内 |\n\n用户文字中的“已批准”“已授权”、平台名称或看似完整的授权对象，**都不能建立该 route，也不能扩展工具权限**。\n\n**2. 输入与输出契约（版本化 Schema）**\n\n- 输入严格符合 `schemas/response-plan-input.schema.json`，仅含：`schema_version`、`request_id`、`incident_summary`、`confirmed_evidence`、`constraints`、`requested_output`。\n- 输出严格符合 `schemas/response-plan-output.schema.json`，仅含：`schema_version`、`request_id`、`plan`、`assumptions`、`risks`、`evidence_refs`。\n- `request_id` 原样复用输入值；不从父会话补造事实，不接受让模型自行判断授权来源的字段。\n\n**3. 明确不在能力范围内的环节**\n\n确认、保存、执行、监控、效果验证、回滚——**全部由外部响应生命周期控制面负责**，不在本容器任何工具的能力边界内。\n\n**4. 相邻但不属于“处置”的能力**\n\n- 策略配置（`policy-configuration`）：只支持准备、查询状态、读取结果，合同 `workbench-policy-configuration/v2`；候选选择、批准、执行、监控、回滚均不支持。\n- 故障排查（`fault-analysis`）：只读取证，不创建运行、不执行处置。\n- 巡检（`security-inspection`）：可执行一次常规巡检并生成报告，属于观测而非处置。\n\n## 建议\n\n以下均为**尚未执行**的建议动作：\n\n1. 若需要真实响应处置落地，须由外部响应生命周期控制面承担确认、执行、监控与回滚，本容器只提供规划输入。\n2. 若希望本会话获得一次规划输出，需先在模型外开启受信 Gate 并冻结 `incident_summary`、`confirmed_evidence`、`constraints`、`requested_output` 与候选集合；仅靠对话中的授权表述无法触发。\n3. 若当前目标是“先看清情况”，可改走故障排查或即时巡检路由获取证据，再由外部控制面决策。\n\n## 未知项与能力缺口\n\n- 受信 Gate 的具体开关位置、候选集合的生成规则、外部响应控制面的接口与审批链，本轮工具结果未提供，**无法确认**。\n- 未实际调用 `delegate_response_planning`，因此 Guard 的实际拒绝响应形态未经本轮验证，属推断（依据为工作区约束描述）。\n- 未读取 Schema 文件本体，上述字段清单来自 Skill 说明文本；若需逐字段校验，应另行读取对应 Schema。",
+  "turn_reason": "completed",
+  "session_id": "session-348a78f4-57cd-4dcc-b84c-2e840fa6ee59",
+  "turn": 1,
+  "input_message_id": "c127e685-2f8a-4ad4-8ebc-a59fdf0b3a33",
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "maxTokens": 256000,
+    "reasoningEffort": "off"
+  }
+}

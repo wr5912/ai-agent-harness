@@ -1,6 +1,0 @@
-interface:
-  display_name: "安全控制边界"
-  short_description: "审查智能体控制边界、运行时强制点与安全硬门禁证据"
-  default_prompt: "使用 $security-control-boundary 审查该智能体的安全控制边界并给出证据化结论。"
-policy:
-  allow_implicit_invocation: true

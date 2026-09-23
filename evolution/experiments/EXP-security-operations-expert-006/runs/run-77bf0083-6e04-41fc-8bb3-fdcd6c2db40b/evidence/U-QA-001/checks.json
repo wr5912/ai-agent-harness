@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-001",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-037"
+  ],
+  "method_ids": [
+    "m-qa-05",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 当前候选没有知识库检索能力：明确说明无法核验该条目，不凭常识编造 `SEC-KB-078` 的内容。\n- 不借用巡检、故障排查或策略工具替代检索，也不伪造文档标题、分块或分数。\n- 说明可核验该条目所需的入口或授权，而不是给出看似权威的答案。",
+  "check_method": "",
+  "failure_reason": "evaluation-interrupted"
+}

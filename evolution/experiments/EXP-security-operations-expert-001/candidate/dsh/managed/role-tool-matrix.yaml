@@ -74,7 +74,7 @@ parent_direct_tools:
     - mcp__sec-ops__weknora_knowledge__list_knowledge_bases
     - mcp__sec-ops__weknora_knowledge__search_knowledge_bases
     - mcp__sec-ops__ai_workbench_policy__prepare_policy_configuration
-    - mcp__sec-ops__ai_workbench_policy__get_policy_configuration_status
+    - mcp__sec-ops__ai_workbench_policy__get_policy_confi_e0cfa6659b3a
     - delegate_inspection
     - delegate_fault_analysis
     - delegate_response_planning

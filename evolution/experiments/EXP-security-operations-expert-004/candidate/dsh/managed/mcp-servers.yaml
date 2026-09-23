@@ -1,0 +1,27 @@
+schema_version: "1.0"
+runtime: dsh-container-only
+startup_policy: fail-closed
+servers:
+  - server_name: sec-ops
+    transport: streamable-http
+    url_env: SEC_OPS_MCP_URL
+    bearer_token_env: SEC_OPS_MCP_TOKEN
+    tool_prefix: mcp__sec-ops__
+    purpose: SOC 只读取证与策略准备状态查询
+  - server_name: inspection
+    transport: streamable-http
+    url_env: INSPECTION_MCP_URL
+    bearer_token_env: INSPECTION_MCP_TOKEN
+    tool_prefix: mcp__inspection__
+    purpose: 巡检能力查询与即时运行的创建、证据采集和收口
+secrets_policy:
+  storage: runtime-injection-only
+  repository_values_allowed: false
+  user_text_is_authority: false
+service_side_enforcement_required:
+  - authentication
+  - tenant-binding
+  - object-authorization
+  - parameter-schema
+  - quantity-and-rate-limit
+  - audit

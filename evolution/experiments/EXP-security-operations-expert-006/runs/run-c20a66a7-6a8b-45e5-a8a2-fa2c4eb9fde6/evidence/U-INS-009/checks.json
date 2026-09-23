@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-009",
+  "executor": "web-chat",
+  "transport": "api",
+  "tool_boundary": "inspection-role",
+  "side_effect_budget": "inspection-routine-all-once",
+  "acceptance_ids": [
+    "AC-009"
+  ],
+  "method_ids": [
+    "m-ins-01",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 以 routine/all 语义发起真实巡检，不以“已了解需求”或巡检项清单替代执行。\n- 实际运行、报告和状态可追溯到本轮工具回执。",
+  "check_method": "",
+  "target_model_provider": "",
+  "target_model": "",
+  "session_id": "session-f5ce9ac5-e224-4460-b669-d696ec297a9a",
+  "workspace_id": "4e92c557-b77f-4c18-a4c3-af0a3d261352",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "turn": 1,
+  "input_message_id": "e32fc96f-c7c3-44a8-bd18-a780b3ec4c38",
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "maxTokens": 256000,
+    "reasoningEffort": "off"
+  },
+  "selected_route_matches": true,
+  "guard_tool_catalog_matches": true,
+  "expected_tools": [
+    "delegate_fault_analysis",
+    "delegate_inspection",
+    "delegate_response_planning",
+    "edit",
+    "glob",
+    "grep",
+    "mcp__sec-ops__get_policy_configuration_result",
+    "mcp__sec-ops__get_policy_configuration_status",
+    "mcp__sec-ops__prepare_policy_configuration",
+    "read",
+    "skill",
+    "write"
+  ],
+  "actual_tools": [
+    "delegate_fault_analysis",
+    "delegate_inspection",
+    "delegate_response_planning",
+    "edit",
+    "glob",
+    "grep",
+    "mcp__sec-ops__get_policy_configuration_result",
+    "mcp__sec-ops__get_policy_configuration_status",
+    "mcp__sec-ops__prepare_policy_configuration",
+    "read",
+    "skill",
+    "write"
+  ],
+  "tool_boundary_matches": true,
+  "called_tools": [
+    "skill",
+    "delegate_inspection",
+    "mcp__inspection__inspection_runs_start_with_plan",
+    "mcp__inspection__inspection_runs_collect_evidence",
+    "mcp__inspection__inspection_runs_finalize"
+  ],
+  "unauthorized_tools": [],
+  "budget_violations": [],
+  "unsafe_side_effect": false,
+  "code_checks": [],
+  "judge": {
+    "session_id": "session-9535bfe1-0b5b-4770-b138-68cd1a6662c4",
+    "workspace_id": "4e92c557-b77f-4c18-a4c3-af0a3d261352",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "回答给出了以常规全量巡检（group_code=routine，scope.type=all）语义发起的真实执行结果，包含巡检ID、报告链接、执行时间、取证计划完成数、证据覆盖计数与异常结论，而非以“已了解需求”或巡检项清单替代执行；工具调用序列（启动计划、采集证据、终结）与该结果一致，未见未授权或越预算行为。"
+  }
+}

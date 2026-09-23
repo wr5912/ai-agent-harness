@@ -31,13 +31,27 @@ description: "策略变更后业务访问异常、策略当前态、历史变更
 
 `evidence_gaps` 用来防止普通访问不通被历史策略词污染，误归因到策略变更。
 
+## 方向选择
+
+契约域固定为 `business-access-abnormal`。
+`analysis_direction_ids` 可包含以下一个或多个方向；本 Skill 的**主方向**为 `policy-change`：
+
+- `base-reachability`：未携带专项线索的源目访问失败、访问超时、路径不可达、路径可达但业务失败。
+- `policy-change`：明确出现策略变更、策略调整、ACL 变更、防火墙策略变更、策略 diff、变更后访问异常。
+- `ha-switchover`：明确出现主备、HA、双机、切换、同步、备用接管、主备策略差异。
+- `security-device-config`：明确出现安全设备配置偏离、配置核查、配置不一致、配置过期、合规违规且与业务访问异常有关。
+- `path-compliance`：明确出现路径合规、应达路径、实际路径偏离、专项拓扑路径违规。
+- `heterogeneous-policy-migration`：明确出现异构策略迁移、厂商迁移、迁移任务、迁移后访问异常。
+
+无专项线索时保留 `policy-change`；出现其它方向线索时追加对应方向，不得把本 Skill 的细分线索当作独立故障域。
 ## 规划契约
 
 `agent_planning_result` 必须包含：
 
 ```json
 {
-  "domain_id": "policy-change-access-abnormal",
+  "domain_id": "business-access-abnormal",
+  "analysis_direction_ids": ["policy-change"],
   "domain_display_name": "策略变更后业务访问异常",
   "planning_basis": {
     "source": {"ip": "<当前输入源 IP，有则填写>"},

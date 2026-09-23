@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "case_id": "T-ADAPTER-ENV-PASSTHROUGH",
+  "executor": "repository-contract",
+  "acceptance_ids": [],
+  "method_ids": [],
+  "judgment_role": "",
+  "expected_behavior": "",
+  "check_method": "",
+  "checks": {
+    "repository": {
+      "exit_code": 0,
+      "valid": true,
+      "error_codes": []
+    },
+    "experiment": {
+      "exit_code": 0,
+      "valid": true,
+      "error_codes": []
+    }
+  },
+  "scope": "仓库与 Experiment 确定性合同；不代替该 Case 的语义判定"
+}

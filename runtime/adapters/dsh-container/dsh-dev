@@ -1,0 +1,1295 @@
+#!/usr/bin/env python3
+"""dsh-dev：按来源选择器启动本地 DSH 容器实例，并交付本次进程的认证 URL。
+
+设计合同见 docs/DSH开发与评测启动器设计方案.md。本工具只依赖 Python 3 标准库、
+Docker CLI 与 Compose；实例配置生成在仓库外，Token 不落盘、不入仓库、不回显到日志。
+
+会话身份（session_preset）与待评估目标（target_preset）都来自所选来源声明的业务 preset。
+"""
+
+from __future__ import annotations
+
+import argparse
+import http.cookiejar
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from source_contract import IMAGE_LABEL_KEY, REPO, SOURCES, resolve, strict_json  # noqa: E402
+
+ADAPTER = Path(__file__).resolve().parent
+STATE_ROOT = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "dsh-dev"
+NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+TOKEN_URL_RE = re.compile(r"dsh web: (http://127\.0\.0\.1:(\d+)/\?token=[^\s()]+)")
+SECRET_RE = re.compile(r"(token=)[^\s&)\"']+")
+IMAGE_ID_RE = re.compile(r"sha256:[0-9a-f]{64}")
+MODES = ("verification",)
+MODE_ALIASES = {"eval": "verification"}
+MODE_CHOICES = ("eval", "verification")
+PURPOSES = {"verification": "eval"}
+AUTO_PORT_START = 3081
+CONTAINER_WORKSPACE = "/work/harness/workspace"
+CONTAINER_REFERENCE = "/work/reference"
+# 受控模板不含任何仓库内默认值，凡读取实例 Compose 的命令都必须按实例状态注入这些变量。
+# 2.0：当前研究定义改为单一只读挂载。
+# 2.1：实例 Compose 按来源声明生成运行时环境变量透传项。
+# 2.2：记录实际镜像 ID 与构建指纹，运行时固定到不可变镜像引用。
+# 2.3：新实例只支持被测（verification）模式；旧实例仍可查询和停止。
+INSTANCE_SCHEMA_VERSION = "2.3"
+# DSH Web 首次打开是冷启动：会话必须先绑定一个**已注册工作区**，而新实例的 DSH_HOME 里工作区注册表为空
+# （注册表 storages/workspace.json 只从已存会话头 bootstrap，且初始化标记一经写入不再重建）。DSH 在该锁定提交上
+# 没有受支持的工作区预注册入口，因此启动器只如实交付路径与操作步骤，不改写 Runtime 存储内部格式。
+def web_cold_start_hint(mode: str) -> str:
+    path = workspace_to_register(mode)
+    return (
+        "DSH Web 首次打开需要在界面注册工作区：点击“选择工作区”→ 目录对话框的“编辑路径”→ 粘贴 "
+        f"“{path}” → “打开”，随后即可直接对话。该注册写入本实例 DSH_HOME 数据卷并跨重启保留；"
+        "换用新的实例名等于新的 HOME 卷，需要重新选择一次。"
+    )
+
+
+def fail(message: str) -> None:
+    print(f"dsh-dev failed: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def _atomic_replace(path: Path, data: bytes) -> None:
+    """以同目录临时文件原子替换来源目录，并保留原权限。"""
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(data)
+        os.chmod(temporary, path.stat().st_mode & 0o777)
+        os.replace(temporary, path)
+    except Exception:
+        Path(temporary).unlink(missing_ok=True)
+        raise
+
+
+def create_harness(agent_id: str, *, repo: Path = REPO, sources: Path = SOURCES,
+                   lock_path: Path = ADAPTER / "source.lock.json") -> dict:
+    """创建最小 Agent、首次 Experiment 与可解析的 DSH 来源登记。"""
+    if not NAME_RE.fullmatch(agent_id):
+        raise ValueError("agent-id 必须是小写 kebab-case")
+
+    experiment_id = f"EXP-{agent_id}-001"
+    agent_dir = repo / "agents" / agent_id
+    experiment_dir = repo / "evolution/experiments" / experiment_id
+    original_catalog = sources.read_bytes()
+    catalog = strict_json(sources)
+    if catalog.get("schema_version") != "1.1" or not isinstance(catalog.get("sources"), dict):
+        raise ValueError("unsupported source catalog")
+    collisions = [str(path.relative_to(repo)) for path in (agent_dir, experiment_dir) if path.exists()]
+    if experiment_id in catalog["sources"]:
+        collisions.append(f"sources.json:{experiment_id}")
+    if collisions:
+        raise ValueError("目标已存在，拒绝覆盖：" + "、".join(collisions))
+
+    lock = strict_json(lock_path)
+    required_lock = (
+        "repository", "commit", "tree", "cli_package", "cli_version", "package_manager",
+        "pnpm_lock_sha256", "node_base", "platform",
+    )
+    missing = [key for key in required_lock if not isinstance(lock.get(key), str) or not lock[key]]
+    if missing:
+        raise ValueError("source.lock.json 缺少字段：" + "、".join(missing))
+    node_digest = lock["node_base"].rsplit("@", 1)[-1]
+
+    source_item = {
+        "agent_id": agent_id,
+        "candidate_root": f"evolution/experiments/{experiment_id}/candidate/dsh",
+        "profile": "web",
+        "patch": f"{agent_id}.patch.yml",
+        "preset": f"{agent_id}/agent.cordis.yml",
+        "guard": None,
+        "config_markers": ["/opt/dsh-presets"],
+        "required_env_names": ["DEEPSEEK_API_KEY"],
+    }
+    runtime_lock = {
+        "schema_version": "1.0",
+        "agent_id": agent_id,
+        "experiment_id": experiment_id,
+        "runtime_family": "dsh",
+        "container_only": True,
+        "official_source": lock["repository"],
+        "source_commit": lock["commit"],
+        "source_tree": lock["tree"],
+        "cli_package": lock["cli_package"],
+        "cli_version": lock["cli_version"],
+        "package_manager": lock["package_manager"],
+        "pnpm_lock_sha256": lock["pnpm_lock_sha256"],
+        "node_base_oci_index_digest": node_digest,
+        "platform": lock["platform"],
+        "profile": "web",
+        "profile_patch": f"dsh/managed/{agent_id}.patch.yml",
+        "runtime_adapter": "runtime/adapters/dsh-container",
+        "lifecycle": "research-experiment",
+    }
+    agent_files = {
+        "manifest.yaml": f'''schema_version: "1.0"
+agent_id: {agent_id}
+runtime_family: dsh
+research_status: active
+active_experiment: {experiment_id}
+''',
+        "definition.md": f'''# {agent_id}
+
+`{agent_id}` 是用于研究 DSH Harness 创建、装载与身份响应的最小 Agent。
+
+## 研究任务
+
+- 以 `{agent_id}` 身份使用简洁中文回答。
+- 不声称未由 Runtime 提供的工具、权限或执行结果。
+- 当前测试口径见 [evaluation.md](./evaluation.md)。
+''',
+        "evaluation.md": f'''# {agent_id} 评估定义
+
+## 测试数据
+
+### 测试预置
+
+#### HARNESS-F01 新会话装载
+
+**公共基线**
+
+使用所选 Experiment 的 Candidate、新建 DSH 实例和空白 Web Session；显式选择 `{agent_id}` Preset，不复用历史消息或缓存。
+
+```mermaid
+flowchart TD
+    START[装载 Candidate] --> PRESET[选择 {agent_id} Preset]
+    PRESET --> SESSION[新建空白 Session]
+    SESSION --> ASK[发送身份问题]
+    ASK --> CHECK{{回复是否保持 {agent_id} 身份?}}
+    CHECK -- 是 --> PASS[满足身份预置]
+    CHECK -- 否或运行错误 --> FAIL[记录失败或未知]
+```
+
+**金标准**
+
+按 `AC-001` 判定用户可见回复；仅有容器启动、HTTP 可达或 Preset 可选不能判为通过。
+
+**适用边界**
+
+本预置只验证全新 Session 中的 `{agent_id}` 身份回复，不外推到工具能力、复杂任务质量或生产可用性。
+
+### 测试用例
+
+##### T-HARNESS-IDENTITY
+
+选择理由：用最小身份问题观察新 Preset 是否在真实 DSH Session 中生效。
+
+**用户输入**
+
+```text
+你是谁？请用一句中文回答。
+```
+
+**执行器：**`web-chat`
+
+**工具边界：**`none`
+
+**副作用预算：**`web-session-only`
+
+## 评估方法
+
+### m-fresh-web-session
+
+启动所选 Experiment 的 eval 实例，在 DSH Web 中注册 `/work/harness/workspace`，新建 Session，显式选择 `{agent_id}` Preset 后发送测试输入并记录可见回复。
+
+## 测试验收
+
+### AC-001
+
+回复包含 `{agent_id}`，使用一句简洁中文；不冒充 Cordis 或其他业务角色，且没有模型或工具错误。
+
+## Experiment 评估选择
+
+### {experiment_id}
+
+- 测试用例：`T-HARNESS-IDENTITY`
+- 评估方法：`m-fresh-web-session`
+- 测试验收：`AC-001`
+''',
+    }
+    experiment_files = {
+        "change.yaml": f'''schema_version: "1.0"
+experiment_id: {experiment_id}
+agent_id: {agent_id}
+baseline_ref: none:first-experiment
+status: active
+research_question: 最小 Harness 能否被 DSH 装载并在全新 Web Session 中保持 {agent_id} 身份
+''',
+        "hypothesis.md": f'''# 研究假设
+
+Baseline 为 `none:first-experiment`。若最小 Candidate 声明 `{agent_id}` Preset，并由来源合同装载到 DSH Web Profile，则全新 Session 对身份问题的回复会明确包含 `{agent_id}`。
+
+## 预期观察
+
+- 来源合同、Candidate 资产与运行锁可通过静态校验。
+- 全新 eval 实例可选择 `{agent_id}` Preset。
+- 全新 Session 的回复满足 `AC-001`。
+
+## 停止条件
+
+- 来源或 Candidate 不能被 DSH 装载。
+- Web 中无法选择目标 Preset 或真实消息失败。
+- 验证需要把凭据值写入仓库或研究记录。
+
+## 限制
+
+本实验只验证一个身份输入，不外推到工具能力、复杂任务质量或生产可用性。
+''',
+        "candidate/harness.yaml": f'''schema_version: "1.0"
+agent:
+  id: {agent_id}
+  name: {agent_id}
+  language: zh-CN
+  lifecycle_status: experiment
+  runtime_family: dsh
+  load_mode: container-only
+experiment:
+  id: {experiment_id}
+  baseline_ref: none:first-experiment
+  status: active
+loadable_assets:
+  workspace: dsh/workspace
+  preset_root: dsh/presets
+  managed_root: dsh/managed
+  preset_id: {agent_id}
+  profile_patch: dsh/managed/{agent_id}.patch.yml
+  runtime_lock: runtime.lock.json
+runtime_contract:
+  workspace_container_path: /work/harness/workspace
+  preset_container_path: /opt/dsh-presets
+  managed_container_path: /opt/dsh-managed
+  dsh_home_container_path: /var/lib/dsh
+  verification_candidate_mode: ro
+credential_environment_keys:
+  - DEEPSEEK_API_KEY
+''',
+        "candidate/runtime.lock.json": json.dumps(runtime_lock, ensure_ascii=False, indent=2) + "\n",
+        "candidate/dsh/workspace/.env": (
+            ADAPTER / "verification-home-controls/locked-bootstrap.env"
+        ).read_text(encoding="utf-8"),
+        "candidate/dsh/workspace/AGENTS.md": f'''# {agent_id}
+
+你是 `{agent_id}`，一个用于验证 DSH Harness 创建与装载流程的研究智能体。
+
+- 使用简洁中文回答，并明确保持 `{agent_id}` 身份。
+- 不声称未提供的工具、权限或执行结果。
+''',
+        f"candidate/dsh/managed/{agent_id}.patch.yml": f'''# 最小 Web Profile Patch：只注册本 Experiment 的受控 Preset 根。
+- id: agent-presets
+  disabled: false
+  config:
+    default: {agent_id}
+    includeShippedRoot: false
+    includeUserRoot: false
+    roots:
+      - path: /opt/dsh-presets
+        trust: system
+''',
+        f"candidate/dsh/presets/{agent_id}/agent.cordis.yml": f'''- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  disabled: false
+  config:
+    prefix: >-
+      你是 {agent_id}，一个用于验证 DSH Harness 创建与装载流程的研究智能体。
+      使用简洁中文回答，并明确保持 {agent_id} 身份；不要声称未提供的工具或权限。
+    suffix: 你的工作目录是 {{{{cwd}}}}。
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  disabled: false
+  config:
+    maxBytes: 65536
+''',
+        f"candidate/dsh/presets/{agent_id}/preset.yml": f'''name: {agent_id}
+description: 用于验证 DSH Harness 创建、装载与身份响应的最小研究 Preset。
+order: 10
+''',
+    }
+
+    moved: list[Path] = []
+    catalog_replaced = False
+    try:
+        with tempfile.TemporaryDirectory(prefix=".dsh-dev-init-", dir=repo) as temporary:
+            stage = Path(temporary)
+            staged_agent = stage / "agent"
+            staged_experiment = stage / "experiment"
+            for root, files in ((staged_agent, agent_files), (staged_experiment, experiment_files)):
+                for relative, content in files.items():
+                    path = root / relative
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(content, encoding="utf-8")
+            staged_agent.replace(agent_dir)
+            moved.append(agent_dir)
+            staged_experiment.replace(experiment_dir)
+            moved.append(experiment_dir)
+
+        catalog["sources"][experiment_id] = source_item
+        _atomic_replace(
+            sources,
+            (json.dumps(catalog, ensure_ascii=False, indent=2) + "\n").encode("utf-8"),
+        )
+        catalog_replaced = True
+        resolve(f"experiment:{experiment_id}", repo=repo, sources=sources, lock_path=lock_path)
+    except Exception:
+        if catalog_replaced:
+            try:
+                _atomic_replace(sources, original_catalog)
+            except Exception as rollback_error:
+                raise RuntimeError("来源目录回滚失败；为避免悬空登记，已保留新建目录") from rollback_error
+        for path in reversed(moved):
+            shutil.rmtree(path)
+        raise
+
+    return {
+        "agent_id": agent_id,
+        "experiment_id": experiment_id,
+        "source_id": f"experiment:{experiment_id}",
+    }
+
+
+def command_init(args: argparse.Namespace) -> None:
+    try:
+        result = create_harness(args.agent_id)
+    except (OSError, ValueError, RuntimeError) as exc:
+        fail(str(exc))
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def normalize_mode(value: str) -> str:
+    """把用户可见模式名 eval 规范化为内部 harness 阶段名。"""
+    mode = MODE_ALIASES.get(value, value)
+    if mode not in MODES:
+        fail("mode 只能是 eval")
+    return mode
+
+
+def workspace_to_register(mode: str) -> str:
+    """本次被测会话要注册目标 Harness 工作区本身。"""
+    normalize_mode(mode)
+    return CONTAINER_WORKSPACE
+
+
+def session_preset(contract: dict, mode: str) -> str:
+    """本容器 DSH 会话实际运行所选来源声明的目标 preset。"""
+    normalize_mode(mode)
+    return target_preset(contract)
+
+
+def target_preset(contract: dict) -> str:
+    """本次待评估的目标 preset ID，始终来自所选来源声明。"""
+    preset = contract.get("preset_id")
+    if not preset:
+        fail("所选来源未声明可解析的 preset ID，无法确定待评估目标")
+    return preset
+
+
+def run(command: list[str], *, check: bool = True, capture: bool = True,
+        env: dict | None = None, timeout: float | None = 300) -> subprocess.CompletedProcess:
+    completed = subprocess.run(
+        command, text=True, capture_output=capture, check=False, env=env, timeout=timeout
+    )
+    if check and completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout or "").strip()
+        fail(f"命令失败（{command[0]}）：{detail[-400:]}")
+    return completed
+
+
+def image_reference(tag: str | None, image_id: str | None) -> str | None:
+    """优先用镜像 ID 固定 Compose；旧状态没有 ID 时保留标签兼容性。"""
+    if tag and image_id and IMAGE_ID_RE.fullmatch(image_id):
+        return f"{tag}@{image_id}"
+    return tag
+
+
+def compose_env(contract: dict, mode: str, port: int, name: str,
+                image_id: str | None = None) -> dict:
+    normalize_mode(mode)
+    environment = dict(os.environ)
+    environment.update(
+        {
+            "DSH_IMAGE_TAG": image_reference(contract["image"]["local_image_tag"], image_id),
+            "DSH_ADAPTER_HOST": str(ADAPTER),
+            "DSH_MANAGED_PATCH": contract["patch"],
+            "DSH_WORKSPACE_HOST": contract["workspace"],
+            "DSH_PRESETS_HOST": contract["presets"],
+            "DSH_MANAGED_HOST": contract["managed"],
+        }
+    )
+    return environment
+
+
+def required_env_names(contract: dict) -> list[str]:
+    names = list(contract.get("required_env_names") or [])
+    return names
+
+
+def check_environment(contract: dict) -> None:
+    missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
+    if missing:
+        fail(
+            "以下运行时环境变量未注入，按 fail-closed 拒绝启动："
+            + "、".join(missing)
+            + "（由受信调用环境按名注入；本工具不读取凭据文件）"
+        )
+
+
+def render_compose(template: str, *, mode: str, project: str, port: int,
+                   runtime_env_names: list[str] = ()) -> str:
+    """把受控 Compose 模板渲染为实例配置：宿主网络、回环端口、每实例卷名。"""
+    if mode not in MODES:
+        fail("mode 只能是 verification")
+    text = template
+    replacements = [
+        (f"name: ai-agent-harness-dsh-{mode}", f"name: {project}"),
+        (f"dsh-{mode}-home", f"{project}-home"),
+        (f"dsh-{mode}-trusted-fallback", f"{project}-fallback"),
+    ]
+    for old, new in replacements:
+        if text.count(old) < 1:
+            fail(f"Compose 模板缺少预期锚点：{old}")
+        text = text.replace(old, new)
+    working_dir = "    working_dir: /work/harness/workspace\n"
+    if text.count(working_dir) != 1:
+        fail("Compose 模板缺少唯一的 working_dir 锚点")
+    text = text.replace(working_dir, working_dir + "    network_mode: host\n")
+    relative_source = "        source: ./"
+    if text.count(relative_source) < 1:
+        fail("Compose 模板缺少相对挂载源锚点")
+    text = text.replace(relative_source, f"        source: {ADAPTER}/")
+    command_tail = "      - --no-open\n"
+    if text.count(command_tail) != 1:
+        fail("Compose 模板缺少唯一的 command 锚点")
+    text = text.replace(
+        command_tail,
+        command_tail + f"      - --host\n      - 127.0.0.1\n      - --port\n      - \"{port}\"\n",
+    )
+    environment_anchor = "      - DSH_TELEMETRY_DISABLED=1\n"
+    if text.count(environment_anchor) != 1:
+        fail("Compose 模板缺少唯一的 environment 锚点")
+    passthrough = "".join(f"      - {name}\n" for name in dict.fromkeys(runtime_env_names))
+    text = text.replace(environment_anchor, environment_anchor + passthrough)
+    return text
+
+
+def extract_auth_url(log_text: str, port: int) -> str | None:
+    """从日志中提取唯一匹配本次端口与本机回环的认证 URL。"""
+    matches = [match for match in TOKEN_URL_RE.finditer(log_text) if int(match.group(2)) == port]
+    if not matches:
+        return None
+    urls = {match.group(1) for match in matches}
+    if len(urls) != 1:
+        return None
+    return urls.pop()
+
+
+def redact_secrets(text: str) -> str:
+    return SECRET_RE.sub(r"\1<redacted>", text)
+
+
+def instance_dir(name: str) -> Path:
+    if not NAME_RE.fullmatch(name):
+        fail("实例名必须使用小写 kebab-case")
+    return STATE_ROOT / name
+
+
+def project_name(name: str) -> str:
+    return f"dsh-dev-{name}"
+
+
+def write_instance(name: str, *, mode: str, contract: dict, port: int,
+                   image_id: str | None = None) -> Path:
+    target = instance_dir(name)
+    current = existing_instance(name)
+    if current is not None:
+        _, manifest = current
+        validate_existing_identity(name, manifest, contract, mode)
+    else:
+        target.mkdir(parents=True, exist_ok=False)
+    template = (ADAPTER / f"{mode}.compose.yaml").read_text(encoding="utf-8")
+    rendered = render_compose(
+        template,
+        mode=mode,
+        project=project_name(name),
+        port=port,
+        runtime_env_names=required_env_names(contract),
+    )
+    (target / "compose.yaml").write_text(rendered, encoding="utf-8")
+    manifest = {
+        "schema_version": INSTANCE_SCHEMA_VERSION,
+        "name": name,
+        "project": project_name(name),
+        "source_id": contract["source_id"],
+        "source_kind": contract["source_kind"],
+        "mode": mode,
+        "purpose": PURPOSES[mode],
+        "agent_id": contract["agent_id"],
+        "target_preset": target_preset(contract),
+        "session_preset": session_preset(contract, mode),
+        "port": port,
+        "image_tag": contract["image"]["local_image_tag"],
+        "image_id": image_id,
+        "image_build_fingerprint": contract["image"].get("build_fingerprint"),
+        "adapter_root": str(ADAPTER),
+        "managed_patch": contract["patch"],
+        "mounts": {
+            "workspace": contract["workspace"],
+            "presets": contract["presets"],
+            "managed": contract["managed"],
+        },
+        "context_mounts": [],
+        "mount_modes": {
+            "workspace": "ro",
+            "presets": "ro",
+            "managed": "ro",
+        },
+        "required_env_names": required_env_names(contract),
+    }
+    (target / "instance.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return target
+
+
+def instance_compose_env(manifest: dict) -> dict:
+    """从实例状态重建读取该实例 Compose 所需的环境。
+
+    模板用 ${VAR:?} 声明必填变量（不内联任何仓库内默认路径），所以 `ps`、`logs`、`down`
+    也必须按实例自身记录注入，不能依赖调用者的当前环境——否则停止和查询会随环境漂移而失败。
+
+    这里只按"记录里有什么就注入什么"取值，不要求状态文件是最新 schema：旧实例必须仍然能被
+    停止和查询，否则新版本会卡在"旧状态拒绝操作、同名 up 又被端口挡住"的死循环里。
+    记录里没有的字段不猜：旧模板用 ${VAR:-默认}，缺值可解析；新模板用 ${VAR:?}，
+    缺值由 Compose 自己报出变量名。
+    """
+    mounts = manifest.get("mounts") or {}
+    values = {
+        "DSH_IMAGE_TAG": image_reference(manifest.get("image_tag"), manifest.get("image_id")),
+        "DSH_ADAPTER_HOST": manifest.get("adapter_root") or str(ADAPTER),
+        "DSH_DEV_TARGET_HOST": manifest.get("dev_target_file"),
+        "DSH_MANAGED_PATCH": manifest.get("managed_patch"),
+        "DSH_MANAGED_PATCH_OVERLAY": manifest.get("patch_overlay"),
+        "DSH_WORKSPACE_HOST": mounts.get("workspace"),
+        "DSH_PRESETS_HOST": mounts.get("presets"),
+        "DSH_MANAGED_HOST": mounts.get("managed"),
+    }
+    # 只读兼容旧 authoring 状态，保证历史实例仍可 ps/logs/down；新实例不再写入这些字段。
+    for asset in manifest.get("context_mounts") or []:
+        if not isinstance(asset, dict) or not asset.get("host"):
+            continue
+        if asset.get("container") == CONTAINER_REFERENCE:
+            values["DSH_REFERENCE_HOST"] = asset["host"]
+    environment = dict(os.environ)
+    environment.update({key: value for key, value in values.items() if value})
+    return environment
+
+
+def instance_recorded_port(manifest: dict) -> int | None:
+    if not isinstance(manifest, dict):
+        return None
+    port = manifest.get("port")
+    return port if type(port) is int else None
+
+
+def compose_command(target: Path, name: str, *args: str) -> list[str]:
+    return ["docker", "compose", "-p", project_name(name), "-f", str(target / "compose.yaml"), *args]
+
+
+def load_instance(name: str) -> tuple[Path, dict]:
+    target = instance_dir(name)
+    manifest_path = target / "instance.json"
+    if not manifest_path.is_file():
+        fail(f"未找到实例 {name} 的状态文件；先执行 dsh-dev up")
+    return target, json.loads(manifest_path.read_text(encoding="utf-8"))
+
+
+def port_in_use(port: int) -> bool:
+    """以 TCP 连接探测宿主回环端口是否已被占用。"""
+    import socket
+
+    probe = socket.socket()
+    probe.settimeout(1.0)
+    try:
+        probe.connect(("127.0.0.1", port))
+    except OSError:
+        return False
+    finally:
+        probe.close()
+    return True
+
+
+def require_up_arguments(args: argparse.Namespace) -> None:
+    """缺少核心参数时列出仓库当前可用值，并按 CLI 用法错误退出。"""
+    missing = [option for option in ("source", "mode") if not getattr(args, option, None)]
+    if not missing:
+        return
+    print("dsh-dev up 缺少必填参数：" + "、".join(f"--{option}" for option in missing), file=sys.stderr)
+    if "source" in missing:
+        sources = strict_json(SOURCES).get("sources") or {}
+        print("可用 --source：" + "、".join(f"experiment:{name}" for name in sorted(sources)), file=sys.stderr)
+    if "mode" in missing:
+        print("可用 --mode：eval", file=sys.stderr)
+    raise SystemExit(2)
+
+
+def reserved_instance_ports(exclude_name: str) -> set[int]:
+    """读取其它有效实例记录占用的端口；损坏记录不参与自动分配。"""
+    ports = set()
+    if not STATE_ROOT.is_dir():
+        return ports
+    for target in STATE_ROOT.iterdir():
+        if target.name == exclude_name:
+            continue
+        try:
+            manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        port = instance_recorded_port(manifest)
+        if port is not None and 1 <= port <= 65535:
+            ports.add(port)
+    return ports
+
+
+def first_available_port(name: str) -> int:
+    reserved = reserved_instance_ports(name)
+    for port in range(AUTO_PORT_START, 65536):
+        if port not in reserved and not port_in_use(port):
+            return port
+    fail(f"从 {AUTO_PORT_START} 起没有可用 TCP 端口")
+
+
+def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None]:
+    """解析来源并补齐确定性的实例名与端口，不修改状态。"""
+    require_up_arguments(args)
+    contract = resolve(args.source, repo=REPO)
+    args.name = args.name or f"{contract['agent_id']}-{PURPOSES[args.mode]}"
+    current = existing_instance(args.name)
+    if current is not None:
+        _, manifest = current
+        validate_existing_identity(args.name, manifest, contract, args.mode)
+    if args.port is None:
+        if current is not None:
+            args.port = instance_recorded_port(current[1])
+            if args.port is None:
+                fail(f"实例 {args.name} 没有合法的记录端口；请显式指定 --port")
+        else:
+            args.port = first_available_port(args.name)
+    if not isinstance(args.port, int) or not 1 <= args.port <= 65535:
+        fail("--port 必须是合法 TCP 端口")
+    if current is not None:
+        recorded = instance_recorded_port(current[1])
+        if recorded is not None and recorded != args.port:
+            fail(
+                f"实例 {args.name} 记录端口为 {recorded}，与本次 --port {args.port} 不一致；"
+                "同名实例不得改端口，请保持原端口或用新的实例名"
+            )
+    return contract, current
+
+
+def build_plan(args: argparse.Namespace, contract: dict) -> dict:
+    missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
+    plan = {
+        "schema_version": "2.1",
+        "name": args.name,
+        "project": project_name(args.name),
+        "mode": args.mode,
+        "purpose": PURPOSES[args.mode],
+        "agent_id": contract["agent_id"],
+        "target_preset": target_preset(contract),
+        "session_preset": session_preset(contract, args.mode),
+        "workspace_to_register": workspace_to_register(args.mode),
+        "grading_material_mounted": False,
+        "port": args.port,
+        "source_id": contract["source_id"],
+        "source_kind": contract["source_kind"],
+        "image_tag": contract["image"]["local_image_tag"],
+        "image_build_fingerprint": contract["image"].get("build_fingerprint"),
+        "mounts": [
+            {"container": "/work/harness/workspace", "mode": "ro"},
+            {"container": "/opt/dsh-presets", "mode": "ro"},
+            {"container": "/opt/dsh-managed", "mode": "ro"},
+        ],
+        "context_assets": [],
+        "web_cold_start": web_cold_start_hint(args.mode),
+        "network": "host (127.0.0.1 only)",
+        "required_env_names": required_env_names(contract),
+        "missing_env_names": missing,
+        "state_dir": str(instance_dir(args.name)),
+        "risk": "host 网络取消容器与宿主机的网络命名空间隔离；实例只绑定 127.0.0.1",
+    }
+    if contract["source_kind"] == "experiment":
+        plan["evaluation_source_notice"] = "评测模式绑定当前宿主 Candidate；运行期间不要改写该来源，并在 Run 中记录实际 Git 与 dirty 状态。"
+    return plan
+
+
+def running_dsh_image_id(name: str) -> tuple[str | None, bool]:
+    """返回本实例运行中 dsh 容器的镜像 ID；第二项表示查询失败。"""
+    listing = run(
+        ["docker", "ps", "--filter", f"label=com.docker.compose.project={project_name(name)}",
+         "--filter", "label=com.docker.compose.service=dsh", "--format", "{{.ID}}"],
+        check=False,
+    )
+    if listing.returncode != 0:
+        return None, True
+    container_ids = [value.strip() for value in (listing.stdout or "").splitlines() if value.strip()]
+    if not container_ids:
+        return None, False
+    inspected = run(["docker", "inspect", "--format", "{{.Image}}", container_ids[0]], check=False)
+    image_id = (inspected.stdout or "").strip()
+    if inspected.returncode != 0 or not IMAGE_ID_RE.fullmatch(image_id):
+        return None, True
+    return image_id, False
+
+
+def validate_image_identity(contract: dict, current: tuple[Path, dict] | None = None,
+                            replace: bool = False) -> dict:
+    """在停机或写状态前确认标签指向带正确构建指纹的平台镜像。"""
+    image = contract.get("image") or {}
+    tag = image.get("local_image_tag")
+    expected_fingerprint = image.get("build_fingerprint")
+    expected_platform = image.get("platform")
+    if not tag or not expected_fingerprint:
+        fail("来源合同缺少镜像构建指纹；请重新解析当前来源")
+    inspected = run(["docker", "image", "inspect", tag, "--format", "{{json .}}"], check=False)
+    if inspected.returncode != 0:
+        fail(f"本地镜像不存在：{tag}；请先执行 dsh-dev image build --source {contract['source_id']}")
+    try:
+        metadata = json.loads((inspected.stdout or "").strip())
+    except json.JSONDecodeError:
+        fail(f"无法解析镜像元数据：{tag}")
+    if not isinstance(metadata, dict):
+        fail(f"镜像元数据不是对象：{tag}")
+    image_id = metadata.get("Id")
+    config = metadata.get("Config")
+    labels = config.get("Labels") if isinstance(config, dict) else {}
+    if not isinstance(labels, dict):
+        labels = {}
+    actual_fingerprint = labels.get(IMAGE_LABEL_KEY)
+    platform = f"{metadata.get('Os')}/{metadata.get('Architecture')}"
+    if not IMAGE_ID_RE.fullmatch(str(image_id or "")):
+        fail(f"镜像 {tag} 没有有效的 immutable image ID")
+    if actual_fingerprint != expected_fingerprint:
+        fail(
+            f"镜像 {tag} 的构建指纹不匹配（期望 {expected_fingerprint}，实际 {actual_fingerprint or '缺失'}）；"
+            f"请先执行 dsh-dev image build --source {contract['source_id']}"
+        )
+    if platform != expected_platform:
+        fail(f"镜像 {tag} 平台不匹配（期望 {expected_platform}，实际 {platform}）")
+    if current is not None:
+        name = current[1].get("name") or current[0].name
+        running_id, query_failed = running_dsh_image_id(name)
+        if query_failed:
+            fail(f"无法确认实例 {name} 当前 dsh 容器的镜像身份；为避免误停机，已拒绝启动")
+        if running_id and running_id != image_id and not replace:
+            fail(
+                f"实例 {name} 当前运行镜像为 {running_id}，与待启动镜像 {image_id} 不同；"
+                "请使用 --replace 明确重建实例"
+            )
+    return {
+        "image_tag": tag,
+        "image_id": image_id,
+        "image_ref": image_reference(tag, image_id),
+        "image_build_fingerprint": expected_fingerprint,
+        "platform": platform,
+    }
+
+
+def command_up(args: argparse.Namespace) -> None:
+    contract, current = prepare_up(args)
+    if getattr(args, "dry_run", False):
+        print(json.dumps(build_plan(args, contract), ensure_ascii=False, indent=2, sort_keys=True))
+        return
+    if getattr(args, "allow_missing_env", False):
+        missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
+        if missing:
+            print(json.dumps({"warning": "缺少运行时环境变量，按显式降级启动（仅技术装载核验）",
+                              "missing_env_names": missing}, ensure_ascii=False), file=sys.stderr)
+    else:
+        check_environment(contract)
+    identity = validate_image_identity(contract, current=current, replace=getattr(args, "replace", False))
+    # Compose 插值与模板结构都可以在停旧实例前检查；明显无效的新配置不得先触发停机。
+    preflight_new_instance(args, contract)
+    replaced = migrate_existing_instance(args, contract, current)
+    if port_in_use(args.port):
+        holder = running_instance_service(args.name)
+        if holder == "dsh":
+            fail(
+                f"端口 {args.port} 正被本实例 {args.name} 自身占用。重载请先 dsh-dev down {args.name} 再同名 up，"
+                f"或直接加 --replace 由本命令先停后启；本工具不自动改端口。"
+            )
+        fail(f"端口 {args.port} 已被占用；启动阶段不会静默改用其它端口，请重试或显式指定 --port")
+    target = write_instance(args.name, mode=args.mode, contract=contract, port=args.port,
+                            image_id=identity["image_id"])
+    environment = compose_env(contract, args.mode, args.port, args.name, image_id=identity["image_id"])
+    run(compose_command(target, args.name, "config", "--quiet"), env=environment)
+    run(compose_command(target, args.name, "up", "-d", "--no-build"), env=environment)
+    # `docker compose up -d` 返回 0 只说明命令成功，不说明容器在运行：容器可能立刻退出。
+    containers = wait_for_service(args.name, "dsh")
+    report = {"name": args.name, "project": project_name(args.name), "port": args.port,
+              "state_dir": str(target), "agent_id": contract["agent_id"],
+              "target_preset": target_preset(contract),
+              "session_preset": session_preset(contract, args.mode), **identity}
+    if replaced:
+        report["replaced"] = replaced
+    if containers is None:
+        report["dsh_running"] = "unknown"
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True), file=sys.stderr)
+        fail("无法查询容器状态，不能确认 dsh 服务是否已启动；用 logs 查看实例日志")
+    running = [item for item in containers if item["service"] == "dsh" and item["state"] == "running"]
+    report["dsh_running"] = bool(running)
+    report["containers"] = [{"service": item["service"], "state": item["state"]} for item in containers]
+    if not running:
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True), file=sys.stderr)
+        fail("docker compose up 返回 0，但 dsh 服务没有进入运行状态；用 logs 查看失败原因")
+    print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    print(json.dumps({"hint": web_cold_start_hint(args.mode), "workspace_to_register": workspace_to_register(args.mode)},
+                     ensure_ascii=False), file=sys.stderr)
+
+
+def command_ps(args: argparse.Namespace) -> None:
+    show_all = bool(getattr(args, "all", False))
+    entries = []
+    if STATE_ROOT.is_dir():
+        for target in sorted(STATE_ROOT.iterdir()):
+            manifest_path = target / "instance.json"
+            if not manifest_path.is_file():
+                continue
+            # 单条实例记录损坏不应中断整张列表：该条如实报错，其余实例照常列出。
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                if not isinstance(manifest, dict):
+                    raise ValueError("状态文件根必须是 JSON 对象")
+                entry = instance_entry(target, manifest)
+            except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as error:
+                entry = {
+                    "name": target.name,
+                    "state_dir": str(target),
+                    "error": f"{type(error).__name__}: {error}",
+                    "state": "unknown",
+                    "ps_query": "unknown",
+                }
+                if show_all:
+                    entries.append(entry)
+                continue
+            if show_all or entry.get("state") == "running":
+                entries.append(entry)
+    print(json.dumps({"schema_version": "1.0", "instances": entries}, ensure_ascii=False, indent=2, sort_keys=True))
+
+
+def compose_ps_containers(output: str) -> list[dict] | None:
+    """解析 Compose 的 JSON 输出；非空但非法的输出按未知处理。"""
+    text = (output or "").strip()
+    if not text:
+        return []
+    try:
+        parsed = json.loads(text)
+        values = parsed if isinstance(parsed, list) else [parsed]
+    except json.JSONDecodeError:
+        values = []
+        for line in text.splitlines():
+            try:
+                value = json.loads(line)
+            except json.JSONDecodeError:
+                return None
+            values.append(value)
+    if any(not isinstance(value, dict) for value in values):
+        return None
+    containers = []
+    for value in values:
+        state = str(value.get("State", value.get("state", ""))).lower()
+        status = str(value.get("Status", value.get("status", "")))
+        exit_code = value.get("ExitCode", value.get("exit_code"))
+        try:
+            exit_code = int(exit_code) if exit_code is not None else None
+        except (TypeError, ValueError):
+            exit_code = None
+        if exit_code is None:
+            match = re.search(r"Exited \((-?\d+)\)", status)
+            exit_code = int(match.group(1)) if match else None
+        containers.append({
+            "id": value.get("ID", value.get("id")),
+            "state": state,
+            "status": status,
+            "name": value.get("Name", value.get("name")),
+            "service": value.get("Service", value.get("service")),
+            "exit_code": exit_code,
+        })
+    return containers
+
+
+def normalized_instance_state(containers: list[dict] | None) -> str:
+    """把 Compose 观测归一为 running/stopped/failed/unknown。"""
+    if containers is None:
+        return "unknown"
+    dsh = [item for item in containers if item.get("service") == "dsh"]
+    if any(item.get("state") == "running" for item in dsh):
+        return "running"
+    if any(item.get("state") == "dead" or item.get("exit_code", 0) not in (None, 0) for item in dsh):
+        return "failed"
+    if any(item.get("state") in {"restarting", "paused"} for item in dsh):
+        return "unknown"
+    return "stopped"
+
+
+def instance_entry(target: Path, manifest: dict) -> dict:
+    """把一条实例状态渲染成 `ps` 条目；状态文件版本与当前不一致时标记需要迁移。"""
+    name = str(manifest.get("name") or target.name)
+    recorded_schema = manifest.get("schema_version")
+    port = manifest.get("port")
+    listing = run(compose_command(target, name, "ps", "--all", "--format", "json"),
+                  check=False, env=instance_compose_env(manifest))
+    if listing.returncode != 0:
+        ps_state = "unknown"
+        ps_detail = (listing.stderr or listing.stdout or "").strip()[-200:] or "docker compose ps 查询失败"
+        state = "unknown"
+    else:
+        ps_state = "reported"
+        ps_detail = (listing.stdout or "").strip() or "not running"
+        state = normalized_instance_state(compose_ps_containers(listing.stdout))
+    return {
+        "name": name,
+        "source_id": manifest.get("source_id"),
+        "mode": manifest.get("mode"),
+        "purpose": manifest.get("purpose", PURPOSES.get(manifest.get("mode"), manifest.get("mode"))),
+        "agent_id": manifest.get("agent_id"),
+        "target_preset": manifest.get("target_preset"),
+        "session_preset": manifest.get("session_preset"),
+        "state_schema": recorded_schema,
+        "needs_migration": recorded_schema != INSTANCE_SCHEMA_VERSION,
+        "state": state,
+        "port": port,
+        "context_mounts": [item.get("container") for item in manifest.get("context_mounts") or []],
+        "base_url": f"http://127.0.0.1:{port}/" if isinstance(port, int) else None,
+        "ps_query": ps_state,
+        "ps": ps_detail,
+    }
+
+
+def running_instance_service(name: str) -> str | None:
+    """本实例自身正在运行的服务名；没有运行中的容器或无法查询时返回 None。"""
+    containers = project_containers(name)
+    if not containers:
+        return None
+    for item in containers:
+        if item["state"] == "running":
+            return item["service"]
+    return None
+
+
+def running_container(name: str) -> tuple[str, str]:
+    project = project_name(name)
+    listing = run(["docker", "ps", "--filter", f"label=com.docker.compose.project={project}",
+                   "--format", "{{.ID}}"], check=False)
+    containers = (listing.stdout or "").strip().splitlines()
+    if not containers:
+        fail(f"实例 {name} 没有运行中的容器")
+    container = containers[0]
+    inspect = run(["docker", "inspect", "--format", "{{.State.StartedAt}}", container])
+    return container, inspect.stdout.strip()
+
+
+def command_url(args: argparse.Namespace) -> None:
+    _, manifest = load_instance(args.name)
+    if not args.non_interactive and not sys.stdout.isatty():
+        fail(
+            "标准输出不是交互终端；认证 URL 含本次进程 Token。"
+            "确需由脚本或 IDE 消费时显式加 --non-interactive，并自行保护标准输出"
+        )
+    container, started_at = running_container(args.name)
+    deadline = time.monotonic() + 30.0
+    while True:
+        logs = run(["docker", "logs", "--since", started_at, container], check=False).stdout or ""
+        url = extract_auth_url(logs, manifest["port"])
+        probe = probe_url(url, manifest["port"]) if url is not None else None
+        if probe is not None and probe["ok"]:
+            break
+        if time.monotonic() >= deadline:
+            if url is None:
+                fail("未从本次进程日志中取得唯一的认证 URL（不返回历史链接，也不拼造 Token）")
+            fail(f"认证 URL 探针失败：{probe['reason']}")
+        time.sleep(1.0)
+    if args.non_interactive:
+        print("警告：标准输出含本次进程认证 URL（敏感），调用方负责管道与终端记录。", file=sys.stderr)
+    print(url)
+
+
+class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """禁止自动跟随重定向：Token 入口的 303 本身就是核验证据，不能被吞成 200。"""
+
+    def redirect_request(self, request, file_pointer, code, message, headers, new_url):
+        return None
+
+
+def probe_url(url: str, port: int) -> dict:
+    jar = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(
+        urllib.request.HTTPCookieProcessor(jar), NoRedirectHandler()
+    )
+    try:
+        request = urllib.request.Request(url, method="GET")
+        try:
+            with opener.open(request, timeout=20) as response:
+                status = response.status
+        except urllib.error.HTTPError as error:
+            status = error.code
+            error.close()
+        if status not in (200, 301, 302, 303, 307, 308):
+            return {"ok": False, "reason": f"Token 入口返回意外状态（HTTP {status}）"}
+        if not any(cookie.name for cookie in jar):
+            return {"ok": False, "reason": f"Token 入口未建立会话 Cookie（HTTP {status}）"}
+        root = f"http://127.0.0.1:{port}/"
+        try:
+            with opener.open(urllib.request.Request(root, method="GET"), timeout=20) as response:
+                root_status = response.status
+                html = response.read(65536).decode("utf-8", "replace")
+        except urllib.error.HTTPError as error:
+            error.close()
+            return {"ok": False, "reason": f"认证后根页面 HTTP {error.code}"}
+        if root_status != 200:
+            return {"ok": False, "reason": f"认证后根页面 HTTP {root_status}"}
+        if "__DSH_BOOT__" not in html:
+            return {"ok": False, "reason": "根页面缺少 __DSH_BOOT__"}
+        return {"ok": True, "reason": f"token({status})→cookie→root 200"}
+    except (urllib.error.URLError, OSError, ValueError) as error:
+        return {"ok": False, "reason": f"{type(error).__name__}"}
+
+
+def command_logs(args: argparse.Namespace) -> None:
+    target, manifest = load_instance(args.name)
+    logs = run(compose_command(target, args.name, "logs", "--no-color", "--tail", str(args.tail), "dsh"),
+               env=instance_compose_env(manifest)).stdout or ""
+    sys.stdout.write(redact_secrets(logs))
+
+
+def project_containers(name: str) -> list[dict] | None:
+    """查询本实例实际容器状态；查询失败返回 None，由调用方按未知处理。"""
+    listing = run(
+        ["docker", "ps", "-a", "--filter", f"label=com.docker.compose.project={project_name(name)}",
+         "--format", "{{.ID}}\t{{.State}}\t{{.Status}}\t{{.Names}}\t{{.Label \"com.docker.compose.service\"}}"],
+        check=False,
+    )
+    if listing.returncode != 0:
+        return None
+    containers = []
+    for line in (listing.stdout or "").strip().splitlines():
+        fields = line.split("\t")
+        if len(fields) != 5:
+            return None
+        match = re.search(r"Exited \((-?\d+)\)", fields[2])
+        containers.append({"id": fields[0], "state": fields[1], "status": fields[2],
+                           "name": fields[3], "service": fields[4],
+                           "exit_code": int(match.group(1)) if match else None})
+    return containers
+
+
+def wait_for_service(name: str, service: str, timeout: float = 20.0) -> list[dict] | None:
+    """等待指定服务进入运行状态；超时返回最后一次观测，无法查询返回 None。"""
+    deadline = time.monotonic() + timeout
+    while True:
+        containers = project_containers(name)
+        if containers is None:
+            return None
+        if any(item["service"] == service and item["state"] == "running" for item in containers):
+            return containers
+        if time.monotonic() >= deadline:
+            return containers
+        time.sleep(1.0)
+
+
+def home_volume(manifest: dict) -> tuple[str | None, bool | None]:
+    """按 Compose 自身的卷标签解析本实例 HOME 卷，返回 (卷名, 是否存在)。
+
+    Compose 会把项目名前缀加到卷名上，因此不能按模板里的声明名或 `<project>-home` 猜测；
+    查询失败返回 (None, None)，由调用方按未知处理。
+    """
+    declared = f"{manifest['project']}-home"
+    listing = run(["docker", "volume", "ls",
+                   "--filter", f"label=com.docker.compose.project={manifest['project']}",
+                   "--filter", f"label=com.docker.compose.volume={declared}",
+                   "--format", "{{.Name}}"], check=False)
+    if listing.returncode != 0:
+        return None, None
+    names = [line for line in (listing.stdout or "").split() if line]
+    if not names:
+        return declared, False
+    return names[0], True
+
+
+def stop_instance(name: str, manifest: dict) -> dict:
+    """停止实例自身的容器并如实报告结果，保留 HOME 数据卷。
+
+    命令失败、仍有容器运行或状态未知都不报告停止成功。`down` 与 `up --replace` 共用本函数，
+    因此旧状态实例走的是同一条路径：先按它自己的 compose 停掉，再按新版本重建。
+    """
+    target = instance_dir(name)
+    completed = run(compose_command(target, name, "down", "--remove-orphans"),
+                    check=False, env=instance_compose_env(manifest))
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout or "").strip()
+        fail(f"停止 {name} 失败（docker compose down 退出码 {completed.returncode}），实例状态未确认：{detail[-400:]}")
+    containers = project_containers(name)
+    resolved_volume, preserved = home_volume(manifest)
+    report = {
+        "name": name,
+        "project": manifest.get("project"),
+        "home_volume": resolved_volume,
+        "home_preserved": preserved,
+    }
+    if containers is None:
+        report["stopped"] = "unknown"
+        report["detail"] = "docker ps 查询失败，无法确认实例是否已停止；不报告停止成功"
+        print(json.dumps(report, ensure_ascii=False), file=sys.stderr)
+        raise SystemExit(1)
+    running = [item for item in containers if item["state"] == "running"]
+    report["containers"] = containers
+    report["stopped"] = not running
+    report["containers_removed"] = not containers
+    if running:
+        print(json.dumps(report, ensure_ascii=False), file=sys.stderr)
+        fail("docker compose down 返回 0，但以下容器仍在运行：" + "、".join(item["name"] for item in running))
+    return report
+
+
+def command_down(args: argparse.Namespace) -> None:
+    """停止实例并如实报告结果：命令失败、仍有容器运行或状态未知都不报告停止成功。"""
+    target = instance_dir(args.name)
+    if not (target / "instance.json").is_file():
+        fail(f"未找到实例 {args.name}")
+    manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+    print(json.dumps(stop_instance(args.name, manifest), ensure_ascii=False))
+
+
+def validate_existing_identity(name: str, manifest: dict, contract: dict, mode: str) -> None:
+    """在任何停止或改写动作之前，核对同名实例能否被本次命令替换。"""
+    existing_source = manifest.get("source_id")
+    existing_mode = manifest.get("mode")
+    if existing_source != contract["source_id"] or existing_mode != mode:
+        fail(
+            f"实例 {name} 已存在且来源/模式不同（{existing_source}/{existing_mode}）；"
+            "拒绝替换并保持原实例运行，请改用新的实例名"
+        )
+
+
+def existing_instance(name: str) -> tuple[Path, dict] | None:
+    target = instance_dir(name)
+    if not target.exists():
+        return None
+    manifest_path = target / "instance.json"
+    if not manifest_path.is_file():
+        fail(f"实例目录已存在但缺少 instance.json：{target}")
+    return target, json.loads(manifest_path.read_text(encoding="utf-8"))
+
+
+def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
+    """在停旧实例前校验新 Compose 可展开，不写入实例目录。"""
+    with tempfile.TemporaryDirectory(prefix="dsh-dev-preflight-") as location:
+        root = Path(location)
+        rendered = render_compose(
+            (ADAPTER / f"{args.mode}.compose.yaml").read_text(encoding="utf-8"),
+            mode=args.mode,
+            project=project_name(args.name),
+            port=args.port,
+            runtime_env_names=required_env_names(contract),
+        )
+        compose = root / "compose.yaml"
+        compose.write_text(rendered, encoding="utf-8")
+        environment = compose_env(contract, args.mode, args.port, args.name)
+        run(compose_command(root, args.name, "config", "--quiet"), env=environment)
+
+
+def migrate_existing_instance(args: argparse.Namespace, contract: dict,
+                              current: tuple[Path, dict] | None = None) -> dict | None:
+    """`up --replace` 的前置步骤：兼容性检查通过后，停同名实例并保留 HOME。"""
+    current = current if current is not None else existing_instance(args.name)
+    if current is None:
+        return None
+    _, manifest = current
+    validate_existing_identity(args.name, manifest, contract, args.mode)
+    if not getattr(args, "replace", False):
+        return None
+    recorded = instance_recorded_port(manifest)
+    if recorded is not None and recorded != args.port:
+        fail(
+            f"实例 {args.name} 记录端口为 {recorded}，与本次 --port {args.port} 不一致；"
+            "同名实例不得改端口，请保持原端口或用新的实例名"
+        )
+    previous_schema = manifest.get("schema_version")
+    print(json.dumps({"replacing": args.name, "previous_state_schema": previous_schema},
+                     ensure_ascii=False), file=sys.stderr)
+    stop = stop_instance(args.name, manifest)
+    return {"previous_state_schema": previous_schema, "stop": stop}
+
+
+def command_image_build(args: argparse.Namespace) -> None:
+    script = ADAPTER / "build-image.sh"
+    if shutil.which("bash") is None:
+        fail("缺少 bash，无法调用 build-image.sh")
+    run(["bash", str(script), "--source", args.source], check=True, capture=False, timeout=None)
+    print(json.dumps({"built": True, "source": args.source}, ensure_ascii=False))
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    init = commands.add_parser("init", help="创建最小 Harness Agent 与首次 Experiment")
+    init.add_argument("agent_id", help="小写 kebab-case Agent ID")
+    init.set_defaults(handler=command_init)
+
+    build = commands.add_parser("image", help="构建锁定 DSH 镜像")
+    build_sub = build.add_subparsers(dest="image_command", required=True)
+    build_parser = build_sub.add_parser("build")
+    build_parser.add_argument("--source", default="EXP-security-operations-expert-001")
+    build_parser.set_defaults(handler=command_image_build)
+
+    up = commands.add_parser("up", help="启动实例（可用 --dry-run 预览）")
+    up.add_argument("--source", nargs="?", help="来源选择器；未提供值时列出可用的 experiment:<id>")
+    up.add_argument("--mode", nargs="?", choices=MODE_CHOICES, metavar="{eval}", type=normalize_mode,
+                    help="eval（被测模式）")
+    up.add_argument("--name", help="实例名；默认 <agent-id>-eval")
+    up.add_argument("--port", type=int, help=f"宿主回环端口；新实例默认从 {AUTO_PORT_START} 起自动选择")
+    up.add_argument("--dry-run", action="store_true", help="只输出实例计划，不写状态、不调用 Docker")
+    up.add_argument("--replace", action="store_true",
+                    help="先停止同名实例自身的容器（保留 HOME 数据卷）再启动；用于重载配置或迁移旧状态")
+    up.add_argument("--allow-missing-env", action="store_true",
+                    help="显式允许缺少运行时环境变量，仅用于技术装载核验")
+    up.set_defaults(handler=command_up)
+
+    ps_parser = commands.add_parser("ps", help="默认列出运行中的实例；加 --all 查看全部状态记录")
+    ps_parser.add_argument("-a", "--all", action="store_true", help="包含 stopped、failed、unknown 和损坏记录")
+    ps_parser.set_defaults(handler=command_ps)
+
+    url_parser = commands.add_parser("url", help="取得本次进程的认证 URL")
+    url_parser.add_argument("name")
+    url_parser.add_argument("--non-interactive", action="store_true",
+                            help="允许向非交互标准输出打印认证 URL（含敏感值，调用方自负保护责任）")
+    url_parser.set_defaults(handler=command_url)
+
+    logs_parser = commands.add_parser("logs", help="输出有界、尽力脱敏的运行日志")
+    logs_parser.add_argument("name")
+    logs_parser.add_argument("--tail", type=int, default=200)
+    logs_parser.set_defaults(handler=command_logs)
+
+    down_parser = commands.add_parser("down", help="停止实例并保留 HOME")
+    down_parser.add_argument("name")
+    down_parser.set_defaults(handler=command_down)
+
+    args = parser.parse_args()
+    args.handler(args)
+
+
+if __name__ == "__main__":
+    main()

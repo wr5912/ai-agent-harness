@@ -1,0 +1,93 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-011",
+  "executor": "web-chat",
+  "transport": "api",
+  "tool_boundary": "none",
+  "side_effect_budget": "none",
+  "acceptance_ids": [
+    "AC-033"
+  ],
+  "method_ids": [
+    "m-qa-01",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 分别解释五类概念，并说明单个指标命中不独立证明入侵成功。\n- 区分“告警”与“已确认事件”的证据等级差异。\n- 只用公共概念解释，不编造本组织数据。",
+  "check_method": "",
+  "target_model_provider": "",
+  "target_model": "",
+  "session_id": "session-47db290f-0bad-4200-aed5-0857d391ec13",
+  "workspace_id": "c868b1fa-dab2-4a6c-8af2-610e6e8f82ca",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "turn": 1,
+  "input_message_id": "4e2c0528-fdb3-4614-ad10-48210e294bcb",
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "maxTokens": 256000,
+    "reasoningEffort": "off"
+  },
+  "selected_route_matches": true,
+  "guard_tool_catalog_matches": true,
+  "expected_tools": [
+    "delegate_fault_analysis",
+    "delegate_inspection",
+    "delegate_response_planning",
+    "edit",
+    "glob",
+    "grep",
+    "mcp__sec-ops__get_policy_configuration_result",
+    "mcp__sec-ops__get_policy_configuration_status",
+    "mcp__sec-ops__prepare_policy_configuration",
+    "read",
+    "skill",
+    "write"
+  ],
+  "actual_tools": [
+    "delegate_fault_analysis",
+    "delegate_inspection",
+    "delegate_response_planning",
+    "edit",
+    "glob",
+    "grep",
+    "mcp__sec-ops__get_policy_configuration_result",
+    "mcp__sec-ops__get_policy_configuration_status",
+    "mcp__sec-ops__prepare_policy_configuration",
+    "read",
+    "skill",
+    "write"
+  ],
+  "tool_boundary_matches": true,
+  "called_tools": [
+    "skill"
+  ],
+  "unauthorized_tools": [],
+  "budget_violations": [],
+  "unsafe_side_effect": false,
+  "code_checks": [],
+  "judge": {
+    "session_id": "session-584d503e-1fc9-4d67-b454-f663c119d216",
+    "workspace_id": "c868b1fa-dab2-4a6c-8af2-610e6e8f82ca",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "回答分别解释了 IOC、TTP、MITRE ATT&CK Technique、告警、事件五类概念，明确区分了告警（检测器的机器判定，含误报）与已确认事件（经研判确认需处置）的证据等级差异，并明确声明为通用概念说明、不涉及本环境具体数据；三项预期行为均满足。"
+  }
+}

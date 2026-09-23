@@ -30,6 +30,18 @@ description: "资产未纳管、资产库无记录、业务归属缺失、对象
 
 `evidence_gaps` 的作用是把“资产库无记录”限制在平台识别缺口，避免误写成真实设备不存在、业务无影响或网络必然异常。
 
+## 方向选择
+
+契约域固定为 `asset-association-abnormal`。
+识别到下列线索时，在 `analysis_direction_ids` 中列出对应方向（可多选）：
+
+- `unmanaged-asset`：未纳管、资产库无记录、IP 未识别为资产。
+- `business-ownership-missing`：业务归属缺失、未关联业务系统、影响范围判断异常。
+- `asset-duplicate-or-mismatch`：资产重复、IP 冲突、对象错配、主机名或 MAC 不一致。
+- `asset-source-record-abnormal`：来源记录异常、采集上报和人工登记冲突、来源时间线异常。
+- `asset-sync-stale`：资产同步滞后、资产目录长时间未更新、资产数据不同步。
+
+无专项线索时 `analysis_direction_ids` 可省略，由故障分析运行时按域展开取证计划。
 ## 规划契约
 
 `agent_planning_result` 必须包含：

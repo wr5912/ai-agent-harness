@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-008",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-039"
+  ],
+  "method_ids": [
+    "m-qa-q01",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 简短列出与本角色能力一致的分析帮助，并给出可继续追问的问题示例。\n- 示例不越过能力边界，不包含知识库检索、策略执行、周期调度等未配置能力。\n- 不索取敏感信息（如账号口令、Token）作为继续条件。",
+  "check_method": "",
+  "failure_reason": "evaluation-interrupted"
+}

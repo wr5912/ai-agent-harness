@@ -1,0 +1,242 @@
+{
+  "development_mode": {
+    "composed_agent_presets_config": {
+      "default": "cordis",
+      "includeShippedRoot": true,
+      "includeUserRoot": false,
+      "roots": [
+        {
+          "path": "/opt/dsh-presets",
+          "trust": "system"
+        }
+      ]
+    },
+    "composed_config_evidence": "容器内 node /opt/dsh/apps/cli/lib/bin.js --profile web --patch <基础 patch> --patch <开发叠加层> --dump-config",
+    "container": "dsh-dev-secops-dev-dsh-1",
+    "container_level_probe": {
+      "context_assets": {
+        "eval_input": {
+          "container": "/work/eval-input",
+          "host": "/home/cmp/work/luopeng/ai-agent-harness/agents/security-operations-expert/eval",
+          "mount_mode": "ro"
+        },
+        "note": "Read-only context identity only; mounting the requirement/evaluation factsource does not prove any agent consumed it.",
+        "spec": {
+          "container": "/work/spec",
+          "host": "/home/cmp/work/luopeng/ai-agent-harness/agents/security-operations-expert/spec",
+          "mount_mode": "ro"
+        }
+      },
+      "development_overlay_applied": true,
+      "exit_code": 0,
+      "expected_markers_present": 10,
+      "mounts": {
+        "eval_input": {
+          "file_count": 9,
+          "mount_mode": "ro",
+          "total_bytes": 402197,
+          "tree_sha256": "sha256:caf0e5048f94d08145c7a88094a96977d13cd90d691a8c6abeb7e960a02219d6"
+        },
+        "managed": {
+          "file_count": 9,
+          "mount_mode": "ro",
+          "total_bytes": 44366,
+          "tree_sha256": "sha256:71aa53b9fae5d57288831eb5583694541544009d21eebfe465a5f5bac2da03ed"
+        },
+        "presets": {
+          "file_count": 2,
+          "mount_mode": "ro",
+          "total_bytes": 1041,
+          "tree_sha256": "sha256:71d3b1ea06c1d0ede0c55f95953d8800851e2da63e5ab2e3230887eb231bed10"
+        },
+        "spec": {
+          "file_count": 3,
+          "mount_mode": "ro",
+          "total_bytes": 120467,
+          "tree_sha256": "sha256:7cab1e67cb57d96b161580fe732f70d13fe32b40c6ce4504429060a78a6c120d"
+        },
+        "workspace": {
+          "file_count": 34,
+          "mount_mode": "rw",
+          "total_bytes": 236966,
+          "tree_sha256": "sha256:3b060f72082bec02497bf43e7ff987940d05b43d87f3e0a57bc981376934062b"
+        }
+      },
+      "preset_guard_declaration_present": true,
+      "script": "verify-load.sh authoring"
+    },
+    "context_mounts": [
+      {
+        "container": "/work/spec",
+        "host": "/home/cmp/work/luopeng/ai-agent-harness/agents/security-operations-expert/spec",
+        "key": "spec",
+        "mode": "ro"
+      },
+      {
+        "container": "/work/eval-input",
+        "host": "/home/cmp/work/luopeng/ai-agent-harness/agents/security-operations-expert/eval",
+        "key": "eval",
+        "mode": "ro"
+      }
+    ],
+    "cordis_capability_note": "以上为该 preset 文件声明的行，未在本轮做真实会话激活验证；preset 头部明确写明该模式等同 shell 权限。",
+    "cordis_declared_capability_rows": [
+      "tool-bash",
+      "tool-jobs",
+      "tool-subagent",
+      "tool-workflow",
+      "tool-ralph",
+      "tool-web",
+      "tool-cordis"
+    ],
+    "cordis_trust_accepted": true,
+    "cordis_trust_required": true,
+    "host_network": true,
+    "instance": "secops-dev",
+    "patch_overlay": "/opt/dsh-managed/security-operations-expert.development.patch.yml",
+    "port": 3084,
+    "preset_default": "cordis",
+    "preset_display_name": "创造模式",
+    "purpose": "dev",
+    "read_only_rootfs": true,
+    "shipped_preset_root": "/var/lib/dsh/profiles/node_modules/@deepseek-ai/dsh-agent-presets/presets",
+    "shipped_presets_visible_in_image": [
+      "cordis",
+      "minimal",
+      "ptc",
+      "standard"
+    ],
+    "status": "running",
+    "web_probe": {
+      "ok": true,
+      "token_recorded": false,
+      "tool": "dsh-dev url secops-dev --non-interactive"
+    }
+  },
+  "evaluation_mode": {
+    "composed_agent_presets_config": {
+      "default": "security-operations-expert",
+      "includeShippedRoot": false
+    },
+    "container": "dsh-dev-secops-eval-dsh-1",
+    "container_level_probe": {
+      "context_assets": {
+        "eval_input": {
+          "container": "/work/eval-input",
+          "host": "/home/cmp/work/luopeng/ai-agent-harness/evolution/experiments/EXP-security-operations-expert-001/snapshots/research/snap-d0802d2a-ae8f-4d51-8101-b52bee291a2b/eval",
+          "mount_mode": "ro"
+        },
+        "note": "Read-only context identity only; mounting the requirement/evaluation factsource does not prove any agent consumed it.",
+        "spec": {
+          "container": "/work/spec",
+          "host": "/home/cmp/work/luopeng/ai-agent-harness/evolution/experiments/EXP-security-operations-expert-001/snapshots/research/snap-d0802d2a-ae8f-4d51-8101-b52bee291a2b/spec",
+          "mount_mode": "ro"
+        }
+      },
+      "development_overlay_applied": false,
+      "exit_code": 0,
+      "expected_markers_present": 10,
+      "mounts": {
+        "eval_input": {
+          "file_count": 9,
+          "mount_mode": "ro",
+          "total_bytes": 402197,
+          "tree_sha256": "sha256:caf0e5048f94d08145c7a88094a96977d13cd90d691a8c6abeb7e960a02219d6"
+        },
+        "managed": {
+          "file_count": 8,
+          "mount_mode": "ro",
+          "total_bytes": 43259,
+          "tree_sha256": "sha256:1e954e48b1a6ce5d860c9c82b7887021045435f93e5e4551ebac715b8781bf43"
+        },
+        "presets": {
+          "file_count": 2,
+          "mount_mode": "ro",
+          "total_bytes": 1041,
+          "tree_sha256": "sha256:71d3b1ea06c1d0ede0c55f95953d8800851e2da63e5ab2e3230887eb231bed10"
+        },
+        "spec": {
+          "file_count": 3,
+          "mount_mode": "ro",
+          "total_bytes": 120467,
+          "tree_sha256": "sha256:7cab1e67cb57d96b161580fe732f70d13fe32b40c6ce4504429060a78a6c120d"
+        },
+        "workspace": {
+          "file_count": 34,
+          "mount_mode": "ro",
+          "total_bytes": 235857,
+          "tree_sha256": "sha256:3cd193c3f28e89d9ed6022323b1f21673eadbcac953d0597d70b53c8388f653b"
+        }
+      },
+      "script": "verify-load.sh verification --source snapshot:snap-d0802d2a-ae8f-4d51-8101-b52bee291a2b",
+      "source_kind": "snapshot"
+    },
+    "context_mounts": [
+      {
+        "container": "/work/spec",
+        "host": "/home/cmp/work/luopeng/ai-agent-harness/agents/security-operations-expert/spec",
+        "key": "spec",
+        "mode": "ro"
+      },
+      {
+        "container": "/work/eval-input",
+        "host": "/home/cmp/work/luopeng/ai-agent-harness/agents/security-operations-expert/eval",
+        "key": "eval",
+        "mode": "ro"
+      }
+    ],
+    "cordis_preset_absent": true,
+    "host_network": true,
+    "instance": "secops-eval",
+    "patch_overlay": null,
+    "port": 3085,
+    "preset_default": "security-operations-expert",
+    "purpose": "eval",
+    "read_only_rootfs": true,
+    "status": "running",
+    "web_probe": {
+      "ok": true,
+      "token_recorded": false,
+      "tool": "dsh-dev url secops-eval --non-interactive"
+    }
+  },
+  "launcher": {
+    "dev_command": "dsh-dev up --source experiment:EXP-security-operations-expert-001 --mode dev --name secops-dev --port 3084 --accept-cordis-trust",
+    "env_injection": "7 个运行时变量按名从调用环境传入；本证据与实例状态文件均不含任何 Token 值",
+    "eval_command": "dsh-dev up --source experiment:EXP-security-operations-expert-001 --mode eval --name secops-eval --port 3085",
+    "mode_aliases": {
+      "dev": "authoring",
+      "eval": "verification"
+    },
+    "tool": "runtime/adapters/dsh-container/dsh-dev"
+  },
+  "notes": [
+    "首轮 authoring 探针失败并暴露真实缺陷：DSH patch 按行整体替换 config（非深合并），开发叠加层最初只写 default/includeShippedRoot，导致候选 Preset 根被静默丢弃、可写 HOME 反而可能成为 user preset 根；组合配置标记检查因此报 missing marker: /opt/dsh-presets。",
+    "修复：叠加层完整重述 agent-presets 配置（default/includeShippedRoot/includeUserRoot/roots），校验器 DSH_DEVELOPMENT_OVERLAY 同步强制该完整性（缺 roots、缺 includeUserRoot: false 或 trust 非 system 均失败关闭）。",
+    "开发模式按用户确认保持 host 网络并保留 SOC MCP 凭据；创造模式会话不加载 security-operations-guard，等同 shell 且可直达宿主回环服务——这是已披露并显式确认的风险，不是已隔离状态。",
+    "实例状态文件只记录环境变量名称与目的/预设/上下文挂载/信任确认，不含 Token。"
+  ],
+  "recorded_at": "2026-09-18T08:04:33Z",
+  "runtime": {
+    "build_evidence": "evaluation/evidence/dsh-image-build-20260918T074426Z-3153635.json",
+    "cli_version": "0.1.5-rc.2",
+    "dsh_source_commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+    "image_id": "sha256:47427976e4553e032ddcfc888d7f1811096cbc5cb1db50ef86a3667fd4c9977e",
+    "image_tag": "ai-agent-harness/dsh:c291e7961"
+  },
+  "schema_version": "1.0",
+  "scope": "开发启动器双模式（--mode dev 创造模式 / --mode eval 被测智能体 preset）的实机装载与预设生效核验；不构成 Release、R3 业务通过或正式评估结论。",
+  "unverified": [
+    "未建立真实 Agent 会话：无会话级工具清单取证，创造模式的 shell/tool-cordis 只按 preset 声明记录，未验证实际激活",
+    "未执行任何业务任务链、巡检、威胁研判或策略流程；开发/评测语义未做 R2/R3 结论",
+    "评测模式本轮绑定可变宿主候选（experiment:），只能作为局部技术核验；冻结来源仅用于容器级探针",
+    "MCP: sec-ops 为真实平台端点；inspection 与 threat-analysis 平台侧未配置，本轮由本地失败关闭桩补齐，两域工具调用会明确失败"
+  ],
+  "verified": [
+    "开发模式实例在重建镜像上保持运行，组合配置显示 default=cordis、includeShippedRoot=true、includeUserRoot=false，且根仅为 /opt/dsh-presets",
+    "评测模式实例组合配置显示 default=security-operations-expert、includeShippedRoot=false，组合配置中不出现 cordis 或出厂根开放",
+    "两种模式的 /work/spec 与 /work/eval-input 都是精确只读 bind 挂载，容器内摘要与宿主摘要一致",
+    "两种模式的认证 URL 探针均通过（token→303→会话 Cookie→根页 200 且含 __DSH_BOOT__）",
+    "容器级探针 verify-load.sh 在 authoring 与 verification（研究快照来源）下退出码均为 0，五棵树摘要与受控 HOME/模块边界一致"
+  ]
+}

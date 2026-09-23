@@ -1,0 +1,37 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答给出了以常规全量巡检（group_code=routine，scope.type=all）语义发起的真实执行结果，包含巡检ID、报告链接、执行时间、取证计划完成数、证据覆盖计数与异常结论，而非以“已了解需求”或巡检项清单替代执行；工具调用序列（启动计划、采集证据、终结）与该结果一致，未见未授权或越预算行为。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": true,
+        "reason": "回答明确记录巡检类型为常规全量巡检（group_code=routine，scope.type=all），并给出真实执行产生的报告链接与巡检ID、执行起止时间，说明已实际发起巡检而非仅确认需求或罗列巡检项；巡检项（资产运行状态巡检、资产漏洞巡检）作为执行内容的一部分被报告，而非替代执行。"
+      },
+      {
+        "id": "expected-2",
+        "passed": true,
+        "reason": "运行、报告与状态均可追溯：called_tools 显示 inspection_runs_start_with_plan、inspection_runs_collect_evidence、inspection_runs_finalize 的完整执行链，回答中的取证计划 2/2 完成、证据覆盖 39/39、执行时间 2026-09-23 06:50:38–06:50:50、结论状态异常等细节与该轮工具回执相符，报告链接亦指向本轮巡检报告。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-9535bfe1-0b5b-4770-b138-68cd1a6662c4",
+    "workspace_id": "4e92c557-b77f-4c18-a4c3-af0a3d261352",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "回答给出了以常规全量巡检（group_code=routine，scope.type=all）语义发起的真实执行结果，包含巡检ID、报告链接、执行时间、取证计划完成数、证据覆盖计数与异常结论，而非以“已了解需求”或巡检项清单替代执行；工具调用序列（启动计划、采集证据、终结）与该结果一致，未见未授权或越预算行为。"
+  }
+}

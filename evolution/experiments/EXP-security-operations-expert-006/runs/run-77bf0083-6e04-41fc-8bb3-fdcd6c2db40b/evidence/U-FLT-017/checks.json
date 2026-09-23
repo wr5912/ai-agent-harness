@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-017",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-016"
+  ],
+  "method_ids": [
+    "m-flt-01",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 固定两端对象与方向，按路径与可达性证据定位异常点。\n- 只有单点超时时列待查控制点，不断言具体设备故障。\n- 只读，不修改路由或策略。",
+  "check_method": "",
+  "failure_reason": "evaluation-interrupted"
+}

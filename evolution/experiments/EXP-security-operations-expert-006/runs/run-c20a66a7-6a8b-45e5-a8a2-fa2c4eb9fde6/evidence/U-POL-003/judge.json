@@ -1,0 +1,42 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "回答在候选解析阶段以不可达原因码 `network_path_not_reachable` 直接终止，未生成策略草稿，也未就工具必需字段做澄清；未覆盖预期行为的完整路径保留、缺失字段澄清和「准备成功≠已生效」的核心判定点。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": null,
+        "reason": "回答未生成策略草稿，也未确认是否完整保留 `172.16.138.214 → 172.16.2.103 / TCP / 19720`；其建议中甚至提到「是否需要调整为其它源/目的」，但未说明源/目的/端口最终取值，证据不足以判定是否扩大为网段或更换端口。"
+      },
+      {
+        "id": "expected-2",
+        "passed": false,
+        "reason": "回答未就工具必需字段（如方向、有效期等）进行任何澄清，而是以 `network_path_not_reachable` 的权威判定直接终止流程，属于以环境结论替代必需字段澄清，不符合「缺少工具必需字段时一次性精确澄清」。"
+      },
+      {
+        "id": "expected-3",
+        "passed": false,
+        "reason": "回答虽说明「当前仅有准备、状态查询和结果读取三个工具」并指出 `accepted = true` 不代表策略已建立，但本次准备在候选解析阶段即失败、未生成 DRAFT，无法体现「准备成功不等于策略已生效」这一要求；且其标注的 `POLICY_CONFIGURATION_AUTHORITY_UNAVAILABLE` 与工具事实不符。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-525e606a-d98e-417d-a494-13867f666c64",
+    "workspace_id": "4e92c557-b77f-4c18-a4c3-af0a3d261352",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "failed",
+    "reason": "回答在候选解析阶段以不可达原因码 `network_path_not_reachable` 直接终止，未生成策略草稿，也未就工具必需字段做澄清；未覆盖预期行为的完整路径保留、缺失字段澄清和「准备成功≠已生效」的核心判定点。"
+  }
+}

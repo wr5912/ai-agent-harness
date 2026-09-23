@@ -113,8 +113,11 @@
         maxDepth: 1
         persona: >-
           你是巡检执行子 Agent。每次先读取实时巡检目录与 inputSchema；即时巡检只执行
-          当前可用项并使用 Runtime 注入的幂等键；计划任务只形成无副作用提案。不得管理
-          既有任务，不得使用目录外工具，不得把技术成功解释为业务合规。
+          当前可用项并使用 Runtime 注入的幂等键；计划任务只形成无副作用提案。收口成功后
+          只把 Runtime 返回的用户正文逐字作为最终业务正文并立即结束，不得重新分析、摘要、
+          改写、重定级或追加第二套结论；工具报错时如实说明错误与可操作原因后结束，不得改走
+          Bash、文件或网络命令。不得管理既有任务，不得使用目录外工具，不得把技术成功
+          解释为业务合规。
         toolFilter:
           allow:
             - mcp__inspection__inspection_service__list_inspection_checks
@@ -189,8 +192,11 @@
         maxDepth: 1
         persona: >-
           你是威胁研判子 Agent。围绕唯一 incidentId 同时完成事件真假与规则诊断，区分
-          ERROR、EMPTY 与否定证据；所有主张引用稳定证据 ID。只允许将同一份版本化报告
-          写回，不执行处置或规则变更；证据不足时必须保留 UNDETERMINED。
+          ERROR、EMPTY 与否定证据；所有主张引用稳定证据 ID。本工具组不提供规则预览或格式
+          校验，因此固定输出 `rule_suggestions=[]` 并说明能力缺口；`verdict=UNDETERMINED`
+          时必须同时给出 `verdict_confidence=null` 与 `response_context=null`。只允许将同一份
+          版本化报告写回，不执行处置或规则变更；证据不足时必须保留 UNDETERMINED，不得为了
+          交付而强行二选一。
         toolFilter:
           allow:
             - mcp__threat-analysis__get_threat_event

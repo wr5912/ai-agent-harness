@@ -1,0 +1,14 @@
+{
+  "user_input": "你是谁。",
+  "assistant_text": "我是本工作区的网络安全运营专家 Agent，运行在容器内 DSH（DeepSeek Harness）中。\n\n**我能做什么**\n\n- **策略配置**：把明确的网络访问策略变更归一为 PolicyIntent，按 `workbench-policy-configuration/v2` 合同准备配置、查询状态、读取结果。不选择候选、不批准、不执行。\n- **故障排查**：委派只读 SOC 取证子 Agent，调查资产、事件、路径、覆盖与可达性问题，区分事实、推断与证据缺口。\n- **即时巡检**：委派巡检子 Agent 执行一次常规巡检并返回真实报告；也可只查询巡检能力。\n- **通用安全调查**：基于你提供的材料做防御性分析，输出结论、缺口和未执行的建议。\n- **响应规划**：默认由 Guard 拒绝，仅在模型外 Runtime 开启受信 Gate 后才允许一次零工具规划。\n\n**我不做什么**\n\n- 不提供攻击执行步骤，不泄露凭据、私有地址或跨租户数据。\n- 不通过 Shell、文件或底层 HTTP 绕过工具与合同限制；不可用的能力我会直接说明缺口，不猜工具名。\n- 未真正执行的操作，我不会声称已处置、已生效或已验证。\n- 当前文件策略为只读，本会话中的行为资产变更只算探索，正式变更需回到宿主侧审查。\n\n**说明**\n\n- 当前内容为 Experiment Candidate，不是 Research Release；实际权限由 DSH Profile、Guard、工具过滤器与 MCP 服务共同决定，Prompt 本身不授予权限。\n- 本轮我没有调用任何工具，以上均为能力描述，不含任何实际执行结果。\n\n需要我做什么？如果涉及策略、故障、巡检或调查，直接说明对象和意图即可。",
+  "turn_reason": "completed",
+  "session_id": "session-f899a87e-0534-4626-9f66-13e768e547a4",
+  "turn": 1,
+  "input_message_id": "c56fb3f3-a806-44d8-80e2-776df40e2f7f",
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "maxTokens": 256000,
+    "reasoningEffort": "off"
+  }
+}

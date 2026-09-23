@@ -1,145 +1,101 @@
-# 项目规范解释与裁决
+# 项目规范解释
 
-本文将三项锁定来源应用到 `ai-agent-harness`，解决其在 Baseline、Experiment、Acceptance、Eval Set、Release/current 和 DSH 装载方面的命名或目录歧义。本文是项目级解释，不修改受控原文，也不得降低上游安全、评估或发布门禁。
+本文说明受控来源在 `ai-agent-harness` 的 Research Mode 中怎样使用。它不修改受控原文；它明确哪些内容是当前合同，哪些只作为未来生产化参考。
 
-## 1. 来源优先级
+## 1. 当前权威顺序
 
-三项来源按各自适用范围共同生效：
+1. 根级 [`AGENTS.md`](../../AGENTS.md) 定义当前项目使命、Research Mode、开发边界和协作原则。
+2. 本文解释受控来源如何适用于这个个人研究仓库。
+3. 《Harness Repo 目录结构设计说明（v1.1）》和《Harness Asset Repository 规范（v1.0）》作为目录与资产模型的设计输入；保留原文和摘要，不要求把其中每个生产化目录都物化。
+4. `agent-engineering-spec` 锁定提交提供任务分流、多轮澄清和外部资产复用参考；本项目仅通过 `harness-guided-workflow` 吸收与 Research Mode 一致的指导，不直接继承其生产交付合同。
 
-1. 研发、评估、安全、交付和发布门禁采用 `agent-engineering-spec` 锁定 Commit。
-2. 仓库的资产种类和目标拓扑采用《Harness Repo 目录结构设计说明（v1.1）》。
-3. Harness 生命周期、Runtime 解耦和持续优化原则采用《Harness Asset Repository 规范（v1.0）》。
-4. 本文只在上述来源没有给出唯一实现，或将它们组合后存在歧义时作项目裁决。
+若来源中的生产化要求与 Research Mode 冲突，以当前研究范围为准，不自动引入稳定 Baseline、R1/R2/R3、审批、安全控制映射或生产部署流程。若未来正式启动生产化阶段，应另建清晰合同并重新评估这些来源，而不是静默改变本项目语义。
 
-若来源发生实质冲突，先按适用范围区分。仍无法消解时，安全与证据采用更严格规则，并暂停相关 Candidate 晋升或 Release，等待维护者记录裁决；不得静默采用较宽松规则。
+`harness-guided-workflow` 是新建、迁移、修改和优化 Harness 的对话入口。它借鉴阶段式工作流，把任务分成讨论、计划、执行和验证四轮，并分别复用现有的资产清点、Experiment 演进和研究评估技能；最终事实仍写回现有 Agent、Experiment 与 Run，不建立第二套流程台账。
 
-## 2. 两种 Baseline 的统一语义
+## 2. Baseline、Experiment 与 Decision
 
-| 名称 | 标识与位置 | 形成时间 | 含义 |
-|---|---|---|---|
-| 候选基线 | `bl-<UUIDv4>`，记录于具体 Agent 的交付记录 | 首次正式自测前 | 冻结需求与验收、Harness、Runtime、模型、控制、Eval Set、评估实现、执行规则和环境的待测组合；不代表已通过或可发布 |
-| 稳定资产 Baseline | `evolution/baselines/<agent-id>-v<semver>/` | 候选基线完成正式评估、规定复核并通过交付评估后，与 Release 一起晋升 | 下一轮演进可复用的、已验证 Harness 快照；必须保留 Runtime、依赖、Eval 结论和 Release 引用 |
+Baseline 是比较起点的引用，不是一套必须复制的目录：
 
-规则：
+- `git:<40 位 commit>`：以某个 Git 提交为对照；
+- `release:<agent-id>-v<semver>`：以已有 Research Release 为对照；
+- `none:first-experiment`：首次实验没有既有对照。
 
-- `baseline_id` 是一次冻结组合的身份，不因同一组合重跑而变化；重跑生成新的 `run_id`。
-- 稳定资产 Baseline 是仓库生命周期状态，不得用尚未执行的模板、旧归档或“看起来可用”的配置占位。
-- 新建 Agent 没有既有稳定资产 Baseline 时，起点可以明确记录为 `N/A（首次交付）`，随后从 Task/Acceptance 建立第一个 Experiment 和 Candidate。
-- 任一冻结项变化都形成新的候选基线；旧运行保留为历史证据，不能覆盖或改写。
+每项语义性 Harness 变化建立一个 `evolution/experiments/EXP-<agent-id>-NNN/`。最小内容包括：
 
-## 3. Experiment 与开发路径
+- `change.yaml`：Experiment 身份、Baseline 引用、状态，以及完成后的结果；
+- `hypothesis.md`：为什么修改、预期观察和停止条件；
+- `candidate/`：本次要比较的 Harness 工作树；
+- `evaluation/`：方法、观察、证据或总结；
+- `decision.md`：`adopt`、`continue`、`reject` 或 `inconclusive` 的理由。
 
-每项会改变 Agent 行为、能力、控制边界或冻结组合的语义性 Harness 变更都进入 `evolution/experiments/EXP-<agent-id>-NNN/`。仓库自身的说明文字、工具维护等治理变更，只有实际改变某个 Agent 的交付或冻结组合时才进入该 Agent 的 Experiment。
+研究失败、停止和证据不足都是有效结果。只有实际运行值得复现时才创建 Run；只有某个研究版本值得独立保存和复用时才创建 Research Release。
 
-Experiment 的 `development_path` 只能为：
+## 3. 评估规模和事实边界
 
-- `direct`：任务、验收、路线和影响范围已经明确，不存在会改变实施路线的关键不确定性。直接实现并运行受影响范围的针对性检查。
-- `exploration`：存在会改变实施路线的关键不确定性。先记录问题、预期结果、停止条件和不可降低的安全红线，再用 5～20 个真实或高度接近真实的样本探索。
+Evaluation 的规模由假设和拟得出的结论决定，不设固定 Case 数、固定输入数、R1/R2/R3 或全局安全用例门槛。
 
-`direct` 不等于绕过 Experiment；`exploration` 的样本和结果也不能替代正式 Eval。两条路径最终都要形成 Candidate、冻结 `baseline_id`、完整执行本次正式评估范围并接受规定复核。
+- 早期探索可以使用一个或少量高价值输入。
+- 要扩大结论范围时，补充覆盖、反例和必要回归。
+- 同一次比较运行期间保持 Harness、输入和判断口径稳定；口径变化后重新运行受影响部分。
+- 每个 Agent 的需求与任务只在 `definition.md` 维护；测试数据、评估方法、测试验收和各 Experiment 的选择只在同目录 `evaluation.md` 维护。Experiment 不保存本地评测计划；Run 的输入锁是不可编辑的执行事实，不是维护投影。
+- 原始观察不得为了形成漂亮结论而静默改写；重新执行使用新的 `run_id`。
 
-## 4. Acceptance 唯一事实源
-
-具体 Agent 的 `delivery/交付记录.md` 中“智能体需求定义”（模板一）是项目特有 `AC-xxx` 的唯一事实源；采用六文件拆分版时，对应唯一事实源是 `delivery/01_智能体需求定义.md`。验收要求、判定作用、阈值和阈值依据只能在这里维护。
-
-《Harness Repo 目录结构设计说明》中的 `tasks/<task-domain>/acceptance.yaml` 按以下方式使用：
-
-- 可以只保存 `AC-xxx` 与唯一事实源的不可变引用；
-- 也可以由唯一事实源生成只读投影，供工具索引；若投影包含阈值，必须可重建且与来源逐项一致；
-- 禁止在投影中独立新增、修改或放宽验收要求；
-- 没有实际跨 Agent 复用或机器索引需求时，不创建该文件。
-
-当前初始化版本的机器校验器只接受第一种纯引用形式：`source_ref` 或 `acceptance_source` 必须精确指向交付需求定义中的一个 `AC-xxx`，且不得附带阈值等可编辑字段。以后若实现生成投影，必须先一并交付生成器、来源摘要和逐项一致性检查，再扩展机器契约；不能先提交一份无法证明只读派生关系的副本。
-
-评估实现只在交付记录模板三中通过 `AC-xxx` 绑定用例、方法、数据、结果字段、Trial 和聚合规则，不复制或修改模板一阈值。
-
-## 5. 单一 Eval Set 与目录映射
-
-每个 Agent 仅维护一个 Case 事实源：
+运行记录位于：
 
 ```text
-agents/<agent-id>/delivery/eval/cases.jsonl
+evolution/experiments/EXP-<agent-id>-NNN/runs/run-<UUIDv4>/
 ```
 
-旧材料摄取阶段允许在具体 Experiment 的 `candidate/delivery/eval/cases.pending.jsonl` 保存待复核输入。这是迁移材料，不是第二个正式 Eval Set，也不得在正式 `results.csv` 中引用；只有完成逐条领域质量复核、唯一 `AC-xxx` 绑定和冻结范围后，才可物化正式 Case 事实源。仅有输入条数或旧文档中的 `synthetic_reviewed` 声明，不构成复核通过。
+Run 至少记录实际来源、Git 提交及 dirty 状态、输入、逐项观察、失败和限制。静态检查或技术探针只能支撑其直接覆盖的结论。
 
-`core`、`boundary`、`safety`、`regression` 是每个 Case 的 `tags` 枚举，可组合使用；同一 Case 无论被多少标签、验收项视图或矩阵格引用，都只计一次。Trial 事实统一写入：
+## 4. Candidate 与 Research Release
+
+`candidate/` 只是 Experiment 内的可修改工作树，不表示生产候选或发布准入。
+
+Research Release 位于：
 
 ```text
-agents/<agent-id>/delivery/eval/results.csv
+releases/<agent-id>-v<semver>/
 ```
 
-顶层 `eval/` 仅在产生真实复用内容时创建，并按以下方式解释 v1.1 的目录建议：
+它用于保存值得复用的研究版本，必须自包含、不可变、可校验，并至少包含：
 
-- `eval/datasets/smoke/`：引用 Case ID 或可复现筛选条件的最小可运行视图；
-- `eval/datasets/regression/`：选择 `tags` 含 `regression` 的视图；
-- `eval/datasets/capability/`：按需求、验收项或本次能力影响范围形成的视图；
-- `eval/datasets/safety/`：选择 `tags` 含 `safety` 的视图；
-- `eval/graders/`：可被多个 Agent 引用且已版本化的评分实现；
-- `eval/reports/`：不可变结果快照的索引或派生报告，不是 `results.csv` 的第二事实源。
+- `manifest.yaml`：身份、来源 Experiment、来源提交、评估引用、Runtime 兼容范围和制品摘要；
+- `harness.yaml` 与实际 Harness 资产；
+- `runtime.yaml`：重建所需的非秘密 Runtime 条件；
+- `artifact-manifest.json`：逐文件摘要；
+- `README.md`：用途、复现步骤、已知限制和非生产声明。
 
-这些位置不得复制 `cases.jsonl` 或维护相互冲突的结果。尚无内容时不创建空目录。
+Research Release 不表示生产可用、上线批准或已经完成生产安全治理。Git Tag 不是 Release 制品；Release 也不能包含 Session、缓存、附件、秘钥或整个 `$DSH_HOME`。
 
-## 6. Candidate、Release 与 current
+本项目不维护 `evolution/baselines/` 和 `agents/<agent-id>/current/`。前者与 Git/Release 重复保存版本，后者会制造可变别名和第二份镜像；删除这两层后，具体引用仍能精确恢复研究版本。
 
-晋升关系如下：
+## 5. DSH 装载与运行状态
 
-```text
-Experiment Candidate
-→ 冻结候选基线 baseline_id
-→ 正式自测通过
-→ 完成与风险相匹配的 R1/R2/R3 复核
-→ 交付评估通过
-→ 生成 releases/<agent-id>-v<semver>/
-→ 生成同摘要的稳定资产 Baseline 和 current 校验镜像
-```
+Harness 资产说明“要装载什么”，DSH Runtime 负责实际装载和执行。源码修改不等于当前 Session 已经生效；需要用新进程或新 Session 核对实际来源和用户可见行为。
 
-Release 是可部署 Harness Artifact，不是 Git Tag。每个 Release 必须：
+宿主开发会话可以修改当前 Experiment 的 Candidate；DSH 被测容器只读装载同一 Candidate，并且不挂载参考答案或判断材料。该隔离用于保持比较可信，不意味着本项目要建设通用权限平台。
 
-- 自包含实际装载所需的 Harness 资产，不依赖 `current/` 或其他可变路径；
-- 记录 Agent/Harness 版本、通过的 `baseline_id`、采用的 `run_id`、Runtime 兼容范围、完整性摘要、评估报告和变更记录；
-- 通过逐文件 `artifact-manifest.json` 固定完整可装载资产树；同名稳定 Baseline 与 Release 的相对路径、文件摘要、字节数、权限 mode 和树摘要必须完全一致，不能只比较 `harness.yaml`；
-- 在形成不可变定位信息后禁止原地修改；任何修改产生新的语义版本和候选基线；
-- 能够从自身或其清单核对到交付评估通过的同一冻结组合。
+Runtime 的 Session、设置、缓存、附件和凭据位于独立数据根，不进入 Candidate 或 Research Release。运行时需要的秘钥只由环境或受控凭据机制注入，不提交到仓库。
 
-`agents/<agent-id>/current/` 只在 Release 生成后更新，是便于查看和工具发现的校验镜像。其 Release ID 和内容摘要必须与对应 Release 一致，不得作为生产 DSH 挂载目标，也不得先于 Release 手工修改。稳定资产 Baseline、Release 和 current 若包含同一逻辑资产，其摘要必须一致。
+## 6. 三层验证
 
-## 7. DSH 双平面与挂载契约
+本项目只维护以下三层结论：
 
-本项目资产仅供容器内 DSH Agent Runtime 装载。Harness Candidate 或 Release 说明“运行什么”；DSH Runtime 强制“如何运行、允许做什么”。二者必须同时可核验：
+| 层级 | 结论对象 | 主要证据 |
+|---|---|---|
+| 项目与工具链验证 | 仓库规则、CLI、来源解析、容器接入 | 项目验收矩阵、自动化测试、技术探针 |
+| Experiment Evaluation | 某项 Harness 变化在声明范围内的效果 | 假设、输入、Run、观察、Decision |
+| Research Release 复现 | 某个不可变研究版本能否恢复并重新装载 | Release 清单、摘要、复现记录 |
 
-| Harness 资产平面 | DSH Runtime 平面 |
-|---|---|
-| Task、AC、Prompt、Skill、Workflow、Policy 声明、Preset/Plugin/MCP 声明、Eval、Release | 镜像、Profile、实际 Plugin/MCP、工具 allowlist、沙箱、网络、凭据、资源限制、挂载和运行态数据 |
+三层不能互相替代，也都不构成生产部署验收。进程存在、端口监听、HTTP `200`、`/health`、文件可见或机器校验通过，只能证明对应局部事实。
 
-开发、验证和发布按阶段隔离：
-
-| 阶段 | 可变行为资产 | 受控配置和凭据 | 挂载/身份规则 |
-|---|---|---|---|
-| Experiment Authoring | 仅当前 Candidate 的 Workspace 可在隔离容器中 RW；DSH 可以自组合、自修改，当前 Session 可实时观察探索行为并生成提案 | Preset、Profile、Guard、MCP 等控制 RO；历史/评估不挂载；凭据仅由受信 Runtime 注入，不作为 Candidate 资产 | 宿主侧记录改动前后摘要、diff 和待审回执；进入核验态或正式评估前，经复核后用新容器、新 Session 重建加载 |
-| Candidate Verification | 冻结用于验证的 Candidate 快照 RO | 受控配置 RO；运行态数据独立 | 核实际镜像/Profile/路径/摘要和局部装载；结果仍是探索或候选技术证据 |
-| Release/生产 | 具体 Release 全部 RO；生产 DSH 不自修改 | 受控配置 RO；凭据只由 Runtime 注入 | 只挂不可变 `releases/<agent-id>-v<semver>/`；反馈回新 Experiment |
-
-Authoring 中的模型写入不能授予执行权限、改变 `AC-xxx` 阈值、修改正式 Eval、冻结候选基线、发布 Release 或覆盖历史。模型外 Runtime/领域服务须独立核验租户、对象、参数、数量、幂等、审批、失败安全和审计；Prompt 和静态文件声明都不等于这些控制已经落实。
-
-正式 Trial 还须冻结并记录 Runtime 的**有效投影**：实际模型/provider/reasoning effort、模型 `baseURL` 与重试参数、Session 采用的 permission preset、Agent preset、Profile 和隔离的新 Session 身份。`DSH_HOME/settings.yaml` 是运行态 typed namespace，不整体当作 Harness 制品，也不能因 Profile/Plugin 名单未变就忽略其中的模型、请求终点或权限默认值变化。环境变量、MCP 端点、凭据标识和网络代理须记录受信来源与有效值的非秘密摘要；不得让工作区或数据卷中的 `.env` 悄悄补齐/覆盖这些输入。运行态凭据和会话历史不进入 Release；一旦有效投影偏离本次候选基线，停止该次正式结论并重新确定冻结组合。
-
-发布时遵守：
-
-1. DSH 挂载明确的 `releases/<agent-id>-v<semver>/`，默认只读；不得挂载 `current/` 作为生产来源。
-2. Runtime Adapter 记录 Candidate/Release 源路径如何映射到容器目标路径及阶段模式，运行态数据放到独立数据卷；凭据只由 Runtime 注入，不进入资产树。
-3. 记录 DSH 镜像版本或摘要、Profile、宿主机与容器路径、只读/读写模式、启动方式、Runtime 配置摘要和停止方法。
-4. 启动后核对实际加载的 Agent、Preset、Skill、Tool、Policy、Plugin 和 MCP 与 Release/Runtime 清单一致。
-5. 使用对外实际协议执行至少一条完整任务链，核对用户可见结果、工具与审批行为、最终业务状态和必要审计记录。
-
-容器启动、文件可见、进程存在、端口监听、HTTP `200`、`/health`、模型列表、Mock MCP 或插件单测成功都只证明局部状态，不能替代第 4、5 项。任何 Runtime 配置或挂载内容与通过候选基线不一致，都必须停止发布；修改冻结项后重新建立候选基线并评估。
-
-根级 `AGENTS.md`、`.agents/skills/` 和 `.codex/config.toml` 属于仓库协作平面，默认不得随 Agent Release 挂载到 DSH，也不得被用作 Runtime 权限或安全策略。
-
-## 8. 命名、物化与历史
+## 7. 命名与物化
 
 - Agent ID、技能名和普通目录使用小写 kebab-case。
-- Experiment 使用 `EXP-<agent-id>-NNN`；稳定资产 Baseline 和 Release 使用 `<agent-id>-v<semver>`。
-- 只有存在真实资产、证据或复用需求时才物化目录。禁止通过 `.gitkeep`、空配置、空报告或占位数据伪造完整性。
-- 历史通过 Git Commit、Tag、不可变 Release 和结果快照追溯，不建立 `latest`、`final-final` 或重复交付目录。
-- `current/` 是 Release 后生成的校验镜像，不是 `latest` 别名，也不改变 Release 的不可变性要求。
+- Experiment 使用 `EXP-<agent-id>-NNN`。
+- Research Release 使用 `<agent-id>-v<semver>`。
+- Run 使用 `run-<UUIDv4>`。
+- 只有出现真实资产、观察或复用需求时才创建目录；不使用空文件或占位报告伪造完整性。
+- 外部来源原貌和迁移记录放在 `evolution/history/imports/`，不作为现行 Harness 的第二份可编辑事实源。

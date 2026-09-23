@@ -1,0 +1,59 @@
+schema_version: "1.0"
+agent:
+  id: security-operations-expert
+  name: 网络安全运营专家智能体
+  language: zh-CN
+  lifecycle_status: experiment
+  runtime_family: dsh
+  load_mode: container-only
+experiment:
+  id: EXP-security-operations-expert-005
+  baseline_ref: git:32ad39019c76db0f27088b8a239acf038166da18
+  status: active
+capabilities:
+  migrated_for_research:
+    - response.intake
+    - response.plan
+    - fault.read-evidence
+    - inspection.capabilities
+    - inspection.run
+    - policy.prepare
+    - policy.status
+    - policy.result
+  unavailable_in_current_contract:
+    - soc.investigate
+    - knowledge.search
+    - threat.analyze
+    - policy.select
+    - policy.decide
+loadable_assets:
+  workspace: dsh/workspace
+  preset_root: dsh/presets
+  managed_root: dsh/managed
+  preset_id: security-operations-expert
+  profile_patch: dsh/managed/security-operations-expert.patch.yml
+  runtime_lock: runtime.lock.json
+runtime_contract:
+  workspace_container_path: /work/harness/workspace
+  preset_container_path: /opt/dsh-presets
+  managed_container_path: /opt/dsh-managed
+  dsh_home_container_path: /var/lib/dsh
+  authoring_workspace_mode: rw
+  authoring_preset_mode: ro
+  authoring_managed_mode: ro
+  verification_candidate_mode: ro
+  release_mode: ro
+  expose_host_port: false
+credential_environment_keys:
+  - SEC_OPS_MCP_URL
+  - SEC_OPS_MCP_TOKEN
+  - INSPECTION_MCP_URL
+  - INSPECTION_MCP_TOKEN
+security:
+  authoring_change_activation: host-reviewed-new-container-and-session
+  user_text_is_authority: false
+  mcp_startup_failure: fail-closed
+  external_service_enforcement_required: true
+  model_can_write_managed_plane: false
+provenance:
+  archive_manifest: ../../../history/imports/security-operations-expert-2026-09-15/source-manifest.json

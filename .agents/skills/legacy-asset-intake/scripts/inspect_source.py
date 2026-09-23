@@ -871,7 +871,7 @@ def result_for_state(
         "manual_checks": [
             "确认资产来源、许可证和数据处理授权。",
             "逐项重建目标 Runtime 的权限、Hook、工具和网络边界；不得原样激活旧配置。",
-            "确认业务能力映射后，在新候选基线上重新执行正式评估。",
+            "选择一个明确研究问题，在新的 Experiment 中用目标 Runtime 重新观察。",
         ],
         "summary": summary,
     }

@@ -1,0 +1,37 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答显示本轮确实执行了一次 routine/all 全量即时巡检（group_code=routine、scope.type=all），并给出结论、覆盖计数与未知项，未因输入简短而降低执行要求；其数值均可对应到巡检运行的取证事实，且明确声明未对 16/12/4 计数间集合关系做推导，未发现编造迹象。",
+    "criteria": [
+      {
+        "id": "expected-1",
+        "passed": true,
+        "reason": "回答表明完成了常规全量即时巡检：巡检类型为 group_code=routine、scope.type=all，运行状态 completed，取证计划 2 项均进入终态，并调用了启动、证据采集与收口工具，未因『做一次巡检』表述简短而省略流程。"
+      },
+      {
+        "id": "expected-2",
+        "passed": true,
+        "reason": "结论状态 abnormal、异常原因码、资产总数 39、巡检项 2、completed 2/failed 0/partial 0、processed/expected/observed 均为 39、以及离线 12 与高危漏洞 4 等均以工具返回事实形式陈述，并对 16/12/4 之间的关系明确标注为工具结果未说明、不做推导，符合不编造数量与状态的要求。"
+      }
+    ]
+  },
+  "checks": {
+    "session_id": "session-e7b17ea7-c0be-4721-b4e6-ecbd6a1b3501",
+    "workspace_id": "2b3ec84a-4881-4a97-b772-748cd70b6223",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "preset": "evaluation-judge",
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true,
+    "verdict": "passed",
+    "reason": "回答显示本轮确实执行了一次 routine/all 全量即时巡检（group_code=routine、scope.type=all），并给出结论、覆盖计数与未知项，未因输入简短而降低执行要求；其数值均可对应到巡检运行的取证事实，且明确声明未对 16/12/4 计数间集合关系做推导，未发现编造迹象。"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-011",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-033"
+  ],
+  "method_ids": [
+    "m-qa-01",
+    "m-llm-judge-v1"
+  ],
+  "judgment_role": "blocking",
+  "expected_behavior": "- 分别解释五类概念，并说明单个指标命中不独立证明入侵成功。\n- 区分“告警”与“已确认事件”的证据等级差异。\n- 只用公共概念解释，不编造本组织数据。",
+  "check_method": "",
+  "failure_reason": "evaluation-interrupted"
+}
