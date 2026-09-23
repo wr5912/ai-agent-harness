@@ -1,0 +1,6 @@
+interface:
+  display_name: "Harness 引导式工作流"
+  short_description: "多轮引导新建、迁移、修改或优化 DSH Harness"
+  default_prompt: "使用 $harness-guided-workflow 按讨论、计划、执行、验证的多轮 SOP 引导我完成这次 Harness 工作。"
+policy:
+  allow_implicit_invocation: true

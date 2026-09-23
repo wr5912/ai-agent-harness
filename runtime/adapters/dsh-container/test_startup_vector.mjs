@@ -10,13 +10,10 @@ const expected = ['node', '--expose-internals', '/opt/dsh/apps/cli/lib/bin.js']
 const required = {
   DSH_IMAGE_TAG: 'ai-agent-harness/dsh:000000000',
   DSH_ADAPTER_HOST: '/tmp/placeholder/adapter',
-  DSH_DEV_TARGET_HOST: '/tmp/placeholder/dev-target.AGENTS.local.md',
   DSH_MANAGED_PATCH: '/opt/dsh-managed/placeholder.patch.yml',
-  DSH_MANAGED_PATCH_OVERLAY: '/opt/dsh-managed/placeholder.development.patch.yml',
   DSH_WORKSPACE_HOST: '/tmp/placeholder/workspace',
   DSH_PRESETS_HOST: '/tmp/placeholder/presets',
   DSH_MANAGED_HOST: '/tmp/placeholder/managed',
-  DSH_REFERENCE_HOST: '/tmp/placeholder/reference',
 }
 function composeConfig(mode, env) {
   return spawnSync('docker', [
@@ -28,7 +25,7 @@ function composeConfig(mode, env) {
     maxBuffer: 4 * 1024 * 1024,
   })
 }
-for (const mode of ['authoring', 'verification']) {
+for (const mode of ['verification']) {
   const missing = composeConfig(mode, {})
   assert.notEqual(missing.status, 0,
     `${mode}: compose must fail closed when the source-injected variables are absent`)
@@ -54,12 +51,7 @@ for (const mode of ['authoring', 'verification']) {
     '/var/lib/dsh/profiles/web/node_modules',
     '/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules',
   ]) {
-    assert.equal(volumeTargets.has(target), mode === 'verification',
-      `${mode}: ${target} has the wrong mode-specific mount boundary`)
-  }
-  if (mode === 'authoring') {
-    assert.equal(config.services.dsh.environment.pnpm_config_store_dir, '/var/lib/dsh/.pnpm-store')
-    assert.equal(config.services.dsh.environment.XDG_CACHE_HOME, '/var/lib/dsh/.cache')
+    assert.ok(volumeTargets.has(target), `${mode}: ${target} must be controlled`)
   }
 }
-console.log(JSON.stringify({ status: 'exact-main-dsh-startup-vectors-verified', modes: 2 }))
+console.log(JSON.stringify({ status: 'exact-main-dsh-startup-vectors-verified', modes: 1 }))

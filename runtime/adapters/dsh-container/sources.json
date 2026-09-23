@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "sources": {
     "EXP-security-operations-expert-001": {
       "agent_id": "security-operations-expert",
@@ -8,7 +8,6 @@
       "patch": "security-operations-expert.patch.yml",
       "preset": "security-operations-expert/agent.cordis.yml",
       "guard": "security-operations-guard.mjs",
-      "development_patch_overlay": "security-operations-expert.development.patch.yml",
       "config_markers": [
         "/opt/dsh-presets",
         "/work/harness/workspace/.agents/skills",
@@ -38,7 +37,6 @@
       "patch": "security-operations-expert.patch.yml",
       "preset": "security-operations-expert/agent.cordis.yml",
       "guard": "security-operations-guard.mjs",
-      "development_patch_overlay": "security-operations-expert.development.patch.yml",
       "config_markers": [
         "/opt/dsh-presets",
         "/work/harness/workspace/.agents/skills",
@@ -63,7 +61,6 @@
       "patch": "security-operations-expert.patch.yml",
       "preset": "security-operations-expert/agent.cordis.yml",
       "guard": "security-operations-guard.mjs",
-      "development_patch_overlay": "security-operations-expert.development.patch.yml",
       "config_markers": [
         "/opt/dsh-presets",
         "/work/harness/workspace/.agents/skills",
@@ -88,7 +85,6 @@
       "patch": "security-operations-expert.patch.yml",
       "preset": "security-operations-expert/agent.cordis.yml",
       "guard": "security-operations-guard.mjs",
-      "development_patch_overlay": "security-operations-expert.development.patch.yml",
       "config_markers": [
         "/opt/dsh-presets",
         "/work/harness/workspace/.agents/skills",
@@ -114,7 +110,6 @@
       "patch": "security-operations-expert.patch.yml",
       "preset": "security-operations-expert/agent.cordis.yml",
       "guard": "security-operations-guard.mjs",
-      "development_patch_overlay": "security-operations-expert.development.patch.yml",
       "config_markers": [
         "/opt/dsh-presets",
         "/work/harness/workspace/.agents/skills",
@@ -140,7 +135,6 @@
       "patch": "security-operations-expert.patch.yml",
       "preset": "security-operations-expert/agent.cordis.yml",
       "guard": "security-operations-guard.mjs",
-      "development_patch_overlay": "security-operations-expert.development.patch.yml",
       "config_markers": [
         "/opt/dsh-presets",
         "/work/harness/workspace/.agents/skills",
@@ -171,7 +165,6 @@
       "patch": "test01.patch.yml",
       "preset": "test01/agent.cordis.yml",
       "guard": null,
-      "development_patch_overlay": "test01.development.patch.yml",
       "config_markers": [
         "/opt/dsh-presets"
       ],
@@ -186,7 +179,6 @@
       "patch": "test01.patch.yml",
       "preset": "test01/agent.cordis.yml",
       "guard": null,
-      "development_patch_overlay": "test01.development.patch.yml",
       "config_markers": [
         "/opt/dsh-presets"
       ],

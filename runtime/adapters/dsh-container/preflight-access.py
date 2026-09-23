@@ -46,24 +46,18 @@ def check_source(path: Path, *, writable: bool) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("authoring", "verification"))
     parser.add_argument("workspace", type=Path)
     parser.add_argument("presets", type=Path)
     parser.add_argument("managed", type=Path)
-    parser.add_argument("context", type=Path, nargs="*",
-                        help="开发会话只读挂载的需求与评测材料根；评测模式不传")
     args = parser.parse_args()
     try:
-        check_source(args.workspace, writable=args.mode == "authoring")
+        check_source(args.workspace, writable=False)
         check_source(args.presets, writable=False)
         check_source(args.managed, writable=False)
-        for source in args.context:
-            check_source(source, writable=False)
     except (OSError, ValueError) as error:
         print(f"DSH mount access preflight failed: {error}", file=sys.stderr)
-        print("Use a source readable by container UID/GID 1000:1000; Authoring workspace also needs write access. "
-              "Adjust only the selected source ownership/group permissions deliberately; do not run the container as root.",
-              file=sys.stderr)
+        print("Use a source readable by container UID/GID 1000:1000. Adjust only the selected source "
+              "ownership/group permissions deliberately; do not run the container as root.", file=sys.stderr)
         raise SystemExit(1) from error
 
 

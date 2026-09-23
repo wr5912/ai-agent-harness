@@ -7,9 +7,11 @@
 1. 根级 [`AGENTS.md`](../../AGENTS.md) 定义当前项目使命、Research Mode、开发边界和协作原则。
 2. 本文解释受控来源如何适用于这个个人研究仓库。
 3. 《Harness Repo 目录结构设计说明（v1.1）》和《Harness Asset Repository 规范（v1.0）》作为目录与资产模型的设计输入；保留原文和摘要，不要求把其中每个生产化目录都物化。
-4. `agent-engineering-spec` 锁定提交只作为未来生产工程的参考，不是当前 Experiment 的默认门禁。
+4. `agent-engineering-spec` 锁定提交提供任务分流、多轮澄清和外部资产复用参考；本项目仅通过 `harness-guided-workflow` 吸收与 Research Mode 一致的指导，不直接继承其生产交付合同。
 
 若来源中的生产化要求与 Research Mode 冲突，以当前研究范围为准，不自动引入稳定 Baseline、R1/R2/R3、审批、安全控制映射或生产部署流程。若未来正式启动生产化阶段，应另建清晰合同并重新评估这些来源，而不是静默改变本项目语义。
+
+`harness-guided-workflow` 是新建、迁移、修改和优化 Harness 的对话入口。它借鉴阶段式工作流，把任务分成讨论、计划、执行和验证四轮，并分别复用现有的资产清点、Experiment 演进和研究评估技能；最终事实仍写回现有 Agent、Experiment 与 Run，不建立第二套流程台账。
 
 ## 2. Baseline、Experiment 与 Decision
 
@@ -73,7 +75,7 @@ Research Release 不表示生产可用、上线批准或已经完成生产安全
 
 Harness 资产说明“要装载什么”，DSH Runtime 负责实际装载和执行。源码修改不等于当前 Session 已经生效；需要用新进程或新 Session 核对实际来源和用户可见行为。
 
-开发会话可以修改当前 Experiment 的 Candidate；被测会话只读装载同一 Candidate，并且不挂载参考答案或判断材料。该隔离用于保持比较可信，不意味着本项目要建设通用权限平台。
+宿主开发会话可以修改当前 Experiment 的 Candidate；DSH 被测容器只读装载同一 Candidate，并且不挂载参考答案或判断材料。该隔离用于保持比较可信，不意味着本项目要建设通用权限平台。
 
 Runtime 的 Session、设置、缓存、附件和凭据位于独立数据根，不进入 Candidate 或 Research Release。运行时需要的秘钥只由环境或受控凭据机制注入，不提交到仓库。
 

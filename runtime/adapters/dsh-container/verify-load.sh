@@ -5,20 +5,14 @@ task_adapter_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 task_mode="verification"
 task_source_id="EXP-security-operations-expert-001"
 task_frozen_root=""
-task_dev_target_file=""
-
-cleanup() {
-  if [[ -n "$task_dev_target_file" ]]; then rm -f -- "$task_dev_target_file"; fi
-}
-trap cleanup EXIT
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help)
-      printf 'Usage: %s [authoring|verification] [--source experiment:EXP-agent-NNN] [--frozen FROZEN_SOURCES_DIR]\n' "$0"
+      printf 'Usage: %s [verification] [--source experiment:EXP-agent-NNN] [--frozen FROZEN_SOURCES_DIR]\n' "$0"
       printf 'Compare exact host/container mounts and DSH composed config; no business acceptance.\n'
       exit 0 ;;
-    authoring|verification)
+    verification)
       task_mode="$1"; shift ;;
     --source)
       if [[ $# -lt 2 ]]; then exit 2; fi
@@ -29,10 +23,6 @@ while [[ $# -gt 0 ]]; do
     *) printf 'Unknown argument: %s\n' "$1" >&2; exit 2 ;;
   esac
 done
-if [[ -n "$task_frozen_root" && "$task_mode" != verification ]]; then
-  printf 'Frozen source is only valid in verification mode.\n' >&2
-  exit 2
-fi
 
 if [[ -n "$task_frozen_root" ]]; then
   task_frozen_root="$(realpath -e -- "$task_frozen_root")"
@@ -75,43 +65,15 @@ task_image_build_fingerprint="$(python3 "$task_adapter_dir/source_contract.py" -
 task_image_platform_expected="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field image.platform)"
 task_image_label_key="org.ai-agent-harness.dsh.image-build-fingerprint"
 task_patch="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field patch)"
-task_patch_overlay="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field patch_overlay)"
-# 需求/任务/验收与评估方法、测试预置、预期答案都是判分材料：只有开发会话读取，
-# 评测模式运行的是被测目标，不挂载任何判分材料（负向断言在 verify-load.mjs 中执行）。
-task_reference_root=""
-task_context_args=()
-if [[ "$task_mode" == authoring ]]; then
-  task_reference_root="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field reference_root)" \
-    || { printf 'Selected source declares no current research definition root.\n' >&2; exit 1; }
-  task_context_args=("$task_reference_root")
-  if [[ -n "$task_frozen_root" ]]; then
-    printf 'Note: frozen three-tree copy carries no research definition; mounting the live source context (%s).\n' \
-      "$task_reference_root" >&2
-  fi
-fi
 if [[ -n "$task_frozen_root" ]]; then
   task_candidate_root="$task_frozen_root"
 fi
 # 适配层脚本不在镜像里，由本目录只读挂载进容器；因此脚本改动只需重启实例，不必重建镜像。
 export DSH_ADAPTER_HOST="$task_adapter_dir"
 export DSH_MANAGED_PATCH="$task_patch"
-# 模板以 ${VAR:?} 声明必填变量：开发模式还必须给出叠加层路径，否则 compose 无法展开。
-if [[ "$task_mode" == authoring ]]; then
-  export DSH_MANAGED_PATCH_OVERLAY="$task_patch_overlay"
-  task_dev_target_file="$(mktemp /tmp/dsh-dev-target.XXXXXXXX)"
-  python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" \
-    "${task_source_resolve_options[@]}" --dev-target-document \
-    --instance-name verify-load --session-preset cordis >"$task_dev_target_file"
-  chmod 0444 "$task_dev_target_file"
-  export DSH_DEV_TARGET_HOST="$task_dev_target_file"
-fi
 export DSH_WORKSPACE_HOST="$task_candidate_root/workspace"
 export DSH_PRESETS_HOST="$task_candidate_root/presets"
 export DSH_MANAGED_HOST="$task_candidate_root/managed"
-# authoring 模板要求当前研究定义根；verification 模板不挂载它，因此仅开发模式导出。
-if [[ "$task_mode" == authoring ]]; then
-  export DSH_REFERENCE_HOST="$task_reference_root"
-fi
 
 if [[ -n "$task_frozen_root" ]]; then
   task_workspace_sha="$(python3 "$task_adapter_dir/mutation-receipt.py" --source "$task_source_id" frozen-digest "$task_frozen_root" workspace)"
@@ -130,15 +92,6 @@ task_module_deny_sha=""
 task_prepare_script_sha=""
 task_verify_script_sha=""
 task_tree_script_sha=""
-task_dev_instructions_sha=""
-task_dev_target_sha=""
-
-# 开发模式下按所选来源的实际根计算判分材料摘要，与三树摘要同一工具语义；
-# 冻结三树副本不含它们，因此这里也记录活动事实源身份。
-task_reference_sha=""
-if [[ "$task_mode" == authoring ]]; then
-  task_reference_sha="$(python3 "$task_adapter_dir/mutation-receipt.py" --source "$task_source_id" digest "$task_reference_root")"
-fi
 
 task_user_patch_sha="sha256:$(sha256sum "$task_adapter_dir/verification-home-controls/locked-user.patch.yml" | cut -d ' ' -f 1)"
 task_web_manifest_sha="sha256:$(sha256sum "$task_adapter_dir/verification-home-controls/web-profile.package.json" | cut -d ' ' -f 1)"
@@ -148,11 +101,6 @@ task_module_deny_sha="sha256:$(sha256sum "$task_adapter_dir/verification-home-co
 task_prepare_script_sha="sha256:$(sha256sum "$task_adapter_dir/prepare-verification-home.mjs" | cut -d ' ' -f 1)"
 task_verify_script_sha="sha256:$(sha256sum "$task_adapter_dir/verify-load.mjs" | cut -d ' ' -f 1)"
 task_tree_script_sha="sha256:$(sha256sum "$task_adapter_dir/tree-digest.mjs" | cut -d ' ' -f 1)"
-# 开发会话身份来自受控只读指令文件；评测模式不挂载它，因此只在该模式核对摘要。
-if [[ "$task_mode" == authoring ]]; then
-  task_dev_instructions_sha="sha256:$(sha256sum "$task_adapter_dir/verification-home-controls/locked-dev.AGENTS.md" | cut -d ' ' -f 1)"
-  task_dev_target_sha="sha256:$(sha256sum "$task_dev_target_file" | cut -d ' ' -f 1)"
-fi
 
 # Docker 会在 RW parent bind 下为缺失的 nested file target 隐式创建宿主文件。
 # 这里要求 Candidate owner 的仅注释 sentinel 精确存在，禁止隐式写入或私密 .env。
@@ -165,9 +113,8 @@ if [[ ! -f "$task_workspace_env" || -L "$task_workspace_env" ]] \
   exit 1
 fi
 
-python3 "$task_adapter_dir/preflight-access.py" "$task_mode" \
-  "$DSH_WORKSPACE_HOST" "$DSH_PRESETS_HOST" "$DSH_MANAGED_HOST" \
-  "${task_context_args[@]}"
+python3 "$task_adapter_dir/preflight-access.py" \
+  "$DSH_WORKSPACE_HOST" "$DSH_PRESETS_HOST" "$DSH_MANAGED_HOST"
 
 if ! task_image_id="$(docker image inspect "$task_image_tag" --format '{{.Id}}')"; then
   printf 'Locked image is missing; run dsh-dev image build --source %s first.\n' "$task_source_id" >&2
@@ -191,7 +138,7 @@ if [[ "$task_image_platform" != "$task_image_platform_expected" ]]; then
 fi
 task_image_ref="$task_image_tag@$task_image_id"
 export DSH_IMAGE_TAG="$task_image_ref"
-"${task_compose_prefix[@]}" docker compose -f "$task_adapter_dir/$task_mode.compose.yaml" config --quiet
+"${task_compose_prefix[@]}" docker compose -f "$task_adapter_dir/verification.compose.yaml" config --quiet
 
 # 先在无卷、无网络的容器中核挂载进来的三脚本身份：脚本来自本目录的只读 bind，
 # 因此这里核对的是"容器实际读到的字节"与"宿主审查过的字节"一致，而不是镜像是否过期。
@@ -212,18 +159,15 @@ for task_script_record in \
   fi
 done
 
-# `run --no-deps` 会跳过 Compose depends_on；两种模式都先显式准备首次
+# `run --no-deps` 会跳过 Compose depends_on；先显式准备首次
 # 空数据卷的精确子文件与模块目录挂载目标，并核对 home-init 的非零退出。
-"${task_compose_prefix[@]}" docker compose -f "$task_adapter_dir/$task_mode.compose.yaml" run --rm --no-deps home-init
+"${task_compose_prefix[@]}" docker compose -f "$task_adapter_dir/verification.compose.yaml" run --rm --no-deps home-init
 
-"${task_compose_prefix[@]}" docker compose -f "$task_adapter_dir/$task_mode.compose.yaml" run --rm --no-deps \
+"${task_compose_prefix[@]}" docker compose -f "$task_adapter_dir/verification.compose.yaml" run --rm --no-deps \
   "${task_run_env_args[@]}" \
   -e "DSH_EXPECT_WORKSPACE_TREE_SHA=$task_workspace_sha" \
   -e "DSH_EXPECT_PRESETS_TREE_SHA=$task_presets_sha" \
   -e "DSH_EXPECT_MANAGED_TREE_SHA=$task_managed_sha" \
-  -e "DSH_EXPECT_DEV_INSTRUCTIONS_SHA=$task_dev_instructions_sha" \
-  -e "DSH_EXPECT_DEV_TARGET_SHA=$task_dev_target_sha" \
-  -e "DSH_EXPECT_REFERENCE_TREE_SHA=$task_reference_sha" \
   -e "DSH_EXPECT_USER_PATCH_SHA=$task_user_patch_sha" \
   -e "DSH_EXPECT_WEB_MANIFEST_SHA=$task_web_manifest_sha" \
   -e "DSH_EXPECT_GLOBAL_AGENTS_SHA=$task_global_agents_sha" \

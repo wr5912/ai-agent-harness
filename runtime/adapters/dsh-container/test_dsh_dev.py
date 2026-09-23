@@ -38,7 +38,7 @@ class HarnessInitTest(unittest.TestCase):
         adapter = self.repo / "runtime/adapters/dsh-container"
         adapter.mkdir(parents=True)
         self.sources = adapter / "sources.json"
-        self.sources.write_text('{"schema_version":"1.0","sources":{}}\n', encoding="utf-8")
+        self.sources.write_text('{"schema_version":"1.1","sources":{}}\n', encoding="utf-8")
         self.lock = adapter / "source.lock.json"
         self.lock.write_bytes((ADAPTER / "source.lock.json").read_bytes())
 
@@ -73,7 +73,6 @@ class HarnessInitTest(unittest.TestCase):
             "evolution/experiments/EXP-test01-001/candidate/dsh/workspace/.env",
             "evolution/experiments/EXP-test01-001/candidate/dsh/workspace/AGENTS.md",
             "evolution/experiments/EXP-test01-001/candidate/dsh/managed/test01.patch.yml",
-            "evolution/experiments/EXP-test01-001/candidate/dsh/managed/test01.development.patch.yml",
             "evolution/experiments/EXP-test01-001/candidate/dsh/presets/test01/agent.cordis.yml",
             "evolution/experiments/EXP-test01-001/candidate/dsh/presets/test01/preset.yml",
         }
@@ -144,32 +143,24 @@ class RenderComposeTest(unittest.TestCase):
         self.assertNotIn("source: ./", rendered)
         self.assertIn(f"source: {ADAPTER}/verification-home-controls", rendered)
 
-    def test_authoring_template_gets_host_network_and_port(self):
-        template = (ADAPTER / "authoring.compose.yaml").read_text(encoding="utf-8")
-        rendered = dev.render_compose(template, mode="authoring", project="dsh-dev-author", port=3082)
-        self.assertIn("name: dsh-dev-author", rendered)
-        self.assertIn("    network_mode: host\n", rendered)
-        self.assertIn("- \"3082\"", rendered)
-
     def test_source_runtime_environment_names_are_rendered_once(self):
         business_names = (
             "DEEPSEEK_API_KEY", "SEC_OPS_MCP_URL", "SEC_OPS_MCP_TOKEN",
             "INSPECTION_MCP_URL", "INSPECTION_MCP_TOKEN",
             "THREAT_ANALYSIS_MCP_URL", "THREAT_ANALYSIS_MCP_TOKEN",
         )
-        for name in ("authoring.compose.yaml", "verification.compose.yaml"):
-            template = (ADAPTER / name).read_text(encoding="utf-8")
-            for business_name in business_names:
-                self.assertNotIn(business_name, template)
-            rendered = dev.render_compose(
-                template,
-                mode="authoring" if name.startswith("authoring") else "verification",
-                project="dsh-dev-models",
-                port=3082,
-                runtime_env_names=["DEEPSEEK_API_KEY", "LOCAL_LLM_BASE_URL", "LOCAL_LLM_BASE_URL"],
-            )
-            self.assertEqual(rendered.count("      - DEEPSEEK_API_KEY\n"), 1)
-            self.assertEqual(rendered.count("      - LOCAL_LLM_BASE_URL\n"), 1)
+        template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
+        for business_name in business_names:
+            self.assertNotIn(business_name, template)
+        rendered = dev.render_compose(
+            template,
+            mode="verification",
+            project="dsh-dev-models",
+            port=3082,
+            runtime_env_names=["DEEPSEEK_API_KEY", "LOCAL_LLM_BASE_URL", "LOCAL_LLM_BASE_URL"],
+        )
+        self.assertEqual(rendered.count("      - DEEPSEEK_API_KEY\n"), 1)
+        self.assertEqual(rendered.count("      - LOCAL_LLM_BASE_URL\n"), 1)
 
     def test_missing_anchor_fails_closed(self):
         with self.assertRaises(SystemExit):
@@ -177,8 +168,8 @@ class RenderComposeTest(unittest.TestCase):
                                project="dsh-dev-probe", port=3081)
 
 
-class ModeAndContextContractTest(unittest.TestCase):
-    """两种模式：dev/eval 别名、只读上下文挂载与开发模式信任门禁。"""
+class EvaluationModeContractTest(unittest.TestCase):
+    """新实例只有 eval 模式，且 Candidate 始终只读。"""
 
     def contract(self, **overrides):
         contract = {
@@ -188,58 +179,35 @@ class ModeAndContextContractTest(unittest.TestCase):
             "workspace": "/tmp/ws",
             "presets": "/tmp/presets",
             "managed": "/tmp/managed",
-            "reference_root": "/tmp/reference",
             "preset_id": "security-operations-expert",
             "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
-            "patch_overlay": "/opt/dsh-managed/security-operations-expert.development.patch.yml",
             "required_env_names": [],
             "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
         }
         contract.update(overrides)
         return contract
 
-    def test_mode_aliases_normalize_to_harness_phases(self):
-        self.assertEqual(dev.normalize_mode("dev"), "authoring")
+    def test_only_eval_mode_is_supported(self):
         self.assertEqual(dev.normalize_mode("eval"), "verification")
-        self.assertEqual(dev.normalize_mode("authoring"), "authoring")
         self.assertEqual(dev.normalize_mode("verification"), "verification")
-        with self.assertRaises(SystemExit):
-            dev.normalize_mode("development")
-
-    def test_authoring_template_passes_development_overlay(self):
-        template = (ADAPTER / "authoring.compose.yaml").read_text(encoding="utf-8")
-        rendered = dev.render_compose(template, mode="authoring", project="dsh-dev-author", port=3082)
-        self.assertIn("      - --patch\n      - ${DSH_MANAGED_PATCH_OVERLAY:?", rendered)
-        self.assertIn("        target: /work/reference\n", rendered)
-
-    def test_dev_instruction_file_is_generic_and_bounded(self):
-        """开发指令文件不得内联任何业务 Agent 身份，也不得含凭据或可执行内容。"""
-        text = (ADAPTER / "verification-home-controls/locked-dev.AGENTS.md").read_text(encoding="utf-8")
-        self.assertTrue(text.strip())
-        self.assertLess(len(text.encode("utf-8")), 64 * 1024)
-        self.assertNotIn("security-operations-expert", text)
-        self.assertNotIn("!!js", text)
-        self.assertNotIn("http://", text)
-        self.assertNotIn("https://", text)
-        for required in ("/work/harness/workspace", "/opt/dsh-presets", "/opt/dsh-managed",
-                         "/work/reference", "target_preset", ".agent-presets"):
-            self.assertIn(required, text)
+        for unsupported in ("dev", "authoring", "development"):
+            with self.assertRaises(SystemExit):
+                dev.normalize_mode(unsupported)
 
     def test_verification_template_exposes_no_grading_material(self):
         """被测目标会话不得挂载验收阈值、评估方法、测试预置或预期答案。"""
         template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
         rendered = dev.render_compose(template, mode="verification", project="dsh-dev-probe", port=3081)
-        self.assertNotIn("DSH_MANAGED_PATCH_OVERLAY", rendered)
         self.assertNotIn("/work/reference\n", rendered)
         self.assertNotIn("/work/eval-input\n", rendered)
         self.assertNotIn("DSH_REFERENCE_HOST", rendered)
+        self.assertNotIn("DSH_MANAGED_PATCH_OVERLAY", rendered)
 
     def test_templates_declare_no_business_agent_identity(self):
         """通用启动器模板不得内联某个业务 Agent 的路径、preset 或 patch 名。"""
-        for name in ("authoring.compose.yaml", "verification.compose.yaml"):
-            text = (ADAPTER / name).read_text(encoding="utf-8")
-            self.assertNotIn("security-operations-expert", text)
-            self.assertNotIn("EXP-security-operations-expert-001", text)
+        text = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
+        self.assertNotIn("security-operations-expert", text)
+        self.assertNotIn("EXP-security-operations-expert-001", text)
 
     def test_adapter_scripts_are_mounted_not_baked_into_the_image(self):
         """回归：脚本改动只需重启实例，不必重建镜像。"""
@@ -247,13 +215,11 @@ class ModeAndContextContractTest(unittest.TestCase):
         for name in ("verify-load.mjs", "tree-digest.mjs", "prepare-verification-home.mjs"):
             self.assertNotIn(f"/opt/dsh-adapter/{name}", dockerfile)
         self.assertIn("RUN mkdir -p /opt/dsh-adapter", dockerfile)
-        for mode in ("authoring", "verification"):
-            rendered = dev.render_compose(
-                (ADAPTER / f"{mode}.compose.yaml").read_text(encoding="utf-8"),
-                mode=mode, project=f"dsh-dev-{mode}", port=3081)
-            self.assertEqual(rendered.count("        target: /opt/dsh-adapter\n"), 2,
-                             f"{mode}: home-init 与 dsh 都必须挂载适配层脚本目录")
-            self.assertNotIn("COPY --chown=node:node verify-load.mjs", rendered)
+        rendered = dev.render_compose(
+            (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8"),
+            mode="verification", project="dsh-dev-verification", port=3081)
+        self.assertEqual(rendered.count("        target: /opt/dsh-adapter\n"), 2)
+        self.assertNotIn("COPY --chown=node:node verify-load.mjs", rendered)
 
     def test_dsh_command_preserves_required_node_flag(self):
         """会话内 dsh 命令必须与主服务一样开放 Loader 所需的 Node internals。"""
@@ -265,55 +231,19 @@ class ModeAndContextContractTest(unittest.TestCase):
             '#!/bin/sh\nexec node --expose-internals /opt/dsh/apps/cli/lib/bin.js "$@"\n',
         )
 
-    def test_dev_target_declaration_is_generated_with_resolved_values(self):
-        """回归：受控指令保持通用，实际目标值由启动器生成并挂到 /work/AGENTS.local.md。"""
-        contract = self.contract()
-        document = dev.dev_target_document(contract, "secops-dev", "cordis")
-        self.assertIn("security-operations-expert", document)
-        self.assertIn("cordis", document)
-        self.assertIn("/work/harness/workspace", document)
-        self.assertIn("/opt/dsh-presets", document)
-        self.assertIn("/opt/dsh-managed", document)
-        self.assertIn("experiment:EXP-security-operations-expert-001", document)
-        # 生成的声明只读挂载，且模板里由必填变量给出。
-        rendered = dev.render_compose(
-            (ADAPTER / "authoring.compose.yaml").read_text(encoding="utf-8"),
-            mode="authoring", project="dsh-dev-author", port=3082)
-        self.assertIn("        target: /work/AGENTS.local.md\n", rendered)
-        self.assertIn("DSH_DEV_TARGET_HOST", rendered)
-
-    def test_authoring_preflight_generates_target_with_session_preset(self):
-        args = types.SimpleNamespace(mode="authoring", name="secops-dev", port=3084)
-        observed = {}
-
-        def inspect_target(_command, *, env):
-            observed["document"] = Path(env["DSH_DEV_TARGET_HOST"]).read_text(encoding="utf-8")
-
-        with mock.patch.object(dev, "run", side_effect=inspect_target):
-            dev.preflight_new_instance(args, self.contract())
-        self.assertIn("session_preset）：cordis", observed["document"])
-
-    def test_development_instance_records_and_mounts_target_declaration(self):
-        with tempfile.TemporaryDirectory() as temp:
-            dev.STATE_ROOT = Path(temp)
-            target = dev.write_instance("secops-dev", mode="authoring", contract=self.contract(),
-                                        port=3084, accepted_cordis_trust=True)
-            manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
-            declared = Path(manifest["dev_target_file"])
-            self.assertTrue(declared.is_file(), "开发实例必须生成目标声明文件")
-            self.assertIn("security-operations-expert", declared.read_text(encoding="utf-8"))
-            environment = dev.compose_env(self.contract(), "authoring", 3084, "secops-dev")
-            self.assertEqual(environment["DSH_DEV_TARGET_HOST"], str(declared))
-
-    def test_verification_instance_has_no_target_declaration(self):
+    def test_verification_instance_has_no_development_fields(self):
         with tempfile.TemporaryDirectory() as temp:
             dev.STATE_ROOT = Path(temp)
             target = dev.write_instance("secops-eval", mode="verification", contract=self.contract(),
                                         port=3085)
             manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
-            self.assertIsNone(manifest["dev_target_file"])
+            for key in ("dev_target_file", "patch_overlay", "cordis_trust_accepted"):
+                self.assertNotIn(key, manifest)
+            self.assertEqual(manifest["mount_modes"], {
+                "workspace": "ro", "presets": "ro", "managed": "ro"})
             environment = dev.compose_env(self.contract(), "verification", 3085, "secops-eval")
-            self.assertNotIn("DSH_DEV_TARGET_HOST", environment)
+            for key in ("DSH_DEV_TARGET_HOST", "DSH_MANAGED_PATCH_OVERLAY", "DSH_REFERENCE_HOST"):
+                self.assertNotIn(key, environment)
 
     def test_target_preset_comes_from_selected_source(self):
         """目标是来源声明的业务 preset，与本次会话实际运行的 preset 分开。"""
@@ -322,113 +252,33 @@ class ModeAndContextContractTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             dev.target_preset(self.contract(preset_id=None))
 
-    def test_session_and_target_preset_are_distinct_in_development_mode(self):
-        """回归：开发会话身份是 cordis，待优化目标仍是来源声明的业务 preset。"""
+    def test_session_and_target_preset_are_the_selected_source(self):
         contract = self.contract()
-        self.assertEqual(dev.session_preset(contract, "authoring"), "cordis")
-        self.assertEqual(dev.target_preset(contract), "security-operations-expert")
-        self.assertNotEqual(dev.session_preset(contract, "authoring"), dev.target_preset(contract))
-        # 评测模式两者一致：会话运行的就是目标本身。
         self.assertEqual(dev.session_preset(contract, "verification"),
                          dev.target_preset(contract))
 
-    def test_context_assets_are_authoring_only_and_require_declared_roots(self):
-        assets = dev.context_assets(self.contract(), "authoring")
-        self.assertEqual([asset["container"] for asset in assets], ["/work/reference"])
-        self.assertTrue(all(asset["mode"] == "ro" for asset in assets))
-        self.assertEqual(dev.context_assets(self.contract(), "verification"), [])
-        self.assertEqual(dev.context_assets(self.contract(reference_root=None), "verification"), [])
-        with self.assertRaises(SystemExit):
-            dev.context_assets(self.contract(reference_root=None), "authoring")
-
-    def test_compose_env_injects_adapter_root_for_both_modes(self):
-        """回归：适配层脚本走只读挂载，两种模式都必须注入其宿主目录。"""
-        for mode in ("authoring", "verification"):
-            contract = self.contract() if mode == "authoring" else self.contract(patch_overlay=None)
-            environment = dev.compose_env(contract, mode, 3082, f"probe-{mode}")
-            self.assertEqual(environment["DSH_ADAPTER_HOST"], str(ADAPTER))
-
-    def test_compose_env_injects_context_and_overlay_per_mode(self):
-        authoring_env = dev.compose_env(self.contract(), "authoring", 3082, "secops-dev")
-        self.assertEqual(authoring_env["DSH_REFERENCE_HOST"], "/tmp/reference")
-        self.assertEqual(authoring_env["DSH_MANAGED_PATCH_OVERLAY"],
-                         "/opt/dsh-managed/security-operations-expert.development.patch.yml")
-        verification_env = dev.compose_env(self.contract(), "verification", 3081, "secops-eval")
-        self.assertNotIn("DSH_MANAGED_PATCH_OVERLAY", verification_env)
-        self.assertNotIn("DSH_REFERENCE_HOST", verification_env)
-
-    def test_authoring_without_overlay_fails_closed(self):
-        with self.assertRaises(SystemExit):
-            dev.compose_env(self.contract(patch_overlay=None), "authoring", 3082, "secops-dev")
-
-    def test_dev_up_requires_explicit_cordis_trust(self):
-        args = types.SimpleNamespace(source="experiment:EXP-security-operations-expert-001",
-                                     mode="authoring", name="secops-dev", port=3084,
-                                     allow_missing_env=True, accept_cordis_trust=False)
-        with mock.patch.object(dev, "port_in_use", return_value=False), \
-                mock.patch.object(dev, "preflight_new_instance"), \
-                mock.patch.object(dev, "compose_env") as compose_env:
-            with self.assertRaises(SystemExit):
-                dev.command_up(args)
-        compose_env.assert_not_called()
-
-    def test_cordis_trust_notice_covers_plugin_install_and_host_restart(self):
-        self.assertIn("npm Plugin", dev.CORDIS_TRUST_NOTICE)
-        self.assertIn("宿主重启实例", dev.CORDIS_TRUST_NOTICE)
-        help_text = subprocess.run(
-            [sys.executable, str(ADAPTER / "dsh-dev"), "up", "-h"],
-            check=True, capture_output=True, text=True,
-        ).stdout
-        self.assertIn("npm Plugin", help_text)
-        self.assertIn("宿主重启实例", help_text)
+    def test_compose_env_injects_only_evaluation_assets(self):
+        environment = dev.compose_env(self.contract(), "verification", 3082, "probe-eval")
+        self.assertEqual(environment["DSH_ADAPTER_HOST"], str(ADAPTER))
+        self.assertEqual(environment["DSH_WORKSPACE_HOST"], "/tmp/ws")
+        for key in ("DSH_DEV_TARGET_HOST", "DSH_MANAGED_PATCH_OVERLAY", "DSH_REFERENCE_HOST"):
+            self.assertNotIn(key, environment)
 
     def test_dry_run_delivers_workspace_path_and_cold_start_hint(self):
         """DSH Web 冷启动需要先在界面注册工作区；计划必须交付确切路径与步骤。"""
         args = types.SimpleNamespace(source="experiment:EXP-security-operations-expert-001",
                                      mode="verification", name="secops-eval", port=3085, dry_run=True)
         stdout = io.StringIO()
-        with contextlib.redirect_stdout(stdout), \
-                mock.patch.object(dev, "context_assets", return_value=[]):
+        with contextlib.redirect_stdout(stdout):
             dev.command_up(args)
         plan = json.loads(stdout.getvalue())
         self.assertEqual(plan["workspace_to_register"], "/work/harness/workspace")
         self.assertIn("/work/harness/workspace", plan["web_cold_start"])
         self.assertIn("编辑路径", plan["web_cold_start"])
-        self.assertIsNone(plan["dev_instructions"])
+        self.assertEqual(plan["context_assets"], [])
+        self.assertFalse(plan["grading_material_mounted"])
         # 计划可以出现环境变量**名称**（含 TOKEN 字样），但不得出现任何值。
         self.assertNotIn("token=", json.dumps(plan).lower())
-
-    def test_dev_session_registers_work_and_loads_dev_instructions(self):
-        """回归：开发会话必须注册 /work 并读到受控开发指令，而不是被测业务身份。"""
-        self.assertEqual(dev.workspace_to_register("authoring"), "/work")
-        self.assertEqual(dev.workspace_to_register("verification"), "/work/harness/workspace")
-        args = types.SimpleNamespace(source="experiment:EXP-security-operations-expert-001",
-                                     mode="authoring", name="secops-dev", port=3086, dry_run=True)
-        stdout = io.StringIO()
-        with contextlib.redirect_stdout(stdout):
-            dev.command_up(args)
-        plan = json.loads(stdout.getvalue())
-        self.assertEqual(plan["workspace_to_register"], "/work")
-        self.assertIn("/work", plan["web_cold_start"])
-        self.assertEqual(plan["dev_instructions"], "/work/AGENTS.md")
-        # 开发会话身份是 cordis，待优化目标仍是业务 preset；两个字段不能混用。
-        self.assertEqual(plan["session_preset"], "cordis")
-        self.assertEqual(plan["target_preset"], "security-operations-expert")
-        self.assertEqual(plan["agent_id"], "security-operations-expert")
-        rendered = dev.render_compose(
-            (ADAPTER / "authoring.compose.yaml").read_text(encoding="utf-8"),
-            mode="authoring", project="dsh-dev-author", port=3086)
-        self.assertIn("        target: /work/AGENTS.md\n", rendered)
-        self.assertIn("locked-dev.AGENTS.md", rendered)
-
-    def test_eval_up_rejects_cordis_trust_flag(self):
-        args = types.SimpleNamespace(source="experiment:EXP-security-operations-expert-001",
-                                     mode="verification", name="secops-eval", port=3085,
-                                     allow_missing_env=True, accept_cordis_trust=True)
-        with mock.patch.object(dev, "port_in_use", return_value=False):
-            with self.assertRaises(SystemExit):
-                dev.command_up(args)
-
 
 class ExtractAuthUrlTest(unittest.TestCase):
     def test_extracts_matching_port(self):
@@ -464,10 +314,8 @@ class InstanceStateTest(unittest.TestCase):
                 "workspace": "/tmp/ws",
                 "presets": "/tmp/presets",
                 "managed": "/tmp/managed",
-                "reference_root": "/tmp/reference",
                 "preset_id": "second-harness",
                 "patch": "/opt/dsh-managed/second.patch.yml",
-                "patch_overlay": None,
                 "required_env_names": ["DEEPSEEK_API_KEY"],
                 "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
             }
@@ -480,42 +328,12 @@ class InstanceStateTest(unittest.TestCase):
             self.assertEqual(manifest["agent_id"], "second-harness")
             # 被测目标会话不挂载任何判分材料。
             self.assertEqual(manifest["context_mounts"], [])
-            self.assertIsNone(manifest["patch_overlay"])
-            self.assertFalse(manifest["cordis_trust_accepted"])
+            self.assertNotIn("patch_overlay", manifest)
+            self.assertNotIn("cordis_trust_accepted", manifest)
             self.assertNotIn("token", json.dumps(manifest).lower())
             compose = (target / "compose.yaml").read_text(encoding="utf-8")
             self.assertNotIn("token=", compose)
             self.assertIn("network_mode: host", compose)
-
-    def test_development_instance_records_overlay_and_trust(self):
-        with tempfile.TemporaryDirectory() as temp:
-            dev.STATE_ROOT = Path(temp)
-            contract = {
-                "source_id": "experiment:EXP-security-operations-expert-001",
-                "source_kind": "experiment",
-                "agent_id": "security-operations-expert",
-                "workspace": "/tmp/ws",
-                "presets": "/tmp/presets",
-                "managed": "/tmp/managed",
-                "reference_root": "/tmp/reference",
-                "preset_id": "security-operations-expert",
-                "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
-                "patch_overlay": "/opt/dsh-managed/security-operations-expert.development.patch.yml",
-                "required_env_names": [],
-                "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
-            }
-            target = dev.write_instance("secops-dev", mode="authoring", contract=contract, port=3084,
-                                        accepted_cordis_trust=True)
-            manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
-            self.assertEqual(manifest["purpose"], "dev")
-            self.assertEqual(manifest["target_preset"], "security-operations-expert")
-            self.assertEqual(manifest["session_preset"], "cordis")
-            self.assertTrue(manifest["cordis_trust_accepted"])
-            self.assertEqual(manifest["mount_modes"]["workspace"], "rw")
-            # 开发会话只挂载一份完整定义文档来修改和核对。
-            self.assertEqual([item["container"] for item in manifest["context_mounts"]],
-                             ["/work/reference"])
-            self.assertIn("DSH_MANAGED_PATCH_OVERLAY", (target / "compose.yaml").read_text(encoding="utf-8"))
 
     def test_instance_name_must_be_kebab(self):
         with self.assertRaises(SystemExit):
@@ -531,10 +349,8 @@ class InstanceStateTest(unittest.TestCase):
                 "workspace": "/tmp/ws",
                 "presets": "/tmp/presets",
                 "managed": "/tmp/managed",
-                "reference_root": "/tmp/reference",
                 "preset_id": "security-operations-expert",
                 "patch": "/opt/dsh-managed/x.patch.yml",
-                "patch_overlay": "/opt/dsh-managed/x.development.patch.yml",
                 "required_env_names": [],
                 "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
             }
@@ -652,10 +468,9 @@ class DownCommandTest(unittest.TestCase):
             "source_kind": "experiment",
             "agent_id": "security-operations-expert",
             "workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed",
-            "reference_root": "/tmp/reference",
             "preset_id": "security-operations-expert",
             "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
-            "patch_overlay": None, "required_env_names": [],
+            "required_env_names": [],
             "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
         }, port=3081)
 
@@ -756,7 +571,7 @@ class UpCommandStateTest(unittest.TestCase):
     def args(self, **overrides):
         base = dict(source="experiment:EXP-security-operations-expert-001",
                     mode="verification", name="up-probe", port=3212,
-                    allow_missing_env=False, accept_cordis_trust=False, replace=False)
+                    allow_missing_env=False, replace=False)
         base.update(overrides)
         return types.SimpleNamespace(**base)
 
@@ -932,15 +747,14 @@ class UpPortOwnershipTest(unittest.TestCase):
             "agent_id": "security-operations-expert",
             "preset_id": "security-operations-expert",
             "workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed",
-            "reference_root": "/tmp/reference",
             "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
-            "patch_overlay": None, "required_env_names": [],
+            "required_env_names": [],
             "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
         }
 
     def args(self, **overrides):
         base = dict(source="experiment:EXP-security-operations-expert-001", mode="verification",
-                    name="probe", port=3302, allow_missing_env=True, accept_cordis_trust=False,
+                    name="probe", port=3302, allow_missing_env=True,
                     replace=False)
         base.update(overrides)
         return types.SimpleNamespace(**base)
@@ -1045,7 +859,7 @@ class UpPortOwnershipTest(unittest.TestCase):
                 mock.patch.object(dev, "preflight_new_instance") as preflight, \
                 contextlib.redirect_stderr(stderr):
             with self.assertRaises(SystemExit):
-                dev.command_up(self.args(replace=True, mode="authoring", accept_cordis_trust=True))
+                dev.command_up(self.args(replace=True, mode="unsupported"))
         self.assertIn("来源/模式不同", stderr.getvalue())
         stopper.assert_not_called()
         preflight.assert_not_called()
@@ -1154,7 +968,7 @@ class CliSurfaceTest(unittest.TestCase):
         self.assertEqual(completed.returncode, 2)
         self.assertEqual(completed.stdout, "")
         self.assertIn("experiment:EXP-security-operations-expert-001", completed.stderr)
-        self.assertIn("dev、eval", completed.stderr)
+        self.assertIn("可用 --mode：eval", completed.stderr)
 
     def test_up_help_documents_replace(self):
         completed = subprocess.run(

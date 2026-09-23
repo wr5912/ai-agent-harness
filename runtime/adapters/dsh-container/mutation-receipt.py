@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""对所选 DSH Candidate 生成回执和真实字节冻结副本，不执行 Harness。
-
-研究快照（`research-snapshot`）的创建与复核已退役：整套源码副本与 Git 重复，且其权限摘要
-在 `umask` 不同的检出环境会产生误报。源码版本改由 Git 管理，历史快照的恢复映射见
-`evolution/experiments/<id>/snapshots/README.md`。
-"""
+"""校验、冻结或恢复所选 DSH Candidate 的三棵资产树，不执行 Harness。"""
 
 from __future__ import annotations
 
@@ -19,6 +14,7 @@ import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
 from source_contract import DEFAULT_SOURCE, resolve, strict_json
 
 
@@ -27,10 +23,6 @@ EXPERIMENT = REPO / "evolution/experiments/EXP-security-operations-expert-001"
 DSH_ROOT = EXPERIMENT / "candidate/dsh"
 WORKSPACE = DSH_ROOT / "workspace"
 ALLOWED_ROOTS = {WORKSPACE, DSH_ROOT / "presets", DSH_ROOT / "managed"}
-# 只读上下文数据资产根（需求/任务/验收标准、测试数据/评估方法）。它们只参与
-# `digest` 的只读身份核对，不进入编写态变更回执，也不参与三树冻结。
-CONTEXT_ROOTS: set[Path] = set()
-RECEIPTS = EXPERIMENT / "evaluation/evidence/mutation-receipts"
 FROZEN = EXPERIMENT / "snapshots/frozen-sources"
 SOURCE_ID = DEFAULT_SOURCE
 AGENT_ID = "security-operations-expert"
@@ -101,9 +93,9 @@ def snapshot(root: Path, override: dict = None, *, allowed_roots: set[Path] = No
             if total_bytes + prior.st_size > limits["max_total_bytes"]:
                 raise ValueError("asset scan exceeds 1 GiB total byte limit")
 
-            file_hash = hashlib.sha256()
             if not hasattr(os, "O_NOFOLLOW"):
                 raise ValueError("O_NOFOLLOW is required for asset scan")
+            file_hash = hashlib.sha256()
             descriptor = os.open(str(entry), os.O_RDONLY | os.O_NOFOLLOW)
             with os.fdopen(descriptor, "rb") as source:
                 opened = os.fstat(source.fileno())
@@ -136,21 +128,21 @@ def snapshot(root: Path, override: dict = None, *, allowed_roots: set[Path] = No
             total_bytes += file_bytes
             if total_bytes > limits["max_total_bytes"]:
                 raise ValueError("asset scan exceeds 1 GiB total byte limit")
-            records.append(
-                {
-                    "mode": f"{stat.S_IMODE(opened.st_mode) & 0o7777:04o}",
-                    "path": entry.relative_to(root).as_posix(),
-                    "sha256": file_hash.hexdigest(),
-                    "size": file_bytes,
-                }
-            )
+            records.append({
+                "mode": f"{stat.S_IMODE(opened.st_mode) & 0o7777:04o}",
+                "path": entry.relative_to(root).as_posix(),
+                "sha256": file_hash.hexdigest(),
+                "size": file_bytes,
+            })
         if not has_entry:
             raise ValueError(f"empty asset directory cannot be frozen: {folder.relative_to(root)}")
 
     records.sort(key=lambda record: record["path"].encode("utf-8"))
     directory_records.sort(key=lambda record: record["path"].encode("utf-8"))
     serialized = json.dumps(records, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    serialized_directories = json.dumps(directory_records, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    serialized_directories = json.dumps(
+        directory_records, ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")
     return {
         "tree_sha256": "sha256:" + hashlib.sha256(serialized).hexdigest(),
         "directory_sha256": "sha256:" + hashlib.sha256(serialized_directories).hexdigest(),
@@ -169,148 +161,20 @@ def write_json_once(path: Path, data: dict) -> None:
 
 
 def select_source(source_id: str, require_assets: bool = True) -> dict:
-    global EXPERIMENT, DSH_ROOT, WORKSPACE, ALLOWED_ROOTS, CONTEXT_ROOTS, RECEIPTS, FROZEN, SOURCE_ID, AGENT_ID
+    global EXPERIMENT, DSH_ROOT, WORKSPACE, ALLOWED_ROOTS, FROZEN, SOURCE_ID, AGENT_ID
     contract = resolve(source_id, require_assets=require_assets)
     SOURCE_ID = contract["source_id"]
     AGENT_ID = contract["agent_id"]
     DSH_ROOT = Path(contract["candidate_root"])
     WORKSPACE = Path(contract["workspace"])
     ALLOWED_ROOTS = {WORKSPACE, Path(contract["presets"]), Path(contract["managed"])}
-    CONTEXT_ROOTS = {Path(contract["reference_root"])} if contract.get("reference_root") else set()
     EXPERIMENT = DSH_ROOT.parents[1]
-    RECEIPTS = EXPERIMENT / "evaluation/evidence/mutation-receipts"
     FROZEN = EXPERIMENT / "snapshots/frozen-sources"
     return contract
 
 
-def before() -> None:
-    receipt_id = "mr-" + str(uuid.uuid4())
-    path = RECEIPTS / receipt_id / "before.json"
-    write_json_once(
-        path,
-        {
-            "schema_version": "1.0",
-            "receipt_id": receipt_id,
-            "experiment_id": SOURCE_ID,
-            "agent_id": AGENT_ID,
-            "mode": "authoring",
-            "created_at": utc_now(),
-            "workspace_mount_source": str(WORKSPACE),
-            "mount_snapshots": {
-                "workspace": snapshot(WORKSPACE),
-                "presets": snapshot(DSH_ROOT / "presets"),
-                "managed": snapshot(DSH_ROOT / "managed"),
-            },
-        },
-    )
-    print(path)
-
-
-def after(before_path: Path) -> None:
-    before_path = before_path.absolute()
-    if before_path.name != "before.json" or before_path.parent.parent != RECEIPTS:
-        raise ValueError("before receipt must be under this Experiment evaluation/evidence/mutation-receipts")
-    with before_path.open(encoding="utf-8") as source:
-        prior = json.load(source)
-    if prior.get("experiment_id") != SOURCE_ID or prior.get("agent_id") != AGENT_ID:
-        raise ValueError("before receipt Experiment identity mismatch")
-    if prior.get("workspace_mount_source") != str(WORKSPACE):
-        raise ValueError("before receipt workspace identity mismatch")
-    if prior.get("receipt_id") != before_path.parent.name:
-        raise ValueError("before receipt ID mismatch")
-
-    current_mounts = {
-        "workspace": snapshot(WORKSPACE),
-        "presets": snapshot(DSH_ROOT / "presets"),
-        "managed": snapshot(DSH_ROOT / "managed"),
-    }
-    old_files = {item["path"]: item for item in prior["mount_snapshots"]["workspace"]["files"]}
-    new_files = {item["path"]: item for item in current_mounts["workspace"]["files"]}
-    paths = sorted(set(old_files) | set(new_files), key=lambda value: value.encode("utf-8"))
-    changes = []
-    for path in paths:
-        old = old_files.get(path)
-        new = new_files.get(path)
-        if old == new:
-            continue
-        changes.append(
-            {
-                "path": path,
-                "change": "added" if old is None else "removed" if new is None else "modified",
-                "before_sha256": old["sha256"] if old else None,
-                "after_sha256": new["sha256"] if new else None,
-                "before_mode": old["mode"] if old else None,
-                "after_mode": new["mode"] if new else None,
-            }
-        )
-
-    old_dirs = {item["path"]: item["mode"] for item in prior["mount_snapshots"]["workspace"]["directories"]}
-    new_dirs = {item["path"]: item["mode"] for item in current_mounts["workspace"]["directories"]}
-    directory_changes = [
-        {"path": path, "before_mode": old_dirs.get(path), "after_mode": new_dirs.get(path)}
-        for path in sorted(set(old_dirs) | set(new_dirs), key=lambda value: value.encode("utf-8"))
-        if old_dirs.get(path) != new_dirs.get(path)
-    ]
-
-    controlled_mount_violations = [
-        name
-        for name in ("presets", "managed")
-        if prior["mount_snapshots"][name] != current_mounts[name]
-    ]
-    output = before_path.parent / "after.json"
-    write_json_once(
-        output,
-        {
-            "schema_version": "1.0",
-            "receipt_id": prior["receipt_id"],
-            "experiment_id": prior["experiment_id"],
-            "mode": "authoring",
-            "created_at": utc_now(),
-            "before_tree_sha256": {
-                name: prior["mount_snapshots"][name]["tree_sha256"]
-                for name in ("workspace", "presets", "managed")
-            },
-            "after_mount_snapshots": current_mounts,
-            "workspace_changes": changes,
-            "workspace_directory_changes": directory_changes,
-            "controlled_mount_integrity": "fail" if controlled_mount_violations else "pass",
-            "controlled_mount_violations": controlled_mount_violations,
-            "semantic_review_required": bool(changes or directory_changes or controlled_mount_violations),
-            "candidate_freeze_must_be_rechecked": bool(changes or directory_changes or controlled_mount_violations),
-            "notice": "This receipt records file changes only; it does not approve Eval, Baseline, Release, or deployment.",
-        },
-    )
-    print(output)
-    if controlled_mount_violations:
-        raise ValueError("controlled Preset/Guard mount changed during authoring: " + ", ".join(controlled_mount_violations))
-
-
-def single_file_records(path: Path, relative_name: str) -> dict:
-    """为一个普通文件生成与 snapshot() 兼容的最小记录集。"""
-    if path.is_symlink() or not path.is_file() or path.stat().st_nlink != 1:
-        raise ValueError(f"unsafe metadata file: {relative_name}")
-    content = path.read_bytes()
-    if len(content) > DEFAULT_LIMITS["max_file_bytes"]:
-        raise ValueError(f"metadata file exceeds limit: {relative_name}")
-    return {
-        "tree_sha256": "sha256:" + hashlib.sha256(
-            json.dumps(
-                [{"mode": f"{stat.S_IMODE(path.stat().st_mode) & 0o7777:04o}", "path": relative_name,
-                  "sha256": hashlib.sha256(content).hexdigest(), "size": len(content)}],
-                ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest(),
-        "directory_sha256": "sha256:" + hashlib.sha256(
-            json.dumps([{"mode": "0755", "path": "."}], ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest(),
-        "file_count": 1,
-        "total_bytes": len(content),
-        "files": [{"mode": f"{stat.S_IMODE(path.stat().st_mode) & 0o7777:04o}", "path": relative_name,
-                   "sha256": hashlib.sha256(content).hexdigest(), "size": len(content)}],
-        "directories": [{"mode": "0755", "path": "."}],
-    }
-
-
-def copy_tree(source: Path, destination: Path, expected: dict, *, create_root: bool = True) -> None:
-    if create_root:
-        destination.mkdir(parents=True, exist_ok=False)
+def copy_tree(source: Path, destination: Path, expected: dict) -> None:
+    destination.mkdir(parents=True, exist_ok=False)
     for record in expected["files"]:
         relative = Path(record["path"])
         if relative.is_absolute() or ".." in relative.parts:
@@ -323,7 +187,8 @@ def copy_tree(source: Path, destination: Path, expected: dict, *, create_root: b
         descriptor = os.open(source_file, os.O_RDONLY | os.O_NOFOLLOW)
         with os.fdopen(descriptor, "rb") as input_file, target_file.open("xb") as output_file:
             stat_before = os.fstat(input_file.fileno())
-            if not stat.S_ISREG(stat_before.st_mode) or stat_before.st_nlink != 1 or stat_before.st_size != record["size"]:
+            if not stat.S_ISREG(stat_before.st_mode) or stat_before.st_nlink != 1 \
+                    or stat_before.st_size != record["size"]:
                 raise ValueError(f"source changed during materialization: {relative}")
             digest = hashlib.sha256()
             size = 0
@@ -354,12 +219,14 @@ def copy_tree(source: Path, destination: Path, expected: dict, *, create_root: b
 
 def frozen_snapshots(root: Path) -> dict:
     allowed = {root / name for name in ("workspace", "presets", "managed")}
-    return {name: snapshot(root / name, allowed_roots=allowed)
-            for name in ("workspace", "presets", "managed")}
+    return {
+        name: snapshot(root / name, allowed_roots=allowed)
+        for name in ("workspace", "presets", "managed")
+    }
 
 
 def check_freeze_inputs(mounts: dict) -> None:
-    """冻结只接受可审查的资产；不将被 Git 排除的本机私有文件带入副本。"""
+    """冻结只接受可审查资产，不将被 Git 排除的本机私有文件带入副本。"""
     candidate_env = WORKSPACE / ".env"
     if candidate_env.exists() or candidate_env.is_symlink():
         controlled_env = Path(__file__).resolve().parent / "verification-home-controls/locked-bootstrap.env"
@@ -369,9 +236,12 @@ def check_freeze_inputs(mounts: dict) -> None:
     try:
         DSH_ROOT.relative_to(REPO)
     except ValueError:
-        return  # 临时目录测试没有仓库忽略规则。
-    paths = [str((DSH_ROOT / name / record["path"]).relative_to(REPO))
-             for name, mount in mounts.items() for record in mount["files"]]
+        return
+    paths = [
+        str((DSH_ROOT / name / record["path"]).relative_to(REPO))
+        for name, mount in mounts.items()
+        for record in mount["files"]
+    ]
     try:
         completed = subprocess.run(
             ["git", "-C", str(REPO), "check-ignore", "--no-index", "-z", "--stdin"],
@@ -390,11 +260,10 @@ def candidate_reference() -> str:
     try:
         return DSH_ROOT.relative_to(REPO).as_posix()
     except ValueError:
-        return str(DSH_ROOT)  # 仓库外的临时目录测试。
+        return str(DSH_ROOT)
 
 
 def remove_new_tree(root: Path) -> None:
-    """只清理本次新建的临时树；源目录的只读 mode 不得掩盖原失败。"""
     if root.is_symlink() or not root.is_dir():
         raise ValueError("cleanup target is not the newly created directory")
     for folder, _, _ in os.walk(root, followlinks=False):
@@ -404,8 +273,10 @@ def remove_new_tree(root: Path) -> None:
 
 def freeze() -> None:
     """复制未提交字节；验证源为副本而非仍可写的 Candidate。"""
-    before_mounts = {name: snapshot(DSH_ROOT / name)
-                     for name in ("workspace", "presets", "managed")}
+    before_mounts = {
+        name: snapshot(DSH_ROOT / name)
+        for name in ("workspace", "presets", "managed")
+    }
     check_freeze_inputs(before_mounts)
     freeze_id = "fr-" + str(uuid.uuid4())
     FROZEN.mkdir(parents=True, exist_ok=True)
@@ -417,10 +288,12 @@ def freeze() -> None:
             copy_tree(DSH_ROOT / name, temp_root / name, recorded)
         if frozen_snapshots(temp_root) != before_mounts:
             raise ValueError("materialized bytes differ from Candidate scan")
-        after_mounts = {name: snapshot(DSH_ROOT / name)
-                        for name in ("workspace", "presets", "managed")}
+        after_mounts = {
+            name: snapshot(DSH_ROOT / name)
+            for name in ("workspace", "presets", "managed")
+        }
         if after_mounts != before_mounts:
-            raise ValueError("Candidate changed during materialization; stop Authoring and retry")
+            raise ValueError("Candidate changed during materialization; retry")
         write_json_once(temp_root / "snapshot.json", {
             "schema_version": "1.0",
             "freeze_id": freeze_id,
@@ -462,8 +335,10 @@ def restore(frozen_source: Path) -> None:
     try:
         for name, recorded in manifest["mount_snapshots"].items():
             copy_tree(frozen_source / name, DSH_ROOT / name, recorded)
-        if {name: snapshot(DSH_ROOT / name) for name in ("workspace", "presets", "managed")} != \
-                manifest["mount_snapshots"]:
+        if {
+            name: snapshot(DSH_ROOT / name)
+            for name in ("workspace", "presets", "managed")
+        } != manifest["mount_snapshots"]:
             raise ValueError("restored bytes differ from frozen source")
     except BaseException:
         remove_new_tree(DSH_ROOT)
@@ -477,9 +352,6 @@ def main() -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     digest_parser = commands.add_parser("digest", help="print one exact DSH Candidate mount tree digest")
     digest_parser.add_argument("root", type=Path)
-    commands.add_parser("before", help="create an authoring pre-change receipt")
-    after_parser = commands.add_parser("after", help="compare with the pre-change receipt")
-    after_parser.add_argument("before_receipt", type=Path)
     commands.add_parser("freeze", help="materialize and verify all three Candidate trees")
     restore_parser = commands.add_parser("restore", help="restore a frozen source to an absent Candidate root")
     restore_parser.add_argument("frozen_source", type=Path)
@@ -491,14 +363,7 @@ def main() -> None:
     try:
         select_source(args.source, require_assets=args.command not in ("restore", "frozen-digest"))
         if args.command == "digest":
-            if args.root.absolute() in CONTEXT_ROOTS:
-                print(snapshot(args.root, allowed_roots={args.root.absolute()})["tree_sha256"])
-            else:
-                print(snapshot(args.root)["tree_sha256"])
-        elif args.command == "before":
-            before()
-        elif args.command == "after":
-            after(args.before_receipt)
+            print(snapshot(args.root)["tree_sha256"])
         elif args.command == "freeze":
             freeze()
         elif args.command == "frozen-digest":
@@ -506,7 +371,7 @@ def main() -> None:
         else:
             restore(args.frozen_source)
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
-        print(f"mutation receipt failed: {error}", file=sys.stderr)
+        print(f"candidate source failed: {error}", file=sys.stderr)
         raise SystemExit(1) from error
 
 

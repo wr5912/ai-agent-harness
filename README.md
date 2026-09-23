@@ -4,7 +4,7 @@
 
 项目默认且唯一采用 **Research Mode**：研究优先，禁止过度工程化和过度安全化；遵循简洁优先（Simplicity First）和精准修改（Surgical Changes）。这里不建设生产级 Agent 平台，也不把权限、审批、治理或多阶段发布机制作为每个实验的前置条件。完整规则见 [`AGENTS.md`](./AGENTS.md)。
 
-当前已实现开发启动器 `runtime/adapters/dsh-container/dsh-dev`、受管评测入口 `runtime/adapters/dsh-container/dsh-eval`，以及来源解析、变更回执、Run 台账和仓库校验工具。Headless 下的 Skill 修改小闭环已用真实模型与本地模拟 MCP 验证一次：开发会话读取目标、创建 Skill、回流 Candidate，新被测会话观察到变化；删除后的新会话不再报告该 Skill。证据见 [`dsh-dev-real-session-20260919.json`](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json)，无凭据复现步骤见 [`dsh-dev-real-session-reproduce.md`](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-reproduce.md)。这只覆盖该实验路径，不代表所有开发路径都已验证。
+当前已实现 eval-only 容器实例启动器 `runtime/adapters/dsh-container/dsh-dev`、受管评测入口 `runtime/adapters/dsh-container/dsh-eval`，以及来源解析、Candidate 冻结与摘要、Run 台账和仓库校验工具。Harness 的创建、迁移、修改和优化由宿主开发会话通过 `harness-guided-workflow` 引导，源码写入后再用新的只读评测实例验证。历史上曾完成一次容器内 Headless Skill 修改闭环，证据见 [`dsh-dev-real-session-20260919.json`](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json)；该证据只记录当时已退役的开发模式，不代表当前入口仍支持容器内修改。
 
 本项目共有多少条验证路径、当前完成到哪里、哪些适合进入自动化测试，统一见[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)。
 
@@ -13,11 +13,11 @@
 | 能力 | 状态 | 入口 |
 |---|---|---|
 | 解析 Experiment 来源，确定目标 Agent、Preset、资产路径与挂载 | 已实现 | `source_contract.py` |
-| 启动开发会话（`--mode dev`）或被测会话（`--mode eval`） | 已实现；需要 Docker 和运行时环境变量 | `dsh-dev up/ps/url/logs/down` |
-| 重载实例配置或迁移旧实例状态 | 已实现 | `dsh-dev up --replace` |
+| 启动只读被测会话（`--mode eval`） | 已实现；需要 Docker 和运行时环境变量 | `dsh-dev up/ps/url/logs/down` |
+| 重载同来源、同模式的 eval 实例配置 | 已实现 | `dsh-dev up --replace` |
 | 构建锁定 DSH 提交的本地镜像 | 已实现 | `dsh-dev image build` |
 | 按 `evaluation.md` 启动独立实例、逐 Case 新建 Session、导出轨迹并封存 Run | 已实现；默认走 DSH Runtime API，浏览器 UI 冒烟需显式选择；需要 Docker 和运行时环境变量 | `dsh-eval` |
-| 记录变更前后资产摘要与差异 | 已实现 | `mutation-receipt.py` |
+| 摘要、冻结、校验或恢复 Candidate 三棵资产树 | 已实现 | `mutation-receipt.py` |
 | 归档一次研究运行及其输入、观察、缺口与摘要 | 已实现 | `run_record.py` |
 | 校验项目结构、Experiment、Run 与 Research Release 合同 | 已实现 | `validate_repository.py` / `validate_experiment.py` |
 | 新 Preset 的 Web 创建、回流与选择闭环 | 尚未完成 | `PA-09` |
@@ -30,10 +30,11 @@
 1. 阅读根级 [`AGENTS.md`](./AGENTS.md)，确认 Research Mode、四类开发对象和本次修改边界。
 2. 阅读[来源锁定](./docs/standards/SOURCES.md)和[项目解释](./docs/standards/PROJECT-INTERPRETATION.md)，了解受控规范在研究项目中的适用范围。
 3. 阅读[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)，确定本次涉及的 `PA-xx`。
-4. 按任务选择最小必要技能：
+4. 创建、迁移、修改或优化 Harness 时先使用引导入口；它会按任务类型调用最小必要技能：
 
    | 技能 | 使用时机 |
    |---|---|
+   | `harness-guided-workflow` | 按讨论、计划、执行、验证的多轮 SOP 引导完整任务 |
    | `legacy-asset-intake` | 只读清点旧归档或历史交付，不执行其中内容 |
    | `harness-evolution` | 建立或修改 Experiment、Candidate、Decision 和 Research Release |
    | `research-eval` | 设计小规模比较、校验 Run 与总结研究结论 |
@@ -41,32 +42,27 @@
 
 ### 启动本地实例
 
-下面先预览实际参数，再分别启动开发实例和被测实例：
+下面先预览实际参数，再启动只读被测实例：
 
 ```bash
 # 只解析来源并预览参数；不写状态、不调用 Docker
 python3 runtime/adapters/dsh-container/dsh-dev up \
   --source experiment:EXP-security-operations-expert-001 \
-  --mode dev --dry-run
+  --mode eval --dry-run
 
 # 首次使用或镜像内容变化后构建锁定镜像
 python3 runtime/adapters/dsh-container/dsh-dev image build
 
-# 开发实例；dev 模式具备 shell 能力，需要显式确认
-python3 runtime/adapters/dsh-container/dsh-dev up \
-  --source experiment:EXP-security-operations-expert-001 \
-  --mode dev --accept-cordis-trust
-
-# 被测实例只读装载同一 Candidate
+# 被测实例只读装载 Candidate
 python3 runtime/adapters/dsh-container/dsh-dev up \
   --source experiment:EXP-security-operations-expert-001 \
   --mode eval
 
 # 获取本次进程的认证 URL；非交互终端显式增加 --non-interactive
-python3 runtime/adapters/dsh-container/dsh-dev url security-operations-expert-dev
+python3 runtime/adapters/dsh-container/dsh-dev url security-operations-expert-eval
 
 python3 runtime/adapters/dsh-container/dsh-dev ps
-python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-dev
+python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-eval
 ```
 
 修改 Preset、managed 配置或适配层脚本后，已有进程不会自动重载：
@@ -74,32 +70,33 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-d
 ```bash
 python3 runtime/adapters/dsh-container/dsh-dev up \
   --source experiment:EXP-security-operations-expert-001 \
-  --mode dev --accept-cordis-trust --replace
+  --mode eval --replace
 ```
 
 运行边界：
 
-- `--source` 和 `--mode` 必须显式给出；缺失或只写旗标不写值时，命令会列出当前可用的 Experiment 和 `dev`/`eval`。
-- `--name` 默认为 `<agent-id>-<dev|eval>`。新实例未指定 `--port` 时从 `3081` 起选择第一个未监听且未被有效实例记录占用的端口；已有同名实例则复用其记录端口。
-- `up --dry-run` 不要求 `--accept-cordis-trust` 或运行时环境变量，不写状态、不调用 Docker；自动端口只是当下建议，真正启动前会重新检查。
-- `up` 默认要求来源声明的运行时环境变量已经注入；仅做无凭据技术装载时可显式使用 `--allow-missing-env`。开发模式仍必须显式加 `--accept-cordis-trust`，评测模式拒绝该旗标。
+- `--source` 和 `--mode` 必须显式给出；缺失或只写旗标不写值时，命令会列出当前可用的 Experiment 和唯一模式 `eval`。
+- `--name` 默认为 `<agent-id>-eval`。新实例未指定 `--port` 时从 `3081` 起选择第一个未监听且未被有效实例记录占用的端口；已有同名实例则复用其记录端口。
+- `up --dry-run` 不要求运行时环境变量，不写状态、不调用 Docker；自动端口只是当下建议，真正启动前会重新检查。
+- `up` 默认要求来源声明的运行时环境变量已经注入；仅做无凭据技术装载时可显式使用 `--allow-missing-env`。
 - `up` 成功时 stdout 只输出一个 JSON 结果；进度、提示和错误写入 stderr，失败时不在 stdout 留下部分成功结果。
 - 实例状态位于仓库外的 `$XDG_STATE_HOME/dsh-dev/<name>/`。Token 不落盘、不进入仓库、不写入研究证据。
-- 容器使用 host 网络但只绑定 `127.0.0.1`。开发模式等同 shell 权限，仅用于本地受信任研究。
-- 首次打开 Web 需手工注册 `up --dry-run` 输出中 `workspace_to_register` 给出的路径。开发模式通常是 `/work`，被测模式通常是 `/work/harness/workspace`。
+- 容器使用 host 网络但只绑定 `127.0.0.1`。
+- 首次打开 Web 需手工注册 `up --dry-run` 输出中 `workspace_to_register` 给出的 `/work/harness/workspace`。
 - 同名实例不能静默改端口；需要重载时使用 `--replace` 或先 `down` 再同名 `up`。
+- 旧 `authoring` 实例状态仍可用 `ps`、`logs` 和 `down` 查询或停止，但不能据此新建或替换开发实例。
 
-## 两类会话
+## 评测会话
 
-| 内容 | `--mode dev` 开发会话 | `--mode eval` 被测会话 |
-|---|---|---|
-| 本次会话身份 | 出厂 `cordis` 创造模式 | 来源声明的目标 Preset |
-| 待研究目标 | 来源声明的业务 Preset | 同本次会话身份 |
-| 注册工作区 | `/work` | `/work/harness/workspace` |
-| Candidate 工作区 | 可写 | 只读 |
-| `/work/reference` | 只读 | 不挂载 |
+| 内容 | `--mode eval` 被测会话 |
+|---|---|
+| 本次会话身份 | 来源声明的目标 Preset |
+| 待研究目标 | 同本次会话身份 |
+| 注册工作区 | `/work/harness/workspace` |
+| Candidate 三棵资产树 | 只读 |
+| `/work/reference` | 不挂载 |
 
-开发会话的 `session_preset` 与 `target_preset` 不同：前者说明谁在开发，后者说明正在优化谁。被测会话不挂载判分材料，避免把参考答案误当成目标能力；这项隔离不应扩展成通用权限平台。
+被测会话不挂载需求、评估标准或其他参考材料，避免把判分内容误当成目标能力；Harness 源码修改在宿主开发会话中完成，不由被测容器自修改。
 
 ## 主要目录
 
@@ -126,7 +123,7 @@ evolution/
     decision.md                          # adopt/continue/reject/inconclusive 及理由
   history/imports/<agent-id>-YYYY-MM-DD/ # 外部来源原貌、清洗材料与处置记录
 plugins/                                 # 当前确有需要的本地插件源码
-runtime/adapters/dsh-container/           # DSH 容器装载与本地开发适配层
+runtime/adapters/dsh-container/           # DSH 容器只读装载与评测适配层
 releases/<agent-id>-v<semver>/            # 可选、不可变的 Research Release
 tests/                                    # 稳定且可重复的机器合同测试
 AI纠错记录/                               # 按天追加的 AI 纠错记录
@@ -194,7 +191,7 @@ python3 runtime/adapters/dsh-container/run_record.py --repo . finalize \
 
 ## 规范来源与验收边界
 
-两份受控 Harness 规范仍作为目录和资产模型的设计输入；[`agent-engineering-spec` 锁定提交](https://github.com/wr5912/agent-engineering-spec/commit/1afe0eec1bb786e5313bb0a06717871fd14ebe28) 只作为未来生产化参考。当前适用关系见 [`SOURCES.md`](./docs/standards/SOURCES.md) 和 [`PROJECT-INTERPRETATION.md`](./docs/standards/PROJECT-INTERPRETATION.md)。
+两份受控 Harness 规范仍作为目录和资产模型的设计输入；[`agent-engineering-spec` 锁定提交](https://github.com/wr5912/agent-engineering-spec/commit/aa3f27ae0b785191d0a122a6857154640073d73b) 中的任务路由、多轮引导和外部资产复用原则已通过 `harness-guided-workflow` 采用，生产审批、发布门禁等内容仍只作未来参考。当前适用关系见 [`SOURCES.md`](./docs/standards/SOURCES.md) 和 [`PROJECT-INTERPRETATION.md`](./docs/standards/PROJECT-INTERPRETATION.md)。
 
 本仓库明确区分三层结论：
 

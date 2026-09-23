@@ -4,7 +4,7 @@
 
 ## 1. 为什么先做 CLI
 
-本项目服务单个开发者在一个仓库内研究 Harness。当前真正需要的是：选定来源、启动 DSH、记录改动、保存 Run、比较观察。它们都是本地、低并发、Git 驱动的操作，用几个可组合的 CLI 已经足够。
+本项目服务单个开发者在一个仓库内研究 Harness。当前真正需要的是：选定来源、在宿主开发会话中编辑 Candidate、启动只读 DSH 评测实例、保存 Run、比较观察。它们都是本地、低并发、Git 驱动的操作，用项目技能和几个可组合的 CLI 已经足够。
 
 只有出现已验证的多人协作、长任务调度或跨机器执行瓶颈时，才重新判断是否需要平台。不能因为“以后可能做平台”就现在引入数据库、账户体系、审批流、任务队列、状态服务或 Web 后台。
 
@@ -12,10 +12,11 @@
 
 | 入口 | 当前用途 | 边界 |
 |---|---|---|
-| `dsh-dev` | 创建最小 Agent/首次 Experiment，解析来源，构建镜像，启动、查看和停止本地 DSH 实例 | `init` 不覆盖已有资产；CLI 不判断 Harness 效果 |
+| `harness-guided-workflow` | 多轮引导新建、迁移、修改或优化 Harness | 复用现有研究文件，不另建流程状态 |
+| `dsh-dev` | 创建最小 Agent/首次 Experiment，解析来源，构建镜像，启动、查看和停止只读评测实例 | `init` 不覆盖已有资产；新实例只支持 `--mode eval`；CLI 不判断 Harness 效果 |
 | `dsh-eval` | 默认通过 DSH Runtime API 执行所选业务 Case；显式选择浏览器时做 UI 冒烟；保存同一 Session 的回答与轨迹并封存 Run | 两种通道分别形成 Run；只自动判定确定性合同，业务语义保留 `inconclusive` |
 | `source_contract.py` | 把来源解析成 Agent、Preset 和挂载计划 | 当前只支持 `experiment:<id>` |
-| `mutation-receipt.py` | 记录变更前后资产摘要和差异 | 不替代 Git 或人工复核 |
+| `mutation-receipt.py` | 摘要、冻结、校验或恢复 Candidate 的三棵挂载树 | 不记录变更差异，不替代 Git 或人工复核 |
 | `run_record.py` | 创建、追加和封存 Research Run | 不执行任务，不给研究结论打分 |
 | `validate_repository.py` | 检查仓库、Experiment 和 Research Release 的确定性合同 | 退出码 `0` 不表示假设成立 |
 | `validate_experiment.py` | 检查一个 Experiment 的最小研究记录 | 不要求固定 Case 数或生产门禁 |
@@ -28,11 +29,15 @@
 ```text
 创建或选择 Experiment
       ↓
-dsh-dev init（仅首次需要）→ up --dry-run / up
+dsh-dev init（仅首次需要）
       ↓
-修改 Candidate + mutation receipt
+宿主开发会话按 harness-guided-workflow 修改 Candidate
       ↓
-新容器、新 Session 观察
+mutation-receipt digest / 可选 freeze
+      ↓
+dsh-dev up --mode eval --dry-run / up
+      ↓
+新的只读容器、新 Session 观察
       ↓
 dsh-eval 受管运行并封存 Run
 或 run_record 手工记录并封存 Run

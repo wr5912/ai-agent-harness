@@ -28,7 +28,7 @@ except ImportError:  # pragma: no cover
 
 
 SCHEMA_VERSION = "1.0"
-FROZEN_SPEC_COMMIT = "1afe0eec1bb786e5313bb0a06717871fd14ebe28"
+FROZEN_SPEC_COMMIT = "aa3f27ae0b785191d0a122a6857154640073d73b"
 STANDARD_COPIES = {
     "Harness_Repo目录结构设计说明_v1.1.md": "47e91605ebff45baf269c7f85218ce69c58ada0a6cd78c8f7d8e5524bea44705",
     "Harness_Asset_Repository规范_v1.0.md": "9a83b79a4b48cac99f8f56e69f9b63e2d9c78bb3db5f75be6f7e4501685fd502",
@@ -46,6 +46,7 @@ REQUIRED_ROOT_FILES = (
 )
 REQUIRED_SKILLS = {
     "ai-correction-log": ("scripts/record_correction.py",),
+    "harness-guided-workflow": (),
     "legacy-asset-intake": ("scripts/inspect_source.py",),
     "harness-evolution": (
         "scripts/validate_repository.py",

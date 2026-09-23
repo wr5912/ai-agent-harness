@@ -4,8 +4,7 @@
 设计合同见 docs/DSH开发与评测启动器设计方案.md。本工具只依赖 Python 3 标准库、
 Docker CLI 与 Compose；实例配置生成在仓库外，Token 不落盘、不入仓库、不回显到日志。
 
-两个身份要分清：会话身份（session_preset）是本容器 DSH 实际运行的 preset，
-待优化目标（target_preset）是所选来源声明的业务 preset。开发模式下前者是 cordis，后者仍是目标。
+会话身份（session_preset）与待评估目标（target_preset）都来自所选来源声明的业务 preset。
 """
 
 from __future__ import annotations
@@ -26,7 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from source_contract import IMAGE_LABEL_KEY, REPO, SOURCES, dev_target_document, resolve, strict_json  # noqa: E402
+from source_contract import IMAGE_LABEL_KEY, REPO, SOURCES, resolve, strict_json  # noqa: E402
 
 ADAPTER = Path(__file__).resolve().parent
 STATE_ROOT = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "dsh-dev"
@@ -34,36 +33,19 @@ NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 TOKEN_URL_RE = re.compile(r"dsh web: (http://127\.0\.0\.1:(\d+)/\?token=[^\s()]+)")
 SECRET_RE = re.compile(r"(token=)[^\s&)\"']+")
 IMAGE_ID_RE = re.compile(r"sha256:[0-9a-f]{64}")
-MODES = ("authoring", "verification")
-MODE_ALIASES = {"dev": "authoring", "eval": "verification"}
-MODE_CHOICES = ("dev", "eval") + MODES
-PURPOSES = {"authoring": "dev", "verification": "eval"}
+MODES = ("verification",)
+MODE_ALIASES = {"eval": "verification"}
+MODE_CHOICES = ("eval", "verification")
+PURPOSES = {"verification": "eval"}
 AUTO_PORT_START = 3081
-# 开发模式用出厂 cordis（创造模式），它是 Runtime 固定事实；评测模式的目标 preset 由所选来源声明决定，
-# 不在通用启动器里硬编码任何业务 Agent 名。
-AUTHORING_PRESET = "cordis"
-CONTEXT_ASSETS = (
-    ("reference", "/work/reference", "reference_root", "需求与任务定义、共享评测口径"),
-)
-CORDIS_TRUST_NOTICE = (
-    "开发模式（--mode dev）以出厂 cordis（创造模式）preset 启动：该会话具备 shell 与对实时 runtime 执行模型 JS 的 "
-    "tool-cordis 能力，等同 shell 权限；容器使用 host 网络，可直达宿主回环服务（含本机 DSH Web）；"
-    "创造模式会话不加载 security-operations-guard，注入的 SOC MCP 工具与 delegate 不受角色矩阵约束；"
-    "会话内执行 dsh plugin 或 pnpm 可下载并执行 npm Plugin、写入该实例 HOME，安装后须由宿主重启实例并新建 Session 才会生效。"
-)
 CONTAINER_WORKSPACE = "/work/harness/workspace"
-# 开发会话注册 /work：受控只读的 /work/AGENTS.md 说明开发者身份与可编辑范围，
-# 目标智能体的业务 AGENTS.md 仍留在 /work/harness/workspace 供阅读和编辑，但不会被注入为会话身份。
-CONTAINER_DEV_WORKSPACE = "/work"
-# 受控开发指令是通用的、不含业务名；本次解析出的实际目标值由启动器生成到实例目录，
-# 并以 AGENTS.local.md 变体挂到项目根，供会话直接读到（指令链会读取 AGENTS.md 的 .local.md 变体）。
-DEV_TARGET_FILENAME = "dev-target.AGENTS.local.md"
 CONTAINER_REFERENCE = "/work/reference"
 # 受控模板不含任何仓库内默认值，凡读取实例 Compose 的命令都必须按实例状态注入这些变量。
 # 2.0：当前研究定义改为单一只读挂载。
 # 2.1：实例 Compose 按来源声明生成运行时环境变量透传项。
 # 2.2：记录实际镜像 ID 与构建指纹，运行时固定到不可变镜像引用。
-INSTANCE_SCHEMA_VERSION = "2.2"
+# 2.3：新实例只支持被测（verification）模式；旧实例仍可查询和停止。
+INSTANCE_SCHEMA_VERSION = "2.3"
 # DSH Web 首次打开是冷启动：会话必须先绑定一个**已注册工作区**，而新实例的 DSH_HOME 里工作区注册表为空
 # （注册表 storages/workspace.json 只从已存会话头 bootstrap，且初始化标记一经写入不再重建）。DSH 在该锁定提交上
 # 没有受支持的工作区预注册入口，因此启动器只如实交付路径与操作步骤，不改写 Runtime 存储内部格式。
@@ -105,7 +87,7 @@ def create_harness(agent_id: str, *, repo: Path = REPO, sources: Path = SOURCES,
     experiment_dir = repo / "evolution/experiments" / experiment_id
     original_catalog = sources.read_bytes()
     catalog = strict_json(sources)
-    if catalog.get("schema_version") != "1.0" or not isinstance(catalog.get("sources"), dict):
+    if catalog.get("schema_version") != "1.1" or not isinstance(catalog.get("sources"), dict):
         raise ValueError("unsupported source catalog")
     collisions = [str(path.relative_to(repo)) for path in (agent_dir, experiment_dir) if path.exists()]
     if experiment_id in catalog["sources"]:
@@ -130,7 +112,6 @@ def create_harness(agent_id: str, *, repo: Path = REPO, sources: Path = SOURCES,
         "patch": f"{agent_id}.patch.yml",
         "preset": f"{agent_id}/agent.cordis.yml",
         "guard": None,
-        "development_patch_overlay": f"{agent_id}.development.patch.yml",
         "config_markers": ["/opt/dsh-presets"],
         "required_env_names": ["DEEPSEEK_API_KEY"],
     }
@@ -223,7 +204,7 @@ flowchart TD
 
 ### m-fresh-web-session
 
-启动所选 Experiment 的 dev 实例，在 DSH Web 中注册 `/work/harness/workspace`，新建 Session，显式选择 `{agent_id}` Preset 后发送测试输入并记录可见回复。
+启动所选 Experiment 的 eval 实例，在 DSH Web 中注册 `/work/harness/workspace`，新建 Session，显式选择 `{agent_id}` Preset 后发送测试输入并记录可见回复。
 
 ## 测试验收
 
@@ -255,7 +236,7 @@ Baseline 为 `none:first-experiment`。若最小 Candidate 声明 `{agent_id}` P
 ## 预期观察
 
 - 来源合同、Candidate 资产与运行锁可通过静态校验。
-- 全新 dev 实例可选择 `{agent_id}` Preset。
+- 全新 eval 实例可选择 `{agent_id}` Preset。
 - 全新 Session 的回复满足 `AC-001`。
 
 ## 停止条件
@@ -292,9 +273,6 @@ runtime_contract:
   preset_container_path: /opt/dsh-presets
   managed_container_path: /opt/dsh-managed
   dsh_home_container_path: /var/lib/dsh
-  authoring_workspace_mode: rw
-  authoring_preset_mode: ro
-  authoring_managed_mode: ro
   verification_candidate_mode: ro
 credential_environment_keys:
   - DEEPSEEK_API_KEY
@@ -317,16 +295,6 @@ credential_environment_keys:
     default: {agent_id}
     includeShippedRoot: false
     includeUserRoot: false
-    roots:
-      - path: /opt/dsh-presets
-        trust: system
-''',
-        f"candidate/dsh/managed/{agent_id}.development.patch.yml": '''# 开发模式叠加层：恢复出厂 Cordis，并保留受控 Preset 根。
-- id: agent-presets
-  config:
-    default: cordis
-    includeShippedRoot: true
-    includeUserRoot: true
     roots:
       - path: /opt/dsh-presets
         trust: system
@@ -402,53 +370,31 @@ def command_init(args: argparse.Namespace) -> None:
 
 
 def normalize_mode(value: str) -> str:
-    """把用户可见模式名（dev/eval）规范化为内部 harness 阶段名。"""
+    """把用户可见模式名 eval 规范化为内部 harness 阶段名。"""
     mode = MODE_ALIASES.get(value, value)
     if mode not in MODES:
-        fail("mode 只能是 dev 或 eval")
+        fail("mode 只能是 eval")
     return mode
 
 
 def workspace_to_register(mode: str) -> str:
-    """本次会话要注册的工作区：开发会话用 /work，被测会话用目标 Harness 工作区本身。"""
-    return CONTAINER_DEV_WORKSPACE if mode == "authoring" else CONTAINER_WORKSPACE
+    """本次被测会话要注册目标 Harness 工作区本身。"""
+    normalize_mode(mode)
+    return CONTAINER_WORKSPACE
 
 
 def session_preset(contract: dict, mode: str) -> str:
-    """本容器 DSH 会话实际运行的 preset ID：开发模式用创造模式，评测模式用目标 preset。"""
-    if mode == "authoring":
-        return AUTHORING_PRESET
+    """本容器 DSH 会话实际运行所选来源声明的目标 preset。"""
+    normalize_mode(mode)
     return target_preset(contract)
 
 
 def target_preset(contract: dict) -> str:
-    """本次待优化或待评估的目标 preset ID，始终来自所选来源声明。
-
-    与 session_preset 是两个不同的身份：开发会话运行 cordis（创造模式），
-    但它的目标仍是被开发的业务 preset。两者不能互相代替。
-    """
+    """本次待评估的目标 preset ID，始终来自所选来源声明。"""
     preset = contract.get("preset_id")
     if not preset:
-        fail("所选来源未声明可解析的 preset ID，无法确定待优化目标")
+        fail("所选来源未声明可解析的 preset ID，无法确定待评估目标")
     return preset
-
-
-def context_assets(contract: dict, mode: str) -> list[dict]:
-    """只读上下文数据资产。
-
-    开发模式是开发者会话，挂载需求与评测材料供其阅读与核对（维护在宿主侧完成，容器内只读）；
-    评测模式运行的是被测目标，不挂载任何判分材料 —— 验收阈值、评估方法、测试预置与预期答案
-    都属于判分侧。
-    """
-    if mode != "authoring":
-        return []
-    missing = [key for _, _, key, _ in CONTEXT_ASSETS if not contract.get(key)]
-    if missing:
-        fail("所选来源缺少只读研究定义根（%s）；不伪造空目录" % "、".join(missing))
-    return [
-        {"key": name, "host": contract[key], "container": container, "mode": "ro", "content": content}
-        for name, container, key, content in CONTEXT_ASSETS
-    ]
 
 
 def run(command: list[str], *, check: bool = True, capture: bool = True,
@@ -470,7 +416,8 @@ def image_reference(tag: str | None, image_id: str | None) -> str | None:
 
 
 def compose_env(contract: dict, mode: str, port: int, name: str,
-                dev_target_file: Path | None = None, image_id: str | None = None) -> dict:
+                image_id: str | None = None) -> dict:
+    normalize_mode(mode)
     environment = dict(os.environ)
     environment.update(
         {
@@ -482,15 +429,6 @@ def compose_env(contract: dict, mode: str, port: int, name: str,
             "DSH_MANAGED_HOST": contract["managed"],
         }
     )
-    for asset in context_assets(contract, mode):
-        environment["DSH_REFERENCE_HOST"] = asset["host"]
-    if mode == "authoring":
-        target_file = dev_target_file or (instance_dir(name) / DEV_TARGET_FILENAME)
-        environment["DSH_DEV_TARGET_HOST"] = str(target_file)
-    if mode == "authoring":
-        if not contract.get("patch_overlay"):
-            fail("所选来源未登记开发模式叠加层（development_patch_overlay），不能以 --mode dev 启动")
-        environment["DSH_MANAGED_PATCH_OVERLAY"] = contract["patch_overlay"]
     return environment
 
 
@@ -513,7 +451,7 @@ def render_compose(template: str, *, mode: str, project: str, port: int,
                    runtime_env_names: list[str] = ()) -> str:
     """把受控 Compose 模板渲染为实例配置：宿主网络、回环端口、每实例卷名。"""
     if mode not in MODES:
-        fail("mode 只能是 authoring 或 verification")
+        fail("mode 只能是 verification")
     text = template
     replacements = [
         (f"name: ai-agent-harness-dsh-{mode}", f"name: {project}"),
@@ -573,7 +511,7 @@ def project_name(name: str) -> str:
 
 
 def write_instance(name: str, *, mode: str, contract: dict, port: int,
-                   accepted_cordis_trust: bool = False, image_id: str | None = None) -> Path:
+                   image_id: str | None = None) -> Path:
     target = instance_dir(name)
     current = existing_instance(name)
     if current is not None:
@@ -581,10 +519,6 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         validate_existing_identity(name, manifest, contract, mode)
     else:
         target.mkdir(parents=True, exist_ok=False)
-    dev_target_file = None
-    if mode == "authoring":
-        dev_target_file = target / DEV_TARGET_FILENAME
-        dev_target_file.write_text(dev_target_document(contract, name, AUTHORING_PRESET), encoding="utf-8")
     template = (ADAPTER / f"{mode}.compose.yaml").read_text(encoding="utf-8")
     rendered = render_compose(
         template,
@@ -610,24 +544,18 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         "image_id": image_id,
         "image_build_fingerprint": contract["image"].get("build_fingerprint"),
         "adapter_root": str(ADAPTER),
-        "dev_target_file": str(dev_target_file) if dev_target_file else None,
         "managed_patch": contract["patch"],
         "mounts": {
             "workspace": contract["workspace"],
             "presets": contract["presets"],
             "managed": contract["managed"],
         },
-        "context_mounts": [
-            {"key": asset["key"], "host": asset["host"], "container": asset["container"], "mode": asset["mode"]}
-            for asset in context_assets(contract, mode)
-        ],
+        "context_mounts": [],
         "mount_modes": {
-            "workspace": "rw" if mode == "authoring" else "ro",
+            "workspace": "ro",
             "presets": "ro",
             "managed": "ro",
         },
-        "patch_overlay": contract.get("patch_overlay") if mode == "authoring" else None,
-        "cordis_trust_accepted": bool(accepted_cordis_trust) if mode == "authoring" else False,
         "required_env_names": required_env_names(contract),
     }
     (target / "instance.json").write_text(
@@ -658,6 +586,7 @@ def instance_compose_env(manifest: dict) -> dict:
         "DSH_PRESETS_HOST": mounts.get("presets"),
         "DSH_MANAGED_HOST": mounts.get("managed"),
     }
+    # 只读兼容旧 authoring 状态，保证历史实例仍可 ps/logs/down；新实例不再写入这些字段。
     for asset in manifest.get("context_mounts") or []:
         if not isinstance(asset, dict) or not asset.get("host"):
             continue
@@ -712,7 +641,7 @@ def require_up_arguments(args: argparse.Namespace) -> None:
         sources = strict_json(SOURCES).get("sources") or {}
         print("可用 --source：" + "、".join(f"experiment:{name}" for name in sorted(sources)), file=sys.stderr)
     if "mode" in missing:
-        print("可用 --mode：dev、eval", file=sys.stderr)
+        print("可用 --mode：eval", file=sys.stderr)
     raise SystemExit(2)
 
 
@@ -746,8 +675,6 @@ def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None
     """解析来源并补齐确定性的实例名与端口，不修改状态。"""
     require_up_arguments(args)
     contract = resolve(args.source, repo=REPO)
-    if args.mode == "authoring" and contract["source_kind"] != "experiment":
-        fail("开发模式（authoring）只接受 experiment:<id> 来源；该来源必须可写才能作为开发目标")
     args.name = args.name or f"{contract['agent_id']}-{PURPOSES[args.mode]}"
     current = existing_instance(args.name)
     if current is not None:
@@ -773,10 +700,9 @@ def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None
 
 
 def build_plan(args: argparse.Namespace, contract: dict) -> dict:
-    assets = context_assets(contract, args.mode)
     missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
     plan = {
-        "schema_version": "2.0",
+        "schema_version": "2.1",
         "name": args.name,
         "project": project_name(args.name),
         "mode": args.mode,
@@ -785,32 +711,26 @@ def build_plan(args: argparse.Namespace, contract: dict) -> dict:
         "target_preset": target_preset(contract),
         "session_preset": session_preset(contract, args.mode),
         "workspace_to_register": workspace_to_register(args.mode),
-        "grading_material_mounted": args.mode == "authoring",
+        "grading_material_mounted": False,
         "port": args.port,
         "source_id": contract["source_id"],
         "source_kind": contract["source_kind"],
         "image_tag": contract["image"]["local_image_tag"],
         "image_build_fingerprint": contract["image"].get("build_fingerprint"),
         "mounts": [
-            {"container": "/work/harness/workspace", "mode": "rw" if args.mode == "authoring" else "ro"},
+            {"container": "/work/harness/workspace", "mode": "ro"},
             {"container": "/opt/dsh-presets", "mode": "ro"},
             {"container": "/opt/dsh-managed", "mode": "ro"},
-            *[{"container": asset["container"], "mode": "ro", "content": asset["content"]} for asset in assets],
         ],
-        "context_assets": assets,
+        "context_assets": [],
         "web_cold_start": web_cold_start_hint(args.mode),
-        "patch_overlay": contract.get("patch_overlay") if args.mode == "authoring" else None,
-        "cordis_trust_required": args.mode == "authoring",
-        "dev_instructions": "/work/AGENTS.md" if args.mode == "authoring" else None,
         "network": "host (127.0.0.1 only)",
         "required_env_names": required_env_names(contract),
         "missing_env_names": missing,
         "state_dir": str(instance_dir(args.name)),
         "risk": "host 网络取消容器与宿主机的网络命名空间隔离；实例只绑定 127.0.0.1",
     }
-    if args.mode == "authoring":
-        plan["cordis_trust_notice"] = CORDIS_TRUST_NOTICE
-    if args.mode == "verification" and contract["source_kind"] == "experiment":
+    if contract["source_kind"] == "experiment":
         plan["evaluation_source_notice"] = "评测模式绑定当前宿主 Candidate；运行期间不要改写该来源，并在 Run 中记录实际 Git 与 dirty 状态。"
     return plan
 
@@ -889,14 +809,9 @@ def validate_image_identity(contract: dict, current: tuple[Path, dict] | None = 
 
 def command_up(args: argparse.Namespace) -> None:
     contract, current = prepare_up(args)
-    if args.mode != "authoring" and getattr(args, "accept_cordis_trust", False):
-        fail("--accept-cordis-trust 只对开发模式（--mode dev）有效")
     if getattr(args, "dry_run", False):
         print(json.dumps(build_plan(args, contract), ensure_ascii=False, indent=2, sort_keys=True))
         return
-    if args.mode == "authoring" and not getattr(args, "accept_cordis_trust", False):
-        fail(CORDIS_TRUST_NOTICE + " 确认接受上述风险后，重新执行并显式加 --accept-cordis-trust。")
-    context_assets(contract, args.mode)
     if getattr(args, "allow_missing_env", False):
         missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
         if missing:
@@ -905,7 +820,7 @@ def command_up(args: argparse.Namespace) -> None:
     else:
         check_environment(contract)
     identity = validate_image_identity(contract, current=current, replace=getattr(args, "replace", False))
-    # Compose 插值、模板结构与本次目标文件都可以在停旧实例前检查；明显无效的新配置不得先触发停机。
+    # Compose 插值与模板结构都可以在停旧实例前检查；明显无效的新配置不得先触发停机。
     preflight_new_instance(args, contract)
     replaced = migrate_existing_instance(args, contract, current)
     if port_in_use(args.port):
@@ -917,7 +832,7 @@ def command_up(args: argparse.Namespace) -> None:
             )
         fail(f"端口 {args.port} 已被占用；启动阶段不会静默改用其它端口，请重试或显式指定 --port")
     target = write_instance(args.name, mode=args.mode, contract=contract, port=args.port,
-                            accepted_cordis_trust=args.accept_cordis_trust, image_id=identity["image_id"])
+                            image_id=identity["image_id"])
     environment = compose_env(contract, args.mode, args.port, args.name, image_id=identity["image_id"])
     run(compose_command(target, args.name, "config", "--quiet"), env=environment)
     run(compose_command(target, args.name, "up", "-d", "--no-build"), env=environment)
@@ -1282,14 +1197,6 @@ def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
     """在停旧实例前校验新 Compose 可展开，不写入实例目录。"""
     with tempfile.TemporaryDirectory(prefix="dsh-dev-preflight-") as location:
         root = Path(location)
-        dev_target = None
-        if args.mode == "authoring":
-            dev_target = root / DEV_TARGET_FILENAME
-            dev_target.write_text(
-                dev_target_document(contract, args.name, session_preset(contract, args.mode)),
-                encoding="utf-8",
-            )
-            dev_target.chmod(0o444)
         rendered = render_compose(
             (ADAPTER / f"{args.mode}.compose.yaml").read_text(encoding="utf-8"),
             mode=args.mode,
@@ -1299,7 +1206,7 @@ def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
         )
         compose = root / "compose.yaml"
         compose.write_text(rendered, encoding="utf-8")
-        environment = compose_env(contract, args.mode, args.port, args.name, dev_target_file=dev_target)
+        environment = compose_env(contract, args.mode, args.port, args.name)
         run(compose_command(root, args.name, "config", "--quiet"), env=environment)
 
 
@@ -1350,17 +1257,15 @@ def main() -> None:
 
     up = commands.add_parser("up", help="启动实例（可用 --dry-run 预览）")
     up.add_argument("--source", nargs="?", help="来源选择器；未提供值时列出可用的 experiment:<id>")
-    up.add_argument("--mode", nargs="?", choices=MODE_CHOICES, metavar="{dev,eval}", type=normalize_mode,
-                    help="dev（开发模式/创造模式）或 eval（评测模式）")
-    up.add_argument("--name", help="实例名；默认 <agent-id>-<dev|eval>")
+    up.add_argument("--mode", nargs="?", choices=MODE_CHOICES, metavar="{eval}", type=normalize_mode,
+                    help="eval（被测模式）")
+    up.add_argument("--name", help="实例名；默认 <agent-id>-eval")
     up.add_argument("--port", type=int, help=f"宿主回环端口；新实例默认从 {AUTO_PORT_START} 起自动选择")
     up.add_argument("--dry-run", action="store_true", help="只输出实例计划，不写状态、不调用 Docker")
     up.add_argument("--replace", action="store_true",
                     help="先停止同名实例自身的容器（保留 HOME 数据卷）再启动；用于重载配置或迁移旧状态")
     up.add_argument("--allow-missing-env", action="store_true",
                     help="显式允许缺少运行时环境变量，仅用于技术装载核验")
-    up.add_argument("--accept-cordis-trust", action="store_true",
-                    help="显式确认创造模式的 shell/host 网络及 npm Plugin 下载执行风险；安装后须由宿主重启实例")
     up.set_defaults(handler=command_up)
 
     ps_parser = commands.add_parser("ps", help="默认列出运行中的实例；加 --all 查看全部状态记录")

@@ -114,14 +114,14 @@ Memory 位于仓库外的 `$CODEX_HOME/memories`，不得复制进仓库、Resea
 
 1. 阅读 `docs/standards/SOURCES.md` 与 `docs/standards/PROJECT-INTERPRETATION.md`，确认 Research Mode 下哪些来源适用。
 2. 阅读项目验收矩阵，确定涉及的 `PA-xx`、已有证据和缺口。
-3. 按任务读取项目技能：旧资产使用 `legacy-asset-intake`；演进使用 `harness-evolution`；研究比较使用 `research-eval`。
+3. 新建、迁移、修改或优化 Harness 时先使用 `harness-guided-workflow`；它会按需衔接 `legacy-asset-intake`、`harness-evolution` 和 `research-eval`。
 4. 检查 Git 工作树和现有资产；不得覆盖、回退或混入他人的改动。
 
 ## 规范来源
 
 - 本项目的当前行为以根级 `AGENTS.md` 和 `PROJECT-INTERPRETATION.md` 的 Research Mode 解释为准。
 - 两份受控 Harness 规范保留原始副本和摘要，作为目录与资产模型的设计输入；与简化后的 Research Mode 冲突时，不自动引入其生产化结构。
-- `agent-engineering-spec` 锁定提交只作为未来生产化参考，不是当前研究实验的默认门禁。
+- `agent-engineering-spec` 锁定提交中的任务分流、多轮澄清和外部资产复用原则可经 `harness-guided-workflow` 采用；固定 Case、R1/R2/R3、安全控制映射和生产发布门禁仍只作为未来生产化参考。
 - 受控原文不得原地修改；适用关系在 `SOURCES.md` 和 `PROJECT-INTERPRETATION.md` 中说明。
 
 ## 文件与命名

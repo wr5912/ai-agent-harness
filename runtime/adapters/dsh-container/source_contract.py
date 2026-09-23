@@ -25,9 +25,9 @@ DEFAULT_SOURCE = "EXP-security-operations-expert-001"
 NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 EXPERIMENT = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3}$")
 RELEASE_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*-v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
-ROLES = ("authoring", "subject", "scoring")
-# definition.md 与 evaluation.md 都是判分材料：开发与评分角色可读，被测角色不可读。
-GRADING_ROLES = ("authoring", "scoring")
+ROLES = ("subject", "scoring")
+# definition.md 与 evaluation.md 都是判分材料：评分角色可读，被测角色不可读。
+GRADING_ROLES = ("scoring",)
 CONTAINER_WORKSPACE = "/work/harness/workspace"
 CONTAINER_REFERENCE = "/work/reference"
 CONTAINER_EVAL_INPUT = "/work/eval-input"
@@ -122,7 +122,7 @@ def _experiment_contract(
     expected = Path("evolution/experiments") / source_id / "candidate/dsh"
     if safe_relative(item["candidate_root"]) != expected:
         raise ValueError("candidate root does not belong to selected experiment")
-    for key in ("patch", "preset", "development_patch_overlay"):
+    for key in ("patch", "preset"):
         safe_relative(item[key])
     if item["guard"] is not None:
         safe_relative(item["guard"])
@@ -134,8 +134,7 @@ def _experiment_contract(
         for directory in (root, root / "workspace", root / "presets", root / "managed"):
             if directory.is_symlink() or not directory.is_dir():
                 raise ValueError(f"missing or symlinked source directory: {directory}")
-        for key, folder in (("patch", "managed"), ("preset", "presets"), ("guard", "managed"),
-                            ("development_patch_overlay", "managed")):
+        for key, folder in (("patch", "managed"), ("preset", "presets"), ("guard", "managed")):
             if key == "guard" and item[key] is None:
                 continue
             relative = safe_relative(item[key])
@@ -159,7 +158,7 @@ def _experiment_contract(
     image = dict(lock)
     image["build_fingerprint"] = image_build_fingerprint(lock, lock_path=lock_path)
     contract = {
-        "schema_version": "2.0",
+        "schema_version": "2.1",
         "source_kind": "experiment",
         "source_id": "experiment:" + source_id,
         "experiment_id": source_id,
@@ -174,7 +173,6 @@ def _experiment_contract(
         "preset": "/opt/dsh-presets/" + item["preset"],
         "preset_id": declared_preset,
         "guard": "/opt/dsh-managed/" + item["guard"] if item["guard"] else None,
-        "patch_overlay": "/opt/dsh-managed/" + item["development_patch_overlay"],
         "config_markers": item["config_markers"],
         "required_env_names": item["required_env_names"],
         "image": image,
@@ -191,37 +189,17 @@ def preset_id(preset_relative: str) -> str:
     return parts[0]
 
 
-def dev_target_document(contract: dict, instance: str, session_preset: str) -> str:
-    """生成开发会话本次目标声明；调用方只负责把它只读挂进指令链。"""
-    lines = [
-        "# 本次开发任务的目标（由启动器解析生成，只读）",
-        "",
-        f"- 实例：{instance}",
-        f"- 来源：{contract['source_id']}",
-        f"- 目标 Agent：{contract['agent_id']}",
-        f"- 待优化目标 preset（target_preset）：{contract['preset_id']}",
-        f"- 本次会话实际运行的 preset（session_preset）：{session_preset}",
-        "- 目标 Harness 行为资产：/work/harness/workspace",
-        "- 目标 Preset 声明目录：/opt/dsh-presets（容器内只读）",
-        "- 受控 Profile Patch 与 Guard 目录：/opt/dsh-managed（容器内只读）",
-        "",
-        "这些值已由启动器解析，直接按此执行；不要猜测，也不要把它当成会话身份。",
-        "",
-    ]
-    return "\n".join(lines)
-
-
 def _resolve_experiment(source_id: str, *, repo: Path, sources: Path, lock_path: Path, require_assets: bool) -> dict:
     catalog = strict_json(sources)
-    if catalog.get("schema_version") != "1.0" or not isinstance(catalog.get("sources"), dict):
+    if catalog.get("schema_version") != "1.1" or not isinstance(catalog.get("sources"), dict):
         raise ValueError("unsupported source catalog")
     item = catalog["sources"].get(source_id)
     match = EXPERIMENT.fullmatch(source_id)
     if not match or not isinstance(item, dict) or item.get("agent_id") != match.group(1):
         raise ValueError(f"unknown or inconsistent DSH source: {source_id}")
     if set(item) != {"agent_id", "candidate_root", "profile", "patch", "preset", "guard",
-                     "development_patch_overlay", "config_markers", "required_env_names"}:
-        raise ValueError("source fields differ from schema 1.0")
+                     "config_markers", "required_env_names"}:
+        raise ValueError("source fields differ from schema 1.1")
     lock = _read_source_lock(lock_path)
     return _experiment_contract(source_id, item, repo=repo, lock=lock, lock_path=lock_path, require_assets=require_assets)
 
@@ -273,16 +251,15 @@ def mount_plan(contract: dict, role: str, *, task_dir: str = None, output_dir: s
                eval_input: str = None) -> dict:
     """按运行角色生成挂载视图。
 
-    当前研究定义只挂给开发与评分角色。被测角色默认不挂任何评测材料；确需给被测侧数据时，
+    当前研究定义只挂给评分角色。被测角色默认不挂任何评测材料；确需给被测侧数据时，
     必须显式声明一个已确认不含预期答案的输入根。
     """
     if role not in ROLES:
-        raise ValueError("role must be authoring、subject 或 scoring")
+        raise ValueError("role must be subject 或 scoring")
     if eval_input is not None and role != "subject":
         raise ValueError("eval-input 只允许挂载给被测角色（subject）")
-    workspace_mode = "rw" if role == "authoring" else "ro"
     mounts = [
-        {"host": contract["workspace"], "container": CONTAINER_WORKSPACE, "mode": workspace_mode, "purpose": "harness-workspace"},
+        {"host": contract["workspace"], "container": CONTAINER_WORKSPACE, "mode": "ro", "purpose": "harness-workspace"},
         {"host": contract["presets"], "container": "/opt/dsh-presets", "mode": "ro", "purpose": "presets"},
         {"host": contract["managed"], "container": "/opt/dsh-managed", "mode": "ro", "purpose": "managed"},
     ]
@@ -298,7 +275,7 @@ def mount_plan(contract: dict, role: str, *, task_dir: str = None, output_dir: s
     if output_dir:
         mounts.append({"host": output_dir, "container": "/work/output", "mode": "rw", "purpose": "run-output"})
     return {
-        "schema_version": "2.0",
+        "schema_version": "2.1",
         "role": role,
         "source_id": contract["source_id"],
         "grading_material_exposed": grading,
@@ -314,10 +291,6 @@ def main() -> None:
     parser.add_argument("--image-input-digests", action="store_true",
                         help="print image build input SHA-256 digests")
     parser.add_argument("--env-names", action="store_true", help="print selected Runtime environment names, one per line")
-    parser.add_argument("--dev-target-document", action="store_true",
-                        help="print a development-session target declaration derived from this source")
-    parser.add_argument("--instance-name", default="verify-load", help="instance name used in --dev-target-document")
-    parser.add_argument("--session-preset", default="cordis", help="session preset used in --dev-target-document")
     parser.add_argument("--allow-missing-assets", action="store_true", help="resolve identity for frozen recovery")
     parser.add_argument("--mount-plan", choices=ROLES, help="print the role mount plan instead of the contract")
     parser.add_argument("--task-dir", help="task workspace host path for the mount plan")
@@ -327,13 +300,10 @@ def main() -> None:
     try:
         contract = resolve(args.source, require_assets=not args.allow_missing_assets)
         selected = sum(flag is not None and flag is not False
-                       for flag in (args.field, args.image_input_digests, args.env_names,
-                                    args.mount_plan, args.dev_target_document))
+                       for flag in (args.field, args.image_input_digests, args.env_names, args.mount_plan))
         if selected > 1:
-            raise ValueError("choose only one of --field、--image-input-digests、--env-names、--mount-plan、--dev-target-document")
-        if args.dev_target_document:
-            print(dev_target_document(contract, args.instance_name, args.session_preset), end="")
-        elif args.mount_plan:
+            raise ValueError("choose only one of --field、--image-input-digests、--env-names、--mount-plan")
+        if args.mount_plan:
             plan = mount_plan(
                 contract,
                 args.mount_plan,

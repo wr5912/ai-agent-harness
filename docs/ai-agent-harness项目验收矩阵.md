@@ -1,6 +1,6 @@
 # ai-agent-harness 项目验收矩阵
 
-更新日期：2026-09-22
+更新日期：2026-09-23
 
 本文是 **ai-agent-harness 项目与工具链**验证路径、当前证据和缺口的唯一维护位置。它直接回答三个问题：总共有多少条路径、每条做到什么程度、哪些检查应该进入自动化测试。
 
@@ -13,12 +13,12 @@
 | 准备 | `PA-01` | Research Mode、AI 协作入口与项目 Memory | 部分验证 |
 | 准备 | `PA-02` | 规范来源、受控副本与适用范围 | 已验证（机器范围） |
 | 准备 | `PA-03` | 仓库结构、项目技能与研究资产合同 | 已验证（机器范围） |
-| 选择来源 | `PA-04` | Experiment 来源解析、会话身份与材料隔离 | 已验证（机器范围） |
+| 选择来源 | `PA-04` | Experiment 来源解析、被测身份与材料隔离 | 已验证（机器范围） |
 | 启动 | `PA-05` | `dsh-dev` 实例完整生命周期 | 部分验证 |
-| 装载 | `PA-06` | 开发/被测容器的真实装载与边界 | 部分验证 |
-| 修改 | `PA-07` | Headless 修改、回流、观察与回退闭环 | 部分验证 |
+| 装载 | `PA-06` | 被测容器的真实装载与只读边界 | 部分验证 |
+| 修改 | `PA-07` | 宿主修改、装载观察与回退闭环 | 部分验证 |
 | 交互 | `PA-08` | DSH Runtime API 与 Web UI 的 Session、消息与结果闭环 | 部分验证 |
-| 派生 | `PA-09` | 新 Preset 创建、回流、重载与选择闭环 | 部分验证 |
+| 派生 | `PA-09` | 新 Preset 创建、登记、重载与选择闭环 | 部分验证 |
 | 记录 | `PA-10` | Research Run 的创建、记录、缺口与封存 | 已验证（机器范围） |
 | 复用 | `PA-11` | Research Release 打包、解析与复现装载 | 未实现 |
 
@@ -45,9 +45,9 @@
 
 ### PA-01 Research Mode、AI 协作入口与项目 Memory
 
-- **要回答**：新的 AI 开发会话能否读到 Research Mode、中文优先、简洁优先、单一事实源、根因整改、精准修改和四项安全底线；Memory 是否只作为辅助上下文。
-- **操作链**：读取根级 `AGENTS.md` 和 README → 解析 `.codex/config.toml` → 在受信任的新会话观察规则和 Memory 是否生效 → 确认会话能找到本矩阵。
-- **当前证据**：仓库检查可确认稳定入口和 `features.memories = true`。
+- **要回答**：新的 AI 开发会话能否读到 Research Mode、中文优先、简洁优先、单一事实源、根因整改、精准修改和四项安全底线；是否能进入 Harness 引导式 SOP；Memory 是否只作为辅助上下文。
+- **操作链**：读取根级 `AGENTS.md` 和 README → 进入 `harness-guided-workflow` 的讨论、计划、执行、验证流程 → 解析 `.codex/config.toml` → 在受信任的新会话观察规则和 Memory 是否生效 → 确认会话能找到本矩阵。
+- **当前证据**：仓库检查可确认稳定入口、引导技能和 `features.memories = true`。
 - **缺口**：实际生效还受项目是否受信任、用户配置和启动参数影响，需要新会话观察，因此是部分验证。
 - **自动化边界**：文件存在、配置类型和稳定链接进入测试；“当前会话确实使用了 Memory”保留为实机观察。
 
@@ -55,46 +55,46 @@
 
 - **要回答**：来源身份是否没有漂移，Research Mode 是否明确区分当前合同与未来生产化参考。
 - **操作链**：读取 `SOURCES.md` → 核对受控副本 SHA-256 和锁定 Commit → 读取 `PROJECT-INTERPRETATION.md` → 来源变化时人工判断影响。
-- **当前证据**：摘要、提交和稳定文档入口已有机器检查。
+- **当前证据**：`agent-engineering-spec` 已锁定到 `aa3f27ae0b785191d0a122a6857154640073d73b`，受控摘要、提交和稳定文档入口已有机器检查；任务路由、多轮引导和外部资产复用原则的当前采用方式记录在项目解释中。
 - **自动化边界**：文件身份进入测试；“新来源是否适合当前研究”由人判断。
 
 ### PA-03 仓库结构、项目技能与研究资产合同
 
 - **要回答**：研究资产是否放在正确位置，是否避免重复 Baseline/current 和定义投影，Experiment、Run 和 Research Release 是否具备最小可复现内容。
-- **操作链**：只读检查外部资产 → 核对 `definition.md` 与 `evaluation.md` 各自只有一个职责和一个可编辑源 → 运行仓库校验 → 运行 Experiment 校验 → 用负向样例验证未知选择、本地评测计划、非法身份、空资产和危险链接会被拒绝。
-- **当前证据**：`inspect_source.py`、`validate_repository.py`、`validate_experiment.py` 及其测试覆盖当前确定性合同。
+- **操作链**：由 `harness-guided-workflow` 判断创建、迁移、修改或优化任务并路由现有技能 → 只读检查外部资产 → 核对 `definition.md` 与 `evaluation.md` 各自只有一个职责和一个可编辑源 → 运行仓库校验 → 运行 Experiment 校验 → 用负向样例验证未知选择、本地评测计划、非法身份、空资产和危险链接会被拒绝。
+- **当前证据**：引导技能已进入仓库必需技能清单；`inspect_source.py`、`validate_repository.py`、`validate_experiment.py` 及其测试覆盖当前确定性合同。
 - **自动化边界**：结构、格式、引用和摘要进入测试；研究内容是否真实、有价值不由校验器打分。
 
-### PA-04 Experiment 来源解析、会话身份与材料隔离
+### PA-04 Experiment 来源解析、被测身份与材料隔离
 
-- **要回答**：选择的 Experiment 是否解析到正确 Agent、Preset 和资产；开发会话与被测会话是否看见正确内容。
-- **操作链**：解析 `experiment:<id>` → 分别生成 authoring、subject、scoring 计划 → 核对 `session_preset` 与 `target_preset` → 开发/评分角色只挂一个 `/work/reference` → 反向确认被测会话没有参考答案和判断材料。
-- **当前证据**：来源合同、挂载计划和角色隔离测试覆盖当前机器合同；[`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json) 记录同一 `EXP-test01-002` 来源在 authoring 与 verification 模式下的实际边界。
+- **要回答**：选择的 Experiment 是否解析到正确 Agent、Preset 和资产；被测角色与评分角色是否只看见各自需要的材料。
+- **操作链**：解析 `experiment:<id>` → 分别生成 `subject`、`scoring` 计划 → 核对评测实例的 `session_preset` 与 `target_preset` → 评分角色只读挂载 `/work/reference` → 反向确认被测角色没有参考答案和判断材料。
+- **当前证据**：来源合同、挂载计划和角色隔离测试覆盖当前机器合同；[`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json) 仅作为退役 `authoring` 与当时 `verification` 边界的历史实机记录。
 - **自动化边界**：路径、字段和挂载计划进入测试；实际 DSH 加载属于 `PA-06`。
 
 ### PA-05 `dsh-dev` 实例完整生命周期
 
 - **要回答**：本地实例能否从参数预览到停止完整运行，失败时是否如实报告。
 - **操作链**：`up --dry-run` → `up` → `ps` → `url` → `logs` → `up --replace` → `down`；同时检查缺参数时的可用值列表、自动实例名与端口、端口竞态、缺少环境变量、单一 stdout JSON 和停止失败。
-- **当前证据**：单元测试已覆盖当前 CLI 合同；既有实机证据见 [`dsh-dev-identity-and-lifecycle-20260919.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-identity-and-lifecycle-20260919.json) 和 [`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json)，本次独立实例的 `up --replace` 与运行状态见 [`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json)。
-- **缺口**：本次未对同一实例重新跑完 `url`、`logs`、`down` 及异常恢复；不同 Docker/DSH 环境下的完整实机生命周期仍需持续观察。
+- **当前证据**：单元测试覆盖当前 eval-only CLI 合同及旧实例的只读运维兼容；既有实机证据见 [`dsh-dev-identity-and-lifecycle-20260919.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-identity-and-lifecycle-20260919.json)、[`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json) 和 [`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json)，但这些实机记录早于本次模式收敛。
+- **缺口**：当前 eval-only 合同尚未在同一实例重新跑完 `up`、`url`、`logs`、`up --replace`、`down` 及异常恢复；不同 Docker/DSH 环境下仍需持续观察。
 - **自动化边界**：参数、状态转换和失败报告进入测试；Docker 进程、认证交接和真实停止状态用实机探针。
 
-### PA-06 开发/被测容器的真实装载与边界
+### PA-06 被测容器的真实装载与只读边界
 
-- **要回答**：两种模式是否实际加载同一来源，并形成预期的可写/只读视图。
-- **操作链**：确认镜像身份 → 启动开发实例 → 核对开发身份、目标声明和共享研究资料挂载 → 启动被测实例 → 核对目标 Preset、Skill、Plugin/MCP 声明及材料不可见性。
-- **当前证据**：[`dsh-dev-live-load-20260918.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-live-load-20260918.json)、[`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json) 和 [`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json) 记录当前镜像下的主要探针、插件装载和 verification 负向边界。
-- **缺口**：镜像、Profile、适配层或挂载合同变化后需要重跑；本次未执行 OAuth、真实模型请求或浏览器 Session，技术装载不说明业务能力有效。
+- **要回答**：评测容器是否加载正确来源，并形成三棵 Candidate 资产只读、判分材料不可见的视图。
+- **操作链**：确认镜像身份 → 启动评测实例 → 核对目标 Preset、Skill、Plugin/MCP 声明、三棵只读挂载和判分材料不可见性。
+- **当前证据**：Compose、来源计划和装载探针测试覆盖当前机器合同；[`dsh-dev-live-load-20260918.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-live-load-20260918.json)、[`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json) 和 [`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json) 是模式收敛前的历史实机证据。
+- **缺口**：当前 eval-only Compose 尚未重跑真实装载；也未执行 OAuth、真实模型请求或浏览器 Session，技术装载不说明业务能力有效。
 - **自动化边界**：Compose 和计划合同进入测试；真实容器内可见内容用容器探针。
 
-### PA-07 Headless 修改、回流、观察与回退闭环
+### PA-07 宿主修改、装载观察与回退闭环
 
 - **要回答**：修改是否真正进入受 Git 管理的 Candidate，并在新会话中产生可观察变化。
-- **操作链**：变更前回执 → 开发会话修改 → 变更后回执 → 宿主复核 → 新被测会话观察 → 回退 → 再建会话确认旧行为消失。
-- **当前证据**：[`dsh-dev-real-session-20260919.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json) 记录一次真实模型与本地模拟 MCP 的 Skill 闭环；本次插件命令和 HOME 持久化的技术观察见 [`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json)。
-- **缺口**：本次未修改 Candidate Harness 内容，也未执行回退和新 Session 语义观察；尚未覆盖 Prompt、Preset、Plugin 行为及真实业务 MCP 的完整闭环。
-- **自动化边界**：回执、摘要和回流路径进入测试；模型行为和真实工具效果由 Experiment Run 记录。
+- **操作链**：记录基线引用或资产摘要 → 宿主开发会话修改 Candidate → 复核 Git diff 与摘要 → 新评测容器、新 Session 观察 → 回退 → 再建会话确认旧行为消失。
+- **当前证据**：[`dsh-dev-real-session-20260919.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json) 记录一次已退役容器开发模式下的 Skill 闭环；[`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json) 记录当时的插件命令和 HOME 持久化观察。当前 `mutation-receipt.py` 提供摘要、冻结、校验与缺席目标恢复。
+- **缺口**：尚未按“宿主修改 → 当前 eval-only 新实例 → 回退 → 再观察”重跑完整语义闭环；未覆盖 Prompt、Preset、Plugin 行为及真实业务 MCP。
+- **自动化边界**：摘要、冻结与恢复合同进入测试；模型行为和真实工具效果由 Experiment Run 记录。
 
 ### PA-08 DSH Runtime API 与 Web UI 的 Session、消息与结果闭环
 
@@ -104,12 +104,12 @@
 - **缺口**：当前口径尚无本实现产生的真实 DSH Runtime API 或 Playwright 封存 Run；页面定位器、模型目录和真实 MCP 行为仍需实机验证，本次插件实验也未执行浏览器对话验收。
 - **自动化边界**：确定性的通道编排与异常闭环进入测试；身份、工具目录和证据由执行器生成，仍需从真实 API Run 或浏览器冒烟 Run 核对；模型与 MCP 语义仍需人工判读。
 
-### PA-09 新 Preset 创建、回流、重载与选择闭环
+### PA-09 新 Preset 创建、登记、重载与选择闭环
 
-- **要回答**：新 Preset 是否从临时用户根安全回到 Candidate，并被新容器、新 Session 实际选择。
-- **操作链**：创建临时新 ID → 试跑 → 复核差异 → 合并回既有 ID 或登记新 ID → 重载 → 在 Web 中选择 → 观察结果。
-- **当前证据**：已有可写根、Preset 身份映射和来源一致性的机器检查。
-- **缺口**：还没有 Web 中真实创建、回流、选择和观察的完整记录。
+- **要回答**：新 Preset 是否由宿主开发会话写入 Candidate、登记来源，并被新容器、新 Session 实际选择。
+- **操作链**：通过引导技能创建 Experiment Candidate → 复核差异与 Preset ID → 登记 `sources.json` → 启动新评测实例 → 在 Web 或 Runtime API 中选择 → 观察结果。
+- **当前证据**：`dsh-dev init`、Preset 身份映射和来源一致性已有机器检查。
+- **缺口**：还没有按当前宿主创建路径完成真实登记、装载、选择和观察的完整记录。
 - **自动化边界**：身份和路径一致性进入测试；Web 选择及运行行为属于 E2E。
 
 ### PA-10 Research Run 的创建、记录、缺口与封存
@@ -132,15 +132,15 @@
 
 | 稳定入口或能力 | 归入路径 |
 |---|---|
-| `AGENTS.md`、Memory、AI 纠错记录 | `PA-01` |
+| `AGENTS.md`、`harness-guided-workflow`、Memory、AI 纠错记录 | `PA-01`、`PA-03` |
 | `SOURCES.md`、受控副本、项目解释 | `PA-02` |
 | 三个资产/研究校验工具 | `PA-03` |
 | `source_contract.py` 与角色挂载计划 | `PA-04` |
 | `dsh-dev up/ps/url/logs/down` | `PA-05` |
 | 镜像构建、容器装载和边界探针 | `PA-06` |
-| `mutation-receipt.py` 与 Headless 会话 | `PA-07` |
+| `mutation-receipt.py` 与宿主开发会话 | `PA-07` |
 | `dsh-eval`、DSH Runtime API/Web UI、Session、消息与轨迹导出 | `PA-08`、`PA-10` |
-| Preset 创建、回流、重载和选择 | `PA-09` |
+| Preset 创建、登记、重载和选择 | `PA-09` |
 | `run_record.py` | `PA-10` |
 | Research Release 清单、解析和复现 | `PA-11` |
 

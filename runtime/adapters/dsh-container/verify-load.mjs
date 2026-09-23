@@ -4,11 +4,11 @@ import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from '
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { decodeMountPath, fileSnapshot } from './tree-digest.mjs'
-import { installationClosure, validateAuthoringManifest, validateFallback } from './prepare-verification-home.mjs'
+import { installationClosure, validateFallback } from './prepare-verification-home.mjs'
 
 const mode = process.env.DSH_HARNESS_MODE
-if (mode !== 'authoring' && mode !== 'verification') {
-  throw new Error('DSH_HARNESS_MODE must be authoring or verification')
+if (mode !== 'verification') {
+  throw new Error('DSH_HARNESS_MODE must be verification')
 }
 let source
 try {
@@ -18,14 +18,13 @@ try {
 }
 const sourceSelector = /^experiment:EXP-[a-z0-9-]+-[0-9]{3}$/
 const sourceKinds = new Set(['experiment'])
-if (source?.schema_version !== '2.0' || !sourceSelector.test(source.source_id) || !sourceKinds.has(source.source_kind)
+if (source?.schema_version !== '2.1' || !sourceSelector.test(source.source_id) || !sourceKinds.has(source.source_kind)
   || source.profile !== 'web' || !source.patch?.startsWith('/opt/dsh-managed/')
   || !source.preset?.startsWith('/opt/dsh-presets/')
   || (source.guard !== null && !source.guard?.startsWith('/opt/dsh-managed/'))
   || typeof source.preset_id !== 'string' || source.preset_id.length === 0
   || !Array.isArray(source.config_markers) || source.config_markers.length === 0
-  || typeof source.reference_root !== 'string'
-  || (mode === 'authoring' && typeof source.patch_overlay !== 'string')) {
+  || (source.reference_root !== null && typeof source.reference_root !== 'string')) {
   throw new Error('selected DSH source contract is incomplete')
 }
 
@@ -35,9 +34,6 @@ const roots = [
   { key: 'managed', path: '/opt/dsh-managed', expected: process.env.DSH_EXPECT_MANAGED_TREE_SHA },
 ]
 const gradingMaterialPaths = ['/work/reference', '/work/eval-input']
-if (mode === 'authoring') {
-  roots.push({ key: 'reference', path: '/work/reference', expected: process.env.DSH_EXPECT_REFERENCE_TREE_SHA })
-}
 
 const mounts = readFileSync('/proc/self/mountinfo', 'utf8')
   .split('\n')
@@ -76,44 +72,10 @@ for (const script of [
 
 const mountEvidence = {}
 
-// 角色分离必须在容器内正向核对：判分材料只出现在开发者会话，
-// 开发会话身份文件只出现在开发者会话。两者都按"路径不存在 + 不是挂载点"双重判断。
-const devInstructionPath = '/work/AGENTS.md'
-const devTargetPath = '/work/AGENTS.local.md'
-let devInstructionEvidence = null
-let devTargetEvidence = null
-if (mode === 'authoring') {
-  const mount = mounts.find(entry => entry.target === devInstructionPath)
-  if (!mount || !mount.options.includes('ro')) {
-    throw new Error('development session instructions are not an exact read-only bind mount')
-  }
-  const digest = fileSha(devInstructionPath, 64 * 1024)
-  if (!process.env.DSH_EXPECT_DEV_INSTRUCTIONS_SHA || digest !== process.env.DSH_EXPECT_DEV_INSTRUCTIONS_SHA) {
-    throw new Error('development session instructions differ from the reviewed controlled file')
-  }
-  devInstructionEvidence = { mount_mode: 'ro', sha256: digest, size: lstatSync(devInstructionPath).size }
-
-  const targetMount = mounts.find(entry => entry.target === devTargetPath)
-  if (!targetMount || !targetMount.options.includes('ro')) {
-    throw new Error('development target declaration is not an exact read-only bind mount')
-  }
-  const targetDigest = fileSha(devTargetPath, 64 * 1024)
-  if (!process.env.DSH_EXPECT_DEV_TARGET_SHA || targetDigest !== process.env.DSH_EXPECT_DEV_TARGET_SHA) {
-    throw new Error('development target declaration differs from the host-generated file')
-  }
-  const targetText = readFileSync(devTargetPath, 'utf8')
-  for (const value of [source.source_id, source.agent_id, source.preset_id, 'session_preset）：cordis']) {
-    if (!targetText.includes(value)) {
-      throw new Error(`development target declaration does not match selected source: ${value}`)
-    }
-  }
-  devTargetEvidence = { mount_mode: 'ro', sha256: targetDigest, size: lstatSync(devTargetPath).size,
-    source_id: source.source_id, agent_id: source.agent_id, target_preset: source.preset_id, session_preset: 'cordis' }
-} else {
-  for (const path of [...gradingMaterialPaths, devInstructionPath, devTargetPath]) {
-    if (existsSync(path) || mounts.some(entry => entry.target === path)) {
-      throw new Error(`the subject container must not carry grading material or development instructions: ${path}`)
-    }
+// 被测容器不能携带判分材料或已退役的开发会话指令。
+for (const path of [...gradingMaterialPaths, '/work/AGENTS.md', '/work/AGENTS.local.md']) {
+  if (existsSync(path) || mounts.some(entry => entry.target === path)) {
+    throw new Error(`the subject container must not carry grading material or development instructions: ${path}`)
   }
 }
 
@@ -121,7 +83,7 @@ for (const item of roots) {
   if (!existsSync(item.path)) throw new Error(`asset mount missing: ${item.key}`)
   const mount = mounts.find(entry => entry.target === item.path)
   if (!mount) throw new Error(`asset path is not an exact bind mount: ${item.key}`)
-  const expectedMode = item.key === 'workspace' && mode === 'authoring' ? 'rw' : 'ro'
+  const expectedMode = 'ro'
   if (!mount.options.includes(expectedMode)) {
     throw new Error(`asset mount mode mismatch: ${item.key}, expected ${expectedMode}`)
   }
@@ -166,13 +128,11 @@ const homeControlEvidence = {}
       expected: process.env.DSH_EXPECT_BOOTSTRAP_ENV_SHA,
     },
   ]
-  if (mode === 'verification') {
-    controls.push({
-      key: 'web_profile_manifest',
-      path: '/var/lib/dsh/profiles/web/package.json',
-      expected: process.env.DSH_EXPECT_WEB_MANIFEST_SHA,
-    })
-  }
+  controls.push({
+    key: 'web_profile_manifest',
+    path: '/var/lib/dsh/profiles/web/package.json',
+    expected: process.env.DSH_EXPECT_WEB_MANIFEST_SHA,
+  })
   for (const control of controls) {
     const mount = mounts.find(entry => entry.target === control.path)
     if (!mount || !mount.options.includes('ro')) {
@@ -198,26 +158,14 @@ const homeControlEvidence = {}
     throw new Error('DSH_HOME user Patch is not the controlled empty deny-layer')
   }
   const manifestPath = '/var/lib/dsh/profiles/web/package.json'
-  if (mode === 'authoring') {
-    if (mounts.some(entry => entry.target === manifestPath)) {
-      throw new Error('authoring web Profile manifest must come from the writable HOME volume')
-    }
-    validateAuthoringManifest(manifestPath)
-    homeControlEvidence.web_profile_manifest = {
-      mount_mode: 'rw-home-volume',
-      sha256: fileSha(manifestPath, 64 * 1024),
-      size: lstatSync(manifestPath).size,
-    }
-  } else {
-    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-    if (manifest.name !== 'dsh-profile-web' || manifest.private !== true
-      || Object.keys(manifest.dependencies ?? {}).length !== 0
-      || manifest.dsh?.profile?.patchReload !== 'startup'
-      || JSON.stringify(manifest.dsh?.profile?.bundles) !== JSON.stringify([
-        '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app',
-      ])) {
-      throw new Error('web Profile manifest differs from locked startup tuple')
-    }
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  if (manifest.name !== 'dsh-profile-web' || manifest.private !== true
+    || Object.keys(manifest.dependencies ?? {}).length !== 0
+    || manifest.dsh?.profile?.patchReload !== 'startup'
+    || JSON.stringify(manifest.dsh?.profile?.bundles) !== JSON.stringify([
+      '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app',
+    ])) {
+    throw new Error('web Profile manifest differs from locked startup tuple')
   }
   for (const path of ['/var/lib/dsh/.env', '/work/harness/workspace/.env']) {
     const content = readFileSync(path, 'utf8')
@@ -231,13 +179,11 @@ const homeControlEvidence = {}
 }
 
 const moduleEvidence = {}
-const deniedModulePaths = ['/var/lib/dsh/node_modules']
-if (mode === 'verification') {
-  deniedModulePaths.push(
-    '/var/lib/dsh/profiles/web/node_modules',
-    '/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules',
-  )
-}
+const deniedModulePaths = [
+  '/var/lib/dsh/node_modules',
+  '/var/lib/dsh/profiles/web/node_modules',
+  '/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules',
+]
 for (const path of deniedModulePaths) {
   const mount = mounts.find(entry => entry.target === path)
   if (!mount || !mount.options.includes('ro')) {
@@ -253,21 +199,6 @@ for (const path of deniedModulePaths) {
     throw new Error(`DSH_HOME module deny-layer marker mismatch: ${path}`)
   }
   moduleEvidence[path] = { mount_mode: 'ro', module_entries: 0, policy_sha256: markerSha }
-}
-if (mode === 'authoring') {
-  for (const path of [
-    '/var/lib/dsh/profiles/web/node_modules',
-    '/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules',
-  ]) {
-    if (mounts.some(entry => entry.target === path)) {
-      throw new Error(`authoring Profile module path must come from the writable HOME volume: ${path}`)
-    }
-    const state = lstatSync(path)
-    if (!state.isDirectory() || state.isSymbolicLink()) {
-      throw new Error(`authoring Profile module path is not a real directory: ${path}`)
-    }
-    moduleEvidence[path] = { mount_mode: 'rw-home-volume' }
-  }
 }
 
 const fallbackPath = '/var/lib/dsh/profiles/node_modules'
@@ -308,7 +239,6 @@ const dump = spawnSync(process.execPath, [
   '/opt/dsh/apps/cli/lib/bin.js',
   '--profile', source.profile,
   '--patch', source.patch,
-  ...(mode === 'authoring' ? ['--patch', source.patch_overlay] : []),
   '--dump-config',
 ], {
   cwd: '/work/harness/workspace',
@@ -334,20 +264,8 @@ for (const marker of source.config_markers) {
   }
 }
 
-// 开发模式必须真的把出厂 preset 根与可写用户根打开，并把默认 preset 换成创造模式；
-// 评测模式两者都保持关闭，创造模式与用户 preset 在该容器内都不可选。
-let developmentOverlayApplied = false
-let userPresetRootEnabled = false
-if (mode === 'authoring') {
-  if (!/\bincludeShippedRoot:\s*true\b/.test(dump.stdout) || !/\bdefault:\s*cordis\b/.test(dump.stdout)) {
-    throw new Error('development overlay did not enable the shipped preset root with cordis as the default preset')
-  }
-  if (!/\bincludeUserRoot:\s*true\b/.test(dump.stdout)) {
-    throw new Error('development overlay did not open the writable user preset root; preset authoring would be impossible')
-  }
-  developmentOverlayApplied = true
-  userPresetRootEnabled = true
-} else if (/\bincludeShippedRoot:\s*true\b/.test(dump.stdout) || /\bincludeUserRoot:\s*true\b/.test(dump.stdout)
+// 评测组合不开放出厂或用户 Preset 根。
+if (/\bincludeShippedRoot:\s*true\b/.test(dump.stdout) || /\bincludeUserRoot:\s*true\b/.test(dump.stdout)
   || /\bdefault:\s*cordis\b/.test(dump.stdout)) {
   throw new Error('verification composition must not expose the shipped cordis preset or a writable preset root')
 }
@@ -371,27 +289,16 @@ console.log(JSON.stringify({
   profile: source.profile,
   patch: source.patch,
   mounts: mountEvidence,
-  grading_material: mode === 'authoring'
-    ? {
-      reference: { host: source.reference_root, container: '/work/reference', mount_mode: 'ro' },
-      note: 'Read-only grading-material identity for the developer session only; it does not prove any agent consumed it.',
-    }
-    : {
-      exposed_paths: [],
-      note: 'The subject role receives no grading material; the negative assertion above proves the requirement, acceptance-threshold and expected-answer paths are absent.',
-    },
+  grading_material: {
+    exposed_paths: [],
+    note: 'The subject role receives no grading material; the negative assertion above proves the requirement, acceptance-threshold and expected-answer paths are absent.',
+  },
   adapter_scripts: adapterScriptEvidence,
-  development_session_instructions: devInstructionEvidence,
-  development_target_declaration: devTargetEvidence,
   dsh_home_mount_mode: 'rw',
   controlled_home_controls: homeControlEvidence,
   controlled_module_resolution: moduleEvidence,
   composed_config_sha256: `sha256:${createHash('sha256').update(dump.stdout).digest('hex')}`,
   expected_markers_present: source.config_markers.length,
-  development_overlay_applied: developmentOverlayApplied,
-  writable_user_preset_root: userPresetRootEnabled,
   preset_guard_declaration_present: guardPresent,
-  limitations: mode === 'authoring'
-    ? 'Locked Patch/.env/global instructions and writable Profile package paths prove the authoring boundary and config composition only; no Plugin behavior, Agent session, real protocol, final business state, or Release acceptance was tested.'
-    : 'Read-only HOME/Module/.env controls and a locked startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested.',
+  limitations: 'Read-only HOME/Module/.env controls and a locked startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested.',
 }))

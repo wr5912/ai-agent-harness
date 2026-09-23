@@ -1,5 +1,7 @@
 # DSH 容器开发启动器设计方案
 
+> **历史设计记录（2026-09-23）**：本文保留已退役的容器内 `dev` / `authoring` 模式及其结构取舍，不再描述当前运行合同。新实例只支持 `--mode eval`；当前行为见[适配层 README](../runtime/adapters/dsh-container/README.md)和 CLI `--help`。
+
 > 状态：`dsh-dev` 已实现 `init`、`image build`、`up`（含 `--dry-run` 预览）、`ps`、`url`、`logs`、`down` 和 `up --replace`。完整操作说明见[《DSH 开发与评测启动器设计方案》](./DSH开发与评测启动器设计方案.md)。
 
 本文只说明为什么采用当前容器结构。研究管理入口见[《DSH Harness 研究管理 CLI 设计方案》](./DSH-Harness研究管理CLI设计方案.md)；它是本地 CLI 方向，不是平台提案。

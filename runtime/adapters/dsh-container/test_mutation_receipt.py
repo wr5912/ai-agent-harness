@@ -1,16 +1,15 @@
-"""只使用临时目录测试三树回执，不在真实 Experiment 写入证据。"""
+"""只使用临时目录测试 Candidate 三树身份与冻结，不写入真实 Experiment。"""
 
 import contextlib
 import importlib.util
 import io
-import json
 import os
 import shutil
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import patch
 
 
 MODULE_PATH = Path(__file__).with_name("mutation-receipt.py")
@@ -19,11 +18,17 @@ receipt = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(receipt)
 
 
-class MutationReceiptTest(unittest.TestCase):
+class CandidateSourceTest(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(prefix="dsh-receipt-test-")
+        self.temporary = tempfile.TemporaryDirectory(prefix="dsh-candidate-source-test-")
         self.root = Path(self.temporary.name)
-        self.original = (receipt.REPO, receipt.DSH_ROOT, receipt.WORKSPACE, receipt.ALLOWED_ROOTS, receipt.RECEIPTS, receipt.FROZEN)
+        self.original = (
+            receipt.REPO,
+            receipt.DSH_ROOT,
+            receipt.WORKSPACE,
+            receipt.ALLOWED_ROOTS,
+            receipt.FROZEN,
+        )
         receipt.DSH_ROOT = self.root / "candidate/dsh"
         receipt.WORKSPACE = receipt.DSH_ROOT / "workspace"
         receipt.ALLOWED_ROOTS = {
@@ -31,7 +36,6 @@ class MutationReceiptTest(unittest.TestCase):
             receipt.DSH_ROOT / "presets",
             receipt.DSH_ROOT / "managed",
         }
-        receipt.RECEIPTS = self.root / "evaluation/evidence/mutation-receipts"
         receipt.FROZEN = self.root / "snapshots/frozen-sources"
         for folder in receipt.ALLOWED_ROOTS:
             folder.mkdir(parents=True)
@@ -40,48 +44,20 @@ class MutationReceiptTest(unittest.TestCase):
         (receipt.DSH_ROOT / "managed/guard.mjs").write_text("guard", encoding="utf-8")
 
     def tearDown(self):
-        receipt.REPO, receipt.DSH_ROOT, receipt.WORKSPACE, receipt.ALLOWED_ROOTS, receipt.RECEIPTS, receipt.FROZEN = self.original
+        (
+            receipt.REPO,
+            receipt.DSH_ROOT,
+            receipt.WORKSPACE,
+            receipt.ALLOWED_ROOTS,
+            receipt.FROZEN,
+        ) = self.original
         self.temporary.cleanup()
 
-    def create_before(self):
+    def freeze(self):
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
-            receipt.before()
+            receipt.freeze()
         return Path(output.getvalue().strip())
-
-    def test_workspace_change_is_recorded_and_controlled_trees_remain_equal(self):
-        before_path = self.create_before()
-        (receipt.WORKSPACE / "AGENTS.md").write_text("candidate revised", encoding="utf-8")
-        with contextlib.redirect_stdout(io.StringIO()):
-            receipt.after(before_path)
-        after = json.loads((before_path.parent / "after.json").read_text(encoding="utf-8"))
-        self.assertEqual(after["controlled_mount_integrity"], "pass")
-        self.assertEqual(after["controlled_mount_violations"], [])
-        self.assertEqual(after["workspace_changes"][0]["change"], "modified")
-        self.assertTrue(after["candidate_freeze_must_be_rechecked"])
-
-    def test_managed_change_is_a_fail_closed_receipt(self):
-        before_path = self.create_before()
-        (receipt.DSH_ROOT / "managed/guard.mjs").write_text("guard changed", encoding="utf-8")
-        with contextlib.redirect_stdout(io.StringIO()):
-            with self.assertRaisesRegex(ValueError, "controlled Preset/Guard mount changed"):
-                receipt.after(before_path)
-        after = json.loads((before_path.parent / "after.json").read_text(encoding="utf-8"))
-        self.assertEqual(after["controlled_mount_integrity"], "fail")
-        self.assertEqual(after["controlled_mount_violations"], ["managed"])
-        self.assertTrue(after["candidate_freeze_must_be_rechecked"])
-
-    def test_directory_mode_changes_require_review_and_controlled_changes_fail(self):
-        before_path = self.create_before()
-        os.chmod(receipt.WORKSPACE, 0o750)
-        os.chmod(receipt.DSH_ROOT / "managed", 0o750)
-        with contextlib.redirect_stdout(io.StringIO()):
-            with self.assertRaisesRegex(ValueError, "controlled Preset/Guard mount changed"):
-                receipt.after(before_path)
-        after = json.loads((before_path.parent / "after.json").read_text(encoding="utf-8"))
-        self.assertEqual(after["controlled_mount_violations"], ["managed"])
-        self.assertEqual(after["workspace_directory_changes"][0]["path"], ".")
-        self.assertTrue(after["semantic_review_required"])
 
     def test_sparse_file_over_64_mib_is_rejected_before_reading(self):
         asset = receipt.WORKSPACE / "oversized.bin"
@@ -107,7 +83,7 @@ class MutationReceiptTest(unittest.TestCase):
 
     def test_special_mode_bits_are_retained(self):
         asset = receipt.WORKSPACE / "AGENTS.md"
-        os.chmod(str(asset), 0o1755)
+        os.chmod(asset, 0o1755)
         current = receipt.snapshot(receipt.WORKSPACE)
         self.assertEqual(current["files"][0]["mode"], "1755")
 
@@ -127,10 +103,7 @@ class MutationReceiptTest(unittest.TestCase):
         nested.mkdir()
         (nested / "task.txt").write_text("task", encoding="utf-8")
         os.chmod(nested, 0o750)
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            receipt.freeze()
-        frozen = Path(output.getvalue().strip())
+        frozen = self.freeze()
         self.assertEqual((frozen / "workspace/nested").stat().st_mode & 0o777, 0o750)
         os.chmod(frozen / "workspace/nested", 0o755)
         with self.assertRaisesRegex(ValueError, "drifted"):
@@ -155,12 +128,9 @@ class MutationReceiptTest(unittest.TestCase):
             receipt.snapshot(receipt.WORKSPACE)
 
     def test_freeze_keeps_actual_bytes_and_restores_deleted_candidate(self):
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            receipt.freeze()
-        frozen = Path(output.getvalue().strip())
+        frozen = self.freeze()
         expected = receipt.verify_frozen(frozen)
-        (receipt.WORKSPACE / "AGENTS.md").write_text("later authoring", encoding="utf-8")
+        (receipt.WORKSPACE / "AGENTS.md").write_text("later edit", encoding="utf-8")
         self.assertEqual((frozen / "workspace/AGENTS.md").read_text(encoding="utf-8"), "candidate")
         shutil.rmtree(receipt.DSH_ROOT)
         with contextlib.redirect_stdout(io.StringIO()):
@@ -169,10 +139,7 @@ class MutationReceiptTest(unittest.TestCase):
         self.assertEqual(receipt.verify_frozen(frozen), expected)
 
     def test_tampered_frozen_bytes_cannot_restore(self):
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            receipt.freeze()
-        frozen = Path(output.getvalue().strip())
+        frozen = self.freeze()
         (frozen / "workspace/AGENTS.md").write_text("tampered", encoding="utf-8")
         shutil.rmtree(receipt.DSH_ROOT)
         with self.assertRaisesRegex(ValueError, "drifted"):

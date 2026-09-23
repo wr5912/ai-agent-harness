@@ -27,10 +27,9 @@ class SourceContractTest(unittest.TestCase):
         self.assertEqual(result["source_id"], "experiment:EXP-security-operations-expert-001")
         self.assertEqual(result["source_kind"], "experiment")
         self.assertEqual(result["patch"], "/opt/dsh-managed/security-operations-expert.patch.yml")
-        self.assertEqual(result["patch_overlay"],
-                         "/opt/dsh-managed/security-operations-expert.development.patch.yml")
+        self.assertNotIn("patch_overlay", result)
         self.assertTrue(result["reference_root"].endswith("agents/security-operations-expert"))
-        self.assertEqual(result["schema_version"], "2.0")
+        self.assertEqual(result["schema_version"], "2.1")
         self.assertNotIn("TOKEN=", json.dumps(result))
 
     def test_image_fingerprint_is_derived_and_changes_with_build_input(self):
@@ -76,17 +75,6 @@ class SourceContractTest(unittest.TestCase):
                 str(agent),
             )
 
-    def test_development_overlay_must_exist_inside_managed(self):
-        with tempfile.TemporaryDirectory(prefix="dsh-source-contract-") as location:
-            catalog_path = Path(location) / "sources.json"
-            catalog = json.loads(source_contract.SOURCES.read_text(encoding="utf-8"))
-            item = catalog["sources"]["EXP-security-operations-expert-001"]
-            item["development_patch_overlay"] = "missing.development.patch.yml"
-            catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
-            with self.assertRaises(ValueError):
-                source_contract.resolve("experiment:EXP-security-operations-expert-001",
-                                         sources=catalog_path)
-
     def test_preset_identity_is_derived_from_the_source_declaration(self):
         result = source_contract.resolve()
         self.assertEqual(result["preset_id"], "security-operations-expert")
@@ -109,13 +97,11 @@ class SourceContractTest(unittest.TestCase):
                 (root / name).mkdir(parents=True)
             (root / "presets/second-harness/agent.cordis.yml").write_text("guard", encoding="utf-8")
             (root / "managed/second.patch.yml").write_text("[]", encoding="utf-8")
-            (root / "managed/second.development.patch.yml").write_text("[]", encoding="utf-8")
-            catalog = {"schema_version": "1.0", "sources": {source_id: {
+            catalog = {"schema_version": "1.1", "sources": {source_id: {
                 "agent_id": "second-harness",
                 "candidate_root": f"evolution/experiments/{source_id}/candidate/dsh",
                 "profile": "web", "patch": "second.patch.yml",
                 "preset": "second-harness/agent.cordis.yml", "guard": None,
-                "development_patch_overlay": "second.development.patch.yml",
                 "config_markers": ["second-harness"], "required_env_names": [],
             }}}
             catalog_path = repo / "sources.json"
@@ -135,13 +121,11 @@ class SourceContractTest(unittest.TestCase):
                 (root / name).mkdir(parents=True)
             (root / "presets/second-harness-variant/agent.cordis.yml").write_text("guard", encoding="utf-8")
             (root / "managed/second.patch.yml").write_text("[]", encoding="utf-8")
-            (root / "managed/second.development.patch.yml").write_text("[]", encoding="utf-8")
-            catalog = {"schema_version": "1.0", "sources": {source_id: {
+            catalog = {"schema_version": "1.1", "sources": {source_id: {
                 "agent_id": "second-harness",
                 "candidate_root": f"evolution/experiments/{source_id}/candidate/dsh",
                 "profile": "web", "patch": "second.patch.yml",
                 "preset": "second-harness-variant/agent.cordis.yml", "guard": None,
-                "development_patch_overlay": "second.development.patch.yml",
                 "config_markers": ["second-harness"], "required_env_names": [],
             }}}
             catalog_path = repo / "sources.json"
@@ -171,13 +155,11 @@ class SourceContractTest(unittest.TestCase):
             (external / "agent.cordis.yml").write_text("preset", encoding="utf-8")
             (root / "presets/linked").symlink_to(external, target_is_directory=True)
             (root / "managed/second.patch.yml").write_text("[]", encoding="utf-8")
-            (root / "managed/second.development.patch.yml").write_text("[]", encoding="utf-8")
-            catalog = {"schema_version": "1.0", "sources": {source_id: {
+            catalog = {"schema_version": "1.1", "sources": {source_id: {
                 "agent_id": "second-harness",
                 "candidate_root": f"evolution/experiments/{source_id}/candidate/dsh",
                 "profile": "web", "patch": "second.patch.yml",
                 "preset": "linked/agent.cordis.yml", "guard": None,
-                "development_patch_overlay": "second.development.patch.yml",
                 "config_markers": ["second-harness"], "required_env_names": [],
             }}}
             catalog_path = repo / "sources.json"
@@ -196,12 +178,11 @@ class SourceContractTest(unittest.TestCase):
             patch = root / "managed/second.patch.yml"
             patch.write_text("[]", encoding="utf-8")
             os.link(patch, root / "managed/shared.patch.yml")
-            catalog = {"schema_version": "1.0", "sources": {source_id: {
+            catalog = {"schema_version": "1.1", "sources": {source_id: {
                 "agent_id": "second-harness",
                 "candidate_root": f"evolution/experiments/{source_id}/candidate/dsh",
                 "profile": "web", "patch": "second.patch.yml",
                 "preset": "agent.cordis.yml", "guard": None,
-                "development_patch_overlay": "second.development.patch.yml",
                 "config_markers": ["second-harness"], "required_env_names": [],
             }}}
             catalog_path = repo / "sources.json"
