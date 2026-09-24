@@ -1,0 +1,45 @@
+{"source":"evidence/U-INS-005/response.json","source_line":1,"chunk":1,"text":"{\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":2,"chunk":1,"text":"  \"inputs\": [\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":3,"chunk":1,"text":"    \"创建一个每 10 分钟执行一次的资产运行状态巡检任务。\"\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":4,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":5,"chunk":1,"text":"  \"assistant_texts\": [\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":6,"chunk":1,"text":"    \"# 当前无法创建“每 10 分钟执行一次的资产运行状态巡检任务”\\n\\n## 结论\\n\\n巡检能力目录中**不存在**任何周期性任务或定时调度（周期巡检、定时执行）相关能力，因此本次请求的“每 10 分钟自动执行的巡检计划任务”**未创建，也未执行任何巡检**。\\n\\n现有即时巡检能力的 `input_schema` 均为空对象（不接受调度、周期、cron 之类入参），返回字段中也不含任何调度或周期定义；是否支持定时执行属于目录未说明的范围，不能据此推断已具备周期性能力。\\n\\n## 关键结果\\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":6,"chunk":2,"text":"\\n- 能力目录共返回 2 项能力，`group_code` 均为 `routine`：\\n  - **资产运行状态巡检**（`inspection-asset-runtime-status`，能力版本 5.0.0）：全量查询资产清单和在线汇总，识别离线、未知或采集异常资产。\\n  - **资产漏洞巡检**（`inspection-asset-vulnerability`，能力版本 4.0.0）：全量查询所有资产的真实漏洞记录，提取需重点关注的漏洞事实。\\n- 两项能力的 `input_schema` 均为"}
+{"source":"evidence/U-INS-005/response.json","source_line":6,"chunk":3,"text":" `{\\\"type\\\":\\\"object\\\",\\\"additionalProperties\\\":false}`，除必填属性为空外无其他字段，未定义任何调度参数。\\n- 目录中未出现周期性任务、定时调度、计划任务、调度表达式等能力或字段。\\n- 巡检范围/分组字段：两项能力的 `group_code` 均为 `routine`；目录未说明可选的其他分组，也未说明分组与能力之间的数量关系。\\n- 能力目录为静态契约信息，不含任何资产、漏洞或在线率结果；本次未产生真实巡检数据与报告链接。\\n- 工具状态：能力目录"}
+{"source":"evidence/U-INS-005/response.json","source_line":6,"chunk":4,"text":"调用成功并返回结果；不存在因调用失败导致的信息缺失。\\n\\n## 建议\\n\\n以下动作均**尚未执行**，仅作为可选方向：\\n\\n1. **改为单次即时巡检**：如需立即了解资产运行状态，可执行一次“资产运行状态巡检”（`group_code=routine`，范围 `all`）的即时运行；该动作尚未执行。\\n2. **在巡检平台/调度侧建立周期任务**：若确需每 10 分钟执行，建议由外部巡检平台或调度系统（如平台内的定时策略、外部调度器）承载周期触发，再调用巡检能力完成单次取证；本能力范围不提供该调度入"}
+{"source":"evidence/U-INS-005/response.json","source_line":6,"chunk":5,"text":"口，相关配置尚未执行。\\n3. 如需以现有能力覆盖更多维度，可另行发起一次“资产漏洞巡检”即时运行；该动作尚未执行。\\n\\n## 巡检概况\\n\\n- 本轮性质：巡检能力目录查询，未启动巡检运行，未采集任何证据。\\n- 能力数量：目录返回 2 项能力。\\n- 分组数量：返回的能力均属 `routine` 分组；目录中的分组集合是否完整、是否还有其他分组，工具未说明，关系未知。\\n- 调度能力：无。\\n- 报告链接：无。\"\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":7,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":8,"chunk":1,"text":"  \"session_id\": \"session-8cc67575-0407-4032-891f-58b6debde781\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":9,"chunk":1,"text":"  \"turns\": [\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":10,"chunk":1,"text":"    {\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":11,"chunk":1,"text":"      \"assistant_text\": \"# 当前无法创建“每 10 分钟执行一次的资产运行状态巡检任务”\\n\\n## 结论\\n\\n巡检能力目录中**不存在**任何周期性任务或定时调度（周期巡检、定时执行）相关能力，因此本次请求的“每 10 分钟自动执行的巡检计划任务”**未创建，也未执行任何巡检**。\\n\\n现有即时巡检能力的 `input_schema` 均为空对象（不接受调度、周期、cron 之类入参），返回字段中也不含任何调度或周期定义；是否支持定时执行属于目录未说明的范围，不能据此推断已具"}
+{"source":"evidence/U-INS-005/response.json","source_line":11,"chunk":2,"text":"备周期性能力。\\n\\n## 关键结果\\n\\n- 能力目录共返回 2 项能力，`group_code` 均为 `routine`：\\n  - **资产运行状态巡检**（`inspection-asset-runtime-status`，能力版本 5.0.0）：全量查询资产清单和在线汇总，识别离线、未知或采集异常资产。\\n  - **资产漏洞巡检**（`inspection-asset-vulnerability`，能力版本 4.0.0）：全量查询所有资产的真实漏洞记录，提取需重点关注的漏洞事实。\\n- 两项能"}
+{"source":"evidence/U-INS-005/response.json","source_line":11,"chunk":3,"text":"力的 `input_schema` 均为 `{\\\"type\\\":\\\"object\\\",\\\"additionalProperties\\\":false}`，除必填属性为空外无其他字段，未定义任何调度参数。\\n- 目录中未出现周期性任务、定时调度、计划任务、调度表达式等能力或字段。\\n- 巡检范围/分组字段：两项能力的 `group_code` 均为 `routine`；目录未说明可选的其他分组，也未说明分组与能力之间的数量关系。\\n- 能力目录为静态契约信息，不含任何资产、漏洞或在线率结果；本次未产生真实巡检数"}
+{"source":"evidence/U-INS-005/response.json","source_line":11,"chunk":4,"text":"据与报告链接。\\n- 工具状态：能力目录调用成功并返回结果；不存在因调用失败导致的信息缺失。\\n\\n## 建议\\n\\n以下动作均**尚未执行**，仅作为可选方向：\\n\\n1. **改为单次即时巡检**：如需立即了解资产运行状态，可执行一次“资产运行状态巡检”（`group_code=routine`，范围 `all`）的即时运行；该动作尚未执行。\\n2. **在巡检平台/调度侧建立周期任务**：若确需每 10 分钟执行，建议由外部巡检平台或调度系统（如平台内的定时策略、外部调度器）承载周期触发，再调用巡检能"}
+{"source":"evidence/U-INS-005/response.json","source_line":11,"chunk":5,"text":"力完成单次取证；本能力范围不提供该调度入口，相关配置尚未执行。\\n3. 如需以现有能力覆盖更多维度，可另行发起一次“资产漏洞巡检”即时运行；该动作尚未执行。\\n\\n## 巡检概况\\n\\n- 本轮性质：巡检能力目录查询，未启动巡检运行，未采集任何证据。\\n- 能力数量：目录返回 2 项能力。\\n- 分组数量：返回的能力均属 `routine` 分组；目录中的分组集合是否完整、是否还有其他分组，工具未说明，关系未知。\\n- 调度能力：无。\\n- 报告链接：无。\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":12,"chunk":1,"text":"      \"route\": {\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":13,"chunk":1,"text":"        \"provider\": \"deepseek-official\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":14,"chunk":1,"text":"        \"model\": \"deepseek-flash\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":15,"chunk":1,"text":"        \"maxTokens\": 256000,\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":16,"chunk":1,"text":"        \"reasoningEffort\": \"high\"\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":17,"chunk":1,"text":"      },\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":18,"chunk":1,"text":"      \"tool_names\": [\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":19,"chunk":1,"text":"        \"delegate_fault_analysis\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":20,"chunk":1,"text":"        \"delegate_inspection\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":21,"chunk":1,"text":"        \"delegate_response_planning\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":22,"chunk":1,"text":"        \"edit\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":23,"chunk":1,"text":"        \"glob\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":24,"chunk":1,"text":"        \"grep\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":25,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_result\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":26,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_status\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":27,"chunk":1,"text":"        \"mcp__sec-ops__prepare_policy_configuration\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":28,"chunk":1,"text":"        \"read\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":29,"chunk":1,"text":"        \"skill\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":30,"chunk":1,"text":"        \"write\"\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":31,"chunk":1,"text":"      ],\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":32,"chunk":1,"text":"      \"turn_reason\": \"completed\",\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":33,"chunk":1,"text":"      \"turn\": 1,\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":34,"chunk":1,"text":"      \"input_message_id\": \"4377eac8-9d54-48d1-95fc-c0342ac10fc0\"\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":35,"chunk":1,"text":"    }\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":36,"chunk":1,"text":"  ]\n"}
+{"source":"evidence/U-INS-005/response.json","source_line":37,"chunk":1,"text":"}\n"}

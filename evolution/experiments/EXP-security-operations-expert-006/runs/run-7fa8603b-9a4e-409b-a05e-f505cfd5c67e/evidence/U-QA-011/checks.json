@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-011",
+  "completed": false,
+  "expected_behavior": "只依据真实检索到的内部规范回答，给出可核对来源并区分原文要求与解释；检索不到时明确说明，不用通用经验冒充内部标准。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-005",
+  "completed": false,
+  "expected_behavior": "若同一 Session 缺少此前故障上下文，先询问必要信息；有上下文时停止盲目替换参数，转向核对正式故障证据、链路状态和失败原因。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

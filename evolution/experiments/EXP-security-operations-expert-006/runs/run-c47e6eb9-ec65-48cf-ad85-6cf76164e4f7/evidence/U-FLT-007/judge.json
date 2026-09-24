@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答基于同一被测 Session 的真实工具回执，逐项对照预期：解析出资产 3617353（172.16.2.103），陈述了纳管状态矛盾（collectionConfig 为空、采集设备空集合、offline/unreachable）、关联对象异常（业务系统空集合、宿主 3617426 状态相反），并明确合规违规查询返回空集合——未把缺失数据解释为配置合规或正常；同时列出未知项（coveragePct 与 registered 关系未知、trend30d 口径、图路径 500 错误、无资源指标）与未执行建议。关键数据（IP、主机名、状态字段、漏洞条目、incidents 计数、可达性、跨信号条目、宿主详情）均与工具结果一致，未伪造资产关系。"
+  },
+  "checks": {
+    "session_id": "session-2aaa79b2-f6fc-481d-bf97-4f3aa064e279",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

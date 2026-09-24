@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-003",
+  "completed": false,
+  "expected_behavior": "只返回一个可解析的 JSON 对象，准确保留给定事实并区分事实与建议，不添加输入中没有的动态数据。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

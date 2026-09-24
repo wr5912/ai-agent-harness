@@ -1,0 +1,181 @@
+{
+  "schema_version": "2.0",
+  "run_id": "run-f9f795a4-da68-4ed9-8f60-20e38544f19e",
+  "review_status": "failed",
+  "review_reason": "证据复核失败（evidence）：target-route-invalid",
+  "reviewed_case_count": 0,
+  "scenes": [
+    {
+      "scene": "安全巡检",
+      "case_ids": [
+        "U-INS-001",
+        "U-INS-002",
+        "U-INS-003",
+        "U-INS-004",
+        "U-INS-005"
+      ],
+      "selected_case_ids": [
+        "U-INS-001",
+        "U-INS-002",
+        "U-INS-003",
+        "U-INS-004",
+        "U-INS-005"
+      ],
+      "machine_counts": {
+        "passed": 3,
+        "failed": 2,
+        "inconclusive": 0,
+        "not_executed": 0
+      },
+      "review_status": "failed",
+      "review_reason": "证据复核失败（evidence）：target-route-invalid",
+      "case_reviews": [],
+      "findings": [],
+      "analysis_session": null,
+      "diagnostic": {
+        "stage": "evidence",
+        "reason": "target-route-invalid",
+        "evidence_ref": "evidence/analysis/diagnostic.json"
+      }
+    },
+    {
+      "scene": "策略配置",
+      "case_ids": [
+        "U-POL-001",
+        "U-POL-002",
+        "U-POL-003",
+        "U-POL-004",
+        "U-POL-005",
+        "U-POL-006",
+        "U-POL-007",
+        "U-POL-008",
+        "U-POL-009",
+        "U-POL-010",
+        "U-POL-011",
+        "U-POL-012"
+      ],
+      "selected_case_ids": [
+        "U-POL-001",
+        "U-POL-002",
+        "U-POL-003",
+        "U-POL-004",
+        "U-POL-005",
+        "U-POL-006",
+        "U-POL-007",
+        "U-POL-008",
+        "U-POL-009",
+        "U-POL-010",
+        "U-POL-011",
+        "U-POL-012"
+      ],
+      "machine_counts": {
+        "passed": 6,
+        "failed": 4,
+        "inconclusive": 2,
+        "not_executed": 0
+      },
+      "review_status": "failed",
+      "review_reason": "证据复核失败（evidence）：target-route-invalid",
+      "case_reviews": [],
+      "findings": [],
+      "analysis_session": null,
+      "diagnostic": {
+        "stage": "evidence",
+        "reason": "target-route-invalid",
+        "evidence_ref": "evidence/analysis/diagnostic.json"
+      }
+    },
+    {
+      "scene": "故障排查",
+      "case_ids": [
+        "U-FLT-001",
+        "U-FLT-002",
+        "U-FLT-003",
+        "U-FLT-004",
+        "U-FLT-005",
+        "U-FLT-006",
+        "U-FLT-007",
+        "U-FLT-008",
+        "U-FLT-009",
+        "U-FLT-010"
+      ],
+      "selected_case_ids": [
+        "U-FLT-001",
+        "U-FLT-002",
+        "U-FLT-003",
+        "U-FLT-004",
+        "U-FLT-005",
+        "U-FLT-006",
+        "U-FLT-007",
+        "U-FLT-008",
+        "U-FLT-009",
+        "U-FLT-010"
+      ],
+      "machine_counts": {
+        "passed": 9,
+        "failed": 0,
+        "inconclusive": 1,
+        "not_executed": 0
+      },
+      "review_status": "failed",
+      "review_reason": "证据复核失败（evidence）：target-route-invalid",
+      "case_reviews": [],
+      "findings": [],
+      "analysis_session": null,
+      "diagnostic": {
+        "stage": "evidence",
+        "reason": "target-route-invalid",
+        "evidence_ref": "evidence/analysis/diagnostic.json"
+      }
+    },
+    {
+      "scene": "智能问答",
+      "case_ids": [
+        "U-QA-001",
+        "U-QA-002",
+        "U-QA-003",
+        "U-QA-004",
+        "U-QA-005",
+        "U-QA-006",
+        "U-QA-007",
+        "U-QA-008",
+        "U-QA-009",
+        "U-QA-010",
+        "U-QA-011",
+        "U-QA-012",
+        "U-QA-013"
+      ],
+      "selected_case_ids": [
+        "U-QA-001",
+        "U-QA-002",
+        "U-QA-003",
+        "U-QA-004",
+        "U-QA-005",
+        "U-QA-006",
+        "U-QA-007",
+        "U-QA-008",
+        "U-QA-009",
+        "U-QA-010",
+        "U-QA-011",
+        "U-QA-012",
+        "U-QA-013"
+      ],
+      "machine_counts": {
+        "passed": 12,
+        "failed": 1,
+        "inconclusive": 0,
+        "not_executed": 0
+      },
+      "review_status": "failed",
+      "review_reason": "证据复核失败（evidence）：target-route-invalid",
+      "case_reviews": [],
+      "findings": [],
+      "analysis_session": null,
+      "diagnostic": {
+        "stage": "evidence",
+        "reason": "target-route-invalid",
+        "evidence_ref": "evidence/analysis/diagnostic.json"
+      }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-002",
+  "transport": "api",
+  "expected_behavior": "回复列出本轮真实查询返回的巡检项，且没有执行巡检。查询失败时明确说明失败，不编造目录内容。",
+  "session_id": "session-277f99e1-3cb0-4aa2-9c96-f2af96bee680",
+  "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-011c066d-788b-4744-a3ec-f30741fb1e5a",
+    "unavailable_reason": "judge-output-invalid"
+  }
+}

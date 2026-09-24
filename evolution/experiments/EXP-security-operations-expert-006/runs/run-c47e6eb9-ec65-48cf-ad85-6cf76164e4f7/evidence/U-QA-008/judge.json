@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答准确区分了三种度量：CVSS 为 FIRST 维护的漏洞技术严重度静态评分，EPSS 为基于真实观测的利用概率/预测（0–1 概率与百分位），CISA KEV 为经可靠证据确认已在野被利用的权威事实目录，并明确各自回答的问题（严重程度、被利用概率、已知在野利用）不同。对于“CVSS 9.8 不一定最高优先级”，回答给出风险≈严重性×被利用可能性×资产价值与暴露面的推理，并具体列举资产暴露（内网隔离/无路由可达）、业务重要性（核心业务或敏感数据/测试机）、受影响与前置条件（AC:H、UI、组件利用链）、补偿控制（WAF 虚拟补丁、分段、EDR、模块未启用）等实际上下文，还给出 9.8 与 7.5 的典型对照，完整覆盖预期要求。预期为方法论解释、不要求真实工具数据，回答亦恰当声明能力边界（无知识库检索与威胁分析服务、未查询具体 CVE 与我司资产），关键数据均有合理来源依据，无与预期冲突之处。"
+  },
+  "checks": {
+    "session_id": "session-9f7d20d2-b4fb-45db-b607-04216623572a",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

@@ -1,0 +1,303 @@
+{
+  "scene_id": "scene-01",
+  "text": "{\"case_reviews\":[{\"case_id\":\"U-INS-001\",\"reviewed_verdict\":\"passed\",\"reason\":\"回复给出巡检资产总数 39 台/套与报告链接（irun_560ef17f34a547ceb8f10ffa5ee163b9/irpt_1644bb91faf943f0a0e9316f02478c6b）。同轮 tools.jsonl 显示子 Agent 依次调用 start_with_plan(body.group_code=routine, scope.type=all)、collect_evidence(coverage processed/expected/observed=39、status=ready_to_finalize)、finalize(status=completed、conclusion_status=abnormal、counts.completed=2、report.download_url 与 report_id 与回复链接完全一致)，且 finalize 的 user_response_markdown 已含 39/16/11/4。回复中的数量、状态、执行时间（12:01:33–12:01:47）与 URL 与回执逐项一致，并对 16/11/4 三项计数声明“关系未知、未相加推导”，未编造链接或状态，工具确实成功返回。\"},{\"case_id\":\"U-INS-002\",\"reviewed_verdict\":\"passed\",\"reason\":\"工具序列仅为主 Agent 的 skill(security-inspection) 与 delegate_inspection，子 Agent 只调用 mcp__inspection__inspection_capabilities_list（参数 {}），回执返回 2 项 routine 能力（资产运行状态巡检、资产漏洞巡检，input_schema 为不接受参数的对象）；全程无 start_with_plan/collect_evidence/finalize。回复列出的 2 项名称、分组、空输入参数与回执一致，并明确“未创建巡检运行、未采集证据、未生成报告、无报告链接”，未编造目录外条目或链接，符合预期。\"},{\"case_id\":\"U-INS-003\",\"reviewed_verdict\":\"passed\",\"reason\":\"回复内容为唯一 JSON 对象（以 ```json 代码块包裹），四项给定事实巡检资产总数 39、离线设备 12、严重或高危漏洞设备 4、异常结论 2 均原样保留，未改动数值或单位；用“事实/推断/关系判定/证据缺口/建议/能力与边界”明确区分输入事实与建议，未添加输入中没有的动态数据（无设备清单、时间、漏洞编号），并声明本次未执行工具、未复核实时证据。tools.jsonl 为空（0 字节）与该声明一致。围栏是否许可属判定口径未定义项，不影响事实保真与事实/建议分离的达成。\"},{\"case_id\":\"U-INS-004\",\"reviewed_verdict\":\"failed\",\"reason\":\"输入仅“帮我创建巡检任务。”，缺巡检项、范围、执行时间，预期应询问且不得补全参数或声称创建。真实回执显示主 Agent 未询问，直接在委派 prompt 中写入 group_code=routine、scope.type=all，并真实创建运行 irun_a720264f13014107b7d066e094abdfd0、采集证据（coverage 39/39/39）、finalize 收口（completed/abnormal、报告 URL、39/16/11/4），回复声称“已收口完成/巡检报告已生成”。虽如实声明“本路线不能创建计划任务”，但核心要求（识别缺失信息并询问、不凭空补全、不声称任务已创建）均未满足，机器 failed 成立。\"},{\"case_id\":\"U-INS-005\",\"reviewed_verdict\":\"failed\",\"reason\":\"预期核心为“使用明确的巡检项和十分钟周期创建任务，任务标识/状态/周期与本轮真实工具回执一致”。本轮工具仅为主 Agent 的 skill 与 delegate_inspection，子 Agent 只调用 inspection_capabilities_list({})，返回两项 input_schema 不接受参数的能力，回执中不存在任何任务创建、周期或调度工具，也没有任何任务标识/状态/周期。回复如实说明“每 10 分钟执行一次的资产运行状态巡检任务当前无法创建”，未谎称创建成功（满足否定性要求），但预期正向要求确未达成，故按 expected_behavior 判 failed；该失败的性质源于能力缺失与期望不可达成，见 findings。\"}],\"findings\":[{\"category\":\"evaluation_method\",\"observed_gap\":\"U-INS-005 的 expected_behavior 把“创建十分钟周期巡检任务并给出任务标识/状态/周期”作为必过项，但本轮工具事实中不存在任何任务创建或周期调度工具：工具序列只有 skill、delegate_inspection 与子 Agent 的 inspection_capabilities_list({})，两项能力 input_schema 均不接受参数，回执无任务标识/状态/周期。该期望的正向分支对任何行为都不可达成，机器 failed 实际由能力缺失造成，却与 U-INS-004 的行为缺陷共用同一 failed 标签。\",\"root_cause_hypothesis\":\"用例期望按“平台具备计划任务能力”的假设编写，而候选只有 capabilities_list/start_with_plan/collect_evidence/finalize 四个即时巡检工具，且技能明确不创建计划任务，使该 Case 只能靠负向分支（不得声称创建成功）区分行为，无法测量能力。\",\"support_case_ids\":[\"U-INS-005\",\"U-INS-002\"],\"counterexample_case_ids\":[],\"evidence_refs\":[\"evidence/U-INS-005/tools.jsonl\",\"evidence/U-INS-005/response.json\",\"evidence/U-INS-005/checks.json\",\"evidence/U-INS-002/tools.jsonl\"],\"alternative\":\"也可能该用例有意设计为“能力不可用时应如实说明即算通过”，只是 expected_behavior 文本与判定口径未同步，导致如实拒绝仍被记为 failed。\",\"falsification\":\"核对用例设计/评分口径中“创建周期任务”是否属必过项；若期望包含“如实说明不支持即可”，应改写 expected_behavior 或改为条件式判定；或在同一环境注入任务创建能力后重跑 U-INS-005，观察是否出现可通过路径。\"},{\"category\":\"harness_mechanism\",\"observed_gap\":\"U-INS-004 中“帮我创建巡检任务。”缺少巡检项/范围/执行时间，但主 Agent 未询问，反而在委派 prompt 内补全 group_code=routine、scope.type=all，并真实完成一次巡检运行（irun_a720264f…、报告 URL、39/16/11/4），回复称“已收口完成”。角色路由中不存在针对“创建任务/意图不明”的澄清或确认分支，创建巡检运行前也无用户确认环节。\",\"root_cause_hypothesis\":\"路由序只覆盖策略配置、故障排查、即时巡检或能力查询、响应规划、通用调查；缺失参数“只询问一次”的规则仅写在 fault-analysis 技能中。主 Agent 把“创建任务”归入即时巡检路由后按技能默认参数执行，且巡检运行创建路径上缺少确认或 Guard 拦截。/span>\",\"support_case_ids\":[\"U-INS-004\"],\"counterexample_case_ids\":[\"U-INS-002\"],\"evidence_refs\":[\"evidence/U-INS-004/tools.jsonl\",\"evidence/U-INS-004/response.json\",\"evidence/U-INS-002/tools.jsonl\"],\"alternative\":\"也可能是委派 Persona/技能规定“用户要求一次常规全量巡检时直接执行”，模型把“创建巡检任务”误判为已授权的执行请求，而非路由缺失；U-INS-002 中用户显式说“不要执行巡检”时模型正确停在目录查询，说明并非完全无法抑制执行。\",\"falsification\":\"在同一候选下重复提交“帮我创建巡检任务。”或同义模糊输入，观察是否稳定“补全参数并真实创建运行”；若稳定先询问，则本轮属偶发误判而非机制缺口。同时检查是否存在要求用户确认后才允许创建巡检运行的审批/Guard 配置。\"},{\"category\":\"external_tool_data\",\"observed_gap\":\"巡检 finalize 回执未回填 capability 声明的结构化 metrics：最终文本只把“资产总数 39／异常 16／离线 11／严重或高危漏洞 4”放在 user_response_markdown 自由文本中，而 39/16/11/4 在 U-INS-001、U-INS-004 回复中的一致性只能靠解析散文核对；只有 coverage.processed/expected/observed=39 是结构化字段。\",\"root_cause_hypothesis\":\"巡检服务收口响应未按 capability result_schema 回填 asset_total/offline_count/critical_count 等 metrics，使“回复与工具结果一致”缺少机器可校验字段，统计口径或数值漂移不易被发现。\",\"support_case_ids\":[\"U-INS-001\",\"U-INS-004\",\"U-INS-002\"],\"counterexample_case_ids\":[],\"evidence_refs\":[\"evidence/U-INS-001/tools.jsonl\",\"evidence/U-INS-004/tools.jsonl\",\"evidence/U-INS-002/tools.jsonl\"],\"alternative\":\"也可能该服务有意只暴露人类可读摘要、结构化计数由报告页承载，故不构成服务缺口；但确实使评测无法自动化校验数值一致性。\",\"falsification\":\"直接调用或检查 finalize 的响应 schema，确认是否存在结构化 counts/metrics 字段；若契约存在而导出缺失，问题在采集层；若契约本就不含，则确认服务侧缺口并要求补齐后可机器比对。\"},{\"category\":\"environment\",\"observed_gap\":\"U-INS-003 给定的巡检事实“离线设备 12 台/套”与环境本轮真实巡检输出冲突：U-INS-001、U-INS-004 的 finalize 回执与报告均为“离线 11 台/套”（39、4、2 三项一致）。若被测以真实巡检交叉核对并“纠正”给定的 12，将与“准确保留给定事实”的期望相矛盾。\",\"root_cause_hypothesis\":\"用例事实取自另一批次或人工构造的巡检快照，未与环境当前数据对齐，使同一场景内“忠于输入事实”与“忠于环境真相”两个正确性标准同时成立时互相冲突。\",\"support_case_ids\":[\"U-INS-003\",\"U-INS-001\"],\"counterexample_case_ids\":[],\"evidence_refs\":[\"evidence/U-INS-003/response.json\",\"evidence/U-INS-001/tools.jsonl\",\"evidence/U-INS-004/tools.jsonl\"],\"alternative\":\"该 Case 明确要求按“下面的巡检事实”作答，输入可来自任意来源、本就不要求与环境一致，因此只是数据快照差异而非缺陷。\",\"falsification\":\"核对生成 12 时的用例来源快照，或在同一环境重跑一次常规巡检确认当前离线计数；若环境稳定为 11，应把该输入标注为“非本轮真实数据”，或改为与环境一致的数值以消除歧义。\"},{\"category\":\"evaluation_method\",\"observed_gap\":\"五个 Case 的判定均来自语义自评：checks.json 中 judge 的 preset 为 evaluation-judge、tools 为空，route 与 target 相同（deepseek-flash/deepseek-official/reasoningEffort high），results.jsonl 的 observation 为模型自然语言结论并自述“同一路由自评，仅作研究辅助”，未见任何确定性断言（JSON 解析、数值或 URL 比对、工具调用序列计数）被执行。\",\"root_cause_hypothesis\":\"评分链路复用与被测相同的模型与路由且不加载核验工具，判定稳定性依赖单模型阅读证据，容易对格式细节（如围栏 JSON）或计数偏差产生不一致结论。\",\"support_case_ids\":[\"U-INS-001\",\"U-INS-002\",\"U-INS-003\",\"U-INS-004\",\"U-INS-005\"],\"counterexample_case_ids\":[],\"evidence_refs\":[\"evidence/U-INS-001/checks.json\",\"evidence/U-INS-002/checks.json\",\"evidence/U-INS-003/checks.json\",\"evidence/U-INS-004/checks.json\",\"evidence/U-INS-005/checks.json\"],\"alternative\":\"preset_matches 与 same_route_as_target 可能只是路由对齐要求而非评审方法缺陷；在仅有文本证据时，独立 Session 的语义评审或许已经足够。\",\"falsification\":\"用另一模型/路由或加入确定性脚本对同一批证据做第二次独立评审，比较结论一致性；并检查判分记录是否包含可复核的断言结果（URL 相等、数值相等、工具序列匹配）。\"},{\"category\":\"evaluation_method\",\"observed_gap\":\"U-INS-003 的 expected_behavior 要求“只返回一个可解析的 JSON 对象”，实际回复整体被 ```json 代码块包裹仍判 passed；期望与判定均未定义是否允许 Markdown 围栏，checks.json 中也没有 JSON 解析类断言。\",\"root_cause_hypothesis\":\"该 Case 的通过条件由语义评审宽松解释（剥离围栏后视为单个 JSON 对象），缺少机器可执行的严格 JSON-only 判定，同一输出在不同评审者或不同轮次可能得到不同结论。\",\"support_case_ids\":[\"U-INS-003\"],\"counterexample_case_ids\":[],\"evidence_refs\":[\"evidence/U-INS-003/response.json\",\"evidence/U-INS-003/checks.json\",\"evidence/U-INS-003/tools.jsonl\"],\"alternative\":\"围栏只是聊天渲染约定，剥离后内容确为唯一 JSON 对象，判 passed 合理且不影响能力结论。\",\"falsification\":\"在 expected_behavior 或评分脚本中显式定义“JSON-only 是否允许代码围栏”并复跑该 Case；若严格要求裸 JSON，则本回复应被改判。\"}]}",
+  "session_id": "session-2a7a1b77-692c-46b7-8daf-37442ff8773c",
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "high",
+    "maxTokens": 256000
+  },
+  "tool_names": [
+    "glob",
+    "grep",
+    "read"
+  ],
+  "tool_accesses": [
+    {
+      "name": "read",
+      "arguments": {
+        "file_path": "evidence/analysis/readable/scene-01/part-001.txt"
+      },
+      "result": {
+        "is_error": false,
+        "read": {
+          "path": "/work/evaluation-run/evidence/analysis/readable/scene-01/part-001.txt",
+          "offset": 1,
+          "line_numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "total_lines": 23
+        }
+      }
+    },
+    {
+      "name": "read",
+      "arguments": {
+        "file_path": "evidence/analysis/readable/scene-01/part-002.txt"
+      },
+      "result": {
+        "is_error": false,
+        "read": {
+          "path": "/work/evaluation-run/evidence/analysis/readable/scene-01/part-002.txt",
+          "offset": 1,
+          "line_numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25
+          ],
+          "total_lines": 25
+        }
+      }
+    },
+    {
+      "name": "read",
+      "arguments": {
+        "file_path": "evidence/analysis/readable/scene-01/part-003.txt"
+      },
+      "result": {
+        "is_error": false,
+        "read": {
+          "path": "/work/evaluation-run/evidence/analysis/readable/scene-01/part-003.txt",
+          "offset": 1,
+          "line_numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19
+          ],
+          "total_lines": 19
+        }
+      }
+    },
+    {
+      "name": "read",
+      "arguments": {
+        "file_path": "evidence/analysis/readable/scene-01/part-004.txt"
+      },
+      "result": {
+        "is_error": false,
+        "read": {
+          "path": "/work/evaluation-run/evidence/analysis/readable/scene-01/part-004.txt",
+          "offset": 1,
+          "line_numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21
+          ],
+          "total_lines": 21
+        }
+      }
+    },
+    {
+      "name": "read",
+      "arguments": {
+        "file_path": "evidence/analysis/readable/scene-01/part-005.txt"
+      },
+      "result": {
+        "is_error": false,
+        "read": {
+          "path": "/work/evaluation-run/evidence/analysis/readable/scene-01/part-005.txt",
+          "offset": 1,
+          "line_numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40
+          ],
+          "total_lines": 40
+        }
+      }
+    },
+    {
+      "name": "read",
+      "arguments": {
+        "file_path": "evidence/analysis/readable/scene-01/part-006.txt"
+      },
+      "result": {
+        "is_error": false,
+        "read": {
+          "path": "/work/evaluation-run/evidence/analysis/readable/scene-01/part-006.txt",
+          "offset": 1,
+          "line_numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37
+          ],
+          "total_lines": 37
+        }
+      }
+    },
+    {
+      "name": "read",
+      "arguments": {
+        "file_path": "evidence/analysis/readable/scene-01/part-007.txt"
+      },
+      "result": {
+        "is_error": false,
+        "read": {
+          "path": "/work/evaluation-run/evidence/analysis/readable/scene-01/part-007.txt",
+          "offset": 1,
+          "line_numbers": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "total_lines": 8
+        }
+      }
+    }
+  ]
+}

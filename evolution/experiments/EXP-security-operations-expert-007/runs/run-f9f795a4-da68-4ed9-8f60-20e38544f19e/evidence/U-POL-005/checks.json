@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-POL-005",
+  "transport": "api",
+  "expected_behavior": "指出 172.16.1.155 是主机地址而非网段，确认或按主机对象处理后生成包含 UDP 53 和七天有效期的预览；不得静默扩大地址范围。",
+  "session_id": "session-fe7d3f9e-c049-41c0-98a5-46ddf60aefd3",
+  "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-e5617bba-f8eb-448a-af91-3743fbdb7dd0",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

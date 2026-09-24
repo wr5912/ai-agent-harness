@@ -166,13 +166,13 @@ python3 .agents/skills/research-eval/scripts/validate_experiment.py \
 
 脚本输出 JSON。退出码 `0` 只说明各自覆盖的确定性合同通过，`1` 表示发现问题，`2` 表示输入或读取错误；它们不替代对研究结果的人工判断。
 
-受管评测会自动完成 Run 创建、执行、证据导出、封存和实例停止。默认通过 DSH Runtime Session API 执行业务 Case；浏览器通道只核对初始提示、工作区、模型、发送和显示等 UI 链路，需显式指定。先用 `--dry-run` 核对选择与环境变量名称：
+受管评测会自动完成 Run 创建、执行、证据导出、场景诊断、封存和实例停止。默认 `--mode fast` 运行标记的 Case，`--mode full` 运行全部 Case，`--case` 可覆盖档位；三者均不改变 `dsh-dev --mode eval` 的容器运行模式。默认通过 DSH Runtime Session API 执行业务 Case；浏览器通道只核对初始提示、工作区、模型、发送和显示等 UI 链路，需显式指定。先用 `--dry-run` 核对选择与环境变量名称：
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --case <case-id> --dry-run
+  --source experiment:EXP-<agent-id>-NNN --mode fast --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --case <case-id>
+  --source experiment:EXP-<agent-id>-NNN --mode full
 python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-<agent-id>-NNN --executor browser --case <case-id>
 ```

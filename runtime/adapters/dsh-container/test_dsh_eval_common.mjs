@@ -29,6 +29,12 @@ const turns = turnsFromTrace(multiTurnArchive, ['执行一次常规巡检。', '
 assert.deepEqual(turns.map(turn => turn.assistant_text), [
   '共 39 台，报告：https://example/report', '分析完成。',
 ])
+const inheritedHeaderTurns = turnsFromTrace(archive([
+  user('u1', '首次分析。'), header([{ name: 'read' }]), assistant('首次完成。'), end(1),
+  user('u2', '修正格式。'), assistant('修正完成。'), end(2),
+]), ['首次分析。', '修正格式。'])
+assert.deepEqual(inheritedHeaderTurns[1].route, { provider: 'test', model: 'model' })
+assert.deepEqual(inheritedHeaderTurns[1].tool_names, ['read'])
 assert.throws(
   () => turnsFromTrace(multiTurnArchive, ['执行一次常规巡检。']),
   /evidence-cross-turn/,
@@ -47,7 +53,8 @@ const item = {
   expected_behavior: '设备数量和报告链接必须来自真实工具返回。',
 }
 const judged = await judgeCase(item, {
-  assistant_texts: [targetTurns[0].assistant_text], turns: targetTurns,
+  assistant_texts: [targetTurns[0].assistant_text],
+  turns: [...targetTurns, { ...targetTurns[0], route: null }],
 }, targetArchive,
   async input => {
     const request = JSON.parse(input)
@@ -63,5 +70,6 @@ const judged = await judgeCase(item, {
 assert.equal(judged.available, true)
 assert.equal(judged.response.verdict, 'passed')
 assert.deepEqual(judged.checks.tools, [])
+assert.equal(judged.checks.same_route_as_target, true)
 
-console.log(JSON.stringify({ status: 'dsh-eval-common-tests-passed', cases: 3 }))
+console.log(JSON.stringify({ status: 'dsh-eval-common-tests-passed', cases: 4 }))

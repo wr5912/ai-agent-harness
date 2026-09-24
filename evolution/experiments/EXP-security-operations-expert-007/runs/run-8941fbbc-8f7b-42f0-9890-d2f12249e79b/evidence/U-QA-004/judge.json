@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答基于同一 Session 内真实工具回执（skill 加载 response-planning、read 读取 AGENTS.md）说明响应处置能力，与预期要求一致：明确结论为本工作区没有响应处置执行能力，唯一响应相关路由为 default 被 Guard 拒绝、仅在模型外受信 Gate 下允许一次零工具零副作用规划的 delegate_response_planning，并说明确认、保存、执行、监控、回滚与效果验证均由外部响应生命周期控制面负责，未虚构处置动作。回答同时区分了可直接执行/可准备的相邻能力（策略配置仅准备、查询与读取结果，合同 workbench-policy-configuration/v2；即时巡检与故障排查经子 Agent 执行）与仅能给建议的部分（建议条目均标注尚未执行），并列出明确不可用项（Bash/PowerShell/代码执行、网络搜索、通用委派、直接处置、跨租户访问），与 AGENTS.md 及 Skill 文本相符。证据缺口也被如实标注：是否本 Session 被 Guard 放行未实测、未核对 role-tool-matrix.yaml、当前为 Experiment Candidate，符合不得虚构未装载能力的要求。"
+  },
+  "checks": {
+    "session_id": "session-6fa24a3c-82e6-4e5d-8760-2d800b85102c",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

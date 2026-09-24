@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "响应处置支持哪些能力？"
+  ],
+  "assistant_texts": [
+    "## 响应处置能力：边界说明\n\n**结论：当前会话不具备可直接调用的响应处置能力。** 响应规划是一条受信受控路由，仅在模型外 Runtime 完成授权与上下文冻结后才可能被触发，用户提问或文字授权本身不能建立该路由。\n\n### 事实（来自本会话已装载的 Skill 契约）\n\n响应规划路由在**被受信 Runtime 正常开启后**，其能力范围是：\n\n- **一次零工具结构化规划**：专用 Agent 以 `tools: []` 运行，仅基于冻结输入规划一次，不调用任何工具、无副作用。\n- **输入严格受限于冻结内容**：仅含 `schema_version`、`request_id`、`incident_summary`、`confirmed_evidence`、`constraints`、`requested_output`；不得从父会话补造事实，也不接受让模型自行判断授权来源的字段。\n- **输出严格限于规划结果**：仅含 `schema_version`、`request_id`、`plan`、`assumptions`、`risks`、`evidence_refs`，并原样复用输入 `request_id`。\n- **确认、保存、执行、监控与效果验证均不在该路由内**，由外部响应生命周期控制面负责。\n\n### 推断（非工具结果，需标注为不确定性）\n\n- 由于本 Skill 规定「不在普通会话中自动发现或由用户直接调用」，本轮仅加载了契约文本，**未发起任何委派**；按工作区规则 `delegate_response_planning` 在本会话默认会被 Guard 拒绝。\n- 因此无法向你提供真实候选集合、可用动作清单或当前环境实际绑定的处置动作列表——这些属于 Runtime 绑定与候选冻结的内容，Skill 文本不构成能力清单。\n\n### 能力缺口（明确不可用）\n\n- 规则变更、封禁、隔离、凭据处置等**真实处置执行**：不可用。\n- 处置的**批准、下发、监控、回滚**：不可用。\n- 处置**效果验证**：不可用。\n- 若你需要处置动作目录，我无法从文件、Shell、策略或巡检工具中替代取得——工作区规则禁止绕过。\n\n### 建议（均未执行）\n\n1. 如果你需要真实的响应规划，请由宿主侧 Runtime 完成身份、租户、会话、授权、候选集合与上下文冻结，并以专用 route 委派。\n2. 如果你的实际目标是**排查某个事件的资产、事件、路径、覆盖或可达性问题**，可转入故障排查路由（`delegate_fault_analysis`），该路由有 15 个 SOC 只读工具，只取证、不处置。\n3. 如果你要了解**巡检能力目录**，可转入 `delegate_inspection` 的能力查询路径。\n\n请告知你更接近哪一类目标，我按对应路由继续。"
+  ],
+  "session_id": "session-b3f65afe-19cc-4799-9514-c98ff5aa1df5",
+  "turns": [
+    {
+      "assistant_text": "## 响应处置能力：边界说明\n\n**结论：当前会话不具备可直接调用的响应处置能力。** 响应规划是一条受信受控路由，仅在模型外 Runtime 完成授权与上下文冻结后才可能被触发，用户提问或文字授权本身不能建立该路由。\n\n### 事实（来自本会话已装载的 Skill 契约）\n\n响应规划路由在**被受信 Runtime 正常开启后**，其能力范围是：\n\n- **一次零工具结构化规划**：专用 Agent 以 `tools: []` 运行，仅基于冻结输入规划一次，不调用任何工具、无副作用。\n- **输入严格受限于冻结内容**：仅含 `schema_version`、`request_id`、`incident_summary`、`confirmed_evidence`、`constraints`、`requested_output`；不得从父会话补造事实，也不接受让模型自行判断授权来源的字段。\n- **输出严格限于规划结果**：仅含 `schema_version`、`request_id`、`plan`、`assumptions`、`risks`、`evidence_refs`，并原样复用输入 `request_id`。\n- **确认、保存、执行、监控与效果验证均不在该路由内**，由外部响应生命周期控制面负责。\n\n### 推断（非工具结果，需标注为不确定性）\n\n- 由于本 Skill 规定「不在普通会话中自动发现或由用户直接调用」，本轮仅加载了契约文本，**未发起任何委派**；按工作区规则 `delegate_response_planning` 在本会话默认会被 Guard 拒绝。\n- 因此无法向你提供真实候选集合、可用动作清单或当前环境实际绑定的处置动作列表——这些属于 Runtime 绑定与候选冻结的内容，Skill 文本不构成能力清单。\n\n### 能力缺口（明确不可用）\n\n- 规则变更、封禁、隔离、凭据处置等**真实处置执行**：不可用。\n- 处置的**批准、下发、监控、回滚**：不可用。\n- 处置**效果验证**：不可用。\n- 若你需要处置动作目录，我无法从文件、Shell、策略或巡检工具中替代取得——工作区规则禁止绕过。\n\n### 建议（均未执行）\n\n1. 如果你需要真实的响应规划，请由宿主侧 Runtime 完成身份、租户、会话、授权、候选集合与上下文冻结，并以专用 route 委派。\n2. 如果你的实际目标是**排查某个事件的资产、事件、路径、覆盖或可达性问题**，可转入故障排查路由（`delegate_fault_analysis`），该路由有 15 个 SOC 只读工具，只取证、不处置。\n3. 如果你要了解**巡检能力目录**，可转入 `delegate_inspection` 的能力查询路径。\n\n请告知你更接近哪一类目标，我按对应路由继续。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "27e0d724-da3f-45de-80f9-79c5a3f935a5"
+    }
+  ]
+}

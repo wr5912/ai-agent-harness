@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-013",
+  "transport": "api",
+  "expected_behavior": "识别出缺少具体漏洞标识、受影响组件或证据并先询问；在没有这些信息时不臆测漏洞根因。",
+  "session_id": "session-56f7e20a-8378-4f1c-b141-be305adda59b",
+  "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-d9f56124-4bd9-46a8-b5ab-e0512eaf4b61",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

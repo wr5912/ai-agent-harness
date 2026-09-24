@@ -1,0 +1,43 @@
+{"source":"evidence/U-QA-012/response.json","source_line":1,"chunk":1,"text":"{\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":2,"chunk":1,"text":"  \"inputs\": [\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":3,"chunk":1,"text":"    \"这是最新结论吗？如果检索到相互冲突、过期、低相关结果或完全没有结果，应如何处理？\"\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":4,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":5,"chunk":1,"text":"  \"assistant_texts\": [\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":6,"chunk":1,"text":"    \"**结论：我目前无法确认“这是最新结论”。**\\n\\n原因不是检索出了问题，而是本轮上下文里**没有任何在先结论**可据以判断“最新”：你没有给出上一条结论、报告 ID 或结论来源，我也不能凭记忆或跨会话缓存声明某个结论仍有效。因此准确说法是：**信息不足，无法判定时效性**，而不是“已是最新”。若你指某个具体报告或上一轮输出，请给出对象、结论摘要或时间窗，我再判断它是否仍成立。\\n\\n## 我的处理规则（冲突 / 过期 / 低相关 / 无结果）\\n\\n**1. 冲突**\\n- 不自行取平均或折中"}
+{"source":"evidence/U-QA-012/response.json","source_line":6,"chunk":2,"text":"，分别列出各自取值与来源，并显式标注“结论冲突，未裁定”。\\n- 仅在存在明确优先级时收敛：权威源（本轮工具结果、授权数据源）> 用户提供的结构化字段 > 附件 > 转述；同一层级内不靠“看起来更合理”选择。\\n- 无法判定时输出两个候选结论及其差异点，交由你确认，不隐藏分歧。\\n\\n**2. 过期**\\n- 以各结果自带的时间字段为准，逐项列出时间，不替对方换算或推断新鲜度。\\n- 时间更晚不等于更权威；若晚出的结果来自较低权威源，我会保留旧结论并标注冲突。\\n- 缺少时间字段的结果一律按“时效未知”处理"}
+{"source":"evidence/U-QA-012/response.json","source_line":6,"chunk":3,"text":"，不默认为最新，也不默认为过期。\\n\\n**3. 低相关**\\n- 只保留与本次问题实体、动作、时间窗均对得上的结果；相关性不足的结果我会单列“已排除及原因”，而不是静默丢弃或用它填补空缺。\\n- 不把相似名称、相近编号或邻近时间当作同一对象。\\n\\n**4. 完全没有结果 / 能力缺口**\\n- 直接说明“无结果”或“该项无授权数据源”，不推测、不用其他工具顶替、不编造 ID 或链接。\\n- 若能力当前不可用（例如检索或威胁分析服务未配置），我会说明缺口本身，而不是给出等价替代结论。\\n\\n## 建议（均"}
+{"source":"evidence/U-QA-012/response.json","source_line":6,"chunk":4,"text":"未执行）\\n\\n1. 指明待核实的具体结论或对象与时间窗，我可基于本轮结果重新核对时效与冲突。\\n2. 若需要**实时** SOC 证据来替代既有结论，走故障排查或即时巡检路线；这两条路线我不会自行启动，需你明确要求。\\n3. 需要正式“最新结论”时，请给出授权数据源或检查项，我不会用记忆、缓存或跨会话内容充当结论来源。\\n\\n**未知项**：上一条结论的内容与出处、比对基准时间、目标环境当前状态。这三项缺失是我无法判定“最新”的直接原因。\"\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":7,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":8,"chunk":1,"text":"  \"session_id\": \"session-e2656677-f438-4b1a-849f-1fce46aa9c68\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":9,"chunk":1,"text":"  \"turns\": [\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":10,"chunk":1,"text":"    {\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":11,"chunk":1,"text":"      \"assistant_text\": \"**结论：我目前无法确认“这是最新结论”。**\\n\\n原因不是检索出了问题，而是本轮上下文里**没有任何在先结论**可据以判断“最新”：你没有给出上一条结论、报告 ID 或结论来源，我也不能凭记忆或跨会话缓存声明某个结论仍有效。因此准确说法是：**信息不足，无法判定时效性**，而不是“已是最新”。若你指某个具体报告或上一轮输出，请给出对象、结论摘要或时间窗，我再判断它是否仍成立。\\n\\n## 我的处理规则（冲突 / 过期 / 低相关 / 无结果）\\n\\n**"}
+{"source":"evidence/U-QA-012/response.json","source_line":11,"chunk":2,"text":"1. 冲突**\\n- 不自行取平均或折中，分别列出各自取值与来源，并显式标注“结论冲突，未裁定”。\\n- 仅在存在明确优先级时收敛：权威源（本轮工具结果、授权数据源）> 用户提供的结构化字段 > 附件 > 转述；同一层级内不靠“看起来更合理”选择。\\n- 无法判定时输出两个候选结论及其差异点，交由你确认，不隐藏分歧。\\n\\n**2. 过期**\\n- 以各结果自带的时间字段为准，逐项列出时间，不替对方换算或推断新鲜度。\\n- 时间更晚不等于更权威；若晚出的结果来自较低权威源，我会保留旧结论并标注冲突。\\n- "}
+{"source":"evidence/U-QA-012/response.json","source_line":11,"chunk":3,"text":"缺少时间字段的结果一律按“时效未知”处理，不默认为最新，也不默认为过期。\\n\\n**3. 低相关**\\n- 只保留与本次问题实体、动作、时间窗均对得上的结果；相关性不足的结果我会单列“已排除及原因”，而不是静默丢弃或用它填补空缺。\\n- 不把相似名称、相近编号或邻近时间当作同一对象。\\n\\n**4. 完全没有结果 / 能力缺口**\\n- 直接说明“无结果”或“该项无授权数据源”，不推测、不用其他工具顶替、不编造 ID 或链接。\\n- 若能力当前不可用（例如检索或威胁分析服务未配置），我会说明缺口本身，而不是"}
+{"source":"evidence/U-QA-012/response.json","source_line":11,"chunk":4,"text":"给出等价替代结论。\\n\\n## 建议（均未执行）\\n\\n1. 指明待核实的具体结论或对象与时间窗，我可基于本轮结果重新核对时效与冲突。\\n2. 若需要**实时** SOC 证据来替代既有结论，走故障排查或即时巡检路线；这两条路线我不会自行启动，需你明确要求。\\n3. 需要正式“最新结论”时，请给出授权数据源或检查项，我不会用记忆、缓存或跨会话内容充当结论来源。\\n\\n**未知项**：上一条结论的内容与出处、比对基准时间、目标环境当前状态。这三项缺失是我无法判定“最新”的直接原因。\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":12,"chunk":1,"text":"      \"route\": {\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":13,"chunk":1,"text":"        \"provider\": \"deepseek-official\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":14,"chunk":1,"text":"        \"model\": \"deepseek-flash\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":15,"chunk":1,"text":"        \"maxTokens\": 256000,\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":16,"chunk":1,"text":"        \"reasoningEffort\": \"high\"\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":17,"chunk":1,"text":"      },\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":18,"chunk":1,"text":"      \"tool_names\": [\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":19,"chunk":1,"text":"        \"delegate_fault_analysis\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":20,"chunk":1,"text":"        \"delegate_inspection\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":21,"chunk":1,"text":"        \"delegate_response_planning\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":22,"chunk":1,"text":"        \"edit\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":23,"chunk":1,"text":"        \"glob\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":24,"chunk":1,"text":"        \"grep\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":25,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_result\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":26,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_status\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":27,"chunk":1,"text":"        \"mcp__sec-ops__prepare_policy_configuration\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":28,"chunk":1,"text":"        \"read\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":29,"chunk":1,"text":"        \"skill\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":30,"chunk":1,"text":"        \"write\"\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":31,"chunk":1,"text":"      ],\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":32,"chunk":1,"text":"      \"turn_reason\": \"completed\",\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":33,"chunk":1,"text":"      \"turn\": 1,\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":34,"chunk":1,"text":"      \"input_message_id\": \"50acc912-1ef0-446e-94e6-7b95a8e7719c\"\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":35,"chunk":1,"text":"    }\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":36,"chunk":1,"text":"  ]\n"}
+{"source":"evidence/U-QA-012/response.json","source_line":37,"chunk":1,"text":"}\n"}

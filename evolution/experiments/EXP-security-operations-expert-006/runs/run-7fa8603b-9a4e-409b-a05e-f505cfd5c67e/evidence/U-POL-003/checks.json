@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-POL-003",
+  "completed": false,
+  "expected_behavior": "通过真实资产和拓扑查询识别需要配置的安全设备，再生成策略预览；结果引用本轮工具返回，未执行时明确停留在预览或确认阶段。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

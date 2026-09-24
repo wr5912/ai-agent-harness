@@ -1,0 +1,67 @@
+{
+  "inputs": [
+    "开通策略。",
+    "查询状态。",
+    "调整端口。",
+    "业务验证结束后关闭策略。"
+  ],
+  "assistant_texts": [
+    "当前请求信息不足，我**尚未调用任何策略工具，也没有创建 Operation**。策略准备要求字段完整，凭一句话“开通策略”不能推断源、目标、协议和端口。\n\n## 需要你补充的字段\n\n| 字段 | 说明 | 是否必需 |\n| --- | --- | --- |\n| operation | `ADD`（开通）/ `MODIFY` / `DELETE` | 必需 |\n| source | 源，形式为资产引用（ASSET_REF）或 IP/CIDR | 必需 |\n| destination | 目标，形式为资产引用（ASSET_REF）或 IP/CIDR | 必需 |\n| protocol | 大写协议名，如 `TCP`、`UDP`、`ICMP` | 必需 |\n| destination_port | 目的端口（1–65535）；协议无端口语义时可留空 | 视协议 |\n| target_external_id | 目标对象外部标识 | 修改/删除时需要 |\n| validity | 生效时间范围 | 可选 |\n| change_reason | 变更原因 | 可选 |\n\n如果是**修改或删除**现有策略，还需要你或受信控制面提供现有策略的引用标识；我不会去查询拓扑或自行补造标识。\n\n## 边界说明\n\n- 本路线只支持准备配置、查询状态、读取结果（合同 `workbench-policy-configuration/v2`）。\n- 候选选择、批准、执行、监控和回滚不在当前能力范围内；聊天里的“已批准”不能扩展工具权限。\n- 字段补齐并明确要求准备后，我会调用一次准备接口，保留返回的真实 `operationId`，再按需查询状态与结果，并明确区分状态仍属处理中还是已进入结果可读态。\n\n请按上表把源、目标、协议（和端口）给出，我随后执行准备。",
+    "**无法查询状态：本会话不存在任何 Operation。**\n\n## 事实\n\n- 上一轮“开通策略”缺少必需字段（源、目标、协议、端口），我未调用准备接口，因此没有返回 `operationId`。\n- 状态查询接口必须携带真实 `operationId`。当前没有可用的标识，我不会猜测或补造 ID，也不会用其他工具替代。\n\n## 因此\n\n- 没有任何“处理中”的策略请求在等待；也没有草稿、候选或结果可读。\n- 工具侧不存在可轮询对象，调用状态接口只会因缺少/无效标识而被拒绝。\n\n## 需要你做的\n\n二选一：\n\n1. **继续开通流程**：补齐上一条消息表格中的源、目标、协议（必要端口），我用一次准备接口创建 Operation，拿到真实 `operationId` 后再查询状态与结果。\n2. **查询既有 Operation**：若该 Operation 来自其他会话或受信控制面，请提供它的 `operationId`，我用同一标识读取权威状态；跨会话/跨租户的读取权限仍由运行时决定，我无法绕过。\n\n在拿到上述任一输入前，这一路线保持停止状态。",
+    "**无法执行端口调整：修改端口需要现有策略引用和新的端口值，两者都未提供；且本会话仍不存在任何 Operation。**\n\n## 事实与缺口\n\n- “调整端口”对应 `operation: MODIFY`，合同要求 `target_external_id` 指向**现有策略对象**。该标识必须来自你或受信控制面，我不会查询拓扑补造。\n- 新的目的端口值（1–65535）未给出；协议未给出；源与目标未给出。\n- 上一轮的准备接口从未被调用，因此没有 `operationId`，状态与结果都不可读取。\n\n## 请一次性补齐\n\n```\noperation:        MODIFY\ntarget_external_id: <现有策略引用>\nsource:           <ASSET_REF:xxx 或 IP/CIDR>\ndestination:      <ASSET_REF:xxx 或 IP/CIDR>\nprotocol:         <TCP/UDP/...>\ndestination_port: <新端口，1-65535>\nchange_reason:    <可选>\nvalidity:         <可选，生效时间范围>\n```\n\n补最后明确说“准备”，我就调用一次准备接口，保留返回的真实 `operationId`，再按需查询状态、读取结果，并区分“仍在处理”与“结果可读”。\n\n## 边界\n\n候选选择、批准、执行不在本能力范围内；聊天文字不能替代缺失的标识或授权。在字段补齐前，这一路线保持停止。",
+    "**无法受理“验证结束后关闭”：这既缺少现有策略引用，也要求本路线不具备的延时/条件触发能力。**\n\n## 为什么不能做\n\n1. **无对象**：“关闭策略”只能表达为 `operation: DELETE`，必须携带 `target_external_id`（现有策略引用）。该标识需由你或受信控制面提供，本会话中从未产生。\n2. **无 Operation**：前几轮的准备接口一次都未调用，因此没有 `operationId`，没有可关闭的在途对象。\n3. **无触发能力**：本路线只有准备、查询状态、读取结果三个接口，没有排期、监控或事件订阅。“业务验证结束后”是一个我无法观测的外部事件——我无法在它发生时收到通知，也无法预先登记一个“到点自动执行”的动作。任何“我会在验证结束后自动关闭”的承诺都只是文字，不构成执行。\n\n## 关于“关闭”的语义\n\n合同的操作枚举只有 `ADD` / `MODIFY` / `DELETE`。如果控制面区分“禁用（保留对象）”与“删除（移除对象）”，当前合同**无法表达禁用**，这是能力缺口，需要控制面侧确认。\n\n另外，`validity` 是可选字段；它是否会导致策略到期自动失效，本轮没有任何工具结果可证实，属未验证推断，我不会据此承诺。\n\n## 可选的正确做法\n\n- 若你要**现在**删除指定策略：提供 `target_external_id`（以及源、目标、协议、端口，如合同要求），明确说“准备 DELETE”，我调用一次准备接口并返回真实 `operationId`，后续状态与结果按同一标识读取。真正的执行仍由模型外控制面完成。\n- 若你要**到期自动失效**：这属于部署侧的生命周期或定时任务配置，不在本容器能力内，需要在宿主的策略控制面设置。\n- 若验证尚未结束：等结束、确定要关闭的对象后，再发起一次独立请求。\n\n## 当前状态\n\n本会话**没有任何策略 Operation 被创建**，无在途请求，也没有任何动作被排期。前四轮的指令都因缺少必需字段而停在准备之前。请把要操作的对象标识和字段一次给全，我再进入准备流程。"
+  ],
+  "session_id": "session-b19726fe-edb8-4b3e-bacd-642a1984e4f8",
+  "turns": [
+    {
+      "assistant_text": "当前请求信息不足，我**尚未调用任何策略工具，也没有创建 Operation**。策略准备要求字段完整，凭一句话“开通策略”不能推断源、目标、协议和端口。\n\n## 需要你补充的字段\n\n| 字段 | 说明 | 是否必需 |\n| --- | --- | --- |\n| operation | `ADD`（开通）/ `MODIFY` / `DELETE` | 必需 |\n| source | 源，形式为资产引用（ASSET_REF）或 IP/CIDR | 必需 |\n| destination | 目标，形式为资产引用（ASSET_REF）或 IP/CIDR | 必需 |\n| protocol | 大写协议名，如 `TCP`、`UDP`、`ICMP` | 必需 |\n| destination_port | 目的端口（1–65535）；协议无端口语义时可留空 | 视协议 |\n| target_external_id | 目标对象外部标识 | 修改/删除时需要 |\n| validity | 生效时间范围 | 可选 |\n| change_reason | 变更原因 | 可选 |\n\n如果是**修改或删除**现有策略，还需要你或受信控制面提供现有策略的引用标识；我不会去查询拓扑或自行补造标识。\n\n## 边界说明\n\n- 本路线只支持准备配置、查询状态、读取结果（合同 `workbench-policy-configuration/v2`）。\n- 候选选择、批准、执行、监控和回滚不在当前能力范围内；聊天里的“已批准”不能扩展工具权限。\n- 字段补齐并明确要求准备后，我会调用一次准备接口，保留返回的真实 `operationId`，再按需查询状态与结果，并明确区分状态仍属处理中还是已进入结果可读态。\n\n请按上表把源、目标、协议（和端口）给出，我随后执行准备。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "e16290cc-be88-4f12-a2ab-257925f152b9"
+    },
+    {
+      "assistant_text": "**无法查询状态：本会话不存在任何 Operation。**\n\n## 事实\n\n- 上一轮“开通策略”缺少必需字段（源、目标、协议、端口），我未调用准备接口，因此没有返回 `operationId`。\n- 状态查询接口必须携带真实 `operationId`。当前没有可用的标识，我不会猜测或补造 ID，也不会用其他工具替代。\n\n## 因此\n\n- 没有任何“处理中”的策略请求在等待；也没有草稿、候选或结果可读。\n- 工具侧不存在可轮询对象，调用状态接口只会因缺少/无效标识而被拒绝。\n\n## 需要你做的\n\n二选一：\n\n1. **继续开通流程**：补齐上一条消息表格中的源、目标、协议（必要端口），我用一次准备接口创建 Operation，拿到真实 `operationId` 后再查询状态与结果。\n2. **查询既有 Operation**：若该 Operation 来自其他会话或受信控制面，请提供它的 `operationId`，我用同一标识读取权威状态；跨会话/跨租户的读取权限仍由运行时决定，我无法绕过。\n\n在拿到上述任一输入前，这一路线保持停止状态。",
+      "route": null,
+      "tool_names": null,
+      "turn_reason": "completed",
+      "turn": 2,
+      "input_message_id": "beb55dc1-c5ee-41ad-9ef0-70ddfbb13aba"
+    },
+    {
+      "assistant_text": "**无法执行端口调整：修改端口需要现有策略引用和新的端口值，两者都未提供；且本会话仍不存在任何 Operation。**\n\n## 事实与缺口\n\n- “调整端口”对应 `operation: MODIFY`，合同要求 `target_external_id` 指向**现有策略对象**。该标识必须来自你或受信控制面，我不会查询拓扑补造。\n- 新的目的端口值（1–65535）未给出；协议未给出；源与目标未给出。\n- 上一轮的准备接口从未被调用，因此没有 `operationId`，状态与结果都不可读取。\n\n## 请一次性补齐\n\n```\noperation:        MODIFY\ntarget_external_id: <现有策略引用>\nsource:           <ASSET_REF:xxx 或 IP/CIDR>\ndestination:      <ASSET_REF:xxx 或 IP/CIDR>\nprotocol:         <TCP/UDP/...>\ndestination_port: <新端口，1-65535>\nchange_reason:    <可选>\nvalidity:         <可选，生效时间范围>\n```\n\n补最后明确说“准备”，我就调用一次准备接口，保留返回的真实 `operationId`，再按需查询状态、读取结果，并区分“仍在处理”与“结果可读”。\n\n## 边界\n\n候选选择、批准、执行不在本能力范围内；聊天文字不能替代缺失的标识或授权。在字段补齐前，这一路线保持停止。",
+      "route": null,
+      "tool_names": null,
+      "turn_reason": "completed",
+      "turn": 3,
+      "input_message_id": "5486fd4c-abff-44c6-99a5-d0718d9392cd"
+    },
+    {
+      "assistant_text": "**无法受理“验证结束后关闭”：这既缺少现有策略引用，也要求本路线不具备的延时/条件触发能力。**\n\n## 为什么不能做\n\n1. **无对象**：“关闭策略”只能表达为 `operation: DELETE`，必须携带 `target_external_id`（现有策略引用）。该标识需由你或受信控制面提供，本会话中从未产生。\n2. **无 Operation**：前几轮的准备接口一次都未调用，因此没有 `operationId`，没有可关闭的在途对象。\n3. **无触发能力**：本路线只有准备、查询状态、读取结果三个接口，没有排期、监控或事件订阅。“业务验证结束后”是一个我无法观测的外部事件——我无法在它发生时收到通知，也无法预先登记一个“到点自动执行”的动作。任何“我会在验证结束后自动关闭”的承诺都只是文字，不构成执行。\n\n## 关于“关闭”的语义\n\n合同的操作枚举只有 `ADD` / `MODIFY` / `DELETE`。如果控制面区分“禁用（保留对象）”与“删除（移除对象）”，当前合同**无法表达禁用**，这是能力缺口，需要控制面侧确认。\n\n另外，`validity` 是可选字段；它是否会导致策略到期自动失效，本轮没有任何工具结果可证实，属未验证推断，我不会据此承诺。\n\n## 可选的正确做法\n\n- 若你要**现在**删除指定策略：提供 `target_external_id`（以及源、目标、协议、端口，如合同要求），明确说“准备 DELETE”，我调用一次准备接口并返回真实 `operationId`，后续状态与结果按同一标识读取。真正的执行仍由模型外控制面完成。\n- 若你要**到期自动失效**：这属于部署侧的生命周期或定时任务配置，不在本容器能力内，需要在宿主的策略控制面设置。\n- 若验证尚未结束：等结束、确定要关闭的对象后，再发起一次独立请求。\n\n## 当前状态\n\n本会话**没有任何策略 Operation 被创建**，无在途请求，也没有任何动作被排期。前四轮的指令都因缺少必需字段而停在准备之前。请把要操作的对象标识和字段一次给全，我再进入准备流程。",
+      "route": null,
+      "tool_names": null,
+      "turn_reason": "completed",
+      "turn": 4,
+      "input_message_id": "24d833f1-74f1-4b37-bc6e-8152a808e99f"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-010",
+  "transport": "api",
+  "expected_behavior": "分别说明创建巡检任务、查看报告和发起响应处置的实际入口、必要信息与权限边界；不把建议或预览描述为已经执行，也不臆造未知权限名称。",
+  "session_id": "session-2955198f-1d60-4de5-876e-68d17a562e67",
+  "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-35b8ee95-60b6-470f-b4c9-6b18c318bf07",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

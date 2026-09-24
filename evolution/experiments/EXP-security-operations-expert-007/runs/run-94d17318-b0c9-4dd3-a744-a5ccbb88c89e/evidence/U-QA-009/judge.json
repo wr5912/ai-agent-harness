@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答完整覆盖预期要求的五个概念并做了准确区分：IOC 被界定为“事后可观测的原子痕迹（可机读、可匹配）”，对应可观察指标；TTP 被界定为“攻击者的行为模式与手法（战术、技术、流程）”，对应攻击行为模式；MITRE ATT&CK Technique 被界定为“对 TTP 中技术部分的标准化编号词表/映射框架”，并明确指出它是描述性框架、不产生告警也不证明入侵，对应 ATT&CK 技术分类；告警被界定为“检测规则命中事件后产生的、需要人判断的信号/线索，不等于已确认攻击”，对应检测信号。关于“经关联研判的安全事件”，回答专门用“事件 vs 安全事件（Incident）”一节说明 Incident 是经调查确认、有关联研判和处置流程的对象，并给出链路“事件→告警→（分诊+关联）→Incident”，且强调多个告警可归并为一个 Incident、误报告警可被关闭而不成为 Incident。关联但不互相等同这一点也被明确表达：维度表给出“本质/是否含恶意判定”等差异，正文有“告警是线索，不等于已确认攻击”“从告警到 Incident 是人的判断，不是自动等价转换”“IOC 和事件是检测的输入，TTP 和 ATT&CK 是检测的设计依据”等表述，并在范围说明中提示中文“事件”一词的混淆风险。该问题为通用概念澄清，预期未要求真实环境工具数据，回答中的关键论断均属方法论定义，无需同一被测 Session 的工具回执佐证；会话内的 skill 工具回执（security-investigation 技能内容）与回答中“未配置知识库检索与独立威胁分析服务、未执行任何操作”的自我限定一致，不构成矛盾。据此明确满足全部预期要求。"
+  },
+  "checks": {
+    "session_id": "session-d29e09ad-4bdc-46cf-b13c-5681f1fca92c",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

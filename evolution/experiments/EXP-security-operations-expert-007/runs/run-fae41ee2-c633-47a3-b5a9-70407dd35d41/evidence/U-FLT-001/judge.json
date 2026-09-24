@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答确实经由真实故障分析能力（fault-analysis 技能 + delegate_fault_analysis 子 Agent）形成正式结果，并严格区分事实、推断、证据缺口与建议：资产离线、路径 REACHABLE、流会话为空、跨信号汇总、覆盖 50、告警与漏洞等关键数据均可在同一被测 Session 的工具回执中逐条对应（assetId 3617440/3617448、online/probeState、reachability path=[\"3617442\"]、flow 空数组、coveragePct 50、CVE-1999-0524 等），无编造。工具失败被如实记为证据缺口而非正常或根因：get_graph_path_query HTTP 500 明确标注为上游 API 错误、合规空集语义未明、业务系统关联为空、AEC 归属歧义、台账离线与 ACTIVE 流冲突等均保留未断言。根因未强行定论，而是给出分叉点并标注为推断。处置方面，明确声明本轮为排查路由、未执行处置、未创建分析运行，建议全部标注“尚未执行、需另行审批”，并说明需先明确操作类型与参数才发起准备，符合“处置只能基于正式结果并在必要确认后发起”。"
+  },
+  "checks": {
+    "session_id": "session-25989e9e-4c1e-4fac-9886-a16edcf9515a",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

@@ -1,0 +1,45 @@
+{"source":"evidence/U-QA-011/response.json","source_line":1,"chunk":1,"text":"{\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":2,"chunk":1,"text":"  \"inputs\": [\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":3,"chunk":1,"text":"    \"内部《安全事件分级规范》如何定义重大事件？值班人员应该怎么升级？\"\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":4,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":5,"chunk":1,"text":"  \"assistant_texts\": [\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":6,"chunk":1,"text":"    \"## 结论\\n\\n**我无法回答这份规范的具体内容。** 本轮工作区内没有《安全事件分级规范》或任何内部制度文件，当前也未配置知识库检索能力，因此我没有任何可引用的事实来源——任何关于\\\"重大事件\\\"定义或升级时限的说法都只能是我编造的，我不会这样做。\\n\\n## 事实与缺口\\n\\n**已确认的事实（来自本轮工具结果）**\\n\\n- 工作区实际只有 8 个文件：`AGENTS.md`、`.env`，以及 6 个 Skill 定义（`fault-analysis`、`security-investi"}
+{"source":"evidence/U-QA-011/response.json","source_line":6,"chunk":2,"text":"gation`、`playbook-impact-assessment`、`security-inspection`、`response-planning`、`policy-configuration`）。不含任何制度、规范或分级标准文档。\\n- `security-investigation` Skill 明确说明：当前没有知识库检索和独立威胁分析服务。\\n\\n**证据缺口**\\n\\n- 该规范的版本、生效日期、事件分级名称与各级判定阈值未知。\\n- 升级路径（值班 → 谁 → 谁）、升级时限、通知方式与"}
+{"source":"evidence/U-QA-011/response.json","source_line":6,"chunk":3,"text":"升级后的授权动作未知。\\n- 此处不存在可调用的文档检索或 SOC 事件查询工具，无法用其他工具替代查证。\\n\\n**一般性行业实践（明确非贵方规范，仅供对话参考）**\\n\\n分级通常按影响面与严重度划分若干级（如一般/较大/重大/特别重大），重大一级一般由业务中断范围、数据泄露规模、核心系统不可用、监管或合规影响等维度判定；值班侧常见动作是把事件从一线受理升级给当班负责人与对应领域责任人，并在固定时限内完成首次上报。**具体阈值与时限必须以贵方规范原文为准，请勿以此段作为操作依据。**\\n\\n## 建议\\"}
+{"source":"evidence/U-QA-011/response.json","source_line":6,"chunk":4,"text":"n\\n1. **直接提供规范正文**（粘贴或说明可读取路径），我可以基于原文做分级判定要点的梳理、值班升级流程的可执行清单，或按具体事件做定级比对。\\n2. **补齐知识库能力**：若希望我直接在容器内查证内部制度，需要在 Runtime 侧配置受信的知识库检索服务；当前该路线不可用，我不会用文件、巡检或策略工具顶替。\\n3. 若你实际想问的是**某个具体事件该定几级、该不该升级**，请提供事件事实（时间、影响资产、业务影响、当前处置状态），这属于通用安全调查范围，我可以给出事实、推断、置信度与未执行建议；"}
+{"source":"evidence/U-QA-011/response.json","source_line":6,"chunk":5,"text":"需要实时 SOC 证据时则转故障排查路由。\\n\\n## 说明\\n\\n以上建议均**尚未执行**。本轮未调用任何 SOC 取证、巡检或策略工具，也未读取到任何内部规范内容。\"\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":7,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":8,"chunk":1,"text":"  \"session_id\": \"session-5e448db2-e4b5-417c-a162-742fd23fa663\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":9,"chunk":1,"text":"  \"turns\": [\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":10,"chunk":1,"text":"    {\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":11,"chunk":1,"text":"      \"assistant_text\": \"## 结论\\n\\n**我无法回答这份规范的具体内容。** 本轮工作区内没有《安全事件分级规范》或任何内部制度文件，当前也未配置知识库检索能力，因此我没有任何可引用的事实来源——任何关于\\\"重大事件\\\"定义或升级时限的说法都只能是我编造的，我不会这样做。\\n\\n## 事实与缺口\\n\\n**已确认的事实（来自本轮工具结果）**\\n\\n- 工作区实际只有 8 个文件：`AGENTS.md`、`.env`，以及 6 个 Skill 定义（`fault-analysi"}
+{"source":"evidence/U-QA-011/response.json","source_line":11,"chunk":2,"text":"s`、`security-investigation`、`playbook-impact-assessment`、`security-inspection`、`response-planning`、`policy-configuration`）。不含任何制度、规范或分级标准文档。\\n- `security-investigation` Skill 明确说明：当前没有知识库检索和独立威胁分析服务。\\n\\n**证据缺口**\\n\\n- 该规范的版本、生效日期、事件分级名称与各级判定阈值未知。\\n- 升级路径（值班"}
+{"source":"evidence/U-QA-011/response.json","source_line":11,"chunk":3,"text":" → 谁 → 谁）、升级时限、通知方式与升级后的授权动作未知。\\n- 此处不存在可调用的文档检索或 SOC 事件查询工具，无法用其他工具替代查证。\\n\\n**一般性行业实践（明确非贵方规范，仅供对话参考）**\\n\\n分级通常按影响面与严重度划分若干级（如一般/较大/重大/特别重大），重大一级一般由业务中断范围、数据泄露规模、核心系统不可用、监管或合规影响等维度判定；值班侧常见动作是把事件从一线受理升级给当班负责人与对应领域责任人，并在固定时限内完成首次上报。**具体阈值与时限必须以贵方规范原文为准，请勿以此"}
+{"source":"evidence/U-QA-011/response.json","source_line":11,"chunk":4,"text":"段作为操作依据。**\\n\\n## 建议\\n\\n1. **直接提供规范正文**（粘贴或说明可读取路径），我可以基于原文做分级判定要点的梳理、值班升级流程的可执行清单，或按具体事件做定级比对。\\n2. **补齐知识库能力**：若希望我直接在容器内查证内部制度，需要在 Runtime 侧配置受信的知识库检索服务；当前该路线不可用，我不会用文件、巡检或策略工具顶替。\\n3. 若你实际想问的是**某个具体事件该定几级、该不该升级**，请提供事件事实（时间、影响资产、业务影响、当前处置状态），这属于通用安全调查范围，我"}
+{"source":"evidence/U-QA-011/response.json","source_line":11,"chunk":5,"text":"可以给出事实、推断、置信度与未执行建议；需要实时 SOC 证据时则转故障排查路由。\\n\\n## 说明\\n\\n以上建议均**尚未执行**。本轮未调用任何 SOC 取证、巡检或策略工具，也未读取到任何内部规范内容。\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":12,"chunk":1,"text":"      \"route\": {\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":13,"chunk":1,"text":"        \"provider\": \"deepseek-official\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":14,"chunk":1,"text":"        \"model\": \"deepseek-flash\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":15,"chunk":1,"text":"        \"maxTokens\": 256000,\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":16,"chunk":1,"text":"        \"reasoningEffort\": \"high\"\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":17,"chunk":1,"text":"      },\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":18,"chunk":1,"text":"      \"tool_names\": [\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":19,"chunk":1,"text":"        \"delegate_fault_analysis\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":20,"chunk":1,"text":"        \"delegate_inspection\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":21,"chunk":1,"text":"        \"delegate_response_planning\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":22,"chunk":1,"text":"        \"edit\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":23,"chunk":1,"text":"        \"glob\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":24,"chunk":1,"text":"        \"grep\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":25,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_result\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":26,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_status\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":27,"chunk":1,"text":"        \"mcp__sec-ops__prepare_policy_configuration\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":28,"chunk":1,"text":"        \"read\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":29,"chunk":1,"text":"        \"skill\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":30,"chunk":1,"text":"        \"write\"\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":31,"chunk":1,"text":"      ],\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":32,"chunk":1,"text":"      \"turn_reason\": \"completed\",\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":33,"chunk":1,"text":"      \"turn\": 1,\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":34,"chunk":1,"text":"      \"input_message_id\": \"53208cff-6c5c-46cd-b019-37bda1c31988\"\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":35,"chunk":1,"text":"    }\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":36,"chunk":1,"text":"  ]\n"}
+{"source":"evidence/U-QA-011/response.json","source_line":37,"chunk":1,"text":"}\n"}

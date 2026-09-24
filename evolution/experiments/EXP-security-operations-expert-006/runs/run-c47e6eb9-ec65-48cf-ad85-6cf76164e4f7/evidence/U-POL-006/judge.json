@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "预期要求：完成真实资产/路径/设备能力核对并生成可确认的策略预览，准确说明当前阶段且未获执行回执时不声称已开通。被测回答称已生成网络访问策略草稿、未提交/审批/执行，任务 196 为 DRAFT，明确区分“草稿就绪”与“已开通/已生效”，并给出源、目标、协议、目标端口及待确认提示，还列出未知项。工具回执（seq24、seq29）为同一被测 Session 的真实结果，显示 operation_id op_df7772c0ec4840ad80fe0556af028856、result_code DRAFT_READY、stage_code awaiting_confirmation、task_status DRAFT，且 confirmation_required 为 true，与回答中的关键数据一致。回答未声称已开通，无执行回执，符合预期；虽未显式展示资产/路径/设备能力核对细节，但已忠实呈现工具状态、缺口与后续入口，未虚构能力，判定为 passed。"
+  },
+  "checks": {
+    "session_id": "session-359aa1cf-ef6f-4381-b7eb-b16853bcebdb",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

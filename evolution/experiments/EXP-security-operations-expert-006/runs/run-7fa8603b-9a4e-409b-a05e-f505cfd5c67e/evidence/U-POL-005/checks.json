@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-POL-005",
+  "completed": false,
+  "expected_behavior": "指出 172.16.1.155 是主机地址而非网段，确认或按主机对象处理后生成包含 UDP 53 和七天有效期的预览；不得静默扩大地址范围。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求针对「指定设备 172.16.1.155」核对该设备的真实资产类型与可配置能力，再给出可核对的策略预览。但被测回答与工具回执显示：只调用了 prepare_policy_configuration / get_policy_configuration_result，直接以 source={selector_type:IP,value:172.16.1.155}、destination=172.16.2.103 生成草稿式 NETWORK_ACCESS 意图，把源地址当作策略对象处理；全程没有任何针对 172.16.1.155 的资产类型、设备可配置能力或不适用性的核查，也未说明为何可把该地址直接作为设备/源对象。回答中的「未校验」仅涉及 172.16.2.103:19730 的监听与可达性，不构成对指定设备适用性的核对。虽然草稿预览本身可核对、且如实说明未提交未执行，未伪造执行成功，但缺少预期中的关键核对与设备适用性判定，属于明确不满足全部要求，故判 failed。"
+  },
+  "checks": {
+    "session_id": "session-a6707b3a-4e90-445c-93ab-0440865b22a2",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

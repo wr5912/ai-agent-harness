@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-010",
+  "completed": false,
+  "expected_behavior": "先生成有真实证据的正式故障结果，再按结果发起明确、受支持的恢复动作并验证；回复逐项对应工具回执。缺少必要参数、确认或工具能力时停止并说明，不声称已恢复。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

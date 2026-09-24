@@ -31,6 +31,7 @@ from source_contract import IMAGE_LABEL_KEY, REPO, SOURCES, resolve, strict_json
 ADAPTER = Path(__file__).resolve().parent
 STATE_ROOT = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "dsh-dev"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+RUN_ID_RE = re.compile(r"^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 TOKEN_URL_RE = re.compile(r"dsh web: (http://127\.0\.0\.1:(\d+)/\?token=[^\s()]+)")
 SECRET_RE = re.compile(r"(token=)[^\s&)\"']+")
 IMAGE_ID_RE = re.compile(r"sha256:[0-9a-f]{64}")
@@ -42,6 +43,7 @@ AUTO_PORT_START = 3081
 LAN_PROFILE = "web-lan"
 LAN_AUTH_PATCH = "/opt/dsh-adapter/verification-home-controls/web-lan.patch.yml"
 CONTAINER_WORKSPACE = "/work/harness/workspace"
+CONTAINER_ANALYSIS_WORKSPACE = "/work/evaluation-run"
 CONTAINER_REFERENCE = "/work/reference"
 # 受控模板不含任何仓库内默认值，凡读取实例 Compose 的命令都必须按实例状态注入这些变量。
 # 2.0：当前研究定义改为单一只读挂载。
@@ -50,12 +52,14 @@ CONTAINER_REFERENCE = "/work/reference"
 # 2.3：新实例只支持被测（verification）模式；旧实例仍可查询和停止。
 # 2.4：主 dsh 容器名与实例名保持一致。
 # 2.5：记录 Web Profile、LAN 开关与实际监听地址。
-INSTANCE_SCHEMA_VERSION = "2.5"
+# 2.6：归因实例只装载专用 Harness 与只读 Run，不装载业务 Candidate。
+INSTANCE_SCHEMA_VERSION = "2.6"
+ANALYSIS_PRESET = "scenario-analysis"
 # DSH Web 首次打开是冷启动：会话必须先绑定一个**已注册工作区**，而新实例的 DSH_HOME 里工作区注册表为空
 # （注册表 storages/workspace.json 只从已存会话头 bootstrap，且初始化标记一经写入不再重建）。DSH 在该锁定提交上
 # 没有受支持的工作区预注册入口，因此启动器只如实交付路径与操作步骤，不改写 Runtime 存储内部格式。
-def web_cold_start_hint(mode: str) -> str:
-    path = workspace_to_register(mode)
+def web_cold_start_hint(mode: str, analysis_workspace: str | None = None) -> str:
+    path = workspace_to_register(mode, analysis_workspace)
     return (
         "DSH Web 首次打开需要在界面注册工作区：点击“选择工作区”→ 目录对话框的“编辑路径”→ 粘贴 "
         f"“{path}” → “打开”，随后即可直接对话。该注册写入本实例 DSH_HOME 数据卷并跨重启保留；"
@@ -150,6 +154,8 @@ active_experiment: {experiment_id}
         "evaluation.md": f'''# {agent_id} 评测
 
 #### U-IDENTITY-001 身份装载
+
+**评估档位：** `fast`
 
 **用户输入**
 
@@ -316,16 +322,42 @@ def normalize_mode(value: str) -> str:
     return mode
 
 
-def workspace_to_register(mode: str) -> str:
-    """本次被测会话要注册目标 Harness 工作区本身。"""
-    normalize_mode(mode)
-    return CONTAINER_WORKSPACE
+def validate_analysis_workspace(value: str | None, *, repo: Path = REPO) -> str | None:
+    """归因只接受仓库内形如 Experiment/runs/run-UUID 的真实、无符号链接目录。"""
+    if value is None:
+        return None
+    path = Path(value)
+    try:
+        resolved = path.resolve(strict=True)
+    except OSError:
+        fail("--analysis-workspace 必须是已存在的 Run 目录")
+    if not path.is_absolute() or path != resolved or not resolved.is_dir():
+        fail("--analysis-workspace 必须是规范化的绝对 Run 目录")
+    try:
+        relative = resolved.relative_to((repo / "evolution/experiments").resolve())
+    except ValueError:
+        fail("--analysis-workspace 必须位于本仓库 evolution/experiments 下")
+    if len(relative.parts) != 3 or relative.parts[1] != "runs" \
+            or not relative.parts[0].startswith("EXP-") or not RUN_ID_RE.fullmatch(relative.parts[2]):
+        fail("--analysis-workspace 必须精确指向 Experiment 的 run-UUID 目录")
+    try:
+        if any(item.is_symlink() for item in resolved.rglob("*")):
+            fail("--analysis-workspace 内不得包含符号链接")
+    except OSError:
+        fail("无法完整检查 --analysis-workspace")
+    return str(resolved)
 
 
-def session_preset(contract: dict, mode: str) -> str:
-    """本容器 DSH 会话实际运行所选来源声明的目标 preset。"""
+def workspace_to_register(mode: str, analysis_workspace: str | None = None) -> str:
+    """被测会话注册 Harness；归因会话注册只读 Run。"""
     normalize_mode(mode)
-    return target_preset(contract)
+    return CONTAINER_ANALYSIS_WORKSPACE if analysis_workspace else CONTAINER_WORKSPACE
+
+
+def session_preset(contract: dict, mode: str, analysis_workspace: str | None = None) -> str:
+    """返回业务评测或专用归因 Session 实际运行的 preset。"""
+    normalize_mode(mode)
+    return ANALYSIS_PRESET if analysis_workspace else target_preset(contract)
 
 
 def target_preset(contract: dict) -> str:
@@ -355,29 +387,32 @@ def image_reference(tag: str | None, image_id: str | None) -> str | None:
 
 
 def compose_env(contract: dict, mode: str, port: int, name: str,
-                image_id: str | None = None) -> dict:
+                image_id: str | None = None, analysis_workspace: str | None = None) -> dict:
     normalize_mode(mode)
     environment = dict(os.environ)
-    environment.update(
-        {
-            "DSH_IMAGE_TAG": image_reference(contract["image"]["local_image_tag"], image_id),
-            "DSH_ADAPTER_HOST": str(ADAPTER),
+    environment.update({
+        "DSH_IMAGE_TAG": image_reference(contract["image"]["local_image_tag"], image_id),
+        "DSH_ADAPTER_HOST": str(ADAPTER),
+        "DSH_EVAL_TARGET_PRESET": ANALYSIS_PRESET if analysis_workspace else target_preset(contract),
+    })
+    if analysis_workspace:
+        environment["DSH_ANALYSIS_WORKSPACE_HOST"] = analysis_workspace
+    else:
+        environment.update({
             "DSH_MANAGED_PATCH": contract["patch"],
             "DSH_WORKSPACE_HOST": contract["workspace"],
             "DSH_PRESETS_HOST": contract["presets"],
             "DSH_MANAGED_HOST": contract["managed"],
-        }
-    )
+        })
     return environment
 
 
-def required_env_names(contract: dict) -> list[str]:
-    names = list(contract.get("required_env_names") or [])
-    return names
+def required_env_names(contract: dict, analysis_workspace: str | None = None) -> list[str]:
+    return ["DEEPSEEK_API_KEY"] if analysis_workspace else list(contract.get("required_env_names") or [])
 
 
-def check_environment(contract: dict) -> None:
-    missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
+def check_environment(contract: dict, analysis_workspace: str | None = None) -> None:
+    missing = [name for name in required_env_names(contract, analysis_workspace) if not os.environ.get(name)]
     if missing:
         fail(
             "以下运行时环境变量未注入，按 fail-closed 拒绝启动："
@@ -387,12 +422,15 @@ def check_environment(contract: dict) -> None:
 
 
 def render_compose(template: str, *, mode: str, name: str, project: str, port: int,
-                   runtime_env_names: list[str] = (), lan_access: bool = False) -> str:
-    """把受控 Compose 模板渲染为实例配置：宿主网络、监听端口、每实例卷名。"""
+                   runtime_env_names: list[str] = (), lan_access: bool = False,
+                   analysis_workspace: bool = False) -> str:
+    """把受控 Compose 模板渲染为隔离的业务或归因实例配置。"""
     if mode not in MODES:
         fail("mode 只能是 verification")
     if not NAME_RE.fullmatch(name) or project != project_name(name):
         fail("实例名与 Compose 项目名不匹配")
+    if lan_access and analysis_workspace:
+        fail("归因实例只允许监听 127.0.0.1，不能启用 --lan-access")
     text = template
     replacements = [
         (f"name: ai-agent-harness-dsh-{mode}", f"name: {project}"),
@@ -410,11 +448,65 @@ def render_compose(template: str, *, mode: str, name: str, project: str, port: i
     working_dir = "    working_dir: /work/harness/workspace\n"
     if text.count(working_dir) != 1:
         fail("Compose 模板缺少唯一的 working_dir 锚点")
-    text = text.replace(working_dir, working_dir + "    network_mode: host\n")
+    selected_working_dir = (
+        f"    working_dir: {CONTAINER_ANALYSIS_WORKSPACE}\n" if analysis_workspace else working_dir
+    )
+    text = text.replace(working_dir, selected_working_dir + "    network_mode: host\n")
     relative_source = "        source: ./"
     if text.count(relative_source) < 1:
         fail("Compose 模板缺少相对挂载源锚点")
     text = text.replace(relative_source, f"        source: {ADAPTER}/")
+    if analysis_workspace:
+        workspace_mount = (
+            "      - type: bind\n"
+            "        source: ${DSH_WORKSPACE_HOST:?工作区根由所选来源注入}\n"
+            f"        target: {CONTAINER_WORKSPACE}\n"
+            "        read_only: true\n"
+        )
+        analysis_mount = (
+            "      - type: bind\n"
+            "        source: ${DSH_ANALYSIS_WORKSPACE_HOST:?归因 Run 根由启动器注入}\n"
+            f"        target: {CONTAINER_ANALYSIS_WORKSPACE}\n"
+            "        read_only: true\n"
+        )
+        if text.count(workspace_mount) != 1:
+            fail("Compose 模板缺少唯一的业务工作区挂载锚点")
+        text = text.replace(workspace_mount, analysis_mount)
+        business_mounts = [
+            (
+            "      - type: bind\n"
+            "        source: ${DSH_PRESETS_HOST:?preset 根由所选来源注入}\n"
+            "        target: /opt/dsh-presets\n"
+            "        read_only: true\n"
+            ),
+            (
+            "      - type: bind\n"
+            "        source: ${DSH_MANAGED_HOST:?managed 根由所选来源注入}\n"
+            "        target: /opt/dsh-managed\n"
+            "        read_only: true\n"
+            ),
+            (
+            "      - type: bind\n"
+            f"        source: {ADAPTER}/verification-home-controls/locked-bootstrap.env\n"
+            f"        target: {CONTAINER_WORKSPACE}/.env\n"
+            "        read_only: true\n"
+            ),
+        ]
+        for mount in business_mounts:
+            if text.count(mount) != 1:
+                fail("Compose 模板缺少唯一的业务资产挂载锚点")
+            text = text.replace(mount, "")
+        business_patch = (
+            "      - --patch\n"
+            "      - ${DSH_MANAGED_PATCH:?Profile patch 路径由所选来源注入}\n"
+        )
+        if text.count(business_patch) != 1:
+            fail("Compose 模板缺少唯一的业务 patch 锚点")
+        text = text.replace(business_patch, "")
+        text = text.replace(
+            "      - /opt/dsh-adapter/evaluation.patch.yml\n",
+            "      - /opt/dsh-adapter/scenario-analysis.patch.yml\n",
+        )
     command_tail = "      - --no-open\n"
     if text.count(command_tail) != 1:
         fail("Compose 模板缺少唯一的 command 锚点")
@@ -468,12 +560,15 @@ def project_name(name: str) -> str:
 
 
 def write_instance(name: str, *, mode: str, contract: dict, port: int,
-                   image_id: str | None = None, lan_access: bool = False) -> Path:
+                   image_id: str | None = None, lan_access: bool = False,
+                   analysis_workspace: str | None = None) -> Path:
+    if lan_access and analysis_workspace:
+        fail("归因实例只允许监听 127.0.0.1，不能启用 --lan-access")
     target = instance_dir(name)
     current = existing_instance(name)
     if current is not None:
         _, manifest = current
-        validate_existing_identity(name, manifest, contract, mode)
+        validate_existing_identity(name, manifest, contract, mode, analysis_workspace)
     else:
         target.mkdir(parents=True, exist_ok=False)
     template = (ADAPTER / f"{mode}.compose.yaml").read_text(encoding="utf-8")
@@ -483,8 +578,9 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         name=name,
         project=project_name(name),
         port=port,
-        runtime_env_names=required_env_names(contract),
+        runtime_env_names=required_env_names(contract, analysis_workspace),
         lan_access=lan_access,
+        analysis_workspace=analysis_workspace is not None,
     )
     (target / "compose.yaml").write_text(rendered, encoding="utf-8")
     manifest = {
@@ -498,7 +594,7 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         "purpose": PURPOSES[mode],
         "agent_id": contract["agent_id"],
         "target_preset": target_preset(contract),
-        "session_preset": session_preset(contract, mode),
+        "session_preset": session_preset(contract, mode, analysis_workspace),
         "profile": LAN_PROFILE if lan_access else "web",
         "lan_access": bool(lan_access),
         "listen_host": "0.0.0.0" if lan_access else "127.0.0.1",
@@ -507,19 +603,17 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         "image_id": image_id,
         "image_build_fingerprint": contract["image"].get("build_fingerprint"),
         "adapter_root": str(ADAPTER),
-        "managed_patch": contract["patch"],
-        "mounts": {
+        "managed_patch": None if analysis_workspace else contract["patch"],
+        "mounts": ({"analysis_workspace": analysis_workspace} if analysis_workspace else {
             "workspace": contract["workspace"],
             "presets": contract["presets"],
             "managed": contract["managed"],
-        },
+        }),
         "context_mounts": [],
-        "mount_modes": {
-            "workspace": "ro",
-            "presets": "ro",
-            "managed": "ro",
-        },
-        "required_env_names": required_env_names(contract),
+        "mount_modes": ({"analysis_workspace": "ro"} if analysis_workspace else {
+            "workspace": "ro", "presets": "ro", "managed": "ro",
+        }),
+        "required_env_names": required_env_names(contract, analysis_workspace),
     }
     (target / "instance.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -548,6 +642,8 @@ def instance_compose_env(manifest: dict) -> dict:
         "DSH_WORKSPACE_HOST": mounts.get("workspace"),
         "DSH_PRESETS_HOST": mounts.get("presets"),
         "DSH_MANAGED_HOST": mounts.get("managed"),
+        "DSH_ANALYSIS_WORKSPACE_HOST": mounts.get("analysis_workspace"),
+        "DSH_EVAL_TARGET_PRESET": manifest.get("target_preset"),
     }
     # 只读兼容旧 authoring 状态，保证历史实例仍可 ps/logs/down；新实例不再写入这些字段。
     for asset in manifest.get("context_mounts") or []:
@@ -637,12 +733,15 @@ def first_available_port(name: str) -> int:
 def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None]:
     """解析来源并补齐确定性的实例名与端口，不修改状态。"""
     require_up_arguments(args)
+    args.analysis_workspace = validate_analysis_workspace(getattr(args, "analysis_workspace", None))
+    if args.analysis_workspace and bool(getattr(args, "lan_access", False)):
+        fail("归因实例只允许监听 127.0.0.1，不能启用 --lan-access")
     contract = resolve(args.source, repo=REPO)
     args.name = args.name or f"{contract['agent_id']}-{PURPOSES[args.mode]}"
     current = existing_instance(args.name)
     if current is not None:
         _, manifest = current
-        validate_existing_identity(args.name, manifest, contract, args.mode)
+        validate_existing_identity(args.name, manifest, contract, args.mode, args.analysis_workspace)
         requested_lan = bool(getattr(args, "lan_access", False))
         if bool(manifest.get("lan_access", False)) != requested_lan:
             fail(
@@ -669,8 +768,10 @@ def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None
 
 
 def build_plan(args: argparse.Namespace, contract: dict) -> dict:
-    missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
     lan_access = bool(getattr(args, "lan_access", False))
+    analysis_workspace = getattr(args, "analysis_workspace", None)
+    runtime_names = required_env_names(contract, analysis_workspace)
+    missing = [name for name in runtime_names if not os.environ.get(name)]
     plan = {
         "schema_version": "2.1",
         "name": args.name,
@@ -680,26 +781,27 @@ def build_plan(args: argparse.Namespace, contract: dict) -> dict:
         "purpose": PURPOSES[args.mode],
         "agent_id": contract["agent_id"],
         "target_preset": target_preset(contract),
-        "session_preset": session_preset(contract, args.mode),
+        "session_preset": session_preset(contract, args.mode, analysis_workspace),
         "profile": LAN_PROFILE if lan_access else "web",
         "lan_access": lan_access,
         "listen_host": "0.0.0.0" if lan_access else "127.0.0.1",
-        "workspace_to_register": workspace_to_register(args.mode),
-        "grading_material_mounted": False,
+        "workspace_to_register": workspace_to_register(args.mode, analysis_workspace),
+        "grading_material_mounted": analysis_workspace is not None,
         "port": args.port,
         "source_id": contract["source_id"],
         "source_kind": contract["source_kind"],
         "image_tag": contract["image"]["local_image_tag"],
         "image_build_fingerprint": contract["image"].get("build_fingerprint"),
-        "mounts": [
+        "mounts": ([{"container": CONTAINER_ANALYSIS_WORKSPACE, "mode": "ro"}]
+                   if analysis_workspace else [
             {"container": "/work/harness/workspace", "mode": "ro"},
             {"container": "/opt/dsh-presets", "mode": "ro"},
             {"container": "/opt/dsh-managed", "mode": "ro"},
-        ],
+        ]),
         "context_assets": [],
-        "web_cold_start": web_cold_start_hint(args.mode),
+        "web_cold_start": web_cold_start_hint(args.mode, analysis_workspace),
         "network": "host (0.0.0.0, LAN exposed)" if lan_access else "host (127.0.0.1 only)",
-        "required_env_names": required_env_names(contract),
+        "required_env_names": runtime_names,
         "missing_env_names": missing,
         "state_dir": str(instance_dir(args.name)),
         "risk": (
@@ -709,7 +811,7 @@ def build_plan(args: argparse.Namespace, contract: dict) -> dict:
             "host 网络取消容器与宿主机的网络命名空间隔离；实例只绑定 127.0.0.1"
         ),
     }
-    if contract["source_kind"] == "experiment":
+    if contract["source_kind"] == "experiment" and not analysis_workspace:
         plan["evaluation_source_notice"] = "评测模式绑定当前宿主 Candidate；运行期间不要改写该来源，并在 Run 中记录实际 Git 与 dirty 状态。"
     return plan
 
@@ -792,12 +894,13 @@ def command_up(args: argparse.Namespace) -> None:
         print(json.dumps(build_plan(args, contract), ensure_ascii=False, indent=2, sort_keys=True))
         return
     if getattr(args, "allow_missing_env", False):
-        missing = [name for name in required_env_names(contract) if not os.environ.get(name)]
+        missing = [name for name in required_env_names(contract, args.analysis_workspace)
+                   if not os.environ.get(name)]
         if missing:
             print(json.dumps({"warning": "缺少运行时环境变量，按显式降级启动（仅技术装载核验）",
                               "missing_env_names": missing}, ensure_ascii=False), file=sys.stderr)
     else:
-        check_environment(contract)
+        check_environment(contract, args.analysis_workspace)
     identity = validate_image_identity(contract, current=current, replace=getattr(args, "replace", False))
     # Compose 插值与模板结构都可以在停旧实例前检查；明显无效的新配置不得先触发停机。
     preflight_new_instance(args, contract)
@@ -810,10 +913,15 @@ def command_up(args: argparse.Namespace) -> None:
                 f"或直接加 --replace 由本命令先停后启；本工具不自动改端口。"
             )
         fail(f"端口 {args.port} 已被占用；启动阶段不会静默改用其它端口，请重试或显式指定 --port")
-    target = write_instance(args.name, mode=args.mode, contract=contract, port=args.port,
-                            image_id=identity["image_id"],
-                            lan_access=bool(getattr(args, "lan_access", False)))
-    environment = compose_env(contract, args.mode, args.port, args.name, image_id=identity["image_id"])
+    target = write_instance(
+        args.name, mode=args.mode, contract=contract, port=args.port,
+        image_id=identity["image_id"], lan_access=bool(getattr(args, "lan_access", False)),
+        analysis_workspace=args.analysis_workspace,
+    )
+    environment = compose_env(
+        contract, args.mode, args.port, args.name,
+        image_id=identity["image_id"], analysis_workspace=args.analysis_workspace,
+    )
     run(compose_command(target, args.name, "config", "--quiet"), env=environment)
     run(compose_command(target, args.name, "up", "-d", "--no-build"), env=environment)
     # `docker compose up -d` 返回 0 只说明命令成功，不说明容器在运行：容器可能立刻退出。
@@ -822,7 +930,7 @@ def command_up(args: argparse.Namespace) -> None:
               "project": project_name(args.name), "port": args.port,
               "state_dir": str(target), "agent_id": contract["agent_id"],
               "target_preset": target_preset(contract),
-              "session_preset": session_preset(contract, args.mode),
+              "session_preset": session_preset(contract, args.mode, args.analysis_workspace),
               "profile": LAN_PROFILE if getattr(args, "lan_access", False) else "web",
               "lan_access": bool(getattr(args, "lan_access", False)),
               "listen_host": "0.0.0.0" if getattr(args, "lan_access", False) else "127.0.0.1",
@@ -843,7 +951,10 @@ def command_up(args: argparse.Namespace) -> None:
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True), file=sys.stderr)
         fail("docker compose up 返回 0，但 dsh 服务没有进入运行状态；用 logs 查看失败原因")
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
-    print(json.dumps({"hint": web_cold_start_hint(args.mode), "workspace_to_register": workspace_to_register(args.mode)},
+    print(json.dumps({
+        "hint": web_cold_start_hint(args.mode, args.analysis_workspace),
+        "workspace_to_register": workspace_to_register(args.mode, args.analysis_workspace),
+    },
                      ensure_ascii=False), file=sys.stderr)
 
 
@@ -1213,13 +1324,16 @@ def command_down(args: argparse.Namespace) -> None:
     print(json.dumps(stop_instance(args.name, manifest), ensure_ascii=False))
 
 
-def validate_existing_identity(name: str, manifest: dict, contract: dict, mode: str) -> None:
+def validate_existing_identity(name: str, manifest: dict, contract: dict, mode: str,
+                               analysis_workspace: str | None = None) -> None:
     """在任何停止或改写动作之前，核对同名实例能否被本次命令替换。"""
     existing_source = manifest.get("source_id")
     existing_mode = manifest.get("mode")
-    if existing_source != contract["source_id"] or existing_mode != mode:
+    existing_analysis = (manifest.get("mounts") or {}).get("analysis_workspace")
+    if existing_source != contract["source_id"] or existing_mode != mode \
+            or existing_analysis != analysis_workspace:
         fail(
-            f"实例 {name} 已存在且来源/模式不同（{existing_source}/{existing_mode}）；"
+            f"实例 {name} 已存在且来源/模式不同或归因 Run 不同；"
             "拒绝替换并保持原实例运行，请改用新的实例名"
         )
 
@@ -1236,6 +1350,7 @@ def existing_instance(name: str) -> tuple[Path, dict] | None:
 
 def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
     """在停旧实例前校验新 Compose 可展开，不写入实例目录。"""
+    analysis_workspace = getattr(args, "analysis_workspace", None)
     with tempfile.TemporaryDirectory(prefix="dsh-dev-preflight-") as location:
         root = Path(location)
         rendered = render_compose(
@@ -1244,12 +1359,15 @@ def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
             name=args.name,
             project=project_name(args.name),
             port=args.port,
-            runtime_env_names=required_env_names(contract),
+            runtime_env_names=required_env_names(contract, analysis_workspace),
             lan_access=bool(getattr(args, "lan_access", False)),
+            analysis_workspace=analysis_workspace is not None,
         )
         compose = root / "compose.yaml"
         compose.write_text(rendered, encoding="utf-8")
-        environment = compose_env(contract, args.mode, args.port, args.name)
+        environment = compose_env(
+            contract, args.mode, args.port, args.name, analysis_workspace=analysis_workspace,
+        )
         run(compose_command(root, args.name, "config", "--quiet"), env=environment)
 
 
@@ -1260,7 +1378,9 @@ def migrate_existing_instance(args: argparse.Namespace, contract: dict,
     if current is None:
         return None
     _, manifest = current
-    validate_existing_identity(args.name, manifest, contract, args.mode)
+    validate_existing_identity(
+        args.name, manifest, contract, args.mode, getattr(args, "analysis_workspace", None),
+    )
     if not getattr(args, "replace", False):
         return None
     recorded = instance_recorded_port(manifest)
@@ -1311,6 +1431,8 @@ def main() -> None:
                     help="显式允许缺少运行时环境变量，仅用于技术装载核验")
     up.add_argument("--lan-access", action="store_true",
                     help="启用 web-lan 密码登录并监听 0.0.0.0（纯 HTTP）")
+    up.add_argument("--analysis-workspace", metavar="PATH",
+                    help=argparse.SUPPRESS)
     up.set_defaults(handler=command_up)
 
     ps_parser = commands.add_parser("ps", help="默认列出运行中的实例；加 --all 查看全部状态记录")

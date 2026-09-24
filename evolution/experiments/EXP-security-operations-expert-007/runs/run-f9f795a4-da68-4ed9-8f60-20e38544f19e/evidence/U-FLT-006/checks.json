@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-006",
+  "transport": "api",
+  "expected_behavior": "使用真实策略、主备状态、配置差异和连通性证据逐项排查，区分已证实原因与待验证假设；不在证据不足时认定漂移或影响范围。",
+  "session_id": "session-143e7950-22f4-4156-b9d4-39b6ca7ca1b9",
+  "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-b8ef58ed-febf-4a9f-8046-85231070ed53",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

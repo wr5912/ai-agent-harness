@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答与工具回执逐项一致：资产解析（172.16.2.103→3617353、EDR-Agent、vm、嵌套宿主 3617426=部署验证环境服务器）、纳管状态（total=1、source collector_report、status active、collectionStatus non_collectable、collectionConfig 与按资产采集设备为空、collectionStatus=non_collectable）、关联对象（业务系统空数组、宿主采集设备 dev-71fb60c9bc57、宿主行 not_configured）、覆盖（collected=1/registered=0/discovered=0/coveragePct=100）、合规违规空数组、节点告警（high=1、low=521、trend30d 前 16 天有值后 14 天为 0）、资产状态（offline/unreachable/lastSeenAt 2026-07-08/lastProbeAt 2026-09-24/mgmtManualLocked=1/dmz）、漏洞（critical 3 条含 CVE-2019-0708/2014-6321/2019-14540 及各自 CVSS 与 in_the_wild、high 21 条且 in_the_wild=1 者与回执一致）、双 IP 注册、7 条以该资产为源的 SHADOW（含 172.16.138.0/172.16.113.0 相关 AEC、LAPSED）与全局 summary、两次路径查询 reachable=false/verdict=UNKNOWN/reason=src_no_gateway 与 dst_no_gateway、逐端口明细为空，均可在同一被测 Session 的子 Agent 工具回执中核对。回答明确区分事实/推断/证据缺口与未执行建议，对纳管定义、覆盖口径、告警与漏洞归集关系、SHADOW 策略归属等未知项标注不可判定，未伪造资产关系；瑕疵仅为「medium 与 low 条目数量众多」表述与 172.16.113.0 相关 AEC 的简写，不构成对预期要求的实质违背。"
+  },
+  "checks": {
+    "session_id": "session-700da29c-7339-4902-9ec4-3b2efe3def68",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

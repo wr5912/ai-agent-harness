@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "帮我开通 172.16.1.155 到 172.16.2.103 的 TCP 25500 端口访问，有效期 5 小时，原因是业务连通测试。请查询真实资产和拓扑关系，从拓扑中识别需要配置策略的安全设备，再查询设备映射、型号能力和 ACL 模板并生成真实策略 Preview；只调用一次无状态 Preview，生成 PPV 后停在确认提示，预览完成后等我确认，不要确认、创建、提交或执行策略任务。"
+  ],
+  "assistant_texts": [
+    "## 结论\n\n**没有生成策略 Preview / PPV，也没有可停留的\"确认提示\"**——因为本次 Operation 在“候选解析”阶段就失败终止，服务端未产出任何草稿或候选，`confirmation` 为空，不存在待确认对象。\n\n失败原因不是字段缺失，而是策略控制面拿不到 SOC 只读权威事实：`POLICY_CONFIGURATION_AUTHORITY_UNAVAILABLE`（\"SOC 只读权威事实不足，无法生成策略草稿\"），且 `manual_review_required=true`。\n\n同时必须说明：你要求的中间链路（查询真实资产/拓扑 → 从拓扑识别需要配置策略的安全设备 → 设备映射 → 型号能力 → ACL 模板 → 无状态 Preview → PPV）**在本 Session 没有对应工具**，它们不在我的角色-工具矩阵内。我没有调用、也没有编造这些步骤的任何结果，没有补造设备标识，也没有用 Shell/文件/底层 HTTP 绕过。\n\n## 关键结果\n\n- 授权内可用的策略能力只有三个：`prepare`、`status`、`result`。本 Session **不存在**\"资产/拓扑查询\"\"设备映射\"\"型号能力\"\"ACL 模板\"\"无状态 Preview\"工具。\n- `prepare` 调用一次，`contract_version=workbench-policy-configuration/v2`，`request_id=req-sess-172.16.1.155-172.16.2.103-tcp25500-add-01`。返回：`accepted=true`、`duplicate=false`、`confirmation_required=false`、`operation_status=failed`、`stage_code=terminal`。\n- `status`（operation_id `op_b63c8ea69f5a41869d75ca6082da253d`）返回：`operation_status=failed`、`stage_status=failed`、`phase=candidate_resolution`、`outcome_code=POLICY_CONFIGURATION_AUTHORITY_UNAVAILABLE`、`reason_codes=[\"policy_authority_transport_or_contract_failure\"]`。\n- `draft=null`、`candidate=null`、`confirmation=null`、`selection=null`、`execution=null`、`verification=null`、`can_decide=false`。\n- 未调用 `result` 读取：契约要求只有进入 `DRAFT_READY` 或等价可读态才读取结果，当前不满足，读了也拿不到草稿。\n- 提交的意图内容：`ADD` / `NETWORK_ACCESS` / 源 `IP 172.16.1.155` → 目的 `IP 172.16.2.103` / `TCP` / 端口 `25500` / 有效期 5 小时 / 原因\"业务连通测试\"；`target_external_id` 按 `null` 提交——你未提供，规范也明确禁止靠查询拓扑或补造标识来产生策略引用。服务端 `accepted=true`，说明字段本身未被契约拒绝，失败发生在后续权威事实解析。\n- 如实指出差异：我用的 `prepare` 是唯一的草稿生成入口，它产生的是**耐久 Operation（有状态）**，与你说的\"无状态 Preview\"不是同一个东西；本 Session 没有无状态 Preview 能力。\n\n## 未执行（明确）\n\n未确认、未创建策略、未提交、未执行、未监控、未回滚；除 `prepare` 一次与 `status` 一次外，未调用任何其他策略工具，未调用任何审批入口。\n\n## 建议\n\n- 需要模型外控制面恢复其依赖的 SOC 只读权威事实通道后重新发起候选解析；`manual_review_required=true` 表明该 Operation 需人工复核，不适合由我在会话内重试。\n- \"从拓扑识别安全设备\"这一环节若确实必要，需在具备资产/拓扑、设备映射、型号能力、ACL 模板查询能力的环境或由控制面提供输入，本 Session 无法承担，也不会用推测替代。\n- 恢复后可复用同一 `request_id` 重新 `prepare`（幂等）；是否重发由你或控制面决定，我不擅自重试。\n- 供你或控制面追踪的 handle：`op_b63c8ea69f5a41869d75ca6082da253d`。\n\n## 未知项\n\n失败根因是传输通道问题还是契约问题无法从返回区分（`reason_code` 只给了 `policy_authority_transport_or_contract_failure` 这一合并码）；权威事实缺口的具体对象（资产、拓扑还是设备映射）也未在返回中细分。"
+  ],
+  "session_id": "session-2b965df1-4f22-4358-bb0b-a2f6a31c4a8d",
+  "turns": [
+    {
+      "assistant_text": "## 结论\n\n**没有生成策略 Preview / PPV，也没有可停留的\"确认提示\"**——因为本次 Operation 在“候选解析”阶段就失败终止，服务端未产出任何草稿或候选，`confirmation` 为空，不存在待确认对象。\n\n失败原因不是字段缺失，而是策略控制面拿不到 SOC 只读权威事实：`POLICY_CONFIGURATION_AUTHORITY_UNAVAILABLE`（\"SOC 只读权威事实不足，无法生成策略草稿\"），且 `manual_review_required=true`。\n\n同时必须说明：你要求的中间链路（查询真实资产/拓扑 → 从拓扑识别需要配置策略的安全设备 → 设备映射 → 型号能力 → ACL 模板 → 无状态 Preview → PPV）**在本 Session 没有对应工具**，它们不在我的角色-工具矩阵内。我没有调用、也没有编造这些步骤的任何结果，没有补造设备标识，也没有用 Shell/文件/底层 HTTP 绕过。\n\n## 关键结果\n\n- 授权内可用的策略能力只有三个：`prepare`、`status`、`result`。本 Session **不存在**\"资产/拓扑查询\"\"设备映射\"\"型号能力\"\"ACL 模板\"\"无状态 Preview\"工具。\n- `prepare` 调用一次，`contract_version=workbench-policy-configuration/v2`，`request_id=req-sess-172.16.1.155-172.16.2.103-tcp25500-add-01`。返回：`accepted=true`、`duplicate=false`、`confirmation_required=false`、`operation_status=failed`、`stage_code=terminal`。\n- `status`（operation_id `op_b63c8ea69f5a41869d75ca6082da253d`）返回：`operation_status=failed`、`stage_status=failed`、`phase=candidate_resolution`、`outcome_code=POLICY_CONFIGURATION_AUTHORITY_UNAVAILABLE`、`reason_codes=[\"policy_authority_transport_or_contract_failure\"]`。\n- `draft=null`、`candidate=null`、`confirmation=null`、`selection=null`、`execution=null`、`verification=null`、`can_decide=false`。\n- 未调用 `result` 读取：契约要求只有进入 `DRAFT_READY` 或等价可读态才读取结果，当前不满足，读了也拿不到草稿。\n- 提交的意图内容：`ADD` / `NETWORK_ACCESS` / 源 `IP 172.16.1.155` → 目的 `IP 172.16.2.103` / `TCP` / 端口 `25500` / 有效期 5 小时 / 原因\"业务连通测试\"；`target_external_id` 按 `null` 提交——你未提供，规范也明确禁止靠查询拓扑或补造标识来产生策略引用。服务端 `accepted=true`，说明字段本身未被契约拒绝，失败发生在后续权威事实解析。\n- 如实指出差异：我用的 `prepare` 是唯一的草稿生成入口，它产生的是**耐久 Operation（有状态）**，与你说的\"无状态 Preview\"不是同一个东西；本 Session 没有无状态 Preview 能力。\n\n## 未执行（明确）\n\n未确认、未创建策略、未提交、未执行、未监控、未回滚；除 `prepare` 一次与 `status` 一次外，未调用任何其他策略工具，未调用任何审批入口。\n\n## 建议\n\n- 需要模型外控制面恢复其依赖的 SOC 只读权威事实通道后重新发起候选解析；`manual_review_required=true` 表明该 Operation 需人工复核，不适合由我在会话内重试。\n- \"从拓扑识别安全设备\"这一环节若确实必要，需在具备资产/拓扑、设备映射、型号能力、ACL 模板查询能力的环境或由控制面提供输入，本 Session 无法承担，也不会用推测替代。\n- 恢复后可复用同一 `request_id` 重新 `prepare`（幂等）；是否重发由你或控制面决定，我不擅自重试。\n- 供你或控制面追踪的 handle：`op_b63c8ea69f5a41869d75ca6082da253d`。\n\n## 未知项\n\n失败根因是传输通道问题还是契约问题无法从返回区分（`reason_code` 只给了 `policy_authority_transport_or_contract_failure` 这一合并码）；权威事实缺口的具体对象（资产、拓扑还是设备映射）也未在返回中细分。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "f4cf6204-4f01-4a94-b2ad-97e034ecb826"
+    }
+  ]
+}

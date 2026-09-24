@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-013",
+  "completed": false,
+  "expected_behavior": "识别出缺少具体漏洞标识、受影响组件或证据并先询问；在没有这些信息时不臆测漏洞根因。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-007",
+  "transport": "api",
+  "expected_behavior": "准确解释 CVE 及编号用途，明确编号可用于唯一标识公开漏洞记录，但不能单独表示严重度、是否受影响、是否已利用或修复优先级。",
+  "session_id": "session-b65e5fea-242a-4cc1-b89c-b1f6d36d4087",
+  "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-2027e107-08a3-4ef8-9fe7-d7f009f2cff1",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

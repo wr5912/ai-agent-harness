@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-POL-006",
+  "completed": false,
+  "expected_behavior": "完成真实资产、路径和设备能力核对并生成可确认的策略预览；回复准确说明当前阶段，未获得执行回执时不声称已开通。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

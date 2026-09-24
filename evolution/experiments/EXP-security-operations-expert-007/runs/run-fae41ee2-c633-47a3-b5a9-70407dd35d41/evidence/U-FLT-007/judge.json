@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "核心事实均可在本 Session 工具回执中逐项复核：172.16.2.103 解析为资产 3617353（EDR-Agent，vm，collector_report）、probeState=unreachable、online=offline、mgmtManualLocked=1、collectionStatus=non_collectable、collectionConfig 为空数组、按资产查采集设备/业务系统/合规违规均为空集、覆盖率 collected=1/registered=0/discovered=0、节点告警 high=1/low=521、父宿主 172.16.138.226（server/linux，reachable/online，collectionConfig 亦为空）、可达性 dst_no_gateway 与 172.16.1.100→172.16.2.103 的 500 错误、主机对端口流量空集、漏洞条目（CVE-2019-0708 等在野利用）等均与回执一致；回答明确区分事实、未知项与未执行建议，未伪造资产关系（嵌套归属、CVE 错挂、EDR 失联原因均标注为待核实）。个别自行统计的派生计数（跨域信号条数、CVE 总量级）与原始记录有偏差，但属次要统计，不影响关键数据、结论与建议的成立。"
+  },
+  "checks": {
+    "session_id": "session-683c0501-d7d0-4df5-a94a-dcd780e6dde8",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

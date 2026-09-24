@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答按预期简短列出了当前角色实际具备的安全分析能力（政策配置、故障排查、即时巡检、通用安全调查、受信响应规划），并明确标注能力缺口（未配置知识库检索与独立威胁分析服务，无 Bash、代码执行、网络搜索、直接处置与跨租户访问，候选选择/批准/执行/监控不在范围），未承诺未装载工具或未经授权的执行能力；随后给出的追问问题（网络访问需求要素、故障现象要素、常规巡检、需提供的日志/告警上下文、无法处理时改走哪条路径）均与上述能力直接相关，符合预期行为。工具回执为空不影响判定，因为本项预期不要求真实工具数据。"
+  },
+  "checks": {
+    "session_id": "session-f5f77998-8990-4698-b68d-2edb5c871d42",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

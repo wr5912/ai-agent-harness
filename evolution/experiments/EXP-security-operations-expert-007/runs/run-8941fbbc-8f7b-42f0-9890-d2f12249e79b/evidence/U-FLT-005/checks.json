@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-005",
+  "transport": "api",
+  "expected_behavior": "若同一 Session 缺少此前故障上下文，先询问必要信息；有上下文时停止盲目替换参数，转向核对正式故障证据、链路状态和失败原因。",
+  "session_id": "session-73f1bd5b-471d-4a25-b641-0f55bf6a9ca1",
+  "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-d4b3be55-79e4-40cd-8afb-88c1b544c5e1",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

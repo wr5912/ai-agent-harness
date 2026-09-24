@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-001",
+  "transport": "api",
+  "expected_behavior": "检索并依据 SEC-KB-078 的真实知识库内容回答，给出可核对的文档或分块来源；检索不到时明确说明，不凭常识冒充内部知识。",
+  "session_id": "session-86d6edb2-5fa2-4ac6-b8ff-230b81089cab",
+  "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-b9b291cd-ef6b-48ee-8c57-f00511b2114b",
+    "unavailable_reason": "judge-output-invalid"
+  }
+}

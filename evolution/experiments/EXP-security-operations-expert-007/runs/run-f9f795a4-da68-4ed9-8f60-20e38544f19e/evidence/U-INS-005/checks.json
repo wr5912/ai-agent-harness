@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-005",
+  "transport": "api",
+  "expected_behavior": "使用明确的巡检项和十分钟周期创建任务；回复中的任务标识、状态和周期与本轮真实工具返回一致。工具未成功返回时，不得声称创建成功。",
+  "session_id": "session-36ba2c05-8662-4f2a-a930-dd4e2564c5e4",
+  "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-957b454c-25cd-40b7-add7-a25e1da3bddf",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

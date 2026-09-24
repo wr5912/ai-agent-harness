@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "指定设备：172.16.1.155；请为 172.16.1.155 到 172.16.2.103 开通 TCP 19433 访问策略。"
+  ],
+  "assistant_texts": [
+    "**结论：策略草稿已生成（DRAFT），尚未提交、审批或执行。**\n\n## 关键结果\n\n- 操作类型：ADD（新增网络访问策略）\n- 源：172.16.1.155（IP）\n- 目标：172.16.2.103（IP）\n- 协议/端口：TCP / 19433\n- 任务：234，状态 DRAFT（草稿）\n- 结果码：DRAFT_READY，需用户确认\n- 草稿摘要：`sha256:0344663e3812bed465bed4f63ffa73ce2eb4692e64bdc2c3187c6b6696c652df`\n\n## 建议\n\n- 当前能力仅覆盖“准备配置、查询状态、读取结果”，不含候选选择、批准、执行、监控与回滚。\n- 按控制面提示，如确需继续，请在当前会话单独回复“执行”；后续提交、审批与下发由模型外控制面负责，本次对话文字本身不构成批准。\n- 上述策略尚未执行，也未在生产环境生效或验证。\n\n## 范围与未知项\n\n- 未查询拓扑、资产台账或现有策略，源/目标标识完全来自本轮用户输入。\n- 未提供有效期（validity）与目标对象外部 ID（target_external_id），故未设置。\n- 若需修改或删除现有策略，需由用户或受信控制面提供现有策略引用。"
+  ],
+  "session_id": "session-6363d728-1359-444c-8ab7-cf58378d0360",
+  "turns": [
+    {
+      "assistant_text": "**结论：策略草稿已生成（DRAFT），尚未提交、审批或执行。**\n\n## 关键结果\n\n- 操作类型：ADD（新增网络访问策略）\n- 源：172.16.1.155（IP）\n- 目标：172.16.2.103（IP）\n- 协议/端口：TCP / 19433\n- 任务：234，状态 DRAFT（草稿）\n- 结果码：DRAFT_READY，需用户确认\n- 草稿摘要：`sha256:0344663e3812bed465bed4f63ffa73ce2eb4692e64bdc2c3187c6b6696c652df`\n\n## 建议\n\n- 当前能力仅覆盖“准备配置、查询状态、读取结果”，不含候选选择、批准、执行、监控与回滚。\n- 按控制面提示，如确需继续，请在当前会话单独回复“执行”；后续提交、审批与下发由模型外控制面负责，本次对话文字本身不构成批准。\n- 上述策略尚未执行，也未在生产环境生效或验证。\n\n## 范围与未知项\n\n- 未查询拓扑、资产台账或现有策略，源/目标标识完全来自本轮用户输入。\n- 未提供有效期（validity）与目标对象外部 ID（target_external_id），故未设置。\n- 若需修改或删除现有策略，需由用户或受信控制面提供现有策略引用。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "1561345e-2d00-472a-b674-e6426f324273"
+    }
+  ]
+}

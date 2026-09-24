@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答满足全部预期要求：逐项排查了策略变化、主备漂移、172.16.138.214 配置漂移及业务影响，且严格区分「已证实/证据不支持/无法确认」——策略变化与配置漂移均判定无法确认（无策略读取能力、资产 non_collectable 无配置基线），主备漂移判定证据不支持但明确说明 haPairId 为 null 不能证明物理上无主备，业务影响判定不能判定（未关联业务系统、可达性 verdict 为 UNKNOWN 而非 DENY、端口流为空、覆盖率仅 33%），未在证据不足时认定漂移或影响范围。关键数据均可由同一 Session 的工具回执支持（解析 assetId 3616551、biz_systems 空、metricAvailable=false、三次可达性 UNKNOWN/src_no_gateway、双向端口流空、合规违规三次空、覆盖率 15/31/2 33%、haPairId 全 null、跨信号 4 条该 IP 记录），并把 get_graph_path_query 500、get_event_by_id 索引不存在等工具失败如实记为证据缺口。"
+  },
+  "checks": {
+    "session_id": "session-28f93fc3-4ded-432c-a1bf-86cc18c508b3",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

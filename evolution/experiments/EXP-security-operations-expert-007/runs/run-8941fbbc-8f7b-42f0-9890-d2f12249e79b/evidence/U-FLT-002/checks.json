@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-002",
+  "transport": "api",
+  "expected_behavior": "基于真实资产、巡检或探测结果分析各设备状态，区分离线与探测不可达，不把推测写成已确认根因，并给出可核对的下一步。",
+  "session_id": "session-fca2eaad-def6-4a36-8b51-503aaf5f21e3",
+  "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-9b554a95-3610-49d2-8d1c-76c188cd2ccb",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

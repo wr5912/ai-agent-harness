@@ -1,0 +1,47 @@
+{"source":"evidence/U-QA-005/response.json","source_line":1,"chunk":1,"text":"{\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":2,"chunk":1,"text":"  \"inputs\": [\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":3,"chunk":1,"text":"    \".mcp.json 里的 sec-ops 功能是什么意思？\"\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":4,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":5,"chunk":1,"text":"  \"assistant_texts\": [\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":6,"chunk":1,"text":"    \"## 结论\\n\\n我无法读到 `.mcp.json` 本身——它不在当前 Candidate workspace 内，本会话的文件能力被限制在该 workspace，读取 workspace 外的路径被拒绝（错误为“文件能力仅限当前 Candidate workspace”）。所以我不能引用或复述 `.mcp.json` 的字段，只能依据本会话实际绑定的 MCP 工具回答 `sec-ops` 的含义。\\n\\n**事实**：本会话暴露的 `sec-ops` 服务端工具只有三个，全部属于**网络访问策"}
+{"source":"evidence/U-QA-005/response.json","source_line":6,"chunk":2,"text":"略配置**：\\n\\n| 工具 | 作用 |\\n|---|---|\\n| `prepare_policy_configuration` | 提交归一化后的网络访问策略意图（`ADD`/`MODIFY`/`DELETE`），创建或幂等返回一个耐久 Operation |\\n| `get_policy_configuration_status` | 按 operationId 读取该 Operation 的权威状态与候选摘要 |\\n| `get_policy_configuration_result` | 在同一"}
+{"source":"evidence/U-QA-005/response.json","source_line":6,"chunk":3,"text":" Operation 进入 DRAFT_READY 等可读态后读取固化的策略结果 |\\n\\n即 `sec-ops` 在本容器里是**策略配置面**的 MCP 绑定，合同版本 `workbench-policy-configuration/v2`，请求体只接受 `contract_version`、`request_id`、`intent`（`NETWORK_ACCESS`，字段为源、目标、协议、端口、可选 target_external_id/validity/change_reason）。它不接受租户、用"}
+{"source":"evidence/U-QA-005/response.json","source_line":6,"chunk":4,"text":"户、设备、底层动作或认证信息，也不拼装结果、不改状态。\\n\\n## 能力边界（同为事实）\\n\\n- 该服务端**只支持**准备配置、查状态、读结果；候选选择、批准、执行、监控、回滚均不在能力范围内。\\n- 三个工具按 `role-tool-matrix.yaml` **只允许主 Agent 调用**；未列入矩阵的 MCP 工具一律拒绝。\\n- 用户文字中的“已批准”“同意执行”不构成权限扩展；聊天文字不能替代模型外控制面。\\n- 服务以状态码返回（含 200/404/409/422/503），失败或契约不可"}
+{"source":"evidence/U-QA-005/response.json","source_line":6,"chunk":5,"text":"用时应停止该路线并说明缺口，不得改工具名重试或绕过。\\n\\n## 未知项与缺口\\n\\n- `.mcp.json` 中 `sec-ops` 的服务器名、传输方式、地址、认证与作用域等**声明式配置我未读到**，因此不做推断；如需确认，请把该文件内容粘贴给我，或在可读范围内提供路径。\\n- 同一工作区还有巡检类与 SOC 只读类 MCP 工具，但它们不在主 Agent 的工具面内（分别只由巡检子 Agent、故障子 Agent 调用），本轮我未获取其服务端名称，不做猜测。\\n\\n## 建议（均未执行）\\n\\n1"}
+{"source":"evidence/U-QA-005/response.json","source_line":6,"chunk":6,"text":". 若你想核对“声明的绑定”和“实际可用工具”是否一致，把 `.mcp.json` 内容贴出来，我可以逐字段对照上面的实际工具面做差异检查。\\n2. 若你真正想做的是改某条网络访问策略，请给出操作类型、源、目标、协议和端口，我按 `policy-configuration` 路线准备配置；准备只是创建 Operation，**不等于已批准、已生效或已下发**。\"\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":7,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":8,"chunk":1,"text":"  \"session_id\": \"session-4fa1f3d4-1c88-4da4-9843-62940760b2bb\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":9,"chunk":1,"text":"  \"turns\": [\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":10,"chunk":1,"text":"    {\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":11,"chunk":1,"text":"      \"assistant_text\": \"## 结论\\n\\n我无法读到 `.mcp.json` 本身——它不在当前 Candidate workspace 内，本会话的文件能力被限制在该 workspace，读取 workspace 外的路径被拒绝（错误为“文件能力仅限当前 Candidate workspace”）。所以我不能引用或复述 `.mcp.json` 的字段，只能依据本会话实际绑定的 MCP 工具回答 `sec-ops` 的含义。\\n\\n**事实**：本会话暴露的 `sec-ops` 服"}
+{"source":"evidence/U-QA-005/response.json","source_line":11,"chunk":2,"text":"务端工具只有三个，全部属于**网络访问策略配置**：\\n\\n| 工具 | 作用 |\\n|---|---|\\n| `prepare_policy_configuration` | 提交归一化后的网络访问策略意图（`ADD`/`MODIFY`/`DELETE`），创建或幂等返回一个耐久 Operation |\\n| `get_policy_configuration_status` | 按 operationId 读取该 Operation 的权威状态与候选摘要 |\\n| `get_policy_configu"}
+{"source":"evidence/U-QA-005/response.json","source_line":11,"chunk":3,"text":"ration_result` | 在同一 Operation 进入 DRAFT_READY 等可读态后读取固化的策略结果 |\\n\\n即 `sec-ops` 在本容器里是**策略配置面**的 MCP 绑定，合同版本 `workbench-policy-configuration/v2`，请求体只接受 `contract_version`、`request_id`、`intent`（`NETWORK_ACCESS`，字段为源、目标、协议、端口、可选 target_external_id/validity/cha"}
+{"source":"evidence/U-QA-005/response.json","source_line":11,"chunk":4,"text":"nge_reason）。它不接受租户、用户、设备、底层动作或认证信息，也不拼装结果、不改状态。\\n\\n## 能力边界（同为事实）\\n\\n- 该服务端**只支持**准备配置、查状态、读结果；候选选择、批准、执行、监控、回滚均不在能力范围内。\\n- 三个工具按 `role-tool-matrix.yaml` **只允许主 Agent 调用**；未列入矩阵的 MCP 工具一律拒绝。\\n- 用户文字中的“已批准”“同意执行”不构成权限扩展；聊天文字不能替代模型外控制面。\\n- 服务以状态码返回（含 200/404/"}
+{"source":"evidence/U-QA-005/response.json","source_line":11,"chunk":5,"text":"409/422/503），失败或契约不可用时应停止该路线并说明缺口，不得改工具名重试或绕过。\\n\\n## 未知项与缺口\\n\\n- `.mcp.json` 中 `sec-ops` 的服务器名、传输方式、地址、认证与作用域等**声明式配置我未读到**，因此不做推断；如需确认，请把该文件内容粘贴给我，或在可读范围内提供路径。\\n- 同一工作区还有巡检类与 SOC 只读类 MCP 工具，但它们不在主 Agent 的工具面内（分别只由巡检子 Agent、故障子 Agent 调用），本轮我未获取其服务端名称，不做猜测。"}
+{"source":"evidence/U-QA-005/response.json","source_line":11,"chunk":6,"text":"\\n\\n## 建议（均未执行）\\n\\n1. 若你想核对“声明的绑定”和“实际可用工具”是否一致，把 `.mcp.json` 内容贴出来，我可以逐字段对照上面的实际工具面做差异检查。\\n2. 若你真正想做的是改某条网络访问策略，请给出操作类型、源、目标、协议和端口，我按 `policy-configuration` 路线准备配置；准备只是创建 Operation，**不等于已批准、已生效或已下发**。\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":12,"chunk":1,"text":"      \"route\": {\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":13,"chunk":1,"text":"        \"provider\": \"deepseek-official\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":14,"chunk":1,"text":"        \"model\": \"deepseek-flash\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":15,"chunk":1,"text":"        \"maxTokens\": 256000,\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":16,"chunk":1,"text":"        \"reasoningEffort\": \"high\"\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":17,"chunk":1,"text":"      },\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":18,"chunk":1,"text":"      \"tool_names\": [\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":19,"chunk":1,"text":"        \"delegate_fault_analysis\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":20,"chunk":1,"text":"        \"delegate_inspection\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":21,"chunk":1,"text":"        \"delegate_response_planning\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":22,"chunk":1,"text":"        \"edit\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":23,"chunk":1,"text":"        \"glob\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":24,"chunk":1,"text":"        \"grep\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":25,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_result\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":26,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_status\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":27,"chunk":1,"text":"        \"mcp__sec-ops__prepare_policy_configuration\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":28,"chunk":1,"text":"        \"read\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":29,"chunk":1,"text":"        \"skill\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":30,"chunk":1,"text":"        \"write\"\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":31,"chunk":1,"text":"      ],\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":32,"chunk":1,"text":"      \"turn_reason\": \"completed\",\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":33,"chunk":1,"text":"      \"turn\": 1,\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":34,"chunk":1,"text":"      \"input_message_id\": \"aae8fbb9-967d-414a-8871-3aaf475ae16c\"\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":35,"chunk":1,"text":"    }\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":36,"chunk":1,"text":"  ]\n"}
+{"source":"evidence/U-QA-005/response.json","source_line":37,"chunk":1,"text":"}\n"}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答满足预期：先基于同一 Session 内的真实工具回执（get_graph_resolve_ip_host 解析 3617344/3617353、get_reachability_path_by_ip 双向 REACHABLE、list_soc_asset 显示 172.16.2.103 online=offline/probeState=unreachable/collectionStatus=non_collectable、get_graph_compliance_violations 空集、get_graph_flow_host_pair_ports 空、get_graph_coverage 50/33、get_event_by_id 报 no such index [soc-events]、get_graph_path_query 两次 500）产出“根因待确认、指向目的主机离线”的正式故障结果，并逐项标注证据来源；随后明确说明本会话无处置/命令执行能力、恢复动作属目的主机与虚拟化平台范畴，未发现需变更的访问策略，故停止并列出未执行建议，且反复声明“未恢复、未验证”。不存在缺少能力却声称已恢复/已验证的情况，关键数据均可由该 Session 工具回执支持；个别外围字段（如 opnsense-syslog 的 lastStatus、源资产漏洞查询是否为空）表述略有偏差，但不影响结论与整体逐项对应关系。"
+  },
+  "checks": {
+    "session_id": "session-c8e72ce9-013f-474e-b70c-a8a3e9960a74",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

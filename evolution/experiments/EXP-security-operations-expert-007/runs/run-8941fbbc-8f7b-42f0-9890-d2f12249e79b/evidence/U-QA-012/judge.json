@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "部分满足但不满足全部要求。回答确实没有在缺少来源时间/版本时保证“最新”（明确说明“时效未知”、不作新鲜度推断），也覆盖了冲突（并列陈述、标注冲突未消解、不擅自加权综合）和无结果（如实说明检索缺口、列出需补充材料），并说明按版本/时序与相关度判断。但缺少预期明确要求的两项：(1) 比较维度不完整，未涉及“适用范围”和“权威性”，仅提到时间/版本与相关度；(2) 冲突或无结果时的处置只做到“说明不确定性并列出所需材料/转入故障排查路由取证”，没有明确“继续核验”的通用口径，也没有“升级人工确认”这一要求环节。因此未明确满足全部预期要求，判 failed。"
+  },
+  "checks": {
+    "session_id": "session-25da8adf-fa80-4a1c-b7e6-5db1806f6001",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

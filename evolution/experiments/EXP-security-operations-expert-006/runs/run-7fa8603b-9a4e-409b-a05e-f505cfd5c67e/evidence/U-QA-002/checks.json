@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-002",
+  "completed": false,
+  "expected_behavior": "先真实列出知识库，再检索最相关知识库；回复中的知识库名、文档名、分块序号、分数和匹配类型与本轮工具结果一致。工具不可用或无证据时明确说明，且没有无来源的流程内容。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

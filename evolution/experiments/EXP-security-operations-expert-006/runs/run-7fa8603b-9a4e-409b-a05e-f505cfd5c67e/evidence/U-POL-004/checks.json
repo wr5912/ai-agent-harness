@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-POL-004",
+  "completed": false,
+  "expected_behavior": "校验指定设备、设备映射和型号能力后再生成预览；能力不匹配时停止并说明原因，不改用未确认设备或声称开通成功。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

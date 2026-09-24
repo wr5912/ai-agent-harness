@@ -15,6 +15,11 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 
 from evaluation_contract import evaluation_digest, execution_for, load_evaluation
 
+ADAPTER = Path(__file__).resolve().parents[4] / "runtime/adapters/dsh-container"
+if str(ADAPTER) not in sys.path:
+    sys.path.insert(0, str(ADAPTER))
+from scenario_analysis import summarize_review, validate_analysis
+
 try:
     import yaml
 except ImportError:  # pragma: no cover
@@ -32,6 +37,7 @@ OUTCOMES = {"adopt", "continue", "reject", "inconclusive"}
 RUN_STATUSES = {"planned", "running", "completed", "failed", "cancelled"}
 EXECUTION_STATUSES = {"completed", "error", "skipped"}
 VERDICTS = {"passed", "failed", "inconclusive"}
+GAP_CLASSIFICATIONS = {"harness", "input", "method", "environment", "unknown"}
 
 
 def issue(code: str, message: str, path: Path | None = None) -> dict[str, str]:
@@ -174,6 +180,30 @@ def validate_result(
     return rows
 
 
+def validate_gaps(path: Path, expected_run: str, errors: list[dict[str, str]]) -> None:
+    seen = set()
+    required = {"gap_id", "run_id", "classification", "title", "observed", "next_step"}
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            errors.append(issue("RUN_GAP", f"第 {line_number} 行不是合法 JSON：{exc.msg}", path))
+            continue
+        if not isinstance(row, dict) or set(row) - required - {"evidence_ref"} or not required <= set(row) \
+                or not isinstance(row["gap_id"], str) or not row["gap_id"].startswith("gap-") \
+                or row["gap_id"] in seen or row["run_id"] != expected_run \
+                or not isinstance(row["classification"], str) \
+                or row["classification"] not in GAP_CLASSIFICATIONS \
+                or any(not isinstance(row[key], str) or not row[key].strip()
+                       for key in ("title", "observed", "next_step")) \
+                or "evidence_ref" in row and not material_evidence(path.parent, row["evidence_ref"]):
+            errors.append(issue("RUN_GAP", f"第 {line_number} 行研究缺口无效", path))
+            continue
+        seen.add(row["gap_id"])
+
+
 def validate_run(
     run_dir: Path,
     experiment_id: str,
@@ -251,6 +281,28 @@ def validate_run(
     else:
         case_ids = []
 
+    has_catalog = "case_catalog" in locked_inputs or "selection_mode" in locked_inputs
+    catalog = locked_inputs.get("case_catalog")
+    selection_mode = locked_inputs.get("selection_mode")
+    valid_catalog = isinstance(catalog, list) and bool(catalog) and all(
+        isinstance(item, dict) and set(item) == {"case_id", "scene", "fast"}
+        and isinstance(item["case_id"], str) and bool(item["case_id"])
+        and isinstance(item["scene"], str) and bool(item["scene"].strip())
+        and isinstance(item["fast"], bool)
+        for item in catalog
+    )
+    if valid_catalog:
+        catalog_ids = [item["case_id"] for item in catalog]
+        valid_catalog = len(catalog_ids) == len(set(catalog_ids)) and set(case_ids) <= set(catalog_ids)
+    if has_catalog:
+        if not valid_catalog or selection_mode not in {"fast", "full", "explicit"}:
+            errors.append(issue("RUN_CASE_CATALOG", "Run 场景目录或选择模式无效", inputs))
+        elif selection_mode != "explicit":
+            expected_ids = [item["case_id"] for item in catalog
+                            if selection_mode == "full" or item["fast"]]
+            if case_ids != expected_ids:
+                errors.append(issue("RUN_CASE_SELECTION", "所选 Case 与 fast/full 场景目录不一致", inputs))
+
     if status in {"planned", "running"}:
         if not valid_cases:
             errors.append(issue("RUN_EVALUATION_CASES", "未封存 Run 必须锁定完整 Case", inputs))
@@ -264,6 +316,8 @@ def validate_run(
                     errors.append(issue("RUN_EVALUATION_CASES", "Run 锁定的 Case 与当前定义不一致", inputs))
                 if locked_inputs.get("evaluation_sha256") != evaluation_digest(evaluation_path, case_ids):
                     errors.append(issue("RUN_EVALUATION_HASH", "Run 锁定的 Case 摘要与当前定义不一致", inputs))
+                if has_catalog and valid_catalog and catalog != load_evaluation(evaluation_path)["catalog"]:
+                    errors.append(issue("RUN_CASE_CATALOG", "Run 场景目录与当前定义不一致", inputs))
     elif not valid_cases:
         historical = locked_inputs.get("evaluation_selection")
         case_ids = historical.get("case_ids", []) if isinstance(historical, dict) else []
@@ -286,7 +340,7 @@ def validate_run(
         overall = "failed" if verdict_counts["failed"] else (
             "inconclusive" if verdict_counts["inconclusive"] or not rows else "passed"
         )
-        expected_summary = {
+        legacy_summary = {
             "schema_version": "2.0",
             "run_id": run_dir.name,
             "trial_count": len(rows),
@@ -299,6 +353,31 @@ def validate_run(
         except (OSError, json.JSONDecodeError) as exc:
             errors.append(issue("RUN_SUMMARY", f"summary.json 无效：{exc}", summary_path))
         else:
+            expected_summary = legacy_summary
+            if isinstance(summary, dict) and summary.get("schema_version") == "3.0":
+                try:
+                    analysis_for_summary = json.loads((run_dir / "analysis.json").read_text(encoding="utf-8"))
+                    review = summarize_review(analysis_for_summary)
+                except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                    review = {"status": None, "case_count": None, "verdict_counts": None, "overall_verdict": None}
+                effective = "inconclusive" if status != "completed" else (
+                    review["overall_verdict"] if review["status"] == "completed"
+                    else overall if review["status"] == "not_requested"
+                    else "inconclusive"
+                )
+                expected_summary = {
+                    "schema_version": "3.0",
+                    "run_id": run_dir.name,
+                    "trial_count": len(rows),
+                    "execution_status_counts": execution_counts,
+                    "machine_trial_verdict_counts": verdict_counts,
+                    "machine_overall_verdict": overall,
+                    "review_status": review["status"],
+                    "reviewed_case_count": review["case_count"],
+                    "reviewed_case_verdict_counts": review["verdict_counts"],
+                    "reviewed_overall_verdict": review["overall_verdict"],
+                    "effective_verdict": effective,
+                }
             if summary != expected_summary:
                 errors.append(issue("RUN_SUMMARY_CONTENT", "summary.json 与逐项结果不一致", summary_path))
     if status in {"completed", "failed", "cancelled"}:
@@ -311,6 +390,30 @@ def validate_run(
             expected_hash = hashlib.sha256(report_path.read_bytes() if report_path.is_file() else b"").hexdigest()
             if manifest.get("report_sha256") != expected_hash:
                 errors.append(issue("RUN_HASH", "report_sha256 与文件不一致", manifest_path))
+        gaps_path = run_dir / "gaps.jsonl"
+        if gaps_path.is_file() or manifest.get("gaps_sha256"):
+            expected_hash = hashlib.sha256(gaps_path.read_bytes() if gaps_path.is_file() else b"").hexdigest()
+            if manifest.get("gaps_sha256") != expected_hash:
+                errors.append(issue("RUN_HASH", "gaps_sha256 与文件不一致", manifest_path))
+            if gaps_path.is_file():
+                validate_gaps(gaps_path, run_dir.name, errors)
+        if has_catalog:
+            analysis_path = run_dir / "analysis.json"
+            if not analysis_path.is_file():
+                errors.append(issue("RUN_ANALYSIS", "新 Run 缺少场景诊断记录", run_dir))
+            else:
+                if manifest.get("analysis_sha256") != hashlib.sha256(analysis_path.read_bytes()).hexdigest():
+                    errors.append(issue("RUN_HASH", "analysis_sha256 与文件不一致", manifest_path))
+                if valid_catalog and valid_cases:
+                    try:
+                        analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
+                        validate_analysis(analysis, run_dir, rows, locked_inputs)
+                        if analysis.get("schema_version") == "2.0" \
+                                and status == "completed" and selection_mode == "full" \
+                                and analysis.get("review_status") != "completed":
+                            raise ValueError("completed full Run 必须完成全部证据复核")
+                    except (OSError, ValueError, KeyError, TypeError, IndexError) as exc:
+                        errors.append(issue("RUN_ANALYSIS", f"场景诊断与 Run 事实不一致：{exc}", analysis_path))
 
 
 def validate(experiment: Path) -> tuple[dict, int]:

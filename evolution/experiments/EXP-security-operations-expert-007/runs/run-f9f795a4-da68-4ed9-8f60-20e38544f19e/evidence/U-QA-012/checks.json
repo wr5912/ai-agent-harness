@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-012",
+  "transport": "api",
+  "expected_behavior": "不在缺少来源时间和版本时保证“最新”；说明如何比较发布日期、适用范围、权威性和相关度，冲突或无结果时应明确不确定性并继续核验或升级人工确认。",
+  "session_id": "session-f3cc013c-698a-4748-ac40-a57b8c0219dd",
+  "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-b6918c52-5398-410f-8e75-2092057de603",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

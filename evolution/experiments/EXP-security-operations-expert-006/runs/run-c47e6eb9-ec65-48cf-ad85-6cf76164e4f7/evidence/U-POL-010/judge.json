@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求真实查询资产、拓扑、设备映射、型号能力与 ACL 模板，只调用一次无状态 Preview，并给出与工具结果一致的 PPV 及确认提示。工具回执显示本轮只有 skill 读取、prepare_policy_configuration 与 get_policy_configuration_result 三次调用：未进行任何资产/拓扑/设备映射/型号能力/ACL 模板查询，prepare 请求未携带 target_external_id，工具结果也未返回设备、模板或渲染后的策略预览，因此没有生成预期的 PPV。被测回答亦自认未执行拓扑与模板查询、无 PPV 产出，仅停留在任务草稿与候选摘要，关键数据无法由同 Session 工具回执支撑，故明确不满足预期核心要求。"
+  },
+  "checks": {
+    "session_id": "session-1e957972-e0f9-42c1-bf23-5e869622c640",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

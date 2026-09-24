@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-004",
+  "transport": "api",
+  "expected_behavior": "围绕主备状态、路径、策略同步和设备配置进行真实查询与分析，给出证据支持的原因或明确未知项，不直接执行策略变更。",
+  "session_id": "session-c230f78c-47de-44c6-8ef4-cb50162c05d1",
+  "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-6d69e2bf-3c9a-4db7-aad9-aba5ab0b0c03",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

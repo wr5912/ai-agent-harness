@@ -1,0 +1,25 @@
+{
+  "schema_version": "3.0",
+  "run_id": "run-8941fbbc-8f7b-42f0-9890-d2f12249e79b",
+  "trial_count": 40,
+  "execution_status_counts": {
+    "completed": 40,
+    "error": 0,
+    "skipped": 0
+  },
+  "machine_trial_verdict_counts": {
+    "passed": 32,
+    "failed": 8,
+    "inconclusive": 0
+  },
+  "machine_overall_verdict": "failed",
+  "review_status": "completed",
+  "reviewed_case_count": 40,
+  "reviewed_case_verdict_counts": {
+    "passed": 28,
+    "failed": 11,
+    "inconclusive": 1
+  },
+  "reviewed_overall_verdict": "failed",
+  "effective_verdict": "failed"
+}

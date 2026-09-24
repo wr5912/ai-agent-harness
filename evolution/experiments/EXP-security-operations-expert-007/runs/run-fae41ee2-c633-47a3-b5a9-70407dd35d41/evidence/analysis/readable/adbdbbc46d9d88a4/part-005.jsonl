@@ -1,0 +1,8 @@
+{"source":"inputs.lock.json","source_line":801,"chunk":1,"text":"  \"selection_mode\": \"full\",\n"}
+{"source":"inputs.lock.json","source_line":802,"chunk":1,"text":"  \"git_version\": {\n"}
+{"source":"inputs.lock.json","source_line":803,"chunk":1,"text":"    \"commit\": \"839b8742751b8ea4010d81c6e3a151d43174abca\",\n"}
+{"source":"inputs.lock.json","source_line":804,"chunk":1,"text":"    \"dirty\": true,\n"}
+{"source":"inputs.lock.json","source_line":805,"chunk":1,"text":"    \"changed_path_count\": 33\n"}
+{"source":"inputs.lock.json","source_line":806,"chunk":1,"text":"  },\n"}
+{"source":"inputs.lock.json","source_line":807,"chunk":1,"text":"  \"executor\": \"api\"\n"}
+{"source":"inputs.lock.json","source_line":808,"chunk":1,"text":"}\n"}

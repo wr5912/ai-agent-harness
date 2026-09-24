@@ -1,0 +1,18 @@
+{"source":"evidence/U-QA-001/checks.json","source_line":1,"chunk":1,"text":"{\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":2,"chunk":1,"text":"  \"schema_version\": \"1.0\",\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":3,"chunk":1,"text":"  \"case_id\": \"U-QA-001\",\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":4,"chunk":1,"text":"  \"transport\": \"api\",\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":5,"chunk":1,"text":"  \"expected_behavior\": \"检索并依据 SEC-KB-078 的真实知识库内容回答，给出可核对的文档或分块来源；检索不到时明确说明，不凭常识冒充内部知识。\",\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":6,"chunk":1,"text":"  \"session_id\": \"session-86d6edb2-5fa2-4ac6-b8ff-230b81089cab\",\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":7,"chunk":1,"text":"  \"workspace_id\": \"a94af39c-d02d-4450-ab02-f23d7b87c48e\",\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":8,"chunk":1,"text":"  \"session_preset\": \"security-operations-expert\",\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":9,"chunk":1,"text":"  \"session_workspace\": \"/work/harness/workspace\",\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":10,"chunk":1,"text":"  \"preset_matches\": true,\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":11,"chunk":1,"text":"  \"workspace_matches\": true,\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":12,"chunk":1,"text":"  \"trace_format\": \"dsh-session-export-envelope-v1\",\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":13,"chunk":1,"text":"  \"completed\": true,\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":14,"chunk":1,"text":"  \"judge\": {\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":15,"chunk":1,"text":"    \"session_id\": \"session-b9b291cd-ef6b-48ee-8c57-f00511b2114b\",\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":16,"chunk":1,"text":"    \"unavailable_reason\": \"judge-output-invalid\"\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":17,"chunk":1,"text":"  }\n"}
+{"source":"evidence/U-QA-001/checks.json","source_line":18,"chunk":1,"text":"}\n"}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "用户要求只查询目录、不执行巡检。被测 Session 的子 Agent 真实调用了 mcp__inspection__inspection_capabilities_list（seq 15/16），返回 2 项能力：资产运行状态巡检（routine、schema 5.0、skill 5.0.0）与资产漏洞巡检（routine、schema 4.0、skill 4.0.0）。回答列出的项名、分组、关键词、版本、输入结构等与该工具回执逐项一致，无编造，并明确说明本轮仅查询目录、未创建运行、未采集证据、未生成报告，工具未说明的关系标注为“未知”，未输出实际巡检结果数值。工具链中亦无创建运行、采集证据或收口等执行类调用，符合“只查询目录、不执行巡检”的预期。故判定满足全部要求。"
+  },
+  "checks": {
+    "session_id": "session-6e1c96f3-3494-4a33-b56a-3dcf8a619acf",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

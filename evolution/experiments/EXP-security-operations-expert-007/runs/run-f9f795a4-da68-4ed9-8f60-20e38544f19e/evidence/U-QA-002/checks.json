@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-002",
+  "transport": "api",
+  "expected_behavior": "先真实列出知识库，再检索最相关知识库；回复中的知识库名、文档名、分块序号、分数和匹配类型与本轮工具结果一致。工具不可用或无证据时明确说明，且没有无来源的流程内容。",
+  "session_id": "session-4a9c8904-28f2-49f9-aca0-0f5bc1e3256c",
+  "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-5dd1ae12-18a0-4a86-be6a-1bce9c94ab5d",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

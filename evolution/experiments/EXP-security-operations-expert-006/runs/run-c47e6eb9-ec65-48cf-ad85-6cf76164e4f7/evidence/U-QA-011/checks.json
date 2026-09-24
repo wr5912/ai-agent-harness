@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-011",
+  "transport": "api",
+  "expected_behavior": "只依据真实检索到的内部规范回答，给出可核对来源并区分原文要求与解释；检索不到时明确说明，不用通用经验冒充内部标准。",
+  "session_id": "session-445644c9-4168-4658-a079-69a9ed03eda4",
+  "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-2aa3653e-aa1f-45ee-a1c2-0b771f8c5bbc",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

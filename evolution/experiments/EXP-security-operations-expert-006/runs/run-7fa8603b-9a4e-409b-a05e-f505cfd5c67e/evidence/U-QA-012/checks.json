@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-012",
+  "completed": false,
+  "expected_behavior": "不在缺少来源时间和版本时保证“最新”；说明如何比较发布日期、适用范围、权威性和相关度，冲突或无结果时应明确不确定性并继续核验或升级人工确认。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

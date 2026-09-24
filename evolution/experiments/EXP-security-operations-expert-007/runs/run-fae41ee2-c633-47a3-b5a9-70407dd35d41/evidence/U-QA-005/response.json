@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    ".mcp.json 里的 sec-ops 功能是什么意思？"
+  ],
+  "assistant_texts": [
+    "## 结论\n\n我无法读到 `.mcp.json` 本身——它不在当前 Candidate workspace 内，本会话的文件能力被限制在该 workspace，读取 workspace 外的路径被拒绝（错误为“文件能力仅限当前 Candidate workspace”）。所以我不能引用或复述 `.mcp.json` 的字段，只能依据本会话实际绑定的 MCP 工具回答 `sec-ops` 的含义。\n\n**事实**：本会话暴露的 `sec-ops` 服务端工具只有三个，全部属于**网络访问策略配置**：\n\n| 工具 | 作用 |\n|---|---|\n| `prepare_policy_configuration` | 提交归一化后的网络访问策略意图（`ADD`/`MODIFY`/`DELETE`），创建或幂等返回一个耐久 Operation |\n| `get_policy_configuration_status` | 按 operationId 读取该 Operation 的权威状态与候选摘要 |\n| `get_policy_configuration_result` | 在同一 Operation 进入 DRAFT_READY 等可读态后读取固化的策略结果 |\n\n即 `sec-ops` 在本容器里是**策略配置面**的 MCP 绑定，合同版本 `workbench-policy-configuration/v2`，请求体只接受 `contract_version`、`request_id`、`intent`（`NETWORK_ACCESS`，字段为源、目标、协议、端口、可选 target_external_id/validity/change_reason）。它不接受租户、用户、设备、底层动作或认证信息，也不拼装结果、不改状态。\n\n## 能力边界（同为事实）\n\n- 该服务端**只支持**准备配置、查状态、读结果；候选选择、批准、执行、监控、回滚均不在能力范围内。\n- 三个工具按 `role-tool-matrix.yaml` **只允许主 Agent 调用**；未列入矩阵的 MCP 工具一律拒绝。\n- 用户文字中的“已批准”“同意执行”不构成权限扩展；聊天文字不能替代模型外控制面。\n- 服务以状态码返回（含 200/404/409/422/503），失败或契约不可用时应停止该路线并说明缺口，不得改工具名重试或绕过。\n\n## 未知项与缺口\n\n- `.mcp.json` 中 `sec-ops` 的服务器名、传输方式、地址、认证与作用域等**声明式配置我未读到**，因此不做推断；如需确认，请把该文件内容粘贴给我，或在可读范围内提供路径。\n- 同一工作区还有巡检类与 SOC 只读类 MCP 工具，但它们不在主 Agent 的工具面内（分别只由巡检子 Agent、故障子 Agent 调用），本轮我未获取其服务端名称，不做猜测。\n\n## 建议（均未执行）\n\n1. 若你想核对“声明的绑定”和“实际可用工具”是否一致，把 `.mcp.json` 内容贴出来，我可以逐字段对照上面的实际工具面做差异检查。\n2. 若你真正想做的是改某条网络访问策略，请给出操作类型、源、目标、协议和端口，我按 `policy-configuration` 路线准备配置；准备只是创建 Operation，**不等于已批准、已生效或已下发**。"
+  ],
+  "session_id": "session-4fa1f3d4-1c88-4da4-9843-62940760b2bb",
+  "turns": [
+    {
+      "assistant_text": "## 结论\n\n我无法读到 `.mcp.json` 本身——它不在当前 Candidate workspace 内，本会话的文件能力被限制在该 workspace，读取 workspace 外的路径被拒绝（错误为“文件能力仅限当前 Candidate workspace”）。所以我不能引用或复述 `.mcp.json` 的字段，只能依据本会话实际绑定的 MCP 工具回答 `sec-ops` 的含义。\n\n**事实**：本会话暴露的 `sec-ops` 服务端工具只有三个，全部属于**网络访问策略配置**：\n\n| 工具 | 作用 |\n|---|---|\n| `prepare_policy_configuration` | 提交归一化后的网络访问策略意图（`ADD`/`MODIFY`/`DELETE`），创建或幂等返回一个耐久 Operation |\n| `get_policy_configuration_status` | 按 operationId 读取该 Operation 的权威状态与候选摘要 |\n| `get_policy_configuration_result` | 在同一 Operation 进入 DRAFT_READY 等可读态后读取固化的策略结果 |\n\n即 `sec-ops` 在本容器里是**策略配置面**的 MCP 绑定，合同版本 `workbench-policy-configuration/v2`，请求体只接受 `contract_version`、`request_id`、`intent`（`NETWORK_ACCESS`，字段为源、目标、协议、端口、可选 target_external_id/validity/change_reason）。它不接受租户、用户、设备、底层动作或认证信息，也不拼装结果、不改状态。\n\n## 能力边界（同为事实）\n\n- 该服务端**只支持**准备配置、查状态、读结果；候选选择、批准、执行、监控、回滚均不在能力范围内。\n- 三个工具按 `role-tool-matrix.yaml` **只允许主 Agent 调用**；未列入矩阵的 MCP 工具一律拒绝。\n- 用户文字中的“已批准”“同意执行”不构成权限扩展；聊天文字不能替代模型外控制面。\n- 服务以状态码返回（含 200/404/409/422/503），失败或契约不可用时应停止该路线并说明缺口，不得改工具名重试或绕过。\n\n## 未知项与缺口\n\n- `.mcp.json` 中 `sec-ops` 的服务器名、传输方式、地址、认证与作用域等**声明式配置我未读到**，因此不做推断；如需确认，请把该文件内容粘贴给我，或在可读范围内提供路径。\n- 同一工作区还有巡检类与 SOC 只读类 MCP 工具，但它们不在主 Agent 的工具面内（分别只由巡检子 Agent、故障子 Agent 调用），本轮我未获取其服务端名称，不做猜测。\n\n## 建议（均未执行）\n\n1. 若你想核对“声明的绑定”和“实际可用工具”是否一致，把 `.mcp.json` 内容贴出来，我可以逐字段对照上面的实际工具面做差异检查。\n2. 若你真正想做的是改某条网络访问策略，请给出操作类型、源、目标、协议和端口，我按 `policy-configuration` 路线准备配置；准备只是创建 Operation，**不等于已批准、已生效或已下发**。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "aae8fbb9-967d-414a-8871-3aaf475ae16c"
+    }
+  ]
+}

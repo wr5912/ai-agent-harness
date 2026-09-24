@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "本轮真实工具链完整：子 Agent 依次调用 inspection_runs_start_with_plan、inspection_runs_collect_evidence（coverage processed/expected/observed 均为 39）、inspection_runs_finalize，finalize 明确返回 status=completed、conclusion_status=abnormal、report.download_url 及 user_response_markdown。被测回答中的设备数量（总数 39、异常 15、离线 10、严重或高危漏洞 4）与工具字段逐项一致，报告链接与 finalize 返回的 download_url 完全相同，未编造占位链接；回答同时正确声明建议动作尚未执行，未声称已处置或修复。工具成功返回且回答数据与之一致，满足全部预期要求。"
+  },
+  "checks": {
+    "session_id": "session-7d654ead-f5d6-4d73-b66d-bcc5e212b698",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

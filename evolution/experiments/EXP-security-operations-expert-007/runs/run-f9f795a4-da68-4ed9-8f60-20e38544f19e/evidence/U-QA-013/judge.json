@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答明确识别出输入仅为指代性文字，缺少漏洞标识（CVE/CNVD/内部编号）、受影响组件与版本、漏洞描述、PoC/触发条件、补丁 diff、日志等关键材料，并据此说明无法开展根因分析，随后逐条列出所需补充信息并请求用户提供，未对漏洞根因或缺陷类别作任何臆测性判定，符合预期行为。工具回执（glob 与 skill 事件）也支持其关于工作区仅有 AGENTS.md 与 skills 文件、无漏洞材料的事实陈述；其关于未做取证的表述属措辞宽泛，不影响核心要求的满足。"
+  },
+  "checks": {
+    "session_id": "session-7376392e-b933-4b5f-acd3-e8a267376bde",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

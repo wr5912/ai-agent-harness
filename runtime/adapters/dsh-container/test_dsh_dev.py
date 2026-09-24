@@ -218,6 +218,49 @@ class EvaluationModeContractTest(unittest.TestCase):
         self.assertNotIn("DSH_REFERENCE_HOST", rendered)
         self.assertNotIn("DSH_MANAGED_PATCH_OVERLAY", rendered)
 
+    def test_analysis_workspace_is_a_read_only_run_without_symlinks(self):
+        with tempfile.TemporaryDirectory() as temp:
+            repository = Path(temp)
+            run = repository / (
+                "evolution/experiments/EXP-probe-001/runs/"
+                "run-00000000-0000-4000-8000-000000000000"
+            )
+            run.mkdir(parents=True)
+            validated = dev.validate_analysis_workspace(str(run), repo=repository)
+            rendered = dev.render_compose(
+                (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8"),
+                mode="verification", name="analysis", project="dsh-dev-analysis", port=3081,
+                analysis_workspace=True,
+            )
+            self.assertEqual(validated, str(run))
+            self.assertIn("    working_dir: /work/evaluation-run\n", rendered)
+            self.assertIn("        target: /work/evaluation-run\n        read_only: true\n", rendered)
+            self.assertIn("/opt/dsh-adapter/scenario-analysis.patch.yml", rendered)
+            analysis_patch = (ADAPTER / "scenario-analysis.patch.yml").read_text(encoding="utf-8")
+            self.assertIn("- id: tool-fs\n  disabled: false", analysis_patch)
+            self.assertIn("- id: tool-fs-search\n  disabled: false", analysis_patch)
+            for value in (
+                "${DSH_WORKSPACE_HOST", "${DSH_PRESETS_HOST", "${DSH_MANAGED_HOST",
+                "${DSH_MANAGED_PATCH", "/work/harness/workspace", "/opt/dsh-presets",
+                "/opt/dsh-managed",
+            ):
+                self.assertNotIn(value, rendered)
+            with mock.patch.dict(os.environ, {}, clear=True):
+                environment = dev.compose_env(
+                    self.contract(), "verification", 3081, "analysis",
+                    analysis_workspace=validated,
+                )
+            self.assertEqual(environment["DSH_ANALYSIS_WORKSPACE_HOST"], str(run))
+            self.assertEqual(environment["DSH_EVAL_TARGET_PRESET"], "scenario-analysis")
+            self.assertEqual(dev.required_env_names(self.contract(), validated), ["DEEPSEEK_API_KEY"])
+            for key in (
+                "DSH_WORKSPACE_HOST", "DSH_PRESETS_HOST", "DSH_MANAGED_HOST", "DSH_MANAGED_PATCH",
+            ):
+                self.assertNotIn(key, environment)
+            (run / "escape").symlink_to("/tmp")
+            with self.assertRaises(SystemExit):
+                dev.validate_analysis_workspace(str(run), repo=repository)
+
     def test_templates_declare_no_business_agent_identity(self):
         """通用启动器模板不得内联某个业务 Agent 的路径、preset 或 patch 名。"""
         text = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")

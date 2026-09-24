@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "inconclusive",
+    "reason": "回复部分满足预期：明确说明草稿已生成、处于 DRAFT/waiting_user 阶段、尚未提交审批执行，且未声称已开通，与工具回执（prepare 返回 task_id 224、DRAFT、confirmation_required；result 返回 DRAFT_READY 摘要）一致。但预期还要求“完成真实资产、路径和设备能力核对”，而工具回执仅体现配置准备被接受并生成草稿，未出现任何资产、路径或设备能力核对的结果，也无此类校验工具调用，无法确认该环节是否实际完成，故证据不足，判为 inconclusive。"
+  },
+  "checks": {
+    "session_id": "session-d35e7a58-82ba-4ca8-9c94-a95cb851b779",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

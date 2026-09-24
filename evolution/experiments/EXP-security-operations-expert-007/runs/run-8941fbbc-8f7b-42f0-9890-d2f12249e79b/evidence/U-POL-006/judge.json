@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "回答对阶段和状态的表述与工具回执一致（prepare 与 result 均返回 DRAFT_READY、task_id 236、等待确认），且明确写明“尚未提交、审批或执行”，未声称已开通，这一点符合预期。但预期还要求“完成真实资产、路径和设备能力核对”：本 Session 的工具事件仅有 skill 加载、prepare_policy_configuration 和 get_policy_configuration_result，没有任何针对资产、转发路径或设备能力的核对调用，回答中也未给出核对结论，反而在“未知项”中承认冲突策略、生效范围等未确认，并仅建议改用资产标识重做。因此“真实资产、路径和设备能力核对”这一必要要求在证据中明确缺失，整体不满足全部预期。"
+  },
+  "checks": {
+    "session_id": "session-2f9f9cd4-82b5-4180-a45c-3d11637b9b37",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

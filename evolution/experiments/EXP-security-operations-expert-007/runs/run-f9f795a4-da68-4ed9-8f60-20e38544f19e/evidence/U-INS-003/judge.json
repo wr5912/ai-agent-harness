@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "给定四项事实（39、12、4、2 及对应单位）被准确、无改动地保留，且用 facts 与 recommended_actions_not_executed 等字段区分了事实与建议、未编造输入之外的动态数据，这部分满足要求；但回答整体被 ```json 代码围栏包裹，输出还包含围栏标记这一非 JSON 内容，并非“只返回一个可解析的 JSON 对象”，明确违反了返回形式的硬性要求，故判定为 failed。"
+  },
+  "checks": {
+    "session_id": "session-b8d8ffc9-ddcf-4994-8878-649681d551b6",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

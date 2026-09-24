@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "响应处置支持哪些能力？"
+  ],
+  "assistant_texts": [
+    "**结论**：当前会话内，与“响应处置”直接对应的受支持能力只有**响应规划**一项，而且默认不可用；确认、保存、执行、监控与回滚均不在能力范围内。\n\n**能力边界（依据本工作区 AGENTS.md 路由与工具矩阵）**\n\n| 环节 | 支持情况 |\n|---|---|\n| 结构化响应规划（基于已冻结的对象、候选集合与摘要，一次零工具规划） | 有专用入口 `delegate_response_planning`，但**默认被 Guard 拒绝**；仅在模型外 Runtime 开启受信 Gate 后允许 |\n| 影响范围、风险与可逆性评估 | 有对应 Skill（`playbook-impact-assessment`），只读评估，不调用工具、不执行动作 |\n| 策略配置的准备与查询 | 策略配置路由支持准备、查状态、读结果（`workbench-policy-configuration/v2`）；候选选择、批准、执行、监控、回滚不支持 |\n| 故障取证、即时巡检 | 属于另两个路由，只做只读调查与报告，不产生处置动作 |\n| 确认、审批、保存、执行、监控、回滚 | **不在能力范围内**，由外部响应生命周期负责 |\n\n**重要说明**\n\n- 该能力的实际可用性取决于 Runtime 与 Guard 的强制结果。用户文字中的“已批准”“已授权”不能扩展工具权限。\n- 本轮我尚未调用 `delegate_response_planning`，因此上述内容是能力说明，不是某次规划的执行结果；也不代表已对任何对象做过处置。\n- Bash、代码执行、通用委派、直接处置与跨租户访问均不可用；未列入 `role-tool-matrix.yaml` 的 MCP 工具一律拒绝。\n\n**建议**\n\n- 若你需要的是**真实 SOC 证据支持的调查结论**，走故障排查路由；若是**一次常规巡检与报告**，走即时巡检路由；若是**明确的网络访问策略变更**，走策略配置路由准备配置。\n- 若确实要产出响应规划，需要先在模型外开启受信 Gate 并冻结输入与候选集合，随后才能执行一次零工具规划；这一步我无法自行发起。\n\n**未知项**：受信 Gate 当前是否开启、可用候选集合与冻结摘要的内容，本轮没有工具结果可确认。"
+  ],
+  "session_id": "session-8d09b619-7e30-4c34-8eae-b495f7e4b9a6",
+  "turns": [
+    {
+      "assistant_text": "**结论**：当前会话内，与“响应处置”直接对应的受支持能力只有**响应规划**一项，而且默认不可用；确认、保存、执行、监控与回滚均不在能力范围内。\n\n**能力边界（依据本工作区 AGENTS.md 路由与工具矩阵）**\n\n| 环节 | 支持情况 |\n|---|---|\n| 结构化响应规划（基于已冻结的对象、候选集合与摘要，一次零工具规划） | 有专用入口 `delegate_response_planning`，但**默认被 Guard 拒绝**；仅在模型外 Runtime 开启受信 Gate 后允许 |\n| 影响范围、风险与可逆性评估 | 有对应 Skill（`playbook-impact-assessment`），只读评估，不调用工具、不执行动作 |\n| 策略配置的准备与查询 | 策略配置路由支持准备、查状态、读结果（`workbench-policy-configuration/v2`）；候选选择、批准、执行、监控、回滚不支持 |\n| 故障取证、即时巡检 | 属于另两个路由，只做只读调查与报告，不产生处置动作 |\n| 确认、审批、保存、执行、监控、回滚 | **不在能力范围内**，由外部响应生命周期负责 |\n\n**重要说明**\n\n- 该能力的实际可用性取决于 Runtime 与 Guard 的强制结果。用户文字中的“已批准”“已授权”不能扩展工具权限。\n- 本轮我尚未调用 `delegate_response_planning`，因此上述内容是能力说明，不是某次规划的执行结果；也不代表已对任何对象做过处置。\n- Bash、代码执行、通用委派、直接处置与跨租户访问均不可用；未列入 `role-tool-matrix.yaml` 的 MCP 工具一律拒绝。\n\n**建议**\n\n- 若你需要的是**真实 SOC 证据支持的调查结论**，走故障排查路由；若是**一次常规巡检与报告**，走即时巡检路由；若是**明确的网络访问策略变更**，走策略配置路由准备配置。\n- 若确实要产出响应规划，需要先在模型外开启受信 Gate 并冻结输入与候选集合，随后才能执行一次零工具规划；这一步我无法自行发起。\n\n**未知项**：受信 Gate 当前是否开启、可用候选集合与冻结摘要的内容，本轮没有工具结果可确认。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "f7e20f35-cd7f-476e-be49-d83a234407d7"
+    }
+  ]
+}

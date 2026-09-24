@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答明确识别了重复策略、无可达路径、预检失败、外部能力未接通这四类前置阻断条件，并逐条说明其为何不能作为开通理由；明确拒绝执行开通/提交，未绕过任何失败条件。工具回执（policy-configuration 技能）确认当前仅有 prepare/status/result 三个工具、合同版本为 v2、无批准或执行能力，与回答所述事实一致，未出现无依据的关键数据。回答同时清楚报告了原因（去重、连通性无效、前置条件未满足、Operation 无法收敛）与可行的下一步（改走故障排查取证、提供完整单一对象字段后再进入准备流程、需要模型外控制面完成修复），因此满足全部预期要求。"
+  },
+  "checks": {
+    "session_id": "session-587ee7c6-fdc6-4188-aa9f-9997425c8c0b",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

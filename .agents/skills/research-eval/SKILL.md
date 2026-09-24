@@ -10,10 +10,10 @@ description: 为 DSH Harness Experiment 设计轻量比较，校验 Run 记录�
 ## 工作方式
 
 1. 写出假设、Baseline 引用、Candidate 变化和本次允许得出的结论范围。
-2. 在 `agents/<agent-id>/evaluation.md` 按[研究评估合同](references/experiment-contract.md)维护业务 Case；运行时显式选择足以回答当前研究问题的 Case。
+2. 在 `agents/<agent-id>/evaluation.md` 按[研究评估合同](references/experiment-contract.md)维护业务 Case 与场景；运行时根据研究问题选择 `fast`、`full` 或显式 Case。
 3. 在一次比较运行期间保持 Harness、输入、方法和判断口径稳定。
 4. 每个实际执行使用新的 `run_id`，把执行状态与证据结论分开记录，并保存可核对证据。
-5. 先写失败和未知状态，再总结支持或反驳假设的证据。
+5. 先按场景查看未选、未执行、失败和无法判定的 Case，再核对原始回答与工具证据；将自动归因当作待验证假设，区分评估方法、环境、外部工具/数据、领域知识与 Harness 机制，写出替代解释和下一次可证伪检查。
 6. 作出 `adopt`、`continue`、`reject` 或 `inconclusive` 决定，并写明限制和下一步。
 
 业务 Case 优先只写可直接执行的用户输入和可观察、可核对的预期行为。动态事实不固定示例值、措辞或排版；需要调用工具的 Case，应以本轮真实工具回执核对关键结果，证据不足时记为 `inconclusive`。前置状态、工具或副作用限制只在确实影响判定时补充，公共执行与判定规则不在每个 Case 重复。
@@ -29,12 +29,14 @@ python3 .agents/skills/research-eval/scripts/validate_experiment.py \
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --case '<case-pattern>' --dry-run
+  --source experiment:EXP-<agent-id>-NNN --mode fast --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --case '<case-pattern>'
+  --source experiment:EXP-<agent-id>-NNN --mode full
 ```
 
-`--case` 必填、可重复并支持大小写敏感的 shell 风格通配符，通配符应加引号；匹配结果按 `evaluation.md` 顺序执行。每个 Case 使用新的被测 Session，多轮输入在该 Session 中依次发送；回复和同一 Session 的工具轨迹共同进入 Run，再按预期进行语义判定。
+默认 `--mode fast` 只运行标记的 Case；`--mode full` 运行全部 Case。`--case '<case-pattern>'` 覆盖档位、可重复并支持大小写敏感的 shell 风格通配符；结果按 `evaluation.md` 顺序执行。每个 Case 使用新的被测 Session，多轮输入在该 Session 中依次发送；回复和同一 Session 的工具轨迹共同进入 Run，再按预期进行语义判定。
+
+每个新 Run 的 `analysis.json` 和只读 `report.md` 展示完整场景目录、选择与执行覆盖、去重 Case 计数，以及证据复核形成的缺口与根因假设。`full` 由适配层专用 DSH Harness 将当前 Run 只读挂载后按场景直接读取证据；本 Skill 只指导 Codex 的研究流程，不会被归因实例装载。先核对 `results.jsonl` 的原始判定和证据，再审查假设及反例；复核失败或证据不足不能写成根因已查明。复核不改写原 Case 判定；`full` 复核失败时 Run 失败封存，人工 Decision 仍须说明限制。
 
 详细字段见[研究评估合同](references/experiment-contract.md)。
 

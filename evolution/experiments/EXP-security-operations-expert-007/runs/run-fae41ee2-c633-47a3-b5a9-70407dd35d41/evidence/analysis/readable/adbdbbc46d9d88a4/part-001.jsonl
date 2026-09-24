@@ -1,0 +1,200 @@
+{"source":"inputs.lock.json","source_line":1,"chunk":1,"text":"{\n"}
+{"source":"inputs.lock.json","source_line":2,"chunk":1,"text":"  \"schema_version\": \"2.0\",\n"}
+{"source":"inputs.lock.json","source_line":3,"chunk":1,"text":"  \"run_id\": \"run-fae41ee2-c633-47a3-b5a9-70407dd35d41\",\n"}
+{"source":"inputs.lock.json","source_line":4,"chunk":1,"text":"  \"source_id\": \"experiment:EXP-security-operations-expert-007\",\n"}
+{"source":"inputs.lock.json","source_line":5,"chunk":1,"text":"  \"source_kind\": \"experiment\",\n"}
+{"source":"inputs.lock.json","source_line":6,"chunk":1,"text":"  \"baseline_ref\": \"git:6b7fd0a8af617ce8db3aec4bcdb188e4a488026a\",\n"}
+{"source":"inputs.lock.json","source_line":7,"chunk":1,"text":"  \"created_at\": \"2026-09-24T10:48:33Z\",\n"}
+{"source":"inputs.lock.json","source_line":8,"chunk":1,"text":"  \"harness_trees\": {\n"}
+{"source":"inputs.lock.json","source_line":9,"chunk":1,"text":"    \"workspace\": {\n"}
+{"source":"inputs.lock.json","source_line":10,"chunk":1,"text":"      \"tree_sha256\": \"sha256:f7f5669836d8b456f4f0f4dc5d9b9f2502c7688d4bff88a1b6600522ec522dda\",\n"}
+{"source":"inputs.lock.json","source_line":11,"chunk":1,"text":"      \"directory_sha256\": \"sha256:e037a329ea436c9ddfeabc9fa82cb6aefd096103cfa20c24001289a3721c1632\",\n"}
+{"source":"inputs.lock.json","source_line":12,"chunk":1,"text":"      \"file_count\": 8,\n"}
+{"source":"inputs.lock.json","source_line":13,"chunk":1,"text":"      \"total_bytes\": 14279,\n"}
+{"source":"inputs.lock.json","source_line":14,"chunk":1,"text":"      \"files\": [\n"}
+{"source":"inputs.lock.json","source_line":15,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":16,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":17,"chunk":1,"text":"          \"path\": \".agents/skills/fault-analysis/SKILL.md\",\n"}
+{"source":"inputs.lock.json","source_line":18,"chunk":1,"text":"          \"sha256\": \"5bcc10d9be08e61bd2d94a473e6577e2ef501f22832caa9427e03a037585ec28\",\n"}
+{"source":"inputs.lock.json","source_line":19,"chunk":1,"text":"          \"size\": 1722\n"}
+{"source":"inputs.lock.json","source_line":20,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":21,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":22,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":23,"chunk":1,"text":"          \"path\": \".agents/skills/playbook-impact-assessment/SKILL.md\",\n"}
+{"source":"inputs.lock.json","source_line":24,"chunk":1,"text":"          \"sha256\": \"9293f326283bbf5b9f6c7a0105a73d218f906ebfdcad01f7834a6effbfb004cb\",\n"}
+{"source":"inputs.lock.json","source_line":25,"chunk":1,"text":"          \"size\": 568\n"}
+{"source":"inputs.lock.json","source_line":26,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":27,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":28,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":29,"chunk":1,"text":"          \"path\": \".agents/skills/policy-configuration/SKILL.md\",\n"}
+{"source":"inputs.lock.json","source_line":30,"chunk":1,"text":"          \"sha256\": \"d5130c2a6f9663555e0487e2ec975fa40e8f17164a0225efa0eb48591bac3f57\",\n"}
+{"source":"inputs.lock.json","source_line":31,"chunk":1,"text":"          \"size\": 1448\n"}
+{"source":"inputs.lock.json","source_line":32,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":33,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":34,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":35,"chunk":1,"text":"          \"path\": \".agents/skills/response-planning/SKILL.md\",\n"}
+{"source":"inputs.lock.json","source_line":36,"chunk":1,"text":"          \"sha256\": \"76d84e82fd9c3edc85ec693a50b6881e54271eb89da77335ac11142998a056a4\",\n"}
+{"source":"inputs.lock.json","source_line":37,"chunk":1,"text":"          \"size\": 1443\n"}
+{"source":"inputs.lock.json","source_line":38,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":39,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":40,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":41,"chunk":1,"text":"          \"path\": \".agents/skills/security-inspection/SKILL.md\",\n"}
+{"source":"inputs.lock.json","source_line":42,"chunk":1,"text":"          \"sha256\": \"08c6b572084b14bb404e6c83e2adc98cc568b6696e767ee9d513896ed89520c7\",\n"}
+{"source":"inputs.lock.json","source_line":43,"chunk":1,"text":"          \"size\": 2502\n"}
+{"source":"inputs.lock.json","source_line":44,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":45,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":46,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":47,"chunk":1,"text":"          \"path\": \".agents/skills/security-investigation/SKILL.md\",\n"}
+{"source":"inputs.lock.json","source_line":48,"chunk":1,"text":"          \"sha256\": \"a622b794f20252224b7db2b10d9c7f76fd6fb61cb29756431080c63707f6ef40\",\n"}
+{"source":"inputs.lock.json","source_line":49,"chunk":1,"text":"          \"size\": 843\n"}
+{"source":"inputs.lock.json","source_line":50,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":51,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":52,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":53,"chunk":1,"text":"          \"path\": \".env\",\n"}
+{"source":"inputs.lock.json","source_line":54,"chunk":1,"text":"          \"sha256\": \"e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489\",\n"}
+{"source":"inputs.lock.json","source_line":55,"chunk":1,"text":"          \"size\": 84\n"}
+{"source":"inputs.lock.json","source_line":56,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":57,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":58,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":59,"chunk":1,"text":"          \"path\": \"AGENTS.md\",\n"}
+{"source":"inputs.lock.json","source_line":60,"chunk":1,"text":"          \"sha256\": \"b28369f908a140af78d67c3a3bceaa63ea2251ae26c9728c9e8f96d7dbe9e9f2\",\n"}
+{"source":"inputs.lock.json","source_line":61,"chunk":1,"text":"          \"size\": 5669\n"}
+{"source":"inputs.lock.json","source_line":62,"chunk":1,"text":"        }\n"}
+{"source":"inputs.lock.json","source_line":63,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":64,"chunk":1,"text":"      \"directories\": [\n"}
+{"source":"inputs.lock.json","source_line":65,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":66,"chunk":1,"text":"          \"path\": \".\",\n"}
+{"source":"inputs.lock.json","source_line":67,"chunk":1,"text":"          \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":68,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":69,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":70,"chunk":1,"text":"          \"path\": \".agents\",\n"}
+{"source":"inputs.lock.json","source_line":71,"chunk":1,"text":"          \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":72,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":73,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":74,"chunk":1,"text":"          \"path\": \".agents/skills\",\n"}
+{"source":"inputs.lock.json","source_line":75,"chunk":1,"text":"          \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":76,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":77,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":78,"chunk":1,"text":"          \"path\": \".agents/skills/fault-analysis\",\n"}
+{"source":"inputs.lock.json","source_line":79,"chunk":1,"text":"          \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":80,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":81,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":82,"chunk":1,"text":"          \"path\": \".agents/skills/playbook-impact-assessment\",\n"}
+{"source":"inputs.lock.json","source_line":83,"chunk":1,"text":"          \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":84,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":85,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":86,"chunk":1,"text":"          \"path\": \".agents/skills/policy-configuration\",\n"}
+{"source":"inputs.lock.json","source_line":87,"chunk":1,"text":"          \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":88,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":89,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":90,"chunk":1,"text":"          \"path\": \".agents/skills/response-planning\",\n"}
+{"source":"inputs.lock.json","source_line":91,"chunk":1,"text":"          \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":92,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":93,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":94,"chunk":1,"text":"          \"path\": \".agents/skills/security-inspection\",\n"}
+{"source":"inputs.lock.json","source_line":95,"chunk":1,"text":"          \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":96,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":97,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":98,"chunk":1,"text":"          \"path\": \".agents/skills/security-investigation\",\n"}
+{"source":"inputs.lock.json","source_line":99,"chunk":1,"text":"          \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":100,"chunk":1,"text":"        }\n"}
+{"source":"inputs.lock.json","source_line":101,"chunk":1,"text":"      ]\n"}
+{"source":"inputs.lock.json","source_line":102,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":103,"chunk":1,"text":"    \"presets\": {\n"}
+{"source":"inputs.lock.json","source_line":104,"chunk":1,"text":"      \"tree_sha256\": \"sha256:71d3b1ea06c1d0ede0c55f95953d8800851e2da63e5ab2e3230887eb231bed10\",\n"}
+{"source":"inputs.lock.json","source_line":105,"chunk":1,"text":"      \"directory_sha256\": \"sha256:5342268bd9bbcb7d63f8953f6aec1ec8eacd7c0780b484c69d8e4fa2f6bcb355\",\n"}
+{"source":"inputs.lock.json","source_line":106,"chunk":1,"text":"      \"file_count\": 2,\n"}
+{"source":"inputs.lock.json","source_line":107,"chunk":1,"text":"      \"total_bytes\": 1041,\n"}
+{"source":"inputs.lock.json","source_line":108,"chunk":1,"text":"      \"files\": [\n"}
+{"source":"inputs.lock.json","source_line":109,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":110,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":111,"chunk":1,"text":"          \"path\": \"security-operations-expert/agent.cordis.yml\",\n"}
+{"source":"inputs.lock.json","source_line":112,"chunk":1,"text":"          \"sha256\": \"21ddcb3a02004afe30d166b5a8de3e1158823cce0825533b773fd958bf1a0a9f\",\n"}
+{"source":"inputs.lock.json","source_line":113,"chunk":1,"text":"          \"size\": 878\n"}
+{"source":"inputs.lock.json","source_line":114,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":115,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":116,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":117,"chunk":1,"text":"          \"path\": \"security-operations-expert/preset.yml\",\n"}
+{"source":"inputs.lock.json","source_line":118,"chunk":1,"text":"          \"sha256\": \"e2edf722ed79cc54419a5ac4efcc13693856945347715562f8940c706faf8742\",\n"}
+{"source":"inputs.lock.json","source_line":119,"chunk":1,"text":"          \"size\": 163\n"}
+{"source":"inputs.lock.json","source_line":120,"chunk":1,"text":"        }\n"}
+{"source":"inputs.lock.json","source_line":121,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":122,"chunk":1,"text":"      \"directories\": [\n"}
+{"source":"inputs.lock.json","source_line":123,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":124,"chunk":1,"text":"          \"path\": \".\",\n"}
+{"source":"inputs.lock.json","source_line":125,"chunk":1,"text":"          \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":126,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":127,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":128,"chunk":1,"text":"          \"path\": \"security-operations-expert\",\n"}
+{"source":"inputs.lock.json","source_line":129,"chunk":1,"text":"          \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":130,"chunk":1,"text":"        }\n"}
+{"source":"inputs.lock.json","source_line":131,"chunk":1,"text":"      ]\n"}
+{"source":"inputs.lock.json","source_line":132,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":133,"chunk":1,"text":"    \"managed\": {\n"}
+{"source":"inputs.lock.json","source_line":134,"chunk":1,"text":"      \"tree_sha256\": \"sha256:f90492c4ecea0e398f26bf79342a4309d49015f00b270c0073b53c8ec322837b\",\n"}
+{"source":"inputs.lock.json","source_line":135,"chunk":1,"text":"      \"directory_sha256\": \"sha256:4faf26c487be3c6aa55f063e1abf71e240f3e1686f673c6f635c40d5dc0b15a0\",\n"}
+{"source":"inputs.lock.json","source_line":136,"chunk":1,"text":"      \"file_count\": 11,\n"}
+{"source":"inputs.lock.json","source_line":137,"chunk":1,"text":"      \"total_bytes\": 45898,\n"}
+{"source":"inputs.lock.json","source_line":138,"chunk":1,"text":"      \"files\": [\n"}
+{"source":"inputs.lock.json","source_line":139,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":140,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":141,"chunk":1,"text":"          \"path\": \"control-boundary.yaml\",\n"}
+{"source":"inputs.lock.json","source_line":142,"chunk":1,"text":"          \"sha256\": \"7f6680f87d90a098b3f052193412caeee6aa12beec8f4eabb42f0244d3ca2ae4\",\n"}
+{"source":"inputs.lock.json","source_line":143,"chunk":1,"text":"          \"size\": 1519\n"}
+{"source":"inputs.lock.json","source_line":144,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":145,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":146,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":147,"chunk":1,"text":"          \"path\": \"mcp-servers.yaml\",\n"}
+{"source":"inputs.lock.json","source_line":148,"chunk":1,"text":"          \"sha256\": \"940dd4f59413a3c4b7f6faddc99630deaaaebcd65f8a81ed86f2b6d1d5f5559f\",\n"}
+{"source":"inputs.lock.json","source_line":149,"chunk":1,"text":"          \"size\": 824\n"}
+{"source":"inputs.lock.json","source_line":150,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":151,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":152,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":153,"chunk":1,"text":"          \"path\": \"role-tool-matrix.yaml\",\n"}
+{"source":"inputs.lock.json","source_line":154,"chunk":1,"text":"          \"sha256\": \"d21481dbc03d4403325c4679f51d2b189fcb388443cfbdcd5e85a23c0a988464\",\n"}
+{"source":"inputs.lock.json","source_line":155,"chunk":1,"text":"          \"size\": 1921\n"}
+{"source":"inputs.lock.json","source_line":156,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":157,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":158,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":159,"chunk":1,"text":"          \"path\": \"schemas/response-plan-input.schema.json\",\n"}
+{"source":"inputs.lock.json","source_line":160,"chunk":1,"text":"          \"sha256\": \"d5835c248c2e624c39a50c44cd5fc9dd734700d23e8f2ef580c565cb1bd861ce\",\n"}
+{"source":"inputs.lock.json","source_line":161,"chunk":1,"text":"          \"size\": 4119\n"}
+{"source":"inputs.lock.json","source_line":162,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":163,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":164,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":165,"chunk":1,"text":"          \"path\": \"schemas/response-plan-output.schema.json\",\n"}
+{"source":"inputs.lock.json","source_line":166,"chunk":1,"text":"          \"sha256\": \"c3d46e77f133bfee9ad8f6fd30b951f931013f4fee7e1381707d88d12e86c33d\",\n"}
+{"source":"inputs.lock.json","source_line":167,"chunk":1,"text":"          \"size\": 4750\n"}
+{"source":"inputs.lock.json","source_line":168,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":169,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":170,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":171,"chunk":1,"text":"          \"path\": \"security-operations-expert.development.patch.yml\",\n"}
+{"source":"inputs.lock.json","source_line":172,"chunk":1,"text":"          \"sha256\": \"712f21d9ca27f818eb1a430529361975e295afb00851f2b258951c2cdeb75b72\",\n"}
+{"source":"inputs.lock.json","source_line":173,"chunk":1,"text":"          \"size\": 1648\n"}
+{"source":"inputs.lock.json","source_line":174,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":175,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":176,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":177,"chunk":1,"text":"          \"path\": \"security-operations-expert.patch.yml\",\n"}
+{"source":"inputs.lock.json","source_line":178,"chunk":1,"text":"          \"sha256\": \"bc32fae9126b9cb9bcd3c17c268946e28c771f112def6484dbba48f028b43707\",\n"}
+{"source":"inputs.lock.json","source_line":179,"chunk":1,"text":"          \"size\": 6579\n"}
+{"source":"inputs.lock.json","source_line":180,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":181,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":182,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":183,"chunk":1,"text":"          \"path\": \"security-operations-guard.mjs\",\n"}
+{"source":"inputs.lock.json","source_line":184,"chunk":1,"text":"          \"sha256\": \"f7a54aa853cb45d329c53f0c1e1edce493f6233c0bd762b0ff1e75ab294a7243\",\n"}
+{"source":"inputs.lock.json","source_line":185,"chunk":1,"text":"          \"size\": 14529\n"}
+{"source":"inputs.lock.json","source_line":186,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":187,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":188,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":189,"chunk":1,"text":"          \"path\": \"security-operations-ui/client.js\",\n"}
+{"source":"inputs.lock.json","source_line":190,"chunk":1,"text":"          \"sha256\": \"f1b87b07e232676cae3ef192a5886e912e6d3a61ccf5786ff483126346b612fa\",\n"}
+{"source":"inputs.lock.json","source_line":191,"chunk":1,"text":"          \"size\": 9446\n"}
+{"source":"inputs.lock.json","source_line":192,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":193,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":194,"chunk":1,"text":"          \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":195,"chunk":1,"text":"          \"path\": \"security-operations-ui/index.js\",\n"}
+{"source":"inputs.lock.json","source_line":196,"chunk":1,"text":"          \"sha256\": \"5b2df8275a78de7a341e1ec852d93a8d31e85501c46f9359e8136d7e3033bbef\",\n"}
+{"source":"inputs.lock.json","source_line":197,"chunk":1,"text":"          \"size\": 27\n"}
+{"source":"inputs.lock.json","source_line":198,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":199,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":200,"chunk":1,"text":"          \"mode\": \"0664\",\n"}

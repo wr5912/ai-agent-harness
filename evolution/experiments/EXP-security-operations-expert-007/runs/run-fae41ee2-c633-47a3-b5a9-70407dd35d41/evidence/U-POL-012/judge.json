@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "当前 Session 仅在工具回执中加载了 policy-configuration 技能，没有任何可复用的完整参数，也没有资产查询或策略准备/执行回执。被测回答明确说明“策略预览尚未执行”，逐项列出缺失的必填业务字段并要求用户提供，同时明确拒绝查询资产、改写或猜测标识，并说明本路线没有单独预览工具、不会下发/批准/生效。这与预期中“无可复用完整参数时明确说明无法执行并索取参数”的分支完全一致；未发现查询资产、改写标识或执行策略的行为，也无证据表明存在被忽略的既有参数。工具事实与回答关键陈述一致，故判定 passed。"
+  },
+  "checks": {
+    "session_id": "session-ef54ccd2-2a75-454b-92f3-355af391801b",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

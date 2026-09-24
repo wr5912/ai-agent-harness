@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-005",
+  "completed": false,
+  "expected_behavior": "结合当前配置说明 sec-ops 是什么、提供哪些接口以及适用边界；无法读取配置时明确说明，不能臆测本地配置内容。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

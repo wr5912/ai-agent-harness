@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-007",
+  "completed": false,
+  "expected_behavior": "准确解释 CVE 及编号用途，明确编号可用于唯一标识公开漏洞记录，但不能单独表示严重度、是否受影响、是否已利用或修复优先级。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

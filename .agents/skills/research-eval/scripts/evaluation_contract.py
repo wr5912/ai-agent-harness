@@ -13,6 +13,8 @@ CASE_RE = re.compile(r"^#### (U-[A-Z0-9-]+)\s+([^\n]+)$", re.MULTILINE)
 CASE_LIKE_RE = re.compile(r"^#### ([A-Z]-[A-Z0-9-]+)\s+", re.MULTILINE)
 LABEL_RE = re.compile(r"^\*\*(用户输入(?: ([1-9][0-9]*))?|预期)\*\*\s*$", re.MULTILINE)
 BOLD_LABEL_RE = re.compile(r"^\*\*[^*\n]+\*\*\s*$", re.MULTILINE)
+SCENE_RE = re.compile(r"^## ([^\n]+)$", re.MULTILINE)
+FAST_MARKER = "**评估档位：** `fast`"
 
 
 def _input(block: str, case_id: str, label: str) -> str:
@@ -86,6 +88,7 @@ def load_evaluation(path: Path) -> dict[str, object]:
         raise ValueError("Case ID 重复：" + "、".join(duplicates))
 
     cases = {}
+    catalog = []
     signatures = {}
     for index, match in enumerate(matches):
         end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
@@ -93,13 +96,28 @@ def load_evaluation(path: Path) -> dict[str, object]:
         next_section = re.search(r"^#{1,3} ", body, re.MULTILINE)
         if next_section:
             body = body[:next_section.start()]
+        lines = body.splitlines()
+        first = next((index for index, line in enumerate(lines) if line.strip()), None)
+        marker_lines = [index for index, line in enumerate(lines) if line.startswith("**评估档位：**")]
+        if marker_lines and (marker_lines != [first] or lines[first] != FAST_MARKER):
+            raise ValueError(f"{match.group(1)} 评估档位只能在标题下首行标记为 fast")
+        fast = bool(marker_lines)
+        if fast:
+            del lines[first]
+            body = "\n".join(lines)
         value = _case(match.group(1), match.group(2), body)
         signature = tuple("".join(item.split()) for item in value["inputs"])
         if signature in signatures:
             raise ValueError(f"业务测试输入重复：{signatures[signature]}、{value['case_id']}")
         signatures[signature] = value["case_id"]
         cases[value["case_id"]] = value
-    return {"case_ids": case_ids, "cases": cases}
+        headings = list(SCENE_RE.finditer(text[:match.start()]))
+        catalog.append({
+            "case_id": value["case_id"],
+            "scene": headings[-1].group(1).strip() if headings else "未分组",
+            "fast": fast,
+        })
+    return {"case_ids": case_ids, "cases": cases, "catalog": catalog}
 
 
 def execution_for(path: Path, selected_case_ids: list[str]) -> list[dict[str, object]]:

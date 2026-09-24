@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求按采集→检测→同步→事件生成顺序核对真实状态，并明确给出“最后成功点”和“首个失败点”，无法查询的环节才标注未知。被测回答确实按各环节罗列了真实工具证据（资产台账、采集设备、覆盖、8 个节点 incident、可达性等，均可与同 Session 工具回执对上），并把级联同步、事件生成、资源指标标注为无数据/无法取证，也把建议明确标为未执行，这部分符合要求。但它没有完成预期中的定位：既未按链路顺序确定并声明“最后成功点”（采集与检测均有历史计数，本可作为最后成功环节），也未确定任何“首个失败点”，而是以“在缺少资产、IP、事件 ID、时间范围的前提下不能判定正常或异常”作结，并把定位工作整体推迟到补充信息之后。这属于未给出预期要求的诊断结论，核心判定项缺失，故判 failed。"
+  },
+  "checks": {
+    "session_id": "session-8884107d-f6d6-47ec-9d5c-0ccc0dc4e03d",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

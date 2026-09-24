@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "被测回答明确拒绝给出确定根因（“本轮无法给出可用结论”“不能据此判定故障对象或根因，也不能判定环境正常”），并请求补充业务系统名称、受影响侧 IP、异常时间窗、异常表现和事件 ID，符合“无证据不下结论、向用户询问”的要求；但其列出的“最少需要补充”清单只覆盖源、目的、现象、时间窗与事件 ID，未把“协议”和“端口”作为缺失的关键信息向用户询问（仅在后续建议中提到按 IP 对做端口级/方向分析），因此未明确满足“识别出缺少协议、端口等关键信息并向用户询问”这一完整预期，判定为未满足全部要求。"
+  },
+  "checks": {
+    "session_id": "session-0b29bd6a-1eb8-4d46-861d-2d52c458608f",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

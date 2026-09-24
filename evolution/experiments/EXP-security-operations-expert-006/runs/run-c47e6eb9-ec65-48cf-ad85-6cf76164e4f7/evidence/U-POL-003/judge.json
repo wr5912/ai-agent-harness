@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求先通过真实资产和拓扑查询识别需要配置的安全设备，再生成策略预览，且结果引用本轮工具返回。被测回答未进行任何资产或拓扑查询，只直接以裸 IP 提交准备调用，422 失败后也未补充设备识别，反而明确表示“不能自行查询拓扑”，与预期流程不符。虽然回答忠实引用了本轮真实工具回执（422 与后续 404）并停留在未生效阶段，但缺少识别安全设备与生成有效策略预览这一核心要求，故判定为 failed。"
+  },
+  "checks": {
+    "session_id": "session-ef3dce84-3007-48b3-b1c1-7e8db3e7b9d0",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "同一 Session 无此前故障上下文，被测回答先明确要求补充场景与现象信息（错误码、阶段、Operation ID 或意图参数），符合“先询问必要信息”的预期；同时明确否定继续换 IP/端口/提示词的思路，指出真正决定因素是 Runtime 侧权限与候选选择，并说明能力边界与未实测状态，符合“停止盲目替换参数、转向核对正式故障证据、链路状态和失败原因”的导向。虽未调用工具，但预期并未要求真实工具数据，仅要求澄清与转向，故整体满足预期。"
+  },
+  "checks": {
+    "session_id": "session-c796807e-0660-4e69-a085-312a086582f9",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

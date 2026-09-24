@@ -94,18 +94,20 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-e
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-security-operations-expert-006 --case U-INS-001 --dry-run
+  --source experiment:EXP-security-operations-expert-006 --mode fast --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-security-operations-expert-006 --case U-INS-001
+  --source experiment:EXP-security-operations-expert-006 --mode fast
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-security-operations-expert-006 --case 'U-INS-*' --dry-run
+  --source experiment:EXP-security-operations-expert-006 --mode full --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-security-operations-expert-006 --executor browser --case U-INS-001
 ```
 
-`--case` 必须显式给出；缺失时命令列出可选 Case 并以退出码 `2` 结束。该参数可重复，也可使用大小写敏感的 shell 风格通配符；结果按 `evaluation.md` 的声明顺序去重，为避免 shell 提前展开应给通配符加引号。`--dry-run` 输出展开后的具体 Case 列表。非 `--dry-run` 执行会先校验仓库和 Experiment，再创建独立评测实例。每个 Case 使用新的目标 Session，多轮输入在该 Session 内依次发送；API 和浏览器执行器都导出回答及同一 Session 的工具事件。独立的无工具评审 Session 对照输入、预期、回答和工具证据给出语义结论。技术装载、合同和工具链检查由运行前的项目与 Experiment 校验承担，不是业务 Case。认证 URL 只经进程标准输入交给执行器，不写入 Run 或普通输出；无论成功、失败或中断都尝试停止实例。
+默认 `--mode fast` 执行标记了 `**评估档位：** \`fast\`` 的业务 Case；`--mode full` 执行全部 Case。没有 fast 标记时默认档位明确报错。`--case` 可重复并支持大小写敏感的 shell 风格通配符，一旦出现就覆盖 `--mode`；结果按 `evaluation.md` 顺序去重，为避免 shell 提前展开应给通配符加引号。`--dry-run` 输出请求档位、实际选择方式和 Case 列表。这里的 `--mode` 是评测范围，和 `dsh-dev --mode eval` 的容器运行模式不同。非 `--dry-run` 执行会先校验仓库和 Experiment，再创建独立评测实例。每个 Case 使用新的目标 Session，多轮输入在该 Session 内依次发送；API 和浏览器执行器都导出回答及同一 Session 的工具事件。独立的无工具评审 Session 对照单个 Case 的输入、预期、回答和工具证据给出语义结论。
 
-退出码 `0` 表示锁定 Case 均得到 `passed`；`1` 表示运行已完整封存但至少一个语义结论为 `failed` 或 `inconclusive`；`2` 表示参数、环境或执行基础设施失败。基础设施失败导致未执行的 Case 记为 `execution_status=error`；中断后未开始的 Case 记为 `execution_status=skipped`，两者的 `verdict` 均为 `inconclusive`。每次封存保留 `summary.json`、逐项事实 `results.jsonl`，并生成只读的 `report.md`。非 `--dry-run` 的 stdout 只输出一个不含凭据的 JSON，字段为 `run_id`、`experiment_id`、`executor`、`verdict`、`cases`、`summary`、`report` 和 `instance_stopped`。
+`full` 完成逐 Case 评审后，适配层再启动使用 `scenario-analysis` Preset 的独立 DSH 实例，只把当前 Run 以只读方式挂载到 `/work/evaluation-run`；被测 Candidate 的 workspace、Preset、managed patch、MCP、Skill 和 delegate 均不进入归因实例。每个已选场景使用一个 Session，通过 `read`、`grep` 和 `glob` 核对 Run 证据与锁定的 Harness，并显式选择目标 Run 实际使用的同一模型路由；当前只支持内置 `deepseek-official` 路由，缺失、混用或不支持的路由失败关闭。为避开 `read` 的行数、单行和字节上限，适配层在 Run 内生成带原文件路径、字节数和 SHA-256 的 JSON/JSONL 语义无损场景包，并对重复的大型工具结果按内容摘要引用；原文件仍是事实源，报告也只引用原文件。执行器要求每次工具调用都有成功结果，并验证所有必读分片的每一行均被读取，漏读、读取失败或路由漂移都会使复核失败。缺口可以同时引用支持 Case 与反例 Case 的原始证据；空 `tools.jsonl` 是“未调用工具”的有效证据，其他材料证据必须非空。`evaluation-judge` 与 `scenario-analysis` 都是评测适配层 Harness，不属于被测 Candidate；`.agents/skills/research-eval` 只指导仓库研发流程，不会被 DSH 归因实例装载。技术装载、合同和工具链检查由运行前的项目与 Experiment 校验承担，不是业务 Case。认证 URL 只经进程标准输入交给执行器，不写入 Run 或普通输出；无论成功、失败或中断都尝试停止实例。
+
+退出码 `0` 表示锁定 Case 均得到 `passed`；`1` 表示运行已完整封存但至少一个语义结论为 `failed` 或 `inconclusive`；`2` 表示参数、环境或执行基础设施失败。基础设施失败导致未执行的 Case 记为 `execution_status=error`；中断后未开始的 Case 记为 `execution_status=skipped`，两者的 `verdict` 均为 `inconclusive`。每次封存保留 `summary.json`、逐项事实 `results.jsonl`、完整场景目录与选择方式，以及只读的 `analysis.json` 和 `report.md`。报告按场景展示去重 Case 的覆盖、失败、无法判定和未执行数；归因只给出可证伪假设，不改变 Case 原判定。`full` 证据复核不完整时 `review_status` 为 `failed`，Run 失败封存；`fast`、显式 Case 和手工封存路径只生成确定性场景覆盖，不启动归因 Session。非 `--dry-run` 的 stdout 只输出一个不含凭据的 JSON，字段为 `run_id`、`experiment_id`、`executor`、`verdict`、`cases`、`review_status`、`reviewed_cases`、`summary`、`report` 和 `instance_stopped`。
 
 **手工打开 Web 或使用浏览器执行器时，首次需要在界面注册工作区。** DSH Web 的输入栏在没有已打开会话时是惰性的，必须先选定一个**已注册工作区**才能开会话；工作区注册表（`$DSH_HOME/storages/workspace.json`）只从已存会话头 bootstrap，新实例的 HOME 卷里因此为空——容器的 `working_dir` 只是进程工作目录，不等于 DSH 工作区。API 执行器使用 Runtime 的 `workspace/create` 完成同一注册；启动器不改写 Runtime 存储内部格式。浏览器操作如下：
 

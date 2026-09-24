@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答的结论、证据、缺口与建议均可追溯到同一被测 Session 的只读工具回执：源/目的资产字段（172.16.2.103 offline/unreachable/lastProbeAt/lastSeenAt、172.16.138.214 online/PROBED/netmask=null/mac=null）、可达性判定（src→dst reachable=false、verdict=UNKNOWN、reason=dst_no_gateway、natApplied=null、routeOnlyPath=null；反向 src_no_gateway；172.16.2.103→172.16.1.1 REACHABLE 且 path=[3617442]）、主机对双向端口明细空数组、跨区交叉核验中该主机对 SHADOW/LAPSED/hitCount=2/firstSeenEpoch=1783323127/lastSeenEpoch=1783386486 及 172.16.1.1→172.16.138.214 的 SHADOW/ACTIVE/16、汇总 NORMAL 23/IDLE 18/SHADOW 47、两次合规违规空数组、覆盖 collected=1/registered=2/discovered=0/coveragePct=33、采集设备与 collectionConfig 为空、防火墙 172.16.1.1（opnsense）在线及第二条搜索命中的软件单元（nestingKind=2、SOFTWARE_UNIT）、图路径查询 500 错误，均与工具结果逐项一致。回答围绕主备/HA 状态、路径、策略同步与设备配置四个维度做了真实只读查询，明确说明工具集不含主备角色/HA 成员/切换事件与策略、会话、NAT 字段，并把无法证实的环节（策略缺失为推断、SHADOW 语义、端口空数据不可判为无流量、覆盖字段关系未知）显式列为证据缺口而非事实，同时给出中等置信度的证据支持原因与未知项，未执行任何策略或配置变更（建议部分明确标注“尚未执行”）。因此满足全部预期要求。"
+  },
+  "checks": {
+    "session_id": "session-99e164d1-d41d-4624-bb92-7522e5ecf8e8",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

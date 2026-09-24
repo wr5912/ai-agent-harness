@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答将源 172.16.1.155 明确按单主机 IP 处理（selector_type=IP），并在建议中显式指出“若本意是 CIDR 网段需提供掩码（如 172.16.1.0/24）”，未将其静默扩张为网段；工具回执（prepare_policy_configuration 返回 task_id=235、task_status=DRAFT、result_code=DRAFT_READY、confirmation_required=true，get_policy_configuration_result 返回同样的 DRAFT 状态与 candidate_digest）真实支撑了策略任务/草稿的生成，且提交的 intent 含 protocol=UDP、destination_port=53、validity.duration_days=7，回答中也如实复述了 UDP/53 与 7 天有效期，并说明控制面未回显具体起止时间戳、未自行推算；同时正确声明尚未提交/审批/执行，未把聊天文字当作批准。满足“指出主机地址而非网段、按主机对象处理、包含 UDP 53 与七天有效期、不静默扩大地址范围”的全部预期。"
+  },
+  "checks": {
+    "session_id": "session-d899929f-1baf-4b7f-bc6a-4c1dac42772b",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

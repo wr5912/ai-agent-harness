@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""显式选择 evaluation.md 中的业务 Case，执行并封存一次 DSH 研究评测。"""
+"""按 fast/full 或显式 Case 选择执行并封存一次 DSH 研究评测。"""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ for import_root in (ADAPTER, EVALUATION_SCRIPTS):
         sys.path.insert(0, str(import_root))
 
 from evaluation_contract import execution_for, load_evaluation
+from scenario_analysis import analyze, review_full
 from source_contract import resolve
 
 
@@ -111,10 +112,11 @@ def validate_after_run(contract: dict) -> None:
         raise EvaluationError("post-run-validation-failed")
 
 
-def initialize_run(source: str, cases: list[dict], executor: str) -> str:
+def initialize_run(source: str, cases: list[dict], executor: str, selection_mode: str) -> str:
     command = [
         "python3", str(RUN_RECORD), "--repo", str(REPO), "init",
         "--source", source, "--kind", "research", "--executor", executor,
+        "--selection-mode", selection_mode,
     ]
     for case in cases:
         command.extend(("--case", case["case_id"]))
@@ -332,11 +334,14 @@ def normalize_runtime_rows(
     return normalized, stop_reason
 
 
-def select_case_ids(catalog: dict, patterns: list[str]) -> list[str]:
+def select_case_ids(catalog: dict, patterns: list[str], mode: str) -> list[str]:
     if not patterns:
-        progress("必须使用 --case 显式选择业务 Case。可选：")
-        progress("  " + "\n  ".join(catalog["case_ids"]))
-        raise EvaluationError("未选择 Case")
+        if mode == "full":
+            return catalog["case_ids"]
+        selected = [item["case_id"] for item in catalog["catalog"] if item["fast"]]
+        if not selected:
+            raise EvaluationError("evaluation.md 没有标记 fast 的 Case；请标记或使用 --mode full/--case")
+        return selected
     unmatched = [
         pattern for pattern in patterns
         if not any(fnmatchcase(case_id, pattern) for case_id in catalog["case_ids"])
@@ -349,13 +354,16 @@ def select_case_ids(catalog: dict, patterns: list[str]) -> list[str]:
     ]
 
 
-def dry_run_payload(contract: dict, cases: list[dict], executor: str) -> dict:
+def dry_run_payload(contract: dict, cases: list[dict], executor: str, requested_mode: str,
+                    selection_mode: str) -> dict:
     required = contract["required_env_names"]
     return {
         "schema_version": "1.0",
         "source_id": contract["source_id"],
         "experiment_id": contract["experiment_id"],
         "executor": executor,
+        "requested_mode": requested_mode,
+        "selection_mode": selection_mode,
         "case_ids": [case["case_id"] for case in cases],
         "runtime_required": True,
         "image": contract["image"]["local_image_tag"],
@@ -378,16 +386,22 @@ def result_payload(
     counts = {"total": total, "passed": 0, "failed": 0, "inconclusive": total}
     summary_ref = None
     report_ref = None
+    review_status = None
+    reviewed_cases = None
     if summary_path is not None and summary_path.is_file():
         summary = json.loads(summary_path.read_text(encoding="utf-8"))
-        verdict = verdict or summary["overall_verdict"]
-        verdict_counts = summary["verdict_counts"]
+        verdict = verdict or summary.get("effective_verdict", summary.get("overall_verdict"))
+        verdict_counts = summary.get("machine_trial_verdict_counts", summary.get("verdict_counts"))
         counts = {
             "total": sum(verdict_counts.values()),
             "passed": verdict_counts["passed"],
             "failed": verdict_counts["failed"],
             "inconclusive": verdict_counts["inconclusive"],
         }
+        review_status = summary.get("review_status")
+        reviewed_counts = summary.get("reviewed_case_verdict_counts")
+        if reviewed_counts is not None:
+            reviewed_cases = {"total": sum(reviewed_counts.values()), **reviewed_counts}
         summary_ref = str(summary_path.relative_to(REPO))
         report_path = summary_path.with_name("report.md")
         if report_path.is_file():
@@ -398,6 +412,8 @@ def result_payload(
         "executor": executor,
         "verdict": verdict or "inconclusive",
         "cases": counts,
+        "review_status": review_status,
+        "reviewed_cases": reviewed_cases,
         "summary": summary_ref,
         "report": report_ref,
         "instance_stopped": instance_stopped,
@@ -412,9 +428,10 @@ def execute(args: argparse.Namespace) -> int:
     contract = resolve(args.source, repo=REPO)
     evaluation_path = REPO / "agents" / contract["agent_id"] / "evaluation.md"
     catalog = load_evaluation(evaluation_path)
-    case_ids = select_case_ids(catalog, args.case)
+    selection_mode = "explicit" if args.case else args.mode
+    case_ids = select_case_ids(catalog, args.case, args.mode)
     cases = execution_for(evaluation_path, case_ids)
-    plan = dry_run_payload(contract, cases, args.executor)
+    plan = dry_run_payload(contract, cases, args.executor, args.mode, selection_mode)
     if args.dry_run:
         print(json.dumps(plan, ensure_ascii=False, indent=2))
         return 0
@@ -433,7 +450,7 @@ def execute(args: argparse.Namespace) -> int:
 
     progress("创建并锁定 Research Run")
     try:
-        run_id = initialize_run(args.source, cases, args.executor)
+        run_id = initialize_run(args.source, cases, args.executor, selection_mode)
     except EvaluationError as error:
         progress(f"创建 Run 失败：{error}")
         emit_result(contract["experiment_id"], len(cases), executor=args.executor)
@@ -462,9 +479,10 @@ def execute(args: argparse.Namespace) -> int:
             "platform": image_identity["platform"],
             "scope": "actual DSH evaluation runtime image identity; no semantic verdict",
         })
+        auth_url = authentication_url(instance_name)
         runtime_rows, stop_reason = normalize_runtime_rows(
             run_driver(
-                args.executor, authentication_url(instance_name), cases, contract,
+                args.executor, auth_url, cases, contract,
                 run_dir / "evidence", args.timeout_seconds, image_identity["image_ref"],
             ),
             cases,
@@ -480,6 +498,16 @@ def execute(args: argparse.Namespace) -> int:
                 if stop_index is not None and index > stop_index else runtime_rows[case["case_id"]]
             record_trial(run_id, case["case_id"], value)
             recorded.add(case["case_id"])
+        inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+        rows = [json.loads(line) for line in (run_dir / "results.jsonl").read_text(encoding="utf-8").splitlines()]
+        if selection_mode == "full":
+            progress("启动独立 DSH 分析实例，逐场景复核全部 Case 证据")
+            analysis = review_full(run_dir, rows, inputs, timeout_seconds=args.timeout_seconds)
+        else:
+            analysis = analyze(run_dir, rows, inputs, status="completed")
+        write_json(run_dir / "analysis.json", analysis)
+        if selection_mode == "full" and analysis["review_status"] != "completed":
+            raise EvaluationError(analysis["review_reason"])
     except KeyboardInterrupt:
         interrupted = True
         fatal_reason = "evaluation-interrupted"
@@ -532,15 +560,16 @@ def execute(args: argparse.Namespace) -> int:
         contract["experiment_id"], len(cases), run_id=run_id,
         summary_path=summary_path, instance_stopped=stopped, executor=args.executor,
     )
-    return 0 if summary["overall_verdict"] == "passed" else 1
+    return 0 if summary.get("effective_verdict", summary.get("overall_verdict")) == "passed" else 1
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, help="experiment:<id> 或已登记 Experiment ID")
+    parser.add_argument("--mode", choices=("fast", "full"), default="fast", help="评测档位；默认 fast")
     parser.add_argument(
         "--case", action="append", default=[],
-        help="显式选择业务 Case；支持通配符、可重复，按 evaluation.md 顺序执行",
+        help="覆盖 --mode，显式选择业务 Case；支持通配符、可重复，按 evaluation.md 顺序执行",
     )
     parser.add_argument("--executor", choices=("api", "browser"), default="api", help="执行通道")
     parser.add_argument("--dry-run", action="store_true", help="只解析计划，不写 Run、不启动进程")

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求先指出 172.16.1.155 是主机地址而非网段，并确认/按主机对象处理后生成包含 UDP 53 与七天有效期的预览，且不得静默扩大地址范围。被测回答未指出该输入是主机地址而非网段，也未以主机对象确认后生成成功预览；工具回执显示 prepare_policy_configuration 返回 422、状态查询 404，未产生任何包含 UDP 53 和七天有效期的预览。因此明确不满足预期要求。"
+  },
+  "checks": {
+    "session_id": "session-246dec3f-7036-4606-bbb6-31ffb8f6ce90",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

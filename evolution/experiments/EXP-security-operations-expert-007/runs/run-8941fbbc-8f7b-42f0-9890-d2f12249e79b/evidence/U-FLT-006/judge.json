@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答逐项完成预期要求：以同一被测 Session 的真实工具回执为据，解析 172.16.138.214（assetId=3616551、assetType=host、瑞禾S500主机、haPairId=null、collectionStatus=non_collectable、collectionConfig=[]、metricAvailable=false、无业务系统关联），与工具返回完全一致，未编造字段或数值；对三类原因分别给出可核验证据并明确标注“证据不足/能力缺口”（无策略变更历史与规则差异、无主备关系与策略一致性工具、无配置基线），未在证据不足时认定漂移；对可达性结果准确说明 reachable=false 但 verdict=UNKNOWN、reason=src/dst_no_gateway 并强调“UNKNOWN≠不通”；如实记录 get_graph_path_query 上游 500、主机对端口查询空数组、覆盖率 33% 为全局统计、AEC 为网段区间不能归属单台 .214 等数据缺口；对业务影响给出“无法确认因果且不能反向判定未受影响”，并集中一次列出需补充的最小信息，未越权执行处置。关键数据均可追溯至工具回执，满足预期。"
+  },
+  "checks": {
+    "session_id": "session-a0ed3687-3975-40c9-bf41-f03d7408ca6d",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

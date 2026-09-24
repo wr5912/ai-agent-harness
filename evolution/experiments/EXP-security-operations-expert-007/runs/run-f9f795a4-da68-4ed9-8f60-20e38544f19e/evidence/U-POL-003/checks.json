@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-POL-003",
+  "transport": "api",
+  "expected_behavior": "通过真实资产和拓扑查询识别需要配置的安全设备，再生成策略预览；结果引用本轮工具返回，未执行时明确停留在预览或确认阶段。",
+  "session_id": "session-0d026d73-50fa-4a7b-8ea8-74c49d8021fe",
+  "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-f670ad84-1908-4079-be26-eafc5a32667c",
+    "unavailable_reason": "judge-output-invalid"
+  }
+}

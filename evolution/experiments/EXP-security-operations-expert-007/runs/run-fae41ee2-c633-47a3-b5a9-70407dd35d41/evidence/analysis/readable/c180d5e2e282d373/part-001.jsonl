@@ -1,0 +1,18 @@
+{"source":"evidence/U-INS-002/checks.json","source_line":1,"chunk":1,"text":"{\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":2,"chunk":1,"text":"  \"schema_version\": \"1.0\",\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":3,"chunk":1,"text":"  \"case_id\": \"U-INS-002\",\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":4,"chunk":1,"text":"  \"transport\": \"api\",\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":5,"chunk":1,"text":"  \"expected_behavior\": \"回复列出本轮真实查询返回的巡检项，且没有执行巡检。查询失败时明确说明失败，不编造目录内容。\",\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":6,"chunk":1,"text":"  \"session_id\": \"session-277f99e1-3cb0-4aa2-9c96-f2af96bee680\",\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":7,"chunk":1,"text":"  \"workspace_id\": \"a94af39c-d02d-4450-ab02-f23d7b87c48e\",\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":8,"chunk":1,"text":"  \"session_preset\": \"security-operations-expert\",\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":9,"chunk":1,"text":"  \"session_workspace\": \"/work/harness/workspace\",\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":10,"chunk":1,"text":"  \"preset_matches\": true,\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":11,"chunk":1,"text":"  \"workspace_matches\": true,\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":12,"chunk":1,"text":"  \"trace_format\": \"dsh-session-export-envelope-v1\",\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":13,"chunk":1,"text":"  \"completed\": true,\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":14,"chunk":1,"text":"  \"judge\": {\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":15,"chunk":1,"text":"    \"session_id\": \"session-011c066d-788b-4744-a3ec-f30741fb1e5a\",\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":16,"chunk":1,"text":"    \"unavailable_reason\": \"judge-output-invalid\"\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":17,"chunk":1,"text":"  }\n"}
+{"source":"evidence/U-INS-002/checks.json","source_line":18,"chunk":1,"text":"}\n"}

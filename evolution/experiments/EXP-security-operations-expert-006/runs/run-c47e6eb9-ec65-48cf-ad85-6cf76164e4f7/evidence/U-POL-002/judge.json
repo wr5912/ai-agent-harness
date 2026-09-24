@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求核对指定设备 172.16.1.155 的真实资产类型与可配置能力，并在设备不适用时明确说明。但实际工具调用直接把源地址当作策略源写入 intent（source=172.16.1.155，target_external_id 为空），未做任何资产类型核对，也未见任何资产/能力查询类工具回执；工具仅返回 422 与 404，回答虽诚实报告失败、未伪造成功，但仍停留在“上游 422、原因未知”的层面，未满足“核对设备真实资产类型和可配置能力、生成可核对的策略预览、设备不适用时明确说明”的核心要求，仅部分满足“不伪造成功”。"
+  },
+  "checks": {
+    "session_id": "session-72eb451f-7c73-45ab-a89e-5711e226fdd1",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

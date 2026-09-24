@@ -8,9 +8,13 @@ import {
   parseArchive,
   result,
   saveEvidence,
+  toolEvents,
   turnsFromTrace,
   withCaseTimeout,
 } from './dsh-eval-common.mjs'
+
+const ANALYSIS_TOOLS = ['glob', 'grep', 'read']
+const ROUTE_FIELDS = ['maxTokens', 'model', 'provider', 'reasoningEffort']
 
 async function readInput() {
   const chunks = []
@@ -21,6 +25,31 @@ async function readInput() {
     if (typeof payload[name] !== 'string' || payload[name] === '') throw new Error('invalid-payload')
   }
   if (!Number.isInteger(payload.timeout_ms) || payload.timeout_ms < 1) throw new Error('invalid-payload')
+  if (payload.operation === 'review') {
+    if (!Array.isArray(payload.scenes) || payload.scenes.length === 0) throw new Error('invalid-payload')
+    const route = payload.model_route
+    if (!route || typeof route !== 'object' || Array.isArray(route)
+      || Object.keys(route).some(key => !ROUTE_FIELDS.includes(key))
+      || route.provider !== 'deepseek-official'
+      || typeof route.model !== 'string' || route.model === ''
+      || (Object.hasOwn(route, 'maxTokens')
+        && (!Number.isInteger(route.maxTokens) || route.maxTokens < 1))
+      || (Object.hasOwn(route, 'reasoningEffort') && typeof route.reasoningEffort !== 'string')) {
+      throw new Error('invalid-model-route')
+    }
+    for (const scene of payload.scenes) {
+      const fields = scene && typeof scene === 'object' ? Object.keys(scene).sort().join(',') : ''
+      const repair = fields === 'prior_prompts,prompt,scene_id,session_id'
+      if (!scene || typeof scene !== 'object' || (!repair && fields !== 'prompt,scene_id')
+        || !/^scene-[0-9]+$/.test(scene.scene_id ?? '')
+        || typeof scene.prompt !== 'string' || scene.prompt === ''
+        || (repair && (typeof scene.session_id !== 'string' || scene.session_id === ''
+          || !Array.isArray(scene.prior_prompts) || scene.prior_prompts.length === 0
+          || scene.prior_prompts.some(prompt => typeof prompt !== 'string' || prompt === '')))) {
+        throw new Error('invalid-scene')
+      }
+    }
+  }
   for (const item of payload.cases) {
     if (!item || typeof item !== 'object' || !/^U-[A-Z0-9-]+$/.test(item.case_id ?? '')
       || !Array.isArray(item.inputs) || item.inputs.length === 0
@@ -121,6 +150,24 @@ async function createSession(connection, payload, workspace, presetId, signal) {
   }
 }
 
+async function selectSessionRoute(connection, sessionId, route, signal) {
+  const requested = {
+    sessionId,
+    provider: route.provider,
+    model: route.model,
+    ...(route.reasoningEffort === undefined ? {} : { reasoningEffort: route.reasoningEffort }),
+  }
+  const value = await rpc(connection, 'session/selectModel', { request: requested }, signal)
+  const selected = value?.selected
+  const expected = { ...requested }
+  delete expected.sessionId
+  if (!selected || typeof selected !== 'object' || Array.isArray(selected)
+    || Object.keys(selected).length !== Object.keys(expected).length
+    || Object.entries(expected).some(([key, item]) => selected[key] !== item)) {
+    throw new Error('analysis-route-selection-failed')
+  }
+}
+
 async function promptSession(connection, sessionId, input, inputs, timeoutMs, signal) {
   const accepted = await rpc(connection, 'session/prompt', {
     request: {
@@ -137,6 +184,66 @@ async function promptSession(connection, sessionId, input, inputs, timeoutMs, si
     return turnsFromTrace(archive, inputs)
   }, value => value !== null, timeoutMs, signal)
   return { archive, turns }
+}
+
+function analysisToolAccesses(archive, toolNames) {
+  if (!Array.isArray(toolNames) || toolNames.length !== new Set(toolNames).size
+    || [...toolNames].sort().join(',') !== ANALYSIS_TOOLS.join(',')) {
+    throw new Error('analysis-tools-invalid')
+  }
+  const calls = new Map()
+  const completed = new Set()
+  const accesses = []
+  for (const { event } of toolEvents(archive)) {
+    if (event?.type === 'tool/call') {
+      const { callId, name, arguments: encoded } = event.data ?? {}
+      if (typeof callId !== 'string' || calls.has(callId) || !ANALYSIS_TOOLS.includes(name)
+        || typeof encoded !== 'string') throw new Error('analysis-tools-invalid')
+      let args
+      try {
+        args = JSON.parse(encoded)
+      } catch {
+        throw new Error('analysis-tools-invalid')
+      }
+      if (!args || typeof args !== 'object' || Array.isArray(args)) {
+        throw new Error('analysis-tools-invalid')
+      }
+      const access = { name, arguments: args }
+      calls.set(callId, access)
+      accesses.push(access)
+    } else if (event?.type === 'tool/result') {
+      const source = event.data?.message?.source
+      const callId = source?.kind === 'tool' ? source.callId : undefined
+      if (typeof callId !== 'string' || !calls.has(callId) || completed.has(callId)
+        || event.data?.error !== undefined) throw new Error('analysis-tools-invalid')
+      const result = event.data?.message?.content?.[0]
+      if (result?.type !== 'tool-result' || result.toolCallId !== callId
+        || typeof result.isError !== 'boolean' || result.isError) {
+        throw new Error('analysis-tools-invalid')
+      }
+      const access = calls.get(callId)
+      access.result = { is_error: false }
+      if (access.name === 'read') {
+        const { path, offset, lines, totalLines } = event.data?.meta ?? {}
+        if (typeof path !== 'string' || path === '' || !Number.isInteger(offset) || offset < 1
+          || !Number.isInteger(totalLines) || totalLines < 0 || !Array.isArray(lines)
+          || (totalLines === 0 && (offset !== 1 || lines.length !== 0))
+          || lines.some((line, index) => !line || typeof line !== 'object'
+            || line.number !== offset + index || typeof line.text !== 'string')) {
+          throw new Error('analysis-tools-invalid')
+        }
+        access.result.read = {
+          path,
+          offset,
+          line_numbers: lines.map(line => line.number),
+          total_lines: totalLines,
+        }
+      }
+      completed.add(callId)
+    }
+  }
+  if (!accesses.length || completed.size !== calls.size) throw new Error('analysis-tools-invalid')
+  return accesses
 }
 
 async function runCase(connection, payload, item, workspace, signal) {
@@ -191,6 +298,53 @@ async function main() {
   const payload = await readInput()
   const connection = await authenticate(payload.auth_url)
   const workspace = await createWorkspace(connection, payload.workspace)
+  if (payload.operation === 'review') {
+    const results = []
+    for (const scene of payload.scenes) {
+      try {
+        const session = scene.session_id === undefined
+          ? await createSession(connection, payload, workspace, payload.judge_preset_id)
+          : {
+              session_id: scene.session_id,
+              workspace_id: workspace.workspaceId,
+              ...assertSessionIdentity(
+                (await listSessions(connection)).find(item => item.sessionId === scene.session_id),
+                payload.judge_preset_id,
+                payload.workspace,
+              ),
+            }
+        await selectSessionRoute(connection, session.session_id, payload.model_route)
+        const inputs = [...(scene.prior_prompts ?? []), scene.prompt]
+        const completed = await withCaseTimeout(
+          signal => promptSession(
+            connection, session.session_id, scene.prompt, inputs, payload.timeout_ms, signal,
+          ),
+          payload.timeout_ms,
+        )
+        const turn = turnsFromTrace(completed.archive, inputs)?.at(-1)
+        if (!turn || turn.turn_reason !== 'completed') throw new Error('analysis-turn-invalid')
+        if (!turn.route || typeof turn.route !== 'object'
+          || Object.keys(turn.route).length !== Object.keys(payload.model_route).length
+          || Object.entries(payload.model_route).some(([key, value]) => turn.route[key] !== value)) {
+          throw new Error('analysis-route-mismatch')
+        }
+        const toolAccesses = analysisToolAccesses(completed.archive, turn.tool_names)
+        results.push({
+          scene_id: scene.scene_id,
+          text: turn.assistant_text,
+          session_id: session.session_id,
+          route: turn.route,
+          tool_names: ANALYSIS_TOOLS,
+          tool_accesses: toolAccesses,
+        })
+      } catch (error) {
+        const reason = /^[a-z0-9-]+$/.test(error?.message ?? '') ? error.message : 'scene-review-error'
+        results.push({ scene_id: scene.scene_id, error: reason })
+      }
+    }
+    process.stdout.write(`${JSON.stringify({ schema_version: '1.0', operation: 'review', results })}\n`)
+    return
+  }
   const rows = []
   let stopReason
   for (const item of payload.cases) {
@@ -222,6 +376,7 @@ async function main() {
 }
 
 main().catch(error => {
-  process.stderr.write(`dsh-eval-api failed: ${error?.name ?? 'Error'}\n`)
+  const reason = /^[a-z0-9-]+$/.test(error?.message ?? '') ? error.message : (error?.name ?? 'Error')
+  process.stderr.write(`dsh-eval-api failed: ${reason}\n`)
   process.exitCode = 2
 })

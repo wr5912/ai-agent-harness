@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测 Session 通过 delegate_fault_analysis 调用了真实故障排查能力，产出正式故障结果。回答严格区分了三类内容：证据（工具返回事实）、根因（明确标注\"均为推断\"并分主/次/低置信）、建议（逐条标注\"尚未执行\"）。关键数据均可由同一 Session 的工具回执支持：源 172.16.1.165=assetId 3617440（online/REPORTED、probeState=reachable）、目的 172.16.2.100=assetId 3617448（\"版本服务器\"、offline、probeState=unreachable、lastSeenAt 为空、collectionStatus=non_collectable）、双向可达性均 REACHABLE、path=[\"3617442\"]（172.16.1.1 opnsense 防火墙）、主机对逐端口流量两方向均为空、跨信号汇总 NORMAL23/IDLE18/SHADOW47 及 hitCount 139062/333082/525008、172.16.2 段 10 条资产全部 unreachable、采集接入设备目的端为空源端 2 条、覆盖 1/1/0/50 与全局 15/31/2/33、合规三次查询为空、节点告警分布与漏洞 CVE-1999-0524 等均与工具回执一一对应。工具失败未被掩盖：get_graph_path_query 上游 500 被如实记为证据缺口，未编造路径细节；空结果被明确说明\"无法区分无流量与未采集\"、\"不能推断为无漏洞\"。处置方面明确声明本次为只读取证、未创建任何分析运行/审批/策略变更或处置动作，后续处置需在正式结果基础上另行提出并确认，符合\"处置只能基于正式结果并在必要确认后发起\"。全部要求明确满足。"
+  },
+  "checks": {
+    "session_id": "session-86637322-b278-434b-8fd1-99d414ac4c06",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

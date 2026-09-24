@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""创建、追加并封存一次 Research Run；只记录事实，不执行 Harness。"""
+"""创建、追加并封存一次 Research Run，并生成场景分析报告。"""
 
 from __future__ import annotations
 
@@ -22,7 +22,8 @@ for import_root in (ADAPTER, EVALUATION_SCRIPTS):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
 
-from evaluation_contract import evaluation_digest, execution_for
+from evaluation_contract import evaluation_digest, execution_for, load_evaluation
+from scenario_analysis import analyze, summarize_review, validate_analysis
 from source_contract import resolve
 
 
@@ -128,16 +129,23 @@ def write_report(
     rows: list[dict],
     executor: str | None,
     case_contracts: dict[str, dict] | None = None,
+    analysis: dict | None = None,
+    selection_mode: str | None = None,
+    gaps: list[dict] | None = None,
 ) -> None:
     def cell(value: object) -> str:
         return str(value).replace("\\", "\\\\").replace("|", "\\|").replace("\r", "").replace("\n", "<br>")
 
-    pending_review = sum(
-        row["execution_status"] == "completed" and row["verdict"] == "inconclusive" for row in rows
-    )
-    undetermined = summary["verdict_counts"]["inconclusive"] - pending_review
-    overall = summary["overall_verdict"]
-    overall_zh = "待人工判定" if overall == "inconclusive" and pending_review else VERDICT_ZH.get(overall, overall)
+    machine_counts = summary.get("machine_trial_verdict_counts", summary.get("verdict_counts", {}))
+    machine_overall = summary.get("machine_overall_verdict", summary.get("overall_verdict"))
+    effective = summary.get("effective_verdict", summary.get("overall_verdict"))
+    review_counts = summary.get("reviewed_case_verdict_counts")
+    review_status = summary.get("review_status", "legacy")
+    reviews = {
+        item["case_id"]: item
+        for scene in (analysis or {}).get("scenes", [])
+        for item in scene.get("case_reviews", [])
+    }
     lines = [
         "# 测试评估报告",
         "",
@@ -147,58 +155,140 @@ def write_report(
         f"- Experiment：`{manifest['experiment_id']}`",
         f"- Agent：`{manifest['agent_id']}`",
         f"- 状态：{STATUS_ZH.get(manifest['status'], manifest['status'])}",
-        f"- 整体结论：{overall_zh}",
+        f"- 有效结论：{VERDICT_ZH.get(effective, effective)}",
+        f"- 机器结论：{VERDICT_ZH.get(machine_overall, machine_overall)}",
+        f"- 证据复核：`{review_status}`",
         f"- 开始时间：`{manifest['created_at']}`",
         f"- 完成时间：`{manifest['finished_at']}`",
     ]
     if executor:
         lines.append(f"- 执行通道：`{executor}`")
+    if selection_mode:
+        lines.append(f"- Case 选择：`{selection_mode}`")
     lines.extend([
         "",
         "## 统计",
         "",
-        "| 类型 | 已完成 | 执行错误 | 已跳过 | 通过 | 失败 | 待人工判定 | 无法判定 |",
+        "| 口径 | 总数 | 已完成 | 执行错误 | 已跳过 | 通过 | 失败 | 无法判定 |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
         (
-            f"| Case | {summary['execution_status_counts']['completed']} | "
+            f"| 机器 Trial | {summary['trial_count']} | {summary['execution_status_counts']['completed']} | "
             f"{summary['execution_status_counts']['error']} | "
             f"{summary['execution_status_counts']['skipped']} | "
-            f"{summary['verdict_counts']['passed']} | "
-            f"{summary['verdict_counts']['failed']} | {pending_review} | {undetermined} |"
+            f"{machine_counts['passed']} | {machine_counts['failed']} | {machine_counts['inconclusive']} |"
         ),
+    ])
+    if review_counts is not None:
+        lines.append(
+            f"| 证据复核 Case | {summary['reviewed_case_count']} | - | - | - | "
+            f"{review_counts['passed']} | {review_counts['failed']} | {review_counts['inconclusive']} |"
+        )
+    lines.extend([
         "",
-        "`待人工判定` 表示 Turn 已完成但业务语义尚未按评测标准判读；`无法判定` 表示执行错误或未执行。Case ID 的删除线表示该 Case 已选择但未执行（`execution_status=skipped`）。报告不要求所有 Case 均为 `通过`。",
+        "机器 Trial 与证据复核 Case 是两种口径；有效结论优先采用完整证据复核。未选场景不代表通过。",
         "",
+    ])
+    if analysis and analysis.get("scenes"):
+        lines.extend([
+            "## 场景覆盖与归因",
+            "",
+            "| 场景 | 定义 Case | 已选 | 机器通过 | 机器失败 | 机器无法判定 | 未执行 | 复核状态 | 复核通过/失败/无法判定 |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: |",
+        ])
+        for scene in analysis["scenes"]:
+            counts = scene.get("machine_counts", scene.get("counts"))
+            scene_reviews = scene.get("case_reviews", [])
+            reviewed = {name: sum(item.get("reviewed_verdict") == name for item in scene_reviews) for name in VERDICTS}
+            lines.append(
+                f"| {cell(scene['scene'])} | {len(scene['case_ids'])} | "
+                f"{len(scene['selected_case_ids'])} | "
+                f"{counts['passed']} | {counts['failed']} | {counts['inconclusive']} | "
+                f"{counts['not_executed']} | {scene.get('review_status', scene.get('status'))} | "
+                f"{reviewed['passed']}/{reviewed['failed']}/{reviewed['inconclusive']} |"
+            )
+        lines.extend(["", "### 证据复核", ""])
+        lines.append(cell(analysis.get("review_reason", "历史 Run 未记录统一复核状态。")))
+        lines.append("")
+        if reviews:
+            lines.extend([
+                "| Case | 机器结论 | 复核结论 | 是否修正 | 复核理由 | 证据 |",
+                "| --- | --- | --- | --- | --- | --- |",
+            ])
+            for case_id, review in reviews.items():
+                refs = "、".join(f"[{cell(ref)}]({ref})" for ref in review["evidence_refs"])
+                lines.append(
+                    f"| `{cell(case_id)}` | {VERDICT_ZH[review['machine_verdict']]} | "
+                    f"{VERDICT_ZH[review['reviewed_verdict']]} | "
+                    f"{'是' if review['machine_verdict'] != review['reviewed_verdict'] else '否'} | "
+                    f"{cell(review['reason'])} | {refs} |"
+                )
+            lines.append("")
+        else:
+            lines.extend(["本 Run 没有逐 Case 证据复核结论。", ""])
+
+        lines.extend(["### 缺口与归因", ""])
+        findings = [(scene["scene"], item) for scene in analysis["scenes"] for item in scene.get("findings", [])]
+        if not findings:
+            lines.extend(["未形成结构化缺口与根因假设；这不表示不存在缺口。", ""])
+        for scene_name, finding in findings:
+            refs = "、".join(f"[{cell(ref)}]({ref})" for ref in finding["evidence_refs"])
+            lines.extend([
+                f"#### {cell(scene_name)} · {cell(finding['category'])}",
+                "",
+                f"- 观察到的缺口：{cell(finding['observed_gap'])}",
+                f"- 根因假设：{cell(finding['root_cause_hypothesis'])}",
+                f"- 支持 Case：{', '.join(finding['support_case_ids'])}；证据：{refs}",
+                f"- 反例 Case：{', '.join(finding['counterexample_case_ids']) or '无'}",
+                f"- 替代解释：{cell(finding['alternative'])}",
+                f"- 证伪方法：{cell(finding['falsification'])}",
+                "",
+            ])
+
+        lines.extend(["### 人工记录的研究缺口", ""])
+        if gaps:
+            lines.extend([
+                "| 分类 | 标题 | 观察 | 下一步 | 证据 |",
+                "| --- | --- | --- | --- | --- |",
+            ])
+            for gap in gaps:
+                ref = gap.get("evidence_ref")
+                evidence = f"[{cell(ref)}]({ref})" if ref else "-"
+                lines.append(
+                    f"| {cell(gap['classification'])} | {cell(gap['title'])} | {cell(gap['observed'])} | "
+                    f"{cell(gap['next_step'])} | {evidence} |"
+                )
+            lines.append("")
+        else:
+            lines.extend(["本 Run 未追加人工研究缺口。", ""])
+    lines.extend([
         "## Case 结果",
         "",
-        "| Case | 输入 | 判定依据 | 执行状态 | 结论 | 观察 | 证据 |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
+        "| Case | 输入 | 判定依据 | 执行状态 | 机器结论 | 复核结论 | 观察 | 证据 |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ])
     for row in rows:
         evidence_ref = row["evidence_ref"]
         contract = (case_contracts or {}).get(row["input_id"], {})
         basis = cell(contract.get("expected_behavior", ""))
-        verdict = (
-            "待人工判定"
-            if row["execution_status"] == "completed" and row["verdict"] == "inconclusive"
-            else VERDICT_ZH.get(row["verdict"], row["verdict"])
-        )
+        verdict = VERDICT_ZH.get(row["verdict"], row["verdict"])
+        reviewed = reviews.get(row["input_id"])
+        reviewed_verdict = VERDICT_ZH[reviewed["reviewed_verdict"]] if reviewed else "-"
         case_label = f"`{cell(row['input_id'])}`"
         if row["execution_status"] == "skipped":
             case_label = f"~~{case_label}~~"
         lines.append(
             f"| {case_label} | {cell('<br>'.join(contract.get('inputs', [])))} | {basis} | "
             f"{EXECUTION_STATUS_ZH.get(row['execution_status'], row['execution_status'])} | "
-            f"{verdict} | {cell(row['observation'])} | "
+            f"{verdict} | {reviewed_verdict} | {cell(row['observation'])} | "
             f"[{cell(evidence_ref)}]({evidence_ref}) |"
         )
     if not rows:
-        lines.append("| - | - | - | - | - | 本 Run 未记录 Case 结果。 | - |")
+        lines.append("| - | - | - | - | - | - | 本 Run 未记录 Case 结果。 | - |")
     lines.extend([
         "",
         "## 结构化记录",
         "",
-        "机器校验与后续分析以 [`summary.json`](summary.json) 和 [`results.jsonl`](results.jsonl) 为准。",
+        "机器结果、证据复核与后续分析以 [`summary.json`](summary.json)、[`results.jsonl`](results.jsonl) 和 [`analysis.json`](analysis.json) 为准。人工缺口以 `gaps.jsonl` 为准（如存在）。",
         "",
     ])
     path.write_text("\n".join(lines), encoding="utf-8")
@@ -303,6 +393,12 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
     evaluation_relative = Path("agents") / agent_id / "evaluation.md"
     evaluation_path = repo / evaluation_relative
     cases = execution_for(evaluation_path, args.case)
+    catalog = load_evaluation(evaluation_path)["catalog"]
+    selected = [case["case_id"] for case in cases]
+    expected = [item["case_id"] for item in catalog if args.selection_mode == "full"
+                or args.selection_mode == "fast" and item["fast"]]
+    if args.selection_mode != "explicit" and selected != expected:
+        raise ValueError("selection_mode 与所选 Case 不一致")
     evaluation_ref = evaluation_relative.as_posix()
     run_id = "run-" + str(uuid.uuid4())
     run_dir = experiment / "runs" / run_id
@@ -323,6 +419,8 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
             "reference_tree": tree_digest(repo, Path(contract["reference_root"])) if contract.get("reference_root") else None,
             "evaluation_sha256": evaluation_digest(evaluation_path, args.case),
             "evaluation_cases": cases,
+            "case_catalog": catalog,
+            "selection_mode": args.selection_mode,
             "git_version": git_version(repo),
         }
         if args.model:
@@ -374,6 +472,32 @@ def command_record(repo: Path, args: argparse.Namespace) -> None:
     print(args.run)
 
 
+def load_gaps(run_dir: Path, run_id: str) -> list[dict]:
+    path = run_dir / "gaps.jsonl"
+    if not path.is_file():
+        return []
+    rows = []
+    seen = set()
+    required = {"gap_id", "run_id", "classification", "title", "observed", "next_step"}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        if not isinstance(row, dict) or set(row) - required - {"evidence_ref"} or not required <= set(row) \
+                or not isinstance(row["gap_id"], str) or not row["gap_id"].startswith("gap-") \
+                or row["gap_id"] in seen or row["run_id"] != run_id \
+                or not isinstance(row["classification"], str) \
+                or row["classification"] not in GAP_CLASSIFICATIONS \
+                or any(not isinstance(row[key], str) or not row[key].strip()
+                       for key in ("title", "observed", "next_step")):
+            raise ValueError("gaps.jsonl 包含无效研究缺口")
+        if "evidence_ref" in row:
+            validate_evidence_ref(run_dir, row["evidence_ref"])
+        seen.add(row["gap_id"])
+        rows.append(row)
+    return rows
+
+
 def command_gap(repo: Path, args: argparse.Namespace) -> None:
     run_dir, manifest = load_run_manifest(repo, args.run)
     if manifest.get("status") in FINAL_STATUSES:
@@ -389,7 +513,8 @@ def command_gap(repo: Path, args: argparse.Namespace) -> None:
         "next_step": args.next_step.strip(),
     }
     if args.evidence:
-        row["evidence_ref"] = args.evidence
+        validate_evidence_ref(run_dir, args.evidence)
+        row["evidence_ref"] = args.evidence.strip()
     append_jsonl(run_dir / "gaps.jsonl", row)
     print(row["gap_id"])
 
@@ -413,11 +538,11 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
             execution_counts[row["execution_status"]] += 1
             verdict_counts[row["verdict"]] += 1
     if verdict_counts["failed"]:
-        overall_verdict = "failed"
+        machine_overall = "failed"
     elif verdict_counts["inconclusive"] or not sum(verdict_counts.values()):
-        overall_verdict = "inconclusive"
+        machine_overall = "inconclusive"
     else:
-        overall_verdict = "passed"
+        machine_overall = "passed"
     if args.status == "completed":
         covered = {
             json.loads(line)["input_id"]
@@ -426,29 +551,58 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
         } if results.is_file() else set()
         if covered != allowed_input_ids:
             raise ValueError("completed Run must record every selected Case")
+    inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+    analysis_path = run_dir / "analysis.json"
+    if analysis_path.is_file():
+        analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
+    else:
+        analysis = analyze(run_dir, rows, inputs, status=args.status)
+    validate_analysis(analysis, run_dir, rows, inputs)
+    if args.status == "completed" and inputs.get("selection_mode") == "full" \
+            and analysis.get("review_status") != "completed":
+        raise ValueError("full Run 必须完成全部已选 Case 的证据复核后才能标记 completed")
+    if not analysis_path.is_file():
+        with analysis_path.open("w", encoding="utf-8") as handle:
+            json.dump(analysis, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+    review = summarize_review(analysis)
+    effective = "inconclusive" if args.status != "completed" else (
+        review["overall_verdict"] if review["status"] == "completed"
+        else machine_overall if review["status"] == "not_requested"
+        else "inconclusive"
+    )
     summary = {
-        "schema_version": "2.0",
+        "schema_version": "3.0",
         "run_id": args.run,
         "trial_count": sum(execution_counts.values()),
         "execution_status_counts": execution_counts,
-        "verdict_counts": verdict_counts,
-        "overall_verdict": overall_verdict,
+        "machine_trial_verdict_counts": verdict_counts,
+        "machine_overall_verdict": machine_overall,
+        "review_status": review["status"],
+        "reviewed_case_count": review["case_count"],
+        "reviewed_case_verdict_counts": review["verdict_counts"],
+        "reviewed_overall_verdict": review["overall_verdict"],
+        "effective_verdict": effective,
     }
+    gaps = load_gaps(run_dir, args.run)
     summary_path = run_dir / "summary.json"
     with summary_path.open("w", encoding="utf-8") as handle:
         json.dump(summary, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
     manifest["status"] = args.status
     manifest["finished_at"] = utc_now()
-    inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
     report_path = run_dir / "report.md"
     write_report(
         report_path, manifest, summary, rows, inputs.get("executor"),
         case_contracts_for(run_dir),
+        analysis,
+        inputs.get("selection_mode"),
+        gaps,
     )
     manifest["results_sha256"] = hashlib.sha256(results.read_bytes() if results.is_file() else b"").hexdigest()
     manifest["summary_sha256"] = hashlib.sha256(summary_path.read_bytes()).hexdigest()
     manifest["report_sha256"] = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    manifest["analysis_sha256"] = hashlib.sha256(analysis_path.read_bytes()).hexdigest()
     gaps = run_dir / "gaps.jsonl"
     if gaps.is_file():
         manifest["gaps_sha256"] = hashlib.sha256(gaps.read_bytes()).hexdigest()
@@ -467,6 +621,7 @@ def main() -> None:
     init_parser.add_argument("--baseline-ref", help="默认读取 Experiment change.yaml")
     init_parser.add_argument("--model", help="可选的实际模型标识")
     init_parser.add_argument("--executor", help="可选的执行通道标识")
+    init_parser.add_argument("--selection-mode", choices=("fast", "full", "explicit"), default="explicit")
     record_parser = commands.add_parser("record", help="追加一条观察")
     record_parser.add_argument("--run", required=True)
     record_parser.add_argument("trial_file", help="Trial JSON 文件；- 表示标准输入")

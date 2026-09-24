@@ -24,6 +24,7 @@ VALIDATE_EXPERIMENT = ROOT / ".agents/skills/research-eval/scripts/validate_expe
 EVALUATION_CONTRACT = ROOT / ".agents/skills/research-eval/scripts/evaluation_contract.py"
 RUN_RECORD = ROOT / "runtime/adapters/dsh-container/run_record.py"
 DSH_EVAL = ROOT / "runtime/adapters/dsh-container/dsh-eval"
+SCENARIO_ANALYSIS = ROOT / "runtime/adapters/dsh-container/scenario_analysis.py"
 EXPERIMENT_ID = "EXP-security-operations-expert-001"
 AGENT_ID = "security-operations-expert"
 
@@ -499,7 +500,7 @@ class RunRecordTests(unittest.TestCase):
             module.write_flat_yaml(path, expected)
             self.assertEqual(module.read_flat_yaml(path), expected)
 
-    def test_report_distinguishes_pending_review_from_unexecuted(self) -> None:
+    def test_report_distinguishes_skipped_from_execution_error(self) -> None:
         spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -512,9 +513,13 @@ class RunRecordTests(unittest.TestCase):
              "observation": "执行错误", "evidence_ref": "evidence/U-THREE"},
         ]
         summary = {
-            "overall_verdict": "inconclusive",
+            "trial_count": 3,
             "execution_status_counts": {"completed": 1, "error": 1, "skipped": 1},
-            "verdict_counts": {"passed": 0, "failed": 0, "inconclusive": 3},
+            "machine_trial_verdict_counts": {"passed": 0, "failed": 0, "inconclusive": 3},
+            "machine_overall_verdict": "inconclusive",
+            "review_status": "not_requested",
+            "reviewed_case_verdict_counts": None,
+            "effective_verdict": "inconclusive",
         }
         manifest = {
             "run_id": "run-test", "experiment_id": "EXP-test-001", "agent_id": "test",
@@ -525,12 +530,11 @@ class RunRecordTests(unittest.TestCase):
             report = Path(temp) / "report.md"
             module.write_report(report, manifest, summary, rows, "api")
             text = report.read_text(encoding="utf-8")
-        self.assertIn("| Case | 1 | 1 | 1 | 0 | 0 | 1 | 2 |", text)
-        self.assertIn("| `U-ONE` |  |  | 已完成 | 待人工判定 |", text)
-        self.assertIn("| ~~`U-TWO`~~ |  |  | 已跳过 | 无法判定 |", text)
-        self.assertIn("| `U-THREE` |  |  | 执行错误 | 无法判定 |", text)
+        self.assertIn("| 机器 Trial | 3 | 1 | 1 | 1 | 0 | 0 | 3 |", text)
+        self.assertIn("| `U-ONE` |  |  | 已完成 | 无法判定 | - |", text)
+        self.assertIn("| ~~`U-TWO`~~ |  |  | 已跳过 | 无法判定 | - |", text)
+        self.assertIn("| `U-THREE` |  |  | 执行错误 | 无法判定 | - |", text)
         self.assertNotIn("~~`U-THREE`~~", text)
-        self.assertIn("Case ID 的删除线表示该 Case 已选择但未执行", text)
 
     def test_lifecycle_records_and_seals_observations(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -575,8 +579,10 @@ class RunRecordTests(unittest.TestCase):
             self.assertNotEqual(sealed.returncode, 0)
             summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
             self.assertEqual(summary["execution_status_counts"]["completed"], 1)
-            self.assertEqual(summary["verdict_counts"]["passed"], 1)
-            self.assertEqual(summary["overall_verdict"], "passed")
+            self.assertEqual(summary["machine_trial_verdict_counts"]["passed"], 1)
+            self.assertEqual(summary["machine_overall_verdict"], "passed")
+            self.assertEqual(summary["review_status"], "not_requested")
+            self.assertEqual(summary["effective_verdict"], "passed")
             self.assertIn('baseline_ref: "none:first-experiment"', (run_dir / "run.yaml").read_text(encoding="utf-8"))
             inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
             self.assertIn("git_version", inputs)
@@ -667,6 +673,153 @@ class DshEvalTests(unittest.TestCase):
         "LOCAL_LLM_API_KEY",
     )
 
+    def test_readable_view_preserves_json_and_deduplicates_tool_content(self) -> None:
+        spec = importlib.util.spec_from_file_location("scenario_analysis_view_test", SCENARIO_ANALYSIS)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temp:
+            run = Path(temp)
+            plain = {"text": "第一行\n第二行", "value": [1, True, None]}
+            (run / "plain.json").write_text(
+                json.dumps(plain, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
+            )
+            shared = [{"type": "text", "text": "重复内容" * 1000}]
+            events = [
+                {
+                    "event": {"type": "tool/result", "data": {"message": {"content": [{
+                        "toolCallId": call_id, "content": shared,
+                    }]}}},
+                    "session_log": "session.v3.jsonl",
+                }
+                for call_id in ("call-a", "call-b")
+            ]
+            (run / "tools.jsonl").write_text(
+                "".join(json.dumps(item, ensure_ascii=False) + "\n" for item in events),
+                encoding="utf-8",
+            )
+            descriptors = module._write_readable_views(
+                run, {"scene-01": ["plain.json", "tools.jsonl"]},
+            )["scene-01"]
+            lines = [
+                line
+                for item in descriptors
+                for line in (run / item["path"]).read_text(encoding="utf-8").splitlines()
+            ]
+            json_chunks, content_chunks = {}, {}
+            for line in lines:
+                if line.startswith("J\t"):
+                    _, source, record, fraction, chunk = line.split("\t", 4)
+                    json_chunks.setdefault((int(source), int(record)), []).append(
+                        (int(fraction.split("/", 1)[0]), chunk)
+                    )
+                elif line.startswith("C\t"):
+                    _, digest, fraction, chunk = line.split("\t", 3)
+                    content_chunks.setdefault(digest, []).append(
+                        (int(fraction.split("/", 1)[0]), chunk)
+                    )
+            values = {
+                key: json.loads("".join(chunk for _, chunk in sorted(chunks)))
+                for key, chunks in json_chunks.items()
+            }
+            canonical = json.dumps(shared, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            digest = hashlib.sha256(canonical.encode()).hexdigest()
+            restored = "".join(chunk for _, chunk in sorted(content_chunks[digest]))
+            manifest = json.loads(
+                (run / "evidence/analysis/readable/manifest.json").read_text(encoding="utf-8")
+            )
+
+        self.assertEqual(values[(1, 1)], plain)
+        self.assertEqual([values[(2, index)]["event"]["data"]["message"]["content"][0]["toolCallId"]
+                          for index in (1, 2)], ["call-a", "call-b"])
+        self.assertTrue(all(
+            values[(2, index)]["event"]["data"]["message"]["content"][0]["content"]
+            == {"$analysis_content_ref": digest} for index in (1, 2)
+        ))
+        self.assertEqual(json.loads(restored), shared)
+        self.assertEqual(len(content_chunks), 1)
+        self.assertEqual(manifest["groups"][0]["content_refs"], 1)
+        self.assertTrue(all(item["bundle"] == "scene-01" for item in descriptors))
+
+    def test_finding_accepts_counterexample_and_empty_tool_evidence(self) -> None:
+        spec = importlib.util.spec_from_file_location("scenario_analysis_finding_test", SCENARIO_ANALYSIS)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temp:
+            run = Path(temp)
+            (run / "evidence/support").mkdir(parents=True)
+            (run / "evidence/counterexample").mkdir(parents=True)
+            (run / "evidence/support/response.json").write_text("{}\n", encoding="utf-8")
+            (run / "evidence/counterexample/tools.jsonl").write_text("", encoding="utf-8")
+            finding = {
+                "category": "harness_mechanism",
+                "observed_gap": "支持 Case 暴露能力缺口。",
+                "root_cause_hypothesis": "Harness 缺少对应约束。",
+                "support_case_ids": ["support"],
+                "counterexample_case_ids": ["counterexample"],
+                "evidence_refs": [
+                    "evidence/support/response.json",
+                    "evidence/counterexample/tools.jsonl",
+                ],
+                "alternative": "也可能是外部数据差异。",
+                "falsification": "固定外部数据后重跑。",
+            }
+            parsed = module._parse_findings([finding], ["support", "counterexample"], run)
+            (run / "evidence/counterexample/response.json").write_text("", encoding="utf-8")
+
+            self.assertEqual(parsed, [finding])
+            self.assertFalse(module._material_ref(
+                run, "evidence/counterexample/response.json",
+            ))
+
+    def test_analysis_output_accepts_only_plain_or_single_json_fence(self) -> None:
+        spec = importlib.util.spec_from_file_location("scenario_analysis_json_test", SCENARIO_ANALYSIS)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        expected = {"case_reviews": [], "findings": []}
+
+        self.assertEqual(module._parse_json_output(json.dumps(expected)), expected)
+        self.assertEqual(module._parse_json_output(
+            f"```json\n{json.dumps(expected)}\n```",
+        ), expected)
+        with self.assertRaises(json.JSONDecodeError):
+            module._parse_json_output(f"结果如下：\n```json\n{json.dumps(expected)}\n```")
+
+    def test_analysis_access_accepts_successful_empty_file_read(self) -> None:
+        spec = importlib.util.spec_from_file_location("scenario_analysis_access_test", SCENARIO_ANALYSIS)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        required_path = "evidence/analysis/readable/scene-01/part-001.txt"
+        raw = {
+            "tool_names": ["glob", "grep", "read"],
+            "tool_accesses": [
+                {
+                    "name": "read",
+                    "arguments": {"file_path": required_path},
+                    "result": {"is_error": False, "read": {
+                        "path": f"/work/evaluation-run/{required_path}",
+                        "offset": 1, "line_numbers": [1], "total_lines": 1,
+                    }},
+                },
+                {
+                    "name": "read",
+                    "arguments": {"file_path": "evidence/U-INS-001/tools.jsonl"},
+                    "result": {"is_error": False, "read": {
+                        "path": "/work/evaluation-run/evidence/U-INS-001/tools.jsonl",
+                        "offset": 1, "line_numbers": [], "total_lines": 0,
+                    }},
+                },
+            ],
+        }
+        required = [{
+            "bundle": "scene-01", "path": required_path,
+            "total_lines": 1, "sha256": "0" * 64,
+        }]
+
+        module._validate_evidence_access(raw, required)
+        raw["tool_accesses"][1]["result"]["read"]["offset"] = 2
+        with self.assertRaisesRegex(ValueError, "analysis-tools-invalid"):
+            module._validate_evidence_access(raw, required)
+
     def runtime_fixture(self, root: Path, *, mode: str = "pass") -> tuple[Path, dict[str, str], Path]:
         repository = copy_repository(root)
         image_fingerprint = subprocess.check_output(
@@ -718,6 +871,116 @@ from pathlib import Path
 
 payload = json.load(sys.stdin)
 mode = os.environ["TEST_BROWSER_MODE"]
+target_route = {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "maxTokens": 256000,
+    "reasoningEffort": "off",
+}
+if payload.get("operation") == "review":
+    if os.environ.get("TEST_ANALYSIS_MODE") == "unavailable":
+        raise SystemExit(9)
+    if payload.get("workspace") != "/work/evaluation-run" \
+            or payload.get("preset_id") != "scenario-analysis" \
+            or payload.get("judge_preset_id") != "scenario-analysis" \
+            or payload.get("model_route") != target_route:
+        raise SystemExit(6)
+    results = []
+    for scene_index, scene in enumerate(payload["scenes"]):
+        repairing = "session_id" in scene
+        review_input = json.loads(scene["prior_prompts"][0] if repairing else scene["prompt"])
+        if repairing:
+            repair = json.loads(scene["prompt"])
+            if repair.get("validation_error") != "analysis-output-invalid":
+                raise SystemExit(10)
+        cases = review_input["cases"]
+        if any(
+            set(item) != {
+                "case_id", "inputs", "expected_behavior", "machine_verdict", "evidence_dir",
+            } or not item["inputs"] or not item["expected_behavior"]
+            for item in cases
+        ):
+            raise SystemExit(8)
+        required = review_input["required_evidence"]
+        expected = ["inputs.lock.json", "results.jsonl", "evidence/analysis/harness.json"] + [
+            f"evidence/{item['case_id']}/{name}"
+            for item in cases
+            for name in ("response.json", "checks.json", "tools.jsonl")
+        ]
+        bundle = scene["scene_id"]
+        if review_input.get("evidence_sources") != expected \
+                or "harness_files" in review_input or any(
+            set(item) != {"bundle", "path", "total_lines", "sha256"}
+            or item["bundle"] != bundle
+            or not item["path"].startswith(f"evidence/analysis/readable/{bundle}/")
+            or not item["path"].endswith(".txt")
+            or not isinstance(item["total_lines"], int) or item["total_lines"] < 1
+            for item in required
+        ):
+            raise SystemExit(7)
+        reviews = []
+        for case_index, item in enumerate(cases):
+            reviewed = item["machine_verdict"]
+            if os.environ.get("TEST_ANALYSIS_MODE") == "correct-first" \
+                    and scene_index == 0 and case_index == 0:
+                reviewed = "failed"
+            reviews.append({
+                "case_id": item["case_id"],
+                "reviewed_verdict": reviewed,
+                "reason": "已核对预期、回复、检查结果和完整工具事件。",
+            })
+        finding = {
+            "category": "harness_mechanism",
+            "observed_gap": "机器结论未表达场景证据中的能力边界。",
+            "root_cause_hypothesis": "当前 Harness 对该边界缺少明确约束。",
+            "support_case_ids": [cases[0]["case_id"]],
+            "counterexample_case_ids": [cases[1]["case_id"]] if len(cases) > 1 else [],
+            "evidence_refs": [f"evidence/{cases[0]['case_id']}/response.json"] + (
+                [f"evidence/{cases[1]['case_id']}/response.json"] if len(cases) > 1 else []
+            ),
+            "alternative": "也可能由外部工具测试数据造成。",
+            "falsification": "固定工具数据后重跑该场景并比较完整证据。",
+        }
+        text = json.dumps({
+            "case_reviews": reviews,
+            "findings": [finding],
+        })
+        accesses = [
+            {
+                "name": "read",
+                "arguments": {"file_path": f"/work/evaluation-run/{item['path']}"},
+                "result": {
+                    "is_error": False,
+                    "read": {
+                        "path": f"/work/evaluation-run/{item['path']}",
+                        "offset": 1,
+                        "line_numbers": list(range(1, item["total_lines"] + 1)),
+                        "total_lines": item["total_lines"],
+                    },
+                },
+            }
+            for item in required
+        ]
+        analysis_mode = os.environ.get("TEST_ANALYSIS_MODE")
+        if analysis_mode == "invalid":
+            accesses.pop()
+        elif analysis_mode == "failed-read":
+            accesses[0]["result"] = {"is_error": True}
+        elif analysis_mode == "partial-read":
+            accesses[0]["result"]["read"]["line_numbers"].pop()
+        if analysis_mode == "repair-output" and not repairing:
+            finding["evidence_refs"].append(f"evidence/{cases[-1]['case_id']}/tools.jsonl")
+            text = json.dumps({"case_reviews": reviews, "findings": [finding]})
+        results.append({
+            "scene_id": scene["scene_id"],
+            "session_id": scene.get("session_id", f"judge-session-{scene_index}"),
+            "route": target_route,
+            "tool_names": ["glob", "grep", "read"],
+            "tool_accesses": accesses,
+            "text": text,
+        })
+    print(json.dumps({"operation": "review", "results": results}))
+    raise SystemExit(0)
 if mode == "exception":
     raise SystemExit(9)
 if mode == "hang":
@@ -728,9 +991,24 @@ rows = []
 for index, item in enumerate(payload["cases"]):
     evidence = Path(payload["evidence_root"]) / item["case_id"]
     evidence.mkdir(parents=True, exist_ok=True)
-    (evidence / "response.json").write_text(json.dumps({"assistant_text": "模型连通"}) + "\\n")
+    (evidence / "response.json").write_text(json.dumps({
+        "inputs": item["inputs"],
+        "assistant_texts": ["模型连通"],
+        "session_id": f"target-session-{index}",
+        "turns": [{"assistant_text": "模型连通", "route": target_route}] + [
+            {"assistant_text": "继续处理", "route": None}
+            for _ in item["inputs"][1:]
+        ],
+    }) + "\\n")
     (evidence / "trace.jsonl").write_text(json.dumps({"route": "local-qwen"}) + "\\n")
-    (evidence / "tools.jsonl").write_text("")
+    (evidence / "tools.jsonl").write_text(
+        json.dumps({"event": {
+            "type": "tool/call", "name": "inspection", "arguments": {"case_id": item["case_id"]},
+        }}) + "\\n" + json.dumps({"event": {
+            "type": "tool/result", "name": "inspection",
+            "result": {"ok": True, "case_id": item["case_id"]},
+        }}) + "\\n"
+    )
     (evidence / "checks.json").write_text(json.dumps({"completed": True}) + "\\n")
     if mode == "safety-stop":
         rows.append({
@@ -768,6 +1046,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             "DSH_EVAL_BROWSER_DRIVER": str(fake_browser),
             "TEST_DSH_LOG": str(command_log),
             "TEST_BROWSER_MODE": mode,
+            "TEST_ANALYSIS_MODE": "valid",
             "TEST_BROWSER_READY": str(root / "browser-ready"),
         }
         for name in self.REQUIRED_RUNTIME_ENV:
@@ -781,6 +1060,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         *case_ids: str,
         timeout: int = 240,
         executor: str = "api",
+        mode: str | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], dict]:
         command = [
             "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
@@ -788,6 +1068,8 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             "--executor", executor,
             "--timeout-seconds", "10",
         ]
+        if mode:
+            command.extend(("--mode", mode))
         for case_id in case_ids:
             command.extend(("--case", case_id))
         completed = subprocess.run(
@@ -833,6 +1115,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             run_dir = (repository / payload["summary"]).parent
             summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
             report = (repository / payload["report"]).read_text(encoding="utf-8")
+            analysis = json.loads((run_dir / "analysis.json").read_text(encoding="utf-8"))
             inputs = (run_dir / "inputs.lock.json").read_text(encoding="utf-8")
             manifest = (run_dir / "run.yaml").read_text(encoding="utf-8")
             commands = [json.loads(line) for line in command_log.read_text(encoding="utf-8").splitlines()]
@@ -840,18 +1123,30 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(payload["executor"], "api")
         self.assertEqual(payload["verdict"], "passed")
+        self.assertEqual(payload["review_status"], "not_requested")
         self.assertEqual(
             payload["cases"],
             {"total": 1, "passed": 1, "failed": 0, "inconclusive": 0},
         )
         self.assertTrue(payload["instance_stopped"])
-        self.assertEqual(summary["overall_verdict"], "passed")
+        self.assertEqual(summary["machine_overall_verdict"], "passed")
+        self.assertEqual(summary["effective_verdict"], "passed")
+        self.assertEqual(summary["review_status"], "not_requested")
         self.assertIn("# 测试评估报告", report)
+        self.assertIn("- Case 选择：`explicit`", report)
         self.assertIn("`U-INS-001`", report)
-        self.assertIn("| Case | 输入 | 判定依据 | 执行状态 | 结论 | 观察 | 证据 |", report)
+        self.assertIn("| Case | 输入 | 判定依据 | 执行状态 | 机器结论 | 复核结论 | 观察 | 证据 |", report)
         self.assertIn("执行一次常规巡检。", report)
         self.assertIn("通过", report)
-        self.assertIn("不要求所有 Case 均为 `通过`", report)
+        self.assertIn("## 场景覆盖与归因", report)
+        self.assertIn("### 缺口与归因", report)
+        self.assertEqual(sum(len(scene["case_ids"]) for scene in analysis["scenes"]), 40)
+        self.assertEqual(sum(len(scene["selected_case_ids"]) for scene in analysis["scenes"]), 1)
+        self.assertEqual(analysis["review_status"], "not_requested")
+        self.assertEqual(
+            sum(scene["review_status"] == "not_evaluated" for scene in analysis["scenes"]),
+            len(analysis["scenes"]) - 1,
+        )
         self.assertIn('executor": "api"', inputs)
         self.assertIn("report_sha256:", manifest)
         self.assertEqual([command[0] for command in commands], ["up", "url", "down"])
@@ -874,6 +1169,9 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
                 .read_text(encoding="utf-8")
                 .splitlines()
             ]
+            run_dir = (repository / payload["summary"]).parent
+            analysis = json.loads((run_dir / "analysis.json").read_text(encoding="utf-8"))
+            report = (run_dir / "report.md").read_text(encoding="utf-8")
             commands = [json.loads(line)[0] for line in command_log.read_text().splitlines()]
         self.assertEqual(completed.returncode, 1, completed.stderr)
         self.assertEqual(payload["executor"], "browser")
@@ -887,8 +1185,175 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             ["U-INS-001", "U-INS-002"],
         )
         self.assertEqual(commands, ["up", "url", "down"])
+        self.assertEqual(analysis["review_status"], "not_requested")
+        self.assertFalse(any(scene["findings"] for scene in analysis["scenes"]))
+        self.assertIn("未形成结构化缺口与根因假设；这不表示不存在缺口。", report)
 
-    def test_missing_case_lists_choices_and_exits(self) -> None:
+    def test_invalid_full_review_preserves_evidence_and_fails_closed(self) -> None:
+        for analysis_mode in ("invalid", "failed-read", "partial-read"):
+            with self.subTest(analysis_mode=analysis_mode), tempfile.TemporaryDirectory() as temp:
+                repository, env, command_log = self.runtime_fixture(
+                    Path(temp), mode="case-failure",
+                )
+                env["TEST_ANALYSIS_MODE"] = analysis_mode
+                completed, payload = self.run_eval(repository, env, mode="full")
+                run_dir = (repository / payload["summary"]).parent
+                analysis = json.loads((run_dir / "analysis.json").read_text(encoding="utf-8"))
+                summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+                manifest = (run_dir / "run.yaml").read_text(encoding="utf-8")
+                commands = [json.loads(line)[0] for line in command_log.read_text().splitlines()]
+                self.assertEqual(completed.returncode, 2, completed.stderr)
+                self.assertEqual(payload["verdict"], "inconclusive")
+                self.assertEqual(payload["review_status"], "failed")
+                self.assertEqual(analysis["review_status"], "failed")
+                self.assertTrue(all(
+                    scene["review_status"] == "failed" and scene["diagnostic"]
+                    for scene in analysis["scenes"] if scene["selected_case_ids"]
+                ))
+                self.assertEqual(
+                    {scene["diagnostic"]["stage"] for scene in analysis["scenes"]
+                     if scene["selected_case_ids"]},
+                    {"evidence-access"},
+                )
+                self.assertEqual(summary["effective_verdict"], "inconclusive")
+                self.assertIn('status: "failed"', manifest)
+                self.assertEqual(commands, ["up", "url", "up", "url", "down", "down"])
+
+    def test_full_review_covers_every_case_and_can_correct_machine_verdict(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository, env, command_log = self.runtime_fixture(Path(temp))
+            env["TEST_ANALYSIS_MODE"] = "correct-first"
+            completed, payload = self.run_eval(repository, env, mode="full")
+            run_dir = (repository / payload["summary"]).parent
+            analysis = json.loads((run_dir / "analysis.json").read_text(encoding="utf-8"))
+            summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+            report = (run_dir / "report.md").read_text(encoding="utf-8")
+            selected_scenes = [scene for scene in analysis["scenes"] if scene["selected_case_ids"]]
+            commands = [json.loads(line) for line in command_log.read_text().splitlines()]
+        self.assertEqual(completed.returncode, 1, completed.stderr)
+        self.assertEqual(payload["review_status"], "completed")
+        self.assertEqual(payload["cases"], {
+            "total": 40, "passed": 40, "failed": 0, "inconclusive": 0,
+        })
+        self.assertEqual(payload["reviewed_cases"], {
+            "total": 40, "passed": 39, "failed": 1, "inconclusive": 0,
+        })
+        self.assertEqual(summary["machine_overall_verdict"], "passed")
+        self.assertEqual(summary["reviewed_overall_verdict"], "failed")
+        self.assertEqual(summary["effective_verdict"], "failed")
+        self.assertEqual(analysis["reviewed_case_count"], 40)
+        self.assertTrue(all(scene["review_status"] == "completed" for scene in selected_scenes))
+        self.assertEqual(
+            len({scene["analysis_session"]["session_id"] for scene in selected_scenes}),
+            len(selected_scenes),
+        )
+        self.assertTrue(all(scene["findings"] for scene in selected_scenes))
+        self.assertIn("### 证据复核", report)
+        self.assertIn("### 缺口与归因", report)
+        self.assertIn("机器结论未表达场景证据中的能力边界", report)
+        self.assertIn("| 是 |", report)
+        self.assertEqual(
+            [command[0] for command in commands],
+            ["up", "url", "up", "url", "down", "down"],
+        )
+        self.assertEqual(
+            commands[2][commands[2].index("--analysis-workspace") + 1],
+            str(run_dir.resolve()),
+        )
+
+    def test_full_review_repairs_invalid_output_in_same_session(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository, env, _ = self.runtime_fixture(Path(temp))
+            env["TEST_ANALYSIS_MODE"] = "repair-output"
+            completed, payload = self.run_eval(repository, env, mode="full")
+            run_dir = (repository / payload["summary"]).parent
+            analysis = json.loads((run_dir / "analysis.json").read_text(encoding="utf-8"))
+            attempts = sorted((run_dir / "evidence/analysis").glob(
+                "scene-*/attempt-01-response.json"
+            ))
+            sessions = [
+                (json.loads(path.read_text(encoding="utf-8"))["session_id"],
+                 json.loads((path.parent / "response.json").read_text(encoding="utf-8"))["session_id"])
+                for path in attempts
+            ]
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(analysis["review_status"], "completed")
+        self.assertEqual(analysis["reviewed_case_count"], 40)
+        self.assertEqual(len(attempts), 4)
+        self.assertTrue(all(first == repaired for first, repaired in sessions))
+
+    def test_manual_gap_is_rendered_without_starting_analysis_instance(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository, env, command_log = self.runtime_fixture(Path(temp))
+            script = repository / "runtime/adapters/dsh-container/run_record.py"
+            base = ["python3", str(script), "--repo", str(repository)]
+            init = subprocess.run(
+                base + ["init", "--source", "experiment:EXP-security-operations-expert-006",
+                        "--case", "U-INS-001"], cwd=repository, env=env,
+                text=True, capture_output=True, check=False, timeout=180,
+            )
+            self.assertEqual(init.returncode, 0, init.stderr)
+            run_id = init.stdout.strip()
+            run_dir = repository / f"evolution/experiments/EXP-security-operations-expert-006/runs/{run_id}"
+            evidence = run_dir / "evidence/U-INS-001/response.json"
+            evidence.parent.mkdir(parents=True)
+            evidence.write_text(json.dumps({"assistant_text": "目标回复与预期不符"}), encoding="utf-8")
+            row = {
+                "run_id": run_id, "trial_id": "trial-manual-1", "input_id": "U-INS-001",
+                "execution_status": "completed", "verdict": "failed",
+                "observation": "与预期不符", "evidence_ref": "evidence/U-INS-001/response.json",
+            }
+            record = subprocess.run(base + ["record", "--run", run_id, "-"],
+                                    cwd=repository, env=env, input=json.dumps(row),
+                                    text=True, capture_output=True, check=False, timeout=180)
+            self.assertEqual(record.returncode, 0, record.stderr)
+            gap = subprocess.run(
+                base + [
+                    "gap", "--run", run_id, "--classification", "harness",
+                    "--title", "巡检输出缺少证据字段", "--observed", "回复未给出报告链接",
+                    "--next-step", "补充约束后重跑", "--evidence", "evidence/U-INS-001/response.json",
+                ],
+                cwd=repository, env=env, text=True, capture_output=True, check=False, timeout=180,
+            )
+            self.assertEqual(gap.returncode, 0, gap.stderr)
+            finalize = subprocess.run(base + ["finalize", "--run", run_id, "--status", "completed"],
+                                      cwd=repository, env=env, text=True,
+                                      capture_output=True, check=False, timeout=180)
+            self.assertEqual(finalize.returncode, 0, finalize.stderr)
+            analysis = json.loads((run_dir / "analysis.json").read_text(encoding="utf-8"))
+            report = (run_dir / "report.md").read_text(encoding="utf-8")
+        self.assertFalse(command_log.exists())
+        self.assertEqual(analysis["review_status"], "not_requested")
+        self.assertIn("### 人工记录的研究缺口", report)
+        self.assertIn("巡检输出缺少证据字段", report)
+        self.assertIn("evidence/U-INS-001/response.json", report)
+
+    def test_analysis_content_validation_rejects_tampered_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository, env, _ = self.runtime_fixture(Path(temp), mode="case-failure")
+            completed, payload = self.run_eval(repository, env, "U-INS-001")
+            self.assertEqual(completed.returncode, 1, completed.stderr)
+            run_dir = (repository / payload["summary"]).parent
+            analysis_path = run_dir / "analysis.json"
+            original_hash = hashlib.sha256(analysis_path.read_bytes()).hexdigest()
+            analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
+            analysis["scenes"][0]["machine_counts"]["failed"] = 0
+            analysis_path.write_text(json.dumps(analysis, ensure_ascii=False), encoding="utf-8")
+            manifest = run_dir / "run.yaml"
+            manifest.write_text(
+                manifest.read_text(encoding="utf-8").replace(
+                    original_hash, hashlib.sha256(analysis_path.read_bytes()).hexdigest()
+                ), encoding="utf-8",
+            )
+            checked, verdict = run_json(
+                repository / ".agents/skills/research-eval/scripts/validate_experiment.py",
+                repository / "evolution/experiments/EXP-security-operations-expert-006", cwd=repository,
+            )
+        self.assertNotEqual(checked.returncode, 0)
+        self.assertIn("RUN_ANALYSIS", error_codes(verdict))
+
+    def test_fast_full_and_explicit_case_selection(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repository = copy_repository(Path(temp))
             command = [
@@ -896,14 +1361,56 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
                 "--source", "experiment:EXP-security-operations-expert-006",
                 "--dry-run",
             ]
-            completed = subprocess.run(
+            fast = subprocess.run(
                 command, cwd=repository, text=True, capture_output=True, check=False, timeout=180,
             )
-            payload = json.loads(completed.stdout)
-        self.assertEqual(completed.returncode, 2)
-        self.assertEqual(payload["cases"]["total"], 0)
-        self.assertIn("必须使用 --case", completed.stderr)
-        self.assertIn("U-INS-001", completed.stderr)
+            full = subprocess.run(
+                command + ["--mode", "full"], cwd=repository, text=True,
+                capture_output=True, check=False, timeout=180,
+            )
+            explicit = subprocess.run(
+                command + ["--mode", "full", "--case", "U-INS-002"], cwd=repository,
+                text=True, capture_output=True, check=False, timeout=180,
+            )
+            evaluation = repository / "agents/security-operations-expert/evaluation.md"
+            evaluation.write_text(
+                evaluation.read_text(encoding="utf-8").replace("**评估档位：** `fast`\n\n", ""),
+                encoding="utf-8",
+            )
+            missing = subprocess.run(
+                command, cwd=repository, text=True, capture_output=True, check=False, timeout=180,
+            )
+        self.assertEqual(fast.returncode, 0, fast.stderr)
+        self.assertEqual(json.loads(fast.stdout)["case_ids"], [
+            "U-INS-001", "U-POL-001", "U-FLT-009", "U-QA-002", "U-QA-003",
+        ])
+        self.assertEqual(json.loads(fast.stdout)["selection_mode"], "fast")
+        self.assertEqual(full.returncode, 0, full.stderr)
+        self.assertEqual(len(json.loads(full.stdout)["case_ids"]), 40)
+        self.assertEqual(json.loads(full.stdout)["selection_mode"], "full")
+        self.assertEqual(explicit.returncode, 0, explicit.stderr)
+        self.assertEqual(json.loads(explicit.stdout)["case_ids"], ["U-INS-002"])
+        self.assertEqual(json.loads(explicit.stdout)["selection_mode"], "explicit")
+        self.assertEqual(missing.returncode, 2)
+        self.assertIn("没有标记 fast", missing.stderr)
+
+    def test_default_fast_run_locks_selected_scenes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository, env, _ = self.runtime_fixture(Path(temp))
+            completed, payload = self.run_eval(repository, env)
+            run_dir = (repository / payload["summary"]).parent
+            inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+            analysis = json.loads((run_dir / "analysis.json").read_text(encoding="utf-8"))
+            report = (run_dir / "report.md").read_text(encoding="utf-8")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(inputs["selection_mode"], "fast")
+        self.assertIn("- Case 选择：`fast`", report)
+        self.assertEqual([item["case_id"] for item in inputs["evaluation_cases"]], [
+            "U-INS-001", "U-POL-001", "U-FLT-009", "U-QA-002", "U-QA-003",
+        ])
+        self.assertEqual(analysis["review_status"], "not_requested")
+        self.assertEqual(sum(scene["machine_counts"]["passed"] for scene in analysis["scenes"]), 5)
+        self.assertEqual(sum(scene["machine_counts"]["not_executed"] for scene in analysis["scenes"]), 0)
 
     def test_case_patterns_select_in_document_order(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -1046,6 +1553,11 @@ class EvaluationSourceTests(unittest.TestCase):
             for case_id in expected_ids
         ))
         self.assertEqual(loaded["cases"]["U-INS-001"]["inputs"], ["执行一次常规巡检。"])
+        self.assertEqual(
+            [item["case_id"] for item in loaded["catalog"] if item["fast"]],
+            ["U-INS-001", "U-POL-001", "U-FLT-009", "U-QA-002", "U-QA-003"],
+        )
+        self.assertTrue(all(item["scene"] for item in loaded["catalog"]))
         self.assertIn("设备数量和巡检报告链接", loaded["cases"]["U-INS-001"]["expected_behavior"])
         self.assertIn("真实巡检工具返回", loaded["cases"]["U-INS-001"]["expected_behavior"])
         self.assertEqual(len(loaded["cases"]["U-POL-008"]["inputs"]), 4)
@@ -1055,6 +1567,45 @@ class EvaluationSourceTests(unittest.TestCase):
         ):
             self.assertNotIn(retired, text)
         self.assertFalse(list((ROOT / "evolution/experiments").glob("EXP-*/evaluation/plan.yaml")))
+
+    def test_fast_marker_does_not_change_case_digest_and_malformed_marker_fails(self) -> None:
+        contract = self.load_contract()
+        source = ROOT / "agents/test01/evaluation.md"
+        with tempfile.TemporaryDirectory() as temp:
+            plain = Path(temp) / "evaluation.md"
+            plain.write_text(source.read_text(encoding="utf-8").replace(
+                "**评估档位：** `fast`\n\n", ""
+            ), encoding="utf-8")
+            self.assertEqual(
+                contract.evaluation_digest(source, ["U-IDENTITY-001"]),
+                contract.evaluation_digest(plain, ["U-IDENTITY-001"]),
+            )
+            plain.write_text(source.read_text(encoding="utf-8").replace(
+                "**评估档位：** `fast`", "**评估档位：** `full`"
+            ), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "评估档位"):
+                contract.load_evaluation(plain)
+
+    def test_scene_counts_each_case_once_across_trials(self) -> None:
+        spec = importlib.util.spec_from_file_location(
+            "scenario_analysis", ROOT / "runtime/adapters/dsh-container/scenario_analysis.py",
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        inputs = {
+            "run_id": "run-test",
+            "case_catalog": [{"case_id": "U-ONE-001", "scene": "同一场景", "fast": True}],
+            "evaluation_cases": [{"case_id": "U-ONE-001"}],
+        }
+        rows = [
+            {"input_id": "U-ONE-001", "execution_status": "completed", "verdict": "passed"},
+            {"input_id": "U-ONE-001", "execution_status": "completed", "verdict": "failed"},
+        ]
+        with tempfile.TemporaryDirectory() as temp:
+            scene = module.analyze(Path(temp), rows, inputs, status="failed")["scenes"][0]
+        self.assertEqual(scene["machine_counts"], {
+            "passed": 0, "failed": 1, "inconclusive": 0, "not_executed": 0,
+        })
 
     def test_candidate_model_configuration_is_unchanged(self) -> None:
         profile_text = (

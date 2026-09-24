@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "回答与工具回执均以裸 IP（selector_type IP）处理 172.16.1.155，未静默扩大地址范围，预览也包含 UDP/53、7 天有效期及 DRAFT 状态，这部分符合预期；但预期明确要求“指出 172.16.1.155 是主机地址而非网段”。回答仅笼统说明可改为资产引用（ASSET_REF）而非裸 IP，未指出该地址为主机地址、并非网段，也未解释按主机对象处理的依据，因此未明确满足全部要求，判定为 failed。"
+  },
+  "checks": {
+    "session_id": "session-e5617bba-f8eb-448a-af91-3743fbdb7dd0",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

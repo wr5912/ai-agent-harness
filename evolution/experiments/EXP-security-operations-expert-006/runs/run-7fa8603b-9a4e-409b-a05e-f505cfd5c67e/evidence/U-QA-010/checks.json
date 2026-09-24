@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-010",
+  "completed": false,
+  "expected_behavior": "分别说明创建巡检任务、查看报告和发起响应处置的实际入口、必要信息与权限边界；不把建议或预览描述为已经执行，也不臆造未知权限名称。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

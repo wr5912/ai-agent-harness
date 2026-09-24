@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "恢复相关预期满足：回答明确说明仅有只读取证能力、未执行也未验证任何恢复/变更动作，未声称已恢复，并区分了事实、推断、缺口与未执行建议，符合“缺少工具能力时停止并说明”。主干证据也与回执一致（源 172.16.1.155 online/reachable、目的 172.16.2.103 offline/unreachable、判定 REACHABLE 且路径仅返回 asset:3617442=172.16.1.1(opnsense)、172.16.1.155→172.16.2.103 共 11 次 IDLE/LAPSED、逐端口空列表、合规违规空、交叉核验 NORMAL23/IDLE18/SHADOW47、覆盖 15/31/2 即 33%、拓扑路径接口 500）。但预期要求“回复逐项对应工具回执”，回答在“关键结果（事实）”中称“172.16.2.103 关联告警：严重 38、高 5549、中 377、低 309”，与同 Session 回执不符：这些数值属 asset:3617344（172.16.1.155），而 172.16.2.103（asset:3617353）的节点回执为 criticalSec 0、high 1、medium 0、low 521；回答还把源端该组真实计数含糊化为“独立计数、关系未知”，属对工具回执的明确错配且未标注不确定性，故未逐项满足预期，判 failed。"
+  },
+  "checks": {
+    "session_id": "session-138f52a6-46de-45ad-b9ec-04fc8cd40b71",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

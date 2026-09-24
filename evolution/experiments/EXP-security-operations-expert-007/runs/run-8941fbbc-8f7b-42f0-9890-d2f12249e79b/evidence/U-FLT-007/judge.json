@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答与同一被测 Session 的工具回执逐项一致：IP 解析得 3617353、台账字段（status=active、source=collector_report、intakeMode=active_collect、collectionStatus=non_collectable、mgmtManualLocked=1、online=offline、probeState=unreachable、时间戳）、双 IP/MAC（172.16.2.103/10.10.10.201）、父资产 3617426（172.16.138.226/部署验证环境服务器/online=online/PROBED）、合规违规空集合、覆盖率 15/31/2/33、漏洞条目与 in_the_wild、节点告警计数（high=1、low=521、含 253 尖峰的 trend30d）、可达性 dst_no_gateway、两次 path 查询 HTTP 500、三次逐端口流量空集合、业务系统与接入设备空集合、区域间交叉核验明细及 summary 23/18/47 均可由工具结果核实。回答明确区分事实、推断、证据缺口与未知项（基线覆盖未知、覆盖率归属未知、offline 与 ACTIVE 流量矛盾未做因果推断），未伪造资产关系，且建议全部标注尚未执行，满足预期全部要求。"
+  },
+  "checks": {
+    "session_id": "session-4c66f499-96c8-4196-ac8e-51458e22bf3f",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

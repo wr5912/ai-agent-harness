@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答准确解释了 CVE（Common Vulnerabilities and Exposures）是全球统一的公开漏洞命名标识体系，并明确编号的核心用途是唯一标识/稳定引用一条已登记的公开漏洞记录、作为检索与关联的钥匙，符合预期中“编号可用于唯一标识公开漏洞记录”。同时逐项明确了编号不能表达的内容：不代表严重程度（需 CVSS 等独立体系）、不代表资产是否受影响（取决于产品版本配置暴露面）、不代表是否已被在野利用（需 KEV/EPSS 等）、不代表补丁情况与修复优先级（优先级需结合可达性、暴露面、业务影响与利用活跃度），并补充了不能代表时间线、质量核验、一编号一漏洞等边界。预期要求的全部要点均已明确覆盖，无与之冲突的表述。回答属通用概念性知识，关键数据不依赖实时工具回执，同一被测 Session 的 skill 回执仅提供调查流程约束，且回答已如实声明未查询实时数据、无针对具体环境的结论，故判定为 passed。"
+  },
+  "checks": {
+    "session_id": "session-24fd18e6-cd86-4fe8-a44e-62bda57ec772",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

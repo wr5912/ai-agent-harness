@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-008",
+  "completed": false,
+  "expected_behavior": "按采集、检测、同步、事件生成顺序核对真实状态，定位最后成功点和首个失败点；无法查询的环节明确标注未知，不用通用建议替代诊断结论。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-7fa8603b-9a4e-409b-a05e-f505cfd5c67e",
+  "scenes": [
+    {
+      "scene": "安全巡检",
+      "case_ids": [
+        "U-INS-001",
+        "U-INS-002",
+        "U-INS-003",
+        "U-INS-004",
+        "U-INS-005"
+      ],
+      "selected_case_ids": [
+        "U-INS-001",
+        "U-INS-002",
+        "U-INS-003",
+        "U-INS-004",
+        "U-INS-005"
+      ],
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "inconclusive": 5,
+        "not_executed": 0
+      },
+      "status": "insufficient_evidence",
+      "reason": "缺少可用于归因的有效执行与回答证据。",
+      "hypotheses": []
+    },
+    {
+      "scene": "策略配置",
+      "case_ids": [
+        "U-POL-001",
+        "U-POL-002",
+        "U-POL-003",
+        "U-POL-004",
+        "U-POL-005",
+        "U-POL-006",
+        "U-POL-007",
+        "U-POL-008",
+        "U-POL-009",
+        "U-POL-010",
+        "U-POL-011",
+        "U-POL-012"
+      ],
+      "selected_case_ids": [
+        "U-POL-001",
+        "U-POL-002",
+        "U-POL-003",
+        "U-POL-004",
+        "U-POL-005",
+        "U-POL-006",
+        "U-POL-007",
+        "U-POL-008",
+        "U-POL-009",
+        "U-POL-010",
+        "U-POL-011",
+        "U-POL-012"
+      ],
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "inconclusive": 12,
+        "not_executed": 0
+      },
+      "status": "insufficient_evidence",
+      "reason": "缺少可用于归因的有效执行与回答证据。",
+      "hypotheses": []
+    },
+    {
+      "scene": "故障排查",
+      "case_ids": [
+        "U-FLT-001",
+        "U-FLT-002",
+        "U-FLT-003",
+        "U-FLT-004",
+        "U-FLT-005",
+        "U-FLT-006",
+        "U-FLT-007",
+        "U-FLT-008",
+        "U-FLT-009",
+        "U-FLT-010"
+      ],
+      "selected_case_ids": [
+        "U-FLT-001",
+        "U-FLT-002",
+        "U-FLT-003",
+        "U-FLT-004",
+        "U-FLT-005",
+        "U-FLT-006",
+        "U-FLT-007",
+        "U-FLT-008",
+        "U-FLT-009",
+        "U-FLT-010"
+      ],
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "inconclusive": 10,
+        "not_executed": 0
+      },
+      "status": "insufficient_evidence",
+      "reason": "缺少可用于归因的有效执行与回答证据。",
+      "hypotheses": []
+    },
+    {
+      "scene": "智能问答",
+      "case_ids": [
+        "U-QA-001",
+        "U-QA-002",
+        "U-QA-003",
+        "U-QA-004",
+        "U-QA-005",
+        "U-QA-006",
+        "U-QA-007",
+        "U-QA-008",
+        "U-QA-009",
+        "U-QA-010",
+        "U-QA-011",
+        "U-QA-012",
+        "U-QA-013"
+      ],
+      "selected_case_ids": [
+        "U-QA-001",
+        "U-QA-002",
+        "U-QA-003",
+        "U-QA-004",
+        "U-QA-005",
+        "U-QA-006",
+        "U-QA-007",
+        "U-QA-008",
+        "U-QA-009",
+        "U-QA-010",
+        "U-QA-011",
+        "U-QA-012",
+        "U-QA-013"
+      ],
+      "counts": {
+        "passed": 0,
+        "failed": 0,
+        "inconclusive": 13,
+        "not_executed": 0
+      },
+      "status": "insufficient_evidence",
+      "reason": "缺少可用于归因的有效执行与回答证据。",
+      "hypotheses": []
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求不把源地址自动当作策略设备，并核对指定设备 172.16.1.155 的真实资产类型与可配置能力后给出可核对预览，设备不适用时须明确说明。被测回答与工具回执仅显示：加载 policy-configuration 技能后，直接把 172.16.1.155 作为策略源（selector_type=IP）调用 prepare_policy_configuration，并查询到 DRAFT/任务 221，全程没有任何设备资产类型或可配置能力的核对动作或证据，回答中也未说明该设备是否适用，属于未满足完整预期，故判定 failed。"
+  },
+  "checks": {
+    "session_id": "session-6533c6d0-5cd7-4125-bd17-02713a363ede",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

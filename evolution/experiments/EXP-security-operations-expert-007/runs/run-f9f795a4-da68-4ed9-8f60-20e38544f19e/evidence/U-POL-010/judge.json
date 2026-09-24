@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求：真实查询资产/拓扑/设备映射/型号能力/ACL 模板，只调用一次无状态 Preview 并产出与工具结果一致的 PPV，随后停在确认提示。被测会话中不存在资产/拓扑、设备映射、型号能力、ACL 模板、无状态 Preview 等工具，仅调用了有状态的 prepare 与 status，且操作在 candidate_resolution 阶段以 POLICY_CONFIGURATION_AUTHORITY_UNAVAILABLE 失败，draft/candidate/confirmation 均为 null，未生成任何 PPV，也没有可停留的确认提示（confirmation_required=false）。虽然未确认、未创建、未提交、未执行，且工具描述与回执一致，但核心可交付物（真实策略 Preview 的 PPV 与确认提示）明确缺失，故不满足全部要求，判定 failed。"
+  },
+  "checks": {
+    "session_id": "session-c059ec62-d9af-4aff-b49f-475554d86ff4",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

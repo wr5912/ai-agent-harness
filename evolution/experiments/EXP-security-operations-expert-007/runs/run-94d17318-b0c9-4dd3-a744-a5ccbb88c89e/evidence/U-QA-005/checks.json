@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-005",
+  "transport": "api",
+  "expected_behavior": "结合当前配置说明 sec-ops 是什么、提供哪些接口以及适用边界；无法读取配置时明确说明，不能臆测本地配置内容。",
+  "session_id": "session-8a1d3c0c-58c6-4bfb-afbb-8cbc5ccc777d",
+  "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-a5d700cf-7021-4c92-a520-42171730912b",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

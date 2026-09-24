@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "当前 Session 除加载 policy-configuration 技能外没有任何可复用的策略参数或既有 operationId，被测回答正确判定无法执行，逐项列出 intent 缺失的必需字段（operation、source、destination、protocol、target_external_id 等）并明确索取参数，同时声明不会查询资产、不会规范化改写标识、不会自行补造默认值。工具事件仅有 skill 调用（seq 18/19），无资产查询、无标识改写、无 prepare/执行类策略调用，且回答未伪造任何执行事实，与预期“说明无法执行并索取参数”的路径完全一致。"
+  },
+  "checks": {
+    "session_id": "session-d235325b-f363-47f7-b491-b1bdab00a921",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

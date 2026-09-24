@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-008",
+  "transport": "api",
+  "expected_behavior": "准确区分 CVSS 严重度、EPSS 被利用概率估计和 CISA KEV 已知被利用目录，并说明内部优先级还取决于资产暴露、业务重要性、受影响情况和补偿控制等实际上下文。",
+  "session_id": "session-e4264efb-d52f-4daf-bf02-eb4ace7a079b",
+  "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-428e682e-027e-4348-b56c-29797e8260d9",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

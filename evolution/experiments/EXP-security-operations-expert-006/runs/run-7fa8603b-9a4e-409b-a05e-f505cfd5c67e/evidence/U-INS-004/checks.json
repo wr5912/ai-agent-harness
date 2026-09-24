@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-004",
+  "completed": false,
+  "expected_behavior": "识别出缺少巡检项、范围或执行时间等必要信息并向用户询问，不凭空补全参数，也不声称任务已创建。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

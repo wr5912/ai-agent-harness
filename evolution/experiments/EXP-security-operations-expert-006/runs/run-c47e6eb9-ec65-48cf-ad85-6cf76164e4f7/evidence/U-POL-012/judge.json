@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答明确说明当前 Session 缺少可复用的完整参数、无法执行策略预览，并逐项索取操作类型、源/目标选择器、协议、端口等字段，符合预期分支。工具回执显示仅调用 skill 与 glob，未查询资产、未改写标识、未调用 prepare_policy_configuration 或任何执行/批准工具，未实际生成策略或执行策略；回答中的关键事实（无参数清单、工具能力边界）与同一 Session 的工具结果一致。唯一轻微偏差是提到“按 v2 合同提交一次准备”，但该动作以用户补齐字段为前提，未在本轮发生，不构成违约。"
+  },
+  "checks": {
+    "session_id": "session-56992d6d-53ea-4fdd-9512-7cfb4dcd93af",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

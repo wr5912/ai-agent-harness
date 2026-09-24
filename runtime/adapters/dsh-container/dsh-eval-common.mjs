@@ -64,7 +64,8 @@ export function turnsFromTrace(archive, inputs) {
     const offset = archive.root.slice(start + 1).findIndex(event => event.type === 'turn/end')
     if (offset < 0) return null
     const events = archive.root.slice(start + 1, start + 2 + offset)
-    const header = events.filter(event => event.type === 'request/header').at(-1)?.data?.header
+    const header = archive.root.slice(0, start + 2 + offset)
+      .filter(event => event.type === 'request/header').at(-1)?.data?.header
     const assistants = events.filter(event => event.type === 'assistant/message')
     turns.push({
       assistant_text: assistants.map(event => contentText(event.data?.message?.content))
@@ -170,7 +171,7 @@ export async function judgeCase(item, targetResponse, targetArchive, promptJudge
       throw new Error('judge-tools-not-empty')
     }
     const response = parseJudgeResult(turn.assistant_text)
-    const targetRoute = targetResponse.turns.at(-1)?.route
+    const targetRoute = targetResponse.turns.find(turnItem => turnItem?.route)?.route
     const sameRoute = turn.route?.provider === targetRoute?.provider
       && turn.route?.model === targetRoute?.model
     return {

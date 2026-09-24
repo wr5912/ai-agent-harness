@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-POL-012",
+  "completed": false,
+  "expected_behavior": "若当前 Session 没有可复用的完整参数，明确说明无法执行并索取参数；若已有参数，则原样使用，不查询资产、不改写标识，只生成交换机 ACL 预览且不执行策略。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

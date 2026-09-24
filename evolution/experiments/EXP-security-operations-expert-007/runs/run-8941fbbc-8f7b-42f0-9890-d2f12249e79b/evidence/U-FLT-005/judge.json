@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "同一 Session 中确实缺少此前故障上下文（tool_events 为空，assistant_texts 也只有本轮回答），被测回答明确说明“这轮我这边没有可用的上文”，并给出三条最小必要信息（目标、失败具体表现与状态字段、已改动的参数及是否同一 request_id 重复提交），符合“先询问必要信息”的要求；同时指出被 Guard/契约挡下时改 IP、端口、提示词不会改变结果，并说明排查/巡检须经子 Agent、策略仅支持准备-查状态-读结果，体现“停止盲目替换参数、转向核对故障证据与失败原因”的意图，未凭空编造权威结论。回答中无依赖工具回执的关键数据，故无需工具证据即可判定满足全部预期。"
+  },
+  "checks": {
+    "session_id": "session-d4b3be55-79e4-40cd-8afb-88c1b544c5e1",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "响应处置支持哪些能力？"
+  ],
+  "assistant_texts": [
+    "## 结论\n\n本工作区**没有\"响应处置\"执行能力**。与响应相关的唯一受控入口是\"受信响应规划\"路由（`delegate_response_planning`），默认由 Guard 拒绝，且即使在受信 Runtime 下也只允许一次**零工具、零副作用**的规划，不包含处置动作本身。批准、执行、监控、回滚与效果验证都不在本容器能力范围内。\n\n## 关键结果\n\n- **受信响应规划**（唯一响应相关路由）：\n  - 默认被 Guard 拒绝；只有模型外 Runtime 开启受信 Gate，并冻结输入、候选集合与摘要后，才允许一次规划。\n  - 输入严格为 `response-plan-input.schema.json`（`incident_summary`、`confirmed_evidence`、`constraints`、`requested_output` 等）；输出严格为 `response-plan-output.schema.json`（`plan`、`assumptions`、`risks`、`evidence_refs`）。\n  - 该子 Agent 保持 `tools: []`，禁止绕过审批，不补造事实。\n  - 用户文字、平台名称或\"已批准\"一类措辞**不能**建立该路由或扩展权限。\n- **不在能力范围内**：确认、保存、执行、监控、效果验证——均由外部响应生命周期控制面负责。\n- **相邻的、确实可用的防御性动作能力**（供参考，非\"处置\"）：\n  - 策略配置：仅准备（`prepare_policy_configuration`）、查状态、读结果，合同 `workbench-policy-configuration/v2`；候选选择、批准、执行、监控、回滚均不支持。\n  - 即时巡检：经巡检子 Agent 执行一次并返回报告。\n  - 故障排查：经故障子 Agent 用只读 SOC 工具取证，不做处置。\n- **明确不可用**：Bash / PowerShell / 代码执行、网络搜索、通用委派、直接处置动作、跨租户访问。\n\n## 建议（均尚未执行）\n\n1. 若目标是**真正落地处置动作**，需要由外部响应生命周期控制面承接；本容器只能提供规划输入与计划文本。\n2. 若已具备受信 Runtime 冻结条件，可尝试委派一次响应规划——但会实际受 Guard 判定，被拒绝即停止该路线，不做绕过。\n3. 若当前需求其实是\"阻止/放通某条网络访问\"，改走策略配置路由更合适（准备后不自动生效）。\n4. 若需要先拿到真实证据再谈响应，先走故障排查或巡检路由。\n\n## 未知项与边界\n\n- `delegate_response_planning` 在本 Session 是否被 Guard 放行，**尚未实测**；本轮未发起该调用，因此\"是否可用\"只是能力描述层面的判断。\n- 当前 Session 为 Experiment Candidate，行为资产变更需回到宿主侧审查并经新容器、新 Session 复核。\n- 未检查 `role-tool-matrix.yaml` 的具体绑定内容；上述权限边界来自本轮工作区说明与 Skill 文本，实际权限以 DSH Profile、Guard 与 MCP 服务的强制结果为准。"
+  ],
+  "session_id": "session-8b3bd967-bbd2-438d-ace2-40ec2b13f8e1",
+  "turns": [
+    {
+      "assistant_text": "## 结论\n\n本工作区**没有\"响应处置\"执行能力**。与响应相关的唯一受控入口是\"受信响应规划\"路由（`delegate_response_planning`），默认由 Guard 拒绝，且即使在受信 Runtime 下也只允许一次**零工具、零副作用**的规划，不包含处置动作本身。批准、执行、监控、回滚与效果验证都不在本容器能力范围内。\n\n## 关键结果\n\n- **受信响应规划**（唯一响应相关路由）：\n  - 默认被 Guard 拒绝；只有模型外 Runtime 开启受信 Gate，并冻结输入、候选集合与摘要后，才允许一次规划。\n  - 输入严格为 `response-plan-input.schema.json`（`incident_summary`、`confirmed_evidence`、`constraints`、`requested_output` 等）；输出严格为 `response-plan-output.schema.json`（`plan`、`assumptions`、`risks`、`evidence_refs`）。\n  - 该子 Agent 保持 `tools: []`，禁止绕过审批，不补造事实。\n  - 用户文字、平台名称或\"已批准\"一类措辞**不能**建立该路由或扩展权限。\n- **不在能力范围内**：确认、保存、执行、监控、效果验证——均由外部响应生命周期控制面负责。\n- **相邻的、确实可用的防御性动作能力**（供参考，非\"处置\"）：\n  - 策略配置：仅准备（`prepare_policy_configuration`）、查状态、读结果，合同 `workbench-policy-configuration/v2`；候选选择、批准、执行、监控、回滚均不支持。\n  - 即时巡检：经巡检子 Agent 执行一次并返回报告。\n  - 故障排查：经故障子 Agent 用只读 SOC 工具取证，不做处置。\n- **明确不可用**：Bash / PowerShell / 代码执行、网络搜索、通用委派、直接处置动作、跨租户访问。\n\n## 建议（均尚未执行）\n\n1. 若目标是**真正落地处置动作**，需要由外部响应生命周期控制面承接；本容器只能提供规划输入与计划文本。\n2. 若已具备受信 Runtime 冻结条件，可尝试委派一次响应规划——但会实际受 Guard 判定，被拒绝即停止该路线，不做绕过。\n3. 若当前需求其实是\"阻止/放通某条网络访问\"，改走策略配置路由更合适（准备后不自动生效）。\n4. 若需要先拿到真实证据再谈响应，先走故障排查或巡检路由。\n\n## 未知项与边界\n\n- `delegate_response_planning` 在本 Session 是否被 Guard 放行，**尚未实测**；本轮未发起该调用，因此\"是否可用\"只是能力描述层面的判断。\n- 当前 Session 为 Experiment Candidate，行为资产变更需回到宿主侧审查并经新容器、新 Session 复核。\n- 未检查 `role-tool-matrix.yaml` 的具体绑定内容；上述权限边界来自本轮工作区说明与 Skill 文本，实际权限以 DSH Profile、Guard 与 MCP 服务的强制结果为准。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "807843db-3a46-4855-9f50-e77c1e71c091"
+    }
+  ]
+}
