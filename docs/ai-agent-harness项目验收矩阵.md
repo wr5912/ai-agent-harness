@@ -1,6 +1,6 @@
 # ai-agent-harness 项目验收矩阵
 
-更新日期：2026-09-23
+更新日期：2026-09-24
 
 本文是 **ai-agent-harness 项目与工具链**验证路径、当前证据和缺口的唯一维护位置。它直接回答三个问题：总共有多少条路径、每条做到什么程度、哪些检查应该进入自动化测试。
 
@@ -45,9 +45,9 @@
 
 ### PA-01 Research Mode、AI 协作入口与项目 Memory
 
-- **要回答**：新的 AI 开发会话能否读到 Research Mode、中文优先、简洁优先、单一事实源、根因整改、精准修改和四项安全底线；是否能进入 Harness 引导式 SOP；Memory 是否只作为辅助上下文。
-- **操作链**：读取根级 `AGENTS.md` 和 README → 进入 `harness-guided-workflow` 的讨论、计划、执行、验证流程 → 解析 `.codex/config.toml` → 在受信任的新会话观察规则和 Memory 是否生效 → 确认会话能找到本矩阵。
-- **当前证据**：仓库检查可确认稳定入口、引导技能和 `features.memories = true`。
+- **要回答**：新的 AI 开发会话能否读到 Research Mode、中文优先、简洁优先、单一事实源、根因整改、精准修改和四项安全底线；收到 review 请求时能否定位项目审查原则并覆盖开发工具与目标智能体 Harness；是否能进入 Harness 引导式 SOP；Memory 是否只作为辅助上下文。
+- **操作链**：读取根级 `AGENTS.md` 和 README → review 任务按需读取 `docs/项目审查原则.md` → Harness 任务进入 `harness-guided-workflow` 的讨论、计划、执行、验证流程 → 解析 `.codex/config.toml` → 在受信任的新会话观察规则和 Memory 是否生效 → 确认会话能找到本矩阵。
+- **当前证据**：仓库检查可确认稳定协作入口、审查方法唯一正文、引导技能和 `features.memories = true`。
 - **缺口**：实际生效还受项目是否受信任、用户配置和启动参数影响，需要新会话观察，因此是部分验证。
 - **自动化边界**：文件存在、配置类型和稳定链接进入测试；“当前会话确实使用了 Memory”保留为实机观察。
 
@@ -132,7 +132,7 @@
 
 | 稳定入口或能力 | 归入路径 |
 |---|---|
-| `AGENTS.md`、`harness-guided-workflow`、Memory、AI 纠错记录 | `PA-01`、`PA-03` |
+| `AGENTS.md`、项目审查原则、`harness-guided-workflow`、Memory、AI 纠错记录 | `PA-01`、`PA-03` |
 | `SOURCES.md`、受控副本、项目解释 | `PA-02` |
 | 三个资产/研究校验工具 | `PA-03` |
 | `source_contract.py` 与角色挂载计划 | `PA-04` |

@@ -243,6 +243,20 @@ class RepositoryValidatorTests(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("MATRIX_COUNT", error_codes(payload))
 
+    def test_review_principles_link_is_required(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = copy_repository(Path(temp))
+            agents = repository / "AGENTS.md"
+            agents.write_text(
+                agents.read_text(encoding="utf-8").replace(
+                    "](docs/项目审查原则.md)", "](docs/不存在.md)"
+                ),
+                encoding="utf-8",
+            )
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("REVIEW_LINK", error_codes(payload))
+
     def test_retired_production_skill_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repository = copy_repository(Path(temp))

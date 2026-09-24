@@ -41,6 +41,7 @@ REQUIRED_ROOT_FILES = (
     ".gitignore",
     ".codex/config.toml",
     "docs/ai-agent-harness项目验收矩阵.md",
+    "docs/项目审查原则.md",
     "docs/standards/SOURCES.md",
     "docs/standards/PROJECT-INTERPRETATION.md",
 )
@@ -62,6 +63,7 @@ REQUIRED_SKILLS = {
 }
 RETIRED_SKILLS = {"baseline-eval", "security-control-boundary", "delivery-review", "dsh-release-verify"}
 PROJECT_MATRIX = "docs/ai-agent-harness项目验收矩阵.md"
+PROJECT_REVIEW = "docs/项目审查原则.md"
 KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 EXPERIMENT_RE = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3,}$")
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$")
@@ -202,6 +204,8 @@ def validate_governance(root: Path, errors: list[dict[str, str]]) -> None:
         errors.append(issue("MATRIX_LINK", "README 必须链接项目验收矩阵", "README.md"))
     if PROJECT_MATRIX not in agents_text:
         errors.append(issue("MATRIX_LINK", "AGENTS.md 必须链接项目验收矩阵", "AGENTS.md"))
+    if f"]({PROJECT_REVIEW})" not in agents_text:
+        errors.append(issue("REVIEW_LINK", "AGENTS.md 必须链接项目审查原则", "AGENTS.md"))
     if "evolution/baselines/" not in agents_text or "不维护" not in agents_text:
         errors.append(issue("BASELINE_POLICY", "AGENTS.md 必须明确不维护物理 Baseline 目录", "AGENTS.md"))
     matrix_path = root / PROJECT_MATRIX
