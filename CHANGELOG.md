@@ -7,9 +7,9 @@
 ### 变更
 
 - 最高优先级原则新增单一事实源与根因整改：同一当前事实只保留一个可编辑来源，禁止补丁式修正，并把同根因检查限制在当前目标的直接影响范围。
-- `security-operations-expert` 的需求与任务维护在 `definition.md`，测试数据、评估方法、测试验收和 Experiment 选择维护在 `evaluation.md`；删除旧 `spec/`、`eval/` 数据投影、Experiment 本地 `plan.yaml`、待复核 JSONL、阅读视图及一次性生成/导入工具。
-- Run 自动引用共享 `evaluation.md`，锁定当次摘要和所选 ID，并拒绝记录未选择的输入；旧口径 Run 与 Decision 不作为当前结果继续保留。
-- DSH 来源合同和开发模式从两棵判分材料树收敛为一个 `/work/reference` 只读挂载，合同与实例状态 schema 升为 `2.0`；被测模式仍不挂载研究定义。
+- `security-operations-expert` 的当前业务测试收敛到一个 `evaluation.md`：每个 Case 聚合名称、用户输入和预期；删除 `definition.md`、旧 `spec/`、`eval/` 数据投影、Experiment 本地 `plan.yaml`、待复核 JSONL、阅读视图及一次性生成/导入工具。
+- Run 只接受显式选择的业务 Case，锁定所选 Case 的输入与预期快照及摘要；技术装载、合同和工具链检查回归项目测试与验收，不再作为业务 Case。
+- DSH 来源合同只以 `evaluation.md` 判断研究资料根，被测实例不挂载判分材料；合同 schema 升为 `2.1`。
 
 ## [0.5.0]
 

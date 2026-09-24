@@ -322,10 +322,12 @@ def validate_agents(root: Path, errors: list[dict[str, str]]) -> None:
             continue
         if manifest.get("agent_id") != agent.name:
             errors.append(issue("AGENT_ID", "manifest agent_id 必须与目录一致", relative(manifest_path, root)))
-        for name in ("definition.md", "evaluation.md"):
-            source = agent / name
-            if not is_material_file(source):
-                errors.append(issue("AGENT_SOURCE", "Agent 缺少当前事实源", relative(source, root)))
+        evaluation = agent / "evaluation.md"
+        if not is_material_file(evaluation):
+            errors.append(issue("AGENT_SOURCE", "Agent 缺少 evaluation.md", relative(evaluation, root)))
+        definition = agent / "definition.md"
+        if definition.exists() or definition.is_symlink():
+            errors.append(issue("AGENT_SOURCE_DUPLICATE", "Agent 当前业务测试只维护 evaluation.md", relative(definition, root)))
         active = manifest.get("active_experiment")
         if active:
             match = EXPERIMENT_RE.fullmatch(str(active))

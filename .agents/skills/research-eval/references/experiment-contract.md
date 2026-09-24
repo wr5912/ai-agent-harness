@@ -12,11 +12,13 @@
 - 实际运行环境和来源；
 - 本次结论不能外推到哪里。
 
-测试数据、评估方法、测试验收和 Experiment 选择只维护在 `agents/<agent-id>/evaluation.md`。Experiment 不保存本地 `evaluation/plan.yaml`。Run 的 `evaluation_ref` 指向该文件中的 Experiment 选择，`inputs.lock.json` 锁定当次文件摘要与所选 ID；这些运行事实不回写为第二份评测源。
+业务 Case 只维护在 `agents/<agent-id>/evaluation.md`。Experiment 不保存本地 `evaluation/plan.yaml`，也不在评测文件中维护选择表。运行时通过 `--case` 显式选择；Run 的 `evaluation_ref` 指向该文件，`inputs.lock.json` 锁定所选 Case 的快照。
 
-### 评测预置
+### Case
 
-`测试数据` 必须依次包含唯一的 `### 测试预置` 和 `### 测试用例`。每个命名预置使用 `#### <领域>-F<两位序号> <名称>`，并依次且各声明一次 `**公共基线**`、Mermaid `flowchart` 主决策流程图、`**金标准**` 和 `**适用边界**`；仅在异常交互确有表达价值时增加 `sequenceDiagram`。固定事实可以在公共基线中使用表格；主分支关系必须由流程图表达，金标准只定义判定，适用边界只说明不可外推范围，不另建一套流程。
+每个 Case 使用 `#### U-<ID> <名称>`，正文只写 `**用户输入**` 和 `**预期**`。输入使用 Markdown 引用块；多轮输入依次写成 `**用户输入 1**`、`**用户输入 2**`，并在同一 Session 执行。动态事实按同轮真实工具证据核对，不固定措辞或排版。
+
+技术装载、合同和工具链检查不写成业务 Case，由对应项目测试和验收项覆盖。不同来源、维护阶段或措辞变体不构成复制同一 Case 的理由。
 
 ## Trial 记录
 
@@ -30,9 +32,9 @@
 - `observation`
 - `evidence_ref`
 
-`execution_status` 只描述是否真正执行完成，`verdict` 只描述证据支持的判断，二者不得混用。`error` 和 `skipped` 只能对应 `inconclusive`，`error` 还需非空 `failure_reason`。`input_id` 必须属于该 Run 锁定的 Experiment 选择；`evidence_ref` 必须是 Run 内指向非空文件或目录的安全相对路径。以下字段按需使用：`score`、`metrics`、`model`、`duration_ms`、`input_tokens`、`output_tokens`、`cost_amount`、`cost_currency`。不相关的字段不要用空字符串填充。
+`execution_status` 只描述是否真正执行完成，`verdict` 只描述证据支持的判断，二者不得混用。`error` 和 `skipped` 只能对应 `inconclusive`，`error` 还需非空 `failure_reason`。`input_id` 必须属于该 Run 锁定的 Case；`evidence_ref` 必须是 Run 内指向非空文件或目录的安全相对路径。以下字段按需使用：`score`、`metrics`、`model`、`duration_ms`、`input_tokens`、`output_tokens`、`cost_amount`、`cost_currency`。不相关的字段不要用空字符串填充。
 
-Run 创建时可以按 `evaluation.md` 中的顺序锁定全部选择或一个非空子集。只有每个锁定 Case 都至少记录一次结果，Run 才能以 `completed` 封存；基础设施失败应封存为 `failed` 或 `cancelled`，不能伪装成语义失败。
+Run 创建时必须显式锁定一个非空 Case 集合，并按 `evaluation.md` 顺序保存其输入和预期快照。只有每个锁定 Case 都至少记录一次结果，Run 才能以 `completed` 封存；基础设施失败应封存为 `failed` 或 `cancelled`，不能伪装成语义失败。
 
 ## 研究总结
 

@@ -45,7 +45,8 @@ CONTAINER_REFERENCE = "/work/reference"
 # 2.1：实例 Compose 按来源声明生成运行时环境变量透传项。
 # 2.2：记录实际镜像 ID 与构建指纹，运行时固定到不可变镜像引用。
 # 2.3：新实例只支持被测（verification）模式；旧实例仍可查询和停止。
-INSTANCE_SCHEMA_VERSION = "2.3"
+# 2.4：主 dsh 容器名与实例名保持一致。
+INSTANCE_SCHEMA_VERSION = "2.4"
 # DSH Web 首次打开是冷启动：会话必须先绑定一个**已注册工作区**，而新实例的 DSH_HOME 里工作区注册表为空
 # （注册表 storages/workspace.json 只从已存会话头 bootstrap，且初始化标记一经写入不再重建）。DSH 在该锁定提交上
 # 没有受支持的工作区预注册入口，因此启动器只如实交付路径与操作步骤，不改写 Runtime 存储内部格式。
@@ -142,83 +143,17 @@ runtime_family: dsh
 research_status: active
 active_experiment: {experiment_id}
 ''',
-        "definition.md": f'''# {agent_id}
+        "evaluation.md": f'''# {agent_id} 评测
 
-`{agent_id}` 是用于研究 DSH Harness 创建、装载与身份响应的最小 Agent。
-
-## 研究任务
-
-- 以 `{agent_id}` 身份使用简洁中文回答。
-- 不声称未由 Runtime 提供的工具、权限或执行结果。
-- 当前测试口径见 [evaluation.md](./evaluation.md)。
-''',
-        "evaluation.md": f'''# {agent_id} 评估定义
-
-## 测试数据
-
-### 测试预置
-
-#### HARNESS-F01 新会话装载
-
-**公共基线**
-
-使用所选 Experiment 的 Candidate、新建 DSH 实例和空白 Web Session；显式选择 `{agent_id}` Preset，不复用历史消息或缓存。
-
-```mermaid
-flowchart TD
-    START[装载 Candidate] --> PRESET[选择 {agent_id} Preset]
-    PRESET --> SESSION[新建空白 Session]
-    SESSION --> ASK[发送身份问题]
-    ASK --> CHECK{{回复是否保持 {agent_id} 身份?}}
-    CHECK -- 是 --> PASS[满足身份预置]
-    CHECK -- 否或运行错误 --> FAIL[记录失败或未知]
-```
-
-**金标准**
-
-按 `AC-001` 判定用户可见回复；仅有容器启动、HTTP 可达或 Preset 可选不能判为通过。
-
-**适用边界**
-
-本预置只验证全新 Session 中的 `{agent_id}` 身份回复，不外推到工具能力、复杂任务质量或生产可用性。
-
-### 测试用例
-
-##### T-HARNESS-IDENTITY
-
-选择理由：用最小身份问题观察新 Preset 是否在真实 DSH Session 中生效。
+#### U-IDENTITY-001 身份装载
 
 **用户输入**
 
-```text
-你是谁？请用一句中文回答。
-```
+> 你是谁？请用一句中文回答。
 
-**执行器：**`web-chat`
+**预期**
 
-**工具边界：**`none`
-
-**副作用预算：**`web-session-only`
-
-## 评估方法
-
-### m-fresh-web-session
-
-启动所选 Experiment 的 eval 实例，在 DSH Web 中注册 `/work/harness/workspace`，新建 Session，显式选择 `{agent_id}` Preset 后发送测试输入并记录可见回复。
-
-## 测试验收
-
-### AC-001
-
-回复包含 `{agent_id}`，使用一句简洁中文；不冒充 Cordis 或其他业务角色，且没有模型或工具错误。
-
-## Experiment 评估选择
-
-### {experiment_id}
-
-- 测试用例：`T-HARNESS-IDENTITY`
-- 评估方法：`m-fresh-web-session`
-- 测试验收：`AC-001`
+回复包含 `{agent_id}`，使用一句简洁中文；不冒充其他业务角色，也没有模型或工具错误。
 ''',
     }
     experiment_files = {
@@ -447,11 +382,13 @@ def check_environment(contract: dict) -> None:
         )
 
 
-def render_compose(template: str, *, mode: str, project: str, port: int,
+def render_compose(template: str, *, mode: str, name: str, project: str, port: int,
                    runtime_env_names: list[str] = ()) -> str:
     """把受控 Compose 模板渲染为实例配置：宿主网络、回环端口、每实例卷名。"""
     if mode not in MODES:
         fail("mode 只能是 verification")
+    if not NAME_RE.fullmatch(name) or project != project_name(name):
+        fail("实例名与 Compose 项目名不匹配")
     text = template
     replacements = [
         (f"name: ai-agent-harness-dsh-{mode}", f"name: {project}"),
@@ -462,6 +399,10 @@ def render_compose(template: str, *, mode: str, project: str, port: int,
         if text.count(old) < 1:
             fail(f"Compose 模板缺少预期锚点：{old}")
         text = text.replace(old, new)
+    dsh_service = "  dsh:\n"
+    if text.count(dsh_service) != 1:
+        fail("Compose 模板缺少唯一的 dsh 服务锚点")
+    text = text.replace(dsh_service, dsh_service + f"    container_name: {name}\n")
     working_dir = "    working_dir: /work/harness/workspace\n"
     if text.count(working_dir) != 1:
         fail("Compose 模板缺少唯一的 working_dir 锚点")
@@ -523,6 +464,7 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
     rendered = render_compose(
         template,
         mode=mode,
+        name=name,
         project=project_name(name),
         port=port,
         runtime_env_names=required_env_names(contract),
@@ -531,6 +473,7 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
     manifest = {
         "schema_version": INSTANCE_SCHEMA_VERSION,
         "name": name,
+        "container_name": name,
         "project": project_name(name),
         "source_id": contract["source_id"],
         "source_kind": contract["source_kind"],
@@ -704,6 +647,7 @@ def build_plan(args: argparse.Namespace, contract: dict) -> dict:
     plan = {
         "schema_version": "2.1",
         "name": args.name,
+        "container_name": args.name,
         "project": project_name(args.name),
         "mode": args.mode,
         "purpose": PURPOSES[args.mode],
@@ -838,7 +782,8 @@ def command_up(args: argparse.Namespace) -> None:
     run(compose_command(target, args.name, "up", "-d", "--no-build"), env=environment)
     # `docker compose up -d` 返回 0 只说明命令成功，不说明容器在运行：容器可能立刻退出。
     containers = wait_for_service(args.name, "dsh")
-    report = {"name": args.name, "project": project_name(args.name), "port": args.port,
+    report = {"name": args.name, "container_name": args.name,
+              "project": project_name(args.name), "port": args.port,
               "state_dir": str(target), "agent_id": contract["agent_id"],
               "target_preset": target_preset(contract),
               "session_preset": session_preset(contract, args.mode), **identity}
@@ -850,7 +795,10 @@ def command_up(args: argparse.Namespace) -> None:
         fail("无法查询容器状态，不能确认 dsh 服务是否已启动；用 logs 查看实例日志")
     running = [item for item in containers if item["service"] == "dsh" and item["state"] == "running"]
     report["dsh_running"] = bool(running)
-    report["containers"] = [{"service": item["service"], "state": item["state"]} for item in containers]
+    report["containers"] = [
+        {"name": item["name"], "service": item["service"], "state": item["state"]}
+        for item in containers
+    ]
     if not running:
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True), file=sys.stderr)
         fail("docker compose up 返回 0，但 dsh 服务没有进入运行状态；用 logs 查看失败原因")
@@ -955,12 +903,21 @@ def instance_entry(target: Path, manifest: dict) -> dict:
         ps_state = "unknown"
         ps_detail = (listing.stderr or listing.stdout or "").strip()[-200:] or "docker compose ps 查询失败"
         state = "unknown"
+        containers = None
     else:
         ps_state = "reported"
         ps_detail = (listing.stdout or "").strip() or "not running"
-        state = normalized_instance_state(compose_ps_containers(listing.stdout))
+        containers = compose_ps_containers(listing.stdout)
+        state = normalized_instance_state(containers)
+    observed_dsh = next(
+        (item.get("name") for item in containers or []
+         if item.get("service") == "dsh" and item.get("name")),
+        None,
+    )
     return {
         "name": name,
+        "container_name": observed_dsh or manifest.get("container_name"),
+        "project": manifest.get("project") or project_name(name),
         "source_id": manifest.get("source_id"),
         "mode": manifest.get("mode"),
         "purpose": manifest.get("purpose", PURPOSES.get(manifest.get("mode"), manifest.get("mode"))),
@@ -1200,6 +1157,7 @@ def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
         rendered = render_compose(
             (ADAPTER / f"{args.mode}.compose.yaml").read_text(encoding="utf-8"),
             mode=args.mode,
+            name=args.name,
             project=project_name(args.name),
             port=args.port,
             runtime_env_names=required_env_names(contract),

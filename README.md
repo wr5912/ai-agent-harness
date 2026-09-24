@@ -111,8 +111,7 @@ docs/
   standards/                             # 受控来源、副本摘要与项目解释
 agents/<agent-id>/
   manifest.yaml                          # Agent 研究入口和当前 Experiment
-  definition.md                          # 需求与任务的单一事实源
-  evaluation.md                          # 测试数据、评估方法、验收与 Experiment 选择的单一事实源
+  evaluation.md                          # 业务 Case 的输入与预期的单一事实源
 evolution/
   experiments/EXP-<agent-id>-NNN/
     change.yaml                          # 基线引用、状态与结果
@@ -131,7 +130,7 @@ AI纠错记录/                               # 按天追加的 AI 纠错记录
 
 `evolution/history/imports/` 只保存来源追溯和迁移审计。需要改变当前 Harness、研究目标或比较材料时，修改现行资产并进入新的 Experiment，不回写历史批次来改变当前行为。
 
-需求与任务只在 [`definition.md`](agents/security-operations-expert/definition.md) 维护；测试数据、评估方法、验收标准和各 Experiment 的选择只在 [`evaluation.md`](agents/security-operations-expert/evaluation.md) 维护。Experiment 不再保存本地评测计划；Run 自动锁定当次摘要和所选 ID，这些不可编辑记录不是第二份维护源。
+每个 Agent 的当前业务测试只在 [`evaluation.md`](agents/security-operations-expert/evaluation.md) 维护；每个 Case 把名称、用户输入和预期结果放在一起。运行时用 `--case` 显式选择；Run 自动锁定所选 Case 的完整快照和摘要，这些不可编辑记录不是第二份维护源。
 
 本项目不维护 `evolution/baselines/` 和 `agents/<agent-id>/current/`。Baseline 使用 `git:<commit>`、`release:<id>` 或 `none:first-experiment` 引用；Git 和不可变 Research Release 已足以恢复版本，额外镜像会制造重复事实源。
 
@@ -171,11 +170,11 @@ python3 .agents/skills/research-eval/scripts/validate_experiment.py \
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --dry-run
+  --source experiment:EXP-<agent-id>-NNN --case <case-id> --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN [--case <case-id>]
+  --source experiment:EXP-<agent-id>-NNN --case <case-id>
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --executor browser [--case <case-id>]
+  --source experiment:EXP-<agent-id>-NNN --executor browser --case <case-id>
 ```
 
 只需手工记录观察时，直接使用底层 Run 台账：

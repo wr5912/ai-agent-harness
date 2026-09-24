@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "source_id": "experiment:EXP-security-operations-expert-006",
+  "local_image_tag": "ai-agent-harness/dsh:c291e7961",
+  "local_image_id": "sha256:fdd88c84ce35faf16b827e6946a01d2b4ac97b7062ef93b32689e724eab76759",
+  "image_ref": "ai-agent-harness/dsh:c291e7961@sha256:fdd88c84ce35faf16b827e6946a01d2b4ac97b7062ef93b32689e724eab76759",
+  "image_build_fingerprint": "sha256:0800588d5cccc34ce9cae132feb3eabbfc375ad63d8c97b6c97353c889125326",
+  "platform": "linux/amd64",
+  "scope": "actual DSH evaluation runtime image identity; no semantic verdict"
+}

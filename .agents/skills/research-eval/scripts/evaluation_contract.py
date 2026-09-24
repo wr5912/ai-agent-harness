@@ -1,326 +1,126 @@
 #!/usr/bin/env python3
-"""解析 Agent 共享评测文件，并校验其中的 ID 与 Experiment 选择。"""
+"""解析 evaluation.md 中按阅读顺序排列的业务 Case。"""
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from pathlib import Path
 
 
-TOP_SECTIONS = ("测试数据", "评估方法", "测试验收", "Experiment 评估选择")
-CASE_RE = re.compile(r"^##### ((?:D|U|T)-[A-Z0-9-]+)$", re.MULTILINE)
-PRESET_HEADING_RE = re.compile(r"([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-F[0-9]{2})(?:\s+.+)?")
-METHOD_RE = re.compile(r"^### (m-[a-z0-9-]+)$", re.MULTILINE)
-ACCEPTANCE_RE = re.compile(r"^### (AC-[0-9]{3})$", re.MULTILINE)
-EXPERIMENT_RE = re.compile(r"^### (EXP-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]{3,})$", re.MULTILINE)
-SELECTION_FIELDS = ("测试用例", "评估方法", "测试验收")
-EXECUTORS = {
-    "repository-contract",
-    "dsh-load-cycle",
-    "runtime-tool-contract",
-    "web-inspection-boundary",
-    "web-model-catalog",
-    "web-model-chat",
-    "web-route-trace",
-    "web-chat",
-}
+CASE_RE = re.compile(r"^#### (U-[A-Z0-9-]+)\s+([^\n]+)$", re.MULTILINE)
+CASE_LIKE_RE = re.compile(r"^#### ([A-Z]-[A-Z0-9-]+)\s+", re.MULTILINE)
+LABEL_RE = re.compile(r"^\*\*(用户输入(?: ([1-9][0-9]*))?|预期)\*\*\s*$", re.MULTILINE)
+BOLD_LABEL_RE = re.compile(r"^\*\*[^*\n]+\*\*\s*$", re.MULTILINE)
 
 
-def _sections(text: str) -> dict[str, str]:
-    matches = list(re.finditer(r"^## (.+)$", text, re.MULTILINE))
-    names = tuple(match.group(1) for match in matches)
-    if names != TOP_SECTIONS:
-        raise ValueError(f"顶级章节必须依次为：{'、'.join(TOP_SECTIONS)}")
+def _input(block: str, case_id: str, label: str) -> str:
+    values = []
+    for line in block.strip().splitlines():
+        if not line.strip():
+            continue
+        if not line.startswith(">"):
+            raise ValueError(f"{case_id} {label}必须使用 Markdown 引用块")
+        values.append(line[1:].removeprefix(" "))
+    value = "\n".join(values).strip()
+    if not value:
+        raise ValueError(f"{case_id} {label}不能为空")
+    return value
+
+
+def _case(case_id: str, title: str, body: str) -> dict[str, object]:
+    labels = list(LABEL_RE.finditer(body))
+    all_labels = list(BOLD_LABEL_RE.finditer(body))
+    if len(labels) != len(all_labels):
+        raise ValueError(f"{case_id} 只允许用户输入和预期两个字段")
+    if not labels:
+        raise ValueError(f"{case_id} 缺少用户输入和预期")
+
+    values = []
+    for index, match in enumerate(labels):
+        end = labels[index + 1].start() if index + 1 < len(labels) else len(body)
+        values.append((match.group(1), match.group(2), body[match.end():end]))
+
+    expected = [value for value in values if value[0] == "预期"]
+    inputs = [value for value in values if value[0] != "预期"]
+    if len(expected) != 1 or not inputs or values[-1][0] != "预期":
+        raise ValueError(f"{case_id} 必须先写用户输入，最后写一次预期")
+    if any(value[0] == "预期" for value in values[:-1]):
+        raise ValueError(f"{case_id} 预期必须位于 Case 末尾")
+
+    numbers = [value[1] for value in inputs]
+    if len(inputs) == 1:
+        if numbers != [None]:
+            raise ValueError(f"{case_id} 单轮输入必须使用“用户输入”")
+    elif numbers != [str(index) for index in range(1, len(inputs) + 1)]:
+        raise ValueError(f"{case_id} 多轮输入必须从 1 连续编号")
+
+    prompts = [_input(value[2], case_id, value[0]) for value in inputs]
+    expected_behavior = expected[0][2].strip()
+    if not expected_behavior:
+        raise ValueError(f"{case_id} 预期不能为空")
     return {
-        match.group(1): text[match.end():matches[index + 1].start() if index + 1 < len(matches) else len(text)]
-        for index, match in enumerate(matches)
+        "case_id": case_id,
+        "title": title.strip(),
+        "inputs": prompts,
+        "expected_behavior": expected_behavior,
     }
-
-
-def _unique_ids(pattern: re.Pattern[str], text: str, label: str) -> list[str]:
-    values = pattern.findall(text)
-    duplicates = sorted({value for value in values if values.count(value) > 1})
-    if duplicates:
-        raise ValueError(f"{label} ID 重复：{', '.join(duplicates)}")
-    if not values:
-        raise ValueError(f"{label}不能为空")
-    return values
-
-
-def _parse_id_list(value: str, label: str) -> list[str]:
-    identifiers = re.findall(r"`([^`]+)`", value)
-    remainder = re.sub(r"`[^`]+`", "", value).replace("、", "").strip()
-    if not identifiers or remainder:
-        raise ValueError(f"{label}必须是用顿号分隔的反引号 ID")
-    if len(identifiers) != len(set(identifiers)):
-        raise ValueError(f"{label}包含重复 ID")
-    return identifiers
-
-
-def _selections(text: str) -> dict[str, dict[str, list[str]]]:
-    matches = list(EXPERIMENT_RE.finditer(text))
-    selections: dict[str, dict[str, list[str]]] = {}
-    for index, match in enumerate(matches):
-        experiment_id = match.group(1)
-        if experiment_id in selections:
-            raise ValueError(f"Experiment 选择重复：{experiment_id}")
-        body = text[match.end():matches[index + 1].start() if index + 1 < len(matches) else len(text)]
-        fields: dict[str, list[str]] = {}
-        for label in SELECTION_FIELDS:
-            field_matches = re.findall(rf"^- {re.escape(label)}：(.+)$", body, re.MULTILINE)
-            if len(field_matches) != 1:
-                raise ValueError(f"{experiment_id} 必须且只能声明一次{label}")
-            fields[label] = _parse_id_list(field_matches[0], f"{experiment_id} {label}")
-        selections[experiment_id] = {
-            "case_ids": fields["测试用例"],
-            "method_ids": fields["评估方法"],
-            "acceptance_ids": fields["测试验收"],
-        }
-    if not selections:
-        raise ValueError("Experiment 评估选择不能为空")
-    return selections
-
-
-def _case_bodies(text: str) -> dict[str, str]:
-    matches = list(CASE_RE.finditer(text))
-    return {
-        match.group(1): text[match.end():matches[index + 1].start() if index + 1 < len(matches) else len(text)]
-        for index, match in enumerate(matches)
-    }
-
-
-def _heading_bodies(pattern: re.Pattern[str], text: str) -> dict[str, str]:
-    matches = list(pattern.finditer(text))
-    return {
-        match.group(1): text[match.end():matches[index + 1].start() if index + 1 < len(matches) else len(text)]
-        for index, match in enumerate(matches)
-    }
-
-
-def _preset_bodies(text: str) -> dict[str, str]:
-    headings = list(re.finditer(r"^### (.+)$", text, re.MULTILINE))
-    names = [heading.group(1) for heading in headings]
-    if names != ["测试预置", "测试用例"]:
-        raise ValueError("测试数据必须依次且只能包含测试预置和测试用例章节")
-    preset_text = text[headings[0].end():headings[1].start()]
-    matches = list(re.finditer(r"^#### (.+)$", preset_text, re.MULTILINE))
-    if not matches:
-        raise ValueError("测试预置不能为空")
-    parsed = [PRESET_HEADING_RE.fullmatch(match.group(1)) for match in matches]
-    invalid = [match.group(1) for match, value in zip(matches, parsed) if value is None]
-    if invalid:
-        raise ValueError(f"测试预置标题格式无效：{', '.join(invalid)}")
-    preset_ids = [value.group(1) for value in parsed if value is not None]
-    duplicates = sorted({value for value in preset_ids if preset_ids.count(value) > 1})
-    if duplicates:
-        raise ValueError(f"测试预置 ID 重复：{', '.join(duplicates)}")
-    bodies = {
-        preset_ids[index]: preset_text[
-            match.end():matches[index + 1].start() if index + 1 < len(matches) else len(preset_text)
-        ]
-        for index, match in enumerate(matches)
-    }
-    for preset_id, body in bodies.items():
-        for label in ("公共基线", "金标准", "适用边界"):
-            if body.count(f"**{label}**") != 1:
-                raise ValueError(f"{preset_id} 必须且只能声明一次{label}")
-        flow = re.search(r"^```mermaid\s*\nflowchart\s+", body, re.MULTILINE)
-        if flow is None:
-            raise ValueError(f"{preset_id} 缺少 Mermaid 主决策流程图")
-        positions = (
-            body.index("**公共基线**"),
-            flow.start(),
-            body.index("**金标准**"),
-            body.index("**适用边界**"),
-        )
-        if positions != tuple(sorted(positions)):
-            raise ValueError(f"{preset_id} 必须依次声明公共基线、主决策流程图、金标准和适用边界")
-    return bodies
-
-
-def _field(body: str, label: str) -> str | None:
-    matches = re.findall(rf"^\*\*{re.escape(label)}：?\*\*\s*`?([^`\n]+?)`?\s*$", body, re.MULTILINE)
-    if len(matches) > 1:
-        raise ValueError(f"{label}只能声明一次")
-    return matches[0].strip() if matches else None
-
-
-def _prompt(body: str) -> str | None:
-    match = re.search(r"^\*\*用户输入：?\*\*\s*\n+```(?:text)?\n(.*?)\n```", body, re.MULTILINE | re.DOTALL)
-    return match.group(1).strip() if match else None
-
-
-def _table_field(body: str, label: str) -> str | None:
-    matches = re.findall(rf"^\|\s*{re.escape(label)}\s*\|\s*(.*?)\s*\|$", body, re.MULTILINE)
-    if len(matches) > 1:
-        raise ValueError(f"{label}只能声明一次")
-    return matches[0].strip() if matches else None
-
-
-def _markdown_block(body: str, label: str) -> str | None:
-    match = re.search(
-        rf"^\*\*{re.escape(label)}\*\*\s*\n+(.*?)(?=^\*\*[^*\n]+\*\*|^#{{1,5}} |\Z)",
-        body,
-        re.MULTILINE | re.DOTALL,
-    )
-    return match.group(1).strip() if match else None
-
-
-def _javascript_block(value: str | None, label: str) -> str | None:
-    matches = re.findall(r"```(?:javascript|js)\s*\n(.*?)\n```", value or "", re.DOTALL)
-    if len(matches) > 1:
-        raise ValueError(f"{label}只能包含一个 JavaScript 检查脚本")
-    return matches[0].strip() if matches else None
-
-
-def _referenced_ids(value: str | None, pattern: str) -> list[str]:
-    return re.findall(pattern, value or "")
 
 
 def load_evaluation(path: Path) -> dict[str, object]:
     if not path.is_file() or path.is_symlink():
         raise ValueError(f"缺少实体评测文件：{path}")
-    sections = _sections(path.read_text(encoding="utf-8"))
-    presets = _preset_bodies(sections["测试数据"])
-    case_ids = _unique_ids(CASE_RE, sections["测试数据"], "测试用例")
-    bodies = _case_bodies(sections["测试数据"])
-    method_ids = _unique_ids(METHOD_RE, sections["评估方法"], "评估方法")
-    method_bodies = _heading_bodies(METHOD_RE, sections["评估方法"])
-    acceptance_ids = _unique_ids(ACCEPTANCE_RE, sections["测试验收"], "测试验收")
-    selections = _selections(sections["Experiment 评估选择"])
-    defined = {
-        "case_ids": set(case_ids),
-        "method_ids": set(method_ids),
-        "acceptance_ids": set(acceptance_ids),
-    }
-    for experiment_id, selection in selections.items():
-        for field, identifiers in selection.items():
-            unknown = sorted(set(identifiers) - defined[field])
-            if unknown:
-                raise ValueError(f"{experiment_id} 引用了未定义的 {field}：{', '.join(unknown)}")
+    text = path.read_text(encoding="utf-8")
+    unsupported = [match.group(1) for match in CASE_LIKE_RE.finditer(text)
+                   if not match.group(1).startswith("U-")]
+    if unsupported:
+        raise ValueError("evaluation.md 只允许业务 U-* Case：" + "、".join(unsupported))
+    matches = list(CASE_RE.finditer(text))
+    if not matches:
+        raise ValueError("evaluation.md 至少需要一个 U-* Case")
+
+    case_ids = [match.group(1) for match in matches]
+    duplicates = sorted({case_id for case_id in case_ids if case_ids.count(case_id) > 1})
+    if duplicates:
+        raise ValueError("Case ID 重复：" + "、".join(duplicates))
+
     cases = {}
-    for case_id in case_ids:
-        body = bodies[case_id]
-        evaluation_mode = _field(body, "评估档位")
-        if evaluation_mode not in (None, "fast"):
-            raise ValueError(f"{case_id} 评估档位只允许 fast；未声明即仅属于 full")
-        target_model_provider = _field(body, "目标模型 Provider")
-        target_model = _field(body, "目标模型")
-        if bool(target_model_provider) != bool(target_model):
-            raise ValueError(f"{case_id} 必须同时声明目标模型 Provider 和目标模型")
-        check_method = _markdown_block(body, "检查方法")
-        cases[case_id] = {
-            "modes": ["fast", "full"] if evaluation_mode == "fast" else ["full"],
-            "input": _prompt(body),
-            "executor": _field(body, "执行器"),
-            "tool_boundary": _field(body, "工具边界"),
-            "side_effect_budget": _field(body, "副作用预算"),
-            "acceptance_ids": _referenced_ids(_table_field(body, "关联验收"), r"AC-[0-9]{3}"),
-            "judgment_role": _table_field(body, "判定作用"),
-            "expected_behavior": _markdown_block(body, "预期行为"),
-            "check_method": check_method,
-            "check_script": _javascript_block(check_method, f"{case_id} 检查方法"),
-            "target_model_provider": target_model_provider,
-            "target_model": target_model,
-            "default_model_pattern": _field(body, "默认模型匹配"),
-        }
-    return {
-        "preset_ids": list(presets),
-        "case_ids": case_ids,
-        "cases": cases,
-        "method_ids": method_ids,
-        "method_acceptance_ids": {
-            method_id: _referenced_ids(_field(method_bodies[method_id], "关联验收"), r"AC-[0-9]{3}")
-            for method_id in method_ids
-        },
-        "method_check_scripts": {
-            method_id: _javascript_block(
-                _markdown_block(method_bodies[method_id], "检查脚本"),
-                f"{method_id} 检查脚本",
-            )
-            for method_id in method_ids
-        },
-        "acceptance_ids": acceptance_ids,
-        "selections": selections,
-    }
+    signatures = {}
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        body = text[match.end():end]
+        next_section = re.search(r"^#{1,3} ", body, re.MULTILINE)
+        if next_section:
+            body = body[:next_section.start()]
+        value = _case(match.group(1), match.group(2), body)
+        signature = tuple("".join(item.split()) for item in value["inputs"])
+        if signature in signatures:
+            raise ValueError(f"业务测试输入重复：{signatures[signature]}、{value['case_id']}")
+        signatures[signature] = value["case_id"]
+        cases[value["case_id"]] = value
+    return {"case_ids": case_ids, "cases": cases}
 
 
-def selection_for(path: Path, experiment_id: str) -> dict[str, list[str]]:
+def execution_for(path: Path, selected_case_ids: list[str]) -> list[dict[str, object]]:
     evaluation = load_evaluation(path)
-    selection = evaluation["selections"].get(experiment_id)  # type: ignore[union-attr]
-    if selection is None:
-        raise ValueError(f"evaluation.md 未选择 Experiment：{experiment_id}")
-    return selection
-
-
-def execution_for(
-    path: Path,
-    experiment_id: str,
-    selected_case_ids: list[str] | None = None,
-) -> list[dict[str, object]]:
-    evaluation = load_evaluation(path)
-    selection = evaluation["selections"].get(experiment_id)  # type: ignore[union-attr]
-    if selection is None:
-        raise ValueError(f"evaluation.md 未选择 Experiment：{experiment_id}")
-    declared = selection["case_ids"]
-    chosen = declared if selected_case_ids is None else selected_case_ids
-    if not chosen:
-        raise ValueError("至少选择一个测试用例")
-    if len(chosen) != len(set(chosen)):
-        raise ValueError("测试用例不能重复")
-    unknown = [case_id for case_id in chosen if case_id not in declared]
+    if not selected_case_ids:
+        raise ValueError("至少显式选择一个 Case")
+    if len(selected_case_ids) != len(set(selected_case_ids)):
+        raise ValueError("Case 不能重复选择")
+    unknown = [case_id for case_id in selected_case_ids if case_id not in evaluation["cases"]]
     if unknown:
-        raise ValueError(f"测试用例未被 {experiment_id} 选择：{', '.join(unknown)}")
-    if chosen != [case_id for case_id in declared if case_id in chosen]:
-        raise ValueError("测试用例必须按 evaluation.md 声明顺序选择")
-    cases = evaluation["cases"]  # type: ignore[assignment]
-    method_acceptance_ids = evaluation["method_acceptance_ids"]  # type: ignore[assignment]
-    method_check_scripts = evaluation["method_check_scripts"]  # type: ignore[assignment]
-    result = []
-    for case_id in chosen:
-        case = cases[case_id]
-        executor = case["executor"]
-        missing = [
-            label for label, value in (
-                ("用户输入", case["input"]),
-                ("执行器", executor),
-                ("工具边界", case["tool_boundary"]),
-                ("副作用预算", case["side_effect_budget"]),
-            ) if not value
-        ]
-        if missing:
-            raise ValueError(f"{case_id} 缺少执行元数据：{'、'.join(missing)}")
-        if executor not in EXECUTORS:
-            raise ValueError(f"{case_id} 使用未知执行器：{executor}")
-        acceptance_ids = case["acceptance_ids"]
-        if case_id.startswith(("D-", "U-")) and (not acceptance_ids or not case["expected_behavior"]):
-            raise ValueError(f"{case_id} 缺少判定依据：关联验收或预期行为")
-        selected_method_ids = [
-            method_id for method_id in selection["method_ids"]
-            if set(method_acceptance_ids[method_id]) & set(acceptance_ids)
-        ]
-        check_scripts = []
-        if case["check_script"]:
-            check_scripts.append({"id": f"case:{case_id}", "source": case["check_script"]})
-        check_scripts.extend(
-            {"id": f"method:{method_id}", "source": method_check_scripts[method_id]}
-            for method_id in selected_method_ids if method_check_scripts[method_id]
-        )
-        result.append({
-            "case_id": case_id,
-            "modes": case["modes"],
-            "input": case["input"],
-            "executor": executor,
-            "tool_boundary": case["tool_boundary"],
-            "side_effect_budget": case["side_effect_budget"],
-            "acceptance_ids": acceptance_ids,
-            "method_ids": selected_method_ids,
-            "judgment_role": case["judgment_role"] or "",
-            "expected_behavior": case["expected_behavior"] or "",
-            "check_method": case["check_method"] or "",
-            "check_scripts": check_scripts,
-            "target_model_provider": case["target_model_provider"] or "",
-            "target_model": case["target_model"] or "",
-            "default_model_pattern": case["default_model_pattern"] or "",
-        })
-    return result
+        raise ValueError("未定义的 Case：" + "、".join(unknown))
+    selected = set(selected_case_ids)
+    return [evaluation["cases"][case_id] for case_id in evaluation["case_ids"] if case_id in selected]
+
+
+def evaluation_digest(path: Path, selected_case_ids: list[str]) -> str:
+    """只摘要本次锁定的 Case，忽略其他 Case 的变化。"""
+    raw = json.dumps(
+        execution_for(path, selected_case_ids),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return hashlib.sha256(raw).hexdigest()

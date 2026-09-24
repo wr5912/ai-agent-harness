@@ -31,7 +31,7 @@
 | `url` | 从本次进程日志提取认证 URL 并做 Token→Cookie→根页探针；非交互终端需显式 `--non-interactive` |
 | `logs` | 输出有界、尽力脱敏的容器日志 |
 | `down` | 停止实例并保留 HOME；命令失败、仍有容器运行或状态无法确认时都不报告停止成功 |
-| `dsh-eval` | 按 `evaluation.md` 的执行元数据启动独立评测实例；默认经 DSH Runtime API 运行，显式选择浏览器时做 UI 冒烟；导出同一 Session 轨迹并封存 Run |
+| `dsh-eval` | 按显式选择的业务 Case 启动独立评测实例；默认经 DSH Runtime API 运行，显式选择浏览器时做 UI 冒烟；导出同一 Session 轨迹并封存 Run |
 
 本次范围之外：不新增容器编排、不引入审批或评分平台、不实现 Runtime 存储内部格式的写入。
 
@@ -43,7 +43,7 @@
 |---|---|---|
 | 开发智能体的运行配置 | 开发模式实际采用的 `session_preset=cordis`、`/work/AGENTS.md` 与 `/work/AGENTS.local.md` 指令链，以及 `authoring.compose.yaml` 渲染出的有效启动与挂载配置 | 开发者；改变这些有效值属于开发环境变更 |
 | 被开发或优化的 Harness 资产 | 所选 Experiment 的 `candidate/dsh/{workspace,presets,managed}` | 开发者在任务范围内编辑，经 Git 管理 |
-| 需求、测试数据与评估标准 | `agents/<agent-id>/definition.md` 维护需求与任务；同目录 `evaluation.md` 维护测试数据、方法、验收与 Experiment 选择 | 每类事实只有一个可编辑来源；单次评测期间保持不变 |
+| 需求、测试数据与评估标准 | `agents/<agent-id>/evaluation.md` 集中维护业务 Case 的名称、用户输入和预期 | 每个 Agent 只有一个可编辑来源；单次评测期间保持不变 |
 | 运行状态与运行记录 | 运行状态是实例 `DSH_HOME` 数据卷；持久记录是 `evolution/experiments/<id>/runs/` 与 `evaluation/evidence/` | 状态按实例生命周期管理；受管执行的 Run 事实和必要证据独立保留，不当作缓存丢弃 |
 
 开发会话里读到的业务角色指令（例如目标是安全运营专家）是第二类资产的正文，读它是为了修改它，不代表开发工具要切换成业务智能体。这一点不能只靠文字提醒：开发会话注册的工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（见 5.2 节），目标自己的 `AGENTS.md` 仍留在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。
@@ -115,20 +115,20 @@ DSH Web 首次打开需要在界面注册工作区：点击"选择工作区" →
 
 ### 4.4 运行研究比较
 
-开发者自行保证：本次运行期间不修改本次使用的 Harness、测试数据、评估方法和验收标准；不让多个实例同时改写同一份资产；基线与候选使用相同口径，口径变化后重新执行受影响的对比。
+开发者自行保证：本次运行期间不修改本次使用的 Harness 和 Case 判断口径；不让多个实例同时改写同一份资产；基线与候选使用相同口径，口径变化后重新执行受影响的对比。
 
 先预览实际选择、执行器、镜像和缺失环境变量，再运行全部或指定 Case：
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-security-operations-expert-006 --dry-run
+  --source experiment:EXP-security-operations-expert-006 --case U-INS-001 --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-security-operations-expert-006 --mode full
+  --source experiment:EXP-security-operations-expert-006 --case 'U-INS-*'
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-security-operations-expert-006 --executor browser [--case <case-id>]
+  --source experiment:EXP-security-operations-expert-006 --executor browser --case U-INS-001
 ```
 
-`dsh-eval` 只执行 `evaluation.md` 当前 Experiment 已选择且带执行元数据的 Case。未指定 `--mode` 时默认运行标为 `fast` 的核心 Case，`--mode full` 运行全部已选 Case；重复 `--case` 精确选择 Case 并优先于档位。`--dry-run` 会输出实际 `mode` 和最终列表。默认 API 执行器只通过 DSH Runtime 完成 Workspace 注册、逐 Case 新建 Session、目标 Preset 与 Workspace 核对、按 Case 声明选择模型、消息发送、Turn 等待和 Session 导出，不直连底层模型 API；未声明目标模型的 Case 使用 DSH 当前默认模型。浏览器执行器只负责初始提示、工作区、模型、发送和显示等 UI 冒烟。两者复用 Case 定义、身份检查和证据格式，但分别运行、分别统计；认证 URL 只通过标准输入传给所选执行器，不落盘、不进入普通输出。执行器先运行 `evaluation.md` 中受版本控制的 JavaScript 检查片段，再把剩余语义交给 `m-llm-judge-v1` 的独立无工具 Session。评审不设置专用模型变量，复用 DSH 当前默认模型、Endpoint 和凭据；无效输出或证据不足记为 `inconclusive`，同一路由自评限制写入证据。已完成但无法自动判定的 Case 在报告中显示“待人工判定”，执行错误或未执行的 `inconclusive` 显示“无法判定”。
+`dsh-eval` 只执行通过 `--case` 显式选择的业务 Case；缺失选择时列出可选项并退出。该参数可重复，也可使用大小写敏感的 shell 风格通配符，最终按 `evaluation.md` 声明顺序展开并去重。默认 API 执行器只通过 DSH Runtime 完成 Workspace 注册、每 Case 新建 Session、目标 Preset 与 Workspace 核对、消息发送、Turn 等待和 Session 导出，不直连底层模型 API；一个 Case 的多轮输入在同一 Session 中依次发送。浏览器执行器负责对应的 UI 链路。两者导出回答与同一 Session 的工具事件，再由独立无工具 Session 对照输入和预期给出语义结论。技术装载、合同和工具链检查由运行前校验承担，不写成业务 Case。
 
 评测模式运行的是被测目标，容器里没有判分材料（见第 5.3 节）。任务输入通过对话给出，环境状态由 MCP 服务端或受控预置提供。`dsh-eval` 无论成功、失败或中断都尝试停止实例；基础设施失败导致未执行的 Case 记为 `error/inconclusive`，中断或安全停机后未开始的 Case 记为 `skipped/inconclusive`，不把运行故障写成 Harness 语义失败。
 
@@ -142,7 +142,7 @@ python3 runtime/adapters/dsh-container/run_record.py --repo . init \
   --case <case-id> --kind research
 ```
 
-`inputs.lock.json` 会记录三棵 Harness 树与研究资料树的摘要、`evaluation.md` 摘要和本 Experiment 所选 ID，以及 `git_version`（提交、是否含未提交修改、变更路径数）。这些值是当次 Run 的不可编辑输入锁，不是新的评测维护源。**未提交修改无法仅凭 `HEAD` 还原**，所以该字段必须如实保留，不能把带未提交修改的运行写成某个提交的完整内容。
+`inputs.lock.json` 会记录三棵 Harness 树与研究资料树的摘要、所选 Case 执行合同的摘要，以及 `git_version`（提交、是否含未提交修改、变更路径数）。这些值是当次 Run 的不可编辑输入锁，不是新的评测维护源。**未提交修改无法仅凭 `HEAD` 还原**，所以该字段必须如实保留，不能把带未提交修改的运行写成某个提交的完整内容。
 
 开发过程中产生的新 preset、技能或插件即使暂存在容器 HOME 的 `/var/lib/dsh/.agent-presets/` 或 Web Profile 目录，仍属于待保存的开发产物，不是缓存：宿主复核后把应保留的 Harness 资产回流 `candidate/`，并把插件的精确版本与完整性信息写入对应 Experiment 的 Candidate；不清理时一并删除。
 
@@ -154,7 +154,7 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-d
 
 `down` 先检查 `docker compose down` 的退出码，再查实际容器状态和 HOME 卷是否仍在：命令失败即报错；命令返回 0 但仍有容器运行、或状态查询失败时，在 stderr 输出 `stopped: false` 或 `stopped: "unknown"` 并以非零退出码结束，不会在 stdout 输出成功结果。
 
-同样，`up` 会先核对镜像标签对应的构建指纹、平台和 Image ID，再执行停旧实例、写状态和启动；Compose 使用 `tag@image-id` 不可变引用。它不再只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的进入运行状态（`home-init` 是一次性服务，正常结束不算失败）。成功时 stdout 只输出一个 JSON，包含实例名、Compose 项目名、端口、状态目录、Agent/Preset 身份、镜像标签、Image ID、不可变引用、构建指纹、`dsh_running` 和容器状态；`up --replace` 还在 `replaced.previous_state_schema` 和 `replaced.stop` 中返回旧状态版本与完整停止结果。进度、工作区提示和错误写入 stderr；失败时 stdout 保持为空，也不输出 Token。
+同样，`up` 会先核对镜像标签对应的构建指纹、平台和 Image ID，再执行停旧实例、写状态和启动；Compose 使用 `tag@image-id` 不可变引用。实例名直接作为主 `dsh` 容器名，Compose 项目名固定为 `dsh-dev-<实例名>`，使 CLI、`docker ps` 与 Compose 资源可以直接对应。它不再只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的进入运行状态（`home-init` 是一次性服务，正常结束不算失败）。成功时 stdout 只输出一个 JSON，包含实例名、主容器名、Compose 项目名、端口、状态目录、Agent/Preset 身份、镜像标签、Image ID、不可变引用、构建指纹、`dsh_running` 和容器状态；`up --replace` 还在 `replaced.previous_state_schema` 和 `replaced.stop` 中返回旧状态版本与完整停止结果。进度、工作区提示和错误写入 stderr；失败时 stdout 保持为空，也不输出 Token。
 
 输出示例：
 
@@ -216,13 +216,13 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 ### 5.3 判分材料不进入被测容器
 
-`/work/reference` 挂载同一 Agent 的两份职责分离资料：`definition.md` 保存需求与任务，`evaluation.md` 保存测试数据、评估方法、验收标准和 Experiment 选择。两者都属于判分材料。只读挂载只限制写入、不限制读取，所以判分材料不能靠"挂成只读"来隔离：把它挂进被测容器，再依赖被测实现自己的文件访问限制去挡，等于让被测对象保护的边界去保护测试本身。
+Agent 的当前判分材料只有 `agents/<agent-id>/evaluation.md`，其中每个业务 Case 聚合名称、用户输入和预期。该文件保留在宿主侧，由开发流程和评测执行器读取；被测容器不挂载 `/work/reference`。
 
 因此：
 
-- 判分材料只挂给开发会话（供其阅读与核对，维护在宿主侧完成）和评分角色；
+- 开发者和评分过程从宿主侧读取判分材料；
 - 被测角色默认不挂任何评测材料，`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言——不只是"没挂"，而是这些路径在容器里不存在；
-- 确需给被测侧数据的，必须显式声明一个已确认不含预期答案的输入根（`mount_plan --eval-input`），不能把整个研究定义根当作"被测输入"。
+- 确需给被测侧数据的，必须显式声明一个已确认不含预期答案的输入根（`mount_plan --eval-input`），不能把 `evaluation.md` 当作被测输入。
 
 ### 5.4 开发叠加层
 

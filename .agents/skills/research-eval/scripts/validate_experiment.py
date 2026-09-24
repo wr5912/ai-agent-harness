@@ -13,7 +13,7 @@ from pathlib import Path
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from evaluation_contract import execution_for, selection_for
+from evaluation_contract import evaluation_digest, execution_for, load_evaluation
 
 try:
     import yaml
@@ -90,18 +90,11 @@ def valid_baseline_ref(value: object) -> bool:
     return False
 
 
-def ordered_subset(values: object, declared: list[str]) -> bool:
-    if not isinstance(values, list) or not values or len(values) != len(set(values)):
-        return False
-    position = -1
-    for value in values:
-        if not isinstance(value, str):
-            return False
-        try:
-            position = declared.index(value, position + 1)
-        except ValueError:
-            return False
-    return True
+def valid_id_list(values: object, *, nonempty: bool = False) -> bool:
+    return isinstance(values, list) \
+        and (not nonempty or bool(values)) \
+        and all(isinstance(value, str) and bool(value.strip()) for value in values) \
+        and len(values) == len(set(values))
 
 
 def material_evidence(run_dir: Path, value: object) -> bool:
@@ -186,8 +179,7 @@ def validate_run(
     experiment_id: str,
     agent_id: str,
     evaluation_ref: str,
-    evaluation_sha256: str,
-    evaluation_selection: dict[str, list[str]],
+    evaluation_path: Path,
     errors: list[dict[str, str]],
 ) -> None:
     if not RUN_RE.fullmatch(run_dir.name):
@@ -217,7 +209,13 @@ def validate_run(
     status = manifest.get("status")
     if status not in RUN_STATUSES:
         errors.append(issue("RUN_STATUS", "Run status 不合法", manifest_path))
-    if manifest.get("evaluation_ref") != evaluation_ref:
+    sealed = status in {"completed", "failed", "cancelled"}
+    run_evaluation_ref = manifest.get("evaluation_ref")
+    valid_evaluation_ref = run_evaluation_ref == evaluation_ref or (
+        sealed and isinstance(run_evaluation_ref, str)
+        and run_evaluation_ref.split("#", 1)[0] == evaluation_ref
+    )
+    if not valid_evaluation_ref:
         errors.append(issue("RUN_EVALUATION_REF", f"evaluation_ref 必须是 {evaluation_ref}", manifest_path))
     if "plan_ref" in manifest:
         errors.append(issue("RUN_PLAN_REF", "Run 不再允许引用 Experiment 本地 plan", manifest_path))
@@ -237,17 +235,42 @@ def validate_run(
         errors.append(issue("RUN_PLAN_REF", "Run 输入锁不再允许保存本地 plan 摘要", inputs))
     if locked_inputs.get("schema_version") != "2.0" or locked_inputs.get("run_id") != run_dir.name:
         errors.append(issue("RUN_INPUTS_SCHEMA", "输入锁必须是当前 Run 的 2.0 合同", inputs))
-    # 未封存 Run 必须仍对应当前评测口径；封存 Run 使用输入锁中的历史摘要。
-    if status in {"planned", "running"} and locked_inputs.get("evaluation_sha256") != evaluation_sha256:
-        errors.append(issue("RUN_EVALUATION_HASH", "Run 锁定的 evaluation.md 摘要与当前文件不一致", inputs))
-    locked_selection = locked_inputs.get("evaluation_selection")
-    valid_selection = isinstance(locked_selection, dict) \
-        and ordered_subset(locked_selection.get("case_ids"), evaluation_selection["case_ids"]) \
-        and locked_selection.get("method_ids") == evaluation_selection["method_ids"] \
-        and locked_selection.get("acceptance_ids") == evaluation_selection["acceptance_ids"]
-    if not valid_selection:
-        errors.append(issue("RUN_EVALUATION_SELECTION", "Run 必须锁定当前 Experiment 的非空有序 Case 子集及完整方法和验收", inputs))
-    selected_ids = set(locked_selection.get("case_ids", [])) if isinstance(locked_selection, dict) else set()
+    locked_cases = locked_inputs.get("evaluation_cases")
+    valid_cases = isinstance(locked_cases, list) and bool(locked_cases) and all(
+        isinstance(case, dict)
+        and isinstance(case.get("case_id"), str) and bool(case["case_id"])
+        and isinstance(case.get("title"), str) and bool(case["title"])
+        and isinstance(case.get("inputs"), list) and bool(case["inputs"])
+        and all(isinstance(value, str) and bool(value.strip()) for value in case["inputs"])
+        and isinstance(case.get("expected_behavior"), str) and bool(case["expected_behavior"].strip())
+        for case in locked_cases
+    )
+    if valid_cases:
+        case_ids = [case["case_id"] for case in locked_cases]
+        valid_cases = len(case_ids) == len(set(case_ids))
+    else:
+        case_ids = []
+
+    if status in {"planned", "running"}:
+        if not valid_cases:
+            errors.append(issue("RUN_EVALUATION_CASES", "未封存 Run 必须锁定完整 Case", inputs))
+        else:
+            try:
+                current_cases = execution_for(evaluation_path, case_ids)
+            except (OSError, ValueError) as exc:
+                errors.append(issue("RUN_EVALUATION_CASES", str(exc), inputs))
+            else:
+                if locked_cases != current_cases:
+                    errors.append(issue("RUN_EVALUATION_CASES", "Run 锁定的 Case 与当前定义不一致", inputs))
+                if locked_inputs.get("evaluation_sha256") != evaluation_digest(evaluation_path, case_ids):
+                    errors.append(issue("RUN_EVALUATION_HASH", "Run 锁定的 Case 摘要与当前定义不一致", inputs))
+    elif not valid_cases:
+        historical = locked_inputs.get("evaluation_selection")
+        case_ids = historical.get("case_ids", []) if isinstance(historical, dict) else []
+        if not valid_id_list(case_ids, nonempty=True):
+            errors.append(issue("RUN_EVALUATION_CASES", "封存 Run 缺少有效的历史 Case 选择", inputs))
+            case_ids = []
+    selected_ids = set(case_ids)
     results = run_dir / "results.jsonl"
     rows: list[dict] = []
     if results.is_file():
@@ -300,15 +323,14 @@ def validate(experiment: Path) -> tuple[dict, int]:
     agent_id = match.group(1)
     repository = experiment.parents[2]
     evaluation_path = repository / "agents" / agent_id / "evaluation.md"
-    evaluation_ref = f"agents/{agent_id}/evaluation.md#{experiment.name}"
+    evaluation_ref = f"agents/{agent_id}/evaluation.md"
     try:
-        evaluation_selection = selection_for(evaluation_path, experiment.name)
-        execution_for(evaluation_path, experiment.name)
-        evaluation_sha256 = hashlib.sha256(evaluation_path.read_bytes()).hexdigest()
+        load_evaluation(evaluation_path)
     except (OSError, ValueError) as exc:
         errors.append(issue("EVALUATION_CONTRACT", str(exc), evaluation_path))
-        evaluation_selection = None
-        evaluation_sha256 = ""
+        evaluation_valid = False
+    else:
+        evaluation_valid = True
     change_path = experiment / "change.yaml"
     try:
         change = load_yaml(change_path)
@@ -349,14 +371,13 @@ def validate(experiment: Path) -> tuple[dict, int]:
         else:
             for run_dir in sorted(path for path in runs.iterdir() if path.name not in {".DS_Store"}):
                 if run_dir.is_dir():
-                    if evaluation_selection is not None:
+                    if evaluation_valid:
                         validate_run(
                             run_dir,
                             experiment.name,
                             agent_id,
                             evaluation_ref,
-                            evaluation_sha256,
-                            evaluation_selection,
+                            evaluation_path,
                             errors,
                         )
                 else:

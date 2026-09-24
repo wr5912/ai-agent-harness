@@ -64,7 +64,6 @@ class HarnessInitTest(unittest.TestCase):
         self.assertEqual(contract["preset_id"], "test01")
         expected = {
             "agents/test01/manifest.yaml",
-            "agents/test01/definition.md",
             "agents/test01/evaluation.md",
             "evolution/experiments/EXP-test01-001/change.yaml",
             "evolution/experiments/EXP-test01-001/hypothesis.md",
@@ -87,14 +86,11 @@ class HarnessInitTest(unittest.TestCase):
             (ADAPTER / "verification-home-controls/locked-bootstrap.env").read_bytes(),
         )
         evaluation = (self.repo / "agents/test01/evaluation.md").read_text(encoding="utf-8")
-        self.assertIn("#### HARNESS-F01 新会话装载", evaluation)
-        self.assertIn("**公共基线**", evaluation)
-        self.assertIn("```mermaid\nflowchart TD", evaluation)
-        self.assertIn("**金标准**", evaluation)
-        self.assertIn("**适用边界**", evaluation)
-        self.assertIn("**执行器：**`web-chat`", evaluation)
-        self.assertIn("**工具边界：**`none`", evaluation)
-        self.assertIn("**副作用预算：**`web-session-only`", evaluation)
+        self.assertIn("#### U-IDENTITY-001 身份装载", evaluation)
+        self.assertIn("**用户输入**", evaluation)
+        self.assertIn("> 你是谁？请用一句中文回答。", evaluation)
+        self.assertIn("**预期**", evaluation)
+        self.assertNotIn("**执行器", evaluation)
         generated = "\n".join(
             path.read_text(encoding="utf-8") for path in self.repo.rglob("*")
             if path.is_file() and path != self.lock
@@ -132,8 +128,10 @@ class HarnessInitTest(unittest.TestCase):
 class RenderComposeTest(unittest.TestCase):
     def test_verification_template_gets_host_network_and_port(self):
         template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
-        rendered = dev.render_compose(template, mode="verification", project="dsh-dev-probe", port=3081)
+        rendered = dev.render_compose(
+            template, mode="verification", name="probe", project="dsh-dev-probe", port=3081)
         self.assertIn("name: dsh-dev-probe", rendered)
+        self.assertIn("  dsh:\n    container_name: probe\n", rendered)
         self.assertIn("    network_mode: host\n", rendered)
         self.assertIn("      - --host\n      - 127.0.0.1\n      - --port\n      - \"3081\"\n", rendered)
         self.assertIn("dsh-dev-probe-home", rendered)
@@ -155,6 +153,7 @@ class RenderComposeTest(unittest.TestCase):
         rendered = dev.render_compose(
             template,
             mode="verification",
+            name="models",
             project="dsh-dev-models",
             port=3082,
             runtime_env_names=["DEEPSEEK_API_KEY", "LOCAL_LLM_BASE_URL", "LOCAL_LLM_BASE_URL"],
@@ -165,7 +164,7 @@ class RenderComposeTest(unittest.TestCase):
     def test_missing_anchor_fails_closed(self):
         with self.assertRaises(SystemExit):
             dev.render_compose("services:\n  dsh:\n    working_dir: /tmp\n", mode="verification",
-                               project="dsh-dev-probe", port=3081)
+                               name="probe", project="dsh-dev-probe", port=3081)
 
 
 class EvaluationModeContractTest(unittest.TestCase):
@@ -197,7 +196,8 @@ class EvaluationModeContractTest(unittest.TestCase):
     def test_verification_template_exposes_no_grading_material(self):
         """被测目标会话不得挂载验收阈值、评估方法、测试预置或预期答案。"""
         template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
-        rendered = dev.render_compose(template, mode="verification", project="dsh-dev-probe", port=3081)
+        rendered = dev.render_compose(
+            template, mode="verification", name="probe", project="dsh-dev-probe", port=3081)
         self.assertNotIn("/work/reference\n", rendered)
         self.assertNotIn("/work/eval-input\n", rendered)
         self.assertNotIn("DSH_REFERENCE_HOST", rendered)
@@ -217,7 +217,7 @@ class EvaluationModeContractTest(unittest.TestCase):
         self.assertIn("RUN mkdir -p /opt/dsh-adapter", dockerfile)
         rendered = dev.render_compose(
             (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8"),
-            mode="verification", project="dsh-dev-verification", port=3081)
+            mode="verification", name="verification", project="dsh-dev-verification", port=3081)
         self.assertEqual(rendered.count("        target: /opt/dsh-adapter\n"), 2)
         self.assertNotIn("COPY --chown=node:node verify-load.mjs", rendered)
 
@@ -237,6 +237,7 @@ class EvaluationModeContractTest(unittest.TestCase):
             target = dev.write_instance("secops-eval", mode="verification", contract=self.contract(),
                                         port=3085)
             manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["container_name"], "secops-eval")
             for key in ("dev_target_file", "patch_overlay", "cordis_trust_accepted"):
                 self.assertNotIn(key, manifest)
             self.assertEqual(manifest["mount_modes"], {
@@ -273,6 +274,7 @@ class EvaluationModeContractTest(unittest.TestCase):
             dev.command_up(args)
         plan = json.loads(stdout.getvalue())
         self.assertEqual(plan["workspace_to_register"], "/work/harness/workspace")
+        self.assertEqual(plan["container_name"], "secops-eval")
         self.assertIn("/work/harness/workspace", plan["web_cold_start"])
         self.assertIn("编辑路径", plan["web_cold_start"])
         self.assertEqual(plan["context_assets"], [])
@@ -321,6 +323,7 @@ class InstanceStateTest(unittest.TestCase):
             }
             target = dev.write_instance("second-verify", mode="verification", contract=contract, port=3081)
             manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["container_name"], "second-verify")
             self.assertEqual(manifest["mount_modes"], {"workspace": "ro", "presets": "ro", "managed": "ro"})
             self.assertEqual(manifest["purpose"], "eval")
             self.assertEqual(manifest["target_preset"], "second-harness")
@@ -587,7 +590,7 @@ class UpCommandStateTest(unittest.TestCase):
                 mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, stdout="", stderr="")), \
                 mock.patch.object(dev, "wait_for_service", return_value=[{
                     "id": "abc123", "state": "exited", "status": "Exited (1)",
-                    "name": "dsh-dev-up-probe-dsh-1", "service": "dsh"}]), \
+                    "name": "up-probe", "service": "dsh"}]), \
                 contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
             with self.assertRaises(SystemExit):
                 dev.command_up(self.args())
@@ -609,13 +612,15 @@ class UpCommandStateTest(unittest.TestCase):
                 mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, stdout="", stderr="")), \
                 mock.patch.object(dev, "wait_for_service", return_value=[
                     {"id": "abc123", "state": "running", "status": "Up 3 seconds",
-                     "name": "dsh-dev-up-probe-dsh-1", "service": "dsh"},
+                     "name": "up-probe", "service": "dsh"},
                     {"id": "def456", "state": "exited", "status": "Exited (0)",
                      "name": "dsh-dev-up-probe-home-init-1", "service": "home-init"}]), \
                 contextlib.redirect_stdout(stdout):
             dev.command_up(self.args())
         report = json.loads(stdout.getvalue())
         self.assertIs(report["dsh_running"], True)
+        self.assertEqual(report["container_name"], "up-probe")
+        self.assertEqual(report["containers"][0]["name"], "up-probe")
         self.assertEqual([item["service"] for item in report["containers"]], ["dsh", "home-init"])
 
     def test_up_reports_unknown_when_state_cannot_be_queried(self):
@@ -692,16 +697,19 @@ class LegacyInstanceStateTest(unittest.TestCase):
         self.assertTrue(report["home_preserved"])
 
     def test_ps_marks_legacy_state_for_migration_and_keeps_listing(self):
-        stopped = subprocess.CompletedProcess([], 0, stdout="", stderr="")
-        listed = subprocess.CompletedProcess([], 0, stdout="not running", stderr="")
+        listed = subprocess.CompletedProcess([], 0, stdout=json.dumps({
+            "Name": "dsh-dev-legacy-dsh-1", "Service": "dsh", "State": "exited",
+            "Status": "Exited (0)",
+        }), stderr="")
         stdout = io.StringIO()
-        with mock.patch.object(dev, "run", side_effect=[stopped, listed]), \
+        with mock.patch.object(dev, "run", return_value=listed), \
                 contextlib.redirect_stdout(stdout):
             dev.command_ps(types.SimpleNamespace(all=True))
         instances = json.loads(stdout.getvalue())["instances"]
         self.assertEqual(len(instances), 1)
         self.assertEqual(instances[0]["state_schema"], "1.0")
         self.assertTrue(instances[0]["needs_migration"])
+        self.assertEqual(instances[0]["container_name"], "dsh-dev-legacy-dsh-1")
 
     def test_ps_reports_broken_record_without_aborting_the_list(self):
         (dev.STATE_ROOT / "broken").mkdir()
@@ -786,6 +794,7 @@ class UpPortOwnershipTest(unittest.TestCase):
             dev.command_up(args)
         plan = json.loads(stdout.getvalue())
         self.assertEqual(plan["name"], "security-operations-expert-eval")
+        self.assertEqual(plan["container_name"], "security-operations-expert-eval")
         self.assertEqual(plan["port"], 3081)
         preflight.assert_not_called()
         writer.assert_not_called()

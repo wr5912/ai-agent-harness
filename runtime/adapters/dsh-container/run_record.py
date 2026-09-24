@@ -22,7 +22,7 @@ for import_root in (ADAPTER, EVALUATION_SCRIPTS):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
 
-from evaluation_contract import execution_for, selection_for
+from evaluation_contract import evaluation_digest, execution_for
 from source_contract import resolve
 
 
@@ -167,7 +167,7 @@ def write_report(
             f"{summary['verdict_counts']['failed']} | {pending_review} | {undetermined} |"
         ),
         "",
-        "`待人工判定` 表示 Turn 已完成但业务语义尚未按评测标准判读；`无法判定` 表示执行错误或未执行。报告不要求所有 Case 均为 `通过`。",
+        "`待人工判定` 表示 Turn 已完成但业务语义尚未按评测标准判读；`无法判定` 表示执行错误或未执行。Case ID 的删除线表示该 Case 已选择但未执行（`execution_status=skipped`）。报告不要求所有 Case 均为 `通过`。",
         "",
         "## Case 结果",
         "",
@@ -177,18 +177,17 @@ def write_report(
     for row in rows:
         evidence_ref = row["evidence_ref"]
         contract = (case_contracts or {}).get(row["input_id"], {})
-        ids = [*contract.get("method_ids", []), *contract.get("acceptance_ids", [])]
-        basis = "、".join(f"`{identifier}`" for identifier in ids)
-        expected = contract.get("expected_behavior", "")
-        if expected:
-            basis = f"{basis}<br>{cell(expected)}" if basis else cell(expected)
+        basis = cell(contract.get("expected_behavior", ""))
         verdict = (
             "待人工判定"
             if row["execution_status"] == "completed" and row["verdict"] == "inconclusive"
             else VERDICT_ZH.get(row["verdict"], row["verdict"])
         )
+        case_label = f"`{cell(row['input_id'])}`"
+        if row["execution_status"] == "skipped":
+            case_label = f"~~{case_label}~~"
         lines.append(
-            f"| `{cell(row['input_id'])}` | {cell(contract.get('input', ''))} | {basis} | "
+            f"| {case_label} | {cell('<br>'.join(contract.get('inputs', [])))} | {basis} | "
             f"{EXECUTION_STATUS_ZH.get(row['execution_status'], row['execution_status'])} | "
             f"{verdict} | {cell(row['observation'])} | "
             f"[{cell(evidence_ref)}]({evidence_ref}) |"
@@ -205,15 +204,14 @@ def write_report(
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def case_contracts_for(repo: Path, manifest: dict[str, str], rows: list[dict]) -> dict[str, dict]:
-    reference = manifest.get("evaluation_ref", "").split("#", 1)[0]
-    evaluation = repo / reference if reference else None
-    if evaluation is None or not evaluation.is_file():
-        return {}
-    case_ids = [row["input_id"] for row in rows]
-    return {case["case_id"]: case for case in execution_for(
-        evaluation, manifest["experiment_id"], case_ids
-    )}
+def case_contracts_for(run_dir: Path) -> dict[str, dict]:
+    value = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+    cases = value.get("evaluation_cases", []) if isinstance(value, dict) else []
+    return {
+        case["case_id"]: case
+        for case in cases
+        if isinstance(case, dict) and isinstance(case.get("case_id"), str)
+    }
 
 
 def load_run_manifest(repo: Path, run_id: str) -> tuple[Path, dict[str, str]]:
@@ -234,10 +232,11 @@ def load_run_manifest(repo: Path, run_id: str) -> tuple[Path, dict[str, str]]:
 
 def selected_input_ids(run_dir: Path) -> set[str]:
     value = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
-    identifiers = value.get("evaluation_selection", {}).get("case_ids") if isinstance(value, dict) else None
+    cases = value.get("evaluation_cases") if isinstance(value, dict) else None
+    identifiers = [case.get("case_id") for case in cases] if isinstance(cases, list) else None
     if not isinstance(identifiers, list) or not identifiers \
             or any(not isinstance(identifier, str) or not identifier for identifier in identifiers):
-        raise ValueError("inputs.lock.json 缺少有效的 evaluation_selection.case_ids")
+        raise ValueError("inputs.lock.json 缺少有效的 Case 锁定")
     return set(identifiers)
 
 
@@ -303,10 +302,8 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
         raise ValueError("baseline_ref must be git:<commit>, release:<id> or none:first-experiment")
     evaluation_relative = Path("agents") / agent_id / "evaluation.md"
     evaluation_path = repo / evaluation_relative
-    evaluation_selection = selection_for(evaluation_path, experiment_id)
-    cases = execution_for(evaluation_path, experiment_id, args.case or None)
-    evaluation_selection = {**evaluation_selection, "case_ids": [case["case_id"] for case in cases]}
-    evaluation_ref = f"{evaluation_relative.as_posix()}#{experiment_id}"
+    cases = execution_for(evaluation_path, args.case)
+    evaluation_ref = evaluation_relative.as_posix()
     run_id = "run-" + str(uuid.uuid4())
     run_dir = experiment / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
@@ -324,8 +321,8 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
                 "managed": tree_digest(repo, Path(contract["managed"])),
             },
             "reference_tree": tree_digest(repo, Path(contract["reference_root"])) if contract.get("reference_root") else None,
-            "evaluation_sha256": hashlib.sha256(evaluation_path.read_bytes()).hexdigest(),
-            "evaluation_selection": evaluation_selection,
+            "evaluation_sha256": evaluation_digest(evaluation_path, args.case),
+            "evaluation_cases": cases,
             "git_version": git_version(repo),
         }
         if args.model:
@@ -447,7 +444,7 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
     report_path = run_dir / "report.md"
     write_report(
         report_path, manifest, summary, rows, inputs.get("executor"),
-        case_contracts_for(repo, manifest, rows),
+        case_contracts_for(run_dir),
     )
     manifest["results_sha256"] = hashlib.sha256(results.read_bytes() if results.is_file() else b"").hexdigest()
     manifest["summary_sha256"] = hashlib.sha256(summary_path.read_bytes()).hexdigest()
@@ -465,7 +462,7 @@ def main() -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     init_parser = commands.add_parser("init", help="创建 Run 并记录输入身份")
     init_parser.add_argument("--source", required=True, help="当前支持 experiment:<id>")
-    init_parser.add_argument("--case", action="append", default=[], help="按 evaluation.md 顺序选择 Case；可重复")
+    init_parser.add_argument("--case", action="append", default=[], help="必须显式选择的 Case；可重复")
     init_parser.add_argument("--kind", default="research", choices=RUN_KINDS)
     init_parser.add_argument("--baseline-ref", help="默认读取 Experiment change.yaml")
     init_parser.add_argument("--model", help="可选的实际模型标识")

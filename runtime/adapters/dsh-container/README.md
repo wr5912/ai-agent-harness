@@ -28,7 +28,7 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 | `/work/eval-input` | 显式声明的被测输入根 | 仅在显式声明时只读 |
 | `/var/lib/dsh` | 实例独立 DSH_HOME 数据卷 | 运行状态可写 |
 
-评测实例不挂载 `definition.md`、`evaluation.md` 或其他判分材料；`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。Harness 修改由宿主开发会话完成，容器只负责装载和评测。
+评测实例不挂载 `evaluation.md` 或其他判分材料；`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。Harness 修改由宿主开发会话完成，容器只负责装载和评测。
 
 `locked-user.patch.yml`、真正 **0 字节**的 `locked-global.AGENTS.md` 和只含注释的 `locked-bootstrap.env` 分别只读覆盖用户 Patch、全局 Agent instructions 与 Boot 环境文件。模型/MCP Endpoint 和凭据只能由调用环境或 Runtime 受控凭据提供，不能由 Candidate 工作区改变。
 
@@ -82,7 +82,7 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-e
 
 `--source` 和 `--mode` 始终由用户显式选择；缺失或无值时命令会列出当前可用值并以用法错误退出。`--name` 默认为 `<agent-id>-eval`。新实例未指定 `--port` 时从 `3081` 起选第一个未监听且未被有效实例记录占用的端口；已有同名实例复用记录端口。`--dry-run` 只给出建议，不写状态、不调用 Docker，也不要求运行时环境变量。
 
-`up` 会先核对镜像标签对应的构建指纹、平台和 Image ID，再执行停旧实例、写状态和启动；Compose 使用 `tag@image-id` 不可变引用。它仍不只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的在运行（`home-init` 是一次性服务，正常结束不算失败），否则报告失败或 `dsh_running: "unknown"` 并以非零退出码结束。成功时 stdout 只输出一个 JSON 结果，其中包含 `image_id`、`image_ref` 和 `image_build_fingerprint`；进度、提示和错误输出到 stderr，失败时 stdout 保持为空。`up --replace` 的成功 JSON 在 `replaced.stop` 中包含完整停止结果。
+`up` 会先核对镜像标签对应的构建指纹、平台和 Image ID，再执行停旧实例、写状态和启动；Compose 使用 `tag@image-id` 不可变引用。新建或替换后的主 `dsh` 容器名与实例名完全一致，Compose 项目名固定为 `dsh-dev-<实例名>`；`up --dry-run`、`up` 和 `ps` 都直接输出实例名、实际主容器名和项目名，旧实例由 `ps` 输出其现有主容器名并标记 `needs_migration`。它仍不只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的在运行（`home-init` 是一次性服务，正常结束不算失败），否则报告失败或 `dsh_running: "unknown"` 并以非零退出码结束。成功时 stdout 只输出一个 JSON 结果，其中包含 `image_id`、`image_ref` 和 `image_build_fingerprint`；进度、提示和错误输出到 stderr，失败时 stdout 保持为空。`up --replace` 的成功 JSON 在 `replaced.stop` 中包含完整停止结果。
 
 `ps`、`logs`、`down` 从实例状态文件重建 Compose 所需环境；`ps` 默认只列出运行中的实例，`ps --all` 才包含其他状态并标出 `needs_migration`。历史 `authoring` 实例仍可查询日志和停止，但新建或替换时只接受 `eval`。挂载内容变化不会自动重启进程，使用 `up --replace` 或先 `down` 再同名 `up` 重载。`down` 同时核对 Compose 退出码、实际容器状态和 HOME 卷。
 
@@ -90,20 +90,22 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-e
 
 ## 受管评测
 
-`dsh-eval` 从 Agent 的 `evaluation.md` 读取 Experiment 选择和执行元数据，并复用 `dsh-dev` 与 `run_record.py` 完成一次可封存评测。默认执行器通过 DSH Runtime Session API 运行业务 Case；显式选择 `browser` 时，才使用镜像中已有的 Playwright 依赖做 UI 冒烟：
+`dsh-eval` 从 Agent 的 `evaluation.md` 读取业务 Case 的名称、用户输入和预期，并复用 `dsh-dev` 与 `run_record.py` 完成一次可封存评测。默认执行器通过 DSH Runtime Session API 运行业务 Case；显式选择 `browser` 时，才使用镜像中已有的 Playwright 依赖做 UI 冒烟：
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-security-operations-expert-006 --dry-run
+  --source experiment:EXP-security-operations-expert-006 --case U-INS-001 --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-security-operations-expert-006 --mode full
+  --source experiment:EXP-security-operations-expert-006 --case U-INS-001
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-security-operations-expert-006 --executor browser [--case <case-id>]
+  --source experiment:EXP-security-operations-expert-006 --case 'U-INS-*' --dry-run
+python3 runtime/adapters/dsh-container/dsh-eval \
+  --source experiment:EXP-security-operations-expert-006 --executor browser --case U-INS-001
 ```
 
-未指定 `--mode` 时默认运行 `evaluation.md` 中标为 `fast` 的核心 Case；`--mode full` 运行当前 Experiment 选择的全部 Case。重复 `--case` 用于精确选择并优先于档位，`--dry-run` 输出实际 `mode` 与最终 Case 列表。非 `--dry-run` 执行会先校验仓库和 Experiment，再创建独立评测实例。API 执行器只调用 DSH Runtime：注册 `/work/harness/workspace`，为每个运行态 Case 创建新 Session，精确核对目标 Preset 与 Workspace，按 Case 声明选择模型，发送输入、等待 Turn 并导出消息和工具轨迹；没有声明目标模型时使用 DSH 当前默认模型。它不直连底层模型 API。浏览器执行器只负责初始提示、工作区、模型、发送和回答显示等 UI 链路。两种执行器复用同一份 Case、身份检查和证据格式，但分别运行、分别统计；结果中的 `executor` 标明通道。认证 URL 只经进程标准输入交给执行器，不写入 Run 或普通输出；无论成功、失败或中断都尝试停止实例。镜像已经安装并验证系统 Chromium、Playwright 与 `fflate`；受信检查脚本使用 Node 标准库 `node:vm`，无需增加镜像依赖。所选执行器与共享脚本均以只读挂载注入，因此修改脚本不需要重建镜像。
+`--case` 必须显式给出；缺失时命令列出可选 Case 并以退出码 `2` 结束。该参数可重复，也可使用大小写敏感的 shell 风格通配符；结果按 `evaluation.md` 的声明顺序去重，为避免 shell 提前展开应给通配符加引号。`--dry-run` 输出展开后的具体 Case 列表。非 `--dry-run` 执行会先校验仓库和 Experiment，再创建独立评测实例。每个 Case 使用新的目标 Session，多轮输入在该 Session 内依次发送；API 和浏览器执行器都导出回答及同一 Session 的工具事件。独立的无工具评审 Session 对照输入、预期、回答和工具证据给出语义结论。技术装载、合同和工具链检查由运行前的项目与 Experiment 校验承担，不是业务 Case。认证 URL 只经进程标准输入交给执行器，不写入 Run 或普通输出；无论成功、失败或中断都尝试停止实例。
 
-退出码 `0` 表示锁定 Case 均得到 `passed`；`1` 表示运行已完整封存但至少一个语义结论为 `failed` 或 `inconclusive`；`2` 表示参数、环境或执行基础设施失败。基础设施失败导致未执行的 Case 记为 `execution_status=error`；中断或安全停机后未开始的 Case 记为 `execution_status=skipped`，两者的 `verdict` 均为 `inconclusive`。执行器先运行 `evaluation.md` 中随 Case 或评估方法声明的受信 JavaScript 检查；这些脚本属于受版本控制的研究源码，不用于执行外部不可信代码。剩余业务语义可由 `m-llm-judge-v1` 在独立无工具 Session 中评审，该 Session 不单独配置模型，复用 DSH 当前默认模型、Endpoint 和凭据。无效评审输出或证据不足仍记为“待人工判定”；与被测回答使用同一路由时，报告会保留同模型自评限制。错误或未执行的 `inconclusive` 显示为“无法判定”。判定只使用 `evaluation.md` 中该 Case 的“关联验收”“预期行为”和所关联的 `m-*`、`AC-*`，不在报告或执行器中另写一套业务标准。每次封存同时保留供机器校验的 `summary.json`、逐项事实 `results.jsonl`，并自动生成供人工阅读的 `report.md`；报告是只读视图，不能作为另一份可编辑事实源。非 `--dry-run` 的 stdout 只输出一个不含凭据的 JSON，字段固定为 `run_id`、`experiment_id`、`executor`、`excluded_case_ids`、`verdict`、`cases`、`summary`、`report` 和 `instance_stopped`。
+退出码 `0` 表示锁定 Case 均得到 `passed`；`1` 表示运行已完整封存但至少一个语义结论为 `failed` 或 `inconclusive`；`2` 表示参数、环境或执行基础设施失败。基础设施失败导致未执行的 Case 记为 `execution_status=error`；中断后未开始的 Case 记为 `execution_status=skipped`，两者的 `verdict` 均为 `inconclusive`。每次封存保留 `summary.json`、逐项事实 `results.jsonl`，并生成只读的 `report.md`。非 `--dry-run` 的 stdout 只输出一个不含凭据的 JSON，字段为 `run_id`、`experiment_id`、`executor`、`verdict`、`cases`、`summary`、`report` 和 `instance_stopped`。
 
 **手工打开 Web 或使用浏览器执行器时，首次需要在界面注册工作区。** DSH Web 的输入栏在没有已打开会话时是惰性的，必须先选定一个**已注册工作区**才能开会话；工作区注册表（`$DSH_HOME/storages/workspace.json`）只从已存会话头 bootstrap，新实例的 HOME 卷里因此为空——容器的 `working_dir` 只是进程工作目录，不等于 DSH 工作区。API 执行器使用 Runtime 的 `workspace/create` 完成同一注册；启动器不改写 Runtime 存储内部格式。浏览器操作如下：
 

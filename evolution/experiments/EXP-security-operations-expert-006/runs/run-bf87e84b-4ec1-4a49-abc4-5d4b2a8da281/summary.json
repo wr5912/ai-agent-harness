@@ -1,0 +1,16 @@
+{
+  "schema_version": "2.0",
+  "run_id": "run-bf87e84b-4ec1-4a49-abc4-5d4b2a8da281",
+  "trial_count": 1,
+  "execution_status_counts": {
+    "completed": 0,
+    "error": 1,
+    "skipped": 0
+  },
+  "verdict_counts": {
+    "passed": 0,
+    "failed": 0,
+    "inconclusive": 1
+  },
+  "overall_verdict": "inconclusive"
+}

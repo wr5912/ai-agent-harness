@@ -1,6 +1,6 @@
 {
-  "acceptance_id_policy": "旧迁移未机械发明业务 AC；当前测试验收在 agents/security-operations-expert/definition.md 维护",
-  "case_id_policy": "旧 case-rsp/ins/flt/pol-* 仅保留历史标识；当前用例在 agents/security-operations-expert/definition.md 维护",
+  "acceptance_id_policy": "旧迁移未机械发明业务 AC；当前业务预期在 agents/security-operations-expert/evaluation.md 维护",
+  "case_id_policy": "旧 case-rsp/ins/flt/pol-* 仅保留历史标识；当前业务 Case 在 agents/security-operations-expert/evaluation.md 维护",
   "experiment_id": "EXP-security-operations-expert-001",
   "historical_case_count": 200,
   "historical_case_status": "仅保留来源摘要，不进入当前事实源",

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""按 evaluation.md 的执行元数据运行一次可封存的 DSH Research Evaluation。"""
+"""显式选择 evaluation.md 中的业务 Case，执行并封存一次 DSH 研究评测。"""
 
 from __future__ import annotations
 
 import argparse
+from fnmatch import fnmatchcase
 import json
 import os
 import re
@@ -20,7 +21,7 @@ for import_root in (ADAPTER, EVALUATION_SCRIPTS):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
 
-from evaluation_contract import execution_for
+from evaluation_contract import execution_for, load_evaluation
 from source_contract import resolve
 
 
@@ -31,13 +32,7 @@ BROWSER_DRIVER = ADAPTER / "dsh-eval-browser.mjs"
 COMMON_DRIVER = ADAPTER / "dsh-eval-common.mjs"
 VALIDATE_REPOSITORY = REPO / ".agents/skills/harness-evolution/scripts/validate_repository.py"
 VALIDATE_EXPERIMENT = REPO / ".agents/skills/research-eval/scripts/validate_experiment.py"
-STATIC_EXECUTORS = {"repository-contract"}
-RUNTIME_STOP_REASONS = {
-    "identity-drift",
-    "unauthorized-side-effect",
-    "evidence-cross-turn",
-    "case-hard-timeout",
-}
+RUNTIME_STOP_REASONS = {"identity-drift", "evidence-cross-turn", "case-hard-timeout"}
 
 
 class EvaluationError(RuntimeError):
@@ -100,19 +95,14 @@ def validate_before_run(contract: dict) -> dict:
                 "error_codes": [item.get("code") for item in payload.get("errors", [])],
             }
         except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as error:
-            checks[name] = {
-                "exit_code": None,
-                "valid": False,
-                "error": type(error).__name__,
-            }
+            checks[name] = {"exit_code": None, "valid": False, "error": type(error).__name__}
     return checks
 
 
 def validate_after_run(contract: dict) -> None:
     try:
         completed = run_process(
-            ["python3", str(VALIDATE_EXPERIMENT), contract["experiment_root"]],
-            timeout=180,
+            ["python3", str(VALIDATE_EXPERIMENT), contract["experiment_root"]], timeout=180,
         )
         payload = json.loads(completed.stdout)
     except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as error:
@@ -149,8 +139,7 @@ def record_trial(run_id: str, case_id: str, result: dict) -> None:
         row["failure_reason"] = result["failure_reason"]
     checked_process(
         ["python3", str(RUN_RECORD), "--repo", str(REPO), "record", "--run", run_id, "-"],
-        label=f"记录 {case_id}",
-        timeout=60,
+        label=f"记录 {case_id}", timeout=60,
         input_text=json.dumps(row, ensure_ascii=False),
     )
 
@@ -161,45 +150,13 @@ def finalize_run(run_id: str, status: str) -> None:
             "python3", str(RUN_RECORD), "--repo", str(REPO), "finalize",
             "--run", run_id, "--status", status,
         ],
-        label="封存 Run",
-        timeout=60,
+        label="封存 Run", timeout=60,
     )
 
 
 def write_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-
-def write_static_evidence(run_dir: Path, case: dict, checks: dict) -> dict:
-    target = run_dir / "evidence" / case["case_id"]
-    passed = all(item.get("valid") is True for item in checks.values())
-    write_json(target / "checks.json", {
-        "schema_version": "1.0",
-        "case_id": case["case_id"],
-        "executor": case["executor"],
-        "acceptance_ids": case["acceptance_ids"],
-        "method_ids": case["method_ids"],
-        "judgment_role": case["judgment_role"],
-        "expected_behavior": case["expected_behavior"],
-        "check_method": case["check_method"],
-        "checks": checks,
-        "scope": "仓库与 Experiment 确定性合同；不代替该 Case 的语义判定",
-    })
-    if passed:
-        return {
-            "execution_status": "completed",
-            "verdict": "inconclusive",
-            "observation": "仓库与 Experiment 确定性合同通过；该 Case 的语义结论仍需人工判读。",
-            "evidence_ref": f"evidence/{case['case_id']}",
-        }
-    return {
-        "execution_status": "error",
-        "verdict": "inconclusive",
-        "observation": "确定性合同未通过，未继续推断该 Case 的语义结论。",
-        "failure_reason": "repository-or-experiment-contract-invalid",
-        "evidence_ref": f"evidence/{case['case_id']}",
-    }
 
 
 def write_unfinished_evidence(
@@ -219,21 +176,14 @@ def write_unfinished_evidence(
         "schema_version": "1.0",
         "case_id": case["case_id"],
         "completed": False,
-        "acceptance_ids": case["acceptance_ids"],
-        "method_ids": case["method_ids"],
-        "judgment_role": case["judgment_role"],
         "expected_behavior": case["expected_behavior"],
-        "check_method": case["check_method"],
         "failure_reason": reason,
     })
     value = {
         "execution_status": execution_status,
         "verdict": "inconclusive",
-        "observation": (
-            "评测已停止，该用例未执行。"
-            if execution_status == "skipped"
-            else "运行基础设施未完成该用例，未产生语义结论。"
-        ),
+        "observation": "评测已停止，该用例未执行。" if execution_status == "skipped"
+        else "运行基础设施未完成该用例，未产生语义结论。",
         "evidence_ref": f"evidence/{case['case_id']}",
     }
     if execution_status == "error":
@@ -242,16 +192,13 @@ def write_unfinished_evidence(
 
 
 def dsh_dev_path() -> str:
-    # 测试替身只改变进程边界，不改变公开 CLI。
     return os.environ.get("DSH_EVAL_DSH_DEV", str(DSH_DEV))
 
 
 def start_instance(source: str, name: str) -> dict:
     completed = checked_process(
         [dsh_dev_path(), "up", "--source", source, "--mode", "eval", "--name", name],
-        label="启动 DSH 评测实例",
-        timeout=240,
-        env=os.environ.copy(),
+        label="启动 DSH 评测实例", timeout=240, env=os.environ.copy(),
     )
     try:
         report = json.loads(completed.stdout)
@@ -272,9 +219,7 @@ def start_instance(source: str, name: str) -> dict:
 def authentication_url(name: str) -> str:
     completed = checked_process(
         [dsh_dev_path(), "url", name, "--non-interactive"],
-        label="取得 DSH 认证入口",
-        timeout=90,
-        env=os.environ.copy(),
+        label="取得 DSH 认证入口", timeout=90, env=os.environ.copy(),
     )
     url = completed.stdout.strip()
     if not url.startswith("http://127.0.0.1:") or "token=" not in url:
@@ -285,19 +230,14 @@ def authentication_url(name: str) -> str:
 def stop_instance(name: str) -> bool:
     try:
         completed = run_process(
-            [dsh_dev_path(), "down", name], timeout=180, env=os.environ.copy()
+            [dsh_dev_path(), "down", name], timeout=180, env=os.environ.copy(),
         )
     except (OSError, subprocess.TimeoutExpired, KeyboardInterrupt):
         return False
     return completed.returncode == 0
 
 
-def driver_command(
-    executor: str,
-    image: str,
-    evidence_root: Path,
-    managed_root: Path,
-) -> tuple[list[str], str]:
+def driver_command(executor: str, image: str, evidence_root: Path) -> tuple[list[str], str]:
     driver = API_DRIVER if executor == "api" else BROWSER_DRIVER
     override = os.environ.get(f"DSH_EVAL_{executor.upper()}_DRIVER")
     if override:
@@ -307,14 +247,10 @@ def driver_command(
         "docker", "run", "--rm", "-i", "--network", "host", "--read-only",
         "--tmpfs", "/tmp:rw,nosuid,nodev,size=256m", "--shm-size", "256m",
         "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
-        # --read-only 下 HOME 仍指向只读根目录，Chromium 的 crashpad 无法创建数据库而启动即退出；
-        # 只把 HOME 指到 tmpfs，保持其余只读与降权边界不变。
-        "--env", "HOME=/tmp",
-        "--entrypoint", "node",
+        "--env", "HOME=/tmp", "--entrypoint", "node",
         "--mount", f"type=bind,src={driver},dst={container_driver},readonly",
         "--mount", f"type=bind,src={COMMON_DRIVER},dst=/opt/dsh/apps/web/dsh-eval-common.mjs,readonly",
         "--mount", f"type=bind,src={evidence_root},dst=/work/evidence",
-        "--mount", f"type=bind,src={managed_root},dst=/work/managed,readonly",
         image, container_driver,
     ], "/work/evidence")
 
@@ -329,9 +265,7 @@ def run_driver(
     image_ref: str,
 ) -> dict:
     evidence_root.mkdir(parents=True, exist_ok=True)
-    command, container_evidence = driver_command(
-        executor, image_ref, evidence_root, Path(contract["managed"])
-    )
+    command, container_evidence = driver_command(executor, image_ref, evidence_root)
     payload = {
         "schema_version": "1.0",
         "auth_url": auth_url,
@@ -340,13 +274,11 @@ def run_driver(
         "judge_preset_id": "evaluation-judge",
         "timeout_ms": timeout_seconds * 1000,
         "evidence_root": container_evidence,
-        "guard_module": "/work/managed/security-operations-guard.mjs",
         "cases": cases,
     }
+    outer_timeout = timeout_seconds * sum(len(case["inputs"]) + 2 for case in cases) + 90
     completed = checked_process(
-        command,
-        label=f"{executor} 评测",
-        timeout=timeout_seconds * (3 if executor == "api" else 2) * len(cases) + 90,
+        command, label=f"{executor} 评测", timeout=outer_timeout,
         input_text=json.dumps(payload, ensure_ascii=False),
     )
     try:
@@ -391,58 +323,43 @@ def normalize_runtime_rows(
             raise EvaluationError(f"{executor} 评测的 {case_id} 缺少 failure_reason")
         normalized[case_id] = row
     if stop_reason is None and returned_order != expected_order:
-        raise EvaluationError(f"{executor} 评测未覆盖全部运行用例")
+        raise EvaluationError(f"{executor} 评测未覆盖全部用例")
     if stop_reason is not None:
         if not returned_order or returned_order != expected_order[:len(returned_order)]:
-            raise EvaluationError(f"{executor} 安全停止前的 Case 顺序无效")
+            raise EvaluationError(f"{executor} 停止前的 Case 顺序无效")
         if normalized[returned_order[-1]].get("failure_reason") != stop_reason:
-            raise EvaluationError(f"{executor} 安全停止原因与最后一个 Case 不一致")
+            raise EvaluationError(f"{executor} 停止原因与最后一个 Case 不一致")
     return normalized, stop_reason
 
 
-def select_cases(
-    cases: list[dict],
-    executor: str,
-    explicit_selection: bool,
-) -> tuple[list[dict], list[str]]:
-    selected = []
-    excluded = []
-    for source_case in cases:
-        transport = "browser" if source_case["executor"] == "web-model-catalog" else "both"
-        case = {**source_case, "transport": transport}
-        if transport in {executor, "both"}:
-            selected.append(case)
-        elif explicit_selection:
-            raise EvaluationError(
-                f"{case['case_id']} 仅支持 {transport} 通道，不能由 {executor} 执行"
-            )
-        else:
-            excluded.append(case["case_id"])
-    return selected, excluded
+def select_case_ids(catalog: dict, patterns: list[str]) -> list[str]:
+    if not patterns:
+        progress("必须使用 --case 显式选择业务 Case。可选：")
+        progress("  " + "\n  ".join(catalog["case_ids"]))
+        raise EvaluationError("未选择 Case")
+    unmatched = [
+        pattern for pattern in patterns
+        if not any(fnmatchcase(case_id, pattern) for case_id in catalog["case_ids"])
+    ]
+    if unmatched:
+        raise EvaluationError("未匹配 Case 模式：" + "、".join(unmatched))
+    return [
+        case_id for case_id in catalog["case_ids"]
+        if any(fnmatchcase(case_id, pattern) for pattern in patterns)
+    ]
 
 
-def dry_run_payload(
-    contract: dict,
-    cases: list[dict],
-    executor: str,
-    excluded_case_ids: list[str],
-    mode: str,
-) -> dict:
-    runtime = any(case["executor"] not in STATIC_EXECUTORS for case in cases)
-    required = contract["required_env_names"] if runtime else []
+def dry_run_payload(contract: dict, cases: list[dict], executor: str) -> dict:
+    required = contract["required_env_names"]
     return {
         "schema_version": "1.0",
         "source_id": contract["source_id"],
         "experiment_id": contract["experiment_id"],
-        "mode": mode,
         "executor": executor,
         "case_ids": [case["case_id"] for case in cases],
-        "executors": {case["case_id"]: case["executor"] for case in cases},
-        "transports": {case["case_id"]: case["transport"] for case in cases},
-        "excluded_case_ids": excluded_case_ids,
-        "runtime_required": runtime,
-        "image": contract["image"]["local_image_tag"] if runtime else None,
-        "image_build_fingerprint": contract["image"]["build_fingerprint"] if runtime else None,
+        "runtime_required": True,
+        "image": contract["image"]["local_image_tag"],
+        "image_build_fingerprint": contract["image"]["build_fingerprint"],
         "required_env_names": required,
         "missing_env_names": [name for name in required if not os.environ.get(name)],
     }
@@ -457,7 +374,6 @@ def result_payload(
     instance_stopped: bool = True,
     verdict: str | None = None,
     executor: str | None = None,
-    excluded_case_ids: list[str] | None = None,
 ) -> dict:
     counts = {"total": total, "passed": 0, "failed": 0, "inconclusive": total}
     summary_ref = None
@@ -476,13 +392,11 @@ def result_payload(
         report_path = summary_path.with_name("report.md")
         if report_path.is_file():
             report_ref = str(report_path.relative_to(REPO))
-    verdict = verdict or "inconclusive"
     return {
         "run_id": run_id,
         "experiment_id": experiment_id,
         "executor": executor,
-        "excluded_case_ids": excluded_case_ids or [],
-        "verdict": verdict,
+        "verdict": verdict or "inconclusive",
         "cases": counts,
         "summary": summary_ref,
         "report": report_ref,
@@ -496,37 +410,25 @@ def emit_result(*args, **kwargs) -> None:
 
 def execute(args: argparse.Namespace) -> int:
     contract = resolve(args.source, repo=REPO)
-    evaluation = REPO / "agents" / contract["agent_id"] / "evaluation.md"
-    available_cases = execution_for(evaluation, contract["experiment_id"], args.case or None)
-    if not args.case:
-        available_cases = [case for case in available_cases if args.mode in case["modes"]]
-        if not available_cases:
-            raise EvaluationError(f"{contract['experiment_id']} 未定义 {args.mode} Case")
-    cases, excluded_case_ids = select_cases(available_cases, args.executor, bool(args.case))
-    plan = dry_run_payload(
-        contract, cases, args.executor, excluded_case_ids,
-        "case" if args.case else args.mode,
-    )
+    evaluation_path = REPO / "agents" / contract["agent_id"] / "evaluation.md"
+    catalog = load_evaluation(evaluation_path)
+    case_ids = select_case_ids(catalog, args.case)
+    cases = execution_for(evaluation_path, case_ids)
+    plan = dry_run_payload(contract, cases, args.executor)
     if args.dry_run:
         print(json.dumps(plan, ensure_ascii=False, indent=2))
         return 0
     if plan["missing_env_names"]:
         progress("缺少运行时环境变量：" + "、".join(plan["missing_env_names"]))
-        emit_result(
-            contract["experiment_id"], len(cases), executor=args.executor,
-            excluded_case_ids=excluded_case_ids,
-        )
+        emit_result(contract["experiment_id"], len(cases), executor=args.executor)
         return 2
 
     progress("执行仓库与 Experiment 前置校验")
-    static_checks = validate_before_run(contract)
-    invalid = [name for name, check in static_checks.items() if check.get("valid") is not True]
+    checks = validate_before_run(contract)
+    invalid = [name for name, check in checks.items() if check.get("valid") is not True]
     if invalid:
         progress("前置校验未通过：" + "、".join(invalid))
-        emit_result(
-            contract["experiment_id"], len(cases), executor=args.executor,
-            excluded_case_ids=excluded_case_ids,
-        )
+        emit_result(contract["experiment_id"], len(cases), executor=args.executor)
         return 2
 
     progress("创建并锁定 Research Run")
@@ -534,60 +436,48 @@ def execute(args: argparse.Namespace) -> int:
         run_id = initialize_run(args.source, cases, args.executor)
     except EvaluationError as error:
         progress(f"创建 Run 失败：{error}")
-        emit_result(
-            contract["experiment_id"], len(cases), executor=args.executor,
-            excluded_case_ids=excluded_case_ids,
-        )
+        emit_result(contract["experiment_id"], len(cases), executor=args.executor)
         return 2
     run_dir = Path(contract["experiment_root"]) / "runs" / run_id
     recorded: set[str] = set()
-    runtime_cases = [case for case in cases if case["executor"] not in STATIC_EXECUTORS]
     instance_name = f"{contract['agent_id']}-eval-{uuid.uuid4().hex[:8]}"
     up_attempted = False
     fatal_reason = None
     interrupted = False
     runtime_rows: dict[str, dict] = {}
-    safety_stop_reason = None
+    stop_reason = None
     try:
-        if runtime_cases:
-            progress("启动独立 DSH 评测实例")
-            up_attempted = True
-            image_identity = start_instance(args.source, instance_name)
-            if image_identity["image_build_fingerprint"] != contract["image"]["build_fingerprint"]:
-                raise EvaluationError("DSH 实际镜像身份与本次来源合同不一致")
-            write_json(run_dir / "evidence" / "dsh-image.json", {
-                "schema_version": "1.0",
-                "source_id": contract["source_id"],
-                "local_image_tag": image_identity["image_tag"],
-                "local_image_id": image_identity["image_id"],
-                "image_ref": image_identity["image_ref"],
-                "image_build_fingerprint": image_identity["image_build_fingerprint"],
-                "platform": image_identity["platform"],
-                "scope": "actual DSH evaluation runtime image identity; no semantic verdict",
-            })
-            auth_url = authentication_url(instance_name)
-            runtime_rows, safety_stop_reason = normalize_runtime_rows(
-                run_driver(
-                    args.executor, auth_url, runtime_cases, contract,
-                    run_dir / "evidence", args.timeout_seconds,
-                    image_identity["image_ref"],
-                ),
-                runtime_cases,
-                args.executor,
-            )
-            auth_url = ""
+        progress("启动独立 DSH 评测实例")
+        up_attempted = True
+        image_identity = start_instance(args.source, instance_name)
+        if image_identity["image_build_fingerprint"] != contract["image"]["build_fingerprint"]:
+            raise EvaluationError("DSH 实际镜像身份与本次来源合同不一致")
+        write_json(run_dir / "evidence" / "dsh-image.json", {
+            "schema_version": "1.0",
+            "source_id": contract["source_id"],
+            "local_image_tag": image_identity["image_tag"],
+            "local_image_id": image_identity["image_id"],
+            "image_ref": image_identity["image_ref"],
+            "image_build_fingerprint": image_identity["image_build_fingerprint"],
+            "platform": image_identity["platform"],
+            "scope": "actual DSH evaluation runtime image identity; no semantic verdict",
+        })
+        runtime_rows, stop_reason = normalize_runtime_rows(
+            run_driver(
+                args.executor, authentication_url(instance_name), cases, contract,
+                run_dir / "evidence", args.timeout_seconds, image_identity["image_ref"],
+            ),
+            cases,
+            args.executor,
+        )
         stop_index = None
-        if safety_stop_reason is not None:
+        if stop_reason is not None:
             stopped_case = next(reversed(runtime_rows))
             stop_index = next(index for index, case in enumerate(cases) if case["case_id"] == stopped_case)
-            progress(f"{args.executor} 执行器触发安全停止：{safety_stop_reason}")
+            progress(f"{args.executor} 执行器停止：{stop_reason}")
         for index, case in enumerate(cases):
-            if stop_index is not None and index > stop_index:
-                value = write_unfinished_evidence(run_dir, case, safety_stop_reason, "skipped")
-            elif case["executor"] in STATIC_EXECUTORS:
-                value = write_static_evidence(run_dir, case, static_checks)
-            else:
-                value = runtime_rows[case["case_id"]]
+            value = write_unfinished_evidence(run_dir, case, stop_reason, "skipped") \
+                if stop_index is not None and index > stop_index else runtime_rows[case["case_id"]]
             record_trial(run_id, case["case_id"], value)
             recorded.add(case["case_id"])
     except KeyboardInterrupt:
@@ -608,8 +498,7 @@ def execute(args: argparse.Namespace) -> int:
         for case in cases:
             if case["case_id"] not in recorded:
                 record_trial(
-                    run_id,
-                    case["case_id"],
+                    run_id, case["case_id"],
                     write_unfinished_evidence(run_dir, case, fatal_reason, unfinished_status),
                 )
         finalize_run(run_id, "cancelled" if interrupted else "failed")
@@ -621,7 +510,7 @@ def execute(args: argparse.Namespace) -> int:
         emit_result(
             contract["experiment_id"], len(cases), run_id=run_id,
             summary_path=summary_path, instance_stopped=stopped, verdict="inconclusive",
-            executor=args.executor, excluded_case_ids=excluded_case_ids,
+            executor=args.executor,
         )
         return 2
 
@@ -636,13 +525,12 @@ def execute(args: argparse.Namespace) -> int:
         emit_result(
             contract["experiment_id"], len(cases), run_id=run_id,
             summary_path=summary_path, instance_stopped=stopped, verdict="inconclusive",
-            executor=args.executor, excluded_case_ids=excluded_case_ids,
+            executor=args.executor,
         )
         return 2
     emit_result(
         contract["experiment_id"], len(cases), run_id=run_id,
-        summary_path=summary_path, instance_stopped=stopped,
-        executor=args.executor, excluded_case_ids=excluded_case_ids,
+        summary_path=summary_path, instance_stopped=stopped, executor=args.executor,
     )
     return 0 if summary["overall_verdict"] == "passed" else 1
 
@@ -650,11 +538,13 @@ def execute(args: argparse.Namespace) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, help="experiment:<id> 或已登记 Experiment ID")
-    parser.add_argument("--mode", choices=("fast", "full"), default="fast", help="评估档位；默认 fast")
-    parser.add_argument("--case", action="append", default=[], help="按 evaluation.md 顺序精确选择 Case；可重复并优先于 --mode")
-    parser.add_argument("--executor", choices=("api", "browser"), default="api", help="运行态 Case 执行通道")
+    parser.add_argument(
+        "--case", action="append", default=[],
+        help="显式选择业务 Case；支持通配符、可重复，按 evaluation.md 顺序执行",
+    )
+    parser.add_argument("--executor", choices=("api", "browser"), default="api", help="执行通道")
     parser.add_argument("--dry-run", action="store_true", help="只解析计划，不写 Run、不启动进程")
-    parser.add_argument("--timeout-seconds", type=int, default=300, help="运行态单阶段等待上限；单 Case 兜底为两倍")
+    parser.add_argument("--timeout-seconds", type=int, default=300, help="每轮等待上限（秒）")
     args = parser.parse_args()
     if args.timeout_seconds < 10:
         parser.error("--timeout-seconds 不能小于 10")

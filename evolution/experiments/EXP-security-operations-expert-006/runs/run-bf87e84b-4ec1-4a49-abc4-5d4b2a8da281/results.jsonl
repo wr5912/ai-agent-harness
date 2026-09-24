@@ -1,0 +1,1 @@
+{"run_id":"run-bf87e84b-4ec1-4a49-abc4-5d4b2a8da281","trial_id":"trial-55d0d6de-11be-4a94-ab4a-aa845c37eea4","input_id":"U-INS-001","execution_status":"error","verdict":"inconclusive","observation":"运行基础设施未完成该用例，未产生语义结论。","evidence_ref":"evidence/U-INS-001","failure_reason":"启动 DSH 评测实例 失败（退出码 1）"}

@@ -61,7 +61,7 @@
 ### PA-03 仓库结构、项目技能与研究资产合同
 
 - **要回答**：研究资产是否放在正确位置，是否避免重复 Baseline/current 和定义投影，Experiment、Run 和 Research Release 是否具备最小可复现内容。
-- **操作链**：由 `harness-guided-workflow` 判断创建、迁移、修改或优化任务并路由现有技能 → 只读检查外部资产 → 核对 `definition.md` 与 `evaluation.md` 各自只有一个职责和一个可编辑源 → 运行仓库校验 → 运行 Experiment 校验 → 用负向样例验证未知选择、本地评测计划、非法身份、空资产和危险链接会被拒绝。
+- **操作链**：由 `harness-guided-workflow` 判断创建、迁移、修改或优化任务并路由现有技能 → 只读检查外部资产 → 核对每个 Agent 只有一个 `evaluation.md` 当前业务测试源，且 Case 只含名称、用户输入和预期 → 运行仓库校验 → 运行 Experiment 校验 → 用负向样例验证重复 `definition.md`、技术 Case、额外字段、未知选择、非法身份、空资产和危险链接会被拒绝。
 - **当前证据**：引导技能已进入仓库必需技能清单；`inspect_source.py`、`validate_repository.py`、`validate_experiment.py` 及其测试覆盖当前确定性合同。
 - **自动化边界**：结构、格式、引用和摘要进入测试；研究内容是否真实、有价值不由校验器打分。
 
@@ -100,7 +100,7 @@
 
 - **要回答**：受管评测能否分别通过 DSH Runtime API 完成业务 Turn，并通过 Web UI 完成用户可见链路冒烟，两者不混算结果。
 - **操作链**：启动 Web → 使用本次认证 URL → API 默认路径注册 Workspace、逐 Case 创建正确 Preset 的 Session、发送消息、等待 Turn 并导出轨迹；或显式选择浏览器路径，核对初始提示、工作区、模型、发送和显示。
-- **当前证据**：[`dsh-web-technical-preflight-20260915T054223Z.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json) 记录技术预检。`dsh-eval` 已实现默认 API 与显式浏览器执行器；两者共享 Case、精确 Preset/Workspace 身份检查和证据格式，分别形成 Run。命令结果用 `executor` 标明通道，运行态 Case 证据用 `transport` 标明通道。替身进程测试覆盖通道选择、API 默认排除浏览器专属 Case、启动、认证入口、结果封存、停止和 Token 不落盘；插件实验另记录了宿主重启后的 Profile 持久化。
+- **当前证据**：[`dsh-web-technical-preflight-20260915T054223Z.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json) 记录技术预检。`dsh-eval` 已实现默认 API 与显式浏览器执行器；两者共享 Case、精确 Preset/Workspace 身份检查和证据格式，分别形成 Run。命令结果用 `executor` 标明通道，运行态 Case 证据用 `transport` 标明通道。替身进程测试覆盖显式 Case 与通配展开、通道选择、每 Case 新 Session、多轮同 Session、启动、认证入口、结果封存、停止和 Token 不落盘；插件实验另记录了宿主重启后的 Profile 持久化。
 - **缺口**：当前口径尚无本实现产生的真实 DSH Runtime API 或 Playwright 封存 Run；页面定位器、模型目录和真实 MCP 行为仍需实机验证，本次插件实验也未执行浏览器对话验收。
 - **自动化边界**：确定性的通道编排与异常闭环进入测试；身份、工具目录和证据由执行器生成，仍需从真实 API Run 或浏览器冒烟 Run 核对；模型与 MCP 语义仍需人工判读。
 
@@ -116,7 +116,7 @@
 
 - **要回答**：一次运行能否说明“用的哪版、输入是什么、观察到什么、有哪些失败和限制”。
 - **操作链**：`init` → 逐项 `record` → 必要时 `gap` → `finalize` → 反向确认封存后不能追加结果；受管路径由 `dsh-eval` 完成同一闭环。
-- **当前证据**：Run v2 将 `execution_status` 与 `verdict` 分离，要求材料化 `evidence_ref`，并在 `completed` 封存前覆盖全部锁定 Case。`run_record.py` 与 `dsh-eval` 的机器测试覆盖输入子集锁定、API/浏览器通道分离、证据、异常封存、摘要和封存后拒绝追加；插件实验另保留一次实际初始化、记录、缺口和封存回执。
+- **当前证据**：Run v2 将 `execution_status` 与 `verdict` 分离，要求材料化 `evidence_ref`，并在 `completed` 封存前覆盖全部锁定 Case。`run_record.py` 与 `dsh-eval` 的机器测试覆盖显式选择与通配展开、所选 Case 的完整输入和预期快照、API/浏览器通道分离、证据、异常封存、摘要、报告中未执行 Case 的标识和封存后拒绝追加；插件实验另保留一次实际初始化、记录、缺口和封存回执。
 - **缺口**：当前口径尚无本实现产生的真实 DSH Runtime API 或 Playwright 封存 Run；插件实验 Run 未覆盖 OAuth、真实模型请求或生产验收，仍需用实际 Experiment 检验记录是否足以复现比较结论。
 - **自动化边界**：schema、唯一 ID、状态转换、证据引用和封存进入测试；观察是否支持假设由人审阅。
 

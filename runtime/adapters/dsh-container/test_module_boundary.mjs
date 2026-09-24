@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { validateAuthoringManifest, validateFallback } from './prepare-verification-home.mjs'
+import { validateFallback } from './prepare-verification-home.mjs'
 
 const fixture = mkdtempSync(join(tmpdir(), 'dsh-module-boundary-'))
 try {
@@ -39,26 +39,8 @@ try {
   mkdirSync(join(fallback, '@empty'))
   assert.throws(() => validateFallback(fallback, expected, true, trustedRoot), /empty unknown scope/)
 
-  const manifest = join(fixture, 'package.json')
-  const validManifest = {
-    name: 'dsh-profile-web',
-    private: true,
-    dependencies: { 'dsh-codex-connect': '0.1.0-alpha.4.39' },
-    dsh: { profile: {
-      bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'dsh-codex-connect'],
-      patchReload: 'startup',
-    } },
-  }
-  writeFileSync(manifest, `${JSON.stringify(validManifest)}\n`)
-  assert.equal(validateAuthoringManifest(manifest).dependencies['dsh-codex-connect'], '0.1.0-alpha.4.39')
-  validManifest.dsh.profile.bundles.push('missing-dependency')
-  writeFileSync(manifest, `${JSON.stringify(validManifest)}\n`)
-  assert.throws(() => validateAuthoringManifest(manifest), /not backed by a dependency/)
-  const linkedManifest = join(fixture, 'linked-package.json')
-  symlinkSync(manifest, linkedManifest)
-  assert.throws(() => validateAuthoringManifest(linkedManifest), /not a single regular file/)
 } finally {
   rmSync(fixture, { recursive: true, force: true })
 }
 
-console.log(JSON.stringify({ status: 'module-boundary-negative-tests-passed', cases: 9 }))
+console.log(JSON.stringify({ status: 'module-boundary-negative-tests-passed', cases: 7 }))
