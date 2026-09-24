@@ -46,7 +46,7 @@ docker compose -f runtime/adapters/dsh-container/verification.compose.yaml confi
 
 直接运行 Compose 只用于模板级检查；启动业务实例应使用 `dsh-dev --source`，由它从 `sources.json` 解析镜像、Patch、三棵卷和 `required_env_names`，为每个来源生成独立 HOME 与环境变量透传清单。Compose 的变量覆盖不是独立的来源授权接口，不能仅靠替换路径后宣称完成另一 Agent 的装载验收。
 
-实际 Agent 需要模型与 MCP 端点时，由调用环境提供相应配置。环境变量按名称传入，不在 Compose 或仓库写入凭据；不得把 `docker compose config` 的完整展开结果、启动 Token URL 或原始日志作为公开研究证据。当前 Candidate 声明为必需的 MCP 缺失时会启动失败，应如实记录依赖缺口。
+实际 Agent 需要模型与 MCP 端点时，由调用环境提供相应配置。环境变量按名称传入，本适配器不读取或展开凭据值到 Compose。平台和实例凭据可以使用 Agent 的实例专用仓库文件；LLM API Key 只能来自被 Git 忽略的 `*.llm-api-key` 文件或其他受控运行时来源，不得进入 Git 历史或远端。不得把 `docker compose config` 的完整展开结果、启动 Token URL 或原始日志作为公开研究证据。当前 Candidate 声明为必需的 MCP 缺失时会启动失败，应如实记录依赖缺口。
 
 `DSH_PERMISSION_MODE=read-only` 是官方 base Profile 的新 Session 进程后备预设；Web 中持久化的 General Settings 仍可能影响后续 Session，因此不能只凭该变量推断实际状态。三棵 Candidate 资产同时使用 Docker `read_only` bind mount。比较变更前后行为时，应在宿主核对 Git diff 和资产摘要，再用新的评测容器与 Session 重建加载。
 

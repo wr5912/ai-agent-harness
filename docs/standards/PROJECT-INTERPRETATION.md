@@ -67,7 +67,7 @@ releases/<agent-id>-v<semver>/
 - `artifact-manifest.json`：逐文件摘要；
 - `README.md`：用途、复现步骤、已知限制和非生产声明。
 
-Research Release 不表示生产可用、上线批准或已经完成生产安全治理。Git Tag 不是 Release 制品；Release 也不能包含 Session、缓存、附件、秘钥或整个 `$DSH_HOME`。
+Research Release 不表示生产可用、上线批准或已经完成生产安全治理。Git Tag 不是 Release 制品；Release 也不能包含 Session、缓存、附件、LLM API Key 或整个 `$DSH_HOME`。平台和实例凭据如需版本管理，保存在 Agent 的实例专用路径，不打包为 Harness Release。
 
 本项目不维护 `evolution/baselines/` 和 `agents/<agent-id>/current/`。前者与 Git/Release 重复保存版本，后者会制造可变别名和第二份镜像；删除这两层后，具体引用仍能精确恢复研究版本。
 
@@ -77,7 +77,7 @@ Harness 资产说明“要装载什么”，DSH Runtime 负责实际装载和执
 
 宿主开发会话可以修改当前 Experiment 的 Candidate；DSH 被测容器只读装载同一 Candidate，并且不挂载参考答案或判断材料。该隔离用于保持比较可信，不意味着本项目要建设通用权限平台。
 
-Runtime 的 Session、设置、缓存、附件和凭据位于独立数据根，不进入 Candidate 或 Research Release。运行时需要的秘钥只由环境或受控凭据机制注入，不提交到仓库。
+Runtime 的 Session、设置、缓存和附件位于独立数据根，不进入 Candidate 或 Research Release。平台和实例凭据可以使用 Agent 的实例专用仓库文件作为来源；LLM API Key 只保存在匹配 `*.llm-api-key` 的本地忽略文件中，并由环境或受控凭据机制注入。
 
 ## 6. 三层验证
 

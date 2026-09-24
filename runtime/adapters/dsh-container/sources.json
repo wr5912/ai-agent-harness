@@ -158,6 +158,37 @@
         "LOCAL_LLM_API_KEY"
       ]
     },
+    "EXP-security-operations-expert-007": {
+      "agent_id": "security-operations-expert",
+      "candidate_root": "evolution/experiments/EXP-security-operations-expert-007/candidate/dsh",
+      "profile": "web",
+      "patch": "security-operations-expert.patch.yml",
+      "preset": "security-operations-expert/agent.cordis.yml",
+      "guard": "security-operations-guard.mjs",
+      "config_markers": [
+        "/opt/dsh-presets",
+        "/work/harness/workspace/.agents/skills",
+        "security-operations-expert",
+        "/opt/dsh-managed/security-operations-ui/index.js",
+        "security-operations-mcp-sec-ops",
+        "security-operations-mcp-inspection",
+        "security-operations-delegate-inspection",
+        "security-operations-delegate-fault-analysis",
+        "security-operations-delegate-response-planning",
+        "local-qwen",
+        "Qwen3.8-27B",
+        "LOCAL_LLM_BASE_URL"
+      ],
+      "required_env_names": [
+        "DEEPSEEK_API_KEY",
+        "SEC_OPS_MCP_URL",
+        "SEC_OPS_MCP_TOKEN",
+        "INSPECTION_MCP_URL",
+        "INSPECTION_MCP_TOKEN",
+        "LOCAL_LLM_BASE_URL",
+        "LOCAL_LLM_API_KEY"
+      ]
+    },
     "EXP-test01-001": {
       "agent_id": "test01",
       "candidate_root": "evolution/experiments/EXP-test01-001/candidate/dsh",

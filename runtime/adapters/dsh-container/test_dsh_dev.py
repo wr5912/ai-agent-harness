@@ -141,6 +141,21 @@ class RenderComposeTest(unittest.TestCase):
         self.assertNotIn("source: ./", rendered)
         self.assertIn(f"source: {ADAPTER}/verification-home-controls", rendered)
 
+    def test_lan_template_uses_password_profile_without_host_override(self):
+        template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
+        rendered = dev.render_compose(
+            template, mode="verification", name="lan", project="dsh-dev-lan", port=3154,
+            lan_access=True,
+        )
+        self.assertIn("      - --profile\n      - web-lan\n", rendered)
+        self.assertNotIn("      - --host\n", rendered)
+        self.assertIn(
+            "      - --patch\n"
+            "      - /opt/dsh-adapter/verification-home-controls/web-lan.patch.yml\n",
+            rendered,
+        )
+        self.assertIn('      - --port\n      - "3154"\n', rendered)
+
     def test_source_runtime_environment_names_are_rendered_once(self):
         business_names = (
             "DEEPSEEK_API_KEY", "SEC_OPS_MCP_URL", "SEC_OPS_MCP_TOKEN",
@@ -282,6 +297,20 @@ class EvaluationModeContractTest(unittest.TestCase):
         # 计划可以出现环境变量**名称**（含 TOKEN 字样），但不得出现任何值。
         self.assertNotIn("token=", json.dumps(plan).lower())
 
+    def test_lan_dry_run_records_profile_and_listener(self):
+        args = types.SimpleNamespace(
+            source="experiment:EXP-security-operations-expert-001",
+            mode="verification", name="secops-lan", port=3154, dry_run=True,
+            lan_access=True,
+        )
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            dev.command_up(args)
+        plan = json.loads(stdout.getvalue())
+        self.assertEqual(plan["profile"], "web-lan")
+        self.assertTrue(plan["lan_access"])
+        self.assertEqual(plan["listen_host"], "0.0.0.0")
+
 class ExtractAuthUrlTest(unittest.TestCase):
     def test_extracts_matching_port(self):
         logs = "noise\n" + TOKEN + "dsh web: http://127.0.0.1:9999/?token=other\n"
@@ -321,7 +350,10 @@ class InstanceStateTest(unittest.TestCase):
                 "required_env_names": ["DEEPSEEK_API_KEY"],
                 "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
             }
-            target = dev.write_instance("second-verify", mode="verification", contract=contract, port=3081)
+            target = dev.write_instance(
+                "second-verify", mode="verification", contract=contract, port=3081,
+                lan_access=True,
+            )
             manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["container_name"], "second-verify")
             self.assertEqual(manifest["mount_modes"], {"workspace": "ro", "presets": "ro", "managed": "ro"})
@@ -329,6 +361,9 @@ class InstanceStateTest(unittest.TestCase):
             self.assertEqual(manifest["target_preset"], "second-harness")
             self.assertEqual(manifest["session_preset"], "second-harness")
             self.assertEqual(manifest["agent_id"], "second-harness")
+            self.assertEqual(manifest["profile"], "web-lan")
+            self.assertTrue(manifest["lan_access"])
+            self.assertEqual(manifest["listen_host"], "0.0.0.0")
             # 被测目标会话不挂载任何判分材料。
             self.assertEqual(manifest["context_mounts"], [])
             self.assertNotIn("patch_overlay", manifest)
@@ -817,6 +852,14 @@ class UpPortOwnershipTest(unittest.TestCase):
         self.assertEqual(args.port, 3090)
         probe.assert_not_called()
 
+    def test_existing_instance_rejects_lan_mode_change(self):
+        self.write_existing(lan_access=True)
+        stderr = io.StringIO()
+        with mock.patch.object(dev, "resolve", return_value=self.contract()), \
+                contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit):
+            dev.prepare_up(self.args(lan_access=False))
+        self.assertIn("LAN 访问模式不同", stderr.getvalue())
+
     def test_auto_port_race_fails_without_silent_reselection(self):
         args = self.args(name="new-probe", port=None)
         stdout = io.StringIO()
@@ -986,6 +1029,7 @@ class CliSurfaceTest(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("--replace", completed.stdout)
         self.assertIn("--dry-run", completed.stdout)
+        self.assertIn("--lan-access", completed.stdout)
 
 
 class ImageBuildCommandTest(unittest.TestCase):
@@ -1002,9 +1046,11 @@ class ImageBuildCommandTest(unittest.TestCase):
 class UrlCommandGuardTest(unittest.TestCase):
     """`url` 只在交互终端或显式 --non-interactive 下输出 Token URL。"""
 
-    def call(self, args):
+    def call(self, args, manifest=None):
         stdout = io.StringIO()
-        with mock.patch.object(dev, "load_instance", return_value=(Path("/tmp"), {"port": 3081})), \
+        with mock.patch.object(
+            dev, "load_instance", return_value=(Path("/tmp"), manifest or {"port": 3081})
+        ), \
                 contextlib.redirect_stdout(stdout):
             dev.command_url(args)
         return stdout.getvalue()
@@ -1030,6 +1076,16 @@ class UrlCommandGuardTest(unittest.TestCase):
             printed = self.call(types.SimpleNamespace(name="soe-verify", non_interactive=True))
         self.assertIn("http://127.0.0.1:3081/?token=secret-token-value", printed)
         sleeper.assert_called_once_with(1.0)
+
+    def test_lan_password_mode_prints_non_secret_url_without_tty_flag(self):
+        with mock.patch.object(dev, "running_container", return_value=("cid", "started")), \
+                mock.patch.object(dev, "probe_login_url",
+                                  return_value={"ok": True, "reason": "root 302→login 200"}):
+            printed = self.call(
+                types.SimpleNamespace(name="soe-verify", non_interactive=False),
+                {"port": 3154, "lan_access": True},
+            )
+        self.assertEqual(printed, "http://127.0.0.1:3154/\n")
 
 
 class PortProbeTest(unittest.TestCase):
@@ -1100,6 +1156,35 @@ class AuthUrlProbeTest(unittest.TestCase):
             _AuthStubHandler.root_status = 200
         self.assertFalse(probe["ok"])
         self.assertIn("401", probe["reason"])
+
+
+class _LoginGateStubHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler 约定
+        if self.path.startswith("/auth/login"):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b'<form action="/auth/login"><input name="username"></form>')
+            return
+        self.send_response(302)
+        self.send_header("Location", "/auth/login?next=%2F")
+        self.end_headers()
+
+    def log_message(self, *args):
+        return
+
+
+class PasswordLoginProbeTest(unittest.TestCase):
+    def test_unauthenticated_root_redirects_to_password_form(self):
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _LoginGateStubHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            probe = dev.probe_login_url(server.server_address[1])
+        finally:
+            server.shutdown()
+            server.server_close()
+        self.assertTrue(probe["ok"], probe["reason"])
 
 
 if __name__ == "__main__":

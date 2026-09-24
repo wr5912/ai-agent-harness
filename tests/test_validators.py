@@ -205,6 +205,18 @@ class RepositoryValidatorTests(unittest.TestCase):
         self.assertTrue(payload["valid"])
         self.assertIn("不代表 Experiment 结果", payload["scope"])
 
+    def test_llm_api_key_ignore_is_required(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = copy_repository(Path(temp))
+            gitignore = repository / ".gitignore"
+            gitignore.write_text(
+                gitignore.read_text(encoding="utf-8").replace("*.llm-api-key", "*.local-key"),
+                encoding="utf-8",
+            )
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("LLM_KEY_IGNORE", error_codes(payload))
+
     def test_agent_evaluation_source_is_required(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repository = copy_repository(Path(temp))

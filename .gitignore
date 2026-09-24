@@ -14,11 +14,14 @@ htmlcov/
 # 本地分析缓存
 .code-review-graph/
 
-# 本地秘密；可提交的示例必须使用明确的 example 文件
+# 本地环境文件；可提交的示例必须使用明确的 example 文件
 .env
 .env.*
 !.env.example
 !evolution/experiments/*/candidate/dsh/workspace/.env
+
+# LLM API Key 可保存在仓库工作树，但禁止进入 Git 历史与远端
+*.llm-api-key
 
 # 本地开发入口；HOME/缓存/临时工作区
 .local/

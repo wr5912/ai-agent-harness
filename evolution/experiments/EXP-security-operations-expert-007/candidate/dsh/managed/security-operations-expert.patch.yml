@@ -1,0 +1,180 @@
+# 叠加到 DSH 官方 web Profile。该文件只由容器内 DSH 加载。
+# 全局工具使 tool-subagent 的 toolFilter 能对每个角色执行单调衰减；Preset
+# 本身不注册模型工具，避免 scoped tool 绕过 response-planning 的 allow: []。
+
+- id: tool-bash
+  disabled: true
+
+- id: tool-pwsh
+  disabled: true
+
+- id: tool-jobs
+  disabled: true
+
+- id: tool-fs
+  disabled: false
+
+- id: tool-fs-search
+  disabled: false
+  config:
+    sampleOverCapGlobResults: false
+
+- id: skill-filesystem
+  disabled: false
+  config:
+    providerName: security-operations-workspace
+    includeDefaultRoots: false
+    customSkillDirs:
+      - /work/harness/workspace/.agents/skills
+    watch: !!js process.env.DSH_HARNESS_MODE === 'authoring'
+    watchFollowSymlinks: false
+
+- id: tool-skill
+  disabled: false
+
+- id: tool-web
+  disabled: true
+
+- id: tool-subagent-control
+  disabled: true
+
+- id: tool-subagent-list-agents
+  disabled: true
+
+- id: tool-subagent
+  disabled: true
+
+- id: tool-subagent-fork
+  disabled: true
+
+- id: workflow-worker-thread
+  disabled: true
+
+- id: tool-workflow
+  disabled: true
+
+- id: tool-ralph
+  disabled: true
+
+- id: agent-presets
+  disabled: false
+  config:
+    default: security-operations-expert
+    roots:
+      - path: /opt/dsh-presets
+        trust: system
+    includeShippedRoot: false
+    includeUserRoot: false
+
+- id: llm-pi-ai
+  config:
+    providers:
+      local-qwen:
+        displayName: Local Qwen
+        apiKeyEnv: LOCAL_LLM_API_KEY
+        api: openai-completions
+        baseURL: !!js process.env.LOCAL_LLM_BASE_URL
+        models:
+          - id: Qwen3.8-27B
+            name: Qwen3.8-27B
+            contextWindow: 262144
+
+- insert:
+    - id: security-operations-ui
+      name: /opt/dsh-managed/security-operations-ui/index.js
+
+    - id: security-operations-mcp-sec-ops
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: sec-ops
+        transport: streamable-http
+        url: !!js process.env.SEC_OPS_MCP_URL
+        headers:
+          Authorization: !!js '`Bearer ${process.env.SEC_OPS_MCP_TOKEN}`'
+        failOnStartupError: true
+        reconnect:
+          enabled: false
+
+    - id: security-operations-mcp-inspection
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: inspection
+        transport: streamable-http
+        url: !!js process.env.INSPECTION_MCP_URL
+        headers:
+          Authorization: !!js '`Bearer ${process.env.INSPECTION_MCP_TOKEN}`'
+        failOnStartupError: true
+        reconnect:
+          enabled: false
+
+    - id: security-operations-delegate-inspection
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: delegate_inspection
+        enableRunInBackground: false
+        backgroundMode: one-shot
+        maxDepth: 1
+        persona: >-
+          你是即时巡检子 Agent。明确的常规全量巡检依次调用 start_with_plan、
+          collect_evidence 和 finalize，后两步必须复用首步返回的 run_id；只在用户询问能力时
+          调用 capabilities_list。完成后只输出可直接面向用户的简洁中文 Markdown：标题先概括状态或
+          最重要结论；finalize 若返回真实报告 URL，以 Markdown 链接原样保留 URL，并紧接标题、
+          置于摘要之前；随后固定使用“结论”“关键结果”“建议”“巡检概况”四段，建议明确尚未执行。
+          user_response_markdown 是事实来源文本，不是必须逐字粘贴的展示模板；只重排其中已有事实，
+          不改变含义或数值。事实与未知项写入对应结果，不另设独立的工具证据板块。数量、状态和时间
+          必须与工具字段逐项一致；工具未明确说明集合或计算关系时，不得自行相加、去重、推导，或用
+          分项解释汇总值。此类计数必须各自独立列点，禁止使用“其中”等暗示归属关系的连接词，并在
+          相邻位置明确关系未知。
+          默认隐藏 run_id、report_id、result_digest、工具调用链和委派元数据。
+          没有 URL 时不得编造链接，失败时如实说明状态。不创建计划任务，不调用其他能力替代。
+        toolFilter:
+          allow:
+            - mcp__inspection__inspection_capabilities_list
+            - mcp__inspection__inspection_runs_start_with_plan
+            - mcp__inspection__inspection_runs_collect_evidence
+            - mcp__inspection__inspection_runs_finalize
+
+    - id: security-operations-delegate-fault-analysis
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: delegate_fault_analysis
+        enableRunInBackground: false
+        backgroundMode: one-shot
+        maxDepth: 1
+        persona: >-
+          你是只读故障取证子 Agent。仅调用完成当前问题所必需的已授权 SOC 查询工具，
+          区分事实、推断和证据缺口，不执行处置、不创建运行、不读写文件，也不补造结果。
+        toolFilter:
+          allow:
+            - mcp__sec-ops__search_graph_assets
+            - mcp__sec-ops__get_graph_resolve_ip_host
+            - mcp__sec-ops__get_soc_asset_by_asset_id
+            - mcp__sec-ops__list_soc_asset
+            - mcp__sec-ops__get_soc_asset_biz_systems
+            - mcp__sec-ops__get_soc_asset_vulnerabilities
+            - mcp__sec-ops__get_ingest_devices_by_asset_by_asset_id
+            - mcp__sec-ops__get_graph_node_detail
+            - mcp__sec-ops__get_graph_path_query
+            - mcp__sec-ops__get_reachability_path_by_ip
+            - mcp__sec-ops__get_graph_flow_host_pair_ports
+            - mcp__sec-ops__get_reachability_cross_signal
+            - mcp__sec-ops__get_graph_compliance_violations
+            - mcp__sec-ops__get_graph_coverage
+            - mcp__sec-ops__get_event_by_id
+
+    - id: security-operations-delegate-response-planning
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: delegate_response_planning
+        enableRunInBackground: false
+        backgroundMode: one-shot
+        maxDepth: 1
+        persona: >-
+          你是受信 Runtime 手动开启的单次响应规划 Agent。只消费本轮裸 JSON 冻结输入，
+          只能从候选集合复用剧本、组合临时动作或返回人工复核。不得调用任何工具；输出
+          必须是 response-plan-output/v1 裸 JSON，不得输出 Markdown、旁白或执行声明。
+        toolFilter:
+          allow: []
