@@ -19,5 +19,6 @@ assert.equal(connection.authorizeIndex({}, {}), false)
 assert.equal(connection.authenticatedUrl('http://127.0.0.1:3080/'), 'http://127.0.0.1:3080/?token=existing')
 
 const manifest = JSON.parse(readFileSync(new URL('./web-unsafe-no-auth/package.json', import.meta.url)))
+assert.ok(manifest.name && manifest.version)
 assert.equal(manifest.dsh, undefined)
 assert.equal(manifest.exports['./client'], undefined)
