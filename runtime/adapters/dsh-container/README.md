@@ -52,6 +52,8 @@ docker compose -f runtime/adapters/dsh-container/verification.compose.yaml confi
 
 官方 Web 默认只绑定容器内 `127.0.0.1`，基础 Compose 不发布宿主端口。需要浏览器访问时使用 `dsh-dev` 生成的本地 host-network 实例；容器启动或配置展开仍不能替代 `PA-08` 的实际 Web 交互。
 
+仅在受控反向代理保留外部 `Host`、后端仍监听本机回环时，`dsh-dev up` 可显式加 `--trusted-host HOST[:PORT]` 让 DSH 接受该代理地址；这不提供用户认证，也不允许把启动令牌写进菜单 URL。EXP-007 门户接入的实际拓扑、验证和限制见[联调记录](../../../docs/security-operations-expert门户联调记录.md)。
+
 ## 构建镜像
 
 ```bash
@@ -117,7 +119,11 @@ python3 runtime/adapters/dsh-container/dsh-eval \
 
 该注册写入本实例 DSH_HOME 数据卷并跨重启保留；换用新的实例名等于新的 HOME 卷，需要重新选择一次。`up --dry-run` 输出与真正 `up` 的 stderr 提示都会带上该路径与步骤，以 `workspace_to_register` 为准。
 
-实例配置与 `instance.json` 写在 `${XDG_STATE_HOME:-~/.local/state}/dsh-dev/<name>/`，记录来源、模式、挂载路径、环境变量**名称**、镜像身份等非秘密元数据，不含 Token。渲染保留只读根文件系统、UID/GID 1000、能力裁剪和无端口发布，只把主 `dsh` 服务切到 host 网络并把 Web 绑定宿主回环。`url` 只读取**本次**进程启动后的日志并做 Token→Cookie→根页探针；标准输出不是交互终端时，必须显式加 `--non-interactive`，否则失败关闭，不把 Token 写进状态文件、普通日志或证据。
+实例配置与 `instance.json` 写在 `${XDG_STATE_HOME:-~/.local/state}/dsh-dev/<name>/`，记录来源、模式、挂载路径、环境变量**名称**、镜像身份等非秘密元数据，不含 Token。渲染保留只读根文件系统、UID/GID 1000、能力裁剪和无端口发布，只把主 `dsh` 服务切到 host 网络；默认 Web 绑定宿主回环。普通 Token 模式下，`url` 只读取**本次**进程启动后的日志并做 Token→Cookie→根页探针；标准输出不是交互终端时，必须显式加 `--non-interactive`，否则失败关闭，不把 Token 写进状态文件、普通日志或证据。
+
+需要局域网直连时，显式给 `up` 加 `--lan-access`。它仍使用普通 `web` Profile 和 Token 认证，仅通过独立 Patch 将 Web 服务绑定到 `0.0.0.0`；不会启用 HTTP 密码登录。锁定版 DSH 的 `--host 0.0.0.0` 会被命令行拒绝，因此不要直接传该参数。`dsh-dev url` 仍返回本机回环认证 URL；局域网浏览器须把其中的主机名换成宿主机 LAN IP，并保护 URL 中的 Token。已有同名实例切换监听模式时需显式 `up --replace`，该操作保留 HOME 卷。纯 HTTP 下 Token 与 Cookie 都会在网络上传输，应限制访问范围；跨不受信网络使用 HTTPS 反向代理，不把认证 URL 当成门户公共配置。
+
+受控直连试验可另加 `--unsafe-no-auth`，独立于 `--lan-access` 关闭该实例 Web/API 的 Token 与 Host/Origin 校验；`dsh-dev url` 返回不带 Token 的根地址。`--skip-testing-notice` 是独立开关，仅跳过 Web 的“内测声明”弹窗，不改变认证、监听地址或其他引导步骤；可单独用于普通 Token 模式，也可与 `--unsafe-no-auth` 组合。改变已有实例的任一开关需显式 `up --replace`，HOME 卷保留。**免认证模式允许任何能连上端口的人操作整个共享 DSH 实例，不具备门户用户隔离，不得暴露给不受信用户或公网。** EXP-007 的局域网直连验证与门户试点边界见[联调记录](../../../docs/security-operations-expert门户联调记录.md)。
 
 候选 Profile 以 fail-closed 方式声明三个 `streamable-http` MCP 客户端；缺少真实端点与凭据时容器会在启动阶段退出，使"装载是否成立"无法核验。为此适配层提供两个只用于受控技术装载核验的本地工具：
 
