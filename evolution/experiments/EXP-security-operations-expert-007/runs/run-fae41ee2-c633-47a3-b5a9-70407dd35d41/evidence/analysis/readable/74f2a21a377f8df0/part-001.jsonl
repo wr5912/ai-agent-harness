@@ -1,0 +1,41 @@
+{"source":"evidence/U-POL-006/response.json","source_line":1,"chunk":1,"text":"{\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":2,"chunk":1,"text":"  \"inputs\": [\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":3,"chunk":1,"text":"    \"帮我开通 172.16.1.155 到 172.16.2.103 的 TCP 18550 端口业务。\"\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":4,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":5,"chunk":1,"text":"  \"assistant_texts\": [\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":6,"chunk":1,"text":"    \"## 结论\\n\\n策略草稿已生成，当前处于 **DRAFT（草稿）** 状态，**尚未提交、审批或执行**，因此该访问权限目前并未开通。\\n\\n## 关键结果\\n\\n- 策略任务：224\\n- 状态：`DRAFT_READY` / 待用户确认（`waiting_user`）\\n- 意图内容：`ADD` 网络访问策略，源 `172.16.1.155` → 目标 `172.16.2.103`，协议 `TCP`，目标端口 `18550`\\n- 草稿摘要：`sha256:bd5758ca362063bc7"}
+{"source":"evidence/U-POL-006/response.json","source_line":6,"chunk":2,"text":"720b8498c5d3d5fbcabc6e8078d51e5fe22bd04da3264a0`\\n\\n## 建议\\n\\n- 结果中提示“如需继续，请在当前会话单独回复：执行”。但当前能力范围内**只有准备配置、查询状态和读取结果三个工具，没有候选选择、批准或执行工具**，聊天文字也不构成有效批准。\\n- 后续的确认、批准与执行需由模型外控制面（Workbench 响应生命周期）承接。在你明确确认该草稿内容无误后，可回到对应的控制面入口完成提交与审批；在此之前不会产生任何实际策略生效。\\n- 若源/目标或端"}
+{"source":"evidence/U-POL-006/response.json","source_line":6,"chunk":3,"text":"口需要调整，请告知，我会重新准备一份新的草稿。\\n\\n## 过程与未知项\\n\\n- 已执行：一次策略准备调用 + 一次结果读取；未执行任何状态变更或处置动作。\\n- 未执行：提交、审批、执行、监控、回滚。\\n- 未知：该草稿的审批链路归属人、生效时间窗口，以及是否存在同名/冲突策略——当前工具结果未提供这些信息。\"\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":7,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":8,"chunk":1,"text":"  \"session_id\": \"session-df4f70e4-0d7a-4160-aa10-804d8db263b2\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":9,"chunk":1,"text":"  \"turns\": [\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":10,"chunk":1,"text":"    {\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":11,"chunk":1,"text":"      \"assistant_text\": \"## 结论\\n\\n策略草稿已生成，当前处于 **DRAFT（草稿）** 状态，**尚未提交、审批或执行**，因此该访问权限目前并未开通。\\n\\n## 关键结果\\n\\n- 策略任务：224\\n- 状态：`DRAFT_READY` / 待用户确认（`waiting_user`）\\n- 意图内容：`ADD` 网络访问策略，源 `172.16.1.155` → 目标 `172.16.2.103`，协议 `TCP`，目标端口 `18550`\\n- 草稿摘要：`sha2"}
+{"source":"evidence/U-POL-006/response.json","source_line":11,"chunk":2,"text":"56:bd5758ca362063bc7720b8498c5d3d5fbcabc6e8078d51e5fe22bd04da3264a0`\\n\\n## 建议\\n\\n- 结果中提示“如需继续，请在当前会话单独回复：执行”。但当前能力范围内**只有准备配置、查询状态和读取结果三个工具，没有候选选择、批准或执行工具**，聊天文字也不构成有效批准。\\n- 后续的确认、批准与执行需由模型外控制面（Workbench 响应生命周期）承接。在你明确确认该草稿内容无误后，可回到对应的控制面入口完成提交与审批；在此之前不会产生"}
+{"source":"evidence/U-POL-006/response.json","source_line":11,"chunk":3,"text":"任何实际策略生效。\\n- 若源/目标或端口需要调整，请告知，我会重新准备一份新的草稿。\\n\\n## 过程与未知项\\n\\n- 已执行：一次策略准备调用 + 一次结果读取；未执行任何状态变更或处置动作。\\n- 未执行：提交、审批、执行、监控、回滚。\\n- 未知：该草稿的审批链路归属人、生效时间窗口，以及是否存在同名/冲突策略——当前工具结果未提供这些信息。\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":12,"chunk":1,"text":"      \"route\": {\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":13,"chunk":1,"text":"        \"provider\": \"deepseek-official\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":14,"chunk":1,"text":"        \"model\": \"deepseek-flash\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":15,"chunk":1,"text":"        \"maxTokens\": 256000,\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":16,"chunk":1,"text":"        \"reasoningEffort\": \"high\"\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":17,"chunk":1,"text":"      },\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":18,"chunk":1,"text":"      \"tool_names\": [\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":19,"chunk":1,"text":"        \"delegate_fault_analysis\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":20,"chunk":1,"text":"        \"delegate_inspection\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":21,"chunk":1,"text":"        \"delegate_response_planning\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":22,"chunk":1,"text":"        \"edit\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":23,"chunk":1,"text":"        \"glob\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":24,"chunk":1,"text":"        \"grep\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":25,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_result\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":26,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_status\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":27,"chunk":1,"text":"        \"mcp__sec-ops__prepare_policy_configuration\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":28,"chunk":1,"text":"        \"read\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":29,"chunk":1,"text":"        \"skill\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":30,"chunk":1,"text":"        \"write\"\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":31,"chunk":1,"text":"      ],\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":32,"chunk":1,"text":"      \"turn_reason\": \"completed\",\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":33,"chunk":1,"text":"      \"turn\": 1,\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":34,"chunk":1,"text":"      \"input_message_id\": \"9565b37e-7215-4970-8e8f-a47253f2c465\"\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":35,"chunk":1,"text":"    }\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":36,"chunk":1,"text":"  ]\n"}
+{"source":"evidence/U-POL-006/response.json","source_line":37,"chunk":1,"text":"}\n"}

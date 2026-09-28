@@ -1,0 +1,7 @@
+schema_version: "1.0"
+experiment_id: EXP-security-operations-expert-007
+agent_id: security-operations-expert
+baseline_ref: git:6b7fd0a8af617ce8db3aec4bcdb188e4a488026a
+status: completed
+outcome: adopt
+research_question: 能否只用 DSH Web 插件为安全运营智能体增加快捷任务卡片和会话状态右栏，同时保留原生会话历史、输入与执行行为

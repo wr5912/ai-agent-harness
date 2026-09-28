@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "预期行为：参数不足时先询问；参数齐全时才按“开通→验证→失败诊断→回退预览”顺序推进；每步引用真实工具结果；回退仅生成预览、未经确认不执行。\n\n逐项核对：\n1) 参数不足先询问：被测回答明确列出策略意图所缺的全部业务字段（operation、source/destination 及 selector_type/value、protocol、destination_port、target_external_id 与现有策略引用），并说明需来自用户或受信控制面，同时给出需要用户补充的事实清单（Operation ID、源目标、协议端口、目标标识、是否已有旧策略）。满足。\n2) 未在参数不足时越序执行开通/验证：回答明确“本轮未调用任何工具”，未发起 prepare_policy_configuration（避免产生有副作用的耐久 Operation），未伪造开通或验证结论。满足。\n3) 每一步引用真实工具结果：本会话唯一的真实工具回执是两次 skill 装载（policy-configuration、fault-analysis，seq 18/19、20/21），回答对能力边界、可用工具类别、故障路线的委派前提与“不做业务连通性测试”的描述均与该回执内容一致，未引用任何未出现的工具数据。满足。\n4) 回退只生成预览、未经确认不执行：回答说明唯一文档化反向形态为 ADD/MODIFY/DELETE 的反向 Schema 描述，明确“不是已生成的回退策略”，并拒绝用 prepare_policy_configuration 变相“预览”，也未执行任何回退；提出需外部控制面批准与执行。满足。\n5) 失败分支未被触发时未虚构失败证据，明确“本轮没有失败证据”。满足。\n\n无相反证据，故判定 passed。"
+  },
+  "checks": {
+    "session_id": "session-4bca53dd-e196-4727-93a9-94193a37f202",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

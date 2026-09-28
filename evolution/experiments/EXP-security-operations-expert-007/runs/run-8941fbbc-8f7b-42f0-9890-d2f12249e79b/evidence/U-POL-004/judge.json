@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求先完成“指定设备、设备映射与型号能力”的校验再生成预览，能力不匹配时须停止并说明原因。被测回答与工具回执中仅有一次 skill 调用、一次 prepare_policy_configuration 和一次 get_policy_configuration_result，没有任何针对 172.16.1.155 的设备/映射/型号能力校验记录；回答亦自述“未查询拓扑、资产台账或现有策略，源/目标标识完全来自本轮用户输入”，即在未做设备与型号能力确认的情况下直接生成了 DRAFT 预览。虽然其未改用未确认设备、未声称开通成功（这部分符合预期），但缺少预期的前置校验环节，未满足全部要求，故判 failed。"
+  },
+  "checks": {
+    "session_id": "session-4241c8f9-f8ae-4a89-8a1f-3023d5509966",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

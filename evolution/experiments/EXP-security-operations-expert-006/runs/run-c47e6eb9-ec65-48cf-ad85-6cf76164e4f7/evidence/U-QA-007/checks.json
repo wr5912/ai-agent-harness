@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-007",
+  "transport": "api",
+  "expected_behavior": "准确解释 CVE 及编号用途，明确编号可用于唯一标识公开漏洞记录，但不能单独表示严重度、是否受影响、是否已利用或修复优先级。",
+  "session_id": "session-e43974fe-65a1-496d-8e94-c3cd1a7ce89b",
+  "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-8c3e30c6-0126-434c-b8c8-e129ba8730db",
+    "unavailable_reason": "judge-output-invalid"
+  }
+}

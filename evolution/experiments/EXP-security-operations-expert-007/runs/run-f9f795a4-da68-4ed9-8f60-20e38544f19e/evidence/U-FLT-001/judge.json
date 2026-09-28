@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答满足全部预期要求：(1) 使用了真实故障分析能力（skill fault-analysis + delegate_fault_analysis 委派子 Agent），由子 Agent 的只读 SOC 工具回执实际支撑了回答中的关键事实（资产 3617448“版本服务器”/172.16.2.100 online=offline、probeState=unreachable、lastSeenAt=null、collectionConfig=[]、collectionStatus=non_collectable、metricAvailable=false；源端 172.16.1.165 为 online=online、onlineBasis=PROBED；可达性 REACHABLE 且 path=[3617442]、reason/natApplied/routeOnlyPath 均为 null；三口径合规违规查询均为空；flow_host_pair_ports 对目标对为空而 172.16.1.100→172.16.2.102 返回 ruleId=69/tcp/7001/pass；get_graph_path_query 两次 500；172.16.2.0/24 共 10 台 probeState 全为 unreachable），无编造 ID 或数据。(2) 形成了正式的故障分析结果并明确分层：结论（未能确证网络侧根因，并列两个替代解释）、事实/关键证据、标注为“推断（非确证）”的根因方向、修复建议（逐条标注“尚未执行”）、证据缺口与未知项；否定证据与缺失数据被分别记录，未被解释为正常或异常。(3) 工具失败被如实披露（图路径查询 500、无可用事件 ID 导致事件明细不可得），未据此编造诊断。(4) 处置侧：回答明确“没有发起任何处置”，说明本会话能力边界（仅只读/仅准备配置），并要求在用户级变更意图与必要确认后再准备配置，符合“处置只能基于该正式结果并在必要确认后发起”，未虚报任何处置状态。"
+  },
+  "checks": {
+    "session_id": "session-dd080d3f-245b-47ee-a1be-dbab1aa9ca2d",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

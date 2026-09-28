@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-c47e6eb9-ec65-48cf-ad85-6cf76164e4f7",
+  "scenes": [
+    {
+      "scene": "安全巡检",
+      "case_ids": [
+        "U-INS-001",
+        "U-INS-002",
+        "U-INS-003",
+        "U-INS-004",
+        "U-INS-005"
+      ],
+      "selected_case_ids": [
+        "U-INS-001",
+        "U-INS-002",
+        "U-INS-003",
+        "U-INS-004",
+        "U-INS-005"
+      ],
+      "counts": {
+        "passed": 3,
+        "failed": 2,
+        "inconclusive": 0,
+        "not_executed": 0
+      },
+      "status": "unavailable",
+      "reason": "独立 DSH 分析未返回有效的无工具 JSON，未生成归因。",
+      "hypotheses": []
+    },
+    {
+      "scene": "策略配置",
+      "case_ids": [
+        "U-POL-001",
+        "U-POL-002",
+        "U-POL-003",
+        "U-POL-004",
+        "U-POL-005",
+        "U-POL-006",
+        "U-POL-007",
+        "U-POL-008",
+        "U-POL-009",
+        "U-POL-010",
+        "U-POL-011",
+        "U-POL-012"
+      ],
+      "selected_case_ids": [
+        "U-POL-001",
+        "U-POL-002",
+        "U-POL-003",
+        "U-POL-004",
+        "U-POL-005",
+        "U-POL-006",
+        "U-POL-007",
+        "U-POL-008",
+        "U-POL-009",
+        "U-POL-010",
+        "U-POL-011",
+        "U-POL-012"
+      ],
+      "counts": {
+        "passed": 4,
+        "failed": 5,
+        "inconclusive": 3,
+        "not_executed": 0
+      },
+      "status": "unavailable",
+      "reason": "独立 DSH 分析未返回有效的无工具 JSON，未生成归因。",
+      "hypotheses": []
+    },
+    {
+      "scene": "故障排查",
+      "case_ids": [
+        "U-FLT-001",
+        "U-FLT-002",
+        "U-FLT-003",
+        "U-FLT-004",
+        "U-FLT-005",
+        "U-FLT-006",
+        "U-FLT-007",
+        "U-FLT-008",
+        "U-FLT-009",
+        "U-FLT-010"
+      ],
+      "selected_case_ids": [
+        "U-FLT-001",
+        "U-FLT-002",
+        "U-FLT-003",
+        "U-FLT-004",
+        "U-FLT-005",
+        "U-FLT-006",
+        "U-FLT-007",
+        "U-FLT-008",
+        "U-FLT-009",
+        "U-FLT-010"
+      ],
+      "counts": {
+        "passed": 10,
+        "failed": 0,
+        "inconclusive": 0,
+        "not_executed": 0
+      },
+      "status": "no_observed_gap",
+      "reason": "",
+      "hypotheses": []
+    },
+    {
+      "scene": "智能问答",
+      "case_ids": [
+        "U-QA-001",
+        "U-QA-002",
+        "U-QA-003",
+        "U-QA-004",
+        "U-QA-005",
+        "U-QA-006",
+        "U-QA-007",
+        "U-QA-008",
+        "U-QA-009",
+        "U-QA-010",
+        "U-QA-011",
+        "U-QA-012",
+        "U-QA-013"
+      ],
+      "selected_case_ids": [
+        "U-QA-001",
+        "U-QA-002",
+        "U-QA-003",
+        "U-QA-004",
+        "U-QA-005",
+        "U-QA-006",
+        "U-QA-007",
+        "U-QA-008",
+        "U-QA-009",
+        "U-QA-010",
+        "U-QA-011",
+        "U-QA-012",
+        "U-QA-013"
+      ],
+      "counts": {
+        "passed": 11,
+        "failed": 0,
+        "inconclusive": 2,
+        "not_executed": 0
+      },
+      "status": "unavailable",
+      "reason": "独立 DSH 分析未返回有效的无工具 JSON，未生成归因。",
+      "hypotheses": []
+    }
+  ]
+}

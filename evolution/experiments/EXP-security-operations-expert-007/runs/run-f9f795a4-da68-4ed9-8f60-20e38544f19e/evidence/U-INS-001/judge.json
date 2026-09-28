@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "预期要求回复给出设备数量和巡检报告链接，且数据须来自本轮真实巡检工具返回并与之逐项一致。工具链显示子会话真实完成三次巡检调用：finalize 回执给出 report.download_url=https://172.16.138.232:18179/web-ai/reports/inspection/irun_f358040984324d94ba47576686b2e00a/irpt_caa80cd0f941438f894d4f0b5f62658c、download_title=2026-09-24 10:18:14巡检报告、counts={failed:0,partial:0,completed:2}、conclusion_status=abnormal、reason_codes=ASSET_OFFLINE/VULNERABILITY_AFFECTED、user_response_markdown 中资产总数39台/套、异常16、离线11、高危漏洞4、执行时间2026-09-24 10:17:59 至 10:18:14；collect_evidence 回执 coverage={processed_count:39,expected_count:39,observed_count:39}、completed_count=2、status=ready_to_finalize。被测回答中的设备数量39台/套、报告链接与标题、2项巡检项、16/11/4三项计数、时间与原因代码均与上述同一被测 Session 的工具回执一致，未出现编造或改写数值。回答还按预期合规处理了未明确集合关系（声明各计数关系未知）、标注报告链接未访问验证、并明确建议动作尚未执行，因此巡检确已完成、未虚假声称。综上，明确满足全部预期要求。"
+  },
+  "checks": {
+    "session_id": "session-2c354655-b4ea-4e4a-8227-b4ff6145cf92",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

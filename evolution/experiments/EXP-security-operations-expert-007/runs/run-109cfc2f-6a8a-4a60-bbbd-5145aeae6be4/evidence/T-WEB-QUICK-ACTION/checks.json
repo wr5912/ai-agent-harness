@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "case_id": "T-WEB-QUICK-ACTION",
+  "executor": "web-ui",
+  "transport": "browser",
+  "tool_boundary": "browser-draft-only",
+  "side_effect_budget": "web-session-only",
+  "session_id": null,
+  "ui_startup": {
+    "testing_notice_dismissed": true,
+    "workspace_prompt_visible": true,
+    "workspace_action": "selected",
+    "composer_ready": true
+  },
+  "ui_startup_matches": true,
+  "session_history_visible": true,
+  "composer_visible": true,
+  "quick_actions_visible": true,
+  "quick_action_count": 6,
+  "status_panel_visible": true,
+  "layout_matches": true,
+  "ui_message_submitted": false,
+  "prompt_request_count": 0,
+  "user_message_count": 0,
+  "quick_actions_still_visible": true,
+  "interaction_matches": true,
+  "screenshot": "ui.png"
+}

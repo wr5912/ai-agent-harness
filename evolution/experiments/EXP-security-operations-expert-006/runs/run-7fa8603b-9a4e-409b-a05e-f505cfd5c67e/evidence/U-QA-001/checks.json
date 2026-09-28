@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-001",
+  "completed": false,
+  "expected_behavior": "检索并依据 SEC-KB-078 的真实知识库内容回答，给出可核对的文档或分块来源；检索不到时明确说明，不凭常识冒充内部知识。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

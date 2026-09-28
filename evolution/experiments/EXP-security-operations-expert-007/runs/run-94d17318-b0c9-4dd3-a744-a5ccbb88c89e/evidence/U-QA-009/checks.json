@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-009",
+  "transport": "api",
+  "expected_behavior": "准确区分可观察指标、攻击行为模式、ATT&CK 技术分类、检测信号和经关联研判的安全事件，并说明它们可以关联但不能互相等同。",
+  "session_id": "session-500d6b8f-d76d-4888-a5b1-ac7eb1b3292f",
+  "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-d29e09ad-4bdc-46cf-b13c-5681f1fca92c",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

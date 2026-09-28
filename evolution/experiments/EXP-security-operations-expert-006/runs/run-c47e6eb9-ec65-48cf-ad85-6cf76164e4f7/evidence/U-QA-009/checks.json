@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-009",
+  "transport": "api",
+  "expected_behavior": "准确区分可观察指标、攻击行为模式、ATT&CK 技术分类、检测信号和经关联研判的安全事件，并说明它们可以关联但不能互相等同。",
+  "session_id": "session-a82b9443-5488-4790-b010-ebf52dfdfdd6",
+  "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-38b0ba08-97ed-4a04-87cd-048d1555a484",
+    "unavailable_reason": "judge-output-not-json"
+  }
+}

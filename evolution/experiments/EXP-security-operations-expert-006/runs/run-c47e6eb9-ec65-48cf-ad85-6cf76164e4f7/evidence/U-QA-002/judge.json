@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答明确说明本会话不存在知识库 MCU/检索能力：逐一核对工具事实——skill 调用返回文本称“当前没有知识库检索和独立威胁分析服务”，glob 未找到任何 knowledge 相关文件，skills 目录仅 6 个与知识库无关的 Skill，grep 仅命中 AGENTS.md 第 45 行的否定性声明。据此回答明确告知无可用知识库、未执行检索、无法提供文档标题、分块序号、分数与匹配类型，并声明不提供任何无出处的流程内容，与预期“工具不可用或无证据时明确说明且不凭常识回答”一致。"
+  },
+  "checks": {
+    "session_id": "session-0809af77-75b1-4a91-83f8-b45158634bee",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

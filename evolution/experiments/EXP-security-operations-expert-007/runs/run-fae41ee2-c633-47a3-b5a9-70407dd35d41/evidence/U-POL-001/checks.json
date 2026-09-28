@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-POL-001",
+  "transport": "api",
+  "expected_behavior": "基于真实资产、路径和设备能力生成策略预览并说明待确认内容；未获得成功执行回执时，不得声称策略已开通。",
+  "session_id": "session-6c9c3b7e-5b97-4bb5-a114-89d545649102",
+  "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-202336d4-c7a1-4683-964a-846273d5b965",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

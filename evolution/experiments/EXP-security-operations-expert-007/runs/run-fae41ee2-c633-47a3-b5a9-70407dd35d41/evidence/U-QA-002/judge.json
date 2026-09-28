@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答在无任何知识库 MCP 工具或 knowledge-base-search Skill 可用（tool_events 为空，无任何检索类回执）的情况下，明确说明了「无法列出可用知识库」「无法检索勒索软件应急响应流程」「无知识库名/文档名/分块序号/分数/匹配类型等可引用证据」等能力缺口，并声明不使用通用常识或其他工具替代检索。该行为与预期中「MCP、检索不可用或无证据时明确说明，且没有无来源的流程内容」完全一致：回答未编造任何知识库名称、文档标题、分块号、分数或匹配类型，也未输出未经来源支持的勒索软件应急响应流程内容。由于本轮确实不存在任何知识库检索工具回执，故不适用「关键数据须由同一被测 Session 工具回执支持」的 passed 条件，而应依据「工具不可用时的正确处理」分支判定为满足全部要求。"
+  },
+  "checks": {
+    "session_id": "session-414a95ea-b2c3-4b58-9725-c08421e6ecec",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

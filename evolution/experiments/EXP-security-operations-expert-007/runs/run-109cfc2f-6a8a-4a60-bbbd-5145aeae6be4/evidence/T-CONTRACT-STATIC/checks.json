@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "case_id": "T-CONTRACT-STATIC",
+  "executor": "repository-contract",
+  "checks": {
+    "repository": {
+      "exit_code": 0,
+      "valid": true,
+      "error_codes": []
+    },
+    "experiment": {
+      "exit_code": 0,
+      "valid": true,
+      "error_codes": []
+    }
+  },
+  "scope": "仓库与 Experiment 确定性合同；不代替该 Case 的语义判定"
+}

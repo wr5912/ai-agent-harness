@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答明确指认用户消息中只有指代、缺少漏洞标识/受影响组件/报错或日志等可定位对象，因此拒绝给出成因判断；随后列出需要补充的最小信息并请用户提供材料，未臆测根因。其“不挂载知识库检索与独立威胁分析服务”“工作区仅有说明与 Skill 定义”“尚未调用取证工具”等陈述与同一 Session 的 skill、glob 工具回执一致，缺陷归类仅作为待材料到位后的通用框架且未对“这个漏洞”下结论。全部预期要求满足。"
+  },
+  "checks": {
+    "session_id": "session-548f1916-295c-4d25-86fb-669f2eb5c644",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

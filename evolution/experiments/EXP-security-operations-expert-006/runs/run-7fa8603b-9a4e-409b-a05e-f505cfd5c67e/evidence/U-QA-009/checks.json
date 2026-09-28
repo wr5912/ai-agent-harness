@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-009",
+  "completed": false,
+  "expected_behavior": "准确区分可观察指标、攻击行为模式、ATT&CK 技术分类、检测信号和经关联研判的安全事件，并说明它们可以关联但不能互相等同。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

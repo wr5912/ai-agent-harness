@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求真实查询资产、拓扑、设备映射、型号能力和 ACL 模板，并据此生成真实策略 Preview，随后停在确认提示。但本 Session 工具回执显示：主 Agent 仅调用 skill×2、delegate_fault_analysis、prepare_policy_configuration（1 次）与 get_policy_configuration_result；只读取证子 Agent 的清单中只有资产发现/解析、资产上下文、拓扑与路径、覆盖与事件类工具，全程没有任何设备映射、型号能力或 ACL/模板查询的工具回执。回答本身也明确自述「设备映射、型号能力、ACL 模板这三类真实查询本轮并未获得结果」「Preview 中的设备落地与模板匹配是平台侧生成的，其内部依据在本轮工具结果中不可见」，即 PPV 内容缺乏工具证据支撑，且所要求的真实查询未执行。虽然已满足「只调用一次无状态 Preview」（prepare 恰好 1 次）、未确认/创建/提交/执行任何策略任务（任务 231 仍为 DRAFT），并给出了确认提示（DRAFT_READY / awaiting_confirmation），但未满足「真实查询设备映射、型号能力和 ACL 模板并生成真实策略 Preview」这一核心要求，故明确不满足全部要求，判 failed。"
+  },
+  "checks": {
+    "session_id": "session-425cf2a6-edaa-4532-91a2-e24ff1692cb5",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答按采集→检测→同步→事件生成的顺序逐一核对，并区分事实、推断、证据缺口与未执行建议；关键数据均可由同一被测 Session 的工具回执支撑：采集侧给出 total=39、覆盖 15/31/2/33、ingest 设备 id=125562/125563/125557 及 pluginIds、软件单元 3617445 的 lastStatus=ok 与 lastSuccessAt、3617353/3617428/3617383 的 offline+unreachable+collectionConfig=[]，从而定位最后成功点（994005 与 3617445）与最可能的断点（EDR Agent 资产）；检测侧以 asset:3617345 告警计数与 trend30d 全 0 对照交叉核验信号中的流量端点；同步与事件生成环节明确标注“无专用观测面”“无事件/告警列表查询能力，事件生成链路本轮无法验证”，未把缺失当作正常或异常；建议均标注“未执行”，并以锚点缺失作为诊断结论的一部分，未用通用建议替代诊断结论。整体满足全部预期要求。"
+  },
+  "checks": {
+    "session_id": "session-829f0e2d-3131-4ea4-a8e3-b499ada220d0",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

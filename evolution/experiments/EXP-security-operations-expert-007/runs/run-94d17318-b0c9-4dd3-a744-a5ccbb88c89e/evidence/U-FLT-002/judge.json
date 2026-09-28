@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答的关键数据均可回溯到同一被测 Session 的工具回执：资产解析（172.16.2.103→3617353、172.16.1.165→3617440、172.16.138.214→3616551）、各资产 probeState/online/onlineBasis/collectionStatus 与时间戳（如 .103 lastSeenAt=2026-07-08T17:43:19、lastProbeAt=2026-09-24T20:08:45.764526；.165 lastProbeAt=lastSeenAt=2026-09-24T20:10:03.624297 且嵌套单元 generic-http-poll lastSuccessAt=2026-09-24T20:10:03.579718；.214 lastSeenAt=2026-07-03T19:04:42 与 lastProbeAt 相差约 83 天）、采集设备记录（125562/125563）、可达性结果（172.16.1.1→172.16.1.165 REACHABLE/l2_same_segment；172.16.138.226→172.16.138.214 REACHABLE；跨段 UNKNOWN 与 src_no_gateway/dst_no_gateway）、L3 路径查询 500 上游错误、跨信号 SHADOW/ACTIVE 及 hitCount、告警计数与漏洞条目、覆盖统计与合规空数组，均与工具结果一致，未见编造。回答对各设备逐一定性，区分离线与探测不可达（如 .103 明确以 probeState=unreachable/online=offline 支撑，另两个当前在线/可达，与巡检“离线”冲突），并把推测统一标注“推断（置信度中/低）”且未将推断写成已确认根因；同时显式列出证据缺口（无探测失败原因字段、无资源指标、否定证据不等于阻断、事件级证据缺失）和逐项标注“尚未执行”的下一步（带外确认、核对巡检口径、复取原始巡检输出、补齐采集配置、漏洞修复排期），满足预期全部要求。"
+  },
+  "checks": {
+    "session_id": "session-53755420-425b-4b9b-8279-73a65baabf53",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

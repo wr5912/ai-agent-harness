@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答以抽象层级和“知识/记录”两条轴准确定义并区分了五个概念：IOC 为可观测的原子痕迹（可观察指标）、TTP 为攻击者行为模式与方法、MITRE ATT&CK Technique 为 TTP 的标准化通用条目（技术分类）、告警为检测规则命中产生的判定记录（检测信号）、事件为经人工确认并需按流程处置的影响单元（经关联研判的安全事件），并给出对照表、串联链条与典型误用。同时明确说明二者可关联但不能等同，如指出“混用是最常见的沟通偏差来源”“告警 ≠ 事件”“ATT&CK Technique ≠ TTP”“Technique 编号不等于事件结论”，符合“可以关联但不能互相等同”的预期。回答还区分了事实、推断与缺口，未把推断当成已核实事实，也未编造工具数据；工具回执仅显示加载 security-investigation skill，与回答内容不冲突。虽在告警聚合成事件的具体规则上以“材料未明确说明时视为未知”作保守限定，但同时以通用模型给出典型关系并标注为推断，不影响对概念区分与关联非等同这一核心要求的满足。"
+  },
+  "checks": {
+    "session_id": "session-e8ec694d-3132-474e-b139-c0f29b5bd0ac",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

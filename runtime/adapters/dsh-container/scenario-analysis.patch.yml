@@ -1,0 +1,17 @@
+- id: tool-fs
+  disabled: false
+
+- id: tool-fs-search
+  disabled: false
+  config:
+    sampleOverCapGlobResults: false
+
+- id: agent-presets
+  disabled: false
+  config:
+    default: scenario-analysis
+    roots:
+      - path: /opt/dsh-adapter/evaluation-presets
+        trust: system
+    includeShippedRoot: false
+    includeUserRoot: false

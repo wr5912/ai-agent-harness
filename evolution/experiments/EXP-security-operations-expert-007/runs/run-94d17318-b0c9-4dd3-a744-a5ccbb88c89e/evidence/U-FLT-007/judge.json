@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答基于同一被测 Session 的真实工具回执完成取证：资产解析（172.16.2.103 → assetId 3617353、EDR-Agent、assetType=vm）、资产详情（source=collector_report、intakeMode=active_collect、status=active、online=offline、probeState=unreachable、onlineBasis=null、networkTier=dmz、layerId=4、deptId=101、mgmtProtocol/Port/CredentialRef=null、mgmtManualLocked=1、opsOwner 与 location 为空、hostAssetId=3617426/nestingKind=1 及宿主 172.16.138.226）、双 IP 与 MAC、漏洞逐条字段（CVE-2019-0708 等 critical/high 及 in_the_wild 标记、node_id/dept_id=null）、业务系统空集、接入采集设备空集、节点详情（metricAvailable=false、告警分布与 trend30d）、覆盖（按资产 collected=1/registered=0/discovered=0/coveragePct=100，按 deptId=101 registered=7/coveragePct=13）、可达性（→172.16.138.226 reachable=false/verdict=UNKNOWN/reason=dst_no_gateway；→172.16.1.1 REACHABLE/path=[\"3617442\"]）、主机对端口空集、跨区域信号汇总（NORMAL=23/IDLE=18/SHADOW=47）以及 get_graph_path_query 上游 500，均可在工具回执中逐项核对，关键数据无编造。回答明确给出主机安全配置异常与纳管/关联对象异常的证据，区分事实、推断、证据缺口与未执行建议，对合规违规接口空集、业务系统归属空集、覆盖口径差异等未知项如实标注，未伪造资产归属或拓扑关系，也未把无数据解释为正常或异常，满足预期要求。"
+  },
+  "checks": {
+    "session_id": "session-9144a4e7-5c64-4fa8-a5b2-3169dc0fd3dc",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

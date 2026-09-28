@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答由同一 Session 的真实工具回执支撑，且完整覆盖预期要求：(1) 真实查询：子 Agent 实际调用了 IP 解析、资产详情、业务系统、拓扑路径、可达性、host-pair 端口、跨信号、覆盖、合规、节点详情、采集设备、资产列表等只读工具，主 Session 仅调用 skill 与 delegate_fault_analysis，未调用任何写工具。(2) 关键数据可核验：源 172.16.2.103（EDR-Agent，vm，offline/unreachable、lastProbeAt 2026-09-24T18:56:20、hostAssetId=3617426、宿主 172.16.138.226、第二 IP 10.10.10.201 isPrimary=0）、目的 172.16.138.214（瑞禾S500主机，host，online/reachable）、可达性 reachable=false/verdict=UNKNOWN/reason=dst_no_gateway/path=null、get_graph_path_query 两次均返回上游 500、host-pair 端口明细为空数组、跨信号中 172.16.2.103→172.16.138.214 为 SHADOW/LAPSED 且 172.16.2.103→172.16.1.1 为 NORMAL/ACTIVE(31857)、反向 64618、汇总 NORMAL 23/IDLE 18/SHADOW 47、图层 4 覆盖 15/31/2/33%、合规违规为空、节点 incident 与 metricAvailable=false、同名瑞禾主机 haPairId 均 null，均与工具回执一致。(3) 预期四要素均有落点：主备状态明确列为“本轮无任何字段描述主备角色/切换事件”的证据缺口与未证实推断；路径给出 dst_no_gateway 与路径工具 500 的能力缺口并明确不解读为正常/异常；策略同步方向以 SHADOW（有流量无放行）对比 NORMAL 分析并列为需人工复核项；设备配置以目的网关核对作为待办。(4) 给出了有证据支持的最可能原因（源端离线）与置信度，并单列证据缺口与未知项，区分事实/推断/缺口。(5) 建议全部标注“未执行”，未直接执行或承诺任何策略变更。仅存在两处不影响结论的细微瑕疵：把 AEC_172.16.138.214_172.16.138.225 记录的 hitCount=4 与精确对记录的首见 1783323127 归并为同一条（精确对为 hitCount=2），以及末见时间差换算写成“约 56 万秒/6.5 天”（实际约 562 万秒）但同时提示不得作为定论。两者未构成核心要求的不满足，故判 passed。"
+  },
+  "checks": {
+    "session_id": "session-28a6384b-3eef-4b98-997a-a60b76108b89",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

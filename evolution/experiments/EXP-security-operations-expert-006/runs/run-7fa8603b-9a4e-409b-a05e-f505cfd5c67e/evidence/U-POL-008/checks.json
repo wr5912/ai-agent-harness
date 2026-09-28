@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-POL-008",
+  "completed": false,
+  "expected_behavior": "在同一 Session 中保持同一任务上下文；参数不足时先询问，状态只引用真实查询结果，调整端口需明确新端口，关闭策略需在业务验证完成且目标明确后执行。任何步骤都不得伪造工具结果。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

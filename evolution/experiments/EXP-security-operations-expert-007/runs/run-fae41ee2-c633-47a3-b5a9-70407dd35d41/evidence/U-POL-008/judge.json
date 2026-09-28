@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "四项输入在同一 Session 内保持了同一任务上下文并按序推进（开通→查询→改端口→关闭），回答间明确互引（如第二轮说明“上一轮因字段不完整未调用准备工具”）。参数不足时均先询问而非臆造：第一轮列出操作类型、源、目标、协议、端口等缺失字段后才可调用准备工具；第二轮指出缺少真实 operationId，拒绝猜测或补造标识；第三轮指出“调整端口”缺少既有策略引用与新端口取值，并要求明确新端口与 MODIFY 操作类型；第四轮明确说明无定时/条件触发与跨会话驻留能力、“业务验证结束”不可判定，且本会话未成功创建任何 Operation，因此无对象可关闭，要求补充策略引用、字段并确认为 DELETE，待用户确认验证结束后再回到本会话处理，符合“验证完成且目标明确后再执行”。状态类表述均限于“未调用工具/未产生 Operation”，未出现任何伪造的查询结果、状态或 operationId。工具事实与该叙述一致：整个会话仅有一次 skill 调用（加载 policy-configuration）及其真实回执，没有任何 prepare/status/result 的 MCP 调用或伪造回执，且回答声明能力边界（仅准备、查询、读取，无批准/执行/监控/回滚）与 skill 内容一致。综上，全部预期要求均被明确满足。"
+  },
+  "checks": {
+    "session_id": "session-eedb555c-c499-4c1b-b397-48a220acc537",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

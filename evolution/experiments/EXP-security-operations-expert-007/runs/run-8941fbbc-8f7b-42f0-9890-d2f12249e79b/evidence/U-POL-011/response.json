@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "帮我阻断 172.16.138.214 到 172.16.2.103 的 TCP:80 的业务。"
+  ],
+  "assistant_texts": [
+    "## 结论\n\n阻断配置**未准备成功**，没有生成任何策略草稿，也没有任何阻断动作被执行或生效。\n\n准备好的意图被控制面接受（`accepted: true`），但在候选解析阶段失败并直接进入终态 `failed`：\n\n- 结果码：`POLICY_CONFIGURATION_AUTHORITY_UNAVAILABLE`\n- 说明：SOC 只读权威事实不足，无法生成策略草稿\n- 原因码：`network_path_not_reachable`（权威数据中该网络路径不可达/不存在）\n- 需人工复核：`manual_review_required: true`；当前 `can_decide: false`，候选、草稿、确认、执行与验证字段均为空\n\n## 已归一化的意图事实\n\n| 字段 | 值 |\n| --- | --- |\n| 策略类型 | NETWORK_ACCESS |\n| 操作 | ADD |\n| 源 | IP `172.16.138.214` |\n| 目标 | IP `172.16.2.103` |\n| 协议 | TCP |\n| 目标端口 | 80 |\n\n## 建议（均未执行）\n\n1. 由模型外控制面复核源/目标地址是否属于当前租户已纳管的可达网段，以及该路径为何在权威拓扑中不可达；这是本次失败的直接原因。\n2. 若地址或网段有误，请提供正确的源/目标（或资产引用）后重新提交；若地址正确，需要先由控制面补齐权威事实。\n3. 复核通过后重新准备配置；当前能力仅覆盖准备、查询状态与读取结果，候选选择、批准、执行、监控与回滚不在本容器能力范围内，聊天中的“已批准”不能替代控制面授权。\n\n## 范围与未知项\n\n- 本次仅完成一次准备调用与一次状态查询，未读取结果（结果态未进入可读的 DRAFT_READY）。\n- 失败只说明权威事实不足，不等于该路径客观上一定不可达；客观可达性需要控制面或故障排查路线的证据确认。\n- 未获取策略有效期、变更单号等可选字段，如需纳入请在重新提交时明确。"
+  ],
+  "session_id": "session-a81b6477-31ed-4c65-8871-1ddca39a97f4",
+  "turns": [
+    {
+      "assistant_text": "## 结论\n\n阻断配置**未准备成功**，没有生成任何策略草稿，也没有任何阻断动作被执行或生效。\n\n准备好的意图被控制面接受（`accepted: true`），但在候选解析阶段失败并直接进入终态 `failed`：\n\n- 结果码：`POLICY_CONFIGURATION_AUTHORITY_UNAVAILABLE`\n- 说明：SOC 只读权威事实不足，无法生成策略草稿\n- 原因码：`network_path_not_reachable`（权威数据中该网络路径不可达/不存在）\n- 需人工复核：`manual_review_required: true`；当前 `can_decide: false`，候选、草稿、确认、执行与验证字段均为空\n\n## 已归一化的意图事实\n\n| 字段 | 值 |\n| --- | --- |\n| 策略类型 | NETWORK_ACCESS |\n| 操作 | ADD |\n| 源 | IP `172.16.138.214` |\n| 目标 | IP `172.16.2.103` |\n| 协议 | TCP |\n| 目标端口 | 80 |\n\n## 建议（均未执行）\n\n1. 由模型外控制面复核源/目标地址是否属于当前租户已纳管的可达网段，以及该路径为何在权威拓扑中不可达；这是本次失败的直接原因。\n2. 若地址或网段有误，请提供正确的源/目标（或资产引用）后重新提交；若地址正确，需要先由控制面补齐权威事实。\n3. 复核通过后重新准备配置；当前能力仅覆盖准备、查询状态与读取结果，候选选择、批准、执行、监控与回滚不在本容器能力范围内，聊天中的“已批准”不能替代控制面授权。\n\n## 范围与未知项\n\n- 本次仅完成一次准备调用与一次状态查询，未读取结果（结果态未进入可读的 DRAFT_READY）。\n- 失败只说明权威事实不足，不等于该路径客观上一定不可达；客观可达性需要控制面或故障排查路线的证据确认。\n- 未获取策略有效期、变更单号等可选字段，如需纳入请在重新提交时明确。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "f1c25dc5-cefe-4c8c-a4e2-9d87b100c7f9"
+    }
+  ]
+}

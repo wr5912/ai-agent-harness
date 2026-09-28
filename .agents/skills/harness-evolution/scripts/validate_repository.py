@@ -41,6 +41,7 @@ REQUIRED_ROOT_FILES = (
     ".gitignore",
     ".codex/config.toml",
     "docs/ai-agent-harness项目验收矩阵.md",
+    "docs/项目审查原则.md",
     "docs/standards/SOURCES.md",
     "docs/standards/PROJECT-INTERPRETATION.md",
 )
@@ -62,6 +63,7 @@ REQUIRED_SKILLS = {
 }
 RETIRED_SKILLS = {"baseline-eval", "security-control-boundary", "delivery-review", "dsh-release-verify"}
 PROJECT_MATRIX = "docs/ai-agent-harness项目验收矩阵.md"
+PROJECT_REVIEW = "docs/项目审查原则.md"
 KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 EXPERIMENT_RE = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3,}$")
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$")
@@ -186,16 +188,24 @@ def validate_governance(root: Path, errors: list[dict[str, str]]) -> None:
         "禁止过度工程化和过度安全化",
         "简洁优先（Simplicity First）",
         "精准修改（Surgical Changes）",
-        "不提交秘钥",
+        "LLM API Key 禁止提交或推送",
     )
     for phrase in required_phrases:
         if phrase not in agents_text:
             errors.append(issue("RESEARCH_MODE", f"AGENTS.md 缺少：{phrase}", "AGENTS.md"))
+    try:
+        gitignore_lines = {line.strip() for line in read_text(root / ".gitignore").splitlines()}
+        if "*.llm-api-key" not in gitignore_lines:
+            errors.append(issue("LLM_KEY_IGNORE", ".gitignore 必须忽略 *.llm-api-key", ".gitignore"))
+    except (OSError, ValueError) as exc:
+        errors.append(issue("GOVERNANCE_READ", str(exc), ".gitignore"))
     matrix_link = f"](./{PROJECT_MATRIX})"
     if matrix_link not in readme_text:
         errors.append(issue("MATRIX_LINK", "README 必须链接项目验收矩阵", "README.md"))
     if PROJECT_MATRIX not in agents_text:
         errors.append(issue("MATRIX_LINK", "AGENTS.md 必须链接项目验收矩阵", "AGENTS.md"))
+    if f"]({PROJECT_REVIEW})" not in agents_text:
+        errors.append(issue("REVIEW_LINK", "AGENTS.md 必须链接项目审查原则", "AGENTS.md"))
     if "evolution/baselines/" not in agents_text or "不维护" not in agents_text:
         errors.append(issue("BASELINE_POLICY", "AGENTS.md 必须明确不维护物理 Baseline 目录", "AGENTS.md"))
     matrix_path = root / PROJECT_MATRIX
@@ -322,10 +332,12 @@ def validate_agents(root: Path, errors: list[dict[str, str]]) -> None:
             continue
         if manifest.get("agent_id") != agent.name:
             errors.append(issue("AGENT_ID", "manifest agent_id 必须与目录一致", relative(manifest_path, root)))
-        for name in ("definition.md", "evaluation.md"):
-            source = agent / name
-            if not is_material_file(source):
-                errors.append(issue("AGENT_SOURCE", "Agent 缺少当前事实源", relative(source, root)))
+        evaluation = agent / "evaluation.md"
+        if not is_material_file(evaluation):
+            errors.append(issue("AGENT_SOURCE", "Agent 缺少 evaluation.md", relative(evaluation, root)))
+        definition = agent / "definition.md"
+        if definition.exists() or definition.is_symlink():
+            errors.append(issue("AGENT_SOURCE_DUPLICATE", "Agent 当前业务测试只维护 evaluation.md", relative(definition, root)))
         active = manifest.get("active_experiment")
         if active:
             match = EXPERIMENT_RE.fullmatch(str(active))

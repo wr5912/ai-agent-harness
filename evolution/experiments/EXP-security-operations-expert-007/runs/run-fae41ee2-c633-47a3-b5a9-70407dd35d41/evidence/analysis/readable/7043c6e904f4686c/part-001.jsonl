@@ -1,0 +1,43 @@
+{"source":"evidence/U-POL-003/response.json","source_line":1,"chunk":1,"text":"{\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":2,"chunk":1,"text":"  \"inputs\": [\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":3,"chunk":1,"text":"    \"请为 172.16.138.214 到 172.16.2.103 开通 TCP 19720 访问策略。\"\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":4,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":5,"chunk":1,"text":"  \"assistant_texts\": [\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":6,"chunk":1,"text":"    \"## 结论：策略准备未成功，未生成草稿\\n\\n本次请求已按 v2 合同提交，但操作在候选解析阶段即终止并进入失败终态，**没有生成任何策略草稿，也没有产生可执行或已生效的策略**。失败原因是权威事实不足，而非请求字段问题。\\n\\n**关键结果**\\n\\n- 操作状态：`failed`（终态，阶段 `candidate_resolution`）\\n- 结果码：`POLICY_CONFIGURATION_AUTHORITY_UNAVAILABLE` — SOC 只读权威事实不足，无法生成策略草稿\\n-"}
+{"source":"evidence/U-POL-003/response.json","source_line":6,"chunk":2,"text":" 原因码：`network_path_not_reachable`（源到目标的网络路径不可达）\\n- 需人工复核：是\\n- 草稿：无；候选：无；确认：无；执行：无；验证：无；`can_decide: false`\\n\\n**建议（均未执行）**\\n\\n1. 先排查 172.16.138.214 到 172.16.2.103 的路径可达性。我可以在你确认后转入故障排查路线，用 SOC 只读工具取证（资产、路径与可达性问题），只做调查不改配置。\\n2. 若确认路径问题属于数据缺失或采集覆盖缺口，而非真实不可达，"}
+{"source":"evidence/U-POL-003/response.json","source_line":6,"chunk":3,"text":"需要由模型外控制面补齐权威事实后再重新准备策略。\\n3. 请勿直接重复提交同一请求：字段已完整且合法，重试不会改变权威事实不足的结果。\\n4. 候选选择、批准、执行、监控与回滚当前均不在我的能力范围内；即使后续草稿生成，也需由外部控制面推进。\\n\\n**本次范围与未知项**\\n\\n- 请求意图：ADD / NETWORK_ACCESS，源 `172.16.138.214`（IP），目标 `172.16.2.103`（IP），协议 TCP，目标端口 19720；无有效期与变更原因字段（用户未提供）。\\n- 未"}
+{"source":"evidence/U-POL-003/response.json","source_line":6,"chunk":4,"text":"提供现有策略引用，本次为新增而非修改/删除。\\n- 未知项：路径不可达的具体原因（路由、ACL、资产下线或采集缺失）本轮无法判定，工具只给出原因码，未附明细。\\n- 操作标识：`op_5b705aadf230464ba7346bf1c6e8e11e`；本次为幂等新建，`duplicate: false`。\"\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":7,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":8,"chunk":1,"text":"  \"session_id\": \"session-f0340f27-f399-4d12-8ce8-ef1e5cd4ca0d\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":9,"chunk":1,"text":"  \"turns\": [\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":10,"chunk":1,"text":"    {\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":11,"chunk":1,"text":"      \"assistant_text\": \"## 结论：策略准备未成功，未生成草稿\\n\\n本次请求已按 v2 合同提交，但操作在候选解析阶段即终止并进入失败终态，**没有生成任何策略草稿，也没有产生可执行或已生效的策略**。失败原因是权威事实不足，而非请求字段问题。\\n\\n**关键结果**\\n\\n- 操作状态：`failed`（终态，阶段 `candidate_resolution`）\\n- 结果码：`POLICY_CONFIGURATION_AUTHORITY_UNAVAILABLE` — SOC "}
+{"source":"evidence/U-POL-003/response.json","source_line":11,"chunk":2,"text":"只读权威事实不足，无法生成策略草稿\\n- 原因码：`network_path_not_reachable`（源到目标的网络路径不可达）\\n- 需人工复核：是\\n- 草稿：无；候选：无；确认：无；执行：无；验证：无；`can_decide: false`\\n\\n**建议（均未执行）**\\n\\n1. 先排查 172.16.138.214 到 172.16.2.103 的路径可达性。我可以在你确认后转入故障排查路线，用 SOC 只读工具取证（资产、路径与可达性问题），只做调查不改配置。\\n2. 若确认路径问题属于"}
+{"source":"evidence/U-POL-003/response.json","source_line":11,"chunk":3,"text":"数据缺失或采集覆盖缺口，而非真实不可达，需要由模型外控制面补齐权威事实后再重新准备策略。\\n3. 请勿直接重复提交同一请求：字段已完整且合法，重试不会改变权威事实不足的结果。\\n4. 候选选择、批准、执行、监控与回滚当前均不在我的能力范围内；即使后续草稿生成，也需由外部控制面推进。\\n\\n**本次范围与未知项**\\n\\n- 请求意图：ADD / NETWORK_ACCESS，源 `172.16.138.214`（IP），目标 `172.16.2.103`（IP），协议 TCP，目标端口 19720；无有效期"}
+{"source":"evidence/U-POL-003/response.json","source_line":11,"chunk":4,"text":"与变更原因字段（用户未提供）。\\n- 未提供现有策略引用，本次为新增而非修改/删除。\\n- 未知项：路径不可达的具体原因（路由、ACL、资产下线或采集缺失）本轮无法判定，工具只给出原因码，未附明细。\\n- 操作标识：`op_5b705aadf230464ba7346bf1c6e8e11e`；本次为幂等新建，`duplicate: false`。\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":12,"chunk":1,"text":"      \"route\": {\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":13,"chunk":1,"text":"        \"provider\": \"deepseek-official\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":14,"chunk":1,"text":"        \"model\": \"deepseek-flash\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":15,"chunk":1,"text":"        \"maxTokens\": 256000,\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":16,"chunk":1,"text":"        \"reasoningEffort\": \"high\"\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":17,"chunk":1,"text":"      },\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":18,"chunk":1,"text":"      \"tool_names\": [\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":19,"chunk":1,"text":"        \"delegate_fault_analysis\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":20,"chunk":1,"text":"        \"delegate_inspection\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":21,"chunk":1,"text":"        \"delegate_response_planning\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":22,"chunk":1,"text":"        \"edit\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":23,"chunk":1,"text":"        \"glob\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":24,"chunk":1,"text":"        \"grep\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":25,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_result\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":26,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_status\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":27,"chunk":1,"text":"        \"mcp__sec-ops__prepare_policy_configuration\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":28,"chunk":1,"text":"        \"read\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":29,"chunk":1,"text":"        \"skill\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":30,"chunk":1,"text":"        \"write\"\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":31,"chunk":1,"text":"      ],\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":32,"chunk":1,"text":"      \"turn_reason\": \"completed\",\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":33,"chunk":1,"text":"      \"turn\": 1,\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":34,"chunk":1,"text":"      \"input_message_id\": \"d8c0a087-333c-44ed-afe5-da6a7cc946bf\"\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":35,"chunk":1,"text":"    }\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":36,"chunk":1,"text":"  ]\n"}
+{"source":"evidence/U-POL-003/response.json","source_line":37,"chunk":1,"text":"}\n"}

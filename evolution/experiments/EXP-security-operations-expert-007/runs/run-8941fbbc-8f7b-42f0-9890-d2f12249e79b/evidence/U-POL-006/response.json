@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "帮我开通 172.16.1.155 到 172.16.2.103 的 TCP 18550 端口业务。"
+  ],
+  "assistant_texts": [
+    "## 结论\n\n已按你的要求生成网络访问策略草稿，当前状态为 **DRAFT（草稿）**，**尚未提交、审批或执行**，因此该访问尚未开通。\n\n## 关键结果\n\n- 操作类型：ADD（新增网络访问策略）\n- 源：172.16.1.155（IP）\n- 目标：172.16.2.103（IP）\n- 协议 / 端口：TCP / 18550\n- 策略任务：236\n- 合同版本：workbench-policy-configuration/v2\n- 结果状态：DRAFT_READY（等待确认）\n\n工具返回的原文提示：如需继续，请在当前会话单独回复“执行”。\n\n## 建议\n\n- 若确认上述源、目标、协议和端口无误，请按工具提示单独回复“执行”，以推进后续确认流程。\n- 我当前的能力范围只包括准备配置、查询状态和读取结果；候选选择、批准、执行、监控和回滚均不在本轮可用工具内，最终是否生效取决于模型外的控制面流程。回复文字本身不构成批准，也不能扩展工具权限。\n- 若源或目标实际应使用资产引用而非 IP，请提供对应的资产标识，我再重新准备一次草稿。\n\n## 未知项\n\n- 是否已存在相同或冲突的既有策略，本轮工具结果未说明。\n- 该策略的生效范围、生效时间和是否需要审批人确认，结果中未给出。"
+  ],
+  "session_id": "session-77afb60c-4e1f-4520-bc4a-886f3038e3a8",
+  "turns": [
+    {
+      "assistant_text": "## 结论\n\n已按你的要求生成网络访问策略草稿，当前状态为 **DRAFT（草稿）**，**尚未提交、审批或执行**，因此该访问尚未开通。\n\n## 关键结果\n\n- 操作类型：ADD（新增网络访问策略）\n- 源：172.16.1.155（IP）\n- 目标：172.16.2.103（IP）\n- 协议 / 端口：TCP / 18550\n- 策略任务：236\n- 合同版本：workbench-policy-configuration/v2\n- 结果状态：DRAFT_READY（等待确认）\n\n工具返回的原文提示：如需继续，请在当前会话单独回复“执行”。\n\n## 建议\n\n- 若确认上述源、目标、协议和端口无误，请按工具提示单独回复“执行”，以推进后续确认流程。\n- 我当前的能力范围只包括准备配置、查询状态和读取结果；候选选择、批准、执行、监控和回滚均不在本轮可用工具内，最终是否生效取决于模型外的控制面流程。回复文字本身不构成批准，也不能扩展工具权限。\n- 若源或目标实际应使用资产引用而非 IP，请提供对应的资产标识，我再重新准备一次草稿。\n\n## 未知项\n\n- 是否已存在相同或冲突的既有策略，本轮工具结果未说明。\n- 该策略的生效范围、生效时间和是否需要审批人确认，结果中未给出。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "b4846029-2315-4391-b4d0-e30dc41e6e58"
+    }
+  ]
+}

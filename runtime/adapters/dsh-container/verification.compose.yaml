@@ -51,11 +51,14 @@ services:
       - DSH_HARNESS_MODE=verification
       - DSH_PERMISSION_MODE=read-only
       - DSH_TELEMETRY_DISABLED=1
+      - DSH_EVAL_TARGET_PRESET=${DSH_EVAL_TARGET_PRESET:?业务 Preset 由所选来源注入}
     command:
       - --profile
       - web
       - --patch
       - ${DSH_MANAGED_PATCH:?Profile patch 路径由所选来源注入}
+      - --patch
+      - /opt/dsh-adapter/evaluation.patch.yml
       - --no-open
     volumes:
       - type: bind

@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "帮我开通 172.16.1.155 到 172.16.2.103 的 TCP 25500 端口访问，有效期 5 小时，原因是业务连通测试。请查询真实资产和拓扑关系，从拓扑中识别需要配置策略的安全设备，再查询设备映射、型号能力和 ACL 模板并生成真实策略 Preview；只调用一次无状态 Preview，生成 PPV 后停在确认提示，预览完成后等我确认，不要确认、创建、提交或执行策略任务。"
+  ],
+  "assistant_texts": [
+    "已按你的要求生成策略 Preview，**停在确认提示，未执行任何确认、创建、提交或审批动作**。\n\n## 结论\n\n- 策略意图已受理，返回 `result_code: DRAFT_READY`、`stage_code: awaiting_confirmation`、`operation_status: waiting_user`，`accepted: true`、`duplicate: false`。\n- 当前对象状态：任务 **237**，状态 **DRAFT（草稿）** —— 尚未提交、审批或执行。\n- 契约侧提示的后续入口是在当前会话单独回复「执行」；本轮我未执行该动作。\n\n## 关键结果\n\n| 项目 | 值 |\n| --- | --- |\n| operation_id | `op_bf900c969e7e4aed9288b5320bd3bbad` |\n| task_id / 状态 | 237 / DRAFT |\n| result_code | DRAFT_READY |\n| candidate_digest | `sha256:0f46aaf769f6171de85da9a57995508dc337c791ded6f8f576f22b2afd0800a4` |\n| 操作类型 | ADD，NETWORK_ACCESS |\n| 源 → 目标 | 172.16.1.155 → 172.16.2.103（均为 IP 选择器） |\n| 协议 / 端口 | TCP / 25500 |\n| 有效期 | 5 小时 |\n| 原因 | 业务连通测试 |\n\n契约返回值：`已生成策略任务 237，当前为 DRAFT（草稿），尚未提交、审批或执行。`\n\n## 你提出的前置查询：能力缺口（重要）\n\n你要求先查真实资产与拓扑、从拓扑识别需下发策略的安全设备，再查设备映射、型号能力和 ACL 模板。**这些查询在本会话不可用**，因此：\n\n- 本次未做任何资产、拓扑、设备映射、型号能力或 ACL 模板查询；也没有识别出目标安全设备。\n- 我需要明确：**我没有**从拓扑中得出设备，也**没有**校验过 ACL 模板，Preview 中不存在这类证据。\n- 为不补造标识，`target_external_id` 我按 Schema 允许留空（`null`），源/目标直接使用你给出的 IP，未解析为资产引用。\n- 我可用的策略工具只有准备、查状态、读结果三个；资产/拓扑/设备/模板类工具不在本路由的能力范围内，通过 Shell 或其他通道绕过属于禁止行为，故未尝试。\n\n**待你决定的选项**：一是由你或受信控制面提供目标设备标识后，我以便携的 `target_external_id` 重新准备；二是由具备资产与拓扑查询能力的外部控制面先确认设备与模板，再回到本路由生成 Preview。二者都尚未执行。\n\n## 建议（均未执行）\n\n1. 在回复「执行」之前，先确认源/目标 IP 与 TCP 25500 是预期的真实业务端点，因为这轮没有资产校验。\n2. 若确认需要绑定具体安全设备或 ACL 模板，请先提供权威设备标识，避免在无模板校验的情况下推进。\n3. 候选人摘要已固化，如后续字段（端口、有效期、原因）需要调整，请重新准备而不是复用当前草稿。\n\n## 未知项\n\n- 该 5 小时有效期的起算时点与时间格式，返回值中未说明，不做推断。\n- 草稿后续的确认、审批、执行与回滚路径均不在当前能力范围；本轮聊天文字不构成批准，也不会扩展工具权限。"
+  ],
+  "session_id": "session-418aa2da-0bda-4288-879e-7cbf956550f2",
+  "turns": [
+    {
+      "assistant_text": "已按你的要求生成策略 Preview，**停在确认提示，未执行任何确认、创建、提交或审批动作**。\n\n## 结论\n\n- 策略意图已受理，返回 `result_code: DRAFT_READY`、`stage_code: awaiting_confirmation`、`operation_status: waiting_user`，`accepted: true`、`duplicate: false`。\n- 当前对象状态：任务 **237**，状态 **DRAFT（草稿）** —— 尚未提交、审批或执行。\n- 契约侧提示的后续入口是在当前会话单独回复「执行」；本轮我未执行该动作。\n\n## 关键结果\n\n| 项目 | 值 |\n| --- | --- |\n| operation_id | `op_bf900c969e7e4aed9288b5320bd3bbad` |\n| task_id / 状态 | 237 / DRAFT |\n| result_code | DRAFT_READY |\n| candidate_digest | `sha256:0f46aaf769f6171de85da9a57995508dc337c791ded6f8f576f22b2afd0800a4` |\n| 操作类型 | ADD，NETWORK_ACCESS |\n| 源 → 目标 | 172.16.1.155 → 172.16.2.103（均为 IP 选择器） |\n| 协议 / 端口 | TCP / 25500 |\n| 有效期 | 5 小时 |\n| 原因 | 业务连通测试 |\n\n契约返回值：`已生成策略任务 237，当前为 DRAFT（草稿），尚未提交、审批或执行。`\n\n## 你提出的前置查询：能力缺口（重要）\n\n你要求先查真实资产与拓扑、从拓扑识别需下发策略的安全设备，再查设备映射、型号能力和 ACL 模板。**这些查询在本会话不可用**，因此：\n\n- 本次未做任何资产、拓扑、设备映射、型号能力或 ACL 模板查询；也没有识别出目标安全设备。\n- 我需要明确：**我没有**从拓扑中得出设备，也**没有**校验过 ACL 模板，Preview 中不存在这类证据。\n- 为不补造标识，`target_external_id` 我按 Schema 允许留空（`null`），源/目标直接使用你给出的 IP，未解析为资产引用。\n- 我可用的策略工具只有准备、查状态、读结果三个；资产/拓扑/设备/模板类工具不在本路由的能力范围内，通过 Shell 或其他通道绕过属于禁止行为，故未尝试。\n\n**待你决定的选项**：一是由你或受信控制面提供目标设备标识后，我以便携的 `target_external_id` 重新准备；二是由具备资产与拓扑查询能力的外部控制面先确认设备与模板，再回到本路由生成 Preview。二者都尚未执行。\n\n## 建议（均未执行）\n\n1. 在回复「执行」之前，先确认源/目标 IP 与 TCP 25500 是预期的真实业务端点，因为这轮没有资产校验。\n2. 若确认需要绑定具体安全设备或 ACL 模板，请先提供权威设备标识，避免在无模板校验的情况下推进。\n3. 候选人摘要已固化，如后续字段（端口、有效期、原因）需要调整，请重新准备而不是复用当前草稿。\n\n## 未知项\n\n- 该 5 小时有效期的起算时点与时间格式，返回值中未说明，不做推断。\n- 草稿后续的确认、审批、执行与回滚路径均不在当前能力范围；本轮聊天文字不构成批准，也不会扩展工具权限。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "5e986a2f-56c5-401d-abb6-60e7dfc3cf0e"
+    }
+  ]
+}

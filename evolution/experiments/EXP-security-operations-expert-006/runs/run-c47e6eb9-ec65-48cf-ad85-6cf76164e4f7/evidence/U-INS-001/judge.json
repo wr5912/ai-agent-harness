@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答给出了巡检资产总数 39 台/套和报告链接，且异常设备 16、离线 11、漏洞设备 4、完成/部分/失败 2/0/0、覆盖率 39/39/39、结论异常等关键数据均与本轮同一被测 Session 的巡检工具真实回执（start_with_plan 生成 2 项计划、collect_evidence 返回 ready_to_finalize 与 coverage、finalize 返回 completed/abnormal 及 report.download_url）逐项一致，未编造数据；工具成功返回，未出现工具失败仍声称完成的情况。回答还保留了建议未执行与分项关系未知的说明，符合预期要求。"
+  },
+  "checks": {
+    "session_id": "session-c5885234-a40c-49f8-a217-284c70b695ab",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

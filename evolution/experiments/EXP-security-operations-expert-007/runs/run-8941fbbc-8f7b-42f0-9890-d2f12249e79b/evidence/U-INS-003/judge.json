@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答仅输出一个可解析的 JSON 对象（外层为 json 代码块包裹，无额外散文），facts 中准确保留 39 台/套、12 台/套、4 台/套、2 项四项给定计数，并通过 facts/inferences/recommendations_not_executed（executed:false）及 limitations 明确区分事实、推断与未执行建议，未编造输入之外的动态数据；工具回执仅显示加载 security-investigation 技能、未调用 SOC 工具，与回答中“未采集实时证据、本 Skill 不直接调用 SOC 工具”的声明一致，满足全部预期要求。"
+  },
+  "checks": {
+    "session_id": "session-284fa3cc-95d6-4260-9e33-5035b29112aa",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

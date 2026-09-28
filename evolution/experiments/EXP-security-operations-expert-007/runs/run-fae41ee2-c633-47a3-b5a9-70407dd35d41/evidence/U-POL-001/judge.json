@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答基于同一被测 Session 的真实工具回执：prepare_policy_configuration 返回 accepted、task_id 220、task_status DRAFT、result_code DRAFT_READY、stage awaiting_confirmation、confirmation_required true，get_policy_configuration_result 返回同一 operation_id 与 candidate_digest，均被忠实呈现，未编造。预期要求生成策略预览并说明待确认内容：回答给出归一化意图（NETWORK_ACCESS/ADD、源 172.16.1.155、目标 172.16.2.103、TCP/19921）、任务 220 为草稿、等待确认，并明确说明 target_external_id 未提供也未从拓扑补造，且无候选选择/批准/执行工具，需由模型外控制面继续，符合。预期要求未获成功执行回执不得声称已开通：全部工具回执均为 DRAFT/waiting_user，回答明确声明尚未提交、审批或执行，防火墙无实际变更，未作任何已开通表述。因此明确满足全部要求，判 passed。"
+  },
+  "checks": {
+    "session_id": "session-202336d4-c7a1-4683-964a-846273d5b965",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

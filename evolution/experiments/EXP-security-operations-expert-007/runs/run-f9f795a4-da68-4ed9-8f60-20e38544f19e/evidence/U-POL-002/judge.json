@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求核对指定设备（172.16.1.155）的真实资产类型与可配置能力，并生成可核对的策略预览。被测回答只把该 IP 作为 source 写入 ADD 策略意图，从未查询或核实其资产类型与是否支持该策略配置，反而在“未知项”中自认“源与目标资产归属、是否存在冲突或在先策略……属证据缺口”。工具回执仅返回 operation_id、task_id 216、candidate_digest 等状态字段，未提供任何设备资产类型、能力或可核对的策略内容预览，故“设备适用性核对”与“可核对的预览”均未满足。此外输出中“策略草稿已生成”“可核对的预览”等表述超出工具回执所证实的范围（回执只证实 DRAFT 状态与摘要值）。虽然其未提交或执行、未伪造执行成功，但核心预期未达成，故判 failed。"
+  },
+  "checks": {
+    "session_id": "session-90da575a-29f6-4e83-a12d-beb5ceb22947",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

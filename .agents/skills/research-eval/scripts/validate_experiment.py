@@ -13,7 +13,12 @@ from pathlib import Path
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from evaluation_contract import execution_for, selection_for
+from evaluation_contract import evaluation_digest, execution_for, load_evaluation
+
+ADAPTER = Path(__file__).resolve().parents[4] / "runtime/adapters/dsh-container"
+if str(ADAPTER) not in sys.path:
+    sys.path.insert(0, str(ADAPTER))
+from scenario_analysis import summarize_review, validate_analysis
 
 try:
     import yaml
@@ -32,6 +37,7 @@ OUTCOMES = {"adopt", "continue", "reject", "inconclusive"}
 RUN_STATUSES = {"planned", "running", "completed", "failed", "cancelled"}
 EXECUTION_STATUSES = {"completed", "error", "skipped"}
 VERDICTS = {"passed", "failed", "inconclusive"}
+GAP_CLASSIFICATIONS = {"harness", "input", "method", "environment", "unknown"}
 
 
 def issue(code: str, message: str, path: Path | None = None) -> dict[str, str]:
@@ -90,18 +96,11 @@ def valid_baseline_ref(value: object) -> bool:
     return False
 
 
-def ordered_subset(values: object, declared: list[str]) -> bool:
-    if not isinstance(values, list) or not values or len(values) != len(set(values)):
-        return False
-    position = -1
-    for value in values:
-        if not isinstance(value, str):
-            return False
-        try:
-            position = declared.index(value, position + 1)
-        except ValueError:
-            return False
-    return True
+def valid_id_list(values: object, *, nonempty: bool = False) -> bool:
+    return isinstance(values, list) \
+        and (not nonempty or bool(values)) \
+        and all(isinstance(value, str) and bool(value.strip()) for value in values) \
+        and len(values) == len(set(values))
 
 
 def material_evidence(run_dir: Path, value: object) -> bool:
@@ -181,13 +180,36 @@ def validate_result(
     return rows
 
 
+def validate_gaps(path: Path, expected_run: str, errors: list[dict[str, str]]) -> None:
+    seen = set()
+    required = {"gap_id", "run_id", "classification", "title", "observed", "next_step"}
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            errors.append(issue("RUN_GAP", f"第 {line_number} 行不是合法 JSON：{exc.msg}", path))
+            continue
+        if not isinstance(row, dict) or set(row) - required - {"evidence_ref"} or not required <= set(row) \
+                or not isinstance(row["gap_id"], str) or not row["gap_id"].startswith("gap-") \
+                or row["gap_id"] in seen or row["run_id"] != expected_run \
+                or not isinstance(row["classification"], str) \
+                or row["classification"] not in GAP_CLASSIFICATIONS \
+                or any(not isinstance(row[key], str) or not row[key].strip()
+                       for key in ("title", "observed", "next_step")) \
+                or "evidence_ref" in row and not material_evidence(path.parent, row["evidence_ref"]):
+            errors.append(issue("RUN_GAP", f"第 {line_number} 行研究缺口无效", path))
+            continue
+        seen.add(row["gap_id"])
+
+
 def validate_run(
     run_dir: Path,
     experiment_id: str,
     agent_id: str,
     evaluation_ref: str,
-    evaluation_sha256: str,
-    evaluation_selection: dict[str, list[str]],
+    evaluation_path: Path,
     errors: list[dict[str, str]],
 ) -> None:
     if not RUN_RE.fullmatch(run_dir.name):
@@ -217,7 +239,13 @@ def validate_run(
     status = manifest.get("status")
     if status not in RUN_STATUSES:
         errors.append(issue("RUN_STATUS", "Run status 不合法", manifest_path))
-    if manifest.get("evaluation_ref") != evaluation_ref:
+    sealed = status in {"completed", "failed", "cancelled"}
+    run_evaluation_ref = manifest.get("evaluation_ref")
+    valid_evaluation_ref = run_evaluation_ref == evaluation_ref or (
+        sealed and isinstance(run_evaluation_ref, str)
+        and run_evaluation_ref.split("#", 1)[0] == evaluation_ref
+    )
+    if not valid_evaluation_ref:
         errors.append(issue("RUN_EVALUATION_REF", f"evaluation_ref 必须是 {evaluation_ref}", manifest_path))
     if "plan_ref" in manifest:
         errors.append(issue("RUN_PLAN_REF", "Run 不再允许引用 Experiment 本地 plan", manifest_path))
@@ -237,17 +265,66 @@ def validate_run(
         errors.append(issue("RUN_PLAN_REF", "Run 输入锁不再允许保存本地 plan 摘要", inputs))
     if locked_inputs.get("schema_version") != "2.0" or locked_inputs.get("run_id") != run_dir.name:
         errors.append(issue("RUN_INPUTS_SCHEMA", "输入锁必须是当前 Run 的 2.0 合同", inputs))
-    # 未封存 Run 必须仍对应当前评测口径；封存 Run 使用输入锁中的历史摘要。
-    if status in {"planned", "running"} and locked_inputs.get("evaluation_sha256") != evaluation_sha256:
-        errors.append(issue("RUN_EVALUATION_HASH", "Run 锁定的 evaluation.md 摘要与当前文件不一致", inputs))
-    locked_selection = locked_inputs.get("evaluation_selection")
-    valid_selection = isinstance(locked_selection, dict) \
-        and ordered_subset(locked_selection.get("case_ids"), evaluation_selection["case_ids"]) \
-        and locked_selection.get("method_ids") == evaluation_selection["method_ids"] \
-        and locked_selection.get("acceptance_ids") == evaluation_selection["acceptance_ids"]
-    if not valid_selection:
-        errors.append(issue("RUN_EVALUATION_SELECTION", "Run 必须锁定当前 Experiment 的非空有序 Case 子集及完整方法和验收", inputs))
-    selected_ids = set(locked_selection.get("case_ids", [])) if isinstance(locked_selection, dict) else set()
+    locked_cases = locked_inputs.get("evaluation_cases")
+    valid_cases = isinstance(locked_cases, list) and bool(locked_cases) and all(
+        isinstance(case, dict)
+        and isinstance(case.get("case_id"), str) and bool(case["case_id"])
+        and isinstance(case.get("title"), str) and bool(case["title"])
+        and isinstance(case.get("inputs"), list) and bool(case["inputs"])
+        and all(isinstance(value, str) and bool(value.strip()) for value in case["inputs"])
+        and isinstance(case.get("expected_behavior"), str) and bool(case["expected_behavior"].strip())
+        for case in locked_cases
+    )
+    if valid_cases:
+        case_ids = [case["case_id"] for case in locked_cases]
+        valid_cases = len(case_ids) == len(set(case_ids))
+    else:
+        case_ids = []
+
+    has_catalog = "case_catalog" in locked_inputs or "selection_mode" in locked_inputs
+    catalog = locked_inputs.get("case_catalog")
+    selection_mode = locked_inputs.get("selection_mode")
+    valid_catalog = isinstance(catalog, list) and bool(catalog) and all(
+        isinstance(item, dict) and set(item) == {"case_id", "scene", "fast"}
+        and isinstance(item["case_id"], str) and bool(item["case_id"])
+        and isinstance(item["scene"], str) and bool(item["scene"].strip())
+        and isinstance(item["fast"], bool)
+        for item in catalog
+    )
+    if valid_catalog:
+        catalog_ids = [item["case_id"] for item in catalog]
+        valid_catalog = len(catalog_ids) == len(set(catalog_ids)) and set(case_ids) <= set(catalog_ids)
+    if has_catalog:
+        if not valid_catalog or selection_mode not in {"fast", "full", "explicit"}:
+            errors.append(issue("RUN_CASE_CATALOG", "Run 场景目录或选择模式无效", inputs))
+        elif selection_mode != "explicit":
+            expected_ids = [item["case_id"] for item in catalog
+                            if selection_mode == "full" or item["fast"]]
+            if case_ids != expected_ids:
+                errors.append(issue("RUN_CASE_SELECTION", "所选 Case 与 fast/full 场景目录不一致", inputs))
+
+    if status in {"planned", "running"}:
+        if not valid_cases:
+            errors.append(issue("RUN_EVALUATION_CASES", "未封存 Run 必须锁定完整 Case", inputs))
+        else:
+            try:
+                current_cases = execution_for(evaluation_path, case_ids)
+            except (OSError, ValueError) as exc:
+                errors.append(issue("RUN_EVALUATION_CASES", str(exc), inputs))
+            else:
+                if locked_cases != current_cases:
+                    errors.append(issue("RUN_EVALUATION_CASES", "Run 锁定的 Case 与当前定义不一致", inputs))
+                if locked_inputs.get("evaluation_sha256") != evaluation_digest(evaluation_path, case_ids):
+                    errors.append(issue("RUN_EVALUATION_HASH", "Run 锁定的 Case 摘要与当前定义不一致", inputs))
+                if has_catalog and valid_catalog and catalog != load_evaluation(evaluation_path)["catalog"]:
+                    errors.append(issue("RUN_CASE_CATALOG", "Run 场景目录与当前定义不一致", inputs))
+    elif not valid_cases:
+        historical = locked_inputs.get("evaluation_selection")
+        case_ids = historical.get("case_ids", []) if isinstance(historical, dict) else []
+        if not valid_id_list(case_ids, nonempty=True):
+            errors.append(issue("RUN_EVALUATION_CASES", "封存 Run 缺少有效的历史 Case 选择", inputs))
+            case_ids = []
+    selected_ids = set(case_ids)
     results = run_dir / "results.jsonl"
     rows: list[dict] = []
     if results.is_file():
@@ -263,7 +340,7 @@ def validate_run(
         overall = "failed" if verdict_counts["failed"] else (
             "inconclusive" if verdict_counts["inconclusive"] or not rows else "passed"
         )
-        expected_summary = {
+        legacy_summary = {
             "schema_version": "2.0",
             "run_id": run_dir.name,
             "trial_count": len(rows),
@@ -276,6 +353,31 @@ def validate_run(
         except (OSError, json.JSONDecodeError) as exc:
             errors.append(issue("RUN_SUMMARY", f"summary.json 无效：{exc}", summary_path))
         else:
+            expected_summary = legacy_summary
+            if isinstance(summary, dict) and summary.get("schema_version") == "3.0":
+                try:
+                    analysis_for_summary = json.loads((run_dir / "analysis.json").read_text(encoding="utf-8"))
+                    review = summarize_review(analysis_for_summary)
+                except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                    review = {"status": None, "case_count": None, "verdict_counts": None, "overall_verdict": None}
+                effective = "inconclusive" if status != "completed" else (
+                    review["overall_verdict"] if review["status"] == "completed"
+                    else overall if review["status"] == "not_requested"
+                    else "inconclusive"
+                )
+                expected_summary = {
+                    "schema_version": "3.0",
+                    "run_id": run_dir.name,
+                    "trial_count": len(rows),
+                    "execution_status_counts": execution_counts,
+                    "machine_trial_verdict_counts": verdict_counts,
+                    "machine_overall_verdict": overall,
+                    "review_status": review["status"],
+                    "reviewed_case_count": review["case_count"],
+                    "reviewed_case_verdict_counts": review["verdict_counts"],
+                    "reviewed_overall_verdict": review["overall_verdict"],
+                    "effective_verdict": effective,
+                }
             if summary != expected_summary:
                 errors.append(issue("RUN_SUMMARY_CONTENT", "summary.json 与逐项结果不一致", summary_path))
     if status in {"completed", "failed", "cancelled"}:
@@ -288,6 +390,30 @@ def validate_run(
             expected_hash = hashlib.sha256(report_path.read_bytes() if report_path.is_file() else b"").hexdigest()
             if manifest.get("report_sha256") != expected_hash:
                 errors.append(issue("RUN_HASH", "report_sha256 与文件不一致", manifest_path))
+        gaps_path = run_dir / "gaps.jsonl"
+        if gaps_path.is_file() or manifest.get("gaps_sha256"):
+            expected_hash = hashlib.sha256(gaps_path.read_bytes() if gaps_path.is_file() else b"").hexdigest()
+            if manifest.get("gaps_sha256") != expected_hash:
+                errors.append(issue("RUN_HASH", "gaps_sha256 与文件不一致", manifest_path))
+            if gaps_path.is_file():
+                validate_gaps(gaps_path, run_dir.name, errors)
+        if has_catalog:
+            analysis_path = run_dir / "analysis.json"
+            if not analysis_path.is_file():
+                errors.append(issue("RUN_ANALYSIS", "新 Run 缺少场景诊断记录", run_dir))
+            else:
+                if manifest.get("analysis_sha256") != hashlib.sha256(analysis_path.read_bytes()).hexdigest():
+                    errors.append(issue("RUN_HASH", "analysis_sha256 与文件不一致", manifest_path))
+                if valid_catalog and valid_cases:
+                    try:
+                        analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
+                        validate_analysis(analysis, run_dir, rows, locked_inputs)
+                        if analysis.get("schema_version") == "2.0" \
+                                and status == "completed" and selection_mode == "full" \
+                                and analysis.get("review_status") != "completed":
+                            raise ValueError("completed full Run 必须完成全部证据复核")
+                    except (OSError, ValueError, KeyError, TypeError, IndexError) as exc:
+                        errors.append(issue("RUN_ANALYSIS", f"场景诊断与 Run 事实不一致：{exc}", analysis_path))
 
 
 def validate(experiment: Path) -> tuple[dict, int]:
@@ -300,15 +426,14 @@ def validate(experiment: Path) -> tuple[dict, int]:
     agent_id = match.group(1)
     repository = experiment.parents[2]
     evaluation_path = repository / "agents" / agent_id / "evaluation.md"
-    evaluation_ref = f"agents/{agent_id}/evaluation.md#{experiment.name}"
+    evaluation_ref = f"agents/{agent_id}/evaluation.md"
     try:
-        evaluation_selection = selection_for(evaluation_path, experiment.name)
-        execution_for(evaluation_path, experiment.name)
-        evaluation_sha256 = hashlib.sha256(evaluation_path.read_bytes()).hexdigest()
+        load_evaluation(evaluation_path)
     except (OSError, ValueError) as exc:
         errors.append(issue("EVALUATION_CONTRACT", str(exc), evaluation_path))
-        evaluation_selection = None
-        evaluation_sha256 = ""
+        evaluation_valid = False
+    else:
+        evaluation_valid = True
     change_path = experiment / "change.yaml"
     try:
         change = load_yaml(change_path)
@@ -349,14 +474,13 @@ def validate(experiment: Path) -> tuple[dict, int]:
         else:
             for run_dir in sorted(path for path in runs.iterdir() if path.name not in {".DS_Store"}):
                 if run_dir.is_dir():
-                    if evaluation_selection is not None:
+                    if evaluation_valid:
                         validate_run(
                             run_dir,
                             experiment.name,
                             agent_id,
                             evaluation_ref,
-                            evaluation_sha256,
-                            evaluation_selection,
+                            evaluation_path,
                             errors,
                         )
                 else:

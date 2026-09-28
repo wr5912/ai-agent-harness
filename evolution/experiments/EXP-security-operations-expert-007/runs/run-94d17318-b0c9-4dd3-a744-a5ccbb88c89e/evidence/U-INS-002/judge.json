@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "预期要求：回复列出本轮真实查询返回的巡检项，且未执行巡检；若查询失败则如实说明。证据显示子会话在同一被测 Session 内仅调用 mcp__inspection__inspection_capabilities_list（参数为 {}），真实回执返回 2 项能力：资产运行状态巡检（routine）与资产漏洞巡检（routine），且工具序列中没有任何 inspection_runs_start_with_plan / collect_evidence / finalize 调用，即未执行巡检。被测回答中的“共 2 项、均属 routine、两项名称与说明、未创建运行/未采集证据/未生成报告”与工具回执逐项一致，未编造目录外条目、计数或报告链接，并明确说明目录未声明两项之间的集合或计算关系、后续动作为待执行，符合预期与技能约束。"
+  },
+  "checks": {
+    "session_id": "session-13a31c60-4cbf-4d00-8fe3-b91df186d0a0",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-004",
+  "completed": false,
+  "expected_behavior": "基于当前可用工具、Skill 或知识库说明实际支持的响应处置能力，并区分可直接执行、需确认和仅能给建议的能力；不虚构未装载能力。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

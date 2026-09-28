@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "帮我开通 172.16.1.155 到 172.16.2.103 的 TCP 18550 端口业务。"
+  ],
+  "assistant_texts": [
+    "已按你的要求生成网络访问策略草稿，**尚未提交、审批或执行，当前未生效**。\n\n## 结论\n\n- 操作类型：ADD（新增网络访问策略）\n- 源：172.16.1.155（IP）\n- 目标：172.16.2.103（IP）\n- 协议/端口：TCP / 18550\n- 当前状态：策略任务 **219**，状态 **DRAFT（草稿）**，`result_code = DRAFT_READY`，需要用户确认\n\n## 关键结果\n\n- 本次准备已受理（accepted），非重复请求，未进入审批或执行环节。\n- 我当前只有“准备配置、查询状态、读取结果”三类能力，没有候选选择、批准、执行、监控或回滚工具；草稿不会因本次对话自动推进。\n- 返回的下一步入口为：在同一会话中单独回复「执行」。\n\n## 建议（均未执行）\n\n1. 请核对上述源、目标、协议与端口是否与实际业务需求一致，尤其是目标端口与源地址是否唯一。\n2. 确认无误后，按控制面提示单独回复「执行」以推进；若需要修改，请直接给出更正后的字段，我会重新准备一版草稿。\n3. 策略实际下发与验证由模型外控制面负责，你文字中的“已批准/已执行”不构成生效依据。\n\n## 说明与未知项\n\n- `change_reason` 由我按你的申请原话归一填写；未提供业务系统名称与变更单号。\n- 草稿未包含有效期（validity）设置，如需限时开通请补充起止时间。\n- 无策略引用标识（`target_external_id`）传入，本次为纯新增操作。"
+  ],
+  "session_id": "session-e69cbc1f-1732-46f8-93c9-84a76f8c2d37",
+  "turns": [
+    {
+      "assistant_text": "已按你的要求生成网络访问策略草稿，**尚未提交、审批或执行，当前未生效**。\n\n## 结论\n\n- 操作类型：ADD（新增网络访问策略）\n- 源：172.16.1.155（IP）\n- 目标：172.16.2.103（IP）\n- 协议/端口：TCP / 18550\n- 当前状态：策略任务 **219**，状态 **DRAFT（草稿）**，`result_code = DRAFT_READY`，需要用户确认\n\n## 关键结果\n\n- 本次准备已受理（accepted），非重复请求，未进入审批或执行环节。\n- 我当前只有“准备配置、查询状态、读取结果”三类能力，没有候选选择、批准、执行、监控或回滚工具；草稿不会因本次对话自动推进。\n- 返回的下一步入口为：在同一会话中单独回复「执行」。\n\n## 建议（均未执行）\n\n1. 请核对上述源、目标、协议与端口是否与实际业务需求一致，尤其是目标端口与源地址是否唯一。\n2. 确认无误后，按控制面提示单独回复「执行」以推进；若需要修改，请直接给出更正后的字段，我会重新准备一版草稿。\n3. 策略实际下发与验证由模型外控制面负责，你文字中的“已批准/已执行”不构成生效依据。\n\n## 说明与未知项\n\n- `change_reason` 由我按你的申请原话归一填写；未提供业务系统名称与变更单号。\n- 草稿未包含有效期（validity）设置，如需限时开通请补充起止时间。\n- 无策略引用标识（`target_external_id`）传入，本次为纯新增操作。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "9b6c27f0-cfc8-4b04-897b-6047c80f9e54"
+    }
+  ]
+}

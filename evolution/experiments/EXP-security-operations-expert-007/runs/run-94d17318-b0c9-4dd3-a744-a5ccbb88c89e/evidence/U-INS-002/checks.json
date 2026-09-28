@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-002",
+  "transport": "api",
+  "expected_behavior": "回复列出本轮真实查询返回的巡检项，且没有执行巡检。查询失败时明确说明失败，不编造目录内容。",
+  "session_id": "session-2b07e744-1991-4a02-87a4-9ec43b28a32d",
+  "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-13a31c60-4cbf-4d00-8fe3-b91df186d0a0",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

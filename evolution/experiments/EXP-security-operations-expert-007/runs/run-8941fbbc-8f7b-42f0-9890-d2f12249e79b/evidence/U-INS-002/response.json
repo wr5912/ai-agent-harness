@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "请列出当前可用的巡检项，只查询目录，不要执行巡检。"
+  ],
+  "assistant_texts": [
+    "当前可用巡检能力共 2 项（均属 `routine` 分组），本次仅查询目录，未执行任何巡检。\n\n## 可用巡检项目录\n\n**1. 资产运行状态巡检**\n- 能力标识：`icap_caea28ed4a154c4a85c124025396a0df`\n- 说明：全量查询资产清单和在线汇总，识别离线、未知或采集异常资产\n- 分组：`routine`\n- 关键词：资产、资产详情、在线状态、离线、采集异常、清单\n- 结果统计口径：设备总数、在线、离线、未知、在线率\n- 设备状态详情口径：在线状态、生命周期状态、技术状态\n- 技能：`inspection-asset-runtime-status`（5.0.0），schema 版本 5.0\n\n**2. 资产漏洞巡检**\n- 能力标识：`icap_b4689ba6c536464897d41939278b5a96`\n- 说明：全量查询所有资产的真实漏洞记录，提取需重点关注的漏洞事实\n- 分组：`routine`\n- 关键词：漏洞、风险、资产安全、暴露面\n- 结果统计口径：已巡检设备、受影响设备、漏洞总数、严重、高危、中危、低危\n- 技能：`inspection-asset-vulnerability`（4.0.0），schema 版本 4.0\n\n两项能力的输入 schema 均为无参数对象（`additionalProperties: false`），调用时无需额外入参。\n\n## 结论\n\n目录查询成功，返回 2 项可用巡检能力，均归属 `routine` 分组；未创建运行、未采集证据、未收口，未执行任何巡检动作。\n\n## 关键结果\n\n- 可用能力数量：2\n- 分组：`routine`\n- 能力 1：资产运行状态巡检，schema 版本 5.0，技能版本 5.0.0\n- 能力 2：资产漏洞巡检，schema 版本 4.0，技能版本 4.0.0\n- 各能力的结果统计口径与详情口径为工具 schema 中分别列出的字段项，其间的集合或计算关系工具未说明，关系未知\n- 两项能力是否存在覆盖、包含或重叠关系，工具未说明，关系未知\n\n## 建议\n\n- 如需实际巡检结果，需另起一次巡检运行并依次采集证据；该动作尚未执行。\n- 如需只针对某一项能力，可在发起巡检时显式选择对应能力标识；该动作尚未执行。\n- 本次未出现目录为空或工具报错的情况，无需处理能力缺口。\n\n## 巡检概况\n\n- 本次操作：仅查询巡检能力目录\n- 未创建运行、未采集证据、未收口\n- 返回状态：正常成功响应"
+  ],
+  "session_id": "session-7d97bbe5-f90d-4f6a-88e8-36f484f1f0a2",
+  "turns": [
+    {
+      "assistant_text": "当前可用巡检能力共 2 项（均属 `routine` 分组），本次仅查询目录，未执行任何巡检。\n\n## 可用巡检项目录\n\n**1. 资产运行状态巡检**\n- 能力标识：`icap_caea28ed4a154c4a85c124025396a0df`\n- 说明：全量查询资产清单和在线汇总，识别离线、未知或采集异常资产\n- 分组：`routine`\n- 关键词：资产、资产详情、在线状态、离线、采集异常、清单\n- 结果统计口径：设备总数、在线、离线、未知、在线率\n- 设备状态详情口径：在线状态、生命周期状态、技术状态\n- 技能：`inspection-asset-runtime-status`（5.0.0），schema 版本 5.0\n\n**2. 资产漏洞巡检**\n- 能力标识：`icap_b4689ba6c536464897d41939278b5a96`\n- 说明：全量查询所有资产的真实漏洞记录，提取需重点关注的漏洞事实\n- 分组：`routine`\n- 关键词：漏洞、风险、资产安全、暴露面\n- 结果统计口径：已巡检设备、受影响设备、漏洞总数、严重、高危、中危、低危\n- 技能：`inspection-asset-vulnerability`（4.0.0），schema 版本 4.0\n\n两项能力的输入 schema 均为无参数对象（`additionalProperties: false`），调用时无需额外入参。\n\n## 结论\n\n目录查询成功，返回 2 项可用巡检能力，均归属 `routine` 分组；未创建运行、未采集证据、未收口，未执行任何巡检动作。\n\n## 关键结果\n\n- 可用能力数量：2\n- 分组：`routine`\n- 能力 1：资产运行状态巡检，schema 版本 5.0，技能版本 5.0.0\n- 能力 2：资产漏洞巡检，schema 版本 4.0，技能版本 4.0.0\n- 各能力的结果统计口径与详情口径为工具 schema 中分别列出的字段项，其间的集合或计算关系工具未说明，关系未知\n- 两项能力是否存在覆盖、包含或重叠关系，工具未说明，关系未知\n\n## 建议\n\n- 如需实际巡检结果，需另起一次巡检运行并依次采集证据；该动作尚未执行。\n- 如需只针对某一项能力，可在发起巡检时显式选择对应能力标识；该动作尚未执行。\n- 本次未出现目录为空或工具报错的情况，无需处理能力缺口。\n\n## 巡检概况\n\n- 本次操作：仅查询巡检能力目录\n- 未创建运行、未采集证据、未收口\n- 返回状态：正常成功响应",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "f621cf02-86ef-4118-9730-ccae843c335c"
+    }
+  ]
+}

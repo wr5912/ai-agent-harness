@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答逐项排查了三种假设（策略本身变化、主备策略漂移、172.16.138.214 配置漂移）与业务影响范围，并严格区分事实、能力缺口与待验证假设：明确说明无策略/配置读取工具、haPairId 全为空属于能力缺口而非“一致”，没有在证据不足时认定漂移或影响范围，也未把无数据当作正常。关键数据均可由同一被测 Session 的工具回执支持：资产解析 assetId=3616551 且 assetType=host/名称“瑞禾S500主机”、mgmtProtocol/mgmtPort 为空、probeState=reachable；5 台同型资产 .212/.213/.214/.215/.218 中 .212/.218 为 unreachable/offline、haPairId 全为 null、collectionStatus=non_collectable；get_graph_compliance_violations（默认、status=all、severity=HIGH）均为空；coverage 整体 15/31/2=33%、部门 101 为 1/7=13%、指定 5 台为 0/5=0%、.214 单机为 0/1；cross_signal 汇总 NORMAL 23/IDLE 18/SHADOW 47，以及 .214↔172.16.1.1 的 848/16 次 SHADOW、172.16.2.103→.214 的 2 次 SHADOW；可达性判定 REACHABLE/l2_same_segment、路径查询工具返回上游 500 错误、端口明细为空集、事件索引均返回 no such index。回答对这些否定证据和工具错误分别记录，并给出了未执行的后续取证建议，符合预期行为。"
+  },
+  "checks": {
+    "session_id": "session-ebaf78b8-d0c6-46bf-8524-5475b1ade265",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

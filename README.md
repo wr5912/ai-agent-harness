@@ -111,8 +111,7 @@ docs/
   standards/                             # 受控来源、副本摘要与项目解释
 agents/<agent-id>/
   manifest.yaml                          # Agent 研究入口和当前 Experiment
-  definition.md                          # 需求与任务的单一事实源
-  evaluation.md                          # 测试数据、评估方法、验收与 Experiment 选择的单一事实源
+  evaluation.md                          # 业务 Case 的输入与预期的单一事实源
 evolution/
   experiments/EXP-<agent-id>-NNN/
     change.yaml                          # 基线引用、状态与结果
@@ -131,7 +130,7 @@ AI纠错记录/                               # 按天追加的 AI 纠错记录
 
 `evolution/history/imports/` 只保存来源追溯和迁移审计。需要改变当前 Harness、研究目标或比较材料时，修改现行资产并进入新的 Experiment，不回写历史批次来改变当前行为。
 
-需求与任务只在 [`definition.md`](agents/security-operations-expert/definition.md) 维护；测试数据、评估方法、验收标准和各 Experiment 的选择只在 [`evaluation.md`](agents/security-operations-expert/evaluation.md) 维护。Experiment 不再保存本地评测计划；Run 自动锁定当次摘要和所选 ID，这些不可编辑记录不是第二份维护源。
+每个 Agent 的当前业务测试只在 [`evaluation.md`](agents/security-operations-expert/evaluation.md) 维护；每个 Case 把名称、用户输入和预期结果放在一起。运行时用 `--case` 显式选择；Run 自动锁定所选 Case 的完整快照和摘要，这些不可编辑记录不是第二份维护源。
 
 本项目不维护 `evolution/baselines/` 和 `agents/<agent-id>/current/`。Baseline 使用 `git:<commit>`、`release:<id>` 或 `none:first-experiment` 引用；Git 和不可变 Research Release 已足以恢复版本，额外镜像会制造重复事实源。
 
@@ -167,15 +166,15 @@ python3 .agents/skills/research-eval/scripts/validate_experiment.py \
 
 脚本输出 JSON。退出码 `0` 只说明各自覆盖的确定性合同通过，`1` 表示发现问题，`2` 表示输入或读取错误；它们不替代对研究结果的人工判断。
 
-受管评测会自动完成 Run 创建、执行、证据导出、封存和实例停止。默认通过 DSH Runtime Session API 执行业务 Case；浏览器通道只核对初始提示、工作区、模型、发送和显示等 UI 链路，需显式指定。先用 `--dry-run` 核对选择与环境变量名称：
+受管评测会自动完成 Run 创建、执行、证据导出、场景诊断、封存和实例停止。默认 `--mode fast` 运行标记的 Case，`--mode full` 运行全部 Case，`--case` 可覆盖档位；三者均不改变 `dsh-dev --mode eval` 的容器运行模式。默认通过 DSH Runtime Session API 执行业务 Case；浏览器通道只核对初始提示、工作区、模型、发送和显示等 UI 链路，需显式指定。先用 `--dry-run` 核对选择与环境变量名称：
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --dry-run
+  --source experiment:EXP-<agent-id>-NNN --mode fast --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN [--case <case-id>]
+  --source experiment:EXP-<agent-id>-NNN --mode full
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --executor browser [--case <case-id>]
+  --source experiment:EXP-<agent-id>-NNN --executor browser --case <case-id>
 ```
 
 只需手工记录观察时，直接使用底层 Run 台账：

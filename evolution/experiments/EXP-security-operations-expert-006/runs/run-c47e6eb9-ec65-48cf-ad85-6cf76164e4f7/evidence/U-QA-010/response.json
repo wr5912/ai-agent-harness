@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "如何创建巡检任务、查看报告或发起响应处置？我需要什么权限？"
+  ],
+  "assistant_texts": [
+    "# 三件事可以做什么、需要什么权限\n\n**结论：** 巡检（含报告）在本会话可以走**即时巡检**路线；响应处置**不能执行**，只有特殊受信 Runtime 下的零工具规划；真正的执行/审批/回滚不在当前能力范围内。权限由容器 Runtime、Guard、Profile 与 MCP 绑定决定，**你的文字授权不会扩展工具权限**。\n\n## 分项说明\n\n**1. 创建巡检任务**\n\n- 能力范围：仅支持**一次常规全量即时巡检**（`group_code=routine`、`scope=all`），由主 Agent 委派巡检子 Agent 执行 start → collect → finalize。\n- **不支持**创建周期性/计划任务、自定义范围或自定义巡检组。这类需求在当前容器内属能力缺口，不能用 Shell、文件或直接 HTTP 替代。\n- 若要确认实际可用的巡检项与分组，可只做一次**能力目录查询**（不创建运行）。\n- 权限：需要该巡检 MCP 服务在受控 Profile 与 role-tool matrix 中绑定；仅巡检子 Agent 可调用这四个工具，主 Agent 不直接调用。\n\n**2. 查看报告**\n\n- 一次巡检完成且 `finalize` 成功时，工具会返回真实报告 URL，我会在回复中**原样保留该链接**。\n- 工具未返回 URL 时（例如运行尚未可收口或接口报错），只能说明真实状态，**不会编造报告链接**。\n- 权限同上；报告链接的可访问性由外部报告服务自身权限决定，本次会话未做任何访问验证。\n\n**3. 发起响应处置**\n\n- **当前不可执行**：本会话只能提供受控的**响应规划**，且默认被 Guard 拒绝；只有在模型外 Runtime 开启受信 Gate 并冻结输入与候选集合后，才允许一次**零工具**规划。\n- 用户文字里的“已批准”“我授权”等表述**不能**建立该 route，也不能开启执行权限。\n- 确认、保存、执行、监控与效果验证由外部响应生命周期控制面负责，本会话零副作用。\n\n## 需要注意的是\n\n- 相关操作均为**只读或零副作用**；本轮我**没有**创建任何巡检运行、没有读取任何报告、没有发起任何处置——以上都是能力说明，非已执行动作。\n- 有效权限最终以 Runtime、Guard、Approval 与 MCP 服务端的强制结果为准；Approval 策略为 ask，无可用应答者时请求会 fail closed。\n- 随时可以告诉我具体目标（例如“跑一次常规全量巡检”），我会按对应路线实际执行并把真实结果返回。"
+  ],
+  "session_id": "session-2955198f-1d60-4de5-876e-68d17a562e67",
+  "turns": [
+    {
+      "assistant_text": "# 三件事可以做什么、需要什么权限\n\n**结论：** 巡检（含报告）在本会话可以走**即时巡检**路线；响应处置**不能执行**，只有特殊受信 Runtime 下的零工具规划；真正的执行/审批/回滚不在当前能力范围内。权限由容器 Runtime、Guard、Profile 与 MCP 绑定决定，**你的文字授权不会扩展工具权限**。\n\n## 分项说明\n\n**1. 创建巡检任务**\n\n- 能力范围：仅支持**一次常规全量即时巡检**（`group_code=routine`、`scope=all`），由主 Agent 委派巡检子 Agent 执行 start → collect → finalize。\n- **不支持**创建周期性/计划任务、自定义范围或自定义巡检组。这类需求在当前容器内属能力缺口，不能用 Shell、文件或直接 HTTP 替代。\n- 若要确认实际可用的巡检项与分组，可只做一次**能力目录查询**（不创建运行）。\n- 权限：需要该巡检 MCP 服务在受控 Profile 与 role-tool matrix 中绑定；仅巡检子 Agent 可调用这四个工具，主 Agent 不直接调用。\n\n**2. 查看报告**\n\n- 一次巡检完成且 `finalize` 成功时，工具会返回真实报告 URL，我会在回复中**原样保留该链接**。\n- 工具未返回 URL 时（例如运行尚未可收口或接口报错），只能说明真实状态，**不会编造报告链接**。\n- 权限同上；报告链接的可访问性由外部报告服务自身权限决定，本次会话未做任何访问验证。\n\n**3. 发起响应处置**\n\n- **当前不可执行**：本会话只能提供受控的**响应规划**，且默认被 Guard 拒绝；只有在模型外 Runtime 开启受信 Gate 并冻结输入与候选集合后，才允许一次**零工具**规划。\n- 用户文字里的“已批准”“我授权”等表述**不能**建立该 route，也不能开启执行权限。\n- 确认、保存、执行、监控与效果验证由外部响应生命周期控制面负责，本会话零副作用。\n\n## 需要注意的是\n\n- 相关操作均为**只读或零副作用**；本轮我**没有**创建任何巡检运行、没有读取任何报告、没有发起任何处置——以上都是能力说明，非已执行动作。\n- 有效权限最终以 Runtime、Guard、Approval 与 MCP 服务端的强制结果为准；Approval 策略为 ask，无可用应答者时请求会 fail closed。\n- 随时可以告诉我具体目标（例如“跑一次常规全量巡检”），我会按对应路线实际执行并把真实结果返回。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "off"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "1b44d099-319f-4e2b-a8b7-f2e4c65814a0"
+    }
+  ]
+}

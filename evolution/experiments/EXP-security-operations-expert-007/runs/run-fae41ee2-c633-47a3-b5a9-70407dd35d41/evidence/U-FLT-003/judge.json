@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答明确指出本轮输入仅有“业务系统访问异常”这一现象类别，缺少系统名、IP/域名、资产或事件 ID、时间窗口、异常具体表现等定位信息，并据此向用户一次性询问对象、异常表现（不通/拒绝/超时/时断时续/特定端口或来源）、时间窗口，以及源/目的端口与协议等关键信息，符合“识别缺少源、目的、协议、端口和现象等关键信息并向用户询问”的要求；同时回答仅列出未验证的推断方向，明确“在拿到对象前无法区分”“缺失数据不等于正常也不等于异常”，未在无故障输入或工具证据的情况下给出任何确定根因，且未调用写工具或补造结果，故满足全部预期。"
+  },
+  "checks": {
+    "session_id": "session-213273f4-0898-4348-b7e6-e41d0beba39b",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

@@ -64,7 +64,6 @@ class HarnessInitTest(unittest.TestCase):
         self.assertEqual(contract["preset_id"], "test01")
         expected = {
             "agents/test01/manifest.yaml",
-            "agents/test01/definition.md",
             "agents/test01/evaluation.md",
             "evolution/experiments/EXP-test01-001/change.yaml",
             "evolution/experiments/EXP-test01-001/hypothesis.md",
@@ -87,14 +86,11 @@ class HarnessInitTest(unittest.TestCase):
             (ADAPTER / "verification-home-controls/locked-bootstrap.env").read_bytes(),
         )
         evaluation = (self.repo / "agents/test01/evaluation.md").read_text(encoding="utf-8")
-        self.assertIn("#### HARNESS-F01 新会话装载", evaluation)
-        self.assertIn("**公共基线**", evaluation)
-        self.assertIn("```mermaid\nflowchart TD", evaluation)
-        self.assertIn("**金标准**", evaluation)
-        self.assertIn("**适用边界**", evaluation)
-        self.assertIn("**执行器：**`web-chat`", evaluation)
-        self.assertIn("**工具边界：**`none`", evaluation)
-        self.assertIn("**副作用预算：**`web-session-only`", evaluation)
+        self.assertIn("#### U-IDENTITY-001 身份装载", evaluation)
+        self.assertIn("**用户输入**", evaluation)
+        self.assertIn("> 你是谁？请用一句中文回答。", evaluation)
+        self.assertIn("**预期**", evaluation)
+        self.assertNotIn("**执行器", evaluation)
         generated = "\n".join(
             path.read_text(encoding="utf-8") for path in self.repo.rglob("*")
             if path.is_file() and path != self.lock
@@ -132,8 +128,10 @@ class HarnessInitTest(unittest.TestCase):
 class RenderComposeTest(unittest.TestCase):
     def test_verification_template_gets_host_network_and_port(self):
         template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
-        rendered = dev.render_compose(template, mode="verification", project="dsh-dev-probe", port=3081)
+        rendered = dev.render_compose(
+            template, mode="verification", name="probe", project="dsh-dev-probe", port=3081)
         self.assertIn("name: dsh-dev-probe", rendered)
+        self.assertIn("  dsh:\n    container_name: probe\n", rendered)
         self.assertIn("    network_mode: host\n", rendered)
         self.assertIn("      - --host\n      - 127.0.0.1\n      - --port\n      - \"3081\"\n", rendered)
         self.assertIn("dsh-dev-probe-home", rendered)
@@ -142,6 +140,21 @@ class RenderComposeTest(unittest.TestCase):
         self.assertNotIn("0.0.0.0", rendered)
         self.assertNotIn("source: ./", rendered)
         self.assertIn(f"source: {ADAPTER}/verification-home-controls", rendered)
+
+    def test_lan_template_uses_password_profile_without_host_override(self):
+        template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
+        rendered = dev.render_compose(
+            template, mode="verification", name="lan", project="dsh-dev-lan", port=3154,
+            lan_access=True,
+        )
+        self.assertIn("      - --profile\n      - web-lan\n", rendered)
+        self.assertNotIn("      - --host\n", rendered)
+        self.assertIn(
+            "      - --patch\n"
+            "      - /opt/dsh-adapter/verification-home-controls/web-lan.patch.yml\n",
+            rendered,
+        )
+        self.assertIn('      - --port\n      - "3154"\n', rendered)
 
     def test_source_runtime_environment_names_are_rendered_once(self):
         business_names = (
@@ -155,6 +168,7 @@ class RenderComposeTest(unittest.TestCase):
         rendered = dev.render_compose(
             template,
             mode="verification",
+            name="models",
             project="dsh-dev-models",
             port=3082,
             runtime_env_names=["DEEPSEEK_API_KEY", "LOCAL_LLM_BASE_URL", "LOCAL_LLM_BASE_URL"],
@@ -165,7 +179,7 @@ class RenderComposeTest(unittest.TestCase):
     def test_missing_anchor_fails_closed(self):
         with self.assertRaises(SystemExit):
             dev.render_compose("services:\n  dsh:\n    working_dir: /tmp\n", mode="verification",
-                               project="dsh-dev-probe", port=3081)
+                               name="probe", project="dsh-dev-probe", port=3081)
 
 
 class EvaluationModeContractTest(unittest.TestCase):
@@ -197,11 +211,55 @@ class EvaluationModeContractTest(unittest.TestCase):
     def test_verification_template_exposes_no_grading_material(self):
         """被测目标会话不得挂载验收阈值、评估方法、测试预置或预期答案。"""
         template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
-        rendered = dev.render_compose(template, mode="verification", project="dsh-dev-probe", port=3081)
+        rendered = dev.render_compose(
+            template, mode="verification", name="probe", project="dsh-dev-probe", port=3081)
         self.assertNotIn("/work/reference\n", rendered)
         self.assertNotIn("/work/eval-input\n", rendered)
         self.assertNotIn("DSH_REFERENCE_HOST", rendered)
         self.assertNotIn("DSH_MANAGED_PATCH_OVERLAY", rendered)
+
+    def test_analysis_workspace_is_a_read_only_run_without_symlinks(self):
+        with tempfile.TemporaryDirectory() as temp:
+            repository = Path(temp)
+            run = repository / (
+                "evolution/experiments/EXP-probe-001/runs/"
+                "run-00000000-0000-4000-8000-000000000000"
+            )
+            run.mkdir(parents=True)
+            validated = dev.validate_analysis_workspace(str(run), repo=repository)
+            rendered = dev.render_compose(
+                (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8"),
+                mode="verification", name="analysis", project="dsh-dev-analysis", port=3081,
+                analysis_workspace=True,
+            )
+            self.assertEqual(validated, str(run))
+            self.assertIn("    working_dir: /work/evaluation-run\n", rendered)
+            self.assertIn("        target: /work/evaluation-run\n        read_only: true\n", rendered)
+            self.assertIn("/opt/dsh-adapter/scenario-analysis.patch.yml", rendered)
+            analysis_patch = (ADAPTER / "scenario-analysis.patch.yml").read_text(encoding="utf-8")
+            self.assertIn("- id: tool-fs\n  disabled: false", analysis_patch)
+            self.assertIn("- id: tool-fs-search\n  disabled: false", analysis_patch)
+            for value in (
+                "${DSH_WORKSPACE_HOST", "${DSH_PRESETS_HOST", "${DSH_MANAGED_HOST",
+                "${DSH_MANAGED_PATCH", "/work/harness/workspace", "/opt/dsh-presets",
+                "/opt/dsh-managed",
+            ):
+                self.assertNotIn(value, rendered)
+            with mock.patch.dict(os.environ, {}, clear=True):
+                environment = dev.compose_env(
+                    self.contract(), "verification", 3081, "analysis",
+                    analysis_workspace=validated,
+                )
+            self.assertEqual(environment["DSH_ANALYSIS_WORKSPACE_HOST"], str(run))
+            self.assertEqual(environment["DSH_EVAL_TARGET_PRESET"], "scenario-analysis")
+            self.assertEqual(dev.required_env_names(self.contract(), validated), ["DEEPSEEK_API_KEY"])
+            for key in (
+                "DSH_WORKSPACE_HOST", "DSH_PRESETS_HOST", "DSH_MANAGED_HOST", "DSH_MANAGED_PATCH",
+            ):
+                self.assertNotIn(key, environment)
+            (run / "escape").symlink_to("/tmp")
+            with self.assertRaises(SystemExit):
+                dev.validate_analysis_workspace(str(run), repo=repository)
 
     def test_templates_declare_no_business_agent_identity(self):
         """通用启动器模板不得内联某个业务 Agent 的路径、preset 或 patch 名。"""
@@ -217,7 +275,7 @@ class EvaluationModeContractTest(unittest.TestCase):
         self.assertIn("RUN mkdir -p /opt/dsh-adapter", dockerfile)
         rendered = dev.render_compose(
             (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8"),
-            mode="verification", project="dsh-dev-verification", port=3081)
+            mode="verification", name="verification", project="dsh-dev-verification", port=3081)
         self.assertEqual(rendered.count("        target: /opt/dsh-adapter\n"), 2)
         self.assertNotIn("COPY --chown=node:node verify-load.mjs", rendered)
 
@@ -237,6 +295,7 @@ class EvaluationModeContractTest(unittest.TestCase):
             target = dev.write_instance("secops-eval", mode="verification", contract=self.contract(),
                                         port=3085)
             manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["container_name"], "secops-eval")
             for key in ("dev_target_file", "patch_overlay", "cordis_trust_accepted"):
                 self.assertNotIn(key, manifest)
             self.assertEqual(manifest["mount_modes"], {
@@ -273,12 +332,27 @@ class EvaluationModeContractTest(unittest.TestCase):
             dev.command_up(args)
         plan = json.loads(stdout.getvalue())
         self.assertEqual(plan["workspace_to_register"], "/work/harness/workspace")
+        self.assertEqual(plan["container_name"], "secops-eval")
         self.assertIn("/work/harness/workspace", plan["web_cold_start"])
         self.assertIn("编辑路径", plan["web_cold_start"])
         self.assertEqual(plan["context_assets"], [])
         self.assertFalse(plan["grading_material_mounted"])
         # 计划可以出现环境变量**名称**（含 TOKEN 字样），但不得出现任何值。
         self.assertNotIn("token=", json.dumps(plan).lower())
+
+    def test_lan_dry_run_records_profile_and_listener(self):
+        args = types.SimpleNamespace(
+            source="experiment:EXP-security-operations-expert-001",
+            mode="verification", name="secops-lan", port=3154, dry_run=True,
+            lan_access=True,
+        )
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            dev.command_up(args)
+        plan = json.loads(stdout.getvalue())
+        self.assertEqual(plan["profile"], "web-lan")
+        self.assertTrue(plan["lan_access"])
+        self.assertEqual(plan["listen_host"], "0.0.0.0")
 
 class ExtractAuthUrlTest(unittest.TestCase):
     def test_extracts_matching_port(self):
@@ -319,13 +393,20 @@ class InstanceStateTest(unittest.TestCase):
                 "required_env_names": ["DEEPSEEK_API_KEY"],
                 "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
             }
-            target = dev.write_instance("second-verify", mode="verification", contract=contract, port=3081)
+            target = dev.write_instance(
+                "second-verify", mode="verification", contract=contract, port=3081,
+                lan_access=True,
+            )
             manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["container_name"], "second-verify")
             self.assertEqual(manifest["mount_modes"], {"workspace": "ro", "presets": "ro", "managed": "ro"})
             self.assertEqual(manifest["purpose"], "eval")
             self.assertEqual(manifest["target_preset"], "second-harness")
             self.assertEqual(manifest["session_preset"], "second-harness")
             self.assertEqual(manifest["agent_id"], "second-harness")
+            self.assertEqual(manifest["profile"], "web-lan")
+            self.assertTrue(manifest["lan_access"])
+            self.assertEqual(manifest["listen_host"], "0.0.0.0")
             # 被测目标会话不挂载任何判分材料。
             self.assertEqual(manifest["context_mounts"], [])
             self.assertNotIn("patch_overlay", manifest)
@@ -587,7 +668,7 @@ class UpCommandStateTest(unittest.TestCase):
                 mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, stdout="", stderr="")), \
                 mock.patch.object(dev, "wait_for_service", return_value=[{
                     "id": "abc123", "state": "exited", "status": "Exited (1)",
-                    "name": "dsh-dev-up-probe-dsh-1", "service": "dsh"}]), \
+                    "name": "up-probe", "service": "dsh"}]), \
                 contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
             with self.assertRaises(SystemExit):
                 dev.command_up(self.args())
@@ -609,13 +690,15 @@ class UpCommandStateTest(unittest.TestCase):
                 mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, stdout="", stderr="")), \
                 mock.patch.object(dev, "wait_for_service", return_value=[
                     {"id": "abc123", "state": "running", "status": "Up 3 seconds",
-                     "name": "dsh-dev-up-probe-dsh-1", "service": "dsh"},
+                     "name": "up-probe", "service": "dsh"},
                     {"id": "def456", "state": "exited", "status": "Exited (0)",
                      "name": "dsh-dev-up-probe-home-init-1", "service": "home-init"}]), \
                 contextlib.redirect_stdout(stdout):
             dev.command_up(self.args())
         report = json.loads(stdout.getvalue())
         self.assertIs(report["dsh_running"], True)
+        self.assertEqual(report["container_name"], "up-probe")
+        self.assertEqual(report["containers"][0]["name"], "up-probe")
         self.assertEqual([item["service"] for item in report["containers"]], ["dsh", "home-init"])
 
     def test_up_reports_unknown_when_state_cannot_be_queried(self):
@@ -692,16 +775,19 @@ class LegacyInstanceStateTest(unittest.TestCase):
         self.assertTrue(report["home_preserved"])
 
     def test_ps_marks_legacy_state_for_migration_and_keeps_listing(self):
-        stopped = subprocess.CompletedProcess([], 0, stdout="", stderr="")
-        listed = subprocess.CompletedProcess([], 0, stdout="not running", stderr="")
+        listed = subprocess.CompletedProcess([], 0, stdout=json.dumps({
+            "Name": "dsh-dev-legacy-dsh-1", "Service": "dsh", "State": "exited",
+            "Status": "Exited (0)",
+        }), stderr="")
         stdout = io.StringIO()
-        with mock.patch.object(dev, "run", side_effect=[stopped, listed]), \
+        with mock.patch.object(dev, "run", return_value=listed), \
                 contextlib.redirect_stdout(stdout):
             dev.command_ps(types.SimpleNamespace(all=True))
         instances = json.loads(stdout.getvalue())["instances"]
         self.assertEqual(len(instances), 1)
         self.assertEqual(instances[0]["state_schema"], "1.0")
         self.assertTrue(instances[0]["needs_migration"])
+        self.assertEqual(instances[0]["container_name"], "dsh-dev-legacy-dsh-1")
 
     def test_ps_reports_broken_record_without_aborting_the_list(self):
         (dev.STATE_ROOT / "broken").mkdir()
@@ -786,6 +872,7 @@ class UpPortOwnershipTest(unittest.TestCase):
             dev.command_up(args)
         plan = json.loads(stdout.getvalue())
         self.assertEqual(plan["name"], "security-operations-expert-eval")
+        self.assertEqual(plan["container_name"], "security-operations-expert-eval")
         self.assertEqual(plan["port"], 3081)
         preflight.assert_not_called()
         writer.assert_not_called()
@@ -807,6 +894,14 @@ class UpPortOwnershipTest(unittest.TestCase):
         self.assertEqual(args.name, name)
         self.assertEqual(args.port, 3090)
         probe.assert_not_called()
+
+    def test_existing_instance_rejects_lan_mode_change(self):
+        self.write_existing(lan_access=True)
+        stderr = io.StringIO()
+        with mock.patch.object(dev, "resolve", return_value=self.contract()), \
+                contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit):
+            dev.prepare_up(self.args(lan_access=False))
+        self.assertIn("LAN 访问模式不同", stderr.getvalue())
 
     def test_auto_port_race_fails_without_silent_reselection(self):
         args = self.args(name="new-probe", port=None)
@@ -977,6 +1072,7 @@ class CliSurfaceTest(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("--replace", completed.stdout)
         self.assertIn("--dry-run", completed.stdout)
+        self.assertIn("--lan-access", completed.stdout)
 
 
 class ImageBuildCommandTest(unittest.TestCase):
@@ -993,9 +1089,11 @@ class ImageBuildCommandTest(unittest.TestCase):
 class UrlCommandGuardTest(unittest.TestCase):
     """`url` 只在交互终端或显式 --non-interactive 下输出 Token URL。"""
 
-    def call(self, args):
+    def call(self, args, manifest=None):
         stdout = io.StringIO()
-        with mock.patch.object(dev, "load_instance", return_value=(Path("/tmp"), {"port": 3081})), \
+        with mock.patch.object(
+            dev, "load_instance", return_value=(Path("/tmp"), manifest or {"port": 3081})
+        ), \
                 contextlib.redirect_stdout(stdout):
             dev.command_url(args)
         return stdout.getvalue()
@@ -1021,6 +1119,16 @@ class UrlCommandGuardTest(unittest.TestCase):
             printed = self.call(types.SimpleNamespace(name="soe-verify", non_interactive=True))
         self.assertIn("http://127.0.0.1:3081/?token=secret-token-value", printed)
         sleeper.assert_called_once_with(1.0)
+
+    def test_lan_password_mode_prints_non_secret_url_without_tty_flag(self):
+        with mock.patch.object(dev, "running_container", return_value=("cid", "started")), \
+                mock.patch.object(dev, "probe_login_url",
+                                  return_value={"ok": True, "reason": "root 302→login 200"}):
+            printed = self.call(
+                types.SimpleNamespace(name="soe-verify", non_interactive=False),
+                {"port": 3154, "lan_access": True},
+            )
+        self.assertEqual(printed, "http://127.0.0.1:3154/\n")
 
 
 class PortProbeTest(unittest.TestCase):
@@ -1091,6 +1199,35 @@ class AuthUrlProbeTest(unittest.TestCase):
             _AuthStubHandler.root_status = 200
         self.assertFalse(probe["ok"])
         self.assertIn("401", probe["reason"])
+
+
+class _LoginGateStubHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler 约定
+        if self.path.startswith("/auth/login"):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b'<form action="/auth/login"><input name="username"></form>')
+            return
+        self.send_response(302)
+        self.send_header("Location", "/auth/login?next=%2F")
+        self.end_headers()
+
+    def log_message(self, *args):
+        return
+
+
+class PasswordLoginProbeTest(unittest.TestCase):
+    def test_unauthenticated_root_redirects_to_password_form(self):
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _LoginGateStubHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            probe = dev.probe_login_url(server.server_address[1])
+        finally:
+            server.shutdown()
+            server.server_close()
+        self.assertTrue(probe["ok"], probe["reason"])
 
 
 if __name__ == "__main__":

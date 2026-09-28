@@ -18,7 +18,7 @@ Baseline 引用 → Experiment（含 Candidate）→ Evaluation → Decision
 
 ## 目录职责
 
-- `agents/<agent-id>/`：Agent 的研究入口；`definition.md` 唯一维护需求与任务，`evaluation.md` 唯一维护测试数据、方法、验收和 Experiment 选择。
+- `agents/<agent-id>/`：Agent 的研究入口；`evaluation.md` 集中维护业务 Case 的名称、用户输入和预期，不另建重叠的需求、任务或验收投影。
 - `evolution/experiments/<id>/`：假设、Candidate、Evaluation、Run 和 Decision。
 - `evolution/history/imports/`：外部来源原貌、清洗材料与处置记录；不作为现行 Harness 的第二份可编辑事实源。
 - `releases/`：自包含、不可变、可校验的 Research Release；不表示生产可用。
@@ -37,11 +37,11 @@ Baseline 引用 → Experiment（含 Candidate）→ Evaluation → Decision
 - `status: active|completed`
 - 完成时的 `outcome: adopt|continue|reject|inconclusive`
 
-`hypothesis.md` 和 `candidate/` 应有与当前实验相关的实质内容。评测选择写在 Agent 的 `evaluation.md`，不得在 Experiment 下另存 `evaluation/plan.yaml`；`evaluation/` 只按需保存工具、证据或总结。完成的 Experiment 还必须有实质 `decision.md`，写清结果、依据、回归、限制和下一步。研究失败或证据不足是合法结果，不要求生成 Release。
+`hypothesis.md` 和 `candidate/` 应有与当前实验相关的实质内容。业务 Case 写在 Agent 的 `evaluation.md`，运行时显式选择，不得在 Experiment 下另存 `evaluation/plan.yaml`；`evaluation/` 只按需保存工具、证据或总结。完成的 Experiment 还必须有实质 `decision.md`，写清结果、依据、回归、限制和下一步。研究失败或证据不足是合法结果，不要求生成 Release。
 
 ## Run 最小合同
 
-Run 的 `evaluation_ref` 指向 `agents/<agent-id>/evaluation.md#<experiment-id>`，输入锁保存当次文件摘要与所选 ID。它们是不可编辑的执行事实，不是另一份评测计划。Run 还记录实际来源、Git 提交与 dirty 状态、必要资产摘要和逐项观察。每条结果至少包含：
+Run 的 `evaluation_ref` 指向 `agents/<agent-id>/evaluation.md`，输入锁保存所选 Case 的完整快照与摘要。它们是不可编辑的执行事实，不是另一份评测计划。Run 还记录实际来源、Git 提交及 dirty 状态、必要资产摘要和逐项观察。每条结果至少包含：
 
 ```json
 {
@@ -71,13 +71,13 @@ Release 根目录至少包含 `manifest.yaml`、`harness.yaml`、`runtime.yaml`�
 - `runtime_compatibility`
 - `artifact_digest`
 
-Release 必须自包含实际 Harness 资产，逐文件清单与摘要可复算；不得包含 Session、缓存、附件、秘钥或整个 `$DSH_HOME`。README 应说明用途、复现方法、限制以及“不是生产部署批准”。
+Release 必须自包含实际 Harness 资产，逐文件清单与摘要可复算；不得包含 Session、缓存、附件、LLM API Key 或整个 `$DSH_HOME`。平台和实例凭据保存在 Agent 的实例专用路径，不打包为 Harness Release。README 应说明用途、复现方法、限制以及“不是生产部署批准”。
 
 `artifact-manifest.json` 使用 `schema_version`、`tree_sha256` 和按路径排序的 `files`；每项记录 `path`、`sha256`、`size`。为避免摘要自引用，文件列表只排除根部 `manifest.yaml` 与 `artifact-manifest.json`；`manifest.yaml.artifact_digest` 等于 `sha256:<tree_sha256>`。
 
 ## 四项安全底线
 
-- 不提交秘钥。
+- 平台和实例凭据可按任务需要纳入 Git；LLM API Key 只能保存在匹配 `*.llm-api-key` 的本地忽略文件中，禁止提交或推送到远端。
 - 不自动执行不可信归档或其中的脚本、Hook、Plugin、Skill、Workflow、配置。
 - 不进行未经用户授权的提交、推送、打 Tag、删除、覆盖、发布或外部写入。
 - 如实记录结果、失败、未知状态和适用限制。

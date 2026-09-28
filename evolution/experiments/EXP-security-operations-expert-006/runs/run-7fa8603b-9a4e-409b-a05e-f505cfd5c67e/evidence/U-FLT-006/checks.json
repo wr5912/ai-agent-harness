@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-006",
+  "completed": false,
+  "expected_behavior": "使用真实策略、主备状态、配置差异和连通性证据逐项排查，区分已证实原因与待验证假设；不在证据不足时认定漂移或影响范围。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

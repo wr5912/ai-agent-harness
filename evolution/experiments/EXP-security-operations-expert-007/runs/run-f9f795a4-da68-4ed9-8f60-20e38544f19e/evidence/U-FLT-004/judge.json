@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答满足预期全部要求：(1) 真实查询——同一被测 Session 的工具回执可支撑全部关键数据，包括 172.16.2.103（assetId 3617353）status=active/online=offline/probeState=unreachable/collectionStatus=non_collectable、172.16.138.214（3616551）online=online/techStatus=in_use/probeState=reachable、172.16.1.1 防火墙（3617345）型 opnsense、online=online/reachable、目的→源 get_reachability_path_by_ip 返回 reachable=false/verdict=UNKNOWN/reason=src_no_gateway/natApplied=null、get_graph_path_query 上游 500 错误、get_graph_compliance_violations 空集、get_reachability_cross_signal 汇总 NORMAL 23/IDLE 18/SHADOW 47 及源↔目的主机对 SHADOW+LAPSED+hitCount 2、get_graph_flow_host_pair_ports 各方向空集、两个同 IP 防火墙资产记录，回答中的证据引用与这些回执一致；(2) 覆盖主备状态、路径、策略同步、设备配置四个维度并区分事实/推断/缺口——明确说明本轮无 HA 角色切换、切换时间、策略与会话表同步状态证据，只给 60% 中等置信度推断，未把缺失数据解读为正常或异常；(3) 给出证据支持的原因（源侧离线与回程 no_gateway）与明确未知项；(4) 全程仅只读查询，未调用写工具、未创建分析运行、未执行策略变更，所有建议均标注“尚未执行”。仅有两处不影响结论的非关键表述瑕疵（把源→防火墙空流表述为“防火墙→源方向”、将个别 LAPSED 记录归于“源网段到网关方向”），其引用数据在回执中确实存在，不构成编造或不满足预期。"
+  },
+  "checks": {
+    "session_id": "session-251750a8-736f-4f94-b248-a7bbae2d9883",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

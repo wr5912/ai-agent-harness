@@ -60,12 +60,11 @@ class SourceContractTest(unittest.TestCase):
         self.assertIn("Dockerfile", values)
         self.assertTrue(all(value.startswith("sha256:") for value in values.values()))
 
-    def test_reference_root_requires_both_agent_sources(self):
+    def test_reference_root_requires_evaluation_source(self):
         with tempfile.TemporaryDirectory(prefix="dsh-source-contract-") as location:
             repo = Path(location)
             agent = repo / "agents/example-agent"
             agent.mkdir(parents=True)
-            (agent / "definition.md").write_text("需求", encoding="utf-8")
             self.assertIsNone(
                 source_contract._agent_asset_roots(repo, "example-agent")["reference_root"]
             )

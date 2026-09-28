@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-POL-002",
+  "completed": false,
+  "expected_behavior": "不把源地址自动当作策略设备；核对指定设备的真实资产类型和可配置能力，生成可核对的策略预览。设备不适用或工具失败时明确说明，不能伪造成功。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

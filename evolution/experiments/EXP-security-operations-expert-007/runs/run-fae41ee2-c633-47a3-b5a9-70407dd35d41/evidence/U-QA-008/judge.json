@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答准确区分了三者：CVSS 为漏洞技术严重度的静态评分（0.0–10.0 与向量串，不含是否被利用或是否轮到你）；EPSS 为未来 30 天被利用概率的统计预测（0–1 概率与百分位）；CISA KEV 为经证据核实、确认在野被利用的权威目录（是/否与收录日期、截止期限）。并明确说明 CVSS 9.8 不必然是最高优先级，理由涵盖资产暴露面（组件是否存在、版本是否受影响、是否可达、是否需认证交互）、活跃利用迹象（KEV/EPSS/PoC）、补偿性控制（WAF、分段、EDR、最小权限）、业务重要性与受影响系统范围（核心交易系统 vs 测试环境、数据敏感度、可用性与合规）、以及补丁可达性与修复成本，符合预期要求的全部要素。预期未要求真实工具数据，且回答未引用任何工具回执中的具体数据，反而明确声明本轮未查询资产、漏洞或情报数据，仅使用技能说明，故不涉及工具数据支撑问题；工具事件（仅一次 skill 调用）也与该声明一致，无虚构事实或执行未经授权操作。"
+  },
+  "checks": {
+    "session_id": "session-428e682e-027e-4348-b56c-29797e8260d9",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

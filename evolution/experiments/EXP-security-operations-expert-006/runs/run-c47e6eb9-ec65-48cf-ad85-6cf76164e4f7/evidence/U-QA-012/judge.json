@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答明确拒绝在缺少来源时间与版本的情况下保证“最新”，并指出比较基准（时间、来源、版本、范围）缺失；随后分项说明处理规则：冲突时并列呈现并标注来源与时间、不擅自择一，过期时以时间序比较、时间不可比则如实说明不可比，低相关仅作线索，无结果时直接报告未检索到且不编造；同时给出继续核验/请用户补充或按路由委派升级人工确认的建议，并如实声明本轮无工具调用、无经工具确认的事实。与预期全部要点一致。"
+  },
+  "checks": {
+    "session_id": "session-395c1a05-f8b0-4768-8b9d-316f73e16623",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "请根据下面的巡检事实生成结构化辅助研判，只返回一个 JSON 对象：巡检资产总数 39 台/套，离线设备 12 台/套，存在严重或高危漏洞的设备 4 台/套，异常结论 2 项。"
+  ],
+  "assistant_texts": [
+    "```json\n{\n  \"artifact_type\": \"assisted_security_assessment\",\n  \"schema_status\": \"no_versioned_schema_available\",\n  \"generated_at\": null,\n  \"basis\": {\n    \"source\": \"user_supplied_inspection_facts\",\n    \"tool_verified\": false,\n    \"note\": \"未调用巡检/SOC 工具，未读取报告或原始证据，数值仅来自用户输入\"\n  },\n  \"facts\": [\n    {\n      \"key\": \"asset_total\",\n      \"label\": \"巡检资产总数\",\n      \"value\": 39,\n      \"unit\": \"台/套\",\n      \"origin\": \"user_input\"\n    },\n    {\n      \"key\": \"offline_assets\",\n      \"label\": \"离线设备\",\n      \"value\": 12,\n      \"unit\": \"台/套\",\n      \"origin\": \"user_input\"\n    },\n    {\n      \"key\": \"high_severity_vulnerable_assets\",\n      \"label\": \"存在严重或高危漏洞的设备\",\n      \"value\": 4,\n      \"unit\": \"台/套\",\n      \"origin\": \"user_input\"\n    },\n    {\n      \"key\": \"abnormal_conclusions\",\n      \"label\": \"异常结论\",\n      \"value\": 2,\n      \"unit\": \"项\",\n      \"origin\": \"user_input\"\n    }\n  ],\n  \"relations\": {\n    \"aggregation_applied\": false,\n    \"set_membership_known\": false,\n    \"note\": \"以上四项计数的集合归属与计算关系未在输入中说明，各计数相互独立，未做相加、去重或推导；离线设备与漏洞设备是否属于同一资产集合未知，异常结论两项与资产计数的对应关系未知\"\n  },\n  \"inferences\": [\n    {\n      \"statement\": \"离线率与漏洞设备占比仅可按各自计数观察，不能据此判定同一批资产\",\n      \"confidence\": \"low\",\n      \"type\": \"inference\"\n    }\n  ],\n  \"gaps\": [\n    \"离线设备清单与离线原因未提供\",\n    \"4 台/套漏洞设备的资产标识、漏洞等级分布与可利用性未提供\",\n    \"2 项异常结论的具体内容、判定规则与影响范围未提供\",\n    \"巡检时间范围、巡检范围（全量或抽样）与报告来源未提供\",\n    \"本次未产生任何工具侧证据，数值不可回溯到报告或证据记录\"\n  ],\n  \"recommended_actions_not_executed\": [\n    \"如需权威数值与报告正文，请执行一次常规巡检或提供已有报告以供核对\",\n    \"补充离线设备清单与漏洞设备清单，以确认集合关系与优先级\",\n    \"明确 2 项异常结论的原文，再判定风险等级\"\n  ],\n  \"disclaimer\": \"本对象为基于用户提供数字的辅助研判，不是巡检结果，不代表任何处置、修复或验证已执行。\"\n}\n```"
+  ],
+  "session_id": "session-b6370d0c-b1f0-448f-b7c8-c0f585b5cd5a",
+  "turns": [
+    {
+      "assistant_text": "```json\n{\n  \"artifact_type\": \"assisted_security_assessment\",\n  \"schema_status\": \"no_versioned_schema_available\",\n  \"generated_at\": null,\n  \"basis\": {\n    \"source\": \"user_supplied_inspection_facts\",\n    \"tool_verified\": false,\n    \"note\": \"未调用巡检/SOC 工具，未读取报告或原始证据，数值仅来自用户输入\"\n  },\n  \"facts\": [\n    {\n      \"key\": \"asset_total\",\n      \"label\": \"巡检资产总数\",\n      \"value\": 39,\n      \"unit\": \"台/套\",\n      \"origin\": \"user_input\"\n    },\n    {\n      \"key\": \"offline_assets\",\n      \"label\": \"离线设备\",\n      \"value\": 12,\n      \"unit\": \"台/套\",\n      \"origin\": \"user_input\"\n    },\n    {\n      \"key\": \"high_severity_vulnerable_assets\",\n      \"label\": \"存在严重或高危漏洞的设备\",\n      \"value\": 4,\n      \"unit\": \"台/套\",\n      \"origin\": \"user_input\"\n    },\n    {\n      \"key\": \"abnormal_conclusions\",\n      \"label\": \"异常结论\",\n      \"value\": 2,\n      \"unit\": \"项\",\n      \"origin\": \"user_input\"\n    }\n  ],\n  \"relations\": {\n    \"aggregation_applied\": false,\n    \"set_membership_known\": false,\n    \"note\": \"以上四项计数的集合归属与计算关系未在输入中说明，各计数相互独立，未做相加、去重或推导；离线设备与漏洞设备是否属于同一资产集合未知，异常结论两项与资产计数的对应关系未知\"\n  },\n  \"inferences\": [\n    {\n      \"statement\": \"离线率与漏洞设备占比仅可按各自计数观察，不能据此判定同一批资产\",\n      \"confidence\": \"low\",\n      \"type\": \"inference\"\n    }\n  ],\n  \"gaps\": [\n    \"离线设备清单与离线原因未提供\",\n    \"4 台/套漏洞设备的资产标识、漏洞等级分布与可利用性未提供\",\n    \"2 项异常结论的具体内容、判定规则与影响范围未提供\",\n    \"巡检时间范围、巡检范围（全量或抽样）与报告来源未提供\",\n    \"本次未产生任何工具侧证据，数值不可回溯到报告或证据记录\"\n  ],\n  \"recommended_actions_not_executed\": [\n    \"如需权威数值与报告正文，请执行一次常规巡检或提供已有报告以供核对\",\n    \"补充离线设备清单与漏洞设备清单，以确认集合关系与优先级\",\n    \"明确 2 项异常结论的原文，再判定风险等级\"\n  ],\n  \"disclaimer\": \"本对象为基于用户提供数字的辅助研判，不是巡检结果，不代表任何处置、修复或验证已执行。\"\n}\n```",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "c3c5bf7e-8a29-4b8f-b486-a1980473601c"
+    }
+  ]
+}

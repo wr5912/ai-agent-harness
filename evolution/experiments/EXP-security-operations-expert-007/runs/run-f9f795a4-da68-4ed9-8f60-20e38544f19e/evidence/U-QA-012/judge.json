@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答明确声明在缺少被指代来源、时间与版本信息时不能判定“最新”，未作时效保证；逐项给出了处理原则：冲突时并列保留来源与时间、仅在权威源内可依时间/版本判定先后、否则列为未决；过期以时间/版本字段与权威源当前状态为准、时效未知不假设有效；低相关仅作弱证据与待验证假设；无结果如实报告“未检索到”并说明能力缺口与下一步取证路径。同时区分事实与推断、声明未执行动作，并给出继续核验/转入故障排查或巡检路由以及请求用户提供来源的后续路径，与预期要求一致。本回答未主张真实检索数据，故不依赖工具回执。"
+  },
+  "checks": {
+    "session_id": "session-b6918c52-5398-410f-8e75-2092057de603",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

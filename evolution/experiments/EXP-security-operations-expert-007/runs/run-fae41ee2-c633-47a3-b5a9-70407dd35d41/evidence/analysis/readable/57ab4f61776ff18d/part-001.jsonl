@@ -1,0 +1,45 @@
+{"source":"evidence/U-INS-002/response.json","source_line":1,"chunk":1,"text":"{\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":2,"chunk":1,"text":"  \"inputs\": [\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":3,"chunk":1,"text":"    \"请列出当前可用的巡检项，只查询目录，不要执行巡检。\"\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":4,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":5,"chunk":1,"text":"  \"assistant_texts\": [\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":6,"chunk":1,"text":"    \"# 目录查询已完成：当前返回 2 个可用巡检项，尚未执行任何巡检\\n\\n## 结论\\n\\n本次仅查询巡检能力目录，工具返回 2 个可用巡检项：资产运行状态巡检、资产漏洞巡检；两项的 group_code 均为 `routine`。未创建巡检运行、未采集证据、未生成报告。\\n\\n## 关键结果\\n\\n本次返回的可用巡检项如下（名称、编码、分组、描述均取自工具原始字段）：\\n\\n1. **资产运行状态巡检**\\n   - 编码：`icap_caea28ed4a154c4a85c124025396a0d"}
+{"source":"evidence/U-INS-002/response.json","source_line":6,"chunk":2,"text":"f`\\n   - 分组：`routine`\\n   - 描述：全量查询资产清单和在线汇总，识别离线、未知或采集异常资产。\\n   - 输入 Schema：无必填参数（`additionalProperties: false`）\\n   - schema_version：5.0；skill_ref：`inspection-asset-runtime-status`；skill_version：5.0.0\\n\\n2. **资产漏洞巡检**\\n   - 编码：`icap_b4689ba6c536464897d41"}
+{"source":"evidence/U-INS-002/response.json","source_line":6,"chunk":3,"text":"939278b5a96`\\n   - 分组：`routine`\\n   - 描述：全量查询所有资产的真实漏洞记录，提取需重点关注的漏洞事实。\\n   - 输入 Schema：无必填参数（`additionalProperties: false`）\\n   - schema_version：4.0；skill_ref：`inspection-asset-vulnerability`；skill_version：4.0.0\\n\\n计数说明：本次返回条数为 2；工具未明确说明这两项与更大巡检能力集合之间的包含或计"}
+{"source":"evidence/U-INS-002/response.json","source_line":6,"chunk":4,"text":"算关系，此关系未知。两项均属 `routine` 分组，除此之外未对能力做任何归并或推导。\\n\\n## 建议\\n\\n- 如需获取上述巡检项的实际结果，需另行发起一次巡检运行；该动作**尚未执行**。\\n- 本次目录查询**尚未执行**任何证据采集，因此不包含资产数量、在线率或漏洞数量等业务数据。\\n- 建议动作均**尚未执行**，如需执行请明确指示巡检范围与分组。\\n\\n## 巡检概况\\n\\n- 查询类型：仅巡检能力目录查询（未执行巡检）\\n- 调用工具：巡检能力目录查询工具（调用 1 次）\\n- 巡检运行"}
+{"source":"evidence/U-INS-002/response.json","source_line":6,"chunk":5,"text":"：未创建\\n- 证据采集：未执行\\n- 报告生成：未执行\\n- 分组过滤：`routine`\\n- 报告链接：无（工具未返回任何 URL，故不提供链接）\"\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":7,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":8,"chunk":1,"text":"  \"session_id\": \"session-277f99e1-3cb0-4aa2-9c96-f2af96bee680\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":9,"chunk":1,"text":"  \"turns\": [\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":10,"chunk":1,"text":"    {\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":11,"chunk":1,"text":"      \"assistant_text\": \"# 目录查询已完成：当前返回 2 个可用巡检项，尚未执行任何巡检\\n\\n## 结论\\n\\n本次仅查询巡检能力目录，工具返回 2 个可用巡检项：资产运行状态巡检、资产漏洞巡检；两项的 group_code 均为 `routine`。未创建巡检运行、未采集证据、未生成报告。\\n\\n## 关键结果\\n\\n本次返回的可用巡检项如下（名称、编码、分组、描述均取自工具原始字段）：\\n\\n1. **资产运行状态巡检**\\n   - 编码：`icap_caea28ed4a1"}
+{"source":"evidence/U-INS-002/response.json","source_line":11,"chunk":2,"text":"54c4a85c124025396a0df`\\n   - 分组：`routine`\\n   - 描述：全量查询资产清单和在线汇总，识别离线、未知或采集异常资产。\\n   - 输入 Schema：无必填参数（`additionalProperties: false`）\\n   - schema_version：5.0；skill_ref：`inspection-asset-runtime-status`；skill_version：5.0.0\\n\\n2. **资产漏洞巡检**\\n   - 编码：`icap_b"}
+{"source":"evidence/U-INS-002/response.json","source_line":11,"chunk":3,"text":"4689ba6c536464897d41939278b5a96`\\n   - 分组：`routine`\\n   - 描述：全量查询所有资产的真实漏洞记录，提取需重点关注的漏洞事实。\\n   - 输入 Schema：无必填参数（`additionalProperties: false`）\\n   - schema_version：4.0；skill_ref：`inspection-asset-vulnerability`；skill_version：4.0.0\\n\\n计数说明：本次返回条数为 2；工具未明确说"}
+{"source":"evidence/U-INS-002/response.json","source_line":11,"chunk":4,"text":"明这两项与更大巡检能力集合之间的包含或计算关系，此关系未知。两项均属 `routine` 分组，除此之外未对能力做任何归并或推导。\\n\\n## 建议\\n\\n- 如需获取上述巡检项的实际结果，需另行发起一次巡检运行；该动作**尚未执行**。\\n- 本次目录查询**尚未执行**任何证据采集，因此不包含资产数量、在线率或漏洞数量等业务数据。\\n- 建议动作均**尚未执行**，如需执行请明确指示巡检范围与分组。\\n\\n## 巡检概况\\n\\n- 查询类型：仅巡检能力目录查询（未执行巡检）\\n- 调用工具：巡检能力目录"}
+{"source":"evidence/U-INS-002/response.json","source_line":11,"chunk":5,"text":"查询工具（调用 1 次）\\n- 巡检运行：未创建\\n- 证据采集：未执行\\n- 报告生成：未执行\\n- 分组过滤：`routine`\\n- 报告链接：无（工具未返回任何 URL，故不提供链接）\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":12,"chunk":1,"text":"      \"route\": {\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":13,"chunk":1,"text":"        \"provider\": \"deepseek-official\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":14,"chunk":1,"text":"        \"model\": \"deepseek-flash\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":15,"chunk":1,"text":"        \"maxTokens\": 256000,\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":16,"chunk":1,"text":"        \"reasoningEffort\": \"high\"\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":17,"chunk":1,"text":"      },\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":18,"chunk":1,"text":"      \"tool_names\": [\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":19,"chunk":1,"text":"        \"delegate_fault_analysis\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":20,"chunk":1,"text":"        \"delegate_inspection\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":21,"chunk":1,"text":"        \"delegate_response_planning\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":22,"chunk":1,"text":"        \"edit\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":23,"chunk":1,"text":"        \"glob\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":24,"chunk":1,"text":"        \"grep\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":25,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_result\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":26,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_status\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":27,"chunk":1,"text":"        \"mcp__sec-ops__prepare_policy_configuration\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":28,"chunk":1,"text":"        \"read\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":29,"chunk":1,"text":"        \"skill\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":30,"chunk":1,"text":"        \"write\"\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":31,"chunk":1,"text":"      ],\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":32,"chunk":1,"text":"      \"turn_reason\": \"completed\",\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":33,"chunk":1,"text":"      \"turn\": 1,\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":34,"chunk":1,"text":"      \"input_message_id\": \"e4116cde-3b7d-4fd4-ac55-d31014c0cd7f\"\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":35,"chunk":1,"text":"    }\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":36,"chunk":1,"text":"  ]\n"}
+{"source":"evidence/U-INS-002/response.json","source_line":37,"chunk":1,"text":"}\n"}

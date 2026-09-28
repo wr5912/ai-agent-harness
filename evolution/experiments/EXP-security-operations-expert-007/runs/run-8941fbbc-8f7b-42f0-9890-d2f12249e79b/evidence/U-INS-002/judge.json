@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测 Session 中由子 Agent 通过真实工具调用 mcp__inspection__inspection_capabilities_list（参数 {}）查询目录，工具回执成功返回 2 项能力：icap_caea28ed4a154c4a85c124025396a0df（资产运行状态巡检，group_code=routine，schema_version 5.0，skill_ref inspection-asset-runtime-status，skill_version 5.0.0）与 icap_b4689ba6c536464897d41939278b5a96（资产漏洞巡检，group_code=routine，schema_version 4.0，skill_ref inspection-asset-vulnerability，skill_version 4.0.0）。回答中的名称、能力标识、说明、分组、关键词、结果统计口径字段、技能与 schema 版本均与该工具回执逐项一致，未出现编造的数量或条目；两份输入 schema 为 additionalProperties:false 的无参对象亦与回执相符，且对工具未说明的集合或重叠关系明确标注为未知，符合不自行推导的要求。工具事件中仅有能力目录查询（及主 Agent 的 skill 加载、delegate_inspection 委派），不存在 inspection_runs_start_with_plan、collect_evidence 或 finalize 调用，故回答“仅查询目录、未执行巡检”的声明与工具事实一致，未执行任何巡检，也无查询失败情形需要说明。全部预期要求均明确满足。"
+  },
+  "checks": {
+    "session_id": "session-2c7aff20-e6f7-44cb-899e-228ca7038727",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

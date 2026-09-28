@@ -14,6 +14,7 @@ const required = {
   DSH_WORKSPACE_HOST: '/tmp/placeholder/workspace',
   DSH_PRESETS_HOST: '/tmp/placeholder/presets',
   DSH_MANAGED_HOST: '/tmp/placeholder/managed',
+  DSH_EVAL_TARGET_PRESET: 'placeholder-agent',
 }
 function composeConfig(mode, env) {
   return spawnSync('docker', [
@@ -35,6 +36,11 @@ for (const mode of ['verification']) {
   const config = JSON.parse(result.stdout)
   assert.deepEqual(config.services.dsh.entrypoint, expected,
     `${mode}: only the main dsh service may expose Node internals`)
+  assert.deepEqual(config.services.dsh.command.slice(0, 6), [
+    '--profile', 'web', '--patch', required.DSH_MANAGED_PATCH,
+    '--patch', '/opt/dsh-adapter/evaluation.patch.yml',
+  ])
+  assert.equal(config.services.dsh.environment.DSH_EVAL_TARGET_PRESET, required.DSH_EVAL_TARGET_PRESET)
   assert.deepEqual(config.services['home-init'].entrypoint,
     ['node', '/opt/dsh-adapter/prepare-verification-home.mjs'])
   assert.equal(config.services.dsh.environment.NODE_OPTIONS, undefined,

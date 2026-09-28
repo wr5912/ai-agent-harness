@@ -1,0 +1,200 @@
+{"source":"inputs.lock.json","source_line":201,"chunk":1,"text":"          \"path\": \"security-operations-ui/package.json\",\n"}
+{"source":"inputs.lock.json","source_line":202,"chunk":1,"text":"          \"sha256\": \"53886d18a97d654024a3d141e02a7f85180dc541bf65c11113675848c3a95641\",\n"}
+{"source":"inputs.lock.json","source_line":203,"chunk":1,"text":"          \"size\": 536\n"}
+{"source":"inputs.lock.json","source_line":204,"chunk":1,"text":"        }\n"}
+{"source":"inputs.lock.json","source_line":205,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":206,"chunk":1,"text":"      \"directories\": [\n"}
+{"source":"inputs.lock.json","source_line":207,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":208,"chunk":1,"text":"          \"path\": \".\",\n"}
+{"source":"inputs.lock.json","source_line":209,"chunk":1,"text":"          \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":210,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":211,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":212,"chunk":1,"text":"          \"path\": \"schemas\",\n"}
+{"source":"inputs.lock.json","source_line":213,"chunk":1,"text":"          \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":214,"chunk":1,"text":"        },\n"}
+{"source":"inputs.lock.json","source_line":215,"chunk":1,"text":"        {\n"}
+{"source":"inputs.lock.json","source_line":216,"chunk":1,"text":"          \"path\": \"security-operations-ui\",\n"}
+{"source":"inputs.lock.json","source_line":217,"chunk":1,"text":"          \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":218,"chunk":1,"text":"        }\n"}
+{"source":"inputs.lock.json","source_line":219,"chunk":1,"text":"      ]\n"}
+{"source":"inputs.lock.json","source_line":220,"chunk":1,"text":"    }\n"}
+{"source":"inputs.lock.json","source_line":221,"chunk":1,"text":"  },\n"}
+{"source":"inputs.lock.json","source_line":222,"chunk":1,"text":"  \"reference_tree\": {\n"}
+{"source":"inputs.lock.json","source_line":223,"chunk":1,"text":"    \"tree_sha256\": \"sha256:f322935657515c30aae562a1e29c50b4b4ef1d1b181b83086932be1bc3158c94\",\n"}
+{"source":"inputs.lock.json","source_line":224,"chunk":1,"text":"    \"directory_sha256\": \"sha256:1467be5bbfe4482ffa62e69f571c438c19b1aac232dae85c77f9ff6e64f95417\",\n"}
+{"source":"inputs.lock.json","source_line":225,"chunk":1,"text":"    \"file_count\": 4,\n"}
+{"source":"inputs.lock.json","source_line":226,"chunk":1,"text":"    \"total_bytes\": 15422,\n"}
+{"source":"inputs.lock.json","source_line":227,"chunk":1,"text":"    \"files\": [\n"}
+{"source":"inputs.lock.json","source_line":228,"chunk":1,"text":"      {\n"}
+{"source":"inputs.lock.json","source_line":229,"chunk":1,"text":"        \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":230,"chunk":1,"text":"        \"path\": \"evaluation.md\",\n"}
+{"source":"inputs.lock.json","source_line":231,"chunk":1,"text":"        \"sha256\": \"c437b9fe239563d86ffc14f2e777a81a761c5d26a7fa6782706054a993cde74f\",\n"}
+{"source":"inputs.lock.json","source_line":232,"chunk":1,"text":"        \"size\": 15251\n"}
+{"source":"inputs.lock.json","source_line":233,"chunk":1,"text":"      },\n"}
+{"source":"inputs.lock.json","source_line":234,"chunk":1,"text":"      {\n"}
+{"source":"inputs.lock.json","source_line":235,"chunk":1,"text":"        \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":236,"chunk":1,"text":"        \"path\": \"instances/security-operations-expert-ui/credentials/admin.initial-password\",\n"}
+{"source":"inputs.lock.json","source_line":237,"chunk":1,"text":"        \"sha256\": \"e150a1ec81e8e93e1eae2c3a77e66ec6dbd6a3b460f89c1d08aecf422ee401a0\",\n"}
+{"source":"inputs.lock.json","source_line":238,"chunk":1,"text":"        \"size\": 7\n"}
+{"source":"inputs.lock.json","source_line":239,"chunk":1,"text":"      },\n"}
+{"source":"inputs.lock.json","source_line":240,"chunk":1,"text":"      {\n"}
+{"source":"inputs.lock.json","source_line":241,"chunk":1,"text":"        \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":242,"chunk":1,"text":"        \"path\": \"instances/security-operations-expert-ui/credentials/researcher.initial-password\",\n"}
+{"source":"inputs.lock.json","source_line":243,"chunk":1,"text":"        \"sha256\": \"e150a1ec81e8e93e1eae2c3a77e66ec6dbd6a3b460f89c1d08aecf422ee401a0\",\n"}
+{"source":"inputs.lock.json","source_line":244,"chunk":1,"text":"        \"size\": 7\n"}
+{"source":"inputs.lock.json","source_line":245,"chunk":1,"text":"      },\n"}
+{"source":"inputs.lock.json","source_line":246,"chunk":1,"text":"      {\n"}
+{"source":"inputs.lock.json","source_line":247,"chunk":1,"text":"        \"mode\": \"0664\",\n"}
+{"source":"inputs.lock.json","source_line":248,"chunk":1,"text":"        \"path\": \"manifest.yaml\",\n"}
+{"source":"inputs.lock.json","source_line":249,"chunk":1,"text":"        \"sha256\": \"6a32d53a390858fb503463fcf8c7cc751840874cef79687f3518d0a353f3063e\",\n"}
+{"source":"inputs.lock.json","source_line":250,"chunk":1,"text":"        \"size\": 157\n"}
+{"source":"inputs.lock.json","source_line":251,"chunk":1,"text":"      }\n"}
+{"source":"inputs.lock.json","source_line":252,"chunk":1,"text":"    ],\n"}
+{"source":"inputs.lock.json","source_line":253,"chunk":1,"text":"    \"directories\": [\n"}
+{"source":"inputs.lock.json","source_line":254,"chunk":1,"text":"      {\n"}
+{"source":"inputs.lock.json","source_line":255,"chunk":1,"text":"        \"path\": \".\",\n"}
+{"source":"inputs.lock.json","source_line":256,"chunk":1,"text":"        \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":257,"chunk":1,"text":"      },\n"}
+{"source":"inputs.lock.json","source_line":258,"chunk":1,"text":"      {\n"}
+{"source":"inputs.lock.json","source_line":259,"chunk":1,"text":"        \"path\": \"instances\",\n"}
+{"source":"inputs.lock.json","source_line":260,"chunk":1,"text":"        \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":261,"chunk":1,"text":"      },\n"}
+{"source":"inputs.lock.json","source_line":262,"chunk":1,"text":"      {\n"}
+{"source":"inputs.lock.json","source_line":263,"chunk":1,"text":"        \"path\": \"instances/security-operations-expert-ui\",\n"}
+{"source":"inputs.lock.json","source_line":264,"chunk":1,"text":"        \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":265,"chunk":1,"text":"      },\n"}
+{"source":"inputs.lock.json","source_line":266,"chunk":1,"text":"      {\n"}
+{"source":"inputs.lock.json","source_line":267,"chunk":1,"text":"        \"path\": \"instances/security-operations-expert-ui/credentials\",\n"}
+{"source":"inputs.lock.json","source_line":268,"chunk":1,"text":"        \"mode\": \"0775\"\n"}
+{"source":"inputs.lock.json","source_line":269,"chunk":1,"text":"      }\n"}
+{"source":"inputs.lock.json","source_line":270,"chunk":1,"text":"    ]\n"}
+{"source":"inputs.lock.json","source_line":271,"chunk":1,"text":"  },\n"}
+{"source":"inputs.lock.json","source_line":272,"chunk":1,"text":"  \"evaluation_sha256\": \"a2ba8516e5de2955f9af98fc35a9f02fdaae52aafd8a8d560c1b1330a9f7105c\",\n"}
+{"source":"inputs.lock.json","source_line":273,"chunk":1,"text":"  \"evaluation_cases\": [\n"}
+{"source":"inputs.lock.json","source_line":274,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":275,"chunk":1,"text":"      \"case_id\": \"U-INS-001\",\n"}
+{"source":"inputs.lock.json","source_line":276,"chunk":1,"text":"      \"title\": \"常规巡检\",\n"}
+{"source":"inputs.lock.json","source_line":277,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":278,"chunk":1,"text":"        \"执行一次常规巡检。\"\n"}
+{"source":"inputs.lock.json","source_line":279,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":280,"chunk":1,"text":"      \"expected_behavior\": \"回复给出设备数量和巡检报告链接；这些数据来自本轮真实巡检工具返回并与其一致。工具未成功返回时，不得声称巡检已完成。\"\n"}
+{"source":"inputs.lock.json","source_line":281,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":282,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":283,"chunk":1,"text":"      \"case_id\": \"U-INS-002\",\n"}
+{"source":"inputs.lock.json","source_line":284,"chunk":1,"text":"      \"title\": \"查询巡检项\",\n"}
+{"source":"inputs.lock.json","source_line":285,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":286,"chunk":1,"text":"        \"请列出当前可用的巡检项，只查询目录，不要执行巡检。\"\n"}
+{"source":"inputs.lock.json","source_line":287,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":288,"chunk":1,"text":"      \"expected_behavior\": \"回复列出本轮真实查询返回的巡检项，且没有执行巡检。查询失败时明确说明失败，不编造目录内容。\"\n"}
+{"source":"inputs.lock.json","source_line":289,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":290,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":291,"chunk":1,"text":"      \"case_id\": \"U-INS-003\",\n"}
+{"source":"inputs.lock.json","source_line":292,"chunk":1,"text":"      \"title\": \"根据巡检事实生成 JSON\",\n"}
+{"source":"inputs.lock.json","source_line":293,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":294,"chunk":1,"text":"        \"请根据下面的巡检事实生成结构化辅助研判，只返回一个 JSON 对象：巡检资产总数 39 台/套，离线设备 12 台/套，存在严重或高危漏洞的设备 4 台/套，异常结论 2 项。\"\n"}
+{"source":"inputs.lock.json","source_line":295,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":296,"chunk":1,"text":"      \"expected_behavior\": \"只返回一个可解析的 JSON 对象，准确保留给定事实并区分事实与建议，不添加输入中没有的动态数据。\"\n"}
+{"source":"inputs.lock.json","source_line":297,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":298,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":299,"chunk":1,"text":"      \"case_id\": \"U-INS-004\",\n"}
+{"source":"inputs.lock.json","source_line":300,"chunk":1,"text":"      \"title\": \"创建巡检任务\",\n"}
+{"source":"inputs.lock.json","source_line":301,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":302,"chunk":1,"text":"        \"帮我创建巡检任务。\"\n"}
+{"source":"inputs.lock.json","source_line":303,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":304,"chunk":1,"text":"      \"expected_behavior\": \"识别出缺少巡检项、范围或执行时间等必要信息并向用户询问，不凭空补全参数，也不声称任务已创建。\"\n"}
+{"source":"inputs.lock.json","source_line":305,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":306,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":307,"chunk":1,"text":"      \"case_id\": \"U-INS-005\",\n"}
+{"source":"inputs.lock.json","source_line":308,"chunk":1,"text":"      \"title\": \"创建周期巡检任务\",\n"}
+{"source":"inputs.lock.json","source_line":309,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":310,"chunk":1,"text":"        \"创建一个每 10 分钟执行一次的资产运行状态巡检任务。\"\n"}
+{"source":"inputs.lock.json","source_line":311,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":312,"chunk":1,"text":"      \"expected_behavior\": \"使用明确的巡检项和十分钟周期创建任务；回复中的任务标识、状态和周期与本轮真实工具返回一致。工具未成功返回时，不得声称创建成功。\"\n"}
+{"source":"inputs.lock.json","source_line":313,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":314,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":315,"chunk":1,"text":"      \"case_id\": \"U-POL-001\",\n"}
+{"source":"inputs.lock.json","source_line":316,"chunk":1,"text":"      \"title\": \"防火墙策略开通\",\n"}
+{"source":"inputs.lock.json","source_line":317,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":318,"chunk":1,"text":"        \"请在防火墙虚拟机上开通 172.16.1.155 到 172.16.2.103 的 TCP 19921 访问策略。\"\n"}
+{"source":"inputs.lock.json","source_line":319,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":320,"chunk":1,"text":"      \"expected_behavior\": \"基于真实资产、路径和设备能力生成策略预览并说明待确认内容；未获得成功执行回执时，不得声称策略已开通。\"\n"}
+{"source":"inputs.lock.json","source_line":321,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":322,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":323,"chunk":1,"text":"      \"case_id\": \"U-POL-002\",\n"}
+{"source":"inputs.lock.json","source_line":324,"chunk":1,"text":"      \"title\": \"指定设备开通策略\",\n"}
+{"source":"inputs.lock.json","source_line":325,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":326,"chunk":1,"text":"        \"指定设备：172.16.1.155；请为 172.16.1.155 到 172.16.2.103 开通 TCP 19730 访问策略。\"\n"}
+{"source":"inputs.lock.json","source_line":327,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":328,"chunk":1,"text":"      \"expected_behavior\": \"不把源地址自动当作策略设备；核对指定设备的真实资产类型和可配置能力，生成可核对的策略预览。设备不适用或工具失败时明确说明，不能伪造成功。\"\n"}
+{"source":"inputs.lock.json","source_line":329,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":330,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":331,"chunk":1,"text":"      \"case_id\": \"U-POL-003\",\n"}
+{"source":"inputs.lock.json","source_line":332,"chunk":1,"text":"      \"title\": \"自动识别策略设备\",\n"}
+{"source":"inputs.lock.json","source_line":333,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":334,"chunk":1,"text":"        \"请为 172.16.138.214 到 172.16.2.103 开通 TCP 19720 访问策略。\"\n"}
+{"source":"inputs.lock.json","source_line":335,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":336,"chunk":1,"text":"      \"expected_behavior\": \"通过真实资产和拓扑查询识别需要配置的安全设备，再生成策略预览；结果引用本轮工具返回，未执行时明确停留在预览或确认阶段。\"\n"}
+{"source":"inputs.lock.json","source_line":337,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":338,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":339,"chunk":1,"text":"      \"case_id\": \"U-POL-004\",\n"}
+{"source":"inputs.lock.json","source_line":340,"chunk":1,"text":"      \"title\": \"指定设备能力校验\",\n"}
+{"source":"inputs.lock.json","source_line":341,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":342,"chunk":1,"text":"        \"指定设备：172.16.1.155；请为 172.16.1.155 到 172.16.2.103 开通 TCP 19433 访问策略。\"\n"}
+{"source":"inputs.lock.json","source_line":343,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":344,"chunk":1,"text":"      \"expected_behavior\": \"校验指定设备、设备映射和型号能力后再生成预览；能力不匹配时停止并说明原因，不改用未确认设备或声称开通成功。\"\n"}
+{"source":"inputs.lock.json","source_line":345,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":346,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":347,"chunk":1,"text":"      \"case_id\": \"U-POL-005\",\n"}
+{"source":"inputs.lock.json","source_line":348,"chunk":1,"text":"      \"title\": \"限时 UDP 策略\",\n"}
+{"source":"inputs.lock.json","source_line":349,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":350,"chunk":1,"text":"        \"允许网段 172.16.1.155 访问 172.16.2.103 的 UDP 53 端口，有效期 7 天。\"\n"}
+{"source":"inputs.lock.json","source_line":351,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":352,"chunk":1,"text":"      \"expected_behavior\": \"指出 172.16.1.155 是主机地址而非网段，确认或按主机对象处理后生成包含 UDP 53 和七天有效期的预览；不得静默扩大地址范围。\"\n"}
+{"source":"inputs.lock.json","source_line":353,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":354,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":355,"chunk":1,"text":"      \"case_id\": \"U-POL-006\",\n"}
+{"source":"inputs.lock.json","source_line":356,"chunk":1,"text":"      \"title\": \"端口业务开通\",\n"}
+{"source":"inputs.lock.json","source_line":357,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":358,"chunk":1,"text":"        \"帮我开通 172.16.1.155 到 172.16.2.103 的 TCP 18550 端口业务。\"\n"}
+{"source":"inputs.lock.json","source_line":359,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":360,"chunk":1,"text":"      \"expected_behavior\": \"完成真实资产、路径和设备能力核对并生成可确认的策略预览；回复准确说明当前阶段，未获得执行回执时不声称已开通。\"\n"}
+{"source":"inputs.lock.json","source_line":361,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":362,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":363,"chunk":1,"text":"      \"case_id\": \"U-POL-007\",\n"}
+{"source":"inputs.lock.json","source_line":364,"chunk":1,"text":"      \"title\": \"异常对象不得强行开通\",\n"}
+{"source":"inputs.lock.json","source_line":365,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":366,"chunk":1,"text":"        \"对重复策略、无可达路径、预检失败或外部能力未接通的对象发起开通。\"\n"}
+{"source":"inputs.lock.json","source_line":367,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":368,"chunk":1,"text":"      \"expected_behavior\": \"分别识别重复、无路径、预检失败和能力不可用状态并停止创建或执行；清楚报告原因和可行的下一步，不绕过失败条件。\"\n"}
+{"source":"inputs.lock.json","source_line":369,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":370,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":371,"chunk":1,"text":"      \"case_id\": \"U-POL-008\",\n"}
+{"source":"inputs.lock.json","source_line":372,"chunk":1,"text":"      \"title\": \"多轮策略变更\",\n"}
+{"source":"inputs.lock.json","source_line":373,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":374,"chunk":1,"text":"        \"开通策略。\",\n"}
+{"source":"inputs.lock.json","source_line":375,"chunk":1,"text":"        \"查询状态。\",\n"}
+{"source":"inputs.lock.json","source_line":376,"chunk":1,"text":"        \"调整端口。\",\n"}
+{"source":"inputs.lock.json","source_line":377,"chunk":1,"text":"        \"业务验证结束后关闭策略。\"\n"}
+{"source":"inputs.lock.json","source_line":378,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":379,"chunk":1,"text":"      \"expected_behavior\": \"在同一 Session 中保持同一任务上下文；参数不足时先询问，状态只引用真实查询结果，调整端口需明确新端口，关闭策略需在业务验证完成且目标明确后执行。任何步骤都不得伪造工具结果。\"\n"}
+{"source":"inputs.lock.json","source_line":380,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":381,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":382,"chunk":1,"text":"      \"case_id\": \"U-POL-009\",\n"}
+{"source":"inputs.lock.json","source_line":383,"chunk":1,"text":"      \"title\": \"开通后验证与回退预览\",\n"}
+{"source":"inputs.lock.json","source_line":384,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":385,"chunk":1,"text":"        \"开通访问策略后验证业务连通性；若失败，诊断原因并生成回退策略预览。\"\n"}
+{"source":"inputs.lock.json","source_line":386,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":387,"chunk":1,"text":"      \"expected_behavior\": \"参数不足时先询问；参数齐全时按开通、验证、失败诊断、回退预览的顺序处理，每一步都引用真实工具结果。回退只生成预览，未经确认不执行。\"\n"}
+{"source":"inputs.lock.json","source_line":388,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":389,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":390,"chunk":1,"text":"      \"case_id\": \"U-POL-010\",\n"}
+{"source":"inputs.lock.json","source_line":391,"chunk":1,"text":"      \"title\": \"完整无状态 Preview\",\n"}
+{"source":"inputs.lock.json","source_line":392,"chunk":1,"text":"      \"inputs\": [\n"}
+{"source":"inputs.lock.json","source_line":393,"chunk":1,"text":"        \"帮我开通 172.16.1.155 到 172.16.2.103 的 TCP 25500 端口访问，有效期 5 小时，原因是业务连通测试。请查询真实资产和拓扑关系，从拓扑中识别需要配置策略的安全设备，再查询设备映射、型号能力和 ACL 模板并生成真实策略 Preview；只调用一次无状态 Preview，生成 PPV 后停在确认提示，预览完成后等我确认，不要确认、创建、提交或执行策略任务。\"\n"}
+{"source":"inputs.lock.json","source_line":394,"chunk":1,"text":"      ],\n"}
+{"source":"inputs.lock.json","source_line":395,"chunk":1,"text":"      \"expected_behavior\": \"真实查询资产、拓扑、设备映射、型号能力和 ACL 模板，只调用一次无状态 Preview；回复给出与工具结果一致的 PPV 和确认提示，并且没有确认、创建、提交或执行策略任务。\"\n"}
+{"source":"inputs.lock.json","source_line":396,"chunk":1,"text":"    },\n"}
+{"source":"inputs.lock.json","source_line":397,"chunk":1,"text":"    {\n"}
+{"source":"inputs.lock.json","source_line":398,"chunk":1,"text":"      \"case_id\": \"U-POL-011\",\n"}
+{"source":"inputs.lock.json","source_line":399,"chunk":1,"text":"      \"title\": \"阻断业务\",\n"}
+{"source":"inputs.lock.json","source_line":400,"chunk":1,"text":"      \"inputs\": [\n"}

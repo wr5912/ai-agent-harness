@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答准确解释 CVE（Common Vulnerabilities and Exposures）是由 MITRE/CVE Program 主导、CNA 分配的公开漏洞编号与记录机制，并明确其核心用途是“唯一标识/关联主键”，用于把厂商公告、扫描结果、工单、SBOM 对齐到同一漏洞对象，符合预期中“编号可用于唯一标识公开漏洞记录”的要求。回答同时逐项明确编号本身不能表示的内容：不等于严重性（无 CVSS 映射）、不等于可利用性（需看 KEV/EPSS 等）、不等于自身受影响（需回厂商公告的版本区间与配置）、不等于有补丁、不等于修复优先级或风险值，并区分了 CWE/CVSS/CPE/NVD/KEV/EPSS 等相邻概念，完全覆盖预期要求的“不能单独表示严重度、是否受影响、是否已利用或修复优先级”。本案例为概念性问答，预期未要求真实工具数据，回答中“未调用工具”的声明与工具回执一致（本 Session 仅有 skill 加载的安全调查技能说明，其中明确当前无知识库检索与独立威胁分析服务，回答也未编造此类实时数据），关键数据不依赖工具回执，故判定满足全部要求。"
+  },
+  "checks": {
+    "session_id": "session-2027e107-08a3-4ef8-9fe7-d7f009f2cff1",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

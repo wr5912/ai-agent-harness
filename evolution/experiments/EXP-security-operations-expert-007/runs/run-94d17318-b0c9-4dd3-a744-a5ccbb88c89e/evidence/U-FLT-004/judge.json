@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "同一被测会话（子会话 session.v3.jsonl）的工具回执真实支撑了回答的关键事实：172.16.2.103→172.16.138.214 返回 reachable=false、reason=dst_no_gateway，反向返回 src_no_gateway；源资产 3617353 为 online=offline、probeState=unreachable，目的资产 3616551 为 online=online；图谱中存在两台同名 opnsense 防火墙 3617345/3617442 且同 IP、无主备标识字段；跨信号确有该主机对 SHADOW/LAPSED、hitCount=2；图路径接口返回 HTTP 500，host pair ports 与合规查询为空，覆盖率为 33%。回答据此围绕主备状态、路径、策略同步与设备配置给出证据支持的原因，并将 HA 切换、图路径、策略版本差异等明确列为未知项与证据缺口，且明确仅执行只读查询、未执行任何策略变更，满足全部预期要求。"
+  },
+  "checks": {
+    "session_id": "session-496c3fe4-46ce-48d5-b918-5b8f6dfd71b9",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

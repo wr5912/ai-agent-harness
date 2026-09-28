@@ -28,6 +28,6 @@ python3 .agents/skills/harness-evolution/scripts/validate_repository.py [repo-ro
 - 每一处结构和字段都应服务当前研究、复现或装载；不添加未被当前问题使用的治理层。
 - `candidate/` 是可修改工作树，不是生产候选或准入状态。
 - Evaluation 不要求固定数量、REQ/AC、R1/R2/R3 或安全控制映射。
-- DSH 源码、Session、缓存、附件、秘钥和整个 `$DSH_HOME` 不进入 Harness 资产。
+- DSH 源码、Session、缓存、附件和整个 `$DSH_HOME` 不进入 Harness 资产；平台和实例凭据保存在 Agent 的实例专用路径，LLM API Key 不进入 Git 或 Research Release。
 - 源码修改后，用新进程或新 Session 核对实际装载；文件存在和脚本退出码 `0` 不等于假设成立。
 - 校验器只检查确定性合同，不评价研究价值，也不授予发布或生产结论。

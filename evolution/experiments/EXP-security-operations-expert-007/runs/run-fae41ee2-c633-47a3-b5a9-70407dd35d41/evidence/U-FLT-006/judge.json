@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答对照预期逐项完成排查：(a) 策略变化、(b) 主备策略漂移、(c) 172.16.138.214 配置漂移、(d) 业务影响均明确判定“无法判定/不能排除”，未在证据不足时认定漂移或影响范围，并严格区分事实、推断、证据缺口，明确指出空集不等于正常。关键数据均可由同一被测 Session 的工具回执支持：IP 解析 assetId 3616551、资产字段（hostname 瑞禾S500主机、deptId 101、online/probeState、mgmtManualLocked=1、haPairId=null、createTime/updateTime）、五台同型号设备 haPairId 全为 null、交叉核验 summary（NORMAL 23/IDLE 18/SHADOW 47）及与 .214 相关的 6 条记录（含 hitCount 848/16/80972/76/2/4 与 lastSeenEpoch）、同组设备到 172.16.1.1 的 SHADOW ACTIVE 计数、REACHABLE（l2_same_segment，path 172.16.138.0/24）与跨网段 UNKNOWN（src_no_gateway/dst_no_gateway）、node detail（metricAvailable=false、low 1）、覆盖情况（全局 15/31/2/33，资产 0/1/0/0，deptId 101 1/7/0/13）、业务系统/采集配置/漏洞/合规违规空集、三次路径查询上游 500 与端口明细空数据。仅合规查询首次调用的筛选条件表述略有出入，不影响结论与证据链完整性，故判定满足全部要求。"
+  },
+  "checks": {
+    "session_id": "session-140fe7c5-5996-4738-b2a7-149109474c52",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

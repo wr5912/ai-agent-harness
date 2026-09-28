@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求先真实查询资产、拓扑、设备映射、型号能力和 ACL 模板，从拓扑中识别需配置策略的安全设备，并生成含 PPV（策略预览）的无状态 Preview。但本轮工具回执中只有 skill/glob/grep/read（且多项因工作区限制失败）、一次 mcp__sec-ops__prepare_policy_configuration 和一次 get_policy_configuration_result；没有任何资产解析、拓扑路径、设备映射、型号能力或 ACL 模板查询的工具调用与回执，也没有产出 PPV。被测回答亦自认资产与拓扑“未查询”、设备映射/型号能力/ACL 模板/无状态 Preview/PPV“均未执行”，仅生成了策略任务 225 的 DRAFT 草稿与“回复：执行”提示，并把“草稿预览”等同于预览本身。因此预期的关键前置查询与 PPV 预览要求明确未满足，予以 failed；虽遵守了“只 Preview 一次且未确认/提交/执行”的约束，但不足以满足全部要求。"
+  },
+  "checks": {
+    "session_id": "session-14eb4f33-b85a-42ef-ba8c-a81dbba35e64",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

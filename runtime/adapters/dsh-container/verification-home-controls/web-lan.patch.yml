@@ -1,0 +1,6 @@
+# LAN 研究实例使用账号密码登录；纯 HTTP 下浏览器不能使用 Secure Cookie。
+- id: dsh-auth-gate
+  config:
+    mode: password
+    totp: "off"
+    cookieSecure: false

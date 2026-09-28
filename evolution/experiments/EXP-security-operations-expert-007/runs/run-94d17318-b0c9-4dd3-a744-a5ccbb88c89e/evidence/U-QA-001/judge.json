@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "预期要求属于条件式：能检索到则依据真实知识库内容作答并给出可核对来源，检索不到则明确说明且不得凭常识冒充内部知识。被测回答明确声明本 Session 未配置知识库检索服务、无法查询任何 SEC-KB-* 条目，未编造 SEC-KB-078 的标题、触发条件或步骤；对“KB 为知识库编号、SOAR 剧本为编排响应流程”仅作命名惯例层面的低置信度推断，并声明不构成事实陈述，符合“不凭常识冒充内部知识”。该能力缺口的关键事实有同一 Session 的工具回执支撑：skill 调用返回的 security-investigation 指令明确写明“当前没有知识库检索和独立威胁分析服务。相关能力不可用时直接说明，不用文件、网络、策略或巡检工具代替”，且回答确实未改用文件、网络或巡检工具替代查询。回答还分开列出了事实、缺口、推断与未执行建议，并给出补充材料的后续路径。属于预期中的“检索不到时明确说明”分支，全部要求已明确满足。"
+  },
+  "checks": {
+    "session_id": "session-199038bd-f340-4a98-aba5-1d5bdbffaa10",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

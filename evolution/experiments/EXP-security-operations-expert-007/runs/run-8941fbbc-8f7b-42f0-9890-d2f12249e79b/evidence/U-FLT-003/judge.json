@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答明确以“参数不完整”为前提，在第一节向用户一次性列明需补充的最小信息集合：受影响侧（目的）、访问方来源（源）、时间范围、异常现象（超时/拒绝/时断时续/报错等）、是否有事件 ID 及索引名，符合“识别关键信息缺失并向用户询问”的要求；协议与端口未逐项单列，但属原文“等关键信息”的扩展列举，且回答已把逐端口观测作为可用工具能力说明，不构成对核心要求的实质违反。同时，回答自始至终声明“无法把访问异常定位到任何具体业务系统或链路”，将所有高告警密度资产明确标注为“候选排查对象，不是已确认根因”，并单列证据缺口（资产—业务映射为空、无主机资源指标、无端口明细、无事件内容等），未在缺少故障输入或证据时给出确定根因，满足第二条要求。其引用的关键数据均可由同一被测 Session 的工具回执支撑：覆盖 15/31/2/33%、区间信号 NORMAL23/IDLE18/SHADOW47、各资产告警计数（如 994005 的 684/3441/2596/1、3617504 的 195/600/314/82138）、可达性判定与 reason、MAC 重复 00:0c:29:13:53:cc、3617352 的 lastSeenAt 2026-07-08、业务系统关联/漏洞/采集配置为空、path_query 上游 500 错误等，均与工具结果一致，且正确区分了事实、推断、证据缺口与未执行建议。"
+  },
+  "checks": {
+    "session_id": "session-384b5ebd-d08c-41c3-8767-470f92523b7b",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

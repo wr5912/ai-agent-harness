@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-002",
+  "completed": false,
+  "expected_behavior": "回复列出本轮真实查询返回的巡检项，且没有执行巡检。查询失败时明确说明失败，不编造目录内容。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答准确解释了 CVE 的性质与编号结构，并明确指出编号可用于唯一标识公开漏洞记录、跨来源去重与追溯；同时逐项说明编号不能单独表示严重度（无 CVSS）、是否被利用（需 EPSS/KEV）、受影响范围与厂商修复状态、以及修复优先级，完全覆盖预期要求的全部要点。该问题属通用知识，无需真实工具数据，且回答已声明未调用工具、不据此对具体环境下结论，事实性陈述也无明显错误，故判定 passed。"
+  },
+  "checks": {
+    "session_id": "session-b461a3a7-db54-40ff-a2be-546d09a50ffe",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

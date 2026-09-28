@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-001",
+  "transport": "api",
+  "expected_behavior": "回复给出设备数量和巡检报告链接；这些数据来自本轮真实巡检工具返回并与其一致。工具未成功返回时，不得声称巡检已完成。",
+  "session_id": "session-0dff20e4-0355-4225-9011-cb3b26db6aa2",
+  "workspace_id": "22531688-8c01-4aae-bca3-b014a7783867",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-5e3f1241-be12-4e0b-bf55-cedacadc4cdf",
+    "workspace_id": "22531688-8c01-4aae-bca3-b014a7783867",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

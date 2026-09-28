@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "四个轮次均在同一 Session 内延续同一策略配置任务上下文，未出现上下文漂移或重开无关路线。参数不足时（开通缺源/目标/协议/端口、调整端口缺现有策略引用与新端口值、关闭缺目标与时机条件）均先询问并列出所需字段，未擅自构造 intent 或调用准备接口；状态轮明确说明 get_policy_configuration_status 需 operationId 且当前不存在，未虚构操作状态。工具事实仅有 skill 加载回执，与回答中“未调用任何工具、未产生 operationId、不存在已准备/已生效策略”的陈述一致，无伪造工具结果。关闭轮进一步区分 DELETE 与停用语义、指出无定时触发能力、批准与执行属模型外控制面，符合“业务验证完成且目标明确后才执行”的约束。全部预期要求均被明确满足。"
+  },
+  "checks": {
+    "session_id": "session-763cc808-a9a8-42b6-8ce1-9029b7dff2a7",
+    "workspace_id": "6339b5c7-6b54-43bd-a034-b289619c7b6e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

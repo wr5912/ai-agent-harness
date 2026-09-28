@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答明确指出 172.16.1.155 是单个主机地址而非 CIDR 网段，未自行扩展为 /24 等更宽范围，符合“不得静默扩大地址范围”的要求；并按主机对象（selector_type=IP）处理，未强求用户改写成网段。工具回执（seq 37/38）确认以源 IP 172.16.1.155、目标 IP 172.16.2.103、协议 UDP、目的端口 53、validity.duration_days=7 提交 prepare_policy_configuration，返回 task_id=223、result_code=DRAFT_READY、operation_status=waiting_user、task_status=DRAFT，seq 42/43 的 result 回执同样给出 task 223 与 DRAFT 状态及 candidate_digest，回答中的关键数据（UDP/53、7 天、任务 223、DRAFT_READY、需确认）均有同一被测 Session 的真实工具回执支撑，且如实呈现了草稿状态与后续入口，未越权声称已审批或执行。预期要求的“指出主机地址 + 按主机处理生成含 UDP 53 与七天有效期的预览”均已明确满足。"
+  },
+  "checks": {
+    "session_id": "session-4c3c94a9-6d39-4153-8447-3d202f946b19",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

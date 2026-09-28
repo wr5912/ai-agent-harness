@@ -1,0 +1,30 @@
+{"source":"evidence/U-INS-004/checks.json","source_line":1,"chunk":1,"text":"{\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":2,"chunk":1,"text":"  \"schema_version\": \"1.0\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":3,"chunk":1,"text":"  \"case_id\": \"U-INS-004\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":4,"chunk":1,"text":"  \"transport\": \"api\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":5,"chunk":1,"text":"  \"expected_behavior\": \"识别出缺少巡检项、范围或执行时间等必要信息并向用户询问，不凭空补全参数，也不声称任务已创建。\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":6,"chunk":1,"text":"  \"session_id\": \"session-92da054d-9549-4427-b6e5-7f2d0cea3412\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":7,"chunk":1,"text":"  \"workspace_id\": \"a94af39c-d02d-4450-ab02-f23d7b87c48e\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":8,"chunk":1,"text":"  \"session_preset\": \"security-operations-expert\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":9,"chunk":1,"text":"  \"session_workspace\": \"/work/harness/workspace\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":10,"chunk":1,"text":"  \"preset_matches\": true,\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":11,"chunk":1,"text":"  \"workspace_matches\": true,\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":12,"chunk":1,"text":"  \"trace_format\": \"dsh-session-export-envelope-v1\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":13,"chunk":1,"text":"  \"completed\": true,\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":14,"chunk":1,"text":"  \"judge\": {\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":15,"chunk":1,"text":"    \"session_id\": \"session-8ffc6425-1736-4b0c-84a2-728861e28dae\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":16,"chunk":1,"text":"    \"workspace_id\": \"a94af39c-d02d-4450-ab02-f23d7b87c48e\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":17,"chunk":1,"text":"    \"session_preset\": \"evaluation-judge\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":18,"chunk":1,"text":"    \"session_workspace\": \"/work/harness/workspace\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":19,"chunk":1,"text":"    \"preset_matches\": true,\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":20,"chunk":1,"text":"    \"workspace_matches\": true,\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":21,"chunk":1,"text":"    \"route\": {\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":22,"chunk":1,"text":"      \"provider\": \"deepseek-official\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":23,"chunk":1,"text":"      \"model\": \"deepseek-flash\",\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":24,"chunk":1,"text":"      \"maxTokens\": 256000,\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":25,"chunk":1,"text":"      \"reasoningEffort\": \"high\"\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":26,"chunk":1,"text":"    },\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":27,"chunk":1,"text":"    \"tools\": [],\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":28,"chunk":1,"text":"    \"same_route_as_target\": true\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":29,"chunk":1,"text":"  }\n"}
+{"source":"evidence/U-INS-004/checks.json","source_line":30,"chunk":1,"text":"}\n"}

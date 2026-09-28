@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-007",
+  "completed": false,
+  "expected_behavior": "查询真实资产、纳管状态、关联对象和相关安全配置，回复与工具结果一致；明确异常证据、未知项和建议，不伪造资产关系。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

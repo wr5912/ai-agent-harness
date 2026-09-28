@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "四轮回答始终在同一会话内延续任务上下文（逐轮引用前一轮未提交 prepare、无真实 operationId 的事实）。输入“开通策略”时字段不全，未调用 prepare，明确列出 source/destination/protocol/destination_port 等缺口并要求补充；“查询状态”时未伪造 operationId 或状态，说明无真实查询对象故不调用 get_policy_configuration_status；“调整端口”时要求明确新目标端口与被修改策略引用 target_external_id，并说明不代用户推断；“业务验证结束后关闭策略”时未在目标缺失、完成状态不可核实的情况下执行 DELETE，也未虚构延迟/触发器能力，要求给出策略引用及完整字段。工具事实仅有一条 skill（policy-configuration）调用与回执，正对应回答中引用的合同版本与“仅有准备/状态/结果三个工具”的能力边界，回答未声称任何未发生的策略工具回执或查询结果，无伪造工具结果。第三轮提及的合同名 `workbench-policy-intent/v1` 与技能回执中的 `workbench-policy-configuration/v2` 不一致，但该处仅用于说明必填字段，且所要求字段与技能说明实质一致，属非实质表述瑕疵，不影响预期各项要求的满足。"
+  },
+  "checks": {
+    "session_id": "session-8a08968c-5c0e-42f1-9e62-c1377a4e7bde",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": false
+  }
+}

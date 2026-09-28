@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答只返回单个可解析 JSON 对象，准确保留四项给定事实（39、12、4、2 及其单位），将事实与推断/建议分列并标注建议未执行，未添加输入中没有的动态数据或工具取证结果；工具回执也仅涉及技能加载，未产生额外数据，符合预期。"
+  },
+  "checks": {
+    "session_id": "session-8130b51b-1863-4af6-99ba-856d0df70ae9",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

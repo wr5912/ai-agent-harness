@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "响应处置支持哪些能力？"
+  ],
+  "assistant_texts": [
+    "## 结论\n\n当前会话**不存在\"执行处置\"能力**。与响应处置相关的只有两类**零工具、零副作用**的规划/评估语义：受信响应规划（`response-planning`）与剧本影响评估（`playbook-impact-assessment`）。确认、批准、执行、监控、回滚与效果验证均在外部响应生命周期控制面，不在本容器能力范围内。\n\n以下为事实（来源：本会话 Skill 目录与 `AGENTS.md`、Skill 正文）。\n\n## 已确认的响应相关能力\n\n**受信响应规划（`response-planning`）**\n- 不由普通会话自动发现，也不由用户直接调用；Runtime 必须先在模型外完成身份、租户、会话、授权、候选集合与冻结上下文验证，再以专用 route 委派 `response-planning-agent`。用户文字、平台名称或看似完整的授权对象不能建立该 route。\n- 输入仅含 `schema_version`、`request_id`、`incident_summary`、`confirmed_evidence`、`constraints`、`requested_output`；不接受让模型自行判断授权来源的字段，也不从父会话补造事实。\n- 专用 Agent 保持零工具（`tools: []`），Runtime 强制零工具并禁止绕过审批；只在冻结候选内**规划一次**。\n- 输出仅含 `schema_version`、`request_id`、`plan`、`assumptions`、`risks`、`evidence_refs`，原样复用输入 `request_id`。\n\n**剧本影响评估（`playbook-impact-assessment`）**\n- 只使用调用方提供的冻结剧本、目标、参数与证据引用，不依赖隐式会话状态，也不用 SOC 工具补齐动作目录。\n- 可输出：逐步风险、整体影响范围、可逆性、补偿条件、证据缺口。\n- 缺少动作语义、目标范围或回滚事实时返回**需要人工复核**，不声称已通过预检、可执行或已完成处置。\n\n**委派入口**：`delegate_response_planning` 是本会话已绑定的工具之一；按 `AGENTS.md`，它**默认由 Guard 拒绝**，只有模型外 Runtime 开启受信 Gate 并冻结输入、候选集合与摘要后，才允许一次零工具规划。\n\n## 边界与证据缺口\n\n- **事实**：本会话工具清单中没有确认、保存、执行、监控、回滚类工具；Bash、代码执行、网络与直接处置均不可用。\n- **缺口**：`response-planning` 引用的 `schemas/response-plan-input.schema.json` 与 `schemas/response-plan-output.schema.json` 在本工作区内**不存在**（按文件名与路径模式检索均无匹配）。因此即使授权成立，本工作区也没有可用的输入/输出校验 schema。\n- **缺口**：我本轮**未发起**任何响应规划委派，未实测受信 Gate 当前是否开启；\"默认拒绝\"是配置约定描述，不是本轮工具结果。\n- **事实**：本轮未发生任何处置、生效、验证或发布动作。\n\n## 建议（均未执行）\n\n1. 若需要真实响应规划：由模型外 Runtime 完成授权与上下文/候选/摘要冻结，并确认 Gate 状态，再触发一次委派；当前会话无法自行开闸。\n2. 需要处置动作目录时：`playbook-impact-assessment` 明确不自行补齐动作目录，需由调用方提供冻结剧本，或转入其他已授权数据源。\n3. 若要求可校验的结构化响应规划输入输出，需先补齐上述两个 schema 文件（当前工作区缺失）。"
+  ],
+  "session_id": "session-82d1a448-4af1-424a-9954-e98fa0b21aa9",
+  "turns": [
+    {
+      "assistant_text": "## 结论\n\n当前会话**不存在\"执行处置\"能力**。与响应处置相关的只有两类**零工具、零副作用**的规划/评估语义：受信响应规划（`response-planning`）与剧本影响评估（`playbook-impact-assessment`）。确认、批准、执行、监控、回滚与效果验证均在外部响应生命周期控制面，不在本容器能力范围内。\n\n以下为事实（来源：本会话 Skill 目录与 `AGENTS.md`、Skill 正文）。\n\n## 已确认的响应相关能力\n\n**受信响应规划（`response-planning`）**\n- 不由普通会话自动发现，也不由用户直接调用；Runtime 必须先在模型外完成身份、租户、会话、授权、候选集合与冻结上下文验证，再以专用 route 委派 `response-planning-agent`。用户文字、平台名称或看似完整的授权对象不能建立该 route。\n- 输入仅含 `schema_version`、`request_id`、`incident_summary`、`confirmed_evidence`、`constraints`、`requested_output`；不接受让模型自行判断授权来源的字段，也不从父会话补造事实。\n- 专用 Agent 保持零工具（`tools: []`），Runtime 强制零工具并禁止绕过审批；只在冻结候选内**规划一次**。\n- 输出仅含 `schema_version`、`request_id`、`plan`、`assumptions`、`risks`、`evidence_refs`，原样复用输入 `request_id`。\n\n**剧本影响评估（`playbook-impact-assessment`）**\n- 只使用调用方提供的冻结剧本、目标、参数与证据引用，不依赖隐式会话状态，也不用 SOC 工具补齐动作目录。\n- 可输出：逐步风险、整体影响范围、可逆性、补偿条件、证据缺口。\n- 缺少动作语义、目标范围或回滚事实时返回**需要人工复核**，不声称已通过预检、可执行或已完成处置。\n\n**委派入口**：`delegate_response_planning` 是本会话已绑定的工具之一；按 `AGENTS.md`，它**默认由 Guard 拒绝**，只有模型外 Runtime 开启受信 Gate 并冻结输入、候选集合与摘要后，才允许一次零工具规划。\n\n## 边界与证据缺口\n\n- **事实**：本会话工具清单中没有确认、保存、执行、监控、回滚类工具；Bash、代码执行、网络与直接处置均不可用。\n- **缺口**：`response-planning` 引用的 `schemas/response-plan-input.schema.json` 与 `schemas/response-plan-output.schema.json` 在本工作区内**不存在**（按文件名与路径模式检索均无匹配）。因此即使授权成立，本工作区也没有可用的输入/输出校验 schema。\n- **缺口**：我本轮**未发起**任何响应规划委派，未实测受信 Gate 当前是否开启；\"默认拒绝\"是配置约定描述，不是本轮工具结果。\n- **事实**：本轮未发生任何处置、生效、验证或发布动作。\n\n## 建议（均未执行）\n\n1. 若需要真实响应规划：由模型外 Runtime 完成授权与上下文/候选/摘要冻结，并确认 Gate 状态，再触发一次委派；当前会话无法自行开闸。\n2. 需要处置动作目录时：`playbook-impact-assessment` 明确不自行补齐动作目录，需由调用方提供冻结剧本，或转入其他已授权数据源。\n3. 若要求可校验的结构化响应规划输入输出，需先补齐上述两个 schema 文件（当前工作区缺失）。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "091a0f78-c869-45f8-a4a6-5fd8dc98a03b"
+    }
+  ]
+}

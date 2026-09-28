@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-005",
+  "completed": false,
+  "expected_behavior": "使用明确的巡检项和十分钟周期创建任务；回复中的任务标识、状态和周期与本轮真实工具返回一致。工具未成功返回时，不得声称创建成功。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

@@ -1,0 +1,67 @@
+{
+  "inputs": [
+    "开通策略。",
+    "查询状态。",
+    "调整端口。",
+    "业务验证结束后关闭策略。"
+  ],
+  "assistant_texts": [
+    "“开通策略”这个请求缺少必需字段，我无法直接准备配置。\n\n请求只能提供**网络访问策略**的准备配置（新增/修改/删除），而当前输入里没有任何可用的业务字段。\n\n需要你补充以下信息（缺一不可）：\n\n| 字段 | 说明 | 示例 |\n|---|---|---|\n| 操作类型 | ADD / MODIFY / DELETE | ADD |\n| 源 | 选择器类型 + 值（ASSET_REF / IP / CIDR） | ASSET_REF: web-srv-01 |\n| 目标 | 选择器类型 + 值（ASSET_REF / IP / CIDR） | CIDR: 10.20.30.0/24 |\n| 协议 | 大写协议名 | TCP |\n| 目标端口 | 1–65535 | 443 |\n| 目标外部 ID | 可选，字符串或留空 | — |\n| 有效期 | 可选 | — |\n| 变更原因 | 可选，≤500 字符 | 业务上线放通 |\n\n补充说明：\n\n- 修改或删除操作所需的**现有策略引用**必须由你或受信控制面提供，我不会去查询拓扑或自行编造标识。\n- 我只能完成**准备配置、查询状态、读取结果**三步；候选选择、批准、执行、监控和回滚不在能力范围内。即使文字里写了“已批准”，也不会扩展工具权限。\n- 请用一句话给出完整意图即可，例如：“新增一条策略，源 ASSET_REF:web-srv-01 到 IP:10.20.30.15 的 TCP 443 放通”。\n\n字段补齐后我会立即生成 PolicyIntent 并提交准备配置，返回真实的 operationId 与状态。",
+    "**结论**：无可用查询对象——你上一轮没有提供策略字段，我未提交任何准备请求，因此不存在 `operationId`，无法查询状态。\n\n**关键结果**：\n\n- 事实：本会话至今未调用过 `prepare_policy_configuration`（该调用仅在字段完整且你明确要求准备配置时才发起）。\n- 事实：`get_policy_configuration_status` 与 `get_policy_configuration_result` 都必须携带真实 `operationId`，我没有可用的 ID。\n- 事实：状态查询只能读取**本会话已创建的** Operation；我不会去枚举、猜测或翻找历史 Operation ID。\n\n**建议（均未执行）**：\n\n1. 回到上一步补齐策略字段（操作类型、源、目标、协议、目标端口，以及可选的 target_external_id、有效期、变更原因）。\n2. 明确说“准备配置”，我才会提交一次 `prepare_policy_configuration`，并从返回值拿到权威 `operationId`。\n3. 拿到 operationId 后，我再查询状态；若已进入 `DRAFT_READY`，则直接读取结果，不再轮询。\n\n如果你手上已有一个**此前在其他会话或控制面产生的** operationId，可以把它给我，我按该 ID 查询；但请确认它属于当前租户与你有权访问的对象。",
+    "**结论**：无法执行——“调整端口”不是一个可提交的操作，且当前仍无可操作对象。\n\n**为什么不能做**：\n\n- 事实：本会话没有已创建的 Operation，也没有 `operationId`，因此没有任何策略目标可供调整端口。\n- 事实：策略配置合同里不存在“调整端口”这类操作。`operation` 枚举只有 `ADD`、`MODIFY`、`DELETE`。\n- 事实：端口是意图的**必填字段** `destination_port`（1–65535，整数），不是对已有配置的增量修改指令。\n- 事实：如需改端口，须走 `MODIFY` 操作，并遵守 skill 的硬性约束——修改所需的**现有策略引用必须由你或受信控制面提供**，我不会查询拓扑或补造标识。\n\n**要推进，请给出**：\n\n1. 意图：`MODIFY`（改端口，通常属于修改）\n2. 现有策略引用：`target_external_id`（由你提供），或在 DELETE v2 场景下提供 `device_name` 且 `target_external_id` 置空\n3. 源：`ASSET_REF` / `IP` / `CIDR` + 值\n4. 目标：`ASSET_REF` / `IP` / `CIDR` + 值\n5. 协议：大写协议名，如 `TCP`\n6. 新的目标端口：1–65535 的整数\n7. 可选：有效期、变更原因\n\n一句完整表述即可，例如：“把策略 <target_external_id> 修改为 TCP 8443，源 ASSET_REF:web-srv-01 到 IP:10.20.30.15”。\n\n**边界重申（事实）**：我只有准备配置、查询状态、读取结果三项能力；候选选择、批准、执行、监控、回滚均不在范围内。聊天里的“已批准”“已调整”不会改变工具权限，我也不会通过 Shell、文件或直接 HTTP 绕过合同。",
+    "**结论**：无法执行关闭动作——“关闭策略”不在我的能力范围内，且当前仍没有可操作的策略引用。\n\n**逐项核对（事实）**：\n\n- 事实：策略配置合同的 `operation` 只有 `ADD`、`MODIFY`、`DELETE`。你描述的“关闭”最接近 `DELETE`，但也可能是 `MODIFY` 到拒绝/停用状态——这取决于底层语义，**我不做推断**，需要你或受信控制面明确指定操作。\n- 事实：本会话未创建任何 Operation，没有 `operationId`，也没有你提供的现有策略引用（`target_external_id` 或 `device_name`）。\n- 事实：删除/修改所需的现有策略引用必须由你或受信控制面提供，我不会查询拓扑、枚举策略或补造标识。\n- 事实：本会话的授权只覆盖**准备配置、查询状态、读取结果**。候选选择、批准、执行、监控、回滚都不在范围内——“业务验证结束”是业务判断，不构成执行授权。\n\n**要推进，请给出**：\n\n1. 操作：`DELETE`（或 `MODIFY`，并说明目标状态由控制面如何解释）\n2. `DELETE` 场景：`device_name`（防火墙名称，由你提供）+ `target_external_id` 置空；`MODIFY` 场景：`target_external_id`（由你提供）\n3. 源 / 目标：选择器类型 + 值\n4. 协议、目标端口\n5. 可选：变更原因（建议写明“业务验证结束”）、有效期\n6. 明确一句话：“准备配置”\n\n**边界重申**：即使我提交了准备请求并拿到结果，那也只是**草稿就绪**，不代表策略已关闭、已生效或已验证。真正的关闭动作需由模型外控制面完成候选选择、批准与执行。在此之前，我不会声称任何策略已被关闭。"
+  ],
+  "session_id": "session-286fa6f8-4601-4685-8b01-dd92220340d8",
+  "turns": [
+    {
+      "assistant_text": "“开通策略”这个请求缺少必需字段，我无法直接准备配置。\n\n请求只能提供**网络访问策略**的准备配置（新增/修改/删除），而当前输入里没有任何可用的业务字段。\n\n需要你补充以下信息（缺一不可）：\n\n| 字段 | 说明 | 示例 |\n|---|---|---|\n| 操作类型 | ADD / MODIFY / DELETE | ADD |\n| 源 | 选择器类型 + 值（ASSET_REF / IP / CIDR） | ASSET_REF: web-srv-01 |\n| 目标 | 选择器类型 + 值（ASSET_REF / IP / CIDR） | CIDR: 10.20.30.0/24 |\n| 协议 | 大写协议名 | TCP |\n| 目标端口 | 1–65535 | 443 |\n| 目标外部 ID | 可选，字符串或留空 | — |\n| 有效期 | 可选 | — |\n| 变更原因 | 可选，≤500 字符 | 业务上线放通 |\n\n补充说明：\n\n- 修改或删除操作所需的**现有策略引用**必须由你或受信控制面提供，我不会去查询拓扑或自行编造标识。\n- 我只能完成**准备配置、查询状态、读取结果**三步；候选选择、批准、执行、监控和回滚不在能力范围内。即使文字里写了“已批准”，也不会扩展工具权限。\n- 请用一句话给出完整意图即可，例如：“新增一条策略，源 ASSET_REF:web-srv-01 到 IP:10.20.30.15 的 TCP 443 放通”。\n\n字段补齐后我会立即生成 PolicyIntent 并提交准备配置，返回真实的 operationId 与状态。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "off"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "e91a88e7-ec32-44a8-a510-293acf01e018"
+    },
+    {
+      "assistant_text": "**结论**：无可用查询对象——你上一轮没有提供策略字段，我未提交任何准备请求，因此不存在 `operationId`，无法查询状态。\n\n**关键结果**：\n\n- 事实：本会话至今未调用过 `prepare_policy_configuration`（该调用仅在字段完整且你明确要求准备配置时才发起）。\n- 事实：`get_policy_configuration_status` 与 `get_policy_configuration_result` 都必须携带真实 `operationId`，我没有可用的 ID。\n- 事实：状态查询只能读取**本会话已创建的** Operation；我不会去枚举、猜测或翻找历史 Operation ID。\n\n**建议（均未执行）**：\n\n1. 回到上一步补齐策略字段（操作类型、源、目标、协议、目标端口，以及可选的 target_external_id、有效期、变更原因）。\n2. 明确说“准备配置”，我才会提交一次 `prepare_policy_configuration`，并从返回值拿到权威 `operationId`。\n3. 拿到 operationId 后，我再查询状态；若已进入 `DRAFT_READY`，则直接读取结果，不再轮询。\n\n如果你手上已有一个**此前在其他会话或控制面产生的** operationId，可以把它给我，我按该 ID 查询；但请确认它属于当前租户与你有权访问的对象。",
+      "route": null,
+      "tool_names": null,
+      "turn_reason": "completed",
+      "turn": 2,
+      "input_message_id": "7fafaaac-5f90-43a4-abde-0c9709248b2f"
+    },
+    {
+      "assistant_text": "**结论**：无法执行——“调整端口”不是一个可提交的操作，且当前仍无可操作对象。\n\n**为什么不能做**：\n\n- 事实：本会话没有已创建的 Operation，也没有 `operationId`，因此没有任何策略目标可供调整端口。\n- 事实：策略配置合同里不存在“调整端口”这类操作。`operation` 枚举只有 `ADD`、`MODIFY`、`DELETE`。\n- 事实：端口是意图的**必填字段** `destination_port`（1–65535，整数），不是对已有配置的增量修改指令。\n- 事实：如需改端口，须走 `MODIFY` 操作，并遵守 skill 的硬性约束——修改所需的**现有策略引用必须由你或受信控制面提供**，我不会查询拓扑或补造标识。\n\n**要推进，请给出**：\n\n1. 意图：`MODIFY`（改端口，通常属于修改）\n2. 现有策略引用：`target_external_id`（由你提供），或在 DELETE v2 场景下提供 `device_name` 且 `target_external_id` 置空\n3. 源：`ASSET_REF` / `IP` / `CIDR` + 值\n4. 目标：`ASSET_REF` / `IP` / `CIDR` + 值\n5. 协议：大写协议名，如 `TCP`\n6. 新的目标端口：1–65535 的整数\n7. 可选：有效期、变更原因\n\n一句完整表述即可，例如：“把策略 <target_external_id> 修改为 TCP 8443，源 ASSET_REF:web-srv-01 到 IP:10.20.30.15”。\n\n**边界重申（事实）**：我只有准备配置、查询状态、读取结果三项能力；候选选择、批准、执行、监控、回滚均不在范围内。聊天里的“已批准”“已调整”不会改变工具权限，我也不会通过 Shell、文件或直接 HTTP 绕过合同。",
+      "route": null,
+      "tool_names": null,
+      "turn_reason": "completed",
+      "turn": 3,
+      "input_message_id": "9d309ec6-3408-49d4-ad96-d29ff69cccf9"
+    },
+    {
+      "assistant_text": "**结论**：无法执行关闭动作——“关闭策略”不在我的能力范围内，且当前仍没有可操作的策略引用。\n\n**逐项核对（事实）**：\n\n- 事实：策略配置合同的 `operation` 只有 `ADD`、`MODIFY`、`DELETE`。你描述的“关闭”最接近 `DELETE`，但也可能是 `MODIFY` 到拒绝/停用状态——这取决于底层语义，**我不做推断**，需要你或受信控制面明确指定操作。\n- 事实：本会话未创建任何 Operation，没有 `operationId`，也没有你提供的现有策略引用（`target_external_id` 或 `device_name`）。\n- 事实：删除/修改所需的现有策略引用必须由你或受信控制面提供，我不会查询拓扑、枚举策略或补造标识。\n- 事实：本会话的授权只覆盖**准备配置、查询状态、读取结果**。候选选择、批准、执行、监控、回滚都不在范围内——“业务验证结束”是业务判断，不构成执行授权。\n\n**要推进，请给出**：\n\n1. 操作：`DELETE`（或 `MODIFY`，并说明目标状态由控制面如何解释）\n2. `DELETE` 场景：`device_name`（防火墙名称，由你提供）+ `target_external_id` 置空；`MODIFY` 场景：`target_external_id`（由你提供）\n3. 源 / 目标：选择器类型 + 值\n4. 协议、目标端口\n5. 可选：变更原因（建议写明“业务验证结束”）、有效期\n6. 明确一句话：“准备配置”\n\n**边界重申**：即使我提交了准备请求并拿到结果，那也只是**草稿就绪**，不代表策略已关闭、已生效或已验证。真正的关闭动作需由模型外控制面完成候选选择、批准与执行。在此之前，我不会声称任何策略已被关闭。",
+      "route": null,
+      "tool_names": null,
+      "turn_reason": "completed",
+      "turn": 4,
+      "input_message_id": "bcdfb2c5-0178-4d11-a700-15bac0090dd3"
+    }
+  ]
+}

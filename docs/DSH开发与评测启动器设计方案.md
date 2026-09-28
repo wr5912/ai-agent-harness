@@ -28,10 +28,10 @@
 | `up --dry-run` | 只解析来源并预览模式、Preset、自动实例名、建议端口、工作区、挂载与缺失环境变量；不写状态、不调用 Docker |
 | `up` | 渲染实例 Compose 并启动；确认 `dsh` 服务真的在运行后才在 stdout 输出一个 JSON 结果 |
 | `ps` | 默认列出实际运行中的实例；`--all` 查看 `stopped`、`failed`、`unknown` 和损坏记录；查询失败时标为 `unknown` |
-| `url` | 从本次进程日志提取认证 URL 并做 Token→Cookie→根页探针；非交互终端需显式 `--non-interactive` |
+| `url` | 默认从本次进程日志提取认证 URL 并做 Token→Cookie→根页探针；`--lan-access` 实例改为核验密码登录页并返回不含 Token 的本机 URL |
 | `logs` | 输出有界、尽力脱敏的容器日志 |
 | `down` | 停止实例并保留 HOME；命令失败、仍有容器运行或状态无法确认时都不报告停止成功 |
-| `dsh-eval` | 按 `evaluation.md` 的执行元数据启动独立评测实例；默认经 DSH Runtime API 运行，显式选择浏览器时做 UI 冒烟；导出同一 Session 轨迹并封存 Run |
+| `dsh-eval` | 按显式选择的业务 Case 启动独立评测实例；默认经 DSH Runtime API 运行，显式选择浏览器时做 UI 冒烟；导出同一 Session 轨迹并封存 Run |
 
 本次范围之外：不新增容器编排、不引入审批或评分平台、不实现 Runtime 存储内部格式的写入。
 
@@ -43,7 +43,7 @@
 |---|---|---|
 | 开发智能体的运行配置 | 开发模式实际采用的 `session_preset=cordis`、`/work/AGENTS.md` 与 `/work/AGENTS.local.md` 指令链，以及 `authoring.compose.yaml` 渲染出的有效启动与挂载配置 | 开发者；改变这些有效值属于开发环境变更 |
 | 被开发或优化的 Harness 资产 | 所选 Experiment 的 `candidate/dsh/{workspace,presets,managed}` | 开发者在任务范围内编辑，经 Git 管理 |
-| 需求、测试数据与评估标准 | `agents/<agent-id>/definition.md` 维护需求与任务；同目录 `evaluation.md` 维护测试数据、方法、验收与 Experiment 选择 | 每类事实只有一个可编辑来源；单次评测期间保持不变 |
+| 需求、测试数据与评估标准 | `agents/<agent-id>/evaluation.md` 集中维护业务 Case 的名称、用户输入和预期 | 每个 Agent 只有一个可编辑来源；单次评测期间保持不变 |
 | 运行状态与运行记录 | 运行状态是实例 `DSH_HOME` 数据卷；持久记录是 `evolution/experiments/<id>/runs/` 与 `evaluation/evidence/` | 状态按实例生命周期管理；受管执行的 Run 事实和必要证据独立保留，不当作缓存丢弃 |
 
 开发会话里读到的业务角色指令（例如目标是安全运营专家）是第二类资产的正文，读它是为了修改它，不代表开发工具要切换成业务智能体。这一点不能只靠文字提醒：开发会话注册的工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（见 5.2 节），目标自己的 `AGENTS.md` 仍留在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。
@@ -93,9 +93,24 @@ python3 runtime/adapters/dsh-container/dsh-dev up \
 python3 runtime/adapters/dsh-container/dsh-dev up \
   --source experiment:EXP-security-operations-expert-001 --mode eval
 
+# 可信局域网共享：密码登录、监听 0.0.0.0；仅用于 eval
+python3 runtime/adapters/dsh-container/dsh-dev up \
+  --source experiment:EXP-security-operations-expert-001 --mode eval \
+  --name security-operations-expert-ui --port 3154 --lan-access
+
 # 取认证 URL 并打开界面
-python3 runtime/adapters/dsh-container/dsh-dev url security-operations-expert-dev
+python3 runtime/adapters/dsh-container/dsh-dev url security-operations-expert-ui
 ```
+
+`--lan-access` 选择同一实例 HOME 卷中的 `web-lan` Profile，由 `dsh-web-lan-access` 设置
+`0.0.0.0` 监听，并由 `dsh-auth-gate` 提供账号密码登录。DSH 启动时会重写 Profile 的
+`cordis.yml` 并维护模块回退目录，因此该 Profile 与用户、Session、工作区注册一样，属于实例
+HOME 卷中的可写运行状态；业务 workspace、Preset 和 managed 配置仍保持只读。此模式是纯 HTTP，登录凭据和 Cookie 不加密，只适合
+受信局域网；宿主防火墙范围不由启动器修改。默认不带该选项时仍使用 `web`、`127.0.0.1` 与
+DSH 本次进程 Token。该选项只选择已经配置好的 Profile，不自动下载或执行 npm Plugin；新建 HOME
+卷时必须先按实例实施方案准备 `web-lan`。
+
+实例初始密码保存在 `agents/<agent-id>/instances/<instance-name>/credentials/*.initial-password`，可随实例资产纳入 Git；账号命令仍只通过标准输入接收密码。LLM API Key 使用被 Git 忽略的 `*.llm-api-key` 文件，禁止提交或推送到远端。
 
 **源码或 Profile Plugin 改了不等于已经生效。** 容器里的进程不会因为 bind 挂载内容变化或 Profile 依赖变化而自动重启，普通 `docker compose up -d` 也不会仅因挂载内容变化重建容器；Preset 又存在按 ID 的驻留装载。因此改完 preset、managed、适配层脚本或执行 `dsh plugin` 安装后必须真正重启实例：
 
@@ -115,20 +130,20 @@ DSH Web 首次打开需要在界面注册工作区：点击"选择工作区" →
 
 ### 4.4 运行研究比较
 
-开发者自行保证：本次运行期间不修改本次使用的 Harness、测试数据、评估方法和验收标准；不让多个实例同时改写同一份资产；基线与候选使用相同口径，口径变化后重新执行受影响的对比。
+开发者自行保证：本次运行期间不修改本次使用的 Harness 和 Case 判断口径；不让多个实例同时改写同一份资产；基线与候选使用相同口径，口径变化后重新执行受影响的对比。
 
 先预览实际选择、执行器、镜像和缺失环境变量，再运行全部或指定 Case：
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-security-operations-expert-006 --dry-run
+  --source experiment:EXP-security-operations-expert-006 --case U-INS-001 --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-security-operations-expert-006 --mode full
+  --source experiment:EXP-security-operations-expert-006 --case 'U-INS-*'
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-security-operations-expert-006 --executor browser [--case <case-id>]
+  --source experiment:EXP-security-operations-expert-006 --executor browser --case U-INS-001
 ```
 
-`dsh-eval` 只执行 `evaluation.md` 当前 Experiment 已选择且带执行元数据的 Case。未指定 `--mode` 时默认运行标为 `fast` 的核心 Case，`--mode full` 运行全部已选 Case；重复 `--case` 精确选择 Case 并优先于档位。`--dry-run` 会输出实际 `mode` 和最终列表。默认 API 执行器只通过 DSH Runtime 完成 Workspace 注册、逐 Case 新建 Session、目标 Preset 与 Workspace 核对、按 Case 声明选择模型、消息发送、Turn 等待和 Session 导出，不直连底层模型 API；未声明目标模型的 Case 使用 DSH 当前默认模型。浏览器执行器只负责初始提示、工作区、模型、发送和显示等 UI 冒烟。两者复用 Case 定义、身份检查和证据格式，但分别运行、分别统计；认证 URL 只通过标准输入传给所选执行器，不落盘、不进入普通输出。执行器先运行 `evaluation.md` 中受版本控制的 JavaScript 检查片段，再把剩余语义交给 `m-llm-judge-v1` 的独立无工具 Session。评审不设置专用模型变量，复用 DSH 当前默认模型、Endpoint 和凭据；无效输出或证据不足记为 `inconclusive`，同一路由自评限制写入证据。已完成但无法自动判定的 Case 在报告中显示“待人工判定”，执行错误或未执行的 `inconclusive` 显示“无法判定”。
+`dsh-eval` 只执行通过 `--case` 显式选择的业务 Case；缺失选择时列出可选项并退出。该参数可重复，也可使用大小写敏感的 shell 风格通配符，最终按 `evaluation.md` 声明顺序展开并去重。默认 API 执行器只通过 DSH Runtime 完成 Workspace 注册、每 Case 新建 Session、目标 Preset 与 Workspace 核对、消息发送、Turn 等待和 Session 导出，不直连底层模型 API；一个 Case 的多轮输入在同一 Session 中依次发送。浏览器执行器负责对应的 UI 链路。两者导出回答与同一 Session 的工具事件，再由独立无工具 Session 对照输入和预期给出语义结论。技术装载、合同和工具链检查由运行前校验承担，不写成业务 Case。
 
 评测模式运行的是被测目标，容器里没有判分材料（见第 5.3 节）。任务输入通过对话给出，环境状态由 MCP 服务端或受控预置提供。`dsh-eval` 无论成功、失败或中断都尝试停止实例；基础设施失败导致未执行的 Case 记为 `error/inconclusive`，中断或安全停机后未开始的 Case 记为 `skipped/inconclusive`，不把运行故障写成 Harness 语义失败。
 
@@ -142,7 +157,7 @@ python3 runtime/adapters/dsh-container/run_record.py --repo . init \
   --case <case-id> --kind research
 ```
 
-`inputs.lock.json` 会记录三棵 Harness 树与研究资料树的摘要、`evaluation.md` 摘要和本 Experiment 所选 ID，以及 `git_version`（提交、是否含未提交修改、变更路径数）。这些值是当次 Run 的不可编辑输入锁，不是新的评测维护源。**未提交修改无法仅凭 `HEAD` 还原**，所以该字段必须如实保留，不能把带未提交修改的运行写成某个提交的完整内容。
+`inputs.lock.json` 会记录三棵 Harness 树与研究资料树的摘要、所选 Case 执行合同的摘要，以及 `git_version`（提交、是否含未提交修改、变更路径数）。这些值是当次 Run 的不可编辑输入锁，不是新的评测维护源。**未提交修改无法仅凭 `HEAD` 还原**，所以该字段必须如实保留，不能把带未提交修改的运行写成某个提交的完整内容。
 
 开发过程中产生的新 preset、技能或插件即使暂存在容器 HOME 的 `/var/lib/dsh/.agent-presets/` 或 Web Profile 目录，仍属于待保存的开发产物，不是缓存：宿主复核后把应保留的 Harness 资产回流 `candidate/`，并把插件的精确版本与完整性信息写入对应 Experiment 的 Candidate；不清理时一并删除。
 
@@ -154,7 +169,7 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-d
 
 `down` 先检查 `docker compose down` 的退出码，再查实际容器状态和 HOME 卷是否仍在：命令失败即报错；命令返回 0 但仍有容器运行、或状态查询失败时，在 stderr 输出 `stopped: false` 或 `stopped: "unknown"` 并以非零退出码结束，不会在 stdout 输出成功结果。
 
-同样，`up` 会先核对镜像标签对应的构建指纹、平台和 Image ID，再执行停旧实例、写状态和启动；Compose 使用 `tag@image-id` 不可变引用。它不再只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的进入运行状态（`home-init` 是一次性服务，正常结束不算失败）。成功时 stdout 只输出一个 JSON，包含实例名、Compose 项目名、端口、状态目录、Agent/Preset 身份、镜像标签、Image ID、不可变引用、构建指纹、`dsh_running` 和容器状态；`up --replace` 还在 `replaced.previous_state_schema` 和 `replaced.stop` 中返回旧状态版本与完整停止结果。进度、工作区提示和错误写入 stderr；失败时 stdout 保持为空，也不输出 Token。
+同样，`up` 会先核对镜像标签对应的构建指纹、平台和 Image ID，再执行停旧实例、写状态和启动；Compose 使用 `tag@image-id` 不可变引用。实例名直接作为主 `dsh` 容器名，Compose 项目名固定为 `dsh-dev-<实例名>`，使 CLI、`docker ps` 与 Compose 资源可以直接对应。它不再只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的进入运行状态（`home-init` 是一次性服务，正常结束不算失败）。成功时 stdout 只输出一个 JSON，包含实例名、主容器名、Compose 项目名、端口、状态目录、Agent/Preset 身份、镜像标签、Image ID、不可变引用、构建指纹、`dsh_running` 和容器状态；`up --replace` 还在 `replaced.previous_state_schema` 和 `replaced.stop` 中返回旧状态版本与完整停止结果。进度、工作区提示和错误写入 stderr；失败时 stdout 保持为空，也不输出 Token。
 
 输出示例：
 
@@ -216,13 +231,13 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 ### 5.3 判分材料不进入被测容器
 
-`/work/reference` 挂载同一 Agent 的两份职责分离资料：`definition.md` 保存需求与任务，`evaluation.md` 保存测试数据、评估方法、验收标准和 Experiment 选择。两者都属于判分材料。只读挂载只限制写入、不限制读取，所以判分材料不能靠"挂成只读"来隔离：把它挂进被测容器，再依赖被测实现自己的文件访问限制去挡，等于让被测对象保护的边界去保护测试本身。
+Agent 的当前判分材料只有 `agents/<agent-id>/evaluation.md`，其中每个业务 Case 聚合名称、用户输入和预期。该文件保留在宿主侧，由开发流程和评测执行器读取；被测容器不挂载 `/work/reference`。
 
 因此：
 
-- 判分材料只挂给开发会话（供其阅读与核对，维护在宿主侧完成）和评分角色；
+- 开发者和评分过程从宿主侧读取判分材料；
 - 被测角色默认不挂任何评测材料，`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言——不只是"没挂"，而是这些路径在容器里不存在；
-- 确需给被测侧数据的，必须显式声明一个已确认不含预期答案的输入根（`mount_plan --eval-input`），不能把整个研究定义根当作"被测输入"。
+- 确需给被测侧数据的，必须显式声明一个已确认不含预期答案的输入根（`mount_plan --eval-input`），不能把 `evaluation.md` 当作被测输入。
 
 ### 5.4 开发叠加层
 
@@ -279,7 +294,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 
 ### 5.7 实例状态
 
-实例配置生成在仓库外：`$XDG_STATE_HOME/dsh-dev/<name>/{compose.yaml,instance.json}`（缺省 `~/.local/state/dsh-dev/`）。`instance.json`（schema `2.2`）记录来源、模式、`agent_id`、`target_preset`、`session_preset`、端口、镜像标签、Image ID、不可变镜像引用对应的构建指纹、profile patch、挂载与上下文挂载、环境变量名。它不含 Token，也不进入仓库。
+实例配置生成在仓库外：`$XDG_STATE_HOME/dsh-dev/<name>/{compose.yaml,instance.json}`（缺省 `~/.local/state/dsh-dev/`）。`instance.json`（schema `2.5`）记录来源、模式、`agent_id`、`target_preset`、`session_preset`、Web Profile、LAN 开关、监听地址、端口、镜像标签、Image ID、不可变镜像引用对应的构建指纹、profile patch、挂载与上下文挂载、环境变量名。它不含 Token，也不进入仓库。
 
 `ps`、`logs`、`down` 从实例状态文件重建读取该实例 Compose 所需的环境变量，并且**不要求状态文件是最新 schema**：一条旧实例必须仍然能被停止和查询，否则新版会卡在"旧状态拒绝操作、同名 `up` 又被端口挡住"的循环里。记录里缺失的字段不猜：旧模板用 `${VAR:-默认}`，缺值可解析；新模板用 `${VAR:?}`，缺值由 Compose 报出变量名。
 
@@ -304,7 +319,7 @@ HOME 卷名按 Compose 自身的卷标签解析，不按 `<project>-home` 猜测
 | 改完 preset 但行为没变 | 挂载内容变化不会自动重启进程。用 `up --replace` 或 `down` + 同名 `up` 重启实例，再新建会话；必要时用 `verify-load.sh` 核对实际组合配置 |
 | 端口被本实例自身占用 | `up` 提示先 `down` 或加 `--replace`；同名实例不得改端口，也不会自动换端口 |
 | 旧状态实例需要迁移 | `ps` 标出 `needs_migration: true`；已停止的直接同名 `up`，仍在运行的用 `up --replace` |
-| `url` 报"未取得唯一认证 URL" | 只从**本次进程**日志提取，不返回历史链接也不拼造 Token；确认容器在本次启动后没有重启 |
+| `url` 报"未取得唯一认证 URL" | 默认模式只从**本次进程**日志提取，不返回历史链接也不拼造 Token；确认容器在本次启动后没有重启。LAN 密码模式则应检查未认证根页能否跳转到 `/auth/login` |
 | `down` 报状态未确认 | 说明 `docker compose down` 失败或 `docker ps` 查询失败；人工核对容器与卷后再决定是否继续 |
 | 既有实例 | 适配层脚本或 Compose 变化后需重建容器并重跑 `verify-load.sh`；HOME 数据卷不随重建丢失，工作区注册保留 |
 

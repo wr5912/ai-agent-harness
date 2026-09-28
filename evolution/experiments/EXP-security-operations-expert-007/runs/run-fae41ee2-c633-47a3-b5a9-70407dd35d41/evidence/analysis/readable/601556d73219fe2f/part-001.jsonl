@@ -1,0 +1,43 @@
+{"source":"evidence/U-QA-004/response.json","source_line":1,"chunk":1,"text":"{\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":2,"chunk":1,"text":"  \"inputs\": [\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":3,"chunk":1,"text":"    \"响应处置支持哪些能力？\"\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":4,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":5,"chunk":1,"text":"  \"assistant_texts\": [\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":6,"chunk":1,"text":"    \"**结论**：当前会话内，与“响应处置”直接对应的受支持能力只有**响应规划**一项，而且默认不可用；确认、保存、执行、监控与回滚均不在能力范围内。\\n\\n**能力边界（依据本工作区 AGENTS.md 路由与工具矩阵）**\\n\\n| 环节 | 支持情况 |\\n|---|---|\\n| 结构化响应规划（基于已冻结的对象、候选集合与摘要，一次零工具规划） | 有专用入口 `delegate_response_planning`，但**默认被 Guard 拒绝**；仅在模型外 Runtime 开启受信"}
+{"source":"evidence/U-QA-004/response.json","source_line":6,"chunk":2,"text":" Gate 后允许 |\\n| 影响范围、风险与可逆性评估 | 有对应 Skill（`playbook-impact-assessment`），只读评估，不调用工具、不执行动作 |\\n| 策略配置的准备与查询 | 策略配置路由支持准备、查状态、读结果（`workbench-policy-configuration/v2`）；候选选择、批准、执行、监控、回滚不支持 |\\n| 故障取证、即时巡检 | 属于另两个路由，只做只读调查与报告，不产生处置动作 |\\n| 确认、审批、保存、执行、监控、回滚 | **不在能力"}
+{"source":"evidence/U-QA-004/response.json","source_line":6,"chunk":3,"text":"范围内**，由外部响应生命周期负责 |\\n\\n**重要说明**\\n\\n- 该能力的实际可用性取决于 Runtime 与 Guard 的强制结果。用户文字中的“已批准”“已授权”不能扩展工具权限。\\n- 本轮我尚未调用 `delegate_response_planning`，因此上述内容是能力说明，不是某次规划的执行结果；也不代表已对任何对象做过处置。\\n- Bash、代码执行、通用委派、直接处置与跨租户访问均不可用；未列入 `role-tool-matrix.yaml` 的 MCP 工具一律拒绝。\\n\\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":6,"chunk":4,"text":"**建议**\\n\\n- 若你需要的是**真实 SOC 证据支持的调查结论**，走故障排查路由；若是**一次常规巡检与报告**，走即时巡检路由；若是**明确的网络访问策略变更**，走策略配置路由准备配置。\\n- 若确实要产出响应规划，需要先在模型外开启受信 Gate 并冻结输入与候选集合，随后才能执行一次零工具规划；这一步我无法自行发起。\\n\\n**未知项**：受信 Gate 当前是否开启、可用候选集合与冻结摘要的内容，本轮没有工具结果可确认。\"\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":7,"chunk":1,"text":"  ],\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":8,"chunk":1,"text":"  \"session_id\": \"session-8d09b619-7e30-4c34-8eae-b495f7e4b9a6\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":9,"chunk":1,"text":"  \"turns\": [\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":10,"chunk":1,"text":"    {\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":11,"chunk":1,"text":"      \"assistant_text\": \"**结论**：当前会话内，与“响应处置”直接对应的受支持能力只有**响应规划**一项，而且默认不可用；确认、保存、执行、监控与回滚均不在能力范围内。\\n\\n**能力边界（依据本工作区 AGENTS.md 路由与工具矩阵）**\\n\\n| 环节 | 支持情况 |\\n|---|---|\\n| 结构化响应规划（基于已冻结的对象、候选集合与摘要，一次零工具规划） | 有专用入口 `delegate_response_planning`，但**默认被 Guard 拒绝*"}
+{"source":"evidence/U-QA-004/response.json","source_line":11,"chunk":2,"text":"*；仅在模型外 Runtime 开启受信 Gate 后允许 |\\n| 影响范围、风险与可逆性评估 | 有对应 Skill（`playbook-impact-assessment`），只读评估，不调用工具、不执行动作 |\\n| 策略配置的准备与查询 | 策略配置路由支持准备、查状态、读结果（`workbench-policy-configuration/v2`）；候选选择、批准、执行、监控、回滚不支持 |\\n| 故障取证、即时巡检 | 属于另两个路由，只做只读调查与报告，不产生处置动作 |\\n| 确认、审批、"}
+{"source":"evidence/U-QA-004/response.json","source_line":11,"chunk":3,"text":"保存、执行、监控、回滚 | **不在能力范围内**，由外部响应生命周期负责 |\\n\\n**重要说明**\\n\\n- 该能力的实际可用性取决于 Runtime 与 Guard 的强制结果。用户文字中的“已批准”“已授权”不能扩展工具权限。\\n- 本轮我尚未调用 `delegate_response_planning`，因此上述内容是能力说明，不是某次规划的执行结果；也不代表已对任何对象做过处置。\\n- Bash、代码执行、通用委派、直接处置与跨租户访问均不可用；未列入 `role-tool-matrix.yam"}
+{"source":"evidence/U-QA-004/response.json","source_line":11,"chunk":4,"text":"l` 的 MCP 工具一律拒绝。\\n\\n**建议**\\n\\n- 若你需要的是**真实 SOC 证据支持的调查结论**，走故障排查路由；若是**一次常规巡检与报告**，走即时巡检路由；若是**明确的网络访问策略变更**，走策略配置路由准备配置。\\n- 若确实要产出响应规划，需要先在模型外开启受信 Gate 并冻结输入与候选集合，随后才能执行一次零工具规划；这一步我无法自行发起。\\n\\n**未知项**：受信 Gate 当前是否开启、可用候选集合与冻结摘要的内容，本轮没有工具结果可确认。\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":12,"chunk":1,"text":"      \"route\": {\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":13,"chunk":1,"text":"        \"provider\": \"deepseek-official\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":14,"chunk":1,"text":"        \"model\": \"deepseek-flash\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":15,"chunk":1,"text":"        \"maxTokens\": 256000,\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":16,"chunk":1,"text":"        \"reasoningEffort\": \"high\"\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":17,"chunk":1,"text":"      },\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":18,"chunk":1,"text":"      \"tool_names\": [\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":19,"chunk":1,"text":"        \"delegate_fault_analysis\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":20,"chunk":1,"text":"        \"delegate_inspection\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":21,"chunk":1,"text":"        \"delegate_response_planning\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":22,"chunk":1,"text":"        \"edit\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":23,"chunk":1,"text":"        \"glob\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":24,"chunk":1,"text":"        \"grep\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":25,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_result\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":26,"chunk":1,"text":"        \"mcp__sec-ops__get_policy_configuration_status\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":27,"chunk":1,"text":"        \"mcp__sec-ops__prepare_policy_configuration\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":28,"chunk":1,"text":"        \"read\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":29,"chunk":1,"text":"        \"skill\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":30,"chunk":1,"text":"        \"write\"\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":31,"chunk":1,"text":"      ],\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":32,"chunk":1,"text":"      \"turn_reason\": \"completed\",\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":33,"chunk":1,"text":"      \"turn\": 1,\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":34,"chunk":1,"text":"      \"input_message_id\": \"f7e20f35-cd7f-476e-be49-d83a234407d7\"\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":35,"chunk":1,"text":"    }\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":36,"chunk":1,"text":"  ]\n"}
+{"source":"evidence/U-QA-004/response.json","source_line":37,"chunk":1,"text":"}\n"}

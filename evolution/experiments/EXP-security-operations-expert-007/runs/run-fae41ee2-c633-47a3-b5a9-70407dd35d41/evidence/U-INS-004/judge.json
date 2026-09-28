@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "用户仅说“帮我创建巡检任务”，未提供巡检项、范围、执行时间等必要信息，预期应先识别缺失信息并向用户询问、不得凭空补全参数、也不得声称任务已创建。被测回答却直接自行补全 group_code=routine、scope.type=all，调起并完成了常规全量即时巡检，输出了巡检结论、报告链接与各项数据，并声称“本次常规全量即时巡检已完成”。这既未向用户追问缺失参数，又在无依据的情况下擅自确定巡检项与范围，且把“创建任务”执行成了已完成巡检，与预期行为明确冲突。"
+  },
+  "checks": {
+    "session_id": "session-8ffc6425-1736-4b0c-84a2-728861e28dae",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

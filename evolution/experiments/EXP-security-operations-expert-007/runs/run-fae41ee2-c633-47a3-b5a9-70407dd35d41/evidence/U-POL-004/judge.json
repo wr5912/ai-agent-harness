@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求在生成预览前校验指定设备、设备映射和型号能力，能力不匹配时停止并说明原因。被测回答直接调用 prepare_policy_configuration 生成 DRAFT 预览，且自述「未查询拓扑、资产归属或既有策略，因此不确认 172.16.1.155 与 172.16.2.103 的资产身份」，即完全跳过了设备映射与型号能力校验；工具回执（accepted=true, DRAFT_READY）中也不含任何设备校验结果。因此未满足预期前置条件，判定 failed（其声明 DRAFT 未生效、不声称开通成功这点正确，但不构成对全部要求的满足）。"
+  },
+  "checks": {
+    "session_id": "session-2dd01b04-9d02-4a90-97b2-e799e2e28462",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

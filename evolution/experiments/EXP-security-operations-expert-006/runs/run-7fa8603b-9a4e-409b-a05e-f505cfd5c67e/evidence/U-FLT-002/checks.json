@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-002",
+  "completed": false,
+  "expected_behavior": "基于真实资产、巡检或探测结果分析各设备状态，区分离线与探测不可达，不把推测写成已确认根因，并给出可核对的下一步。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-005",
+  "transport": "api",
+  "expected_behavior": "若同一 Session 缺少此前故障上下文，先询问必要信息；有上下文时停止盲目替换参数，转向核对正式故障证据、链路状态和失败原因。",
+  "session_id": "session-46c4e262-c403-43c2-aaad-7f2485aac83e",
+  "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-567a6d57-292a-42fb-af2f-6a290e9752e4",
+    "unavailable_reason": "judge-output-invalid"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "被测回答正确做到了不保证“最新”（明确缺少比较基准，不把不存在的东西判定为最新），也对冲突、过期、低相关、零结果给出了一定处理原则（不投票不平均、标注时点、零结果不等于不存在、只能重复工具结果支持的内容）。但未满足预期中的全部要求：其一，未说明如何比较发布日期，也未提及比较适用范围，仅给出“本轮工具结果>用户材料>历史结论”的权威性排序；其二，对冲突或零结果只表述为“证据缺口/能力或数据缺口”并停在该路线，未明确继续核验的后续步骤，也未提及升级人工确认，反而表示“我不判定谁对”“就停在该路线”。因此对完整预期要求的满足不完整，判定为 failed。"
+  },
+  "checks": {
+    "session_id": "session-5c0dd828-0a41-4004-bad1-ce09320f9920",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

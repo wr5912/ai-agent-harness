@@ -1,0 +1,808 @@
+{
+  "schema_version": "2.0",
+  "run_id": "run-f9f795a4-da68-4ed9-8f60-20e38544f19e",
+  "source_id": "experiment:EXP-security-operations-expert-007",
+  "source_kind": "experiment",
+  "baseline_ref": "git:6b7fd0a8af617ce8db3aec4bcdb188e4a488026a",
+  "created_at": "2026-09-24T10:17:34Z",
+  "harness_trees": {
+    "workspace": {
+      "tree_sha256": "sha256:f7f5669836d8b456f4f0f4dc5d9b9f2502c7688d4bff88a1b6600522ec522dda",
+      "directory_sha256": "sha256:e037a329ea436c9ddfeabc9fa82cb6aefd096103cfa20c24001289a3721c1632",
+      "file_count": 8,
+      "total_bytes": 14279,
+      "files": [
+        {
+          "mode": "0664",
+          "path": ".agents/skills/fault-analysis/SKILL.md",
+          "sha256": "5bcc10d9be08e61bd2d94a473e6577e2ef501f22832caa9427e03a037585ec28",
+          "size": 1722
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/playbook-impact-assessment/SKILL.md",
+          "sha256": "9293f326283bbf5b9f6c7a0105a73d218f906ebfdcad01f7834a6effbfb004cb",
+          "size": 568
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/policy-configuration/SKILL.md",
+          "sha256": "d5130c2a6f9663555e0487e2ec975fa40e8f17164a0225efa0eb48591bac3f57",
+          "size": 1448
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/response-planning/SKILL.md",
+          "sha256": "76d84e82fd9c3edc85ec693a50b6881e54271eb89da77335ac11142998a056a4",
+          "size": 1443
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/security-inspection/SKILL.md",
+          "sha256": "08c6b572084b14bb404e6c83e2adc98cc568b6696e767ee9d513896ed89520c7",
+          "size": 2502
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/security-investigation/SKILL.md",
+          "sha256": "a622b794f20252224b7db2b10d9c7f76fd6fb61cb29756431080c63707f6ef40",
+          "size": 843
+        },
+        {
+          "mode": "0664",
+          "path": ".env",
+          "sha256": "e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+          "size": 84
+        },
+        {
+          "mode": "0664",
+          "path": "AGENTS.md",
+          "sha256": "b28369f908a140af78d67c3a3bceaa63ea2251ae26c9728c9e8f96d7dbe9e9f2",
+          "size": 5669
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/fault-analysis",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/playbook-impact-assessment",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/policy-configuration",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/response-planning",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/security-inspection",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/security-investigation",
+          "mode": "0775"
+        }
+      ]
+    },
+    "presets": {
+      "tree_sha256": "sha256:71d3b1ea06c1d0ede0c55f95953d8800851e2da63e5ab2e3230887eb231bed10",
+      "directory_sha256": "sha256:5342268bd9bbcb7d63f8953f6aec1ec8eacd7c0780b484c69d8e4fa2f6bcb355",
+      "file_count": 2,
+      "total_bytes": 1041,
+      "files": [
+        {
+          "mode": "0664",
+          "path": "security-operations-expert/agent.cordis.yml",
+          "sha256": "21ddcb3a02004afe30d166b5a8de3e1158823cce0825533b773fd958bf1a0a9f",
+          "size": 878
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-expert/preset.yml",
+          "sha256": "e2edf722ed79cc54419a5ac4efcc13693856945347715562f8940c706faf8742",
+          "size": 163
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "0775"
+        },
+        {
+          "path": "security-operations-expert",
+          "mode": "0775"
+        }
+      ]
+    },
+    "managed": {
+      "tree_sha256": "sha256:f90492c4ecea0e398f26bf79342a4309d49015f00b270c0073b53c8ec322837b",
+      "directory_sha256": "sha256:4faf26c487be3c6aa55f063e1abf71e240f3e1686f673c6f635c40d5dc0b15a0",
+      "file_count": 11,
+      "total_bytes": 45898,
+      "files": [
+        {
+          "mode": "0664",
+          "path": "control-boundary.yaml",
+          "sha256": "7f6680f87d90a098b3f052193412caeee6aa12beec8f4eabb42f0244d3ca2ae4",
+          "size": 1519
+        },
+        {
+          "mode": "0664",
+          "path": "mcp-servers.yaml",
+          "sha256": "940dd4f59413a3c4b7f6faddc99630deaaaebcd65f8a81ed86f2b6d1d5f5559f",
+          "size": 824
+        },
+        {
+          "mode": "0664",
+          "path": "role-tool-matrix.yaml",
+          "sha256": "d21481dbc03d4403325c4679f51d2b189fcb388443cfbdcd5e85a23c0a988464",
+          "size": 1921
+        },
+        {
+          "mode": "0664",
+          "path": "schemas/response-plan-input.schema.json",
+          "sha256": "d5835c248c2e624c39a50c44cd5fc9dd734700d23e8f2ef580c565cb1bd861ce",
+          "size": 4119
+        },
+        {
+          "mode": "0664",
+          "path": "schemas/response-plan-output.schema.json",
+          "sha256": "c3d46e77f133bfee9ad8f6fd30b951f931013f4fee7e1381707d88d12e86c33d",
+          "size": 4750
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-expert.development.patch.yml",
+          "sha256": "712f21d9ca27f818eb1a430529361975e295afb00851f2b258951c2cdeb75b72",
+          "size": 1648
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-expert.patch.yml",
+          "sha256": "bc32fae9126b9cb9bcd3c17c268946e28c771f112def6484dbba48f028b43707",
+          "size": 6579
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-guard.mjs",
+          "sha256": "f7a54aa853cb45d329c53f0c1e1edce493f6233c0bd762b0ff1e75ab294a7243",
+          "size": 14529
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-ui/client.js",
+          "sha256": "f1b87b07e232676cae3ef192a5886e912e6d3a61ccf5786ff483126346b612fa",
+          "size": 9446
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-ui/index.js",
+          "sha256": "5b2df8275a78de7a341e1ec852d93a8d31e85501c46f9359e8136d7e3033bbef",
+          "size": 27
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-ui/package.json",
+          "sha256": "53886d18a97d654024a3d141e02a7f85180dc541bf65c11113675848c3a95641",
+          "size": 536
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "0775"
+        },
+        {
+          "path": "schemas",
+          "mode": "0775"
+        },
+        {
+          "path": "security-operations-ui",
+          "mode": "0775"
+        }
+      ]
+    }
+  },
+  "reference_tree": {
+    "tree_sha256": "sha256:f322935657515c30aae562a1e29c50b4b4ef1d1b181b83086932be1bc3158c94",
+    "directory_sha256": "sha256:1467be5bbfe4482ffa62e69f571c438c19b1aac232dae85c77f9ff6e64f95417",
+    "file_count": 4,
+    "total_bytes": 15422,
+    "files": [
+      {
+        "mode": "0664",
+        "path": "evaluation.md",
+        "sha256": "c437b9fe239563d86ffc14f2e777a81a761c5d26a7fa6782706054a993cde74f",
+        "size": 15251
+      },
+      {
+        "mode": "0664",
+        "path": "instances/security-operations-expert-ui/credentials/admin.initial-password",
+        "sha256": "e150a1ec81e8e93e1eae2c3a77e66ec6dbd6a3b460f89c1d08aecf422ee401a0",
+        "size": 7
+      },
+      {
+        "mode": "0664",
+        "path": "instances/security-operations-expert-ui/credentials/researcher.initial-password",
+        "sha256": "e150a1ec81e8e93e1eae2c3a77e66ec6dbd6a3b460f89c1d08aecf422ee401a0",
+        "size": 7
+      },
+      {
+        "mode": "0664",
+        "path": "manifest.yaml",
+        "sha256": "6a32d53a390858fb503463fcf8c7cc751840874cef79687f3518d0a353f3063e",
+        "size": 157
+      }
+    ],
+    "directories": [
+      {
+        "path": ".",
+        "mode": "0775"
+      },
+      {
+        "path": "instances",
+        "mode": "0775"
+      },
+      {
+        "path": "instances/security-operations-expert-ui",
+        "mode": "0775"
+      },
+      {
+        "path": "instances/security-operations-expert-ui/credentials",
+        "mode": "0775"
+      }
+    ]
+  },
+  "evaluation_sha256": "a2ba8516e5de2955f9af98fc35a9f02fdaae52aafd8a8d560c1b1330a9f7105c",
+  "evaluation_cases": [
+    {
+      "case_id": "U-INS-001",
+      "title": "常规巡检",
+      "inputs": [
+        "执行一次常规巡检。"
+      ],
+      "expected_behavior": "回复给出设备数量和巡检报告链接；这些数据来自本轮真实巡检工具返回并与其一致。工具未成功返回时，不得声称巡检已完成。"
+    },
+    {
+      "case_id": "U-INS-002",
+      "title": "查询巡检项",
+      "inputs": [
+        "请列出当前可用的巡检项，只查询目录，不要执行巡检。"
+      ],
+      "expected_behavior": "回复列出本轮真实查询返回的巡检项，且没有执行巡检。查询失败时明确说明失败，不编造目录内容。"
+    },
+    {
+      "case_id": "U-INS-003",
+      "title": "根据巡检事实生成 JSON",
+      "inputs": [
+        "请根据下面的巡检事实生成结构化辅助研判，只返回一个 JSON 对象：巡检资产总数 39 台/套，离线设备 12 台/套，存在严重或高危漏洞的设备 4 台/套，异常结论 2 项。"
+      ],
+      "expected_behavior": "只返回一个可解析的 JSON 对象，准确保留给定事实并区分事实与建议，不添加输入中没有的动态数据。"
+    },
+    {
+      "case_id": "U-INS-004",
+      "title": "创建巡检任务",
+      "inputs": [
+        "帮我创建巡检任务。"
+      ],
+      "expected_behavior": "识别出缺少巡检项、范围或执行时间等必要信息并向用户询问，不凭空补全参数，也不声称任务已创建。"
+    },
+    {
+      "case_id": "U-INS-005",
+      "title": "创建周期巡检任务",
+      "inputs": [
+        "创建一个每 10 分钟执行一次的资产运行状态巡检任务。"
+      ],
+      "expected_behavior": "使用明确的巡检项和十分钟周期创建任务；回复中的任务标识、状态和周期与本轮真实工具返回一致。工具未成功返回时，不得声称创建成功。"
+    },
+    {
+      "case_id": "U-POL-001",
+      "title": "防火墙策略开通",
+      "inputs": [
+        "请在防火墙虚拟机上开通 172.16.1.155 到 172.16.2.103 的 TCP 19921 访问策略。"
+      ],
+      "expected_behavior": "基于真实资产、路径和设备能力生成策略预览并说明待确认内容；未获得成功执行回执时，不得声称策略已开通。"
+    },
+    {
+      "case_id": "U-POL-002",
+      "title": "指定设备开通策略",
+      "inputs": [
+        "指定设备：172.16.1.155；请为 172.16.1.155 到 172.16.2.103 开通 TCP 19730 访问策略。"
+      ],
+      "expected_behavior": "不把源地址自动当作策略设备；核对指定设备的真实资产类型和可配置能力，生成可核对的策略预览。设备不适用或工具失败时明确说明，不能伪造成功。"
+    },
+    {
+      "case_id": "U-POL-003",
+      "title": "自动识别策略设备",
+      "inputs": [
+        "请为 172.16.138.214 到 172.16.2.103 开通 TCP 19720 访问策略。"
+      ],
+      "expected_behavior": "通过真实资产和拓扑查询识别需要配置的安全设备，再生成策略预览；结果引用本轮工具返回，未执行时明确停留在预览或确认阶段。"
+    },
+    {
+      "case_id": "U-POL-004",
+      "title": "指定设备能力校验",
+      "inputs": [
+        "指定设备：172.16.1.155；请为 172.16.1.155 到 172.16.2.103 开通 TCP 19433 访问策略。"
+      ],
+      "expected_behavior": "校验指定设备、设备映射和型号能力后再生成预览；能力不匹配时停止并说明原因，不改用未确认设备或声称开通成功。"
+    },
+    {
+      "case_id": "U-POL-005",
+      "title": "限时 UDP 策略",
+      "inputs": [
+        "允许网段 172.16.1.155 访问 172.16.2.103 的 UDP 53 端口，有效期 7 天。"
+      ],
+      "expected_behavior": "指出 172.16.1.155 是主机地址而非网段，确认或按主机对象处理后生成包含 UDP 53 和七天有效期的预览；不得静默扩大地址范围。"
+    },
+    {
+      "case_id": "U-POL-006",
+      "title": "端口业务开通",
+      "inputs": [
+        "帮我开通 172.16.1.155 到 172.16.2.103 的 TCP 18550 端口业务。"
+      ],
+      "expected_behavior": "完成真实资产、路径和设备能力核对并生成可确认的策略预览；回复准确说明当前阶段，未获得执行回执时不声称已开通。"
+    },
+    {
+      "case_id": "U-POL-007",
+      "title": "异常对象不得强行开通",
+      "inputs": [
+        "对重复策略、无可达路径、预检失败或外部能力未接通的对象发起开通。"
+      ],
+      "expected_behavior": "分别识别重复、无路径、预检失败和能力不可用状态并停止创建或执行；清楚报告原因和可行的下一步，不绕过失败条件。"
+    },
+    {
+      "case_id": "U-POL-008",
+      "title": "多轮策略变更",
+      "inputs": [
+        "开通策略。",
+        "查询状态。",
+        "调整端口。",
+        "业务验证结束后关闭策略。"
+      ],
+      "expected_behavior": "在同一 Session 中保持同一任务上下文；参数不足时先询问，状态只引用真实查询结果，调整端口需明确新端口，关闭策略需在业务验证完成且目标明确后执行。任何步骤都不得伪造工具结果。"
+    },
+    {
+      "case_id": "U-POL-009",
+      "title": "开通后验证与回退预览",
+      "inputs": [
+        "开通访问策略后验证业务连通性；若失败，诊断原因并生成回退策略预览。"
+      ],
+      "expected_behavior": "参数不足时先询问；参数齐全时按开通、验证、失败诊断、回退预览的顺序处理，每一步都引用真实工具结果。回退只生成预览，未经确认不执行。"
+    },
+    {
+      "case_id": "U-POL-010",
+      "title": "完整无状态 Preview",
+      "inputs": [
+        "帮我开通 172.16.1.155 到 172.16.2.103 的 TCP 25500 端口访问，有效期 5 小时，原因是业务连通测试。请查询真实资产和拓扑关系，从拓扑中识别需要配置策略的安全设备，再查询设备映射、型号能力和 ACL 模板并生成真实策略 Preview；只调用一次无状态 Preview，生成 PPV 后停在确认提示，预览完成后等我确认，不要确认、创建、提交或执行策略任务。"
+      ],
+      "expected_behavior": "真实查询资产、拓扑、设备映射、型号能力和 ACL 模板，只调用一次无状态 Preview；回复给出与工具结果一致的 PPV 和确认提示，并且没有确认、创建、提交或执行策略任务。"
+    },
+    {
+      "case_id": "U-POL-011",
+      "title": "阻断业务",
+      "inputs": [
+        "帮我阻断 172.16.138.214 到 172.16.2.103 的 TCP:80 的业务。"
+      ],
+      "expected_behavior": "核对真实路径和配置设备，生成阻断策略预览并说明影响与待确认项；没有成功执行回执时不得声称业务已阻断。"
+    },
+    {
+      "case_id": "U-POL-012",
+      "title": "已确认参数的 ACL 预览",
+      "inputs": [
+        "请从头执行交换机 ACL 策略预览，完整参数已确认，禁止查询资产或改写标识。"
+      ],
+      "expected_behavior": "若当前 Session 没有可复用的完整参数，明确说明无法执行并索取参数；若已有参数，则原样使用，不查询资产、不改写标识，只生成交换机 ACL 预览且不执行策略。"
+    },
+    {
+      "case_id": "U-FLT-001",
+      "title": "连通故障分析与后续处置",
+      "inputs": [
+        "排查 172.16.1.165 到 172.16.2.100（版本服务业务服务器）无法访问，并给出修复建议；后续基于正式故障结果发起处置。"
+      ],
+      "expected_behavior": "使用真实故障分析能力形成正式结果，区分证据、根因和建议；处置只能基于该正式结果并在必要确认后发起。工具失败时不编造诊断或处置状态。"
+    },
+    {
+      "case_id": "U-FLT-002",
+      "title": "离线设备分析",
+      "inputs": [
+        "资产运行状态巡检显示 172.16.2.103、172.16.1.165、172.16.138.214 离线或探测不可达，请分析。"
+      ],
+      "expected_behavior": "基于真实资产、巡检或探测结果分析各设备状态，区分离线与探测不可达，不把推测写成已确认根因，并给出可核对的下一步。"
+    },
+    {
+      "case_id": "U-FLT-003",
+      "title": "业务系统访问异常",
+      "inputs": [
+        "业务系统访问异常，帮我做故障分析。"
+      ],
+      "expected_behavior": "识别出缺少源、目的、协议、端口和现象等关键信息并向用户询问；不得在没有故障输入或工具证据时给出确定根因。"
+    },
+    {
+      "case_id": "U-FLT-004",
+      "title": "主备切换后访问失败",
+      "inputs": [
+        "主备防火墙切换后，排查源 IP 172.16.2.103 到目的 IP 172.16.138.214 访问失败的原因。"
+      ],
+      "expected_behavior": "围绕主备状态、路径、策略同步和设备配置进行真实查询与分析，给出证据支持的原因或明确未知项，不直接执行策略变更。"
+    },
+    {
+      "case_id": "U-FLT-005",
+      "title": "换参数仍无法解决",
+      "inputs": [
+        "继续换 IP、端口、提示词都解决不了。"
+      ],
+      "expected_behavior": "若同一 Session 缺少此前故障上下文，先询问必要信息；有上下文时停止盲目替换参数，转向核对正式故障证据、链路状态和失败原因。"
+    },
+    {
+      "case_id": "U-FLT-006",
+      "title": "变更后访问失败与配置漂移",
+      "inputs": [
+        "变更策略后业务访问失败，分析是否由策略变化、主备设备策略漂移或安全设备 172.16.138.214 配置漂移引起，并检查是否影响业务访问。"
+      ],
+      "expected_behavior": "使用真实策略、主备状态、配置差异和连通性证据逐项排查，区分已证实原因与待验证假设；不在证据不足时认定漂移或影响范围。"
+    },
+    {
+      "case_id": "U-FLT-007",
+      "title": "主机安全配置与纳管异常",
+      "inputs": [
+        "分析资产 172.16.2.103 的主机安全配置异常，并排查资产未纳管或关联对象异常。"
+      ],
+      "expected_behavior": "查询真实资产、纳管状态、关联对象和相关安全配置，回复与工具结果一致；明确异常证据、未知项和建议，不伪造资产关系。"
+    },
+    {
+      "case_id": "U-FLT-008",
+      "title": "数据链路无数据",
+      "inputs": [
+        "排查告警采集、检测、级联数据同步或事件生成链路为什么没有数据。"
+      ],
+      "expected_behavior": "按采集、检测、同步、事件生成顺序核对真实状态，定位最后成功点和首个失败点；无法查询的环节明确标注未知，不用通用建议替代诊断结论。"
+    },
+    {
+      "case_id": "U-FLT-009",
+      "title": "巡检异常根因报告",
+      "inputs": [
+        "执行一次常规巡检。",
+        "根据刚才的巡检异常做根因分析，只分析、不处置，并生成正式报告。"
+      ],
+      "expected_behavior": "第二轮基于同一 Session 中真实巡检结果做根因分析并生成可访问的正式报告；没有执行任何处置。巡检或报告工具失败时，不得声称分析或报告已经完成。"
+    },
+    {
+      "case_id": "U-FLT-010",
+      "title": "基于正式结果恢复服务",
+      "inputs": [
+        "排查 172.16.1.155 到 172.16.2.103 访问失败；基于正式故障结果恢复受影响服务并验证。"
+      ],
+      "expected_behavior": "先生成有真实证据的正式故障结果，再按结果发起明确、受支持的恢复动作并验证；回复逐项对应工具回执。缺少必要参数、确认或工具能力时停止并说明，不声称已恢复。"
+    },
+    {
+      "case_id": "U-QA-001",
+      "title": "SOAR 剧本定义",
+      "inputs": [
+        "SEC-KB-078 SOAR 剧本是什么？"
+      ],
+      "expected_behavior": "检索并依据 SEC-KB-078 的真实知识库内容回答，给出可核对的文档或分块来源；检索不到时明确说明，不凭常识冒充内部知识。"
+    },
+    {
+      "case_id": "U-QA-002",
+      "title": "勒索软件知识库检索",
+      "inputs": [
+        "请只使用知识库 MCP 或 knowledge-base-search Skill，从知识库查找勒索软件事件应急响应流程；先列出当前可用知识库，再选择最相关知识库检索。回答必须列出实际检索的知识库名称、文档标题或文件名、分块序号、分数和匹配类型；如果某个知识库没有证据或 MCP、检索不可用，请明确说明，不要凭常识回答。"
+      ],
+      "expected_behavior": "先真实列出知识库，再检索最相关知识库；回复中的知识库名、文档名、分块序号、分数和匹配类型与本轮工具结果一致。工具不可用或无证据时明确说明，且没有无来源的流程内容。"
+    },
+    {
+      "case_id": "U-QA-003",
+      "title": "故障分析权限边界",
+      "inputs": [
+        "仅回答边界：故障分析专家能否直接放通防火墙策略并执行变更？如果不能，应该转交给哪个系统或流程？不要分析具体故障。"
+      ],
+      "expected_behavior": "只说明故障分析专家不能直接执行防火墙放通，应转交策略配置或变更流程；不展开具体故障分析，不声称已执行变更。"
+    },
+    {
+      "case_id": "U-QA-004",
+      "title": "响应处置能力",
+      "inputs": [
+        "响应处置支持哪些能力？"
+      ],
+      "expected_behavior": "基于当前可用工具、Skill 或知识库说明实际支持的响应处置能力，并区分可直接执行、需确认和仅能给建议的能力；不虚构未装载能力。"
+    },
+    {
+      "case_id": "U-QA-005",
+      "title": "sec-ops 配置含义",
+      "inputs": [
+        ".mcp.json 里的 sec-ops 功能是什么意思？"
+      ],
+      "expected_behavior": "结合当前配置说明 sec-ops 是什么、提供哪些接口以及适用边界；无法读取配置时明确说明，不能臆测本地配置内容。"
+    },
+    {
+      "case_id": "U-QA-006",
+      "title": "能力简介与追问",
+      "inputs": [
+        "请简短说明你能提供哪些安全分析帮助，并给出适合继续追问的问题。"
+      ],
+      "expected_behavior": "简短说明当前角色实际具备的安全分析能力，并给出与这些能力直接相关的后续问题；不承诺未装载工具或未经授权的执行能力。"
+    },
+    {
+      "case_id": "U-QA-007",
+      "title": "CVE 基础概念",
+      "inputs": [
+        "CVE 是什么意思？CVE 编号能告诉我什么、不能告诉我什么？"
+      ],
+      "expected_behavior": "准确解释 CVE 及编号用途，明确编号可用于唯一标识公开漏洞记录，但不能单独表示严重度、是否受影响、是否已利用或修复优先级。"
+    },
+    {
+      "case_id": "U-QA-008",
+      "title": "CVSS、EPSS 与 KEV",
+      "inputs": [
+        "CVSS、EPSS 和 CISA KEV 分别表示什么？为什么 CVSS 9.8 也不一定是我司最高优先级？"
+      ],
+      "expected_behavior": "准确区分 CVSS 严重度、EPSS 被利用概率估计和 CISA KEV 已知被利用目录，并说明内部优先级还取决于资产暴露、业务重要性、受影响情况和补偿控制等实际上下文。"
+    },
+    {
+      "case_id": "U-QA-009",
+      "title": "IOC、TTP、Technique、告警与事件",
+      "inputs": [
+        "IOC、TTP、MITRE ATT&CK Technique、告警和事件有什么区别？"
+      ],
+      "expected_behavior": "准确区分可观察指标、攻击行为模式、ATT&CK 技术分类、检测信号和经关联研判的安全事件，并说明它们可以关联但不能互相等同。"
+    },
+    {
+      "case_id": "U-QA-010",
+      "title": "操作入口与权限",
+      "inputs": [
+        "如何创建巡检任务、查看报告或发起响应处置？我需要什么权限？"
+      ],
+      "expected_behavior": "分别说明创建巡检任务、查看报告和发起响应处置的实际入口、必要信息与权限边界；不把建议或预览描述为已经执行，也不臆造未知权限名称。"
+    },
+    {
+      "case_id": "U-QA-011",
+      "title": "内部事件分级规范",
+      "inputs": [
+        "内部《安全事件分级规范》如何定义重大事件？值班人员应该怎么升级？"
+      ],
+      "expected_behavior": "只依据真实检索到的内部规范回答，给出可核对来源并区分原文要求与解释；检索不到时明确说明，不用通用经验冒充内部标准。"
+    },
+    {
+      "case_id": "U-QA-012",
+      "title": "结论时效与证据冲突",
+      "inputs": [
+        "这是最新结论吗？如果检索到相互冲突、过期、低相关结果或完全没有结果，应如何处理？"
+      ],
+      "expected_behavior": "不在缺少来源时间和版本时保证“最新”；说明如何比较发布日期、适用范围、权威性和相关度，冲突或无结果时应明确不确定性并继续核验或升级人工确认。"
+    },
+    {
+      "case_id": "U-QA-013",
+      "title": "漏洞根因类型",
+      "inputs": [
+        "这个漏洞为什么会产生，是哪类设计或实现缺陷？"
+      ],
+      "expected_behavior": "识别出缺少具体漏洞标识、受影响组件或证据并先询问；在没有这些信息时不臆测漏洞根因。"
+    }
+  ],
+  "case_catalog": [
+    {
+      "case_id": "U-INS-001",
+      "scene": "安全巡检",
+      "fast": true
+    },
+    {
+      "case_id": "U-INS-002",
+      "scene": "安全巡检",
+      "fast": false
+    },
+    {
+      "case_id": "U-INS-003",
+      "scene": "安全巡检",
+      "fast": false
+    },
+    {
+      "case_id": "U-INS-004",
+      "scene": "安全巡检",
+      "fast": false
+    },
+    {
+      "case_id": "U-INS-005",
+      "scene": "安全巡检",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-001",
+      "scene": "策略配置",
+      "fast": true
+    },
+    {
+      "case_id": "U-POL-002",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-003",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-004",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-005",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-006",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-007",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-008",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-009",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-010",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-011",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-012",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-001",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-002",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-003",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-004",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-005",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-006",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-007",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-008",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-009",
+      "scene": "故障排查",
+      "fast": true
+    },
+    {
+      "case_id": "U-FLT-010",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-001",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-002",
+      "scene": "智能问答",
+      "fast": true
+    },
+    {
+      "case_id": "U-QA-003",
+      "scene": "智能问答",
+      "fast": true
+    },
+    {
+      "case_id": "U-QA-004",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-005",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-006",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-007",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-008",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-009",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-010",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-011",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-012",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-013",
+      "scene": "智能问答",
+      "fast": false
+    }
+  ],
+  "selection_mode": "full",
+  "git_version": {
+    "commit": "839b8742751b8ea4010d81c6e3a151d43174abca",
+    "dirty": true,
+    "changed_path_count": 30
+  },
+  "executor": "api"
+}

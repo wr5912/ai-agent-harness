@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "指定设备：172.16.1.155；请为 172.16.1.155 到 172.16.2.103 开通 TCP 19730 访问策略。"
+  ],
+  "assistant_texts": [
+    "已为 172.16.1.155 → 172.16.2.103 的 TCP 19730 访问生成策略草稿，当前处于 **DRAFT（草稿）状态，尚未提交、审批或执行**。\n\n**关键结果**\n\n- 策略意图已受理：新增（ADD）网络访问策略，源 172.16.1.155，目标 172.16.2.103，协议 TCP，目标端口 19730。\n- 生成的策略任务：221，任务状态 DRAFT，结果码 DRAFT_READY（草稿就绪）。\n- 控制面返回需要确认：`confirmation_required = true`，当前停在等待用户确认阶段。\n- 未发生任何实际生效动作：本工具只做配置准备，不选择候选、不批准、不执行；文字上的“开通”尚未落地到设备。\n\n**后续入口**\n\n- 控制面提示：如需继续，请在当前会话单独回复「执行」。\n- 需要注意：本次能力范围内没有候选选择、批准、执行、监控和回滚工具。若后续步骤超出准备配置范围，需要由模型外控制面继续，我不会以改名重试或调用未授权工具的方式绕过。\n\n**范围与未知项**\n\n- 我未查询拓扑或补造任何设备标识：本次请求未提供目标对象外部 ID，`target_external_id` 留空，是否影响后续候选匹配由控制面判定。\n- 策略有效期（validity）与变更原因以外的元数据未指定；变更原因按你的原始请求填写。\n- 是否与已有策略重复、是否会被候选阶段驳回，本次结果未说明，属于未知项。"
+  ],
+  "session_id": "session-b86fc2b8-c210-4fcc-8ee2-905bf44cde4e",
+  "turns": [
+    {
+      "assistant_text": "已为 172.16.1.155 → 172.16.2.103 的 TCP 19730 访问生成策略草稿，当前处于 **DRAFT（草稿）状态，尚未提交、审批或执行**。\n\n**关键结果**\n\n- 策略意图已受理：新增（ADD）网络访问策略，源 172.16.1.155，目标 172.16.2.103，协议 TCP，目标端口 19730。\n- 生成的策略任务：221，任务状态 DRAFT，结果码 DRAFT_READY（草稿就绪）。\n- 控制面返回需要确认：`confirmation_required = true`，当前停在等待用户确认阶段。\n- 未发生任何实际生效动作：本工具只做配置准备，不选择候选、不批准、不执行；文字上的“开通”尚未落地到设备。\n\n**后续入口**\n\n- 控制面提示：如需继续，请在当前会话单独回复「执行」。\n- 需要注意：本次能力范围内没有候选选择、批准、执行、监控和回滚工具。若后续步骤超出准备配置范围，需要由模型外控制面继续，我不会以改名重试或调用未授权工具的方式绕过。\n\n**范围与未知项**\n\n- 我未查询拓扑或补造任何设备标识：本次请求未提供目标对象外部 ID，`target_external_id` 留空，是否影响后续候选匹配由控制面判定。\n- 策略有效期（validity）与变更原因以外的元数据未指定；变更原因按你的原始请求填写。\n- 是否与已有策略重复、是否会被候选阶段驳回，本次结果未说明，属于未知项。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "bad4a088-b596-4a4b-8ecb-df385f701586"
+    }
+  ]
+}

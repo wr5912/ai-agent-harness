@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答整体为单个可解析的 JSON 对象（含 Markdown 代码块包裹，但内容仅此一个对象），四项给定事实 39 台/套、12 台/套、4 台/套、2 项均被准确、无篡改地保留，单位与语义一致；回答用“事实/推断/建议/证据缺口/能力与边界”明确区分了输入事实与主观建议，未把推断或建议混作事实；未添加输入中没有的动态数据（如具体设备清单、时间、漏洞编号或任何工具回执数据），并明确声明本次未执行任何工具、未复核实时证据，符合“证据不足仅作建议、不得虚构数据”的要求。"
+  },
+  "checks": {
+    "session_id": "session-9f82bb4c-2544-4cc0-a7a3-0d6e45e40397",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

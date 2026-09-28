@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-008",
+  "completed": false,
+  "expected_behavior": "准确区分 CVSS 严重度、EPSS 被利用概率估计和 CISA KEV 已知被利用目录，并说明内部优先级还取决于资产暴露、业务重要性、受影响情况和补偿控制等实际上下文。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

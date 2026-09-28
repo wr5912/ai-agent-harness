@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求先校验指定设备（172.16.1.155）、设备映射与型号能力，能力不匹配时停止并说明原因，之后才可生成预览。被测回答只调用 skill 与 prepare/get_result 工具直接生成了 DRAFT 预览，且自己明确承认「本轮未做任何拓扑查询或资产核对」，工具回执中也无任何设备存在性、映射关系或型号能力校验记录，未出现能力不匹配时的停止说明。虽然回答未谎称开通成功（如实标注 DRAFT、未执行、未改用未确认设备），但核心前置校验要求明确缺失，故判 failed。"
+  },
+  "checks": {
+    "session_id": "session-cb78d903-286b-4177-b9bd-57018bbf5193",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答基于同一被测 Session 的真实工具回执逐资产分析：172.16.2.103 记录 offline/unreachable 并指出到网关路径 REACHABLE 的反证与 non_collectable，172.16.1.165 与 172.16.138.214 明确认定为 online/reachable、离线结论不成立，正确区分离线与探测不可达；关键数据（资产 ID、时间戳、漏洞数、可达性结论、跨域信号、覆盖率、图路径 500）均与工具结果一致。回答把供电状态、巡检来源、dst_no_gateway、指标缺失等列为未知与证据缺口，未把推断写成已确认根因，并给出带外确认、核对巡检来源、修复图服务等可核对的下一步且标注尚未执行，满足全部预期。"
+  },
+  "checks": {
+    "session_id": "session-b54aa2a2-210e-4e13-8822-853e401642a1",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

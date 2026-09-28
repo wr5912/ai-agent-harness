@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答对照同一 Session 工具回执逐项核验后，关键数据均可溯源且与该 Session 的真实工具结果一致：资产解析（assetId 3616551、瑞禾S500主机、assetType host、deptId 101、layerId 4、collectionStatus non_collectable、haPairId null）、节点详情（metricAvailable=false、low 1）、可达性（214→172.16.1.1 与 2.103→214 均为 reachable=false/verdict=UNKNOWN/原因 src_no_gateway、dst_no_gateway，214→215 为 REACHABLE/l2_same_segment）、交叉核验 summary（NORMAL 23/IDLE 18/SHADOW 47）及所逐条照录的 SHADOW 记录、覆盖率 collected 15/registered 31/discovered 2/33%、合规违规两次为空、三组主机对端口明细为空、get_graph_path_query 两次 500，均能在回执中找到对应事实。回答按要求对策略变化、主备策略漂移、172.16.138.214 配置漂移和业务影响逐项排查，明确区分事实、推断（低置信）与八项证据缺口，在缺少策略变更数据、HA 配对数据和配置基线的情况下未认定漂移，也未把 UNKNOWN 解释为通或不通、未认定业务影响范围，符合预期；未执行处置、未创建分析运行。仅发现一处不影响结论的计数瑕疵：正文称涉及 .214 的记录“两条 ACTIVE、五条 LAPSED”，而所列 7 条中实为 3 条 ACTIVE（含 .215 一条）与 4 条 LAPSED，该处未用于任何因果判断，不构成结论性偏差。"
+  },
+  "checks": {
+    "session_id": "session-b8ef58ed-febf-4a9f-8046-85231070ed53",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

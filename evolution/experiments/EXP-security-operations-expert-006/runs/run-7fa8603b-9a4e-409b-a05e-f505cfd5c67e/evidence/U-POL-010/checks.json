@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-POL-010",
+  "completed": false,
+  "expected_behavior": "真实查询资产、拓扑、设备映射、型号能力和 ACL 模板，只调用一次无状态 Preview；回复给出与工具结果一致的 PPV 和确认提示，并且没有确认、创建、提交或执行策略任务。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

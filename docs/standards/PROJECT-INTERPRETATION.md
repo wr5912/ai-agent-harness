@@ -38,7 +38,7 @@ Evaluation 的规模由假设和拟得出的结论决定，不设固定 Case 数
 - 早期探索可以使用一个或少量高价值输入。
 - 要扩大结论范围时，补充覆盖、反例和必要回归。
 - 同一次比较运行期间保持 Harness、输入和判断口径稳定；口径变化后重新运行受影响部分。
-- 每个 Agent 的需求与任务只在 `definition.md` 维护；测试数据、评估方法、测试验收和各 Experiment 的选择只在同目录 `evaluation.md` 维护。Experiment 不保存本地评测计划；Run 的输入锁是不可编辑的执行事实，不是维护投影。
+- 每个 Agent 的当前业务测试只在 `evaluation.md` 维护；同一 Case 的名称、用户输入和预期结果聚合在一起。Experiment 不保存本地评测计划；Run 锁定所选 Case 的完整快照，作为不可编辑的执行事实而不是维护投影。
 - 原始观察不得为了形成漂亮结论而静默改写；重新执行使用新的 `run_id`。
 
 运行记录位于：
@@ -67,7 +67,7 @@ releases/<agent-id>-v<semver>/
 - `artifact-manifest.json`：逐文件摘要；
 - `README.md`：用途、复现步骤、已知限制和非生产声明。
 
-Research Release 不表示生产可用、上线批准或已经完成生产安全治理。Git Tag 不是 Release 制品；Release 也不能包含 Session、缓存、附件、秘钥或整个 `$DSH_HOME`。
+Research Release 不表示生产可用、上线批准或已经完成生产安全治理。Git Tag 不是 Release 制品；Release 也不能包含 Session、缓存、附件、LLM API Key 或整个 `$DSH_HOME`。平台和实例凭据如需版本管理，保存在 Agent 的实例专用路径，不打包为 Harness Release。
 
 本项目不维护 `evolution/baselines/` 和 `agents/<agent-id>/current/`。前者与 Git/Release 重复保存版本，后者会制造可变别名和第二份镜像；删除这两层后，具体引用仍能精确恢复研究版本。
 
@@ -77,7 +77,7 @@ Harness 资产说明“要装载什么”，DSH Runtime 负责实际装载和执
 
 宿主开发会话可以修改当前 Experiment 的 Candidate；DSH 被测容器只读装载同一 Candidate，并且不挂载参考答案或判断材料。该隔离用于保持比较可信，不意味着本项目要建设通用权限平台。
 
-Runtime 的 Session、设置、缓存、附件和凭据位于独立数据根，不进入 Candidate 或 Research Release。运行时需要的秘钥只由环境或受控凭据机制注入，不提交到仓库。
+Runtime 的 Session、设置、缓存和附件位于独立数据根，不进入 Candidate 或 Research Release。平台和实例凭据可以使用 Agent 的实例专用仓库文件作为来源；LLM API Key 只保存在匹配 `*.llm-api-key` 的本地忽略文件中，并由环境或受控凭据机制注入。
 
 ## 6. 三层验证
 

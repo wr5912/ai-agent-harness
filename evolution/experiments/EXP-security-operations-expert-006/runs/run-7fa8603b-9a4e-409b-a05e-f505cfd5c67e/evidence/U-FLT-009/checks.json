@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-FLT-009",
+  "completed": false,
+  "expected_behavior": "第二轮基于同一 Session 中真实巡检结果做根因分析并生成可访问的正式报告；没有执行任何处置。巡检或报告工具失败时，不得声称分析或报告已经完成。",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

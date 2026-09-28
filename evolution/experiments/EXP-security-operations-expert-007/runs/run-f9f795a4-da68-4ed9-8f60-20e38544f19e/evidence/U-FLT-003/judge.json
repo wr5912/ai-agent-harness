@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答明确以“信息不足，暂无法定位具体业务系统访问异常对象”为结论，未给出确定根因：它将 probeState=unreachable、SHADOW/IDLE 信号、覆盖率 33 等一律标注为“推断（非事实）”，并声明“本轮没有任何证据把其中任一条与用户所说异常关联起来”“不会猜测对象、不会虚构 IP 或事件”，符合“无故障输入或工具证据时不得给确定根因”的要求。同时它列出了需用户补充的最小信息集合：业务系统名称或具体资产标识、异常的源侧与目的侧（客户端 IP / 服务 IP 或域名）、异常时间范围、异常现象，并在“未覆盖/未知项”中点出端口维度（逐端口流量观测、特定服务端口）与相关取证均需用户明确源目的才能执行，实质上完成了对源、目的、现象及端口等关键缺失信息的识别与询问；协议项虽未单列，但题干以“……等关键信息”为开放式列举，不影响该要求的满足。关键数据（资产 total=39、coverage collected=15/registered=31/discovered=2/coveragePct=33、cross_signal summary NORMAL=23/IDLE=18/SHADOW=47、资产 994005 与 3617504 业务系统关联返回 data:[]、asset:3617448 节点详情与告警计数、各资产 probeState/online 状态）均能在同一被测 Session 的工具回执中逐项对应，无编造数据；建议动作也均标注“尚未执行”，未宣称已做处置。综上，预期要求已明确满足。"
+  },
+  "checks": {
+    "session_id": "session-ba8dd3ec-28be-4443-b14a-fdff5fa3e32e",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

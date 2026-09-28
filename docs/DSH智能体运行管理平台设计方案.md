@@ -29,7 +29,7 @@
 
 平台通过新的 DSH Profile 装配插件，不复制或改写 Agent loop。只有插件扩展点确实不足，并经最小原型验证后，才修改 DSH 上游接口；修改必须能回退且不改变普通 DSH Profile 的默认行为。Web 界面扩展 DSH Client，管理操作使用同一 Host 服务暴露的 Remote 方法；流式会话仍按 DSH 的会话/流协议处理，不能把一元 `@Remote` 方法误当成跨容器流协议。
 
-每个业务 Agent 是独立 DSH 容器，拥有自己的 Profile、只读 Harness 装载、运行配置、凭据注入和持久化运行卷。平台只记录并控制期望版本及实例状态，不把 `$DSH_HOME`、Session、缓存或密钥打包成 Harness。独立容器执行器是唯一接触 Docker Socket 的窄接口，平台智能体不能直接调用 Docker，也不能获得生产凭据；执行器仅接受服务端授权的创建、查询、停止和替换指令。
+每个业务 Agent 是独立 DSH 容器，拥有自己的 Profile、只读 Harness 装载、运行配置、凭据注入和持久化运行卷。平台只记录并控制期望版本及实例状态，不把 `$DSH_HOME`、Session 或缓存打包成 Harness；需版本管理的平台和实例凭据保存在 Agent 的实例专用路径。独立容器执行器是唯一接触 Docker Socket 的窄接口，平台智能体不能直接调用 Docker，也不得接收凭据值到模型上下文；执行器仅接受服务端授权的创建、查询、停止和替换指令。
 
 平台的统一网关负责外部身份、Agent 选择、版本路由、流转发和会话粘性。它不把各业务容器的 Web 端口直接暴露给用户。现有 DSH Web 的 [浏览器启动令牌和 cookie](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/client/connection/README.zh.md)主要是单进程 owner 访问边界，不等同于多用户身份与跨容器 Agent API。首个技术原型须验证受支持的会话入口；若不足，则在业务 DSH 容器中增加最小私有入口插件，由网关通过受限的容器间通道调用，而不复用浏览器令牌充当服务凭据。平台侧也需增加多用户认证和身份传递，所有管理方法在服务端校验角色与对象范围。
 
@@ -48,7 +48,7 @@
 
 这里的“能力市场”首版是一个可审核的 MCP/Skill 版本目录：展示来源、版本、依赖、权限需求及适用 Agent，选择后只写入 Candidate Harness 的能力清单。安装或升级通过新实例验证，不对生产实例热改，不自动执行不可信仓库内容。市场是资产发现与选型入口，不是新的任意代码执行通道。
 
-单机阶段用一个事务型平台状态库保存注册、期望状态、身份角色、实验索引、发布/回滚决定和审计事件；优先评估 SQLite，确认并发写入与备份需求后再决定是否换库。Git 是 Harness 源码事实源，不可变发布包以内容摘要标识；运行卷是 Session 事实源。索引允许重建，但原始运行事实和发布决定不能静默覆盖。DSH 的 [会话遥测](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session-telemetry.zh.md)可用于诊断，不把可选遥测投递当作可靠审计或完整评估证据。入库前按需要脱敏；凭据仅在运行时注入，不进入模型上下文、普通 Trace、评估样本或发布包。
+单机阶段用一个事务型平台状态库保存注册、期望状态、身份角色、实验索引、发布/回滚决定和审计事件；优先评估 SQLite，确认并发写入与备份需求后再决定是否换库。Git 是 Harness 源码和可版本管理实例凭据文件的事实源；本地忽略文件是 LLM API Key 的来源，不可变发布包以内容摘要标识，运行卷是 Session 事实源。索引允许重建，但原始运行事实和发布决定不能静默覆盖。DSH 的 [会话遥测](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/session-telemetry.zh.md)可用于诊断，不把可选遥测投递当作可靠审计或完整评估证据。入库前按需要脱敏；平台和实例密码及非 LLM API 凭据可按任务需要纳入 Git，LLM API Key 只保存在被 Git 忽略的 `*.llm-api-key` 文件中并在运行时注入。任何凭据都不进入模型上下文、普通 Trace、评估样本或发布包。
 
 ## AI 原生的受控演进闭环
 

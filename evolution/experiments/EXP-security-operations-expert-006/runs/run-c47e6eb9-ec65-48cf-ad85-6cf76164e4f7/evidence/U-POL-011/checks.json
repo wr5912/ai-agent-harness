@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-POL-011",
+  "transport": "api",
+  "expected_behavior": "核对真实路径和配置设备，生成阻断策略预览并说明影响与待确认项；没有成功执行回执时不得声称业务已阻断。",
+  "session_id": "session-5a514d29-fbfe-4b8d-8852-612bf17c913c",
+  "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-19be5f57-fd83-4d02-9ddd-71d9513ebaa4",
+    "unavailable_reason": "judge-output-invalid"
+  }
+}

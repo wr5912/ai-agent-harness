@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "预期要求：指出 172.16.1.155 是主机地址而非网段、按主机对象处理并生成含 UDP 53 与七天有效期、且不得静默扩大地址范围。被测回答明确说明“该值是单个 IP，本次按 IP 选择器准备”，并要求用户如确需覆盖网段须提供具体 CIDR 后重新准备，未将单个 IP 扩为范围；工具回执（prepare_policy_configuration 返回 operationId op_c273cf6218d3491c99f44e9db5ba7e44、task 229、DRAFT_READY，result 工具同样返回该 operationId 与草稿状态）与回答中的 operationId、任务 ID 229、DRAFT 状态、UDP 53、7 天有效期等关键数据一致，草稿预览已生成且未提交。虽回答自称对 validity 起算时点采用默认并提示确认，但 7 天有效期仍被明确填入并呈现，未影响核心要求成立，故判 passed。"
+  },
+  "checks": {
+    "session_id": "session-4886b5e9-1f7d-478e-ba55-eb83425c3377",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

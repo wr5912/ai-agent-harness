@@ -1,0 +1,11 @@
+- id: agent-presets
+  disabled: false
+  config:
+    default: !!js process.env.DSH_EVAL_TARGET_PRESET
+    roots:
+      - path: /opt/dsh-adapter/evaluation-presets
+        trust: system
+      - path: /opt/dsh-presets
+        trust: system
+    includeShippedRoot: false
+    includeUserRoot: false

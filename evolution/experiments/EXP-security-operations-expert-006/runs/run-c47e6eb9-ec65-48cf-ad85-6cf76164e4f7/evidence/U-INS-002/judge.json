@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "子 Agent 真实调用了 mcp__inspection__inspection_capabilities_list，工具回执返回 3 项巡检能力（资产运行状态巡检、资产漏洞巡检，均 routine；网络路径可达性巡检，business），回答中列出的名称、分组、说明、关键词与输入参数均与回执一致，未编造条目。整个流程仅调用 skill、delegate_inspection 与目录查询工具，未创建巡检运行、未采集证据、未收口，回答也明确说明仅查询目录、未执行巡检。预期要求全部满足。"
+  },
+  "checks": {
+    "session_id": "session-f28f84b8-6c24-4507-a55f-a01d5dbbad7b",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

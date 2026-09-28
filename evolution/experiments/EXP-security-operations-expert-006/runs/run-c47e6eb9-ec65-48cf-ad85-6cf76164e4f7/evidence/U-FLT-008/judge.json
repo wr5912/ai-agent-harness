@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答沿采集→检测→级联/同步→事件生成四段逐段核对，并基于同一被测 Session 的真实工具回执给出结论：采集侧覆盖基线 15/31/33%、994005 采集配置与 generic-ssh lastStatus=ok、多台资产 pluginIds=[] 与 collectionConfig=[]；检测侧合规违规三次查询均为空、跨信号 NORMAL/IDLE/SHADOW 计数、各资产事件分级与 30 天趋势；级联/同步侧可达性 reachable=true/l2_same_segment、逐端口观测为空、路径查询两次上游 500；事件生成侧多资产事件计数与趋势，均与工具回执一致。回答同时明确标注了最后成功点（事件生成侧有持续 30 天数据、采集侧仅少数资产跑通，排序给出三段最可能断点及置信度），并对无法查询的环节（无级联同步专用接口、缺事件 ID 与索引导致无法按 ID 取证、规则配置态不可读、metricAvailable=false、路径查询 500）逐一标注为证据/能力缺口，未用通用建议替代诊断结论，建议部分亦明确标注均尚未执行。满足全部预期要求。"
+  },
+  "checks": {
+    "session_id": "session-a5f32a80-f1aa-46cd-b37f-58583195d962",
+    "workspace_id": "a073fc4c-80ef-4fd5-8a03-9ab20cb3c5ce",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "off"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

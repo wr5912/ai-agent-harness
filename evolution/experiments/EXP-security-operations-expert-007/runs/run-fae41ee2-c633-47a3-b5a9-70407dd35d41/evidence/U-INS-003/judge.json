@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答只输出一个 JSON 对象，未附加 Markdown 或解释，且可解析；完整保留输入四项事实（39 台/套资产、12 台/套离线、4 台/套严重或高危漏洞、2 项异常结论），数值与单位均准确无误。结构上将 facts（附 source 为“用户本轮输入”、verification 为“未复核”）与 inferences、gaps、recommendations_not_executed（均标注“未执行”）明确分离，符合区分事实与建议的要求。未引入输入中不存在的动态数据（如占比、差额、漏洞编号、时间范围等），并明确说明集合关系未知、未计算派生指标。回答中“知识库检索与独立威胁分析服务当前未配置”“如需实时证据应另行委派故障排查或即时巡检取证”可由同一被测 Session 的 skill 工具回执内容直接支持，其余关键数值均来自用户输入而非虚构工具数据，未把未复核数值冒充工具复核结论。故明确满足全部预期要求。"
+  },
+  "checks": {
+    "session_id": "session-ad6ce270-767e-4fdb-a3ea-d8eaa45e5669",
+    "workspace_id": "a94af39c-d02d-4450-ab02-f23d7b87c48e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

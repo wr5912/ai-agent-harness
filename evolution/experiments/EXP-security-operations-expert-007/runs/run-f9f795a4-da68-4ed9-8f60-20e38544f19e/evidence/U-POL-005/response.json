@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    "允许网段 172.16.1.155 访问 172.16.2.103 的 UDP 53 端口，有效期 7 天。"
+  ],
+  "assistant_texts": [
+    "## 结论\n\n策略草稿已生成，当前状态为 **DRAFT（草稿）**，**尚未提交、审批或执行**。工具返回 `DRAFT_READY` 并要求用户确认，等待确认阶段。\n\n## 关键结果\n\n- 任务：218，状态 DRAFT\n- 意图：ADD / NETWORK_ACCESS\n- 源：IP 172.16.1.155\n- 目标：IP 172.16.2.103\n- 协议与端口：UDP / 53\n- 有效期：7 天\n- 确认要求：需要（`confirmation_required: true`），结果摘要 `sha256:29869876…a11cea`\n\n工具返回的后续入口：如需继续，请在当前会话单独回复「执行」。\n\n## 建议\n\n- 回复触发确认的指示后，控制流会继续推进；本容器当前**没有**候选选择、批准或执行工具，实际执行、监控与回滚由模型外控制面负责，这里不构成已生效或已验证。\n- 若后续希望改为资产引用（ASSET_REF）而非裸 IP，或调整有效期口径，需要重新准备一次意图。\n\n## 说明与未知项\n\n- 有效期按「自现在起 7 天」表达为持续时长；工具未返回具体起止时间，实际生效窗口以控制面裁定为准。\n- 未执行任何处置动作，上述字段均来自本轮工具返回。"
+  ],
+  "session_id": "session-fe7d3f9e-c049-41c0-98a5-46ddf60aefd3",
+  "turns": [
+    {
+      "assistant_text": "## 结论\n\n策略草稿已生成，当前状态为 **DRAFT（草稿）**，**尚未提交、审批或执行**。工具返回 `DRAFT_READY` 并要求用户确认，等待确认阶段。\n\n## 关键结果\n\n- 任务：218，状态 DRAFT\n- 意图：ADD / NETWORK_ACCESS\n- 源：IP 172.16.1.155\n- 目标：IP 172.16.2.103\n- 协议与端口：UDP / 53\n- 有效期：7 天\n- 确认要求：需要（`confirmation_required: true`），结果摘要 `sha256:29869876…a11cea`\n\n工具返回的后续入口：如需继续，请在当前会话单独回复「执行」。\n\n## 建议\n\n- 回复触发确认的指示后，控制流会继续推进；本容器当前**没有**候选选择、批准或执行工具，实际执行、监控与回滚由模型外控制面负责，这里不构成已生效或已验证。\n- 若后续希望改为资产引用（ASSET_REF）而非裸 IP，或调整有效期口径，需要重新准备一次意图。\n\n## 说明与未知项\n\n- 有效期按「自现在起 7 天」表达为持续时长；工具未返回具体起止时间，实际生效窗口以控制面裁定为准。\n- 未执行任何处置动作，上述字段均来自本轮工具返回。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "maxTokens": 256000,
+        "reasoningEffort": "high"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_inspection",
+        "delegate_response_planning",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__sec-ops__get_policy_configuration_result",
+        "mcp__sec-ops__get_policy_configuration_status",
+        "mcp__sec-ops__prepare_policy_configuration",
+        "read",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "87189fb6-1900-4da5-a7a0-140fb64f036f"
+    }
+  ]
+}

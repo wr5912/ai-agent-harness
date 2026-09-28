@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答在概念层级、本质、来源、粒度与用途上明确区分了五类对象：event（观测记录/数据层）、alert（检测规则或模型给出的判定信号/检测层，即告警）、IOC（原子级可观测指标）、TTP（攻击者行为模式）、ATT&CK Technique（标准化技术条目/知识框架层），并单列 incident（经研判确认影响后升级、进入响应流程的对象），对应\"经关联研判的安全事件\"。回答同时逐条说明它们的关系而非等同：event≠alert（有日志不等于能发现）、alert≠incident（告警数量不等于事件数量）、IOC 只是 Indicators 而非 Intelligence、ATT&CK Technique 是 TTP 的标准化外壳而非另一类东西，并用闭环流程图说明五者可相互关联回灌检测，满足\"可以关联但不能互相等同\"的要求。回答未伪造工具数据，其\"本容器未配置知识库检索\"的声明与同一 Session 中 security-investigation 技能回执一致，所给概念区分属通用定义且不依赖未提供的实时资产数据，故判定为明确满足全部预期。"
+  },
+  "checks": {
+    "session_id": "session-2b32ce43-4110-4312-a96c-324e08111116",
+    "workspace_id": "05fd07b7-9652-488d-bf32-ea6c5c988a59",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

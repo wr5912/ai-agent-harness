@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答严格按采集→检测→级联同步→事件生成四段顺序取证，且关键数据与同一被测 Session 的工具回执逐项一致：覆盖率 collected=15/registered=31/discovered=2/coveragePct=33、四个资产（3617518、3617510、3617473、3617506）ingest 设备返回空数组、3617518 collectionConfig=[] 且 lastSeenAt=null、节点 3617353（high=1/low=521）、3617438（high=335/medium=1980）、3617345 告警全 0、cross signal 23/18/47、可达性 REACHABLE path=[3617442]、host pair 端口为空、路径查询上游 500、事件索引 soc-events/soc-event/security-events 均 no such index(10501)。它明确定位了最后成功点（资产已在册、online、probeState=reachable）与首个失败点（采集未配置、无 ingest 设备），并把无法查询的事件生成段和同步段如实标注为未知/证据缺口，未将空结果或报错解释为正常或异常。结论段落给出的是诊断结论（按资产分片、断点优先级在采集段），建议另列且注明“尚未执行”，未用通用建议替代诊断。仅发现一处轻微计数偏差（称第 1 页有 6 条 not_configured，实际清点为 5 条），不影响整体判断与结论成立，因此判 passed。"
+  },
+  "checks": {
+    "session_id": "session-98b989e4-33f1-4eb4-bbf6-972441d40064",
+    "workspace_id": "6fa1fa99-de93-4a26-9f20-0268d3ab3cbb",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "maxTokens": 256000,
+      "reasoningEffort": "high"
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}
