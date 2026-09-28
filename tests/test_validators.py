@@ -531,9 +531,9 @@ class RunRecordTests(unittest.TestCase):
             module.write_report(report, manifest, summary, rows, "api")
             text = report.read_text(encoding="utf-8")
         self.assertIn("| 机器 Trial | 3 | 1 | 1 | 1 | 0 | 0 | 3 |", text)
-        self.assertIn("| `U-ONE` |  |  | 已完成 | 无法判定 | - |", text)
-        self.assertIn("| ~~`U-TWO`~~ |  |  | 已跳过 | 无法判定 | - |", text)
-        self.assertIn("| `U-THREE` |  |  | 执行错误 | 无法判定 | - |", text)
+        self.assertIn("| `U-ONE` |  |  | 已完成 | 无法判定 | - | - | 已完成 |", text)
+        self.assertIn("| ~~`U-TWO`~~ |  |  | 已跳过 | 无法判定 | - | - | 未执行 |", text)
+        self.assertIn("| `U-THREE` |  |  | 执行错误 | 无法判定 | - | - | 执行错误 |", text)
         self.assertNotIn("~~`U-THREE`~~", text)
 
     def test_lifecycle_records_and_seals_observations(self) -> None:
@@ -1135,7 +1135,11 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertIn("# 测试评估报告", report)
         self.assertIn("- Case 选择：`explicit`", report)
         self.assertIn("`U-INS-001`", report)
-        self.assertIn("| Case | 输入 | 判定依据 | 执行状态 | 机器结论 | 复核结论 | 观察 | 证据 |", report)
+        self.assertIn("## Case 结果与证据复核", report)
+        self.assertIn(
+            "| Case | 输入 | 判定依据 | 执行状态 | 机器结论 | 复核结论 | 是否修正 | 判定说明 | 证据 |",
+            report,
+        )
         self.assertIn("执行一次常规巡检。", report)
         self.assertIn("通过", report)
         self.assertIn("## 场景覆盖与归因", report)
@@ -1248,7 +1252,10 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             len(selected_scenes),
         )
         self.assertTrue(all(scene["findings"] for scene in selected_scenes))
-        self.assertIn("### 证据复核", report)
+        self.assertNotIn("### 证据复核", report)
+        self.assertIn("## Case 结果与证据复核", report)
+        self.assertIn("原始机器观察保留在 [`results.jsonl`](results.jsonl)", report)
+        self.assertEqual(report.count("| `U-INS-001` |"), 1)
         self.assertIn("### 缺口与归因", report)
         self.assertIn("机器结论未表达场景证据中的能力边界", report)
         self.assertIn("| 是 |", report)

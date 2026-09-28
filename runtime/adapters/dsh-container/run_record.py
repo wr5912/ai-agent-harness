@@ -206,26 +206,6 @@ def write_report(
                 f"{counts['not_executed']} | {scene.get('review_status', scene.get('status'))} | "
                 f"{reviewed['passed']}/{reviewed['failed']}/{reviewed['inconclusive']} |"
             )
-        lines.extend(["", "### 证据复核", ""])
-        lines.append(cell(analysis.get("review_reason", "历史 Run 未记录统一复核状态。")))
-        lines.append("")
-        if reviews:
-            lines.extend([
-                "| Case | 机器结论 | 复核结论 | 是否修正 | 复核理由 | 证据 |",
-                "| --- | --- | --- | --- | --- | --- |",
-            ])
-            for case_id, review in reviews.items():
-                refs = "、".join(f"[{cell(ref)}]({ref})" for ref in review["evidence_refs"])
-                lines.append(
-                    f"| `{cell(case_id)}` | {VERDICT_ZH[review['machine_verdict']]} | "
-                    f"{VERDICT_ZH[review['reviewed_verdict']]} | "
-                    f"{'是' if review['machine_verdict'] != review['reviewed_verdict'] else '否'} | "
-                    f"{cell(review['reason'])} | {refs} |"
-                )
-            lines.append("")
-        else:
-            lines.extend(["本 Run 没有逐 Case 证据复核结论。", ""])
-
         lines.extend(["### 缺口与归因", ""])
         findings = [(scene["scene"], item) for scene in analysis["scenes"] for item in scene.get("findings", [])]
         if not findings:
@@ -261,10 +241,19 @@ def write_report(
         else:
             lines.extend(["本 Run 未追加人工研究缺口。", ""])
     lines.extend([
-        "## Case 结果",
+        "## Case 结果与证据复核",
         "",
-        "| Case | 输入 | 判定依据 | 执行状态 | 机器结论 | 复核结论 | 观察 | 证据 |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ])
+    if analysis:
+        lines.extend([
+            cell(analysis.get("review_reason", "历史 Run 未记录统一复核状态。")),
+            "",
+        ])
+    lines.extend([
+        "有逐 Case 复核时，判定说明采用复核理由；否则采用机器观察。原始机器观察保留在 [`results.jsonl`](results.jsonl)。",
+        "",
+        "| Case | 输入 | 判定依据 | 执行状态 | 机器结论 | 复核结论 | 是否修正 | 判定说明 | 证据 |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ])
     for row in rows:
         evidence_ref = row["evidence_ref"]
@@ -273,17 +262,26 @@ def write_report(
         verdict = VERDICT_ZH.get(row["verdict"], row["verdict"])
         reviewed = reviews.get(row["input_id"])
         reviewed_verdict = VERDICT_ZH[reviewed["reviewed_verdict"]] if reviewed else "-"
+        corrected = (
+            "是" if reviewed and reviewed["machine_verdict"] != reviewed["reviewed_verdict"]
+            else "否" if reviewed else "-"
+        )
+        decision_reason = cell(reviewed["reason"] if reviewed else row["observation"])
+        evidence_refs = list(dict.fromkeys([
+            evidence_ref,
+            *(reviewed["evidence_refs"] if reviewed else []),
+        ]))
+        evidence = "、".join(f"[{cell(ref)}]({ref})" for ref in evidence_refs)
         case_label = f"`{cell(row['input_id'])}`"
         if row["execution_status"] == "skipped":
             case_label = f"~~{case_label}~~"
         lines.append(
             f"| {case_label} | {cell('<br>'.join(contract.get('inputs', [])))} | {basis} | "
             f"{EXECUTION_STATUS_ZH.get(row['execution_status'], row['execution_status'])} | "
-            f"{verdict} | {reviewed_verdict} | {cell(row['observation'])} | "
-            f"[{cell(evidence_ref)}]({evidence_ref}) |"
+            f"{verdict} | {reviewed_verdict} | {corrected} | {decision_reason} | {evidence} |"
         )
     if not rows:
-        lines.append("| - | - | - | - | - | - | 本 Run 未记录 Case 结果。 | - |")
+        lines.append("| - | - | - | - | - | - | - | 本 Run 未记录 Case 结果。 | - |")
     lines.extend([
         "",
         "## 结构化记录",
