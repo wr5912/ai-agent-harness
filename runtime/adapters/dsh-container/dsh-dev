@@ -40,8 +40,9 @@ MODE_ALIASES = {"eval": "verification"}
 MODE_CHOICES = ("eval", "verification")
 PURPOSES = {"verification": "eval"}
 AUTO_PORT_START = 3081
-LAN_PROFILE = "web-lan"
-LAN_AUTH_PATCH = "/opt/dsh-adapter/verification-home-controls/web-lan.patch.yml"
+LAN_LISTEN_PATCH = "/opt/dsh-adapter/verification-home-controls/lan-listen.patch.yml"
+UNSAFE_NO_AUTH_PATCH = "/opt/dsh-adapter/verification-home-controls/web-unsafe-no-auth.patch.yml"
+SKIP_TESTING_NOTICE_PATCH = "/opt/dsh-adapter/verification-home-controls/web-skip-testing-notice.patch.yml"
 CONTAINER_WORKSPACE = "/work/harness/workspace"
 CONTAINER_ANALYSIS_WORKSPACE = "/work/evaluation-run"
 CONTAINER_REFERENCE = "/work/reference"
@@ -421,9 +422,18 @@ def check_environment(contract: dict, analysis_workspace: str | None = None) -> 
         )
 
 
+def validate_trusted_host(value: str | None) -> None:
+    if value is None:
+        return
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.-]*(?::[1-9][0-9]{0,4})?", value) \
+            or (":" in value and int(value.rsplit(":", 1)[1]) > 65535):
+        fail("--trusted-host 必须是有效的 HOST 或 HOST:PORT，不含协议、路径或通配符")
+
+
 def render_compose(template: str, *, mode: str, name: str, project: str, port: int,
                    runtime_env_names: list[str] = (), lan_access: bool = False,
-                   analysis_workspace: bool = False) -> str:
+                   analysis_workspace: bool = False, trusted_host: str | None = None,
+                   unsafe_no_auth: bool = False, skip_testing_notice: bool = False) -> str:
     """把受控 Compose 模板渲染为隔离的业务或归因实例配置。"""
     if mode not in MODES:
         fail("mode 只能是 verification")
@@ -431,6 +441,9 @@ def render_compose(template: str, *, mode: str, name: str, project: str, port: i
         fail("实例名与 Compose 项目名不匹配")
     if lan_access and analysis_workspace:
         fail("归因实例只允许监听 127.0.0.1，不能启用 --lan-access")
+    if unsafe_no_auth and analysis_workspace:
+        fail("归因实例不能启用 --unsafe-no-auth")
+    validate_trusted_host(trusted_host)
     text = template
     replacements = [
         (f"name: ai-agent-harness-dsh-{mode}", f"name: {project}"),
@@ -510,14 +523,14 @@ def render_compose(template: str, *, mode: str, name: str, project: str, port: i
     command_tail = "      - --no-open\n"
     if text.count(command_tail) != 1:
         fail("Compose 模板缺少唯一的 command 锚点")
+    if unsafe_no_auth:
+        text = text.replace(command_tail, f"      - --patch\n      - {UNSAFE_NO_AUTH_PATCH}\n" + command_tail)
+    if skip_testing_notice:
+        text = text.replace(command_tail, f"      - --patch\n      - {SKIP_TESTING_NOTICE_PATCH}\n" + command_tail)
     if lan_access:
-        profile = "      - --profile\n      - web\n"
-        if text.count(profile) != 1:
-            fail("Compose 模板缺少唯一的 Web Profile 锚点")
-        text = text.replace(profile, f"      - --profile\n      - {LAN_PROFILE}\n")
         text = text.replace(
             command_tail,
-            f"      - --patch\n      - {LAN_AUTH_PATCH}\n"
+            f"      - --patch\n      - {LAN_LISTEN_PATCH}\n"
             + command_tail
             + f"      - --port\n      - \"{port}\"\n",
         )
@@ -526,6 +539,11 @@ def render_compose(template: str, *, mode: str, name: str, project: str, port: i
             command_tail,
             command_tail + f"      - --host\n      - 127.0.0.1\n      - --port\n      - \"{port}\"\n",
         )
+    if trusted_host:
+        port_line = f'      - "{port}"\n'
+        if text.count(port_line) != 1:
+            fail("Compose 模板缺少唯一的 Web port 锚点")
+        text = text.replace(port_line, port_line + f'      - --trusted-host\n      - {json.dumps(trusted_host)}\n')
     environment_anchor = "      - DSH_TELEMETRY_DISABLED=1\n"
     if text.count(environment_anchor) != 1:
         fail("Compose 模板缺少唯一的 environment 锚点")
@@ -561,7 +579,9 @@ def project_name(name: str) -> str:
 
 def write_instance(name: str, *, mode: str, contract: dict, port: int,
                    image_id: str | None = None, lan_access: bool = False,
-                   analysis_workspace: str | None = None) -> Path:
+                   analysis_workspace: str | None = None,
+                   trusted_host: str | None = None, unsafe_no_auth: bool = False,
+                   skip_testing_notice: bool = False) -> Path:
     if lan_access and analysis_workspace:
         fail("归因实例只允许监听 127.0.0.1，不能启用 --lan-access")
     target = instance_dir(name)
@@ -581,6 +601,9 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         runtime_env_names=required_env_names(contract, analysis_workspace),
         lan_access=lan_access,
         analysis_workspace=analysis_workspace is not None,
+        trusted_host=trusted_host,
+        unsafe_no_auth=unsafe_no_auth,
+        skip_testing_notice=skip_testing_notice,
     )
     (target / "compose.yaml").write_text(rendered, encoding="utf-8")
     manifest = {
@@ -595,8 +618,11 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         "agent_id": contract["agent_id"],
         "target_preset": target_preset(contract),
         "session_preset": session_preset(contract, mode, analysis_workspace),
-        "profile": LAN_PROFILE if lan_access else "web",
+        "profile": "web",
         "lan_access": bool(lan_access),
+        "unsafe_no_auth": bool(unsafe_no_auth),
+        "skip_testing_notice": bool(skip_testing_notice),
+        "trusted_host": trusted_host,
         "listen_host": "0.0.0.0" if lan_access else "127.0.0.1",
         "port": port,
         "image_tag": contract["image"]["local_image_tag"],
@@ -736,6 +762,9 @@ def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None
     args.analysis_workspace = validate_analysis_workspace(getattr(args, "analysis_workspace", None))
     if args.analysis_workspace and bool(getattr(args, "lan_access", False)):
         fail("归因实例只允许监听 127.0.0.1，不能启用 --lan-access")
+    if args.analysis_workspace and bool(getattr(args, "unsafe_no_auth", False)):
+        fail("归因实例不能启用 --unsafe-no-auth")
+    validate_trusted_host(getattr(args, "trusted_host", None))
     contract = resolve(args.source, repo=REPO)
     args.name = args.name or f"{contract['agent_id']}-{PURPOSES[args.mode]}"
     current = existing_instance(args.name)
@@ -743,10 +772,22 @@ def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None
         _, manifest = current
         validate_existing_identity(args.name, manifest, contract, args.mode, args.analysis_workspace)
         requested_lan = bool(getattr(args, "lan_access", False))
-        if bool(manifest.get("lan_access", False)) != requested_lan:
+        if bool(manifest.get("lan_access", False)) != requested_lan and not getattr(args, "replace", False):
             fail(
                 f"实例 {args.name} 已存在且 LAN 访问模式不同；"
-                "请保持原模式或改用新的实例名"
+                "请保持原模式、显式加 --replace 或改用新的实例名"
+            )
+        if bool(manifest.get("unsafe_no_auth", False)) != bool(getattr(args, "unsafe_no_auth", False)) \
+                and not getattr(args, "replace", False):
+            fail(
+                f"实例 {args.name} 已存在且 Web 认证模式不同；"
+                "请保持原模式、显式加 --replace 或改用新的实例名"
+            )
+        if bool(manifest.get("skip_testing_notice", False)) != bool(getattr(args, "skip_testing_notice", False)) \
+                and not getattr(args, "replace", False):
+            fail(
+                f"实例 {args.name} 已存在且内测声明开关不同；"
+                "请保持原模式、显式加 --replace 或改用新的实例名"
             )
     if args.port is None:
         if current is not None:
@@ -769,6 +810,8 @@ def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None
 
 def build_plan(args: argparse.Namespace, contract: dict) -> dict:
     lan_access = bool(getattr(args, "lan_access", False))
+    unsafe_no_auth = bool(getattr(args, "unsafe_no_auth", False))
+    skip_testing_notice = bool(getattr(args, "skip_testing_notice", False))
     analysis_workspace = getattr(args, "analysis_workspace", None)
     runtime_names = required_env_names(contract, analysis_workspace)
     missing = [name for name in runtime_names if not os.environ.get(name)]
@@ -782,8 +825,11 @@ def build_plan(args: argparse.Namespace, contract: dict) -> dict:
         "agent_id": contract["agent_id"],
         "target_preset": target_preset(contract),
         "session_preset": session_preset(contract, args.mode, analysis_workspace),
-        "profile": LAN_PROFILE if lan_access else "web",
+        "profile": "web",
         "lan_access": lan_access,
+        "unsafe_no_auth": unsafe_no_auth,
+        "skip_testing_notice": skip_testing_notice,
+        "trusted_host": getattr(args, "trusted_host", None),
         "listen_host": "0.0.0.0" if lan_access else "127.0.0.1",
         "workspace_to_register": workspace_to_register(args.mode, analysis_workspace),
         "grading_material_mounted": analysis_workspace is not None,
@@ -805,10 +851,14 @@ def build_plan(args: argparse.Namespace, contract: dict) -> dict:
         "missing_env_names": missing,
         "state_dir": str(instance_dir(args.name)),
         "risk": (
-            "host 网络取消容器与宿主机的网络命名空间隔离；实例以纯 HTTP 监听 0.0.0.0，"
-            "登录凭据与 Cookie 不加密，防火墙范围由宿主管理"
-            if lan_access else
-            "host 网络取消容器与宿主机的网络命名空间隔离；实例只绑定 127.0.0.1"
+            "未认证的 Web 与 API 可直接操作整个 DSH 实例，Host/Origin 防护已关闭；"
+            "仅限隔离的受信网络，不得暴露给不受信用户或公网"
+            if unsafe_no_auth else (
+                "host 网络取消容器与宿主机的网络命名空间隔离；实例以纯 HTTP 监听 0.0.0.0，"
+                "Token 与 Cookie 不加密，防火墙范围由宿主管理"
+                if lan_access else
+                "host 网络取消容器与宿主机的网络命名空间隔离；实例只绑定 127.0.0.1"
+            )
         ),
     }
     if contract["source_kind"] == "experiment" and not analysis_workspace:
@@ -917,6 +967,9 @@ def command_up(args: argparse.Namespace) -> None:
         args.name, mode=args.mode, contract=contract, port=args.port,
         image_id=identity["image_id"], lan_access=bool(getattr(args, "lan_access", False)),
         analysis_workspace=args.analysis_workspace,
+        trusted_host=getattr(args, "trusted_host", None),
+        unsafe_no_auth=bool(getattr(args, "unsafe_no_auth", False)),
+        skip_testing_notice=bool(getattr(args, "skip_testing_notice", False)),
     )
     environment = compose_env(
         contract, args.mode, args.port, args.name,
@@ -931,8 +984,11 @@ def command_up(args: argparse.Namespace) -> None:
               "state_dir": str(target), "agent_id": contract["agent_id"],
               "target_preset": target_preset(contract),
               "session_preset": session_preset(contract, args.mode, args.analysis_workspace),
-              "profile": LAN_PROFILE if getattr(args, "lan_access", False) else "web",
+              "profile": "web",
               "lan_access": bool(getattr(args, "lan_access", False)),
+              "unsafe_no_auth": bool(getattr(args, "unsafe_no_auth", False)),
+              "skip_testing_notice": bool(getattr(args, "skip_testing_notice", False)),
+              "trusted_host": getattr(args, "trusted_host", None),
               "listen_host": "0.0.0.0" if getattr(args, "lan_access", False) else "127.0.0.1",
               **identity}
     if replaced:
@@ -1077,6 +1133,9 @@ def instance_entry(target: Path, manifest: dict) -> dict:
         "session_preset": manifest.get("session_preset"),
         "profile": manifest.get("profile", "web"),
         "lan_access": bool(manifest.get("lan_access", False)),
+        "unsafe_no_auth": bool(manifest.get("unsafe_no_auth", False)),
+        "skip_testing_notice": bool(manifest.get("skip_testing_notice", False)),
+        "trusted_host": manifest.get("trusted_host"),
         "listen_host": manifest.get("listen_host", "127.0.0.1"),
         "state_schema": recorded_schema,
         "needs_migration": recorded_schema != INSTANCE_SCHEMA_VERSION,
@@ -1114,7 +1173,7 @@ def running_container(name: str) -> tuple[str, str]:
 
 def command_url(args: argparse.Namespace) -> None:
     _, manifest = load_instance(args.name)
-    if manifest.get("lan_access"):
+    if manifest.get("profile") == "web-lan":
         running_container(args.name)
         deadline = time.monotonic() + 30.0
         while True:
@@ -1124,6 +1183,17 @@ def command_url(args: argparse.Namespace) -> None:
                 return
             if time.monotonic() >= deadline:
                 fail(f"密码登录入口探针失败：{probe['reason']}")
+            time.sleep(1.0)
+    if manifest.get("unsafe_no_auth", False):
+        running_container(args.name)
+        deadline = time.monotonic() + 30.0
+        while True:
+            probe = probe_no_auth_url(manifest["port"])
+            if probe["ok"]:
+                print(f"http://127.0.0.1:{manifest['port']}/")
+                return
+            if time.monotonic() >= deadline:
+                fail(f"免认证入口探针失败：{probe['reason']}")
             time.sleep(1.0)
     if not args.non_interactive and not sys.stdout.isatty():
         fail(
@@ -1182,6 +1252,23 @@ def probe_login_url(port: int) -> dict:
             return {"ok": False, "reason": "登录页面缺少密码登录表单"}
         return {"ok": True, "reason": "root 302→login 200"}
     except (urllib.error.HTTPError, urllib.error.URLError, OSError, ValueError) as error:
+        return {"ok": False, "reason": f"{type(error).__name__}"}
+
+
+def probe_no_auth_url(port: int) -> dict:
+    """不用 Token/Cookie 请求根页面；只接受直接返回的 DSH Web。"""
+    opener = urllib.request.build_opener(NoRedirectHandler())
+    try:
+        with opener.open(urllib.request.Request(f"http://127.0.0.1:{port}/", method="GET"),
+                         timeout=20) as response:
+            html = response.read(65536).decode("utf-8", "replace")
+            if response.status != 200 or "__DSH_BOOT__" not in html:
+                return {"ok": False, "reason": f"根页面未直接返回 DSH Web（HTTP {response.status}）"}
+        return {"ok": True, "reason": "root 200 without Token/Cookie"}
+    except urllib.error.HTTPError as error:
+        error.close()
+        return {"ok": False, "reason": f"根页面 HTTP {error.code}"}
+    except (urllib.error.URLError, OSError, ValueError) as error:
         return {"ok": False, "reason": f"{type(error).__name__}"}
 
 
@@ -1362,6 +1449,9 @@ def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
             runtime_env_names=required_env_names(contract, analysis_workspace),
             lan_access=bool(getattr(args, "lan_access", False)),
             analysis_workspace=analysis_workspace is not None,
+            trusted_host=getattr(args, "trusted_host", None),
+            unsafe_no_auth=bool(getattr(args, "unsafe_no_auth", False)),
+            skip_testing_notice=bool(getattr(args, "skip_testing_notice", False)),
         )
         compose = root / "compose.yaml"
         compose.write_text(rendered, encoding="utf-8")
@@ -1430,7 +1520,13 @@ def main() -> None:
     up.add_argument("--allow-missing-env", action="store_true",
                     help="显式允许缺少运行时环境变量，仅用于技术装载核验")
     up.add_argument("--lan-access", action="store_true",
-                    help="启用 web-lan 密码登录并监听 0.0.0.0（纯 HTTP）")
+                    help="普通 web Profile 监听 0.0.0.0；默认仍保留 Token 认证及 Host/Origin 校验")
+    up.add_argument("--unsafe-no-auth", action="store_true",
+                    help="显式关闭本实例 Web/API 的 Token 与 Host/Origin 校验；仅限受信隔离网络")
+    up.add_argument("--skip-testing-notice", action="store_true",
+                    help="仅跳过 Web 内测声明弹窗；不改变认证、监听地址或其他引导步骤")
+    up.add_argument("--trusted-host", metavar="HOST[:PORT]",
+                    help="允许额外的浏览器请求 Host（如反向代理入口）；不改变监听地址")
     up.add_argument("--analysis-workspace", metavar="PATH",
                     help=argparse.SUPPRESS)
     up.set_defaults(handler=command_up)

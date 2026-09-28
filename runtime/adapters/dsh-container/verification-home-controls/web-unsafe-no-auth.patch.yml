@@ -1,0 +1,4 @@
+# 仅在 dsh-dev --unsafe-no-auth 时叠加；不修改普通 web 或旧 web-lan Profile。
+- insert:
+    - id: web-unsafe-no-auth
+      name: /opt/dsh-adapter/web-unsafe-no-auth/index.js

@@ -1,0 +1,4 @@
+# 仅在 dsh-dev --skip-testing-notice 时叠加，不改变 Web 认证或其他引导步骤。
+- insert:
+    - id: web-skip-testing-notice
+      name: /opt/dsh-adapter/web-skip-testing-notice/index.js

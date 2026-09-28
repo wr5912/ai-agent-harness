@@ -1,0 +1,16 @@
+{
+  "name": "dsh-web-skip-testing-notice",
+  "private": true,
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js"
+  },
+  "dsh": {
+    "client": {
+      "inject": ["@deepseek-ai/dsh-client-ui-settings-models"],
+      "platform": "web"
+    }
+  }
+}

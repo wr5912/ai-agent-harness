@@ -1,0 +1,9 @@
+# 显式 --lan-access 才装载：只修改 Web 监听地址，不改变认证方式。
+# DSH patch 会整体替换 config，故保留官方 webserver 行的其他配置。
+- id: webserver
+  config:
+    host: 0.0.0.0
+    port: !!js ctx.webStartup.port ?? 3080
+    compression: gzip
+    compressionLevel: 1
+    compressionThresholdBytes: 1024

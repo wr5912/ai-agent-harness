@@ -141,20 +141,60 @@ class RenderComposeTest(unittest.TestCase):
         self.assertNotIn("source: ./", rendered)
         self.assertIn(f"source: {ADAPTER}/verification-home-controls", rendered)
 
-    def test_lan_template_uses_password_profile_without_host_override(self):
+    def test_lan_template_only_overrides_listener(self):
         template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
         rendered = dev.render_compose(
             template, mode="verification", name="lan", project="dsh-dev-lan", port=3154,
             lan_access=True,
         )
-        self.assertIn("      - --profile\n      - web-lan\n", rendered)
+        self.assertIn("      - --profile\n      - web\n", rendered)
         self.assertNotIn("      - --host\n", rendered)
         self.assertIn(
             "      - --patch\n"
-            "      - /opt/dsh-adapter/verification-home-controls/web-lan.patch.yml\n",
+            "      - /opt/dsh-adapter/verification-home-controls/lan-listen.patch.yml\n",
             rendered,
         )
+        self.assertNotIn("web-lan.patch.yml", rendered)
+        self.assertNotIn("web-unsafe-no-auth.patch.yml", rendered)
+        listener_patch = (ADAPTER / "verification-home-controls/lan-listen.patch.yml").read_text()
+        self.assertIn("- id: webserver\n", listener_patch)
+        self.assertIn("host: 0.0.0.0\n", listener_patch)
+        self.assertNotIn("auth-gate", listener_patch)
         self.assertIn('      - --port\n      - "3154"\n', rendered)
+
+    def test_no_auth_and_notice_patches_are_independent_of_lan_access(self):
+        template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
+        for lan_access in (False, True):
+            for unsafe_no_auth in (False, True):
+                for skip_testing_notice in (False, True):
+                    rendered = dev.render_compose(
+                        template, mode="verification", name="probe", project="dsh-dev-probe",
+                        port=3081, lan_access=lan_access, unsafe_no_auth=unsafe_no_auth,
+                        skip_testing_notice=skip_testing_notice,
+                    )
+                    self.assertEqual(dev.UNSAFE_NO_AUTH_PATCH in rendered, unsafe_no_auth)
+                    self.assertEqual(dev.SKIP_TESTING_NOTICE_PATCH in rendered, skip_testing_notice)
+                    self.assertEqual("lan-listen.patch.yml" in rendered, lan_access)
+
+    def test_trusted_proxy_host_is_explicit_and_validated(self):
+        template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
+        rendered = dev.render_compose(
+            template, mode="verification", name="portal", project="dsh-dev-portal",
+            port=13181, trusted_host="172.16.138.232:18120",
+        )
+        self.assertIn(
+            '      - --host\n      - 127.0.0.1\n      - --port\n      - "13181"\n'
+            '      - --trusted-host\n      - "172.16.138.232:18120"\n', rendered,
+        )
+        self.assertNotIn("--trusted-host", dev.render_compose(
+            template, mode="verification", name="portal", project="dsh-dev-portal", port=13181,
+        ))
+        for invalid in ("", "https://172.16.138.232:18120", "*.example.com", "host:65536"):
+            with self.assertRaises(SystemExit):
+                dev.render_compose(
+                    template, mode="verification", name="portal", project="dsh-dev-portal",
+                    port=13181, trusted_host=invalid,
+                )
 
     def test_source_runtime_environment_names_are_rendered_once(self):
         business_names = (
@@ -350,7 +390,7 @@ class EvaluationModeContractTest(unittest.TestCase):
         with contextlib.redirect_stdout(stdout):
             dev.command_up(args)
         plan = json.loads(stdout.getvalue())
-        self.assertEqual(plan["profile"], "web-lan")
+        self.assertEqual(plan["profile"], "web")
         self.assertTrue(plan["lan_access"])
         self.assertEqual(plan["listen_host"], "0.0.0.0")
 
@@ -404,8 +444,10 @@ class InstanceStateTest(unittest.TestCase):
             self.assertEqual(manifest["target_preset"], "second-harness")
             self.assertEqual(manifest["session_preset"], "second-harness")
             self.assertEqual(manifest["agent_id"], "second-harness")
-            self.assertEqual(manifest["profile"], "web-lan")
+            self.assertEqual(manifest["profile"], "web")
             self.assertTrue(manifest["lan_access"])
+            self.assertFalse(manifest["unsafe_no_auth"])
+            self.assertFalse(manifest["skip_testing_notice"])
             self.assertEqual(manifest["listen_host"], "0.0.0.0")
             # 被测目标会话不挂载任何判分材料。
             self.assertEqual(manifest["context_mounts"], [])
@@ -903,6 +945,30 @@ class UpPortOwnershipTest(unittest.TestCase):
             dev.prepare_up(self.args(lan_access=False))
         self.assertIn("LAN 访问模式不同", stderr.getvalue())
 
+    def test_explicit_replace_allows_lan_mode_change(self):
+        self.write_existing(lan_access=False)
+        with mock.patch.object(dev, "resolve", return_value=self.contract()):
+            _, current = dev.prepare_up(self.args(lan_access=True, replace=True))
+        self.assertIsNotNone(current)
+
+    def test_no_auth_mode_change_requires_replace_and_old_state_defaults_to_auth(self):
+        self.write_existing()
+        with mock.patch.object(dev, "resolve", return_value=self.contract()):
+            with self.assertRaises(SystemExit):
+                dev.prepare_up(self.args(unsafe_no_auth=True))
+            _, current = dev.prepare_up(self.args(unsafe_no_auth=True, replace=True))
+        self.assertIsNotNone(current)
+        self.assertFalse(current[1].get("unsafe_no_auth", False))
+
+    def test_notice_mode_change_requires_replace_and_old_state_defaults_to_notice(self):
+        self.write_existing()
+        with mock.patch.object(dev, "resolve", return_value=self.contract()):
+            with self.assertRaises(SystemExit):
+                dev.prepare_up(self.args(skip_testing_notice=True))
+            _, current = dev.prepare_up(self.args(skip_testing_notice=True, replace=True))
+        self.assertIsNotNone(current)
+        self.assertFalse(current[1].get("skip_testing_notice", False))
+
     def test_auto_port_race_fails_without_silent_reselection(self):
         args = self.args(name="new-probe", port=None)
         stdout = io.StringIO()
@@ -1120,15 +1186,38 @@ class UrlCommandGuardTest(unittest.TestCase):
         self.assertIn("http://127.0.0.1:3081/?token=secret-token-value", printed)
         sleeper.assert_called_once_with(1.0)
 
-    def test_lan_password_mode_prints_non_secret_url_without_tty_flag(self):
+    def test_lan_web_profile_uses_token_url(self):
+        logs = mock.Mock(stdout=TOKEN)
+        with mock.patch.object(dev, "running_container", return_value=("cid", "2026-01-01T00:00:00Z")), \
+                mock.patch.object(dev, "run", return_value=logs), \
+                mock.patch.object(dev, "probe_url", return_value={"ok": True, "reason": "token→cookie→root 200"}):
+            printed = self.call(
+                types.SimpleNamespace(name="soe-verify", non_interactive=True),
+                {"port": 3081, "lan_access": True, "profile": "web"},
+            )
+        self.assertIn("?token=secret-token-value", printed)
+
+    def test_legacy_password_profile_prints_non_secret_url_without_tty_flag(self):
         with mock.patch.object(dev, "running_container", return_value=("cid", "started")), \
                 mock.patch.object(dev, "probe_login_url",
                                   return_value={"ok": True, "reason": "root 302→login 200"}):
             printed = self.call(
                 types.SimpleNamespace(name="soe-verify", non_interactive=False),
-                {"port": 3154, "lan_access": True},
+                {"port": 3154, "lan_access": True, "profile": "web-lan"},
             )
         self.assertEqual(printed, "http://127.0.0.1:3154/\n")
+
+    def test_no_auth_mode_prints_clean_url_without_tty_flag_or_log_token(self):
+        with mock.patch.object(dev, "running_container", return_value=("cid", "started")), \
+                mock.patch.object(dev, "probe_no_auth_url",
+                                  return_value={"ok": True, "reason": "root 200"}), \
+                mock.patch.object(dev, "run") as runner:
+            printed = self.call(
+                types.SimpleNamespace(name="soe-verify", non_interactive=False),
+                {"port": 13181, "profile": "web", "unsafe_no_auth": True},
+            )
+        self.assertEqual(printed, "http://127.0.0.1:13181/\n")
+        runner.assert_not_called()
 
 
 class PortProbeTest(unittest.TestCase):
@@ -1181,6 +1270,14 @@ class AuthUrlProbeTest(unittest.TestCase):
         """回归：urllib 默认跟随重定向会把 303 变成 200，必须仍判为通过。"""
         probe = dev.probe_url(f"http://127.0.0.1:{self.port}/?token=abc", self.port)
         self.assertTrue(probe["ok"], probe["reason"])
+
+    def test_no_auth_probe_requires_direct_boot_without_cookie(self):
+        self.assertTrue(dev.probe_no_auth_url(self.port)["ok"])
+        _AuthStubHandler.root_status = 401
+        try:
+            self.assertFalse(dev.probe_no_auth_url(self.port)["ok"])
+        finally:
+            _AuthStubHandler.root_status = 200
 
     def test_missing_cookie_fails_closed(self):
         _AuthStubHandler.set_cookie = False

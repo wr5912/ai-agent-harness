@@ -1,0 +1,9 @@
+{
+  "name": "dsh-web-unsafe-no-auth",
+  "private": true,
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js"
+  }
+}
