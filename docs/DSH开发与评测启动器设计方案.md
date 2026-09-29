@@ -9,7 +9,7 @@
 | 状态 | `dsh-dev init/image build/up/ps/url/logs/down`（`up` 含 `--dry-run`）与 `dsh-eval` 已实现；`open`、`resume`、`fresh` 与 `release:<id>` 选择器未实现 |
 | 适用范围 | 同一台 Linux Docker Engine 主机上的本地开发、调试与候选技术核验 |
 | 不在范围 | DSH Runtime 源码修改、Experiment 结论判断、Research Release 打包与复现 |
-| 依据 | [来源锁定](./standards/SOURCES.md)、[项目规范解释](./standards/PROJECT-INTERPRETATION.md)、[适配层 README](../runtime/adapters/dsh-container/README.md)、锁定 DSH 提交 `c291e7961a515f6d7af9304e7fd1d257929aef26`（CLI `0.1.5-rc.2`） |
+| 依据 | [来源锁定](./standards/SOURCES.md)、[项目规范解释](./standards/PROJECT-INTERPRETATION.md)、[适配层 README](../runtime/adapters/dsh-container/README.md)、[当前 DSH 版本锁](../runtime/adapters/dsh-container/source.lock.json) |
 
 ## 1. 背景与目标
 
@@ -28,7 +28,7 @@
 | `up --dry-run` | 只解析来源并预览模式、Preset、自动实例名、建议端口、工作区、挂载与缺失环境变量；不写状态、不调用 Docker |
 | `up` | 渲染实例 Compose 并启动；确认 `dsh` 服务真的在运行后才在 stdout 输出一个 JSON 结果 |
 | `ps` | 默认列出实际运行中的实例；`--all` 查看 `stopped`、`failed`、`unknown` 和损坏记录；查询失败时标为 `unknown` |
-| `url` | 默认从本次进程日志提取认证 URL 并做 Token→Cookie→根页探针；`--lan-access` 实例改为核验密码登录页并返回不含 Token 的本机 URL |
+| `url` | 从本次进程日志提取认证 URL 并做 Token→Cookie→根页探针；`--lan-access` 实例仍使用 Token 认证，返回本机回环 URL |
 | `logs` | 输出有界、尽力脱敏的容器日志 |
 | `down` | 停止实例并保留 HOME；命令失败、仍有容器运行或状态无法确认时都不报告停止成功 |
 | `dsh-eval` | 按显式选择的业务 Case 启动独立评测实例；默认经 DSH Runtime API 运行，显式选择浏览器时做 UI 冒烟；导出同一 Session 轨迹并封存 Run |
@@ -93,7 +93,7 @@ python3 runtime/adapters/dsh-container/dsh-dev up \
 python3 runtime/adapters/dsh-container/dsh-dev up \
   --source experiment:EXP-security-operations-expert-001 --mode eval
 
-# 可信局域网共享：密码登录、监听 0.0.0.0；仅用于 eval
+# 受信局域网直连：Token 认证、监听 0.0.0.0；仅用于 eval
 python3 runtime/adapters/dsh-container/dsh-dev up \
   --source experiment:EXP-security-operations-expert-001 --mode eval \
   --name security-operations-expert-ui --port 3154 --lan-access
@@ -102,15 +102,7 @@ python3 runtime/adapters/dsh-container/dsh-dev up \
 python3 runtime/adapters/dsh-container/dsh-dev url security-operations-expert-ui
 ```
 
-`--lan-access` 选择同一实例 HOME 卷中的 `web-lan` Profile，由 `dsh-web-lan-access` 设置
-`0.0.0.0` 监听，并由 `dsh-auth-gate` 提供账号密码登录。DSH 启动时会重写 Profile 的
-`cordis.yml` 并维护模块回退目录，因此该 Profile 与用户、Session、工作区注册一样，属于实例
-HOME 卷中的可写运行状态；业务 workspace、Preset 和 managed 配置仍保持只读。此模式是纯 HTTP，登录凭据和 Cookie 不加密，只适合
-受信局域网；宿主防火墙范围不由启动器修改。默认不带该选项时仍使用 `web`、`127.0.0.1` 与
-DSH 本次进程 Token。该选项只选择已经配置好的 Profile，不自动下载或执行 npm Plugin；新建 HOME
-卷时必须先按实例实施方案准备 `web-lan`。
-
-实例初始密码保存在 `agents/<agent-id>/instances/<instance-name>/credentials/*.initial-password`，可随实例资产纳入 Git；账号命令仍只通过标准输入接收密码。LLM API Key 使用被 Git 忽略的 `*.llm-api-key` 文件，禁止提交或推送到远端。
+`--lan-access` 仍使用普通 `web` Profile 和本次进程的 Token 认证，只通过独立 Patch 将 Web 监听地址改为 `0.0.0.0`；不加载 `dsh-auth-gate`，也不要求预先安装 `web-lan` Profile。默认不带该选项时只监听 `127.0.0.1`。`dsh-dev url` 返回本机回环的认证 URL；从受信局域网访问时，把其中的主机名换成宿主机局域网 IP，不能把带 Token 的 URL 写入文档或门户公共配置。此模式是纯 HTTP，Token 与 Cookie 在网络上传输，宿主防火墙范围不由启动器修改；跨不受信网络应使用 HTTPS 反向代理。运行时凭据由受信环境注入，不进入 Git 或 Harness 资产。
 
 **源码或 Profile Plugin 改了不等于已经生效。** 容器里的进程不会因为 bind 挂载内容变化或 Profile 依赖变化而自动重启，普通 `docker compose up -d` 也不会仅因挂载内容变化重建容器；Preset 又存在按 ID 的驻留装载。因此改完 preset、managed、适配层脚本或执行 `dsh plugin` 安装后必须真正重启实例：
 
@@ -265,7 +257,7 @@ Agent 的当前判分材料只有 `agents/<agent-id>/evaluation.md`，其中每�
 | 候选 `presets/<new-id>/` | 新运行时 preset 目录 |
 | 候选 `harness.yaml` 的 `preset_id` | 等于新 ID；`agent.id` 保持原业务 Agent ID |
 | `sources.json.preset` | 指向 `<new-id>/agent.cordis.yml`；`agent_id` 与 Experiment 身份保持不变 |
-| 基础 patch 的 `agent-presets.default` | 等于同一个新 ID，保证实际生效默认目标与计划一致 |
+| 基础 patch 的 `agent-preset-registry.default` | 等于同一个新 ID，保证实际生效默认目标与计划一致 |
 
 仓库校验器核对候选 `preset_id`、来源 preset 路径和基础 patch 默认值三者一致。一个 Agent 对多个 preset ID 的长期 Variant 管理仍需独立设计，但普通候选研究不再被迫重命名 Agent、Experiment 或研究定义。
 
@@ -345,7 +337,7 @@ Agent 的当前判分材料只有 `agents/<agent-id>/evaluation.md`，其中每�
 | 开发角色 | 按说明启动 `--mode dev`，注册 `/work` 并核对实际加载的指令 | 会话读到 `/work/AGENTS.md` 的开发者身份，知道当前目标与可编辑位置；目标业务指令只作为编辑对象出现 |
 | 被测身份 | 启动 `--mode eval`，核对容器内不存在 `/work/AGENTS.md` | 目标只加载自己的业务指令，不会读到开发者身份 |
 | 目标编辑与保存 | 改一个 preset 配置和相关技能 | 修改进入候选资产目录；容器 HOME 中的新产物不被当缓存丢弃 |
-| 目标选择 | 用明确的 preset ID 启动 `--mode eval`，核对 `up --dry-run` 的 `target_preset` 与基础 patch 的 `agent-presets.default` | 两者相等且等于该 Agent 的 `preset_id`；仓库校验器在这三者不一致时失败 |
+| 目标选择 | 用明确的 preset ID 启动 `--mode eval`，核对 `up --dry-run` 的 `target_preset` 与基础 patch 的 `agent-preset-registry.default` | 两者相等且等于该 Agent 的 `preset_id`；仓库校验器在这三者不一致时失败 |
 | 落状态迁移 | 对一份旧 schema 状态目录执行 `ps` 与 `down` | `ps` 标出 `needs_migration: true`，`down` 能停掉容器并保留 HOME，不因旧状态被拒 |
 | 同名重载 | `up --replace`，或 `down` 后同名 `up` | 旧进程确实停止，新配置被读取；成功输出含 `replaced.previous_state_schema` 和 `replaced.stop` |
 | 重载生效 | 按文档重新装载并验证预先定义的可观察变化 | 不把驻留旧配置的结果误认成新配置 |
