@@ -1,7 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-threat-analysis-001
-agent_id: threat-analysis
-baseline_ref: none:first-experiment
-status: completed
-outcome: continue
-research_question: 迁入已验证的固定研判流程后，DSH 是否能够从事件 ID 完成真实取证、分流和受契约约束的研判

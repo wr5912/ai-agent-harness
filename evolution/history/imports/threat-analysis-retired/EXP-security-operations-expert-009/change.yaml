@@ -1,7 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-009
-agent_id: security-operations-expert
-baseline_ref: git:3b64e7de45e29ba759281aca581ddae1a58b7c00
-status: completed
-outcome: reject
-research_question: 固定威胁研判链能否作为主智能体的专用子智能体运行并保留摘要直交付、双存储和原有路由

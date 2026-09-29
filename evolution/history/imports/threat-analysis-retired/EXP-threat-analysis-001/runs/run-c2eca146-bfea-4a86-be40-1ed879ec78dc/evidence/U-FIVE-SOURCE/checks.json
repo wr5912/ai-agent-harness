@@ -1,8 +1,0 @@
-{
-  "schema_version": "1.0",
-  "case_id": "U-FIVE-SOURCE",
-  "transport": "browser",
-  "completed": false,
-  "failure_reason": "identity-drift",
-  "failure_detail": "Error:identity-drift"
-}

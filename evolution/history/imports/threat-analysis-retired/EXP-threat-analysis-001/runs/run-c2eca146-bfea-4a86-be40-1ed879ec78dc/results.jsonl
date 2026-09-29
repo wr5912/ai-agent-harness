@@ -1,2 +1,0 @@
-{"run_id":"run-c2eca146-bfea-4a86-be40-1ed879ec78dc","trial_id":"trial-7c5479aa-67fe-4787-9344-e221df0b4fd1","input_id":"U-FIVE-SOURCE","execution_status":"error","verdict":"inconclusive","observation":"评测身份或证据失配，已停止。","evidence_ref":"evidence/U-FIVE-SOURCE","failure_reason":"identity-drift"}
-{"run_id":"run-c2eca146-bfea-4a86-be40-1ed879ec78dc","trial_id":"trial-2c085775-52d0-49d6-a44e-91d7edd3f73c","input_id":"U-REPLAY-0917","execution_status":"skipped","verdict":"inconclusive","observation":"评测已停止，该用例未执行。","evidence_ref":"evidence/U-REPLAY-0917"}

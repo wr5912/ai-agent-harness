@@ -1,1 +1,0 @@
-{"run_id":"run-60d12ba9-aa40-4073-b3dc-7b82f6657daf","trial_id":"trial-d4473832-6973-4702-b619-2539a023a819","input_id":"T-REPLAY-0917","execution_status":"error","verdict":"inconclusive","observation":"运行基础设施未完成该用例，未产生语义结论。","evidence_ref":"evidence/T-REPLAY-0917","failure_reason":"启动 DSH 评测实例 失败（退出码 1）"}

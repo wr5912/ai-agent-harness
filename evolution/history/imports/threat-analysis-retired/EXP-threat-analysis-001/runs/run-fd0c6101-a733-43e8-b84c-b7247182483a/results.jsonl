@@ -1,3 +1,0 @@
-{"run_id":"run-fd0c6101-a733-43e8-b84c-b7247182483a","trial_id":"trial-8c347e91-fe44-4a66-9582-0c9ab55da2bf","input_id":"T-FAST-BLACK","execution_status":"completed","verdict":"passed","observation":"确定性代码检查通过。","evidence_ref":"evidence/T-FAST-BLACK"}
-{"run_id":"run-fd0c6101-a733-43e8-b84c-b7247182483a","trial_id":"trial-436914f0-d374-448f-9832-8cebfe1948f3","input_id":"T-FAST-WHITE","execution_status":"completed","verdict":"passed","observation":"确定性代码检查通过。","evidence_ref":"evidence/T-FAST-WHITE"}
-{"run_id":"run-fd0c6101-a733-43e8-b84c-b7247182483a","trial_id":"trial-83fd207c-b548-4009-a463-8dd49b35b2f7","input_id":"T-FIVE-SOURCE","execution_status":"completed","verdict":"passed","observation":"确定性代码检查通过。","evidence_ref":"evidence/T-FIVE-SOURCE"}
