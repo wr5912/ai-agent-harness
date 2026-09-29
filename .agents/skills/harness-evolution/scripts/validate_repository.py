@@ -60,6 +60,10 @@ REQUIRED_SKILLS = {
         "scripts/requirements.txt",
         "references/experiment-contract.md",
     ),
+    "continuous-dev-progress-vs-project-vision-gap-assessment": (
+        "references/assessment-method.md",
+        "references/presentation-spec.md",
+    ),
 }
 RETIRED_SKILLS = {"baseline-eval", "security-control-boundary", "delivery-review", "dsh-release-verify"}
 PROJECT_MATRIX = "docs/ai-agent-harness项目验收矩阵.md"
@@ -265,6 +269,16 @@ def validate_skills(root: Path, errors: list[dict[str, str]]) -> None:
         openai_yaml = skill / "agents/openai.yaml"
         if not is_material_file(openai_yaml):
             errors.append(issue("SKILL_OPENAI", "技能缺少 agents/openai.yaml", relative(openai_yaml, root)))
+        else:
+            try:
+                metadata = load_yaml(openai_yaml)
+                policy = metadata.get("policy")
+                if not isinstance(policy, dict) or not isinstance(policy.get("allow_implicit_invocation"), bool):
+                    raise ValueError("policy.allow_implicit_invocation 必须是 bool")
+                if name == "continuous-dev-progress-vs-project-vision-gap-assessment" and policy["allow_implicit_invocation"]:
+                    raise ValueError("此技能只允许显式调用")
+            except (OSError, ValueError, RuntimeError, yaml.YAMLError if yaml else ValueError) as exc:
+                errors.append(issue("SKILL_OPENAI", str(exc), relative(openai_yaml, root)))
         for resource in resources:
             path = skill / resource
             if not is_material_file(path):

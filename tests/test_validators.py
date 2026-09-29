@@ -206,6 +206,25 @@ class RepositoryValidatorTests(unittest.TestCase):
         self.assertTrue(payload["valid"])
         self.assertIn("不代表 Experiment 结果", payload["scope"])
 
+    def test_project_skill_metadata_and_references_are_required(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = copy_repository(Path(temp))
+            skill = repository / ".agents/skills/continuous-dev-progress-vs-project-vision-gap-assessment"
+            metadata = skill / "agents/openai.yaml"
+            original = metadata.read_text(encoding="utf-8")
+            metadata.write_text(original.replace("allow_implicit_invocation: false", "allow_implicit_invocation: true"), encoding="utf-8")
+            (skill / "references/presentation-spec.md").unlink()
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+            metadata.write_text(original.replace("allow_implicit_invocation: false", 'allow_implicit_invocation: "false"'), encoding="utf-8")
+            typed_completed, typed_payload = run_json(VALIDATE_REPOSITORY, repository)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("SKILL_OPENAI", error_codes(payload))
+        self.assertIn("SKILL_RESOURCE", error_codes(payload))
+        self.assertTrue(any("此技能只允许显式调用" in item["message"] for item in payload["errors"]))
+        self.assertNotEqual(typed_completed.returncode, 0)
+        self.assertIn("SKILL_OPENAI", error_codes(typed_payload))
+        self.assertTrue(any("policy.allow_implicit_invocation 必须是 bool" in item["message"] for item in typed_payload["errors"]))
+
     def test_llm_api_key_ignore_is_required(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repository = copy_repository(Path(temp))

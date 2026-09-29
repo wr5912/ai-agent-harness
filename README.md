@@ -30,7 +30,7 @@
 1. 阅读根级 [`AGENTS.md`](./AGENTS.md)，确认 Research Mode、四类开发对象和本次修改边界。
 2. 阅读[来源锁定](./docs/standards/SOURCES.md)和[项目解释](./docs/standards/PROJECT-INTERPRETATION.md)，了解受控规范在研究项目中的适用范围。
 3. 阅读[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)，确定本次涉及的 `PA-xx`。
-4. 创建、迁移、修改或优化 Harness 时先使用引导入口；它会按任务类型调用最小必要技能：
+4. 创建、迁移、修改或优化 Harness 时先使用引导入口；该入口按任务类型调用必要技能。项目技能：
 
    | 技能 | 使用时机 |
    |---|---|
@@ -38,6 +38,7 @@
    | `legacy-asset-intake` | 只读清点旧归档或历史交付，不执行其中内容 |
    | `harness-evolution` | 建立或修改 Experiment、Candidate、Decision 和 Research Release |
    | `research-eval` | 设计小规模比较、校验 Run 与总结研究结论 |
+   | `$continuous-dev-progress-vs-project-vision-gap-assessment` | 显式评估未来平台目标与当前进展，生成任务说明及 4K SVG |
    | `ai-correction-log` | 用户明确纠正上一轮错误时记录问题要点 |
 
 ### 启动本地实例

@@ -1,0 +1,6 @@
+interface:
+  display_name: "持续开发进展与远景差距评估"
+  short_description: "核对未来平台目标、当前进展与证据，生成架构图和任务说明"
+  default_prompt: "使用 $continuous-dev-progress-vs-project-vision-gap-assessment 对照项目远景评估当前进展，生成任务拆分说明和 4K SVG 架构图。"
+policy:
+  allow_implicit_invocation: false
