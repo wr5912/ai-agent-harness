@@ -7,6 +7,8 @@
 
 import { createHash } from 'node:crypto'
 import { isAbsolute, resolve, sep } from 'node:path'
+import { createSecurityOperationsGuard as createPolicyGuard, isPolicyConfirmationTurn, setPolicyUserRequest } from './policy-configuration-guard.mjs'
+import { createGuard as createEmergencyGuard, emergencyConfirmationOperation } from './emergency-action-guard.mjs'
 
 export const name = 'security-operations-guard'
 export const inject = ['tools']
@@ -22,9 +24,18 @@ export const TOOL_ROUTES = Object.freeze({
     'skill',
   ]),
   policy: Object.freeze([
-    'mcp__sec-ops__prepare_policy_configuration',
-    'mcp__sec-ops__get_policy_configuration_status',
-    'mcp__sec-ops__get_policy_configuration_result',
+    'mcp__policy-configuration__prepare_policy_configuration',
+    'mcp__policy-configuration__get_policy_configuration_status',
+    'mcp__policy-configuration__select_policy_configuration_candidate',
+    'mcp__policy-configuration__get_policy_configuration_result',
+  ]),
+  emergency: Object.freeze([
+    'mcp__emergency-action__prepare_emergency_action',
+    'mcp__emergency-action__revise_emergency_action',
+    'mcp__emergency-action__get_emergency_action',
+    'mcp__emergency-action__list_emergency_actions',
+    'mcp__emergency-action__get_emergency_action_result',
+    'mcp__emergency-action__cancel_emergency_action',
   ]),
   schedule: Object.freeze([
     'schedule_create',
@@ -68,6 +79,7 @@ export const TOOL_ROUTES = Object.freeze({
 
 const DELEGATE_TOOLS = new Set(TOOL_ROUTES.delegates)
 const POLICY_TOOLS = new Set(TOOL_ROUTES.policy)
+const EMERGENCY_TOOLS = new Set(TOOL_ROUTES.emergency)
 const SCHEDULE_TOOLS = new Set(TOOL_ROUTES.schedule)
 const INSPECTION_TOOLS = new Set(TOOL_ROUTES.inspection)
 const FAULT_TOOLS = new Set(TOOL_ROUTES.faultAnalysis)
@@ -75,6 +87,7 @@ const WORKSPACE_TOOLS = new Set(TOOL_ROUTES.workspace.filter(tool => tool !== 's
 const ROOT_VISIBLE_TOOLS = Object.freeze([
   ...TOOL_ROUTES.workspace,
   ...TOOL_ROUTES.policy,
+  ...TOOL_ROUTES.emergency,
   ...TOOL_ROUTES.delegates,
 ])
 const CHILD_VISIBLE_TOOLS = Object.freeze([
@@ -93,6 +106,13 @@ const PERMANENTLY_DENIED = new Set([
   'send_message',
   'interrupt_agent',
   'list_agents',
+  'mcp__sec-ops__prepare_policy_configuration',
+  'mcp__sec-ops__get_policy_configuration_status',
+  'mcp__sec-ops__get_policy_configuration_result',
+  'mcp__policy-configuration__confirm_policy_configuration',
+  'mcp__policy-configuration__decide_policy_configuration',
+  'mcp__emergency-action__confirm_emergency_action',
+  'mcp__emergency-action__submit_emergency_action',
   ...TOOL_ROUTES.denied,
 ])
 
@@ -275,6 +295,20 @@ export function createSecurityOperationsGuard(options = {}) {
   const environment = options.environment ?? process.env
   const mode = environment.DSH_HARNESS_MODE === 'authoring' ? 'authoring' : 'verification'
   const responseInputs = new WeakMap()
+  const policyGuard = createPolicyGuard()
+  const emergencyGuard = createEmergencyGuard()
+  const activeDomains = new WeakMap()
+
+  const beginTurn = (agent, text) => {
+    activeDomains.delete(agent)
+    setPolicyUserRequest(agent, text)
+  }
+
+  const domainDecision = (agent, domain) => {
+    const active = activeDomains.get(agent)
+    if (active && active !== domain) return '本轮已进入其他业务能力，不能跨能力调用工具'
+    return undefined
+  }
 
   const decide = (exec) => {
     const tool = exec?.name
@@ -282,6 +316,13 @@ export function createSecurityOperationsGuard(options = {}) {
     if (PERMANENTLY_DENIED.has(tool)) return '该能力在 security-operations-expert 中永久禁用'
     const agent = exec.agent
     if (!isRecord(agent)) return '模型工具调用缺少 Agent 运行身份'
+    if (isPolicyConfirmationTurn(agent)) return '策略确认轮次禁止模型调用工具'
+    const confirmationOperation = emergencyConfirmationOperation(agent)
+    if (confirmationOperation !== undefined &&
+        (!['mcp__emergency-action__get_emergency_action', 'mcp__emergency-action__get_emergency_action_result'].includes(tool) ||
+         exec.arguments?.operationId !== confirmationOperation)) {
+      return '应急确认轮次只能查询当前操作结果'
+    }
     const depth = depthOf(exec)
     if (depth > 0 && DELEGATE_TOOLS.has(tool)) return '子 Agent 不得再次委派'
 
@@ -297,23 +338,55 @@ export function createSecurityOperationsGuard(options = {}) {
     }
 
     if (tool === 'skill') return depth > 0 ? '角色子 Agent 不得加载额外 Skill 扩大能力' : undefined
+    if (['policy-configuration', 'emergency-action'].includes(activeDomains.get(agent)) &&
+        (DELEGATE_TOOLS.has(tool) || SCHEDULE_TOOLS.has(tool) || INSPECTION_TOOLS.has(tool) || FAULT_TOOLS.has(tool))) {
+      return '本轮已进入策略或应急流程，不能调用其他业务能力'
+    }
     if (DELEGATE_TOOLS.has(tool)) {
       if (depth !== 0) return '子 Agent 不得再次委派'
-      if (tool !== 'delegate_response_planning') return undefined
+      if (tool !== 'delegate_response_planning') {
+        activeDomains.set(agent, 'existing')
+        return undefined
+      }
       const result = responseInput(exec, environment)
       if (result.error !== undefined) return result.error
       responseInputs.set(exec, result.input)
+      activeDomains.set(agent, 'existing')
       return undefined
     }
     if (POLICY_TOOLS.has(tool)) {
       if (depth > 0) return '策略能力只允许主 Agent 按显式路由调用'
+      const conflict = domainDecision(agent, 'policy-configuration')
+      if (conflict) return conflict
+      const reason = policyGuard.decide(exec)
+      if (reason) return reason
+      activeDomains.set(agent, 'policy-configuration')
       return undefined
     }
-    if (SCHEDULE_TOOLS.has(tool)) return depth === 0 ? undefined : '自动化任务只允许主 Agent 调用'
-    if (INSPECTION_TOOLS.has(tool)) {
-      return depth === 1 ? undefined : '巡检工具只能由巡检子 Agent 调用'
+    if (EMERGENCY_TOOLS.has(tool)) {
+      if (depth > 0) return '应急能力只允许主 Agent 按显式路由调用'
+      const conflict = domainDecision(agent, 'emergency-action')
+      if (conflict) return conflict
+      const reason = emergencyGuard.decide(exec)
+      if (reason) return reason
+      activeDomains.set(agent, 'emergency-action')
+      return undefined
     }
-    if (FAULT_TOOLS.has(tool)) return depth === 1 ? undefined : 'SOC 故障取证工具只能由故障分析子 Agent 调用'
+    if (SCHEDULE_TOOLS.has(tool)) {
+      if (depth !== 0) return '自动化任务只允许主 Agent 调用'
+      activeDomains.set(agent, 'existing')
+      return undefined
+    }
+    if (INSPECTION_TOOLS.has(tool)) {
+      if (depth !== 1) return '巡检工具只能由巡检子 Agent 调用'
+      activeDomains.set(agent, 'existing')
+      return undefined
+    }
+    if (FAULT_TOOLS.has(tool)) {
+      if (depth !== 1) return 'SOC 故障取证工具只能由故障分析子 Agent 调用'
+      activeDomains.set(agent, 'existing')
+      return undefined
+    }
 
     if (tool.startsWith('mcp__')) return '未列入当前角色授权集合的 MCP 工具被拒绝'
     return '未列入 security-operations-expert 显式工具集合的能力被拒绝'
@@ -335,11 +408,19 @@ export function createSecurityOperationsGuard(options = {}) {
     return validateResponsePlanOutput(output, input)
   }
 
-  return { decide, validateResponseResult, mode }
+  return { decide, validateResponseResult, beginTurn, mode }
 }
 
 export function apply(ctx) {
   const guard = createSecurityOperationsGuard()
+  ctx.on('agent/pre-step', ({ agent, messages, step }, next) => {
+    if (step === 1) {
+      const user = messages.filter(message => message.source?.kind === 'user').at(-1)
+      const text = user?.content?.filter(item => item.type === 'text').map(item => item.text).join('') ?? ''
+      guard.beginTurn(agent, text)
+    }
+    return next()
+  })
   ctx.on('agent/created', ({ agent }) => {
     agent.ctx.tools.restrict({ allow: visibleToolsForDepth(delegationDepth(agent)) })
   })

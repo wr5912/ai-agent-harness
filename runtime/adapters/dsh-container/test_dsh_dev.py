@@ -350,6 +350,26 @@ class EvaluationModeContractTest(unittest.TestCase):
             for key in ("DSH_DEV_TARGET_HOST", "DSH_MANAGED_PATCH_OVERLAY", "DSH_REFERENCE_HOST"):
                 self.assertNotIn(key, environment)
 
+    def test_optional_connections_are_forwarded_only_when_set(self):
+        contract = self.contract(
+            required_env_names=["DEEPSEEK_API_KEY"],
+            optional_env_names=["POLICY_CONFIGURATION_MCP_URL", "EMERGENCY_ACTION_MCP_URL"],
+        )
+        with tempfile.TemporaryDirectory() as temp, \
+                mock.patch.object(dev, "STATE_ROOT", Path(temp)), \
+                mock.patch.dict(os.environ, {"POLICY_CONFIGURATION_MCP_URL": "http://policy"}, clear=True):
+            self.assertEqual(dev.runtime_env_names(contract),
+                             ["DEEPSEEK_API_KEY", "POLICY_CONFIGURATION_MCP_URL"])
+            self.assertEqual(dev.runtime_env_names(contract, "/tmp/analysis"), ["DEEPSEEK_API_KEY"])
+            target = dev.write_instance("optional-probe", mode="verification", contract=contract, port=3085)
+            compose = (target / "compose.yaml").read_text(encoding="utf-8")
+            manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+            self.assertIn("      - POLICY_CONFIGURATION_MCP_URL\n", compose)
+            self.assertNotIn("      - EMERGENCY_ACTION_MCP_URL\n", compose)
+            self.assertEqual(manifest["required_env_names"], ["DEEPSEEK_API_KEY"])
+            self.assertEqual(manifest["optional_env_names"], ["POLICY_CONFIGURATION_MCP_URL"])
+            self.assertNotIn("http://policy", json.dumps(manifest))
+
     def test_target_preset_comes_from_selected_source(self):
         """目标是来源声明的业务 preset，与本次会话实际运行的 preset 分开。"""
         self.assertEqual(dev.target_preset(self.contract()), "security-operations-expert")
