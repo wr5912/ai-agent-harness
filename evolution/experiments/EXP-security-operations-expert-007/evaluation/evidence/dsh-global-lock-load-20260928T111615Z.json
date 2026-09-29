@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-09-28T11:16:15Z",
+  "status": "fail",
+  "source_lock": "runtime/adapters/dsh-container/source.lock.json",
+  "source_lock_sha256": "sha256:1225a58c35d639a7f79be326363cf84b7fb534f1e12f987205ae28198c3fc348",
+  "source_commit": "21638c56315ae6a2b552d6091945d3144c9af32e",
+  "image_tag": "ai-agent-harness/dsh:21638c563",
+  "image_id": "sha256:22a59afa382eec9b956d0184cf850902e275525caf3617b66b9eccb2b074b26e",
+  "image_build_fingerprint": "sha256:1eaeddc37579103dfce0f2b5450d653326073eb2fc1bd4d7f2fa5c029fc7375c",
+  "sources": [
+    {
+      "source_id": "EXP-security-operations-expert-001",
+      "status": "fail",
+      "exit_code": 1
+    }
+  ]
+}

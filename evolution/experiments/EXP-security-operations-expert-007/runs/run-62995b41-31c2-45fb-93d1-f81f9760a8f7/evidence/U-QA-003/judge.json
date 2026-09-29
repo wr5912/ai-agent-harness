@@ -1,0 +1,7 @@
+{
+  "response": null,
+  "checks": {
+    "session_id": null,
+    "unavailable_reason": "runtime-rpc-failed"
+  }
+}

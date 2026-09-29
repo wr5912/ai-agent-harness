@@ -1,0 +1,7 @@
+{
+  "response": null,
+  "checks": {
+    "session_id": "session-208d7a17-f4f6-4027-8b08-bf0b57aec5f9",
+    "unavailable_reason": "judge-tools-not-empty"
+  }
+}
