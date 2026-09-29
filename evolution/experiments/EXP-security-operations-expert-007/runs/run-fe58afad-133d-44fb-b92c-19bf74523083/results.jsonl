@@ -1,0 +1,1 @@
+{"run_id":"run-fe58afad-133d-44fb-b92c-19bf74523083","trial_id":"voice-qwen-browser","input_id":"U-VOICE-001","execution_status":"completed","verdict":"passed","observation":"真实浏览器麦克风经远程流式 ASR 生成可编辑草稿，语音命令只发送测试文本；Qwen3.8-27B 生成可见回复，点击朗读后浏览器解码 TTS 音频，原生 Session 和输入正常。此结论不覆盖默认 DeepSeek 或安全运营 MCP 业务工具调用。","evidence_ref":"evidence/U-VOICE-001/observation.json"}

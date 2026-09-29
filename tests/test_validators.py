@@ -1163,7 +1163,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertIn("通过", report)
         self.assertIn("## 场景覆盖与归因", report)
         self.assertIn("### 缺口与归因", report)
-        self.assertEqual(sum(len(scene["case_ids"]) for scene in analysis["scenes"]), 45)
+        self.assertEqual(sum(len(scene["case_ids"]) for scene in analysis["scenes"]), 46)
         self.assertEqual(sum(len(scene["selected_case_ids"]) for scene in analysis["scenes"]), 1)
         self.assertEqual(analysis["review_status"], "not_requested")
         self.assertEqual(
@@ -1256,15 +1256,15 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertEqual(completed.returncode, 1, completed.stderr)
         self.assertEqual(payload["review_status"], "completed")
         self.assertEqual(payload["cases"], {
-            "total": 45, "passed": 45, "failed": 0, "inconclusive": 0,
+            "total": 46, "passed": 46, "failed": 0, "inconclusive": 0,
         })
         self.assertEqual(payload["reviewed_cases"], {
-            "total": 45, "passed": 44, "failed": 1, "inconclusive": 0,
+            "total": 46, "passed": 45, "failed": 1, "inconclusive": 0,
         })
         self.assertEqual(summary["machine_overall_verdict"], "passed")
         self.assertEqual(summary["reviewed_overall_verdict"], "failed")
         self.assertEqual(summary["effective_verdict"], "failed")
-        self.assertEqual(analysis["reviewed_case_count"], 45)
+        self.assertEqual(analysis["reviewed_case_count"], 46)
         self.assertTrue(all(scene["review_status"] == "completed" for scene in selected_scenes))
         self.assertEqual(
             len({scene["analysis_session"]["session_id"] for scene in selected_scenes}),
@@ -1305,7 +1305,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(analysis["review_status"], "completed")
-        self.assertEqual(analysis["reviewed_case_count"], 45)
+        self.assertEqual(analysis["reviewed_case_count"], 46)
         self.assertEqual(len(attempts), 5)
         self.assertTrue(all(first == repaired for first, repaired in sessions))
 
@@ -1412,7 +1412,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         ])
         self.assertEqual(json.loads(fast.stdout)["selection_mode"], "fast")
         self.assertEqual(full.returncode, 0, full.stderr)
-        self.assertEqual(len(json.loads(full.stdout)["case_ids"]), 45)
+        self.assertEqual(len(json.loads(full.stdout)["case_ids"]), 46)
         self.assertEqual(json.loads(full.stdout)["selection_mode"], "full")
         self.assertEqual(explicit.returncode, 0, explicit.stderr)
         self.assertEqual(json.loads(explicit.stdout)["case_ids"], ["U-INS-002"])
@@ -1572,6 +1572,7 @@ class EvaluationSourceTests(unittest.TestCase):
             + [f"U-FLT-{index:03d}" for index in range(1, 11)]
             + [f"U-QA-{index:03d}" for index in range(1, 14)]
             + ["U-THREAT-FAST", "U-THREAT-FULL", "U-THREAT-WHITELIST", "U-THREAT-MISSING", "U-THREAT-FOLLOWUP"]
+            + ["U-VOICE-001"]
         )
         self.assertFalse((agent / "definition.md").exists())
         self.assertEqual(loaded["case_ids"], expected_ids)

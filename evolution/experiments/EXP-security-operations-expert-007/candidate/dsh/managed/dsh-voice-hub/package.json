@@ -1,0 +1,140 @@
+{
+  "name": "@aisoc/dsh-voice-hub",
+  "description": "DSH Web 语音交互插件：支持语音输入、编辑识别文字和语音指令发送消息；可选唤醒词，支持连续语音对话；可自动播报或单次朗读助手回复，并在待审批、待回答和计划审阅时提供语音提醒。语音识别与合成服务可在设置页配置。",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@172.16.138.233:2222/ai-soc/ai-dsh-plugin.git"
+  },
+  "homepage": "http://172.16.138.233/ai-soc/ai-dsh-plugin",
+  "bugs": {
+    "url": "http://172.16.138.233/ai-soc/ai-dsh-plugin/-/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "dsh": ">=0.1.7-rc.2"
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/msedge-tts.cjs",
+    "lib/tts-vits-worker.cjs",
+    "lib/client.js",
+    "assets/kws",
+    "lib/sense-worker.mjs",
+    "cordis.patch.yml",
+    "assets/architecture.svg",
+    "assets/settings-panel.png",
+    "assets/settings-actions.png",
+    "scripts/prefetch.mjs",
+    "scripts/list-voices.mjs",
+    "scripts/bench-asr.mjs",
+    "scripts/verify.mjs",
+    "scripts/check-anchors.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "prepack": "node build.mjs",
+    "test": "node test/segmenter.test.mjs && node test/aec.test.mjs && node test/download.test.mjs && node test/endpoint.test.mjs && node test/endpoint-short.test.mjs && node test/resample.test.mjs && node test/sense-worker.test.mjs && node test/detect-route.test.mjs && node test/verify-client.mjs && node test/asr-host-rebuild.test.mjs && node test/barge-in-manual.test.mjs && node test/sense-lang.test.mjs && node test/caption-a11y.test.mjs && node test/emotion.test.mjs && node test/emotion-tts-local.test.mjs && node test/emotion-integration.test.mjs && node test/backchannel.test.mjs && node test/strings-coverage.test.mjs && node test/yield-ms-wiring.test.mjs && node test/matchBackchannel.test.mjs && node test/settings-load.test.mjs && node test/preview-error.test.mjs && node test/hold-clear.test.mjs && node test/barge-in-detect.test.mjs && node test/wakeword.test.mjs && node test/wake-standby.test.mjs && node test/wake-flow.test.mjs && node test/send-command.test.mjs && node test/tts-playback.test.mjs",
+    "verify:client": "node test/verify-client.mjs",
+    "prefetch": "node scripts/prefetch.mjs",
+    "list-voices": "node scripts/list-voices.mjs",
+    "bench-asr": "node scripts/bench-asr.mjs",
+    "bench:echo-gate": "node scripts/bench-echo-gate.mjs",
+    "analyze:fixture": "node scripts/analyze-fixture.mjs",
+    "verify": "node scripts/verify.mjs",
+    "verify:product": "bash scripts/verify-product.sh",
+    "typecheck": "node node_modules/typescript/bin/tsc -p tsconfig.json --noEmit && node node_modules/typescript/bin/tsc -p tsconfig.client.json --noEmit",
+    "check:anchors": "node scripts/check-anchors.mjs",
+    "typecheck:dual": "bash scripts/typecheck-dual.sh",
+    "smoke:runtime": "bash scripts/smoke-runtime.sh",
+    "verify:dual": "bash scripts/verify-dual.sh",
+    "e2e:full": "bash scripts/full-e2e.sh"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-cordis-client-runner",
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-plugins"
+      ]
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.4",
+    "msedge-tts": "^2.0.7",
+    "pinyin-pro": "^3.29.4",
+    "sherpa-onnx": "^1.13.6",
+    "sherpa-onnx-node": "^1.13.6",
+    "ws": "^8.18.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "~4.0.4",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "~4.0.4",
+    "@deepseek-ai/dsh-host-webserver": "next",
+    "@deepseek-ai/dsh-llm": "next",
+    "@deepseek-ai/dsh-settings": "next",
+    "@deepseek-ai/dsh-system-prompt": "next",
+    "@types/node": "^26.0.0",
+    "@types/react": "^19.0.0",
+    "@types/ws": "^8.18.0",
+    "esbuild": "^0.25.0",
+    "playwright-core": "^1.62.1",
+    "typescript": "^5.9.2"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "voice",
+    "voice-hub",
+    "speech",
+    "asr",
+    "tts",
+    "speech-to-text",
+    "text-to-speech",
+    "speech-recognition",
+    "full-duplex",
+    "duplex",
+    "barge-in",
+    "captions",
+    "wake-word",
+    "local-asr",
+    "on-device",
+    "zipformer2",
+    "sensevoice",
+    "kokoro",
+    "msedge-tts",
+    "chinese",
+    "语音",
+    "字幕",
+    "打断",
+    "中文",
+    "本地识别"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,20 @@
+{
+  "instance": "security-operations-expert-voice",
+  "image": "ai-agent-harness/dsh:21638c563",
+  "model": "deepseek-flash",
+  "observed": [
+    "browser microphone and remote ASR produced editable draft",
+    "spoken send command submitted the test sentence to a native Session",
+    "model request failed before an assistant reply"
+  ],
+  "model_error": "Invalid schema for function 'mcp__sec-ops__prepare_policy_configuration': Pointer '/components/schemas/PolicyValidity' does not exist (INVALID_REQUEST)",
+  "mcp_tools_list_probe": {
+    "total_tools": 163,
+    "tools_with_orphan_component_refs": [
+      "prepare_policy_configuration"
+    ],
+    "orphan_ref": "#/components/schemas/PolicyValidity",
+    "location": "inputSchema.properties.body.properties.intent.properties.validity.allOf[0]"
+  },
+  "boundary": "MCP platform tool schema is generated outside this Experiment; no shared service was changed"
+}

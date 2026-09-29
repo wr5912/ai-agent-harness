@@ -216,6 +216,23 @@ class RenderComposeTest(unittest.TestCase):
         self.assertEqual(rendered.count("      - DEEPSEEK_API_KEY\n"), 1)
         self.assertEqual(rendered.count("      - LOCAL_LLM_BASE_URL\n"), 1)
 
+    def test_plugin_dependencies_are_an_optional_read_only_mount(self):
+        template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
+        rendered = dev.render_compose(
+            template, mode="verification", name="voice", project="dsh-dev-voice", port=3081,
+            plugin_node_modules=True,
+        )
+        self.assertIn("source: ${DSH_PLUGIN_NODE_MODULES_HOST:?", rendered)
+        self.assertIn("target: /opt/node_modules\n        read_only: true", rendered)
+        self.assertNotIn("DSH_PLUGIN_NODE_MODULES_HOST", dev.render_compose(
+            template, mode="verification", name="plain", project="dsh-dev-plain", port=3081,
+        ))
+        with self.assertRaises(SystemExit):
+            dev.render_compose(
+                template, mode="verification", name="analysis", project="dsh-dev-analysis",
+                port=3081, analysis_workspace=True, plugin_node_modules=True,
+            )
+
     def test_missing_anchor_fails_closed(self):
         with self.assertRaises(SystemExit):
             dev.render_compose("services:\n  dsh:\n    working_dir: /tmp\n", mode="verification",
@@ -400,6 +417,23 @@ class EvaluationModeContractTest(unittest.TestCase):
                              ["DSH_WEB_PROFILE_MANIFEST_HOST"], contract["profile_manifest"])
             self.assertEqual(dev.instance_compose_env(manifest)["DSH_WEB_PROFILE_MANIFEST_HOST"],
                              contract["profile_manifest"])
+
+    def test_plugin_dependencies_are_recorded_for_compose_lifecycle(self):
+        contract = self.contract()
+        with tempfile.TemporaryDirectory() as temp, mock.patch.object(dev, "STATE_ROOT", Path(temp)):
+            node_modules = str(Path(temp) / "node_modules")
+            target = dev.write_instance(
+                "voice-probe", mode="verification", contract=contract, port=3082,
+                plugin_node_modules=node_modules,
+            )
+            manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["mounts"]["plugin_node_modules"], node_modules)
+            self.assertEqual(manifest["mount_modes"]["plugin_node_modules"], "ro")
+            self.assertEqual(dev.compose_env(contract, "verification", 3082, "voice-probe",
+                                              plugin_node_modules=node_modules)["DSH_PLUGIN_NODE_MODULES_HOST"],
+                             node_modules)
+            self.assertEqual(dev.instance_compose_env(manifest)["DSH_PLUGIN_NODE_MODULES_HOST"],
+                             node_modules)
 
     def test_dry_run_delivers_workspace_path_and_cold_start_hint(self):
         """DSH Web 冷启动需要先在界面注册工作区；计划必须交付确切路径与步骤。"""
