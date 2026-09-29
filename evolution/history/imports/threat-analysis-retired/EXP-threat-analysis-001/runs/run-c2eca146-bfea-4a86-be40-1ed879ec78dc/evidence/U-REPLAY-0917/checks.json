@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-REPLAY-0917",
+  "completed": false,
+  "expected_behavior": "调用 analyze_threat_incident 一次，两条路径均由程序输出正式助手 Markdown 摘要，不再请求外层模型生成结果；原始 result 保留在元数据中，保存接口显示待接入；根据实时名单允许 fast_classification 或 five_source。五源若合同拒绝但 JSON 对象已解析，仍返回 completed、原始 result 和 validation.failed，摘要及报告明确展示校验问题；无法解析时返回 contract_failed 且没有 result。连接失败不算迁移通过。",
+  "failure_reason": "identity-drift"
+}

@@ -1,0 +1,102 @@
+{
+  "session_id": "session-ea7f5f81-2702-4fc4-89b9-12e39e44d52f",
+  "prompt": "请研判威胁事件 INC-20260912-000004。",
+  "duration_seconds": 297.8,
+  "parent_calls": [
+    "skill",
+    "delegate_threat_analysis"
+  ],
+  "all_calls": [
+    "skill",
+    "delegate_threat_analysis",
+    "analyze_threat_incident"
+  ],
+  "assistant": "### 威胁事件研判摘要\n\n**结论：** 真实告警\n\n**快速研判：** 否\n\n**事件 ID：** INC\\-20260912\\-000004\n\n**结论置信度：** 0\\.86\n\n#### 核心判断\n\n**原始主张：** LATERAL\\_MOVEMENT\\_REASONING\n\n**主张判断：** 支持\n\n**其他攻击发现：** 主机持久化 · DESKTOP\\-C82PUMN 上观察到将 EdrUserSim\\-Backup\\.bat 写入启动菜单路径，并多次通过 Run\\-EdrUserSim\\.cmd 启动 Invoke\\-EdrUserSim\\.ps1，形成可重复执行的本地持久化行为。\n\n**攻击阶段：** Lateral Movement\n\n**攻击技术：** T1021\n\n**技术名称：** Remote Services\n\n#### 推理摘要\n\nDESKTOP\\-U8GL6JB 上 beacon\\_windows\\_amd64\\.exe 与 172\\.16\\.1\\.155:10089 多次通信并派生 cmd\\.exe 执行侦察命令，构成强失陷证据。DESKTOP\\-C82PUMN 上 Invoke\\-EdrUserSim\\.ps1 多次执行 whoami、ipconfig、net user 等命令，并写入启动菜单持久化，形成第二台主机失陷与横向扩展证据。关键缺口是缺少 DESKTOP\\-U8GL6JB 到 DESKTOP\\-C82PUMN 的直接远程服务连接记录，因此横移结论基于同网段、同域用户权限和多主机失陷行为推断。\n\n置信度表示当前结论的可信程度，不是恶意概率。\n\n#### 保存与下载\n\n**摘要存储：** 已保存\n\n**报告存储：** 已保存\n\n**报告下载：** [下载 HTML 报告](<http://172.16.138.228:58215/api/persistence/files/file-e51c4d66-f656-41b2-87e1-b66eb12531c5/download>)\n\n**运行 ID：** run\\-ecb88962\\-5fa4\\-4e20\\-b4bb\\-2f01482467e4\n",
+  "turn_end": {
+    "turn": 1,
+    "reason": {
+      "kind": "completed"
+    }
+  },
+  "sessions": [
+    "session.v4.jsonl",
+    "subagents/ce8e365c-4019-4d16-a02f-91d915001b8f/session.v4.jsonl"
+  ],
+  "run_id": "run-ecb88962-5fa4-4e20-b4bb-2f01482467e4",
+  "status": "completed",
+  "route": "five_source",
+  "llm_invoked": true,
+  "model": "Qwen3.8-27B",
+  "mcp_calls": 458,
+  "mcp_failures": 14,
+  "validation": {
+    "status": "failed",
+    "error_type": "ValueError",
+    "error": "claim evidence reference does not resolve: enriched_context.edr_detail.edr_detail.entities[1].activity_segments[0].processes[2].image"
+  },
+  "markdown_matches": true,
+  "storage": {
+    "summary": {
+      "status": "saved",
+      "judgement_id": "JDG-2104827873840672769",
+      "replayed": false
+    },
+    "report": {
+      "status": "saved",
+      "id": "file-e51c4d66-f656-41b2-87e1-b66eb12531c5",
+      "download_url": "http://172.16.138.228:58215/api/persistence/files/file-e51c4d66-f656-41b2-87e1-b66eb12531c5/download"
+    }
+  },
+  "tool_results": 3,
+  "request_configs": [
+    {
+      "provider": "local-qwen",
+      "model": "Qwen3.8-27B"
+    },
+    {
+      "provider": "threat-analysis-delivery",
+      "model": "fixed-summary"
+    },
+    {
+      "provider": "local-qwen",
+      "model": "Qwen3.8-27B"
+    },
+    {
+      "provider": "threat-analysis-delivery",
+      "model": "fixed-summary"
+    }
+  ],
+  "final_provider": "threat-analysis-delivery",
+  "download_matches_report": true,
+  "soc_report_matches_local": true,
+  "soc_summary_length": 331,
+  "soc_validation_status": "failed",
+  "soc_run_id_matches": true,
+  "soc_model": "Qwen3.8-27B",
+  "report_bytes": 11135,
+  "report_sha256": "fe1e79d4b06bbf88ea2127f10513eab91cb79ceb9c9a9a652c5d4e978a951135",
+  "report_has_validation_fields": false,
+  "export_sha256": "69c97c0f16295c12fe554df64d2499e800f73cd1d202d353276cc12ab1a14b4f",
+  "browser": {
+    "before": {
+      "summaryVisible": true,
+      "storageVisible": true,
+      "legacyToolViews": 0,
+      "runVisible": true,
+      "validationFieldsVisible": false,
+      "downloadLinks": [
+        "http://172.16.138.228:58215/api/persistence/files/file-e51c4d66-f656-41b2-87e1-b66eb12531c5/download"
+      ]
+    },
+    "after": {
+      "summaryVisible": true,
+      "storageVisible": true,
+      "legacyToolViews": 0,
+      "runVisible": true,
+      "validationFieldsVisible": false,
+      "downloadLinks": [
+        "http://172.16.138.228:58215/api/persistence/files/file-e51c4d66-f656-41b2-87e1-b66eb12531c5/download"
+      ]
+    }
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "session_id": "session-c8b12512-2ca8-4999-b240-b12e1861ead0",
+  "prompt": "请研判威胁事件 INC-20260917-000001。",
+  "duration_seconds": 33.3,
+  "parent_calls": [
+    "skill",
+    "delegate_threat_analysis"
+  ],
+  "all_calls": [
+    "skill",
+    "delegate_threat_analysis",
+    "analyze_threat_incident"
+  ],
+  "assistant": "### 威胁事件研判摘要\n\n**结论：** 误报\n\n**快速研判：** 是\n\n**事件 ID：** INC\\-20260917\\-000001\n\n#### 名单命中依据\n\n| 名单来源 | 命中实体 | 引用条数 | 查询时间 |\n| --- | --- | --- | --- |\n| 告警白名单 | 172\\.16\\.2\\.112 | 414 | 2026\\-09\\-29T07:09:56\\.374576\\+00:00 |\n\n引用条数按每条命中分别统计，不代表独立告警数。该结论由名单规则生成，未进行完整行为研判。\n\n#### 保存与下载\n\n**摘要存储：** 已保存\n\n**报告存储：** 已保存\n\n**报告下载：** [下载 HTML 报告](<http://172.16.138.228:58215/api/persistence/files/file-3658273d-3ba9-4eaa-9b77-577fba1e8f29/download>)\n\n**运行 ID：** run\\-98e269ac\\-9dfb\\-4bdc\\-b1e0\\-d0cfb7de20e9\n",
+  "turn_end": {
+    "turn": 1,
+    "reason": {
+      "kind": "completed"
+    }
+  },
+  "sessions": [
+    "session.v4.jsonl",
+    "subagents/be7e5493-573e-4663-b18b-e0085690c156/session.v4.jsonl"
+  ],
+  "run_id": "run-98e269ac-9dfb-4bdc-b1e0-d0cfb7de20e9",
+  "status": "completed",
+  "route": "fast_classification",
+  "llm_invoked": false,
+  "model": null,
+  "mcp_calls": 208,
+  "mcp_failures": 0,
+  "validation": {
+    "status": "not_applicable_fast_classification"
+  },
+  "markdown_matches": true,
+  "storage": {
+    "summary": {
+      "status": "saved",
+      "judgement_id": "JDG-2104830947934154754",
+      "replayed": false
+    },
+    "report": {
+      "status": "saved",
+      "id": "file-3658273d-3ba9-4eaa-9b77-577fba1e8f29",
+      "download_url": "http://172.16.138.228:58215/api/persistence/files/file-3658273d-3ba9-4eaa-9b77-577fba1e8f29/download"
+    }
+  },
+  "tool_results": 3,
+  "request_configs": [
+    {
+      "provider": "local-qwen",
+      "model": "Qwen3.8-27B"
+    },
+    {
+      "provider": "threat-analysis-delivery",
+      "model": "fixed-summary"
+    },
+    {
+      "provider": "local-qwen",
+      "model": "Qwen3.8-27B"
+    },
+    {
+      "provider": "threat-analysis-delivery",
+      "model": "fixed-summary"
+    }
+  ],
+  "final_provider": "threat-analysis-delivery",
+  "download_matches_report": true,
+  "soc_report_matches_local": true,
+  "soc_summary_length": 63,
+  "soc_validation_status": "not_applicable_fast_classification",
+  "soc_run_id_matches": true,
+  "soc_model": null,
+  "report_bytes": 30717,
+  "report_sha256": "d5bbf089d7842c6dfbf36ccb65b045284bbadfbbbb9662360dc6ecf889183353",
+  "report_has_validation_fields": false,
+  "export_sha256": "6a50b62163990ecec4b5089d763e37e1b1a7b8c9e06f4fd23f4dac94e2794732",
+  "browser": {
+    "before": {
+      "summaryVisible": true,
+      "storageVisible": true,
+      "legacyToolViews": 0,
+      "runVisible": true,
+      "validationFieldsVisible": false,
+      "downloadLinks": [
+        "http://172.16.138.228:58215/api/persistence/files/file-3658273d-3ba9-4eaa-9b77-577fba1e8f29/download"
+      ]
+    },
+    "after": {
+      "summaryVisible": true,
+      "storageVisible": true,
+      "legacyToolViews": 0,
+      "runVisible": true,
+      "validationFieldsVisible": false,
+      "downloadLinks": [
+        "http://172.16.138.228:58215/api/persistence/files/file-3658273d-3ba9-4eaa-9b77-577fba1e8f29/download"
+      ]
+    }
+  }
+}

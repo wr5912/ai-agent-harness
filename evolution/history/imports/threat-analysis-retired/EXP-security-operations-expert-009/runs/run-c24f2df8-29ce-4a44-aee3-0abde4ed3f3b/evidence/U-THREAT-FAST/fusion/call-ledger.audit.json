@@ -1,0 +1,4160 @@
+[
+  {
+    "call_id": "A000001",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "alrt-b02e5102-7098-45b6-949c-66ade8a4da11"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 619,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000001.json"
+    }
+  },
+  {
+    "call_id": "A000002",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "alrt-40438640-4c37-4f00-a831-db648bddcd6e"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1463,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000002.json"
+    }
+  },
+  {
+    "call_id": "A000003",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "alrt-9dcf183e-dcdf-4879-a494-9f294d77b265"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1052,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000003.json"
+    }
+  },
+  {
+    "call_id": "A000004",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789630924.88768899"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 758,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000004.json"
+    }
+  },
+  {
+    "call_id": "A000005",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652229.127946349"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1648,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000005.json"
+    }
+  },
+  {
+    "call_id": "A000006",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128168462"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1634,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000006.json"
+    }
+  },
+  {
+    "call_id": "A000007",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128170689"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1265,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000007.json"
+    }
+  },
+  {
+    "call_id": "A000008",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128169946"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1416,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000008.json"
+    }
+  },
+  {
+    "call_id": "A000009",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128171431"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1631,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000009.json"
+    }
+  },
+  {
+    "call_id": "A000010",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128172917"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1614,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000010.json"
+    }
+  },
+  {
+    "call_id": "A000011",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128173659"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 883,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000011.json"
+    }
+  },
+  {
+    "call_id": "A000012",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128172174"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1182,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000012.json"
+    }
+  },
+  {
+    "call_id": "A000013",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128174401"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1670,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000013.json"
+    }
+  },
+  {
+    "call_id": "A000014",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128175886"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1880,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000014.json"
+    }
+  },
+  {
+    "call_id": "A000015",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128175144"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 712,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000015.json"
+    }
+  },
+  {
+    "call_id": "A000016",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128178113"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 995,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000016.json"
+    }
+  },
+  {
+    "call_id": "A000017",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128176629"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1225,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000017.json"
+    }
+  },
+  {
+    "call_id": "A000018",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128177371"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 958,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000018.json"
+    }
+  },
+  {
+    "call_id": "A000019",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128178855"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1893,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000019.json"
+    }
+  },
+  {
+    "call_id": "A000020",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128180340"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1622,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000020.json"
+    }
+  },
+  {
+    "call_id": "A000021",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128181083"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2097,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000021.json"
+    }
+  },
+  {
+    "call_id": "A000022",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128183312"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 988,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000022.json"
+    }
+  },
+  {
+    "call_id": "A000023",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128181826"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1396,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000023.json"
+    }
+  },
+  {
+    "call_id": "A000024",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128184798"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1120,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000024.json"
+    }
+  },
+  {
+    "call_id": "A000025",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652259.128185541"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1206,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000025.json"
+    }
+  },
+  {
+    "call_id": "A000026",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128188052"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 802,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000026.json"
+    }
+  },
+  {
+    "call_id": "A000027",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128188821"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2746,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000027.json"
+    }
+  },
+  {
+    "call_id": "A000028",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128189590"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2420,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000028.json"
+    }
+  },
+  {
+    "call_id": "A000029",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128191128"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 819,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000029.json"
+    }
+  },
+  {
+    "call_id": "A000030",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128191897"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1284,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000030.json"
+    }
+  },
+  {
+    "call_id": "A000031",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128192666"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1439,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000031.json"
+    }
+  },
+  {
+    "call_id": "A000032",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128196511"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1477,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000032.json"
+    }
+  },
+  {
+    "call_id": "A000033",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128194973"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 696,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000033.json"
+    }
+  },
+  {
+    "call_id": "A000034",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128198049"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2083,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000034.json"
+    }
+  },
+  {
+    "call_id": "A000035",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128198818"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1031,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000035.json"
+    }
+  },
+  {
+    "call_id": "A000036",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128201893"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2198,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000036.json"
+    }
+  },
+  {
+    "call_id": "A000037",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128201125"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 938,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000037.json"
+    }
+  },
+  {
+    "call_id": "A000038",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128202661"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1045,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000038.json"
+    }
+  },
+  {
+    "call_id": "A000039",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128203430"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2303,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000039.json"
+    }
+  },
+  {
+    "call_id": "A000040",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128204199"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1478,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000040.json"
+    }
+  },
+  {
+    "call_id": "A000041",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128204968"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1536,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000041.json"
+    }
+  },
+  {
+    "call_id": "A000042",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128205737"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1399,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000042.json"
+    }
+  },
+  {
+    "call_id": "A000043",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128207275"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1539,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000043.json"
+    }
+  },
+  {
+    "call_id": "A000044",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128208813"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1059,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000044.json"
+    }
+  },
+  {
+    "call_id": "A000045",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128209582"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1243,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000045.json"
+    }
+  },
+  {
+    "call_id": "A000046",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128211120"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1372,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000046.json"
+    }
+  },
+  {
+    "call_id": "A000047",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128212658"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1263,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000047.json"
+    }
+  },
+  {
+    "call_id": "A000048",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128214196"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1165,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000048.json"
+    }
+  },
+  {
+    "call_id": "A000049",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128214965"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2027,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000049.json"
+    }
+  },
+  {
+    "call_id": "A000050",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128213427"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1868,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000050.json"
+    }
+  },
+  {
+    "call_id": "A000051",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128217272"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1940,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000051.json"
+    }
+  },
+  {
+    "call_id": "A000052",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128216503"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 492,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000052.json"
+    }
+  },
+  {
+    "call_id": "A000053",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128219579"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1496,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000053.json"
+    }
+  },
+  {
+    "call_id": "A000054",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128220348"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2023,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000054.json"
+    }
+  },
+  {
+    "call_id": "A000055",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128221886"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1461,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000055.json"
+    }
+  },
+  {
+    "call_id": "A000056",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128222655"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2011,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000056.json"
+    }
+  },
+  {
+    "call_id": "A000057",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128223424"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1117,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000057.json"
+    }
+  },
+  {
+    "call_id": "A000058",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652260.128224960"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1073,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000058.json"
+    }
+  },
+  {
+    "call_id": "A000059",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128226498"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2206,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000059.json"
+    }
+  },
+  {
+    "call_id": "A000060",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128228805"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1479,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000060.json"
+    }
+  },
+  {
+    "call_id": "A000061",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128228036"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1691,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000061.json"
+    }
+  },
+  {
+    "call_id": "A000062",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128229574"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 971,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000062.json"
+    }
+  },
+  {
+    "call_id": "A000063",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128230343"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1117,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000063.json"
+    }
+  },
+  {
+    "call_id": "A000064",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128232650"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 737,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000064.json"
+    }
+  },
+  {
+    "call_id": "A000065",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128233419"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1584,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000065.json"
+    }
+  },
+  {
+    "call_id": "A000066",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128231881"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1342,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000066.json"
+    }
+  },
+  {
+    "call_id": "A000067",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128235726"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 543,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000067.json"
+    }
+  },
+  {
+    "call_id": "A000068",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128234188"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1605,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000068.json"
+    }
+  },
+  {
+    "call_id": "A000069",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128237264"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1499,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000069.json"
+    }
+  },
+  {
+    "call_id": "A000070",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128238802"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1068,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000070.json"
+    }
+  },
+  {
+    "call_id": "A000071",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128239571"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1455,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000071.json"
+    }
+  },
+  {
+    "call_id": "A000072",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128241109"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1371,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000072.json"
+    }
+  },
+  {
+    "call_id": "A000073",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128240340"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2277,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000073.json"
+    }
+  },
+  {
+    "call_id": "A000074",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128243416"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1308,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000074.json"
+    }
+  },
+  {
+    "call_id": "A000075",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128244185"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1072,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000075.json"
+    }
+  },
+  {
+    "call_id": "A000076",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128244954"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1797,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000076.json"
+    }
+  },
+  {
+    "call_id": "A000077",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128245723"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1395,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000077.json"
+    }
+  },
+  {
+    "call_id": "A000078",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128247261"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1604,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000078.json"
+    }
+  },
+  {
+    "call_id": "A000079",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128248030"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1802,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000079.json"
+    }
+  },
+  {
+    "call_id": "A000080",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128248799"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1498,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000080.json"
+    }
+  },
+  {
+    "call_id": "A000081",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128249568"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1558,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000081.json"
+    }
+  },
+  {
+    "call_id": "A000082",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128251873"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2110,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000082.json"
+    }
+  },
+  {
+    "call_id": "A000083",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128251105"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 3797,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000083.json"
+    }
+  },
+  {
+    "call_id": "A000084",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128254945"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1857,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000084.json"
+    }
+  },
+  {
+    "call_id": "A000085",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128253409"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1487,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000085.json"
+    }
+  },
+  {
+    "call_id": "A000086",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128255713"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2784,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000086.json"
+    }
+  },
+  {
+    "call_id": "A000087",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128256482"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1239,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000087.json"
+    }
+  },
+  {
+    "call_id": "A000088",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128258789"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1824,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000088.json"
+    }
+  },
+  {
+    "call_id": "A000089",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128258020"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 970,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000089.json"
+    }
+  },
+  {
+    "call_id": "A000090",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128259558"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1696,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000090.json"
+    }
+  },
+  {
+    "call_id": "A000091",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128260327"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1625,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000091.json"
+    }
+  },
+  {
+    "call_id": "A000092",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128261096"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 986,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000092.json"
+    }
+  },
+  {
+    "call_id": "A000093",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652261.128261865"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1219,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000093.json"
+    }
+  },
+  {
+    "call_id": "A000094",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128262634"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 929,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000094.json"
+    }
+  },
+  {
+    "call_id": "A000095",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128263403"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1265,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000095.json"
+    }
+  },
+  {
+    "call_id": "A000096",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128264172"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1992,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000096.json"
+    }
+  },
+  {
+    "call_id": "A000097",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128264941"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2290,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000097.json"
+    }
+  },
+  {
+    "call_id": "A000098",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128266479"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2787,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000098.json"
+    }
+  },
+  {
+    "call_id": "A000099",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128267248"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1195,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000099.json"
+    }
+  },
+  {
+    "call_id": "A000100",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128268017"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2004,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000100.json"
+    }
+  },
+  {
+    "call_id": "A000101",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128269555"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1487,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000101.json"
+    }
+  },
+  {
+    "call_id": "A000102",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128271862"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2907,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000102.json"
+    }
+  },
+  {
+    "call_id": "A000103",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128273400"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1662,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000103.json"
+    }
+  },
+  {
+    "call_id": "A000104",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128274169"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1961,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000104.json"
+    }
+  },
+  {
+    "call_id": "A000105",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128275707"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 840,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000105.json"
+    }
+  },
+  {
+    "call_id": "A000106",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128277245"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 916,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000106.json"
+    }
+  },
+  {
+    "call_id": "A000107",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128278783"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2057,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000107.json"
+    }
+  },
+  {
+    "call_id": "A000108",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128279552"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 3199,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000108.json"
+    }
+  },
+  {
+    "call_id": "A000109",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128280321"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2199,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000109.json"
+    }
+  },
+  {
+    "call_id": "A000110",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128281858"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2543,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000110.json"
+    }
+  },
+  {
+    "call_id": "A000111",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128283395"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 827,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000111.json"
+    }
+  },
+  {
+    "call_id": "A000112",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128284163"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1627,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000112.json"
+    }
+  },
+  {
+    "call_id": "A000113",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128286467"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2246,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000113.json"
+    }
+  },
+  {
+    "call_id": "A000114",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128287235"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1457,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000114.json"
+    }
+  },
+  {
+    "call_id": "A000115",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128288771"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2349,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000115.json"
+    }
+  },
+  {
+    "call_id": "A000116",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128289539"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2402,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000116.json"
+    }
+  },
+  {
+    "call_id": "A000117",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128291843"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1968,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000117.json"
+    }
+  },
+  {
+    "call_id": "A000118",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128293380"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1871,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000118.json"
+    }
+  },
+  {
+    "call_id": "A000119",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128294149"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2748,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000119.json"
+    }
+  },
+  {
+    "call_id": "A000120",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128296456"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1905,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000120.json"
+    }
+  },
+  {
+    "call_id": "A000121",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128297994"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1454,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000121.json"
+    }
+  },
+  {
+    "call_id": "A000122",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652262.128299532"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1028,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000122.json"
+    }
+  },
+  {
+    "call_id": "A000123",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128301070"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1903,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000123.json"
+    }
+  },
+  {
+    "call_id": "A000124",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128301839"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 738,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000124.json"
+    }
+  },
+  {
+    "call_id": "A000125",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128304146"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1411,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000125.json"
+    }
+  },
+  {
+    "call_id": "A000126",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128303377"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1426,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000126.json"
+    }
+  },
+  {
+    "call_id": "A000127",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128305684"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1793,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000127.json"
+    }
+  },
+  {
+    "call_id": "A000128",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128306453"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1552,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000128.json"
+    }
+  },
+  {
+    "call_id": "A000129",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128307990"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1502,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000129.json"
+    }
+  },
+  {
+    "call_id": "A000130",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128308758"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1874,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000130.json"
+    }
+  },
+  {
+    "call_id": "A000131",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128310294"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1697,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000131.json"
+    }
+  },
+  {
+    "call_id": "A000132",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128311830"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1801,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000132.json"
+    }
+  },
+  {
+    "call_id": "A000133",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128312598"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1275,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000133.json"
+    }
+  },
+  {
+    "call_id": "A000134",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128313366"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1815,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000134.json"
+    }
+  },
+  {
+    "call_id": "A000135",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128314902"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1635,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000135.json"
+    }
+  },
+  {
+    "call_id": "A000136",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128317209"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1257,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000136.json"
+    }
+  },
+  {
+    "call_id": "A000137",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128316440"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1079,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000137.json"
+    }
+  },
+  {
+    "call_id": "A000138",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128317978"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 923,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000138.json"
+    }
+  },
+  {
+    "call_id": "A000139",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128320285"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1418,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000139.json"
+    }
+  },
+  {
+    "call_id": "A000140",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128321054"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1756,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000140.json"
+    }
+  },
+  {
+    "call_id": "A000141",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128322592"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 925,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000141.json"
+    }
+  },
+  {
+    "call_id": "A000142",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128324896"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1010,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000142.json"
+    }
+  },
+  {
+    "call_id": "A000143",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128323360"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1168,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000143.json"
+    }
+  },
+  {
+    "call_id": "A000144",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128327201"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1109,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000144.json"
+    }
+  },
+  {
+    "call_id": "A000145",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128326432"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 915,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000145.json"
+    }
+  },
+  {
+    "call_id": "A000146",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128328737"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1398,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000146.json"
+    }
+  },
+  {
+    "call_id": "A000147",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128330275"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 839,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000147.json"
+    }
+  },
+  {
+    "call_id": "A000148",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128331813"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2238,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000148.json"
+    }
+  },
+  {
+    "call_id": "A000149",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128332581"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1341,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000149.json"
+    }
+  },
+  {
+    "call_id": "A000150",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128334886"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 971,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000150.json"
+    }
+  },
+  {
+    "call_id": "A000151",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128334118"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 780,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000151.json"
+    }
+  },
+  {
+    "call_id": "A000152",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128335654"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1617,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000152.json"
+    }
+  },
+  {
+    "call_id": "A000153",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128337958"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 858,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000153.json"
+    }
+  },
+  {
+    "call_id": "A000154",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652263.128337190"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1309,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000154.json"
+    }
+  },
+  {
+    "call_id": "A000155",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128339494"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1393,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000155.json"
+    }
+  },
+  {
+    "call_id": "A000156",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128340262"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1617,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000156.json"
+    }
+  },
+  {
+    "call_id": "A000157",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128341030"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 2455,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000157.json"
+    }
+  },
+  {
+    "call_id": "A000158",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128342566"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 704,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000158.json"
+    }
+  },
+  {
+    "call_id": "A000159",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128345638"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1052,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000159.json"
+    }
+  },
+  {
+    "call_id": "A000160",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128344102"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 33245,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000160.json"
+    }
+  },
+  {
+    "call_id": "A000161",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128346407"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1851,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000161.json"
+    }
+  },
+  {
+    "call_id": "A000162",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128347176"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 810,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000162.json"
+    }
+  },
+  {
+    "call_id": "A000163",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128348714"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1932,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000163.json"
+    }
+  },
+  {
+    "call_id": "A000164",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128349483"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1417,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000164.json"
+    }
+  },
+  {
+    "call_id": "A000165",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128351021"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 32444,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000165.json"
+    }
+  },
+  {
+    "call_id": "A000166",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128352559"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1956,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000166.json"
+    }
+  },
+  {
+    "call_id": "A000167",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128353328"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1400,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000167.json"
+    }
+  },
+  {
+    "call_id": "A000168",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128354866"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 781,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000168.json"
+    }
+  },
+  {
+    "call_id": "A000169",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128355635"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1090,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000169.json"
+    }
+  },
+  {
+    "call_id": "A000170",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128357173"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 933,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000170.json"
+    }
+  },
+  {
+    "call_id": "A000171",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128358711"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1750,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000171.json"
+    }
+  },
+  {
+    "call_id": "A000172",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128359480"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1257,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000172.json"
+    }
+  },
+  {
+    "call_id": "A000173",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128361787"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 31325,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000173.json"
+    }
+  },
+  {
+    "call_id": "A000174",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128362556"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 31205,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000174.json"
+    }
+  },
+  {
+    "call_id": "A000175",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128364094"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 31185,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000175.json"
+    }
+  },
+  {
+    "call_id": "A000176",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128365596"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "failed",
+    "result_count": null,
+    "latency_ms": 31041,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000176.json"
+    }
+  },
+  {
+    "call_id": "A000177",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128367675"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "failed",
+    "result_count": null,
+    "latency_ms": 31030,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000177.json"
+    }
+  },
+  {
+    "call_id": "A000178",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128368405"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "failed",
+    "result_count": null,
+    "latency_ms": 30958,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000178.json"
+    }
+  },
+  {
+    "call_id": "A000179",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128369136"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 30848,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000179.json"
+    }
+  },
+  {
+    "call_id": "A000180",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128370607"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "failed",
+    "result_count": null,
+    "latency_ms": 30425,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000180.json"
+    }
+  },
+  {
+    "call_id": "A000181",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128371339"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "failed",
+    "result_count": null,
+    "latency_ms": 30236,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000181.json"
+    }
+  },
+  {
+    "call_id": "A000182",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128372805"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "failed",
+    "result_count": null,
+    "latency_ms": 30193,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000182.json"
+    }
+  },
+  {
+    "call_id": "A000183",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128375021"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 30660,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000183.json"
+    }
+  },
+  {
+    "call_id": "A000184",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652264.128376429"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "failed",
+    "result_count": null,
+    "latency_ms": 30603,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000184.json"
+    }
+  },
+  {
+    "call_id": "A000185",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652265.128377837"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 30617,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000185.json"
+    }
+  },
+  {
+    "call_id": "A000186",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652265.128380954"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 30610,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000186.json"
+    }
+  },
+  {
+    "call_id": "A000187",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652265.128382112"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 30624,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000187.json"
+    }
+  },
+  {
+    "call_id": "A000188",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652265.128384437"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 30620,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000188.json"
+    }
+  },
+  {
+    "call_id": "A000189",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652265.128386764"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 30615,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000189.json"
+    }
+  },
+  {
+    "call_id": "A000190",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652266.128387939"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "failed",
+    "result_count": null,
+    "latency_ms": 30566,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000190.json"
+    }
+  },
+  {
+    "call_id": "A000191",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652266.128391285"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "failed",
+    "result_count": null,
+    "latency_ms": 30553,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000191.json"
+    }
+  },
+  {
+    "call_id": "A000192",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652267.128394070"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 30604,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000192.json"
+    }
+  },
+  {
+    "call_id": "A000193",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652267.128395854"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "failed",
+    "result_count": null,
+    "latency_ms": 30571,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000193.json"
+    }
+  },
+  {
+    "call_id": "A000194",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652267.128396589"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "failed",
+    "result_count": null,
+    "latency_ms": 30595,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000194.json"
+    }
+  },
+  {
+    "call_id": "A000195",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652268.128397325"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1690,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000195.json"
+    }
+  },
+  {
+    "call_id": "A000196",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652268.128398797"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1617,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000196.json"
+    }
+  },
+  {
+    "call_id": "A000197",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652268.128401005"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1101,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000197.json"
+    }
+  },
+  {
+    "call_id": "A000198",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652268.128402477"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 529,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000198.json"
+    }
+  },
+  {
+    "call_id": "A000199",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652268.128403975"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1962,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000199.json"
+    }
+  },
+  {
+    "call_id": "A000200",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652268.128405499"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1532,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000200.json"
+    }
+  },
+  {
+    "call_id": "A000201",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652268.128406261"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1351,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000201.json"
+    }
+  },
+  {
+    "call_id": "A000202",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652268.128407022"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1832,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000202.json"
+    }
+  },
+  {
+    "call_id": "A000203",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652269.128411594"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1446,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000203.json"
+    }
+  },
+  {
+    "call_id": "A000204",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789652269.128417689"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1595,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000204.json"
+    }
+  },
+  {
+    "call_id": "A000205",
+    "tool": "get_detect_alert_by_alert_id",
+    "purpose": "回查事件关联告警及其原始记录",
+    "key_arguments": {
+      "alertId": "1789671746.17121772"
+    },
+    "argument_sources": {
+      "alertId": "incident.contributingAlertsJson"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 1146,
+    "output_domain": "edr_detail",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__get_detect_alert_by_alert_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/A000205.json"
+    }
+  },
+  {
+    "call_id": "C000001",
+    "tool": "get_correlate_incident_by_incident_id",
+    "purpose": "读取安全事件声明、实体和关联告警引用",
+    "key_arguments": {
+      "incidentId": "INC-20260917-000001"
+    },
+    "argument_sources": {
+      "incidentId": "CLI"
+    },
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 213,
+    "output_domain": "graph",
+    "audit": {
+      "resource": "ai_soc_correlate",
+      "exact_tool": "ai_soc_correlate__get_correlate_incident_by_incident_id",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/C000001.json"
+    }
+  },
+  {
+    "call_id": "C000002",
+    "tool": "list_detect_whitelist",
+    "purpose": "快速分类读取告警白名单",
+    "key_arguments": {},
+    "argument_sources": {},
+    "status": "success_with_data",
+    "result_count": 1,
+    "latency_ms": 276,
+    "output_domain": "fast_classification",
+    "audit": {
+      "resource": "ai_soc_detect",
+      "exact_tool": "ai_soc_detect__list_detect_whitelist",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/C000002.json"
+    }
+  },
+  {
+    "call_id": "C000003",
+    "tool": "get_correlate_threat_intel",
+    "purpose": "快速分类完整读取情报名单",
+    "key_arguments": {
+      "pageNum": 1,
+      "pageSize": 200
+    },
+    "argument_sources": {
+      "pageNum": "pagination",
+      "pageSize": "bounded list query"
+    },
+    "status": "success_empty",
+    "result_count": 0,
+    "latency_ms": 355,
+    "output_domain": "fast_classification",
+    "audit": {
+      "resource": "ai_soc_correlate",
+      "exact_tool": "ai_soc_correlate__get_correlate_threat_intel",
+      "raw_response_file": "/var/lib/dsh/threat-analysis/run-229909b7-9d9c-4328-8fd5-e1aac5e559be/fusion/raw/C000003.json"
+    }
+  }
+]

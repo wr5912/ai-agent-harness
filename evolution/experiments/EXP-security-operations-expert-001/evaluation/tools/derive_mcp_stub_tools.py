@@ -65,7 +65,9 @@ def referenced_tool_names(matrix: dict, errors: list[str]) -> list[str]:
 def derive(candidate: Path) -> tuple[dict, list[str]]:
     errors: list[str] = []
     servers_doc = load_yaml(candidate / "managed" / "mcp-servers.yaml") or {}
-    server_names = [entry["server_name"] for entry in (servers_doc.get("servers") or [])]
+    # 旧清单未声明 consumer 时均为 DSH 客户端；Python 自行调用的连接不注册桩工具。
+    server_names = [entry["server_name"] for entry in (servers_doc.get("servers") or [])
+                    if entry.get("consumer", "dsh-mcp-client") == "dsh-mcp-client"]
     if not server_names:
         return {}, ["mcp-servers.yaml 未声明任何 MCP 服务"]
 

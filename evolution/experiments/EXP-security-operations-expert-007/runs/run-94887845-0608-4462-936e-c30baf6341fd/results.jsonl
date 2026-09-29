@@ -1,0 +1,1 @@
+{"run_id":"run-94887845-0608-4462-936e-c30baf6341fd","trial_id":"trial-u-threat-fast","input_id":"U-THREAT-FAST","execution_status":"completed","verdict":"passed","observation":"真实子智能体研判；结果、双存储、父正文与网页检查见 evidence；技术交付通过不代表研判结论正确。","evidence_ref":"evidence/U-THREAT-FAST","duration_ms":33300,"model":"local-qwen/Qwen3.8-27B"}

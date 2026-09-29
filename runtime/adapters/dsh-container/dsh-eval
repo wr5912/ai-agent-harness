@@ -249,7 +249,10 @@ def driver_command(executor: str, image: str, evidence_root: Path) -> tuple[list
         "docker", "run", "--rm", "-i", "--network", "host", "--read-only",
         "--tmpfs", "/tmp:rw,nosuid,nodev,size=256m", "--shm-size", "256m",
         "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
-        "--env", "HOME=/tmp", "--entrypoint", "node",
+        "--env", "HOME=/tmp",
+        # 证据目录由宿主用户创建；执行器使用同一 UID/GID。
+        "--user", f"{os.getuid()}:{os.getgid()}",
+        "--entrypoint", "node",
         "--mount", f"type=bind,src={driver},dst={container_driver},readonly",
         "--mount", f"type=bind,src={COMMON_DRIVER},dst=/opt/dsh/apps/web/dsh-eval-common.mjs,readonly",
         "--mount", f"type=bind,src={evidence_root},dst=/work/evidence",

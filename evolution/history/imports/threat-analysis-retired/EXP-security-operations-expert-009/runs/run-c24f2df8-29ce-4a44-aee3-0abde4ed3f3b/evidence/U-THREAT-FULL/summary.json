@@ -1,0 +1,131 @@
+{
+  "unified_event_id": "INC-20260912-000004",
+  "run_id": "run-ecb88962-5fa4-4e20-b4bb-2f01482467e4",
+  "verdict": "真实告警",
+  "is_fast": false,
+  "validation": {
+    "status": "failed",
+    "error_type": "ValueError",
+    "error": "claim evidence reference does not resolve: enriched_context.edr_detail.edr_detail.entities[1].activity_segments[0].processes[2].image"
+  },
+  "primary_claim": {
+    "type": "LATERAL_MOVEMENT_REASONING",
+    "result": "支持"
+  },
+  "secondary_findings": {
+    "type": "主机持久化",
+    "description": "DESKTOP-C82PUMN 上观察到将 EdrUserSim-Backup.bat 写入启动菜单路径，并多次通过 Run-EdrUserSim.cmd 启动 Invoke-EdrUserSim.ps1，形成可重复执行的本地持久化行为。"
+  },
+  "confidence_score": 0.86,
+  "attack_stage": "Lateral Movement",
+  "technique": "T1021",
+  "technique_name": "Remote Services",
+  "counter_evidence": [],
+  "uncertainty_notes": "输入未提供 172.16.1.155 的资产归属、10089 服务身份以及 DESKTOP-U8GL6JB 到 DESKTOP-C82PUMN 的直接远程服务连接证据；因此横移路径更可能是基于同网段、同域用户权限和后续主机失陷行为推断，而非已观察到明确 SMB/RDP/WinRM 等远程服务连接。",
+  "attack_chain_speculation": {
+    "current_stage": "Lateral Movement",
+    "observed_path": [
+      {
+        "description": "DESKTOP-U8GL6JB 上 beacon_windows_amd64.exe 与 172.16.1.155:10089 多次通信，并派生 cmd.exe 执行 id、dir adfind.exe 等侦察命令。",
+        "fact_refs": [
+          "F01",
+          "F02"
+        ]
+      },
+      {
+        "description": "DESKTOP-C82PUMN 上 Invoke-EdrUserSim.ps1 多次执行 whoami /all、ipconfig /all、net user 等用户与网络侦察命令。",
+        "fact_refs": [
+          "F03"
+        ]
+      },
+      {
+        "description": "DESKTOP-C82PUMN 上 EdrUserSim-Backup.bat 写入启动菜单，并通过 Run-EdrUserSim.cmd 多次启动脚本。",
+        "fact_refs": [
+          "F04"
+        ]
+      }
+    ],
+    "possible_next_steps": [
+      {
+        "technique": "T1003",
+        "technique_name": "OS Credential Dumping",
+        "description": "在已失陷主机上提取本地或域凭据，用于进一步访问其他主机。"
+      },
+      {
+        "technique": "T1021",
+        "technique_name": "Remote Services",
+        "description": "利用已获取凭据通过远程服务访问其他主机，扩大横向移动范围。"
+      },
+      {
+        "technique": "T1059",
+        "technique_name": "Command and Scripting Interpreter",
+        "description": "继续通过 PowerShell/cmd 执行脚本化侦察、下载或载荷执行。"
+      }
+    ],
+    "supporting_evidence": [
+      "F01",
+      "F02",
+      "F03",
+      "F04",
+      "F05",
+      "F06",
+      "F07",
+      "F08"
+    ]
+  },
+  "rule_optimization_suggestions": [
+    {
+      "rule": {
+        "level": "威胁事件规则",
+        "id": "900010",
+        "name": "A2-主机沦陷-单主机高置信"
+      },
+      "suggestion": "在主机沦陷判定中增加对 beacon 类进程名、C2 端口、远程服务连接、凭据使用或跨主机会话的直接证据要求，避免仅凭同网段多主机检测事件推断横移。"
+    },
+    {
+      "rule": {
+        "level": "告警规则",
+        "id": "900010",
+        "name": "A2-主机沦陷-单主机高置信"
+      },
+      "suggestion": "将 EdrUserSim、Invoke-EdrUserSim.ps1、Run-EdrUserSim.cmd、beacon_windows_amd64.exe 等明确测试/攻击工具特征纳入高置信白名单或黑名单联动，减少规则误报并提升处置优先级。"
+    }
+  ],
+  "recommended_actions": [
+    {
+      "action": "隔离主机并取证",
+      "target": "DESKTOP-U8GL6JB（172.16.2.109，资产ID 3617506）",
+      "priority": "P1",
+      "reason": "该主机存在 beacon_windows_amd64.exe 与 172.16.1.155:10089 的多次连接，并派生 cmd.exe 执行侦察命令，是当前最强失陷证据。"
+    },
+    {
+      "action": "阻断出站连接并排查 C2",
+      "target": "172.16.1.155:10089",
+      "priority": "P1",
+      "reason": "DESKTOP-U8GL6JB 到 172.16.1.155:10089 的 TCP 连接被防火墙放行且次数极高，需确认该地址是否为 C2 或内部服务，并阻断异常通信。"
+    }
+  ],
+  "reasoning_summary": "DESKTOP-U8GL6JB 上 beacon_windows_amd64.exe 与 172.16.1.155:10089 多次通信并派生 cmd.exe 执行侦察命令，构成强失陷证据。DESKTOP-C82PUMN 上 Invoke-EdrUserSim.ps1 多次执行 whoami、ipconfig、net user 等命令，并写入启动菜单持久化，形成第二台主机失陷与横向扩展证据。关键缺口是缺少 DESKTOP-U8GL6JB 到 DESKTOP-C82PUMN 的直接远程服务连接记录，因此横移结论基于同网段、同域用户权限和多主机失陷行为推断。",
+  "key_claims": [
+    {
+      "claim": "DESKTOP-U8GL6JB 上存在 Cobalt Strike beacon 类可执行文件，并与 172.16.1.155:10089 建立多次 TCP 连接。",
+      "result": "支持"
+    },
+    {
+      "claim": "DESKTOP-U8GL6JB 上 beacon 进程派生 cmd.exe 执行本地侦察命令。",
+      "result": "支持"
+    },
+    {
+      "claim": "DESKTOP-C82PUMN 上存在脚本化用户模拟/侦察行为，并执行 whoami、ipconfig、net user 等命令。",
+      "result": "支持"
+    },
+    {
+      "claim": "DESKTOP-C82PUMN 上存在启动项持久化行为。",
+      "result": "支持"
+    },
+    {
+      "claim": "DESKTOP-U8GL6JB 与 172.16.1.155:10089 的出站连接被防火墙放行。",
+      "result": "支持"
+    }
+  ]
+}

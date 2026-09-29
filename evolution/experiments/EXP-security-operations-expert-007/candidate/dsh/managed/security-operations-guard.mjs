@@ -66,7 +66,9 @@ export const TOOL_ROUTES = Object.freeze({
     'mcp__sec-ops__get_graph_coverage',
     'mcp__sec-ops__get_event_by_id',
   ]),
+  threatAnalysis: Object.freeze(['analyze_threat_incident']),
   delegates: Object.freeze([
+    'delegate_threat_analysis',
     'delegate_inspection',
     'delegate_fault_analysis',
     'delegate_response_planning',
@@ -91,6 +93,7 @@ const ROOT_VISIBLE_TOOLS = Object.freeze([
   ...TOOL_ROUTES.delegates,
 ])
 const CHILD_VISIBLE_TOOLS = Object.freeze([
+  ...TOOL_ROUTES.threatAnalysis,
   ...TOOL_ROUTES.inspection,
   ...TOOL_ROUTES.faultAnalysis,
 ])
@@ -339,7 +342,7 @@ export function createSecurityOperationsGuard(options = {}) {
 
     if (tool === 'skill') return depth > 0 ? '角色子 Agent 不得加载额外 Skill 扩大能力' : undefined
     if (['policy-configuration', 'emergency-action'].includes(activeDomains.get(agent)) &&
-        (DELEGATE_TOOLS.has(tool) || SCHEDULE_TOOLS.has(tool) || INSPECTION_TOOLS.has(tool) || FAULT_TOOLS.has(tool))) {
+        (DELEGATE_TOOLS.has(tool) || SCHEDULE_TOOLS.has(tool) || INSPECTION_TOOLS.has(tool) || FAULT_TOOLS.has(tool) || TOOL_ROUTES.threatAnalysis.includes(tool))) {
       return '本轮已进入策略或应急流程，不能调用其他业务能力'
     }
     if (DELEGATE_TOOLS.has(tool)) {
@@ -384,6 +387,11 @@ export function createSecurityOperationsGuard(options = {}) {
     }
     if (FAULT_TOOLS.has(tool)) {
       if (depth !== 1) return 'SOC 故障取证工具只能由故障分析子 Agent 调用'
+      activeDomains.set(agent, 'existing')
+      return undefined
+    }
+    if (TOOL_ROUTES.threatAnalysis.includes(tool)) {
+      if (depth !== 1) return '威胁研判工具只能由专用子 Agent 调用'
       activeDomains.set(agent, 'existing')
       return undefined
     }

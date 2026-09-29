@@ -1,0 +1,19 @@
+{
+  "status_code": 200,
+  "result": {
+    "msg": "操作成功",
+    "code": 200,
+    "data": {
+      "judgementId": "JDG-2104830249960026114",
+      "incidentId": "INC-20260912-000004",
+      "roundNo": 5,
+      "status": "DONE",
+      "runId": "run-85f38c34-9580-46d2-83d7-9f9745a47db3",
+      "reportUrl": "/correlate/incident/judgement/JDG-2104830249960026114/report",
+      "replayed": false
+    }
+  },
+  "log_id": "2787b5d3-85db-4ba7-9216-e0cbe27ed979",
+  "status": "success",
+  "error_message": null
+}

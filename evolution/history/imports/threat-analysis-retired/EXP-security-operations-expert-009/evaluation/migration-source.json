@@ -1,0 +1,31 @@
+{
+  "source": "EXP-threat-analysis-001",
+  "git_commit": "3b64e7de45e29ba759281aca581ddae1a58b7c00",
+  "dirty": true,
+  "files": {
+    "threat-analysis/catalog/.current-ai_soc_correlate-tools.local.json": "a88d20d0fda2a113dbb7b2239d1cfaa96bd3460241e1cfe0ed8d5bd2c14ca73f",
+    "threat-analysis/catalog/.current-ai_soc_detect-tools.local.json": "543cd68ab5e583c2421303729b84fc911b8ce1d50075537f449f95e28aab46be",
+    "threat-analysis/catalog/.current-ai_soc_event-tools.local.json": "fea69791041ed82767b392c18a0928ee35e2486164d89a59375e319cf90b0652",
+    "threat-analysis/catalog/.current-ai_soc_graph-tools.local.json": "9d9e3dcc77931aaf40653445a19140bd306448381e234ffd0b72380b899ae1e5",
+    "threat-analysis/catalog/.current-ai_soc_ingest-tools.local.json": "4b3621e38e257daaecacdeddadeef36ffa275715e133955d65aa2021372465bc",
+    "threat-analysis/catalog/.current-ai_soc_master-tools.local.json": "194e737dbd3e75df28192f732da1d5704604b96ae83e00738e11eab53c15480c",
+    "threat-analysis/catalog/.current-resources.local.json": "5f28892988662d3d5d4cab1db23cace82b17d3c6ebfbbd9fb8833dd7d9dce9c8",
+    "threat-analysis/domain_projection.py": "e8a8c278df9b483837f1bacd08ced25810a3f58a2a820dd1334ed318f324818b",
+    "threat-analysis/dsh_runner.py": "841474b806ebcfab0dfc13351c6393955fdaaa4edf530a5016172d3d2482cd5e",
+    "threat-analysis/evidence_collection.py": "7f97b6fa96b551a89f58adf6d831cb33749b8f0d04a88ae2dc0977d956da4ca3",
+    "threat-analysis/fast_classification.py": "02fb220e67468d312723b7608d9ac41ff812cd9e2a3fca43fb1e2b72580aed8f",
+    "threat-analysis/forced_output_contract.py": "219fe9224126fcbaf2c0e5477b032bb0949bb914ba8e5229e3082a87360e11e6",
+    "threat-analysis/fusion_contract.py": "8f7ec6ad564a60d3fe20b7d7ed1ec2bb1b3dab1c54ef63a7128c7b8c38c9e399",
+    "threat-analysis/fusion_pipeline.py": "eaa006930bb8734cbdd850737411290522fc380a3162a24216b3ac59ca9e8843",
+    "threat-analysis/incident_scope.py": "86add814e8b6b83f557424e0335ffce4de9e8c5c2af26d18a0569e0f65a2aa46",
+    "threat-analysis/mcp_gateway.py": "e4eaf4dbe70a4c9ca972bca32fe439c2af6af3afc24356c80e69b0150e76759e",
+    "threat-analysis/model_inference.py": "ba26bc6bdb73786ca6737648e3f8c13afe4105ce215a8cc33879dab6469bef4c",
+    "threat-analysis/model_input_compaction.py": "0854d14a7ea6b6fe177e4c20420e07bdbb4417cdb659e2d95baef77c97558f19",
+    "threat-analysis/prompts/threat-analysis-system.txt": "a1b469bf00e1d2032804d6696ef3b6f771733cc46e54f4f3e7e195c07d7f17b1",
+    "threat-analysis/report.css": "3d8a64635c95dd2ab5b31a2f0d0a964c8264fc8822c097e480bf8eae1cd27f5b",
+    "threat-analysis/result_delivery.py": "82f096243cc5ce3d924be143d96db1efa07827f7159b03163611d75c13bd9322",
+    "threat-analysis/result_storage.py": "78088125b416d29543cfeab61032ad1014192fe6d78b3d7bd39c3b58386092b6",
+    "threat-analysis.mjs": "19172845cdcf87477308cae03bd7db804873fd9f23834a3226d773d28b2ff0e6",
+    "threat-analysis.patch.yml": "99f7aeebe533fbda60807b73c0dbe566f1dc99842121aa06402e28ece5202c2a"
+  }
+}

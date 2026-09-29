@@ -1,0 +1,126 @@
+{
+  "date": "2026-09-28",
+  "kind": "local-instance-probe",
+  "git_commit": "4362e777a7528fe9a807f545ca8b58bb43724b30",
+  "git_dirty": true,
+  "image_id": "sha256:ec2ebcbdb92cd03cbb86a3c4aafe911a64479eca44e3f928598f4ed8b588bfcf",
+  "candidate_sha256": {
+    "candidate/dsh/managed/threat-analysis.mjs": "a9a7beb9d35c71c49be02ae3703b9366b6baf7075c1c63accbdbe5327b346725",
+    "candidate/dsh/managed/threat-analysis.patch.yml": "7e38dba10ba026e6b85592e46798879d349f87da5fe89b972a4b38060fdc66f2",
+    "candidate/dsh/managed/threat-analysis-ui/index.mjs": "3f1d2ecc01d18e79c0bb15a56fe865d4edc53eb26d161ffbf316f4ee39a8d3f0",
+    "candidate/dsh/managed/threat-analysis-ui/package.json": "4243777085254577e5d0340876ee3d5c75742a3515c404a54356715d003cefff",
+    "candidate/dsh/managed/threat-analysis-ui/client.js": "d9fb20b22742b51c545ce712b221ae32f769ae1a4af2da2e72ccf56868b6a1b3",
+    "candidate/dsh/managed/threat-analysis/universal_replay.py": "5760592ccf4e2fb844c861b71d31a0665e7a693934d776ed1ec1a7ca68d60ae1",
+    "candidate/dsh/managed/threat-analysis/dsh_runner.py": "3f56b130af82c1e0a3c3c5c1f6548437d99760868e7eebcf34860500ed37ead1",
+    "candidate/dsh/managed/threat-analysis/incident_scope.py": "d60ac1f070b56c626173dba9e6defe8dd9eaf23ac9607750b24d22a2dca971ad",
+    "candidate/dsh/managed/threat-analysis/model_input_compaction_v6.py": "041c83d9b42e3773444a52081e54a14ee5baab702c0edfdf2605a72cc5c81cfe",
+    "candidate/dsh/managed/threat-analysis/mcp_gateway.py": "e4eaf4dbe70a4c9ca972bca32fe439c2af6af3afc24356c80e69b0150e76759e",
+    "candidate/dsh/managed/threat-analysis/universal_replay_v6.py": "d508ae0f27042e36549195f648c1156cc59ea45153e929e510c6a316c94a6926",
+    "candidate/dsh/managed/threat-analysis/deepseek_blind_eval.py": "b079f61c713c3000d4ce412b4be605b11995098bc0f5702fa192802ee93a4ce2",
+    "candidate/dsh/managed/threat-analysis/domain_projection.py": "ad909953d4f1e227b704acfdfb1cc1a5b13c83084336ebbe1f070ee207fa4df1",
+    "candidate/dsh/managed/threat-analysis/fusion_contract_v6.py": "adeb783f39b0fbae93b6586e93076493b9a9aaadf4c2e615511330fea290912f",
+    "candidate/dsh/managed/threat-analysis/report.css": "3d8a64635c95dd2ab5b31a2f0d0a964c8264fc8822c097e480bf8eae1cd27f5b",
+    "candidate/dsh/managed/threat-analysis/fusion_pipeline.py": "1d50c0f212df15cb043a086058466baa2f9bb023ae3e346a3893ff865e4cc3ff",
+    "candidate/dsh/managed/threat-analysis/fusion_contract.py": "9c4211a06658fbdfb9999713f6d24df16367e7ee4bce29ac5e67f6191c3606c1",
+    "candidate/dsh/managed/threat-analysis/fast_classification.py": "02fb220e67468d312723b7608d9ac41ff812cd9e2a3fca43fb1e2b72580aed8f",
+    "candidate/dsh/managed/threat-analysis/forced_output_contract.py": "219fe9224126fcbaf2c0e5477b032bb0949bb914ba8e5229e3082a87360e11e6",
+    "candidate/dsh/managed/threat-analysis/result_delivery.py": "93cfa4d0091a975c2c03b79a616aa12c524e9d5eec51657c588a60c38c9966fc",
+    "candidate/dsh/managed/threat-analysis/judgement_target.py": "8e49319bb6c93e8c927e50718aab89c5b1aee4cf54a795fbb98ad0fa05c14584",
+    "candidate/dsh/managed/threat-analysis/evidence_graph.py": "608fcff32065d6ecf3faa8688bb23605ebecfeaafc4448caa87503618becdd89",
+    "candidate/dsh/managed/threat-analysis/domain_projection_v6.py": "d0796b0b4472b0f022dd07e0b1cdeab6d84f7b9b87f26a5040f1e79e02e8095f",
+    "candidate/dsh/managed/threat-analysis/prompts/threat-analysis-system.txt": "a1b469bf00e1d2032804d6696ef3b6f771733cc46e54f4f3e7e195c07d7f17b1",
+    "candidate/dsh/managed/threat-analysis/catalog/.current-resources.local.json": "5f28892988662d3d5d4cab1db23cace82b17d3c6ebfbbd9fb8833dd7d9dce9c8",
+    "candidate/dsh/managed/threat-analysis/catalog/.current-ai_soc_master-tools.local.json": "194e737dbd3e75df28192f732da1d5704604b96ae83e00738e11eab53c15480c",
+    "candidate/dsh/managed/threat-analysis/catalog/.current-ai_soc_graph-tools.local.json": "9d9e3dcc77931aaf40653445a19140bd306448381e234ffd0b72380b899ae1e5",
+    "candidate/dsh/managed/threat-analysis/catalog/.current-ai_soc_event-tools.local.json": "fea69791041ed82767b392c18a0928ee35e2486164d89a59375e319cf90b0652",
+    "candidate/dsh/managed/threat-analysis/catalog/.current-ai_soc_ingest-tools.local.json": "4b3621e38e257daaecacdeddadeef36ffa275715e133955d65aa2021372465bc",
+    "candidate/dsh/managed/threat-analysis/catalog/.current-ai_soc_correlate-tools.local.json": "e838bd3fd852cbd0df896d0d80620903b17d3d46b7ee39f8b910fe250f32ff5b",
+    "candidate/dsh/managed/threat-analysis/catalog/.current-ai_soc_detect-tools.local.json": "543cd68ab5e583c2421303729b84fc911b8ce1d50075537f449f95e28aab46be",
+    "candidate/dsh/presets/threat-analysis/preset.yml": "0562f8bf87f145d708f259c329301fe91e2a6eb9f8b0ac0124659e31a3c76381",
+    "candidate/dsh/presets/threat-analysis/agent.cordis.yml": "76ae232e20033b6fded9645d45d7a23379e52d832a27586911c14b4d4dfd120e"
+  },
+  "cases": [
+    {
+      "session_id": "session-09370faa-1b9c-4928-b6ab-179d75913c58",
+      "tool_run_id": "run-6b924c06-3a38-48d0-b8fd-363479159889",
+      "route": "fast_classification",
+      "status": "completed",
+      "llm_invoked": false,
+      "mcp_calls": 208,
+      "mcp_failures": 0,
+      "tool_results": 1,
+      "reply_keys": [
+        "verdict",
+        "matches"
+      ],
+      "assistant_messages": 1,
+      "assistant_after_tool": 0,
+      "turn_end": {
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "duration_seconds": 18.137,
+      "markdown_matches": true,
+      "summary_present": true,
+      "validation": {
+        "status": "not_applicable_fast_classification"
+      },
+      "matches": 1,
+      "evidence_ref_counts": [
+        414
+      ]
+    },
+    {
+      "session_id": "session-89cd1e7b-e302-46b1-b5ea-efdb3685e4d8",
+      "tool_run_id": "run-0b9b41f1-4e95-4718-8b94-0fc46d2e5a6c",
+      "route": "five_source",
+      "status": "contract_failed",
+      "llm_invoked": true,
+      "mcp_calls": 458,
+      "mcp_failures": 6,
+      "tool_results": 1,
+      "reply_keys": [],
+      "assistant_messages": 1,
+      "assistant_after_tool": 0,
+      "turn_end": {
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "duration_seconds": 180.55,
+      "markdown_matches": true,
+      "summary_present": false,
+      "validation": {
+        "status": "failed",
+        "error_type": "ValueError"
+      },
+      "matches": 0,
+      "evidence_ref_counts": []
+    }
+  ],
+  "browser": {
+    "fast_summary_default_visible": true,
+    "fast_report_evidence_refs": 414,
+    "fast_report_total_rows": 415,
+    "failure_default_visible": true,
+    "report_widths_without_page_overflow": [
+      1280,
+      390
+    ]
+  },
+  "full_render_replay": {
+    "source_run": "run-3d9844b6-3da8-46ac-8450-363ff7465807",
+    "raw_unchanged": true,
+    "claims": 2,
+    "warnings_visible": true,
+    "scope": "existing valid result rendering only; not a new successful full analysis"
+  },
+  "limitations": [
+    "保存 MCP 未接入",
+    "复用本地实例的新 Session，不是独立实例复现",
+    "真实完整研判契约失败；完整成功展示仅用既有结果和合成测试核验"
+  ]
+}

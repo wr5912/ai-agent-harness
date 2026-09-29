@@ -211,3 +211,32 @@
           必须是 response-plan-output/v1 裸 JSON，不得输出 Markdown、旁白或执行声明。
         toolFilter:
           allow: []
+
+- insert:
+    - id: threat-analysis
+      name: /opt/dsh-managed/threat-analysis.mjs
+      config:
+        # 模型由当前 DSH 会话继承；不再配置独立内层模型、地址或密钥。
+        connections:
+          soc:
+            url: !!js process.env.SOC_MCP_BASE_URL
+            catalogDir: /opt/dsh-managed/threat-analysis/catalog
+          report:
+            url: !!js process.env.REPORT_MCP_URL
+
+    - id: security-operations-delegate-threat-analysis
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: delegate_threat_analysis
+        enableRunInBackground: false
+        backgroundMode: one-shot
+        maxDepth: 1
+        persona: >-
+          你是威胁研判子智能体。收到明确的 INC-YYYYMMDD-NNNNNN 事件 ID 后，
+          必须且只调用一次 analyze_threat_incident，incident_id 原样传入。
+          不自行取证、分析、修补或重新发起研判。工具完成后由程序交付正式摘要，
+          你不重新生成结论或报告。缺少有效事件 ID 时只说明需要事件 ID。
+        toolFilter:
+          allow:
+            - analyze_threat_incident

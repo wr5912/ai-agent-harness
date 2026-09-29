@@ -1,0 +1,49 @@
+{
+  "session_id": "session-12523116-a3e5-4711-9735-fd24b6b044df",
+  "prompt": "请研判威胁事件 INC-20260917-000001。",
+  "duration_seconds": 30.5,
+  "parent_calls": [
+    "skill",
+    "delegate_threat_analysis"
+  ],
+  "all_calls": [
+    "skill",
+    "delegate_threat_analysis",
+    "analyze_threat_incident"
+  ],
+  "assistant": "### 威胁事件研判摘要\n\n**结论：** 误报\n\n**快速研判：** 是\n\n**事件 ID：** INC-20260917-000001\n\n#### 名单命中依据\n\n| 名单来源 | 命中实体 | 引用条数 | 查询时间 |\n| --- | --- | --- | --- |\n| 告警白名单 | 172\\.16\\.2\\.112 | 414 | 2026-09-29T06:54:26.479384+00:00 |\n\n引用条数按每条命中分别统计，不代表独立告警数。该结论由名单规则生成，未进行完整行为研判。\n\n#### 保存与下载\n\n**摘要存储：** 已保存\n\n**报告存储：** 已保存\n\n**报告下载：** [下载 HTML 报告](<http://172.16.138.228:58215/api/persistence/files/file-2d7e1a98-0b22-41eb-9be4-84dccd626296/download>)\n\n**运行 ID：** run-e39b65a5-3290-4be7-a23d-be529427a0f8",
+  "turn_end": {
+    "turn": 1,
+    "reason": {
+      "kind": "completed"
+    }
+  },
+  "sessions": [
+    "session.v4.jsonl",
+    "subagents/9bc2f1ed-ee0c-4d1d-baf0-1090c0b7425d/session.v4.jsonl"
+  ],
+  "run_id": "run-e39b65a5-3290-4be7-a23d-be529427a0f8",
+  "status": "completed",
+  "route": "fast_classification",
+  "llm_invoked": false,
+  "model": null,
+  "mcp_calls": 208,
+  "mcp_failures": 0,
+  "validation": {
+    "status": "not_applicable_fast_classification"
+  },
+  "markdown_matches": false,
+  "storage": {
+    "summary": {
+      "status": "saved",
+      "judgement_id": "JDG-2104827067724804098",
+      "replayed": false
+    },
+    "report": {
+      "status": "saved",
+      "id": "file-2d7e1a98-0b22-41eb-9be4-84dccd626296",
+      "download_url": "http://172.16.138.228:58215/api/persistence/files/file-2d7e1a98-0b22-41eb-9be4-84dccd626296/download"
+    }
+  },
+  "note": "封存比较前的技术探针：父交付读取误用了工具消息结构，导致模型改写摘要；实际结构回归测试修正后新会话已通过。"
+}

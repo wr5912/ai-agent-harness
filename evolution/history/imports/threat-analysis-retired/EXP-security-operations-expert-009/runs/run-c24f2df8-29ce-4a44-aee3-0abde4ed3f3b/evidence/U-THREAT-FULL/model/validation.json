@@ -1,0 +1,5 @@
+{
+  "status": "failed",
+  "error_type": "ValueError",
+  "error": "claim evidence reference does not resolve: enriched_context.edr_detail.edr_detail.entities[1].activity_segments[0].processes[2].image"
+}

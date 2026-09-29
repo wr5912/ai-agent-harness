@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "case_id": "T-REPLAY-0917",
+  "completed": false,
+  "acceptance_ids": [
+    "AC-001",
+    "AC-002"
+  ],
+  "method_ids": [
+    "m-dsh-frozen-chain"
+  ],
+  "judgment_role": "",
+  "expected_behavior": "调用 analyze_threat_incident 一次，交付与真实工具完全一致的 JSON；根据实时名单允许 fast_classification 或 five_source。五源若合同拒绝，必须返回 contract_failed 且没有 result。连接失败不算迁移通过。",
+  "check_method": "```javascript\nconst r = JSON.parse(context.response.assistant_text)\nconst outputs = context.archive.root.filter(e => e.type === 'tool/result')\n  .flatMap(e => e.data.message.content).filter(b => b.type === 'tool-result' && !b.isError)\nconst toolText = outputs[0]?.content.filter(b => b.type === 'text').map(b => b.text).join('')\nif (outputs.length !== 1 || JSON.stringify(JSON.parse(toolText)) !== JSON.stringify(r)) return false\nreturn context.checks.called_tools.length === 1\n  && context.checks.called_tools[0] === 'analyze_threat_incident'\n  && r.incident_id === 'INC-20260917-000001' && ['fast_classification', 'five_source'].includes(r.route)\n  && (r.route === 'fast_classification'\n    ? r.status === 'completed' && r.llm_invoked === false\n      && JSON.stringify(Object.keys(r.result || {}).sort()) === JSON.stringify(['matches', 'verdict'])\n      && ['误报', '真实告警'].includes(r.result.verdict)\n      && Array.isArray(r.result.matches) && r.result.matches.length > 0\n      && r.result.matches.every(m =>\n        JSON.stringify(Object.keys(m).sort()) === JSON.stringify(['entity_value', 'entry_id', 'evidence_refs', 'list_version', 'queried_at', 'source'])\n        && (r.result.verdict === '误报' ? ['alert_whitelist', 'intel_whitelist'].includes(m.source) : m.source === 'intel_blacklist')\n        && m.entry_id != null && !!m.entity_value && Array.isArray(m.evidence_refs) && m.evidence_refs.length > 0\n        && !!(m.list_version || m.queried_at))\n    : r.llm_invoked === true && !!r.input_sha256\n      && ((r.status === 'completed' && /^passed/.test(r.validation?.status) && !!r.result)\n        || (r.status === 'contract_failed' && r.validation?.status === 'failed' && !r.result)))\n```",
+  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
+}

@@ -1,0 +1,31 @@
+{
+  "session_id": "session-9c81ef4d-212e-4606-822f-a79d5654e66b",
+  "tool_run_id": "run-4f225c9b-c5e9-43e0-adef-490f899aea1d",
+  "route": "fast_classification",
+  "status": "completed",
+  "llm_invoked": false,
+  "mcp_calls": 208,
+  "mcp_failures": 1,
+  "tool_results": 1,
+  "reply_keys": [
+    "verdict",
+    "matches"
+  ],
+  "reply_equals_result": true,
+  "matches": 1,
+  "evidence_ref_counts": [
+    412
+  ],
+  "source_id": "experiment:EXP-threat-analysis-001",
+  "git_commit": "4362e777a7528fe9a807f545ca8b58bb43724b30",
+  "git_dirty": true,
+  "image_id": "sha256:ec2ebcbdb92cd03cbb86a3c4aafe911a64479eca44e3f928598f4ed8b588bfcf",
+  "preset_sha256": "972f35da73bf6685248091f8066799ff279607e261fee0356db1d36d5dc67739",
+  "input": "请研判威胁事件 INC-20260917-000001。",
+  "model": "local-qwen/Qwen3.8-27B",
+  "transport": "runtime-api",
+  "limitation": "现有实例重启后新 Session 验证，非独立实例复现，未执行浏览器操作。",
+  "updated_rule_in_trace": true,
+  "assistant_text_sha256": "27bfc735644a3166caa82efcd1a16b420a0133427e840f025132c8ff23976824",
+  "session_archive_sha256": "f8b78a6f22b3c71d1aecb49f3bd2ca7c7a465ece4bf6e16d887f865bd82b5e2d"
+}
