@@ -89,6 +89,29 @@ class SourceContractTest(unittest.TestCase):
         self.assertEqual(digests["source.lock.json"], "sha256:" + hashlib.sha256(
             source_contract.LOCK.read_bytes()).hexdigest())
 
+    def test_combined_source_declares_optional_service_connections(self):
+        contract = source_contract.resolve("EXP-security-operations-expert-007")
+        self.assertIn("POLICY_CONFIGURATION_MCP_URL", contract["optional_env_names"])
+        self.assertIn("EMERGENCY_ACTION_MCP_URL", contract["optional_env_names"])
+        self.assertIn("EMERGENCY_CONFIRMATION_PRIVATE_KEY_B64", contract["optional_env_names"])
+        self.assertNotIn("POLICY_CONFIGURATION_MCP_URL", contract["required_env_names"])
+
+    def test_optional_environment_names_reject_invalid_or_required_duplicates(self):
+        source = "EXP-security-operations-expert-007"
+        original = json.loads(source_contract.SOURCES.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory(prefix="dsh-source-contract-") as location:
+            catalog_path = Path(location) / "sources.json"
+            for names, message in (
+                (["invalid-name"], "invalid environment name"),
+                (["POLICY_CONFIGURATION_MCP_URL"] * 2, "duplicate optional_env_names"),
+                (["DEEPSEEK_API_KEY"], "both required and optional"),
+            ):
+                catalog = json.loads(json.dumps(original))
+                catalog["sources"][source]["optional_env_names"] = names
+                catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, message):
+                    source_contract.resolve(source, sources=catalog_path)
+
     def test_experiment_rejects_runtime_override_and_invalid_profile(self):
         source = "EXP-security-operations-expert-007"
         original = json.loads(source_contract.SOURCES.read_text(encoding="utf-8"))

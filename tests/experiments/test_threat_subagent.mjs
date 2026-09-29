@@ -89,17 +89,32 @@ test('模型不完整或空响应不得伪装成功', async () => {
 })
 
 
-test('既有巡检、故障、策略、调度和响应规划权限保持基线行为', async () => {
+test('既有巡检、故障、调度和响应规划权限保持基线行为', async () => {
   const { execFileSync } = await import('node:child_process')
   const source = execFileSync('git', ['show', '3b64e7de45e29ba759281aca581ddae1a58b7c00:evolution/experiments/EXP-security-operations-expert-007/candidate/dsh/managed/security-operations-guard.mjs'], { encoding: 'utf8' })
   const baseline = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'))
-  for (const name of Object.values(baseline.TOOL_ROUTES).flat()) {
+  // 策略与应急采用 EXP-007 的 test_combined_guard.mjs 校验当前合同。
+  for (const name of Object.entries(baseline.TOOL_ROUTES).filter(([route]) => route !== 'policy').flatMap(([, tools]) => tools)) {
     for (const depth of [0, 1, 2]) {
       const exec = { name, arguments: {}, agent: { session: { header: { delegationDepth: depth } } } }
       assert.deepEqual(createSecurityOperationsGuard().decide(exec), baseline.createSecurityOperationsGuard().decide(exec), `${name} depth=${depth}`)
     }
   }
   assert.ok(TOOL_ROUTES.delegates.includes('delegate_threat_analysis'))
+})
+
+
+test('威胁研判与策略应急路由保持隔离', () => {
+  const guard = createSecurityOperationsGuard()
+  const agent = { session: { header: { delegationDepth: 0 } } }
+  assert.equal(guard.decide({ name: 'delegate_threat_analysis', arguments: {}, agent }), undefined)
+  for (const name of [...TOOL_ROUTES.policy, ...TOOL_ROUTES.emergency]) {
+    assert.match(guard.decide({ name, arguments: {}, agent }), /本轮/)
+  }
+  for (const name of ['mcp__sec-ops__prepare_policy_configuration', 'mcp__sec-ops__get_policy_configuration_status', 'mcp__sec-ops__get_policy_configuration_result']) {
+    assert.ok(!visibleToolsForDepth(0).includes(name))
+    assert.ok(guard.decide({ name, arguments: {}, agent }))
+  }
 })
 
 

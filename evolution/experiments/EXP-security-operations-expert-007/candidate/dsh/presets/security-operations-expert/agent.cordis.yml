@@ -20,3 +20,12 @@
 - id: security-operations-guard
   name: /opt/dsh-managed/security-operations-guard.mjs
   disabled: false
+
+# 两个确认器只处理各自的精确确认词，且不向模型授予确认工具。
+- id: policy-confirmation-runtime
+  name: /opt/dsh-managed/policy-confirmation-runtime.mjs
+  disabled: false
+
+- id: emergency-confirmation-runtime
+  name: /opt/dsh-managed/emergency-confirmation-runtime.mjs
+  disabled: false

@@ -54,9 +54,17 @@ parent_direct_tools:
     - schedule_delete
   mcp:
     policy:
-      - mcp__sec-ops__prepare_policy_configuration
-      - mcp__sec-ops__get_policy_configuration_status
-      - mcp__sec-ops__get_policy_configuration_result
+      - mcp__policy-configuration__prepare_policy_configuration
+      - mcp__policy-configuration__get_policy_configuration_status
+      - mcp__policy-configuration__select_policy_configuration_candidate
+      - mcp__policy-configuration__get_policy_configuration_result
+    emergency-action:
+      - mcp__emergency-action__prepare_emergency_action
+      - mcp__emergency-action__revise_emergency_action
+      - mcp__emergency-action__get_emergency_action
+      - mcp__emergency-action__list_emergency_actions
+      - mcp__emergency-action__get_emergency_action_result
+      - mcp__emergency-action__cancel_emergency_action
     inspection: []
   delegates:
     - delegate_threat_analysis
@@ -64,5 +72,12 @@ parent_direct_tools:
     - delegate_fault_analysis
     - delegate_response_planning
 denied_mcp_tools:
+  - mcp__sec-ops__prepare_policy_configuration
+  - mcp__sec-ops__get_policy_configuration_status
+  - mcp__sec-ops__get_policy_configuration_result
   - mcp__sec-ops__select_policy_configuration_candidate
   - mcp__sec-ops__decide_policy_configuration
+  - mcp__policy-configuration__confirm_policy_configuration
+  - mcp__policy-configuration__decide_policy_configuration
+  - mcp__emergency-action__confirm_emergency_action
+  - mcp__emergency-action__submit_emergency_action

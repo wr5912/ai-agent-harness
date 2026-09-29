@@ -21,11 +21,20 @@ capabilities:
     - policy.prepare
     - policy.status
     - policy.result
+    - policy.select
+    - policy.confirm-trusted
+    - emergency.prepare
+    - emergency.revise
+    - emergency.get
+    - emergency.list
+    - emergency.result
+    - emergency.cancel
+    - emergency.confirm-trusted
   unavailable_in_current_contract:
     - soc.investigate
     - knowledge.search
-    - policy.select
     - policy.decide
+    - emergency.submit-by-model
 loadable_assets:
   workspace: dsh/workspace
   preset_root: dsh/presets
@@ -53,10 +62,19 @@ credential_environment_keys:
   - LOCAL_LLM_API_KEY
   - SOC_MCP_BASE_URL
   - REPORT_MCP_URL
+  - POLICY_CONFIGURATION_MCP_URL
+  - EMERGENCY_ACTION_MCP_URL
+  - EMERGENCY_ACTION_MCP_TOKEN
+  - EMERGENCY_WORKBENCH_URL
+  - EMERGENCY_WORKBENCH_TOKEN
+  - EMERGENCY_CONFIRMATION_PRIVATE_KEY_B64
+  - EMERGENCY_CONFIRMATION_ACTOR_ID
+  - AI_WORKBENCH_EMERGENCY_TENANT_ID
+  - AI_WORKBENCH_EMERGENCY_WORKSPACE_ID
 security:
   authoring_change_activation: host-reviewed-new-container-and-session
   user_text_is_authority: false
-  mcp_startup_failure: fail-closed
+  mcp_startup_failure: per-capability-unavailable-on-startup-failure
   external_service_enforcement_required: true
   model_can_write_managed_plane: false
 provenance:

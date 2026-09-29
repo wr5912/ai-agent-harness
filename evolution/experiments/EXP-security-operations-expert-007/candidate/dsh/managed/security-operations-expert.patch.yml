@@ -114,6 +114,32 @@
         reconnect:
           enabled: false
 
+    - id: security-operations-mcp-policy-configuration
+      name: '@deepseek-ai/dsh-mcp-client'
+      disabled: !!js '!process.env.POLICY_CONFIGURATION_MCP_URL'
+      config:
+        serverName: policy-configuration
+        transport: streamable-http
+        url: !!js process.env.POLICY_CONFIGURATION_MCP_URL
+        headers:
+          Authorization: !!js '`Bearer ${process.env.SEC_OPS_MCP_TOKEN}`'
+        failOnStartupError: false
+        reconnect:
+          enabled: false
+
+    - id: security-operations-mcp-emergency-action
+      name: '@deepseek-ai/dsh-mcp-client'
+      disabled: !!js '!process.env.EMERGENCY_ACTION_MCP_URL || !process.env.EMERGENCY_ACTION_MCP_TOKEN'
+      config:
+        serverName: emergency-action
+        transport: streamable-http
+        url: !!js process.env.EMERGENCY_ACTION_MCP_URL
+        headers:
+          Authorization: !!js '`Bearer ${process.env.EMERGENCY_ACTION_MCP_TOKEN}`'
+        failOnStartupError: false
+        reconnect:
+          enabled: false
+
     - id: security-operations-delegate-inspection
       name: '@deepseek-ai/dsh-tool-subagent'
       config:
