@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-003",
+  "transport": "api",
+  "expected_behavior": "只说明故障分析专家不能直接执行防火墙放通，应转交策略配置或变更流程；不展开具体故障分析，不声称已执行变更。",
+  "session_id": "session-68228798-2703-4519-9dd6-5d3235e1ac67",
+  "workspace_id": "2737f87a-1e42-4d4a-9966-5f13a813b9b4",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-208d7a17-f4f6-4027-8b08-bf0b57aec5f9",
+    "unavailable_reason": "judge-tools-not-empty"
+  }
+}

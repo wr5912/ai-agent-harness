@@ -47,24 +47,21 @@
 - id: tool-subagent-fork
   disabled: true
 
-- id: workflow-worker-thread
-  disabled: true
-
 - id: tool-workflow
   disabled: true
 
 - id: tool-ralph
   disabled: true
 
-- id: agent-presets
-  disabled: false
+- id: agent-preset-registry
   config:
     default: security-operations-expert
-    roots:
-      - path: /opt/dsh-presets
-        trust: system
-    includeShippedRoot: false
-    includeUserRoot: false
+
+- id: agent-default-model
+  config:
+    provider: deepseek-official
+    model: deepseek-flash
+    reasoningEffort: 'off'
 
 - id: llm-pi-ai
   config:
@@ -80,6 +77,16 @@
             contextWindow: 262144
 
 - insert:
+    - id: preset-security-operations-expert
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: security-operations-expert
+        plugins:
+          - id: security-operations-harness
+            name: cordis:include
+            config:
+              path: /opt/dsh-presets/security-operations-expert/agent.cordis.yml
+
     - id: security-operations-ui
       name: /opt/dsh-managed/security-operations-ui/index.js
 

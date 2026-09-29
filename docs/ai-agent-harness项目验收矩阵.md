@@ -1,6 +1,6 @@
 # ai-agent-harness 项目验收矩阵
 
-更新日期：2026-09-24
+更新日期：2026-09-28
 
 本文是 **ai-agent-harness 项目与工具链**验证路径、当前证据和缺口的唯一维护位置。它直接回答三个问题：总共有多少条路径、每条做到什么程度、哪些检查应该进入自动化测试。
 
@@ -69,23 +69,23 @@
 
 - **要回答**：选择的 Experiment 是否解析到正确 Agent、Preset 和资产；被测角色与评分角色是否只看见各自需要的材料。
 - **操作链**：解析 `experiment:<id>` → 分别生成 `subject`、`scoring` 计划 → 核对评测实例的 `session_preset` 与 `target_preset` → 评分角色只读挂载 `/work/reference` → 反向确认被测角色没有参考答案和判断材料。
-- **当前证据**：来源合同、挂载计划和角色隔离测试覆盖当前机器合同；[`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json) 仅作为退役 `authoring` 与当时 `verification` 边界的历史实机记录。
+- **当前证据**：来源合同、挂载计划和角色隔离测试覆盖当前机器合同；全部已登记 Experiment 解析到同一份 `source.lock.json` 和同一个镜像构建指纹，来源覆盖版本字段会被拒绝，Candidate 不再持有 DSH 版本锁；[`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json) 仅作为退役 `authoring` 与当时 `verification` 边界的历史实机记录。
 - **自动化边界**：路径、字段和挂载计划进入测试；实际 DSH 加载属于 `PA-06`。
 
 ### PA-05 `dsh-dev` 实例完整生命周期
 
 - **要回答**：本地实例能否从参数预览到停止完整运行，失败时是否如实报告。
 - **操作链**：`up --dry-run` → `up` → `ps` → `url` → `logs` → `up --replace` → `down`；同时检查缺参数时的可用值列表、自动实例名与端口、端口竞态、缺少环境变量、单一 stdout JSON 和停止失败。
-- **当前证据**：单元测试覆盖当前 eval-only CLI 合同及旧实例的只读运维兼容；既有实机证据见 [`dsh-dev-identity-and-lifecycle-20260919.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-identity-and-lifecycle-20260919.json)、[`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json) 和 [`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json)，但这些实机记录早于本次模式收敛。
-- **缺口**：当前 eval-only 合同尚未在同一实例重新跑完 `up`、`url`、`logs`、`up --replace`、`down` 及异常恢复；不同 Docker/DSH 环境下仍需持续观察。
+- **当前证据**：单元测试覆盖当前 eval-only CLI 合同、新建 Experiment 时只引用全仓 DSH 锁而不生成 Candidate 锁，以及旧实例的只读运维兼容；既有实机证据见 [`dsh-dev-identity-and-lifecycle-20260919.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-identity-and-lifecycle-20260919.json)、[`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json) 和 [`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json)，但这些实机记录早于本次模式收敛。
+- **缺口**：EXP-007 已在当前 eval-only 合同下完成 `up`、`url` 和 `up --replace`；新镜像上的受管 API Run 也已完成启动和停止，但尚未在同一实例跑完 `logs`、`down` 及异常恢复。Docker 自动删除曾短暂卡在 `removing`，见 [`dsh-global-lock-image-20260928T104351Z.json`](../evolution/experiments/EXP-security-operations-expert-007/evaluation/evidence/dsh-global-lock-image-20260928T104351Z.json)，后续装载和 Run 已恢复。
 - **自动化边界**：参数、状态转换和失败报告进入测试；Docker 进程、认证交接和真实停止状态用实机探针。
 
 ### PA-06 被测容器的真实装载与只读边界
 
 - **要回答**：评测容器是否加载正确来源，并形成三棵 Candidate 资产只读、判分材料不可见的视图。
 - **操作链**：确认镜像身份 → 启动评测实例 → 核对目标 Preset、Skill、Plugin/MCP 声明、三棵只读挂载和判分材料不可见性。
-- **当前证据**：Compose、来源计划和装载探针测试覆盖当前机器合同；[`dsh-dev-live-load-20260918.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-live-load-20260918.json)、[`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json) 和 [`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/evaluation/evidence/dsh-plugin-restart-20260922.json) 是模式收敛前的历史实机证据。
-- **缺口**：当前 eval-only Compose 尚未重跑真实装载；也未执行 OAuth、真实模型请求或浏览器 Session，技术装载不说明业务能力有效。
+- **当前证据**：Compose、来源计划和装载探针测试覆盖当前机器合同；全仓版本锁对应的新镜像已核对 Image ID 与构建指纹，全部九个已登记来源的隔离 `verify-load` 均通过，见[装载证据](../evolution/experiments/EXP-security-operations-expert-007/evaluation/evidence/dsh-global-lock-load-20260928T112027Z.json)。EXP-007 的真实 Web 会话曾完成自动化任务创建、查看和删除，见其 [Decision](../evolution/experiments/EXP-security-operations-expert-007/decision.md)。
+- **缺口**：九个来源的 `verify-load` 仅核对挂载和配置组合；新镜像上的真实 API Session 目前只覆盖 EXP-007 的 `U-QA-003`。OAuth、定时触发和其他业务语义仍未验证；技术装载不能代替这些结论。
 - **自动化边界**：Compose 和计划合同进入测试；真实容器内可见内容用容器探针。
 
 ### PA-07 宿主修改、装载观察与回退闭环
@@ -101,7 +101,8 @@
 - **要回答**：受管评测能否分别通过 DSH Runtime API 完成业务 Turn，并通过 Web UI 完成用户可见链路冒烟，两者不混算结果。
 - **操作链**：启动 Web → 使用本次认证 URL → API 默认路径注册 Workspace、逐 Case 创建正确 Preset 的 Session、发送消息、等待 Turn 并导出轨迹；或显式选择浏览器路径，核对初始提示、工作区、模型、发送和显示。
 - **当前证据**：[`dsh-web-technical-preflight-20260915T054223Z.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json) 记录技术预检。`dsh-eval` 已实现默认 API 与显式浏览器执行器；两者共享 Case、精确 Preset/Workspace 身份检查和证据格式，分别形成 Run。评审 Preset 放在评测适配层，与被测 Candidate 分离。命令结果用 `executor` 标明通道，运行态 Case 证据用 `transport` 标明通道。替身进程测试覆盖 `fast/full/--case` 选择、通道选择、每 Case 新 Session、多轮同 Session、启动、认证入口、结果封存、停止和 Token 不落盘；插件实验另记录了宿主重启后的 Profile 持久化。[`run-8941fbbc-8f7b-42f0-9890-d2f12249e79b`](../evolution/experiments/EXP-security-operations-expert-007/runs/run-8941fbbc-8f7b-42f0-9890-d2f12249e79b/report.md) 是本实现产生的真实 DSH Runtime API `full` Run：40 个 Case 全部完成，原始 Session、工具事件和逐 Case 评审证据均已封存，受管实例已停止。
-- **缺口**：真实 API 路径已经验证；当前仍无本实现产生的 Playwright 封存 Run，页面定位器和浏览器用户可见链路尚未实机验收。该 Run 的模型与 MCP 语义结论属于对应 Experiment 的研究证据，不代表生产验收。
+- **当前新镜像证据**：[`run-2028f3b1-7a8c-42ea-9da6-2a59f5187262`](../evolution/experiments/EXP-security-operations-expert-007/runs/run-2028f3b1-7a8c-42ea-9da6-2a59f5187262/report.md) 以全仓锁构建的新镜像完成 `U-QA-003` 的真实 API Turn 和独立评审 Turn；评审请求的工具列表为空，机器判定 1/1 通过，受管实例已停止。
+- **缺口**：[EXP-007 门户联调](security-operations-expert门户联调记录.md)历史试点曾在 iframe 中完成真实 Web 会话；当前免认证直连实例的浏览器工作台、模型回复、自动化任务入口及独立启用 `--skip-testing-notice` 后“内测声明”刷新不再弹出已验证，但门户代理切换后的 iframe 尚未重测，也尚无按浏览器执行器封存的评测 Run。其他业务 Case 的浏览器链路仍待验证。新镜像的单 Case Run 不证明所有业务 Case 或 MCP 语义，也不代表生产验收。
 - **自动化边界**：确定性的通道编排与异常闭环进入测试；身份、工具目录和证据由执行器生成，仍需从真实 API Run 或浏览器冒烟 Run 核对；模型与 MCP 语义仍需人工判读。
 
 ### PA-09 新 Preset 创建、登记、重载与选择闭环
@@ -117,7 +118,8 @@
 - **要回答**：一次运行能否说明“用的哪版、输入是什么、观察到什么、有哪些失败和限制”。
 - **操作链**：`init` → 逐项 `record` → 必要时 `gap` → `finalize` → 反向确认封存后不能追加结果；受管路径由 `dsh-eval` 完成同一闭环。
 - **当前证据**：Run v2 将 `execution_status` 与 `verdict` 分离，要求材料化 `evidence_ref`，并在 `completed` 封存前覆盖全部锁定 Case。`run_record.py` 与 `dsh-eval` 的机器测试覆盖 `fast/full/--case` 选择、所选 Case 的完整输入和预期快照、完整场景目录、API/浏览器通道分离、证据、异常封存、场景分析摘要、报告中去重 Case 的覆盖与归因假设、封存后拒绝追加；`full` 归因测试还覆盖当前 Run 的只读挂载、一场景一 Session、受限只读工具和必读证据访问校验。插件实验另保留一次实际初始化、记录、缺口和封存回执。真实 [`full` Run 报告](../evolution/experiments/EXP-security-operations-expert-007/runs/run-8941fbbc-8f7b-42f0-9890-d2f12249e79b/report.md) 已封存 40/40 个 Case：机器判定为 32 通过、8 失败；[`analysis.json`](../evolution/experiments/EXP-security-operations-expert-007/runs/run-8941fbbc-8f7b-42f0-9890-d2f12249e79b/analysis.json) 记录 4 个独立场景 Session 对 40/40 个 Case 的完整复核，形成 24 条带支持 Case、反例 Case、原始证据引用、替代解释和证伪方法的缺口假设，报告正文同步呈现。
-- **缺口**：真实 API Run、模型请求、MCP 调用和场景归因路径已经验证；仍需由研究者独立审阅归因质量，并用后续重复 Run 检验可复现性。当前没有 Playwright 封存 Run，也不构成 OAuth 或生产验收。
+- **当前新镜像证据**：全仓锁对应的 [`U-QA-003` Run](../evolution/experiments/EXP-security-operations-expert-007/runs/run-2028f3b1-7a8c-42ea-9da6-2a59f5187262/report.md) 已封存完整输入、来源、目标与评审轨迹，机器判定 1/1 通过。
+- **缺口**：已有真实 API Run、模型请求、MCP 调用和场景归因路径；仍需由研究者独立审阅归因质量，并用后续重复 Run 检验可复现性。新镜像仅完成单 Case Run；当前没有 Playwright 封存 Run，也不构成 OAuth 或生产验收。
 - **自动化边界**：schema、唯一 ID、状态转换、证据引用和封存进入测试；观察是否支持假设由人审阅。
 
 ### PA-11 Research Release 打包、解析与复现装载

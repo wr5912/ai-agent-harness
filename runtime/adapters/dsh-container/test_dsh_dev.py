@@ -27,6 +27,7 @@ dev = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(dev)
 
 TOKEN = "dsh web: http://127.0.0.1:3081/?token=secret-token-value\n"
+IMAGE_TAG = json.loads((ADAPTER / "source.lock.json").read_text(encoding="utf-8"))["local_image_tag"]
 
 
 class HarnessInitTest(unittest.TestCase):
@@ -68,7 +69,6 @@ class HarnessInitTest(unittest.TestCase):
             "evolution/experiments/EXP-test01-001/change.yaml",
             "evolution/experiments/EXP-test01-001/hypothesis.md",
             "evolution/experiments/EXP-test01-001/candidate/harness.yaml",
-            "evolution/experiments/EXP-test01-001/candidate/runtime.lock.json",
             "evolution/experiments/EXP-test01-001/candidate/dsh/workspace/.env",
             "evolution/experiments/EXP-test01-001/candidate/dsh/workspace/AGENTS.md",
             "evolution/experiments/EXP-test01-001/candidate/dsh/managed/test01.patch.yml",
@@ -235,8 +235,9 @@ class EvaluationModeContractTest(unittest.TestCase):
             "managed": "/tmp/managed",
             "preset_id": "security-operations-expert",
             "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+            "evaluation_patch": "/opt/dsh-adapter/evaluation-registry.patch.yml",
             "required_env_names": [],
-            "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
+            "image": {"local_image_tag": IMAGE_TAG},
         }
         contract.update(overrides)
         return contract
@@ -275,10 +276,12 @@ class EvaluationModeContractTest(unittest.TestCase):
             self.assertEqual(validated, str(run))
             self.assertIn("    working_dir: /work/evaluation-run\n", rendered)
             self.assertIn("        target: /work/evaluation-run\n        read_only: true\n", rendered)
-            self.assertIn("/opt/dsh-adapter/scenario-analysis.patch.yml", rendered)
-            analysis_patch = (ADAPTER / "scenario-analysis.patch.yml").read_text(encoding="utf-8")
+            self.assertIn("${DSH_EVALUATION_PATCH", rendered)
+            analysis_patch = (ADAPTER / "evaluation-registry.patch.yml").read_text(encoding="utf-8")
             self.assertIn("- id: tool-fs\n  disabled: false", analysis_patch)
             self.assertIn("- id: tool-fs-search\n  disabled: false", analysis_patch)
+            self.assertIn("- id: preset-evaluation-judge", analysis_patch)
+            self.assertIn("- id: preset-scenario-analysis", analysis_patch)
             for value in (
                 "${DSH_WORKSPACE_HOST", "${DSH_PRESETS_HOST", "${DSH_MANAGED_HOST",
                 "${DSH_MANAGED_PATCH", "/work/harness/workspace", "/opt/dsh-presets",
@@ -292,6 +295,9 @@ class EvaluationModeContractTest(unittest.TestCase):
                 )
             self.assertEqual(environment["DSH_ANALYSIS_WORKSPACE_HOST"], str(run))
             self.assertEqual(environment["DSH_EVAL_TARGET_PRESET"], "scenario-analysis")
+            self.assertEqual(environment["DSH_EVALUATION_PATCH"], "/opt/dsh-adapter/evaluation-registry.patch.yml")
+            registry = dev.resolve("EXP-security-operations-expert-007")
+            self.assertEqual(registry["evaluation_patch"], environment["DSH_EVALUATION_PATCH"])
             self.assertEqual(dev.required_env_names(self.contract(), validated), ["DEEPSEEK_API_KEY"])
             for key in (
                 "DSH_WORKSPACE_HOST", "DSH_PRESETS_HOST", "DSH_MANAGED_HOST", "DSH_MANAGED_PATCH",
@@ -363,6 +369,18 @@ class EvaluationModeContractTest(unittest.TestCase):
         for key in ("DSH_DEV_TARGET_HOST", "DSH_MANAGED_PATCH_OVERLAY", "DSH_REFERENCE_HOST"):
             self.assertNotIn(key, environment)
 
+    def test_selected_profile_is_persisted_for_compose_lifecycle(self):
+        contract = self.contract()
+        contract["profile_manifest"] = "/tmp/selected-web-profile.package.json"
+        with tempfile.TemporaryDirectory() as temp, mock.patch.object(dev, "STATE_ROOT", Path(temp)):
+            target = dev.write_instance("profile-probe", mode="verification", contract=contract, port=3082)
+            manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["web_profile_manifest"], contract["profile_manifest"])
+            self.assertEqual(dev.compose_env(contract, "verification", 3082, "profile-probe")
+                             ["DSH_WEB_PROFILE_MANIFEST_HOST"], contract["profile_manifest"])
+            self.assertEqual(dev.instance_compose_env(manifest)["DSH_WEB_PROFILE_MANIFEST_HOST"],
+                             contract["profile_manifest"])
+
     def test_dry_run_delivers_workspace_path_and_cold_start_hint(self):
         """DSH Web 冷启动需要先在界面注册工作区；计划必须交付确切路径与步骤。"""
         args = types.SimpleNamespace(source="experiment:EXP-security-operations-expert-001",
@@ -430,8 +448,9 @@ class InstanceStateTest(unittest.TestCase):
                 "managed": "/tmp/managed",
                 "preset_id": "second-harness",
                 "patch": "/opt/dsh-managed/second.patch.yml",
+                "evaluation_patch": "/opt/dsh-adapter/evaluation-registry.patch.yml",
                 "required_env_names": ["DEEPSEEK_API_KEY"],
-                "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
+                "image": {"local_image_tag": IMAGE_TAG},
             }
             target = dev.write_instance(
                 "second-verify", mode="verification", contract=contract, port=3081,
@@ -474,8 +493,9 @@ class InstanceStateTest(unittest.TestCase):
                 "managed": "/tmp/managed",
                 "preset_id": "security-operations-expert",
                 "patch": "/opt/dsh-managed/x.patch.yml",
+                "evaluation_patch": "/opt/dsh-adapter/evaluation-registry.patch.yml",
                 "required_env_names": [],
-                "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
+                "image": {"local_image_tag": IMAGE_TAG},
             }
             dev.write_instance("soe-verify", mode="verification", contract=contract, port=3081)
             other = dict(contract, source_id="experiment:EXP-second-harness-002")
@@ -534,7 +554,7 @@ class ImageIdentityAndPsStateTest(unittest.TestCase):
         contract = {
             "source_id": "experiment:EXP-security-operations-expert-001",
             "image": {
-                "local_image_tag": "ai-agent-harness/dsh:c291e7961",
+                "local_image_tag": IMAGE_TAG,
                 "build_fingerprint": fingerprint,
                 "platform": "linux/amd64",
             },
@@ -565,7 +585,7 @@ class ImageIdentityAndPsStateTest(unittest.TestCase):
         contract = {
             "source_id": "experiment:EXP-security-operations-expert-001",
             "image": {
-                "local_image_tag": "ai-agent-harness/dsh:c291e7961",
+                "local_image_tag": IMAGE_TAG,
                 "build_fingerprint": fingerprint,
                 "platform": "linux/amd64",
             },
@@ -593,8 +613,9 @@ class DownCommandTest(unittest.TestCase):
             "workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed",
             "preset_id": "security-operations-expert",
             "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+            "evaluation_patch": "/opt/dsh-adapter/evaluation-registry.patch.yml",
             "required_env_names": [],
-            "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
+            "image": {"local_image_tag": IMAGE_TAG},
         }, port=3081)
 
     def tearDown(self):
@@ -664,7 +685,7 @@ class DownCommandTest(unittest.TestCase):
         """回归：模板以 ${VAR:?} 声明必填变量，读取实例 Compose 也必须按实例状态注入。"""
         _, manifest = dev.load_instance("soe-verify")
         environment = dev.instance_compose_env(manifest)
-        self.assertEqual(environment["DSH_IMAGE_TAG"], "ai-agent-harness/dsh:c291e7961")
+        self.assertEqual(environment["DSH_IMAGE_TAG"], IMAGE_TAG)
         self.assertEqual(environment["DSH_ADAPTER_HOST"], str(ADAPTER))
         self.assertEqual(environment["DSH_MANAGED_PATCH"],
                          "/opt/dsh-managed/security-operations-expert.patch.yml")
@@ -679,9 +700,9 @@ class UpCommandStateTest(unittest.TestCase):
         self._temp = tempfile.TemporaryDirectory()
         dev.STATE_ROOT = Path(self._temp.name)
         self._image_identity = mock.patch.object(dev, "validate_image_identity", return_value={
-            "image_tag": "ai-agent-harness/dsh:c291e7961",
+            "image_tag": IMAGE_TAG,
             "image_id": "sha256:" + "1" * 64,
-            "image_ref": "ai-agent-harness/dsh:c291e7961@sha256:" + "1" * 64,
+            "image_ref": IMAGE_TAG + "@sha256:" + "1" * 64,
             "image_build_fingerprint": "sha256:" + "2" * 64,
             "platform": "linux/amd64",
         })
@@ -771,7 +792,7 @@ class LegacyInstanceStateTest(unittest.TestCase):
         "purpose": "dev",
         "preset_default": "cordis",
         "port": 3301,
-        "image_tag": "ai-agent-harness/dsh:c291e7961",
+        "image_tag": IMAGE_TAG,
         "agent_id": "security-operations-expert",
         "mounts": {"workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed"},
         "context_mounts": [{"key": "reference", "host": "/tmp/reference", "container": "/work/reference", "mode": "ro"}],
@@ -796,7 +817,7 @@ class LegacyInstanceStateTest(unittest.TestCase):
     def test_legacy_state_builds_compose_env_without_guessing(self):
         """回归：旧状态缺少 adapter_root/managed_patch 时不报错，缺的字段交给 Compose 报。"""
         environment = dev.instance_compose_env(self.LEGACY_1_0)
-        self.assertEqual(environment["DSH_IMAGE_TAG"], "ai-agent-harness/dsh:c291e7961")
+        self.assertEqual(environment["DSH_IMAGE_TAG"], IMAGE_TAG)
         self.assertEqual(environment["DSH_ADAPTER_HOST"], str(ADAPTER))
         self.assertEqual(environment["DSH_WORKSPACE_HOST"], "/tmp/ws")
         self.assertEqual(environment["DSH_REFERENCE_HOST"], "/tmp/reference")
@@ -855,9 +876,9 @@ class UpPortOwnershipTest(unittest.TestCase):
         self._temp = tempfile.TemporaryDirectory()
         dev.STATE_ROOT = Path(self._temp.name)
         self._image_identity = mock.patch.object(dev, "validate_image_identity", return_value={
-            "image_tag": "ai-agent-harness/dsh:c291e7961",
+            "image_tag": IMAGE_TAG,
             "image_id": "sha256:" + "1" * 64,
-            "image_ref": "ai-agent-harness/dsh:c291e7961@sha256:" + "1" * 64,
+            "image_ref": IMAGE_TAG + "@sha256:" + "1" * 64,
             "image_build_fingerprint": "sha256:" + "2" * 64,
             "platform": "linux/amd64",
         })
@@ -877,7 +898,7 @@ class UpPortOwnershipTest(unittest.TestCase):
             "workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed",
             "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
             "required_env_names": [],
-            "image": {"local_image_tag": "ai-agent-harness/dsh:c291e7961"},
+            "image": {"local_image_tag": IMAGE_TAG},
         }
 
     def args(self, **overrides):
@@ -894,7 +915,7 @@ class UpPortOwnershipTest(unittest.TestCase):
         manifest = dict(self.contract(), schema_version="1.2", name=name,
                         project=dev.project_name(name), mode="verification", purpose="eval",
                         target_preset="security-operations-expert", port=3302,
-                        image_tag="ai-agent-harness/dsh:c291e7961",
+                        image_tag=IMAGE_TAG,
                         adapter_root=str(ADAPTER),
                         managed_patch="/opt/dsh-managed/security-operations-expert.patch.yml",
                         mounts={"workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed"},

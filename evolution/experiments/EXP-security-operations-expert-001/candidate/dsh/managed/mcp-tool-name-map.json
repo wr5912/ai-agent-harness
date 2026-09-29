@@ -1,6 +1,5 @@
 {
   "schema_version": "1.0",
-  "runtime_commit": "c291e7961a515f6d7af9304e7fd1d257929aef26",
   "algorithm": "publicToolName(serverName, rawName): mcp__<serverName>__<rawName>; if >64 or invalid characters, retain first 51 normalized characters and append '_' plus first 12 hex of sha256(serverName + NUL + rawName)",
   "mappings": [
     {

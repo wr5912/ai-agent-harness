@@ -64,8 +64,8 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function StatusPanel({ useSession }) {
-      const queued = useSession(state => state.queue.length)
+    function StatusPanel({ useSession, useInput }) {
+      const queued = useInput(state => state.queue.length)
       const submitting = useSession(state => state.pendingSubmissions.length)
       const running = useSession(state => state.running)
       const attempted = useSession(state => state.promptAttempted)

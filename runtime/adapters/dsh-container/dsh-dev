@@ -105,16 +105,6 @@ def create_harness(agent_id: str, *, repo: Path = REPO, sources: Path = SOURCES,
     if collisions:
         raise ValueError("目标已存在，拒绝覆盖：" + "、".join(collisions))
 
-    lock = strict_json(lock_path)
-    required_lock = (
-        "repository", "commit", "tree", "cli_package", "cli_version", "package_manager",
-        "pnpm_lock_sha256", "node_base", "platform",
-    )
-    missing = [key for key in required_lock if not isinstance(lock.get(key), str) or not lock[key]]
-    if missing:
-        raise ValueError("source.lock.json 缺少字段：" + "、".join(missing))
-    node_digest = lock["node_base"].rsplit("@", 1)[-1]
-
     source_item = {
         "agent_id": agent_id,
         "candidate_root": f"evolution/experiments/{experiment_id}/candidate/dsh",
@@ -124,26 +114,6 @@ def create_harness(agent_id: str, *, repo: Path = REPO, sources: Path = SOURCES,
         "guard": None,
         "config_markers": ["/opt/dsh-presets"],
         "required_env_names": ["DEEPSEEK_API_KEY"],
-    }
-    runtime_lock = {
-        "schema_version": "1.0",
-        "agent_id": agent_id,
-        "experiment_id": experiment_id,
-        "runtime_family": "dsh",
-        "container_only": True,
-        "official_source": lock["repository"],
-        "source_commit": lock["commit"],
-        "source_tree": lock["tree"],
-        "cli_package": lock["cli_package"],
-        "cli_version": lock["cli_version"],
-        "package_manager": lock["package_manager"],
-        "pnpm_lock_sha256": lock["pnpm_lock_sha256"],
-        "node_base_oci_index_digest": node_digest,
-        "platform": lock["platform"],
-        "profile": "web",
-        "profile_patch": f"dsh/managed/{agent_id}.patch.yml",
-        "runtime_adapter": "runtime/adapters/dsh-container",
-        "lifecycle": "research-experiment",
     }
     agent_files = {
         "manifest.yaml": f'''schema_version: "1.0"
@@ -181,7 +151,7 @@ Baseline 为 `none:first-experiment`。若最小 Candidate 声明 `{agent_id}` P
 
 ## 预期观察
 
-- 来源合同、Candidate 资产与运行锁可通过静态校验。
+- 来源合同、Candidate 资产与全仓 DSH 来源锁可通过静态校验。
 - 全新 eval 实例可选择 `{agent_id}` Preset。
 - 全新 Session 的回复满足 `AC-001`。
 
@@ -213,7 +183,6 @@ loadable_assets:
   managed_root: dsh/managed
   preset_id: {agent_id}
   profile_patch: dsh/managed/{agent_id}.patch.yml
-  runtime_lock: runtime.lock.json
 runtime_contract:
   workspace_container_path: /work/harness/workspace
   preset_container_path: /opt/dsh-presets
@@ -223,7 +192,6 @@ runtime_contract:
 credential_environment_keys:
   - DEEPSEEK_API_KEY
 ''',
-        "candidate/runtime.lock.json": json.dumps(runtime_lock, ensure_ascii=False, indent=2) + "\n",
         "candidate/dsh/workspace/.env": (
             ADAPTER / "verification-home-controls/locked-bootstrap.env"
         ).read_text(encoding="utf-8"),
@@ -234,19 +202,24 @@ credential_environment_keys:
 - 使用简洁中文回答，并明确保持 `{agent_id}` 身份。
 - 不声称未提供的工具、权限或执行结果。
 ''',
-        f"candidate/dsh/managed/{agent_id}.patch.yml": f'''# 最小 Web Profile Patch：只注册本 Experiment 的受控 Preset 根。
-- id: agent-presets
-  disabled: false
+        f"candidate/dsh/managed/{agent_id}.patch.yml": f'''# 注册本 Experiment 的受控 Preset。
+- id: agent-preset-registry
   config:
     default: {agent_id}
-    includeShippedRoot: false
-    includeUserRoot: false
-    roots:
-      - path: /opt/dsh-presets
-        trust: system
+
+- insert:
+    - id: preset-{agent_id}
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: {agent_id}
+        plugins:
+          - id: {agent_id}-harness
+            name: cordis:include
+            config:
+              path: /opt/dsh-presets/{agent_id}/agent.cordis.yml
 ''',
         f"candidate/dsh/presets/{agent_id}/agent.cordis.yml": f'''- id: persona
-  name: '@deepseek-ai/dsh-persona'
+  name: /opt/dsh/packages/preset/persona/lib/index.js
   disabled: false
   config:
     prefix: >-
@@ -255,7 +228,7 @@ credential_environment_keys:
     suffix: 你的工作目录是 {{{{cwd}}}}。
 
 - id: agent-instructions
-  name: '@deepseek-ai/dsh-agent-instructions'
+  name: /opt/dsh/packages/context/agent-instructions/lib/index.js
   disabled: false
   config:
     maxBytes: 65536
@@ -395,6 +368,11 @@ def compose_env(contract: dict, mode: str, port: int, name: str,
         "DSH_IMAGE_TAG": image_reference(contract["image"]["local_image_tag"], image_id),
         "DSH_ADAPTER_HOST": str(ADAPTER),
         "DSH_EVAL_TARGET_PRESET": ANALYSIS_PRESET if analysis_workspace else target_preset(contract),
+        "DSH_EVALUATION_PATCH": contract["evaluation_patch"],
+        "DSH_WEB_PROFILE_MANIFEST_HOST": (
+            str(ADAPTER / "verification-home-controls/web-profile.package.json")
+            if analysis_workspace else contract.get("profile_manifest", str(ADAPTER / "verification-home-controls/web-profile.package.json"))
+        ),
     })
     if analysis_workspace:
         environment["DSH_ANALYSIS_WORKSPACE_HOST"] = analysis_workspace
@@ -516,10 +494,6 @@ def render_compose(template: str, *, mode: str, name: str, project: str, port: i
         if text.count(business_patch) != 1:
             fail("Compose 模板缺少唯一的业务 patch 锚点")
         text = text.replace(business_patch, "")
-        text = text.replace(
-            "      - /opt/dsh-adapter/evaluation.patch.yml\n",
-            "      - /opt/dsh-adapter/scenario-analysis.patch.yml\n",
-        )
     command_tail = "      - --no-open\n"
     if text.count(command_tail) != 1:
         fail("Compose 模板缺少唯一的 command 锚点")
@@ -629,6 +603,11 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         "image_id": image_id,
         "image_build_fingerprint": contract["image"].get("build_fingerprint"),
         "adapter_root": str(ADAPTER),
+        "web_profile_manifest": (
+            str(ADAPTER / "verification-home-controls/web-profile.package.json")
+            if analysis_workspace else contract.get("profile_manifest", str(ADAPTER / "verification-home-controls/web-profile.package.json"))
+        ),
+        "evaluation_patch": contract["evaluation_patch"],
         "managed_patch": None if analysis_workspace else contract["patch"],
         "mounts": ({"analysis_workspace": analysis_workspace} if analysis_workspace else {
             "workspace": contract["workspace"],
@@ -662,6 +641,8 @@ def instance_compose_env(manifest: dict) -> dict:
     values = {
         "DSH_IMAGE_TAG": image_reference(manifest.get("image_tag"), manifest.get("image_id")),
         "DSH_ADAPTER_HOST": manifest.get("adapter_root") or str(ADAPTER),
+        "DSH_WEB_PROFILE_MANIFEST_HOST": manifest.get("web_profile_manifest"),
+        "DSH_EVALUATION_PATCH": manifest.get("evaluation_patch"),
         "DSH_DEV_TARGET_HOST": manifest.get("dev_target_file"),
         "DSH_MANAGED_PATCH": manifest.get("managed_patch"),
         "DSH_MANAGED_PATCH_OVERLAY": manifest.get("patch_overlay"),

@@ -22,6 +22,10 @@ services:
         source: ./verification-home-controls
         target: /opt/dsh-verification-controls
         read_only: true
+      - type: bind
+        source: ${DSH_WEB_PROFILE_MANIFEST_HOST:?Web Profile 由所选来源注入}
+        target: /opt/dsh-verification-controls/web-profile.package.json
+        read_only: true
       - type: volume
         source: dsh-verification-home
         target: /var/lib/dsh
@@ -45,7 +49,7 @@ services:
     pids_limit: 256
     stop_grace_period: 20s
     tmpfs:
-      - /tmp:rw,nosuid,nodev,size=64m,mode=1777
+      - /tmp:rw,exec,nosuid,nodev,size=64m,mode=1777
     environment:
       - DSH_HOME=/var/lib/dsh
       - DSH_HARNESS_MODE=verification
@@ -58,7 +62,7 @@ services:
       - --patch
       - ${DSH_MANAGED_PATCH:?Profile patch 路径由所选来源注入}
       - --patch
-      - /opt/dsh-adapter/evaluation.patch.yml
+      - ${DSH_EVALUATION_PATCH:?评测 Patch 路径由所选来源注入}
       - --no-open
     volumes:
       - type: bind
@@ -93,19 +97,11 @@ services:
         target: /var/lib/dsh/profiles/web/node_modules
         read_only: true
       - type: bind
-        source: ./verification-home-controls/module-deny
-        target: /var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules
-        read_only: true
-      - type: bind
         source: ./verification-home-controls/locked-user.patch.yml
         target: /var/lib/dsh/cordis.patch.yml
         read_only: true
       - type: bind
-        source: ./verification-home-controls/locked-user.patch.yml
-        target: /var/lib/dsh/profiles/web/cordis.patch.yml
-        read_only: true
-      - type: bind
-        source: ./verification-home-controls/web-profile.package.json
+        source: ${DSH_WEB_PROFILE_MANIFEST_HOST:?Web Profile 由所选来源注入}
         target: /var/lib/dsh/profiles/web/package.json
         read_only: true
       - type: bind

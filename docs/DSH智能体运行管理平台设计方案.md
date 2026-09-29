@@ -54,6 +54,8 @@
 
 当前仓库仍是个人 Research Mode，没有按用户区分的身份、授权或数据隔离实现。[EXP-007 的自动化任务试验](../evolution/experiments/EXP-security-operations-expert-007/decision.md)只验证了任务创建、查看和删除。现有 [DSH Schedule](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/schedule/schedule/README.md)在一个 Host 内维护共享任务目录，任务绑定原 Session，`catalog` 可列出该 Host 的任务；它没有提供平台用户归属边界。在当前 JSON 后端和 `DSH_HOME=/var/lib/dsh` 的实例配置下，任务位于实例卷的 `storages/schedule.json`，Session 位于 `sessions/`。分文件、分卷或按 Agent 分容器只解决存放范围，不等于同一实例内不同用户之间的访问授权。
 
+[EXP-007 门户 iframe 联调](security-operations-expert门户联调记录.md)是单操作者技术试点：门户菜单已指向独立 DSH Web，但门户 SSO、Session 与 Schedule 的用户隔离均未接通。它不改变本节未来统一网关与多用户授权的设计门槛。
+
 未来若选择多用户共享 Host，Session、定时任务及其执行历史应使用同一个经服务端确认的用户身份和对象归属；任务创建时绑定发起者与原 Session，后续访问不能只信调用方传入的 Session ID，也不能靠浏览器令牌或前端过滤。身份模型可统一，但会话消息、附件与导出、任务列表与详情、创建/修改/删除、历史、模型工具和后台触发各有访问入口，必须分别检查归属与执行上下文；Host 级 `catalog` 在完成隔离前不得直接对多用户开放。若这些入口无法可靠覆盖，就评估按用户分隔 Host 和运行卷，网关仍需负责用户到实例的授权路由。官方或社区插件只能作为候选，不能凭“支持登录”推定 Session 与 Schedule 已一并隔离。
 
 选型前用两个用户在同一 Agent 下完成真实端到端验证：各自创建 Session 和任务，从界面及 Remote 入口交叉尝试读取、修改、删除及查看历史，检查模型工具和任务到期后的投递目标，再验证重启后的归属仍正确；失败即不能采用共享 Host。活跃定时任务可能在 Session 的 Agent 退出后继续运行，且会阻止该 Session 归档，因此实例排空不能只看活跃 Session；旧实例须保留到任务停止，或另行验证任务迁移语义，不能假定任务会随新版本自动迁移。上述均为未来平台的决策门槛，不扩展本仓库的当前验收矩阵。

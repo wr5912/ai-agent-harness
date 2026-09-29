@@ -43,6 +43,11 @@ parent_direct_tools:
     - glob
     - grep
     - skill
+  schedule:
+    - schedule_create
+    - schedule_list
+    - schedule_update
+    - schedule_delete
   mcp:
     policy:
       - mcp__sec-ops__prepare_policy_configuration

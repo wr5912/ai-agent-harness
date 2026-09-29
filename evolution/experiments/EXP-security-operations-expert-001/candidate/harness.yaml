@@ -30,7 +30,6 @@ loadable_assets:
   managed_root: dsh/managed
   preset_id: security-operations-expert
   profile_patch: dsh/managed/security-operations-expert.patch.yml
-  runtime_lock: runtime.lock.json
 runtime_contract:
   workspace_container_path: /work/harness/workspace
   preset_container_path: /opt/dsh-presets

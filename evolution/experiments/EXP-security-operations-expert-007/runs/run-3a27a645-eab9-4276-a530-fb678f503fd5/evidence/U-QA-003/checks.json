@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-QA-003",
+  "transport": "api",
+  "expected_behavior": "只说明故障分析专家不能直接执行防火墙放通，应转交策略配置或变更流程；不展开具体故障分析，不声称已执行变更。",
+  "session_id": "session-61301970-3741-4504-b238-570cc56bba65",
+  "workspace_id": "7c982f54-e3f9-4053-ba50-9184dfb5e3de",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": null,
+    "unavailable_reason": "runtime-rpc-failed"
+  }
+}

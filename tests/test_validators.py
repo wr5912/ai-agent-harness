@@ -136,7 +136,7 @@ def write_research_release(repository: Path, name: str = "security-operations-ex
                 f"source_experiment: {EXPERIMENT_ID}",
                 "source_commit: " + "a" * 40,
                 "evaluation_ref: evaluation.md",
-                'runtime_compatibility: "DSH c291e7961"',
+                'runtime_compatibility: "DSH test-runtime"',
                 f"artifact_digest: sha256:{digest}",
             ]
         )

@@ -145,7 +145,7 @@ function readBoundedExisting(path, prior, allowEmpty = false) {
   }
 }
 
-function ensureTarget(path, source, allowEmpty = false) {
+function ensureTarget(path, source, allowEmpty = false, mutable = false) {
   const controlledState = lstatSync(source)
   if (!controlledState.isFile() || controlledState.isSymbolicLink() || controlledState.nlink !== 1) {
     throw new Error(`controlled DSH_HOME source is not a single regular file: ${source}`)
@@ -157,7 +157,7 @@ function ensureTarget(path, source, allowEmpty = false) {
     throw new Error(`verification home target is not a single regular file: ${path}`)
   }
   const existing = readBoundedExisting(path, state, allowEmpty)
-  if (existing.length !== controlled.length || sha256(existing) !== sha256(controlled)) {
+  if (!mutable && (existing.length !== controlled.length || sha256(existing) !== sha256(controlled))) {
     throw new Error(`verification home target differs from controlled file: ${path}`)
   }
 }
@@ -173,12 +173,10 @@ export async function prepareControlledHome() {
   ensureDirectory(fallbackDir)
   ensureDirectory(join(home, 'node_modules'))
   ensureDirectory(join(home, 'profiles', 'web', 'node_modules'))
-  ensureDirectory(join(home, 'profiles', 'web', '.dsh-module-fallback'))
-  ensureDirectory(join(home, 'profiles', 'web', '.dsh-module-fallback', 'node_modules'))
 
   const patch = join(controls, 'locked-user.patch.yml')
   ensureTarget(join(home, 'cordis.patch.yml'), patch)
-  ensureTarget(join(home, 'profiles', 'web', 'cordis.patch.yml'), patch)
+  ensureTarget(join(home, 'profiles', 'web', 'cordis.patch.yml'), patch, false, true)
   ensureTarget(join(home, 'AGENTS.md'), join(controls, 'locked-global.AGENTS.md'), true)
   ensureTarget(join(home, '.env'), join(controls, 'locked-bootstrap.env'))
 
@@ -190,9 +188,13 @@ export async function prepareControlledHome() {
   // 仅 home-init 可写独立 fallback 卷；主 DSH 对这棵树只读挂载。
   // 旧卷已有任何非精确安装 symlink 均拒绝，绝不先调用 healer 修补或执行。
   const expected = installationClosure(installAnchor)
-  validateFallback(fallbackDir, expected, true)
-  await healProfilesModuleFallback({ installAnchor, home })
-  validateFallback(fallbackDir, expected, false)
+  const existingFallback = validateFallback(fallbackDir, expected, true)
+  if (typeof healProfilesModuleFallback === 'function') {
+    await healProfilesModuleFallback({ installAnchor, home })
+    validateFallback(fallbackDir, expected, false)
+  } else if (existingFallback) {
+    throw new Error('legacy installation fallback is not valid for native profile resolution')
+  }
 
   console.log(JSON.stringify({
     status: 'controlled-home-targets-prepared',
@@ -200,7 +202,7 @@ export async function prepareControlledHome() {
     dsh_home: home,
     controlled_targets: 5,
     trusted_fallback_modules: expected.size,
-    note: 'Controlled HOME targets, mode-specific Profile manifest, and installation symlinks were prepared; this does not prove DSH loaded a Profile or Plugin.',
+    note: 'Controlled HOME targets and writable Web profile settings were prepared; this does not prove DSH loaded a Profile or Plugin.',
   }))
 }
 

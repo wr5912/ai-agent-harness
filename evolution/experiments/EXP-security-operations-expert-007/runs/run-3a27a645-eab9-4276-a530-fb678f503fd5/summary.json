@@ -1,0 +1,21 @@
+{
+  "schema_version": "3.0",
+  "run_id": "run-3a27a645-eab9-4276-a530-fb678f503fd5",
+  "trial_count": 1,
+  "execution_status_counts": {
+    "completed": 1,
+    "error": 0,
+    "skipped": 0
+  },
+  "machine_trial_verdict_counts": {
+    "passed": 0,
+    "failed": 0,
+    "inconclusive": 1
+  },
+  "machine_overall_verdict": "inconclusive",
+  "review_status": "not_requested",
+  "reviewed_case_count": 0,
+  "reviewed_case_verdict_counts": null,
+  "reviewed_overall_verdict": null,
+  "effective_verdict": "inconclusive"
+}

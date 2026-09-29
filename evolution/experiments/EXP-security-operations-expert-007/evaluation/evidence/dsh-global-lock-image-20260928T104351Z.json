@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-09-28T10:43:51Z",
+  "status": "partial",
+  "source_lock": "runtime/adapters/dsh-container/source.lock.json",
+  "source_lock_sha256": "sha256:1225a58c35d639a7f79be326363cf84b7fb534f1e12f987205ae28198c3fc348",
+  "registered_sources": 9,
+  "source_commit": "21638c56315ae6a2b552d6091945d3144c9af32e",
+  "expected_image_build_fingerprint": "sha256:1eaeddc37579103dfce0f2b5450d653326073eb2fc1bd4d7f2fa5c029fc7375c",
+  "image_tag": "ai-agent-harness/dsh:21638c563",
+  "observed_image_id": "sha256:22a59afa382eec9b956d0184cf850902e275525caf3617b66b9eccb2b074b26e",
+  "observed_image_build_fingerprint": "sha256:1eaeddc37579103dfce0f2b5450d653326073eb2fc1bd4d7f2fa5c029fc7375c",
+  "observed_image_platform": "linux/amd64",
+  "verified_scope": "All registered sources resolve the same lock and fingerprint; current local image tag has matching fingerprint and platform.",
+  "not_verified": "Container mount/config composition for all sources and real business Sessions on this image.",
+  "blocker": "The first verify-load attempt reached a container that exited 0, but Docker --rm remained in removing state; the driver did not return and the attempt was aborted. No source load result was accepted."
+}

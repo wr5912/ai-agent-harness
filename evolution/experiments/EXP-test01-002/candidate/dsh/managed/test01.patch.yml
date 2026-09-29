@@ -1,10 +1,15 @@
 # 最小 Web Profile Patch：只注册本 Experiment 的受控 Preset 根。
-- id: agent-presets
-  disabled: false
+- id: agent-preset-registry
   config:
     default: test01
-    includeShippedRoot: false
-    includeUserRoot: false
-    roots:
-      - path: /opt/dsh-presets
-        trust: system
+
+- insert:
+    - id: preset-test01
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: test01
+        plugins:
+          - id: test01-harness
+            name: cordis:include
+            config:
+              path: /opt/dsh-presets/test01/agent.cordis.yml

@@ -4,7 +4,7 @@ Baseline 为 `none:first-experiment`。若最小 Candidate 声明 `test01` Prese
 
 ## 预期观察
 
-- 来源合同、Candidate 资产与运行锁可通过静态校验。
+- 来源合同、Candidate 资产与全仓 DSH 来源锁可通过静态校验。
 - 全新 dev 实例可选择 `test01` Preset。
 - 全新 Session 的回复满足 `AC-001`。
 

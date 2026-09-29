@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 
 const manifest = JSON.parse(readFileSync(new URL('./web-skip-testing-notice/package.json', import.meta.url)))
+assert.ok(manifest.name && manifest.version)
 assert.equal(manifest.dsh.client.platform, 'web')
 let client
 vm.runInNewContext(readFileSync(new URL('./web-skip-testing-notice/client.js', import.meta.url), 'utf8'), {

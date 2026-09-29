@@ -1,0 +1,986 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-09-28T10:49:35Z",
+  "status": "pass",
+  "source_lock": "runtime/adapters/dsh-container/source.lock.json",
+  "source_lock_sha256": "sha256:1225a58c35d639a7f79be326363cf84b7fb534f1e12f987205ae28198c3fc348",
+  "source_commit": "21638c56315ae6a2b552d6091945d3144c9af32e",
+  "image_tag": "ai-agent-harness/dsh:21638c563",
+  "image_id": "sha256:22a59afa382eec9b956d0184cf850902e275525caf3617b66b9eccb2b074b26e",
+  "image_build_fingerprint": "sha256:1eaeddc37579103dfce0f2b5450d653326073eb2fc1bd4d7f2fa5c029fc7375c",
+  "sources": [
+    {
+      "source_id": "EXP-security-operations-expert-001",
+      "duration_seconds": 6.0,
+      "verify_load": {
+        "status": "mount-and-config-composition-only",
+        "source_id": "experiment:EXP-security-operations-expert-001",
+        "agent_id": "security-operations-expert",
+        "dsh_mode": "verification",
+        "profile": "web",
+        "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+        "mounts": {
+          "workspace": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:3c2cde155199ac3dd47017f5554ea127645b58cc070da2dc176f6723c423f44a",
+            "file_count": 34,
+            "total_bytes": 237149
+          },
+          "presets": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:47b260248c2e342594214dee22e375b2d13bcbec2adf9978dc3ff9c0a66f1178",
+            "file_count": 2,
+            "total_bytes": 1080
+          },
+          "managed": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:2f49e1e9d0ad7b1acbc3542a95dc076ee2e074dc79493531675faf74e277f577",
+            "file_count": 9,
+            "total_bytes": 45009
+          }
+        },
+        "grading_material": {
+          "exposed_paths": [],
+          "note": "The subject role receives no grading material; the negative assertion above proves the requirement, acceptance-threshold and expected-answer paths are absent."
+        },
+        "adapter_scripts": {
+          "verify_load": {
+            "mount_mode": "ro",
+            "sha256": "sha256:10dce9b7af8798b74ff5295e03f515621d0e01bc95b8b31c414755f1193547de",
+            "size": 15141
+          },
+          "prepare_home": {
+            "mount_mode": "ro",
+            "sha256": "sha256:f1e48502c65628317f5a427e692a983e88e278e2dfa5f6cee3da22a75798f6db",
+            "size": 8892
+          },
+          "tree_digest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
+            "size": 4309
+          }
+        },
+        "dsh_home_mount_mode": "rw",
+        "controlled_home_controls": {
+          "home_user_patch": {
+            "mount_mode": "ro",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          },
+          "global_agent_instructions": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+          },
+          "home_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "workspace_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "web_profile_manifest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:d18317531a037cac1efc616948a68308eb91d32ad4a1032cf1cba3e86a37b274",
+            "size": 239
+          },
+          "web_runtime_patch": {
+            "mount_mode": "volume-rw",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          }
+        },
+        "controlled_module_resolution": {
+          "/var/lib/dsh/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/web/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/node_modules": {
+            "mount_mode": "ro",
+            "pinned_installation_symlinks": 0,
+            "resolution_backend": "native",
+            "critical_modules_resolved_inside_image": 4
+          }
+        },
+        "composed_config_sha256": "sha256:653846075dcfac732bd5b6304ed6ec2e4dc4da2b8b0c4b0f37f4cf8e4cc4910e",
+        "expected_markers_present": 10,
+        "preset_guard_declaration_present": true,
+        "limitations": "Read-only HOME/Module/.env controls and a locked startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested."
+      }
+    },
+    {
+      "source_id": "EXP-security-operations-expert-002",
+      "duration_seconds": 5.4,
+      "verify_load": {
+        "status": "mount-and-config-composition-only",
+        "source_id": "experiment:EXP-security-operations-expert-002",
+        "agent_id": "security-operations-expert",
+        "dsh_mode": "verification",
+        "profile": "web",
+        "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+        "mounts": {
+          "workspace": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:f423a371901763e3b45ee18f7d6464591cbb880ef53a6a141c3e1848b99ab502",
+            "file_count": 8,
+            "total_bytes": 10729
+          },
+          "presets": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:47b260248c2e342594214dee22e375b2d13bcbec2adf9978dc3ff9c0a66f1178",
+            "file_count": 2,
+            "total_bytes": 1080
+          },
+          "managed": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:7d8e7e2ec285fb02f3feca3f3cf1ab549491aaad595f962a34b7365b87f2468a",
+            "file_count": 8,
+            "total_bytes": 32764
+          }
+        },
+        "grading_material": {
+          "exposed_paths": [],
+          "note": "The subject role receives no grading material; the negative assertion above proves the requirement, acceptance-threshold and expected-answer paths are absent."
+        },
+        "adapter_scripts": {
+          "verify_load": {
+            "mount_mode": "ro",
+            "sha256": "sha256:10dce9b7af8798b74ff5295e03f515621d0e01bc95b8b31c414755f1193547de",
+            "size": 15141
+          },
+          "prepare_home": {
+            "mount_mode": "ro",
+            "sha256": "sha256:f1e48502c65628317f5a427e692a983e88e278e2dfa5f6cee3da22a75798f6db",
+            "size": 8892
+          },
+          "tree_digest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
+            "size": 4309
+          }
+        },
+        "dsh_home_mount_mode": "rw",
+        "controlled_home_controls": {
+          "home_user_patch": {
+            "mount_mode": "ro",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          },
+          "global_agent_instructions": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+          },
+          "home_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "workspace_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "web_profile_manifest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:d18317531a037cac1efc616948a68308eb91d32ad4a1032cf1cba3e86a37b274",
+            "size": 239
+          },
+          "web_runtime_patch": {
+            "mount_mode": "volume-rw",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          }
+        },
+        "controlled_module_resolution": {
+          "/var/lib/dsh/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/web/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/node_modules": {
+            "mount_mode": "ro",
+            "pinned_installation_symlinks": 0,
+            "resolution_backend": "native",
+            "critical_modules_resolved_inside_image": 4
+          }
+        },
+        "composed_config_sha256": "sha256:5d645da71921202729886a7374449f68be0aa82e40883f61e7e902e7ad28662a",
+        "expected_markers_present": 7,
+        "preset_guard_declaration_present": true,
+        "limitations": "Read-only HOME/Module/.env controls and a locked startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested."
+      }
+    },
+    {
+      "source_id": "EXP-security-operations-expert-003",
+      "duration_seconds": 5.5,
+      "verify_load": {
+        "status": "mount-and-config-composition-only",
+        "source_id": "experiment:EXP-security-operations-expert-003",
+        "agent_id": "security-operations-expert",
+        "dsh_mode": "verification",
+        "profile": "web",
+        "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+        "mounts": {
+          "workspace": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:f423a371901763e3b45ee18f7d6464591cbb880ef53a6a141c3e1848b99ab502",
+            "file_count": 8,
+            "total_bytes": 10729
+          },
+          "presets": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:47b260248c2e342594214dee22e375b2d13bcbec2adf9978dc3ff9c0a66f1178",
+            "file_count": 2,
+            "total_bytes": 1080
+          },
+          "managed": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:490e313690672731432baaba0d6376a595b339c386fb2c5ddffc7f907ee011cc",
+            "file_count": 8,
+            "total_bytes": 33528
+          }
+        },
+        "grading_material": {
+          "exposed_paths": [],
+          "note": "The subject role receives no grading material; the negative assertion above proves the requirement, acceptance-threshold and expected-answer paths are absent."
+        },
+        "adapter_scripts": {
+          "verify_load": {
+            "mount_mode": "ro",
+            "sha256": "sha256:10dce9b7af8798b74ff5295e03f515621d0e01bc95b8b31c414755f1193547de",
+            "size": 15141
+          },
+          "prepare_home": {
+            "mount_mode": "ro",
+            "sha256": "sha256:f1e48502c65628317f5a427e692a983e88e278e2dfa5f6cee3da22a75798f6db",
+            "size": 8892
+          },
+          "tree_digest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
+            "size": 4309
+          }
+        },
+        "dsh_home_mount_mode": "rw",
+        "controlled_home_controls": {
+          "home_user_patch": {
+            "mount_mode": "ro",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          },
+          "global_agent_instructions": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+          },
+          "home_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "workspace_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "web_profile_manifest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:d18317531a037cac1efc616948a68308eb91d32ad4a1032cf1cba3e86a37b274",
+            "size": 239
+          },
+          "web_runtime_patch": {
+            "mount_mode": "volume-rw",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          }
+        },
+        "controlled_module_resolution": {
+          "/var/lib/dsh/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/web/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/node_modules": {
+            "mount_mode": "ro",
+            "pinned_installation_symlinks": 0,
+            "resolution_backend": "native",
+            "critical_modules_resolved_inside_image": 4
+          }
+        },
+        "composed_config_sha256": "sha256:5d645da71921202729886a7374449f68be0aa82e40883f61e7e902e7ad28662a",
+        "expected_markers_present": 7,
+        "preset_guard_declaration_present": true,
+        "limitations": "Read-only HOME/Module/.env controls and a locked startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested."
+      }
+    },
+    {
+      "source_id": "EXP-security-operations-expert-004",
+      "duration_seconds": 5.8,
+      "verify_load": {
+        "status": "mount-and-config-composition-only",
+        "source_id": "experiment:EXP-security-operations-expert-004",
+        "agent_id": "security-operations-expert",
+        "dsh_mode": "verification",
+        "profile": "web",
+        "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+        "mounts": {
+          "workspace": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:c494ab39618741ed1e4c320cd77767920d8428d32f5c05efa88009b1336db1dc",
+            "file_count": 8,
+            "total_bytes": 11566
+          },
+          "presets": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:47b260248c2e342594214dee22e375b2d13bcbec2adf9978dc3ff9c0a66f1178",
+            "file_count": 2,
+            "total_bytes": 1080
+          },
+          "managed": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:67d4f1dd1ebb49a70a6a67950d22f20bf106d93120f7679ed3ff253343492830",
+            "file_count": 8,
+            "total_bytes": 34587
+          }
+        },
+        "grading_material": {
+          "exposed_paths": [],
+          "note": "The subject role receives no grading material; the negative assertion above proves the requirement, acceptance-threshold and expected-answer paths are absent."
+        },
+        "adapter_scripts": {
+          "verify_load": {
+            "mount_mode": "ro",
+            "sha256": "sha256:10dce9b7af8798b74ff5295e03f515621d0e01bc95b8b31c414755f1193547de",
+            "size": 15141
+          },
+          "prepare_home": {
+            "mount_mode": "ro",
+            "sha256": "sha256:f1e48502c65628317f5a427e692a983e88e278e2dfa5f6cee3da22a75798f6db",
+            "size": 8892
+          },
+          "tree_digest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
+            "size": 4309
+          }
+        },
+        "dsh_home_mount_mode": "rw",
+        "controlled_home_controls": {
+          "home_user_patch": {
+            "mount_mode": "ro",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          },
+          "global_agent_instructions": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+          },
+          "home_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "workspace_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "web_profile_manifest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:d18317531a037cac1efc616948a68308eb91d32ad4a1032cf1cba3e86a37b274",
+            "size": 239
+          },
+          "web_runtime_patch": {
+            "mount_mode": "volume-rw",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          }
+        },
+        "controlled_module_resolution": {
+          "/var/lib/dsh/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/web/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/node_modules": {
+            "mount_mode": "ro",
+            "pinned_installation_symlinks": 0,
+            "resolution_backend": "native",
+            "critical_modules_resolved_inside_image": 4
+          }
+        },
+        "composed_config_sha256": "sha256:6127d24ed0ef09a38bb3ab1e02c8c7ed98aec7546accf0ef5d322023fd9409dc",
+        "expected_markers_present": 8,
+        "preset_guard_declaration_present": true,
+        "limitations": "Read-only HOME/Module/.env controls and a locked startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested."
+      }
+    },
+    {
+      "source_id": "EXP-security-operations-expert-005",
+      "duration_seconds": 5.6,
+      "verify_load": {
+        "status": "mount-and-config-composition-only",
+        "source_id": "experiment:EXP-security-operations-expert-005",
+        "agent_id": "security-operations-expert",
+        "dsh_mode": "verification",
+        "profile": "web",
+        "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+        "mounts": {
+          "workspace": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:f7f5669836d8b456f4f0f4dc5d9b9f2502c7688d4bff88a1b6600522ec522dda",
+            "file_count": 8,
+            "total_bytes": 14279
+          },
+          "presets": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:47b260248c2e342594214dee22e375b2d13bcbec2adf9978dc3ff9c0a66f1178",
+            "file_count": 2,
+            "total_bytes": 1080
+          },
+          "managed": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:8acbb6127f9619e64fcf5a2b5480ac0f81b9af55fbefef53c0a727bf4c9b2d94",
+            "file_count": 8,
+            "total_bytes": 35685
+          }
+        },
+        "grading_material": {
+          "exposed_paths": [],
+          "note": "The subject role receives no grading material; the negative assertion above proves the requirement, acceptance-threshold and expected-answer paths are absent."
+        },
+        "adapter_scripts": {
+          "verify_load": {
+            "mount_mode": "ro",
+            "sha256": "sha256:10dce9b7af8798b74ff5295e03f515621d0e01bc95b8b31c414755f1193547de",
+            "size": 15141
+          },
+          "prepare_home": {
+            "mount_mode": "ro",
+            "sha256": "sha256:f1e48502c65628317f5a427e692a983e88e278e2dfa5f6cee3da22a75798f6db",
+            "size": 8892
+          },
+          "tree_digest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
+            "size": 4309
+          }
+        },
+        "dsh_home_mount_mode": "rw",
+        "controlled_home_controls": {
+          "home_user_patch": {
+            "mount_mode": "ro",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          },
+          "global_agent_instructions": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+          },
+          "home_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "workspace_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "web_profile_manifest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:d18317531a037cac1efc616948a68308eb91d32ad4a1032cf1cba3e86a37b274",
+            "size": 239
+          },
+          "web_runtime_patch": {
+            "mount_mode": "volume-rw",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          }
+        },
+        "controlled_module_resolution": {
+          "/var/lib/dsh/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/web/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/node_modules": {
+            "mount_mode": "ro",
+            "pinned_installation_symlinks": 0,
+            "resolution_backend": "native",
+            "critical_modules_resolved_inside_image": 4
+          }
+        },
+        "composed_config_sha256": "sha256:216c4e2dc9f3ca8d9d816dcf8aaf84af0f3c1fc63f98091c2eb6cedb03fcdbaa",
+        "expected_markers_present": 8,
+        "preset_guard_declaration_present": true,
+        "limitations": "Read-only HOME/Module/.env controls and a locked startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested."
+      }
+    },
+    {
+      "source_id": "EXP-security-operations-expert-006",
+      "duration_seconds": 6.9,
+      "verify_load": {
+        "status": "mount-and-config-composition-only",
+        "source_id": "experiment:EXP-security-operations-expert-006",
+        "agent_id": "security-operations-expert",
+        "dsh_mode": "verification",
+        "profile": "web",
+        "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+        "mounts": {
+          "workspace": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:f7f5669836d8b456f4f0f4dc5d9b9f2502c7688d4bff88a1b6600522ec522dda",
+            "file_count": 8,
+            "total_bytes": 14279
+          },
+          "presets": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:47b260248c2e342594214dee22e375b2d13bcbec2adf9978dc3ff9c0a66f1178",
+            "file_count": 2,
+            "total_bytes": 1080
+          },
+          "managed": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:9fc0fbeef55a2a49b61e667663142824299da6bc4a2f0797fcd4456a79902f1c",
+            "file_count": 8,
+            "total_bytes": 36157
+          }
+        },
+        "grading_material": {
+          "exposed_paths": [],
+          "note": "The subject role receives no grading material; the negative assertion above proves the requirement, acceptance-threshold and expected-answer paths are absent."
+        },
+        "adapter_scripts": {
+          "verify_load": {
+            "mount_mode": "ro",
+            "sha256": "sha256:10dce9b7af8798b74ff5295e03f515621d0e01bc95b8b31c414755f1193547de",
+            "size": 15141
+          },
+          "prepare_home": {
+            "mount_mode": "ro",
+            "sha256": "sha256:f1e48502c65628317f5a427e692a983e88e278e2dfa5f6cee3da22a75798f6db",
+            "size": 8892
+          },
+          "tree_digest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
+            "size": 4309
+          }
+        },
+        "dsh_home_mount_mode": "rw",
+        "controlled_home_controls": {
+          "home_user_patch": {
+            "mount_mode": "ro",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          },
+          "global_agent_instructions": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+          },
+          "home_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "workspace_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "web_profile_manifest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:d18317531a037cac1efc616948a68308eb91d32ad4a1032cf1cba3e86a37b274",
+            "size": 239
+          },
+          "web_runtime_patch": {
+            "mount_mode": "volume-rw",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          }
+        },
+        "controlled_module_resolution": {
+          "/var/lib/dsh/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/web/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/node_modules": {
+            "mount_mode": "ro",
+            "pinned_installation_symlinks": 0,
+            "resolution_backend": "native",
+            "critical_modules_resolved_inside_image": 4
+          }
+        },
+        "composed_config_sha256": "sha256:04002427f76212f186f4774dcec15dfe3d78e3fa979b76c2e83392ac3977a4a5",
+        "expected_markers_present": 11,
+        "preset_guard_declaration_present": true,
+        "limitations": "Read-only HOME/Module/.env controls and a locked startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested."
+      }
+    },
+    {
+      "source_id": "EXP-security-operations-expert-007",
+      "duration_seconds": 9.8,
+      "verify_load": {
+        "status": "mount-and-config-composition-only",
+        "source_id": "experiment:EXP-security-operations-expert-007",
+        "agent_id": "security-operations-expert",
+        "dsh_mode": "verification",
+        "profile": "web",
+        "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+        "mounts": {
+          "workspace": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:f7f5669836d8b456f4f0f4dc5d9b9f2502c7688d4bff88a1b6600522ec522dda",
+            "file_count": 8,
+            "total_bytes": 14279
+          },
+          "presets": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:47b260248c2e342594214dee22e375b2d13bcbec2adf9978dc3ff9c0a66f1178",
+            "file_count": 2,
+            "total_bytes": 1080
+          },
+          "managed": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:7f06a4e5821e4fc5ac34ad7c25c8b4f6248df366e7527fca093521b372486205",
+            "file_count": 12,
+            "total_bytes": 46868
+          }
+        },
+        "grading_material": {
+          "exposed_paths": [],
+          "note": "The subject role receives no grading material; the negative assertion above proves the requirement, acceptance-threshold and expected-answer paths are absent."
+        },
+        "adapter_scripts": {
+          "verify_load": {
+            "mount_mode": "ro",
+            "sha256": "sha256:10dce9b7af8798b74ff5295e03f515621d0e01bc95b8b31c414755f1193547de",
+            "size": 15141
+          },
+          "prepare_home": {
+            "mount_mode": "ro",
+            "sha256": "sha256:f1e48502c65628317f5a427e692a983e88e278e2dfa5f6cee3da22a75798f6db",
+            "size": 8892
+          },
+          "tree_digest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
+            "size": 4309
+          }
+        },
+        "dsh_home_mount_mode": "rw",
+        "controlled_home_controls": {
+          "home_user_patch": {
+            "mount_mode": "ro",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          },
+          "global_agent_instructions": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+          },
+          "home_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "workspace_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "web_profile_manifest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:884be57eab2e30fda8f2c9a3383785e3e8943ebe741960962d278a2c2832815e",
+            "size": 296
+          },
+          "web_runtime_patch": {
+            "mount_mode": "volume-rw",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          }
+        },
+        "controlled_module_resolution": {
+          "/var/lib/dsh/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/web/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/node_modules": {
+            "mount_mode": "ro",
+            "pinned_installation_symlinks": 0,
+            "resolution_backend": "native",
+            "critical_modules_resolved_inside_image": 5
+          }
+        },
+        "composed_config_sha256": "sha256:2e98842afe98f497e5675deb1026b21c0ba206b02b82f462105cee499381332d",
+        "expected_markers_present": 12,
+        "preset_guard_declaration_present": true,
+        "limitations": "Read-only HOME/Module/.env controls and a locked startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested."
+      }
+    },
+    {
+      "source_id": "EXP-test01-001",
+      "duration_seconds": 8.6,
+      "verify_load": {
+        "status": "mount-and-config-composition-only",
+        "source_id": "experiment:EXP-test01-001",
+        "agent_id": "test01",
+        "dsh_mode": "verification",
+        "profile": "web",
+        "patch": "/opt/dsh-managed/test01.patch.yml",
+        "mounts": {
+          "workspace": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:a6a9ff0abbb1e706f82d9f5740d5ea1ac5b52c9f94506264e27964d8e022d292",
+            "file_count": 2,
+            "total_bytes": 308
+          },
+          "presets": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:1bc4d4f7a26f5452132125d379f3ce03bbb121c521227b0a4d531f031bdaec5a",
+            "file_count": 2,
+            "total_bytes": 617
+          },
+          "managed": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:7f727b4c49e086782e07d153032f4a462030c6ab55a27b7209b20c69f30c4334",
+            "file_count": 2,
+            "total_bytes": 656
+          }
+        },
+        "grading_material": {
+          "exposed_paths": [],
+          "note": "The subject role receives no grading material; the negative assertion above proves the requirement, acceptance-threshold and expected-answer paths are absent."
+        },
+        "adapter_scripts": {
+          "verify_load": {
+            "mount_mode": "ro",
+            "sha256": "sha256:10dce9b7af8798b74ff5295e03f515621d0e01bc95b8b31c414755f1193547de",
+            "size": 15141
+          },
+          "prepare_home": {
+            "mount_mode": "ro",
+            "sha256": "sha256:f1e48502c65628317f5a427e692a983e88e278e2dfa5f6cee3da22a75798f6db",
+            "size": 8892
+          },
+          "tree_digest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
+            "size": 4309
+          }
+        },
+        "dsh_home_mount_mode": "rw",
+        "controlled_home_controls": {
+          "home_user_patch": {
+            "mount_mode": "ro",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          },
+          "global_agent_instructions": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+          },
+          "home_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "workspace_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "web_profile_manifest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:d18317531a037cac1efc616948a68308eb91d32ad4a1032cf1cba3e86a37b274",
+            "size": 239
+          },
+          "web_runtime_patch": {
+            "mount_mode": "volume-rw",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          }
+        },
+        "controlled_module_resolution": {
+          "/var/lib/dsh/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/web/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/node_modules": {
+            "mount_mode": "ro",
+            "pinned_installation_symlinks": 0,
+            "resolution_backend": "native",
+            "critical_modules_resolved_inside_image": 4
+          }
+        },
+        "composed_config_sha256": "sha256:1d685f1702d7f854da72180b508951ff1cc5c11920423aece8d70ae10c9bec8a",
+        "expected_markers_present": 1,
+        "preset_guard_declaration_present": false,
+        "limitations": "Read-only HOME/Module/.env controls and a locked startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested."
+      }
+    },
+    {
+      "source_id": "EXP-test01-002",
+      "duration_seconds": 6.0,
+      "verify_load": {
+        "status": "mount-and-config-composition-only",
+        "source_id": "experiment:EXP-test01-002",
+        "agent_id": "test01",
+        "dsh_mode": "verification",
+        "profile": "web",
+        "patch": "/opt/dsh-managed/test01.patch.yml",
+        "mounts": {
+          "workspace": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:a6a9ff0abbb1e706f82d9f5740d5ea1ac5b52c9f94506264e27964d8e022d292",
+            "file_count": 2,
+            "total_bytes": 308
+          },
+          "presets": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:1bc4d4f7a26f5452132125d379f3ce03bbb121c521227b0a4d531f031bdaec5a",
+            "file_count": 2,
+            "total_bytes": 617
+          },
+          "managed": {
+            "mount_mode": "ro",
+            "tree_sha256": "sha256:7f727b4c49e086782e07d153032f4a462030c6ab55a27b7209b20c69f30c4334",
+            "file_count": 2,
+            "total_bytes": 656
+          }
+        },
+        "grading_material": {
+          "exposed_paths": [],
+          "note": "The subject role receives no grading material; the negative assertion above proves the requirement, acceptance-threshold and expected-answer paths are absent."
+        },
+        "adapter_scripts": {
+          "verify_load": {
+            "mount_mode": "ro",
+            "sha256": "sha256:10dce9b7af8798b74ff5295e03f515621d0e01bc95b8b31c414755f1193547de",
+            "size": 15141
+          },
+          "prepare_home": {
+            "mount_mode": "ro",
+            "sha256": "sha256:f1e48502c65628317f5a427e692a983e88e278e2dfa5f6cee3da22a75798f6db",
+            "size": 8892
+          },
+          "tree_digest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
+            "size": 4309
+          }
+        },
+        "dsh_home_mount_mode": "rw",
+        "controlled_home_controls": {
+          "home_user_patch": {
+            "mount_mode": "ro",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          },
+          "global_agent_instructions": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "size": 0
+          },
+          "home_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "workspace_bootstrap_env": {
+            "mount_mode": "ro",
+            "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "size": 84
+          },
+          "web_profile_manifest": {
+            "mount_mode": "ro",
+            "sha256": "sha256:d18317531a037cac1efc616948a68308eb91d32ad4a1032cf1cba3e86a37b274",
+            "size": 239
+          },
+          "web_runtime_patch": {
+            "mount_mode": "volume-rw",
+            "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+            "size": 189
+          }
+        },
+        "controlled_module_resolution": {
+          "/var/lib/dsh/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/web/node_modules": {
+            "mount_mode": "ro",
+            "module_entries": 0,
+            "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+          },
+          "/var/lib/dsh/profiles/node_modules": {
+            "mount_mode": "ro",
+            "pinned_installation_symlinks": 0,
+            "resolution_backend": "native",
+            "critical_modules_resolved_inside_image": 4
+          }
+        },
+        "composed_config_sha256": "sha256:1d685f1702d7f854da72180b508951ff1cc5c11920423aece8d70ae10c9bec8a",
+        "expected_markers_present": 1,
+        "preset_guard_declaration_present": false,
+        "limitations": "Read-only HOME/Module/.env controls and a locked startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested."
+      }
+    }
+  ],
+  "scope": "All registered sources: actual read-only mounts, HOME controls, module resolution, and DSH config composition only; no business Session or semantic verdict."
+}

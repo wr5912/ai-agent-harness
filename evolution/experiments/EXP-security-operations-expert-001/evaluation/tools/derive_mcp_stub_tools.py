@@ -27,7 +27,7 @@ import yaml
 
 
 def public_tool_name(server: str, raw: str) -> str:
-    """与 DSH 0.1.5-rc.2 及仓库校验器一致的工具公开名算法。"""
+    """与锁定的 DSH 版本及仓库校验器一致的工具公开名算法。"""
     qualified = f"mcp__{server}__{raw}"
     normalized = re.sub(r"[^A-Za-z0-9_-]", "_", qualified)
     if normalized == qualified and len(normalized) <= 64:

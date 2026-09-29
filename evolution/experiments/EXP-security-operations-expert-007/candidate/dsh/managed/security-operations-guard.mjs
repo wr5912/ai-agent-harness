@@ -26,6 +26,12 @@ export const TOOL_ROUTES = Object.freeze({
     'mcp__sec-ops__get_policy_configuration_status',
     'mcp__sec-ops__get_policy_configuration_result',
   ]),
+  schedule: Object.freeze([
+    'schedule_create',
+    'schedule_list',
+    'schedule_update',
+    'schedule_delete',
+  ]),
   inspection: Object.freeze([
     'mcp__inspection__inspection_capabilities_list',
     'mcp__inspection__inspection_runs_start_with_plan',
@@ -62,6 +68,7 @@ export const TOOL_ROUTES = Object.freeze({
 
 const DELEGATE_TOOLS = new Set(TOOL_ROUTES.delegates)
 const POLICY_TOOLS = new Set(TOOL_ROUTES.policy)
+const SCHEDULE_TOOLS = new Set(TOOL_ROUTES.schedule)
 const INSPECTION_TOOLS = new Set(TOOL_ROUTES.inspection)
 const FAULT_TOOLS = new Set(TOOL_ROUTES.faultAnalysis)
 const WORKSPACE_TOOLS = new Set(TOOL_ROUTES.workspace.filter(tool => tool !== 'skill'))
@@ -302,6 +309,7 @@ export function createSecurityOperationsGuard(options = {}) {
       if (depth > 0) return '策略能力只允许主 Agent 按显式路由调用'
       return undefined
     }
+    if (SCHEDULE_TOOLS.has(tool)) return depth === 0 ? undefined : '自动化任务只允许主 Agent 调用'
     if (INSPECTION_TOOLS.has(tool)) {
       return depth === 1 ? undefined : '巡检工具只能由巡检子 Agent 调用'
     }
