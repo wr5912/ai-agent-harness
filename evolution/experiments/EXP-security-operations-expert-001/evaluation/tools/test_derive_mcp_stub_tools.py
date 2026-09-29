@@ -49,6 +49,21 @@ class DeriveInventoryTest(unittest.TestCase):
                 if len(f"mcp__{server}__{tool['name']}") > 64:
                     self.assertEqual(len(public), 64)
 
+    def test_python_connections_are_not_registered_as_dsh_stubs(self):
+        with tempfile.TemporaryDirectory() as raw:
+            candidate = Path(raw) / "dsh"
+            shutil.copytree(self.candidate, candidate)
+            inventory_path = candidate / "managed" / "mcp-servers.yaml"
+            inventory = derive.load_yaml(inventory_path)
+            current = TOOLS_DIR.parents[2] / "EXP-security-operations-expert-007" / "candidate" / "dsh"
+            inventory["servers"].extend(entry for entry in derive.load_yaml(
+                current / "managed" / "mcp-servers.yaml")["servers"]
+                if entry.get("consumer") == "threat-analysis-python")
+            inventory_path.write_text(derive.yaml.safe_dump(inventory), encoding="utf-8")
+            document, errors = derive.derive(candidate)
+            self.assertEqual(errors, [])
+            self.assertEqual(set(document["servers"]), {"sec-ops", "inspection", "threat-analysis"})
+
     def test_unresolvable_overlong_reference_fails_closed(self):
         with tempfile.TemporaryDirectory() as raw:
             candidate = Path(raw) / "dsh"

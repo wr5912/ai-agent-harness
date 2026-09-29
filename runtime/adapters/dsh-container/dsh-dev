@@ -390,6 +390,13 @@ def required_env_names(contract: dict, analysis_workspace: str | None = None) ->
     return ["DEEPSEEK_API_KEY"] if analysis_workspace else list(contract.get("required_env_names") or [])
 
 
+def runtime_env_names(contract: dict, analysis_workspace: str | None = None) -> list[str]:
+    required = required_env_names(contract, analysis_workspace)
+    if analysis_workspace:
+        return required
+    return required + [name for name in contract.get("optional_env_names", []) if os.environ.get(name)]
+
+
 def check_environment(contract: dict, analysis_workspace: str | None = None) -> None:
     missing = [name for name in required_env_names(contract, analysis_workspace) if not os.environ.get(name)]
     if missing:
@@ -572,7 +579,7 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         name=name,
         project=project_name(name),
         port=port,
-        runtime_env_names=required_env_names(contract, analysis_workspace),
+        runtime_env_names=runtime_env_names(contract, analysis_workspace),
         lan_access=lan_access,
         analysis_workspace=analysis_workspace is not None,
         trusted_host=trusted_host,
@@ -619,6 +626,8 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
             "workspace": "ro", "presets": "ro", "managed": "ro",
         }),
         "required_env_names": required_env_names(contract, analysis_workspace),
+        "optional_env_names": [name for name in runtime_env_names(contract, analysis_workspace)
+                               if name not in required_env_names(contract, analysis_workspace)],
     }
     (target / "instance.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -794,8 +803,9 @@ def build_plan(args: argparse.Namespace, contract: dict) -> dict:
     unsafe_no_auth = bool(getattr(args, "unsafe_no_auth", False))
     skip_testing_notice = bool(getattr(args, "skip_testing_notice", False))
     analysis_workspace = getattr(args, "analysis_workspace", None)
-    runtime_names = required_env_names(contract, analysis_workspace)
-    missing = [name for name in runtime_names if not os.environ.get(name)]
+    required_names = required_env_names(contract, analysis_workspace)
+    runtime_names = runtime_env_names(contract, analysis_workspace)
+    missing = [name for name in required_names if not os.environ.get(name)]
     plan = {
         "schema_version": "2.1",
         "name": args.name,
@@ -828,7 +838,8 @@ def build_plan(args: argparse.Namespace, contract: dict) -> dict:
         "context_assets": [],
         "web_cold_start": web_cold_start_hint(args.mode, analysis_workspace),
         "network": "host (0.0.0.0, LAN exposed)" if lan_access else "host (127.0.0.1 only)",
-        "required_env_names": runtime_names,
+        "required_env_names": required_names,
+        "optional_env_names": [name for name in runtime_names if name not in required_names],
         "missing_env_names": missing,
         "state_dir": str(instance_dir(args.name)),
         "risk": (
@@ -1427,7 +1438,7 @@ def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
             name=args.name,
             project=project_name(args.name),
             port=args.port,
-            runtime_env_names=required_env_names(contract, analysis_workspace),
+            runtime_env_names=runtime_env_names(contract, analysis_workspace),
             lan_access=bool(getattr(args, "lan_access", False)),
             analysis_workspace=analysis_workspace is not None,
             trusted_host=getattr(args, "trusted_host", None),

@@ -50,12 +50,12 @@ COPY --from=build --chown=node:node /opt/corepack /opt/corepack
 COPY --from=build --chown=node:node /opt/dsh /opt/dsh
 COPY --chmod=0755 dsh-cli.sh /usr/local/bin/dsh
 
-# 评测执行器复用 DSH 已安装的 Playwright，只补充无头浏览器二进制。
+# 评测复用 Playwright；威胁研判固定流程使用 Python 标准库和时区数据。
 ARG DSH_APT_MIRROR=http://mirrors.aliyun.com/debian
 COPY apt-mirror.sh /opt/dsh-adapter/apt-mirror.sh
 RUN sh /opt/dsh-adapter/apt-mirror.sh "$DSH_APT_MIRROR" \
     && apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::ForceIPv4=true \
-      install -y --no-install-recommends chromium \
+      install -y --no-install-recommends chromium python3 tzdata \
     && rm -rf /var/lib/apt/lists/* /opt/dsh-adapter \
     && cd /opt/dsh/apps/web \
     && node --input-type=module -e "await import('playwright'); await import('fflate')" \

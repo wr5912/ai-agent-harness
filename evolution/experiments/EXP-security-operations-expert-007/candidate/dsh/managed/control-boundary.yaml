@@ -47,3 +47,23 @@ controls:
     boundary: exact-mcp-tool-contract
     enforcement: role-tool-matrix-plus-profile-plus-native-guard
     unknown_mcp: deny
+  - id: CTRL-DSH-008
+    boundary: policy-and-emergency-route-isolation
+    enforcement: separate-skills-mcp-prefixes-and-native-guard
+    root_only: true
+    same_turn_cross_domain_calls: deny
+    other_business_routes_after_policy_or_emergency: deny
+  - id: CTRL-DSH-009
+    boundary: trusted-confirmation-isolation
+    enforcement: independent-runtime-plugins-plus-native-guard
+    policy_exact_user_message: 执行
+    emergency_exact_user_message: 确认执行
+    matching_session_draft_required: true
+    model_confirm_and_submit_tools: deny
+  - id: CTRL-DSH-010
+    boundary: optional-new-service-startup
+    enforcement: source-contract-plus-profile-disabled-expression
+    policy_mcp_url: POLICY_CONFIGURATION_MCP_URL
+    emergency_mcp_url: EMERGENCY_ACTION_MCP_URL
+    emergency_mcp_token: EMERGENCY_ACTION_MCP_TOKEN
+    existing_sec_ops_and_inspection: required

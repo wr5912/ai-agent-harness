@@ -1,0 +1,17 @@
+{
+  "unified_event_id": "INC-20260917-000001",
+  "run_id": "run-98e269ac-9dfb-4bdc-b1e0-d0cfb7de20e9",
+  "verdict": "误报",
+  "is_fast": true,
+  "validation": {
+    "status": "not_applicable_fast_classification"
+  },
+  "matches": [
+    {
+      "source": "alert_whitelist",
+      "entity_value": "172.16.2.112",
+      "evidence_refs_nums": 414,
+      "queried_at": "2026-09-29T07:09:56.374576+00:00"
+    }
+  ]
+}

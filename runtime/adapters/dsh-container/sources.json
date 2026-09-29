@@ -173,12 +173,15 @@
         "/opt/dsh-managed/security-operations-ui/index.js",
         "security-operations-mcp-sec-ops",
         "security-operations-mcp-inspection",
+        "security-operations-mcp-policy-configuration",
+        "security-operations-mcp-emergency-action",
         "security-operations-delegate-inspection",
         "security-operations-delegate-fault-analysis",
         "security-operations-delegate-response-planning",
         "local-qwen",
         "Qwen3.8-27B",
-        "LOCAL_LLM_BASE_URL"
+        "LOCAL_LLM_BASE_URL",
+        "security-operations-delegate-threat-analysis"
       ],
       "required_env_names": [
         "DEEPSEEK_API_KEY",
@@ -187,7 +190,20 @@
         "INSPECTION_MCP_URL",
         "INSPECTION_MCP_TOKEN",
         "LOCAL_LLM_BASE_URL",
-        "LOCAL_LLM_API_KEY"
+        "LOCAL_LLM_API_KEY",
+        "SOC_MCP_BASE_URL",
+        "REPORT_MCP_URL"
+      ],
+      "optional_env_names": [
+        "POLICY_CONFIGURATION_MCP_URL",
+        "EMERGENCY_ACTION_MCP_URL",
+        "EMERGENCY_ACTION_MCP_TOKEN",
+        "EMERGENCY_WORKBENCH_URL",
+        "EMERGENCY_WORKBENCH_TOKEN",
+        "EMERGENCY_CONFIRMATION_PRIVATE_KEY_B64",
+        "EMERGENCY_CONFIRMATION_ACTOR_ID",
+        "AI_WORKBENCH_EMERGENCY_TENANT_ID",
+        "AI_WORKBENCH_EMERGENCY_WORKSPACE_ID"
       ]
     },
     "EXP-test01-001": {

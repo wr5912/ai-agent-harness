@@ -1,19 +1,51 @@
 schema_version: "1.0"
 runtime: dsh-container-only
-startup_policy: fail-closed
+startup_policy: existing-required-new-capabilities-optional-fail-closed
+# 连接值由运行环境注入；实际装载配置统一位于 security-operations-expert.patch.yml。
+# consumer 区分实际调用方，清单本身不注册工具；config_location 仅供阅读。
 servers:
   - server_name: sec-ops
+    consumer: dsh-mcp-client
+    config_location: 插件 security-operations-mcp-sec-ops 的 config
     transport: streamable-http
     url_env: SEC_OPS_MCP_URL
     bearer_token_env: SEC_OPS_MCP_TOKEN
     tool_prefix: mcp__sec-ops__
-    purpose: SOC 只读取证与策略准备状态查询
+    purpose: SOC 只读取证与故障分析
   - server_name: inspection
+    consumer: dsh-mcp-client
+    config_location: 插件 security-operations-mcp-inspection 的 config
     transport: streamable-http
     url_env: INSPECTION_MCP_URL
     bearer_token_env: INSPECTION_MCP_TOKEN
     tool_prefix: mcp__inspection__
     purpose: 巡检能力查询与即时运行的创建、证据采集和收口
+  - server_name: soc
+    consumer: threat-analysis-python
+    transport: gateway-http
+    url_env: SOC_MCP_BASE_URL
+    config_location: 插件 threat-analysis 的 config.connections.soc
+    purpose: MCP 事件、告警、名单、资产、图、行为取证以及 SOC 认领与结果回写
+  - server_name: report
+    consumer: threat-analysis-python
+    transport: streamable-http
+    url_env: REPORT_MCP_URL
+    config_location: 插件 threat-analysis 的 config.connections.report
+    purpose: 保存 HTML 报告，返回前端使用的下载 URL
+  - server_name: policy-configuration
+    transport: streamable-http
+    url_env: POLICY_CONFIGURATION_MCP_URL
+    bearer_token_env: SEC_OPS_MCP_TOKEN
+    tool_prefix: mcp__policy-configuration__
+    purpose: 策略 DRAFT 准备、候选排序和状态查询；受信确认由运行时独立处理
+    startup_required: false
+  - server_name: emergency-action
+    transport: streamable-http
+    url_env: EMERGENCY_ACTION_MCP_URL
+    bearer_token_env: EMERGENCY_ACTION_MCP_TOKEN
+    tool_prefix: mcp__emergency-action__
+    purpose: 应急单动作草案、修订、查询与取消；受信确认由运行时独立处理
+    startup_required: false
 secrets_policy:
   storage: runtime-injection-only
   repository_values_allowed: false
