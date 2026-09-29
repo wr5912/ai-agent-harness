@@ -90,6 +90,13 @@
     - id: security-operations-ui
       name: /opt/dsh-managed/security-operations-ui/index.js
 
+    - id: voice-mode
+      name: /opt/dsh-managed/dsh-voice-hub/lib/index.js
+      config:
+        asrStreamUrl: ws://172.16.138.233:8012/v1/asr/stream
+        asrBatchUrl: http://172.16.138.233:8002
+        ttsBaseUrl: http://172.16.138.233:8003
+
     - id: security-operations-mcp-sec-ops
       name: '@deepseek-ai/dsh-mcp-client'
       config:

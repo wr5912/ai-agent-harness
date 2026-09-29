@@ -361,7 +361,8 @@ def image_reference(tag: str | None, image_id: str | None) -> str | None:
 
 
 def compose_env(contract: dict, mode: str, port: int, name: str,
-                image_id: str | None = None, analysis_workspace: str | None = None) -> dict:
+                image_id: str | None = None, analysis_workspace: str | None = None,
+                plugin_node_modules: str | None = None) -> dict:
     normalize_mode(mode)
     environment = dict(os.environ)
     environment.update({
@@ -383,6 +384,8 @@ def compose_env(contract: dict, mode: str, port: int, name: str,
             "DSH_PRESETS_HOST": contract["presets"],
             "DSH_MANAGED_HOST": contract["managed"],
         })
+        if plugin_node_modules:
+            environment["DSH_PLUGIN_NODE_MODULES_HOST"] = plugin_node_modules
     return environment
 
 
@@ -411,7 +414,8 @@ def validate_trusted_host(value: str | None) -> None:
 def render_compose(template: str, *, mode: str, name: str, project: str, port: int,
                    runtime_env_names: list[str] = (), lan_access: bool = False,
                    analysis_workspace: bool = False, trusted_host: str | None = None,
-                   unsafe_no_auth: bool = False, skip_testing_notice: bool = False) -> str:
+                   unsafe_no_auth: bool = False, skip_testing_notice: bool = False,
+                   plugin_node_modules: bool = False) -> str:
     """把受控 Compose 模板渲染为隔离的业务或归因实例配置。"""
     if mode not in MODES:
         fail("mode 只能是 verification")
@@ -421,6 +425,8 @@ def render_compose(template: str, *, mode: str, name: str, project: str, port: i
         fail("归因实例只允许监听 127.0.0.1，不能启用 --lan-access")
     if unsafe_no_auth and analysis_workspace:
         fail("归因实例不能启用 --unsafe-no-auth")
+    if plugin_node_modules and analysis_workspace:
+        fail("归因实例不能装载业务插件依赖")
     validate_trusted_host(trusted_host)
     text = template
     replacements = [
@@ -494,6 +500,21 @@ def render_compose(template: str, *, mode: str, name: str, project: str, port: i
         if text.count(business_patch) != 1:
             fail("Compose 模板缺少唯一的业务 patch 锚点")
         text = text.replace(business_patch, "")
+    if plugin_node_modules:
+        managed_mount = (
+            "      - type: bind\n"
+            "        source: ${DSH_MANAGED_HOST:?managed 根由所选来源注入}\n"
+            "        target: /opt/dsh-managed\n"
+            "        read_only: true\n"
+        )
+        if text.count(managed_mount) != 1:
+            fail("Compose 模板缺少唯一的 managed 挂载锚点")
+        text = text.replace(managed_mount, managed_mount + (
+            "      - type: bind\n"
+            "        source: ${DSH_PLUGIN_NODE_MODULES_HOST:?插件依赖由启动器注入}\n"
+            "        target: /opt/node_modules\n"
+            "        read_only: true\n"
+        ))
     command_tail = "      - --no-open\n"
     if text.count(command_tail) != 1:
         fail("Compose 模板缺少唯一的 command 锚点")
@@ -555,7 +576,8 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
                    image_id: str | None = None, lan_access: bool = False,
                    analysis_workspace: str | None = None,
                    trusted_host: str | None = None, unsafe_no_auth: bool = False,
-                   skip_testing_notice: bool = False) -> Path:
+                   skip_testing_notice: bool = False,
+                   plugin_node_modules: str | None = None) -> Path:
     if lan_access and analysis_workspace:
         fail("归因实例只允许监听 127.0.0.1，不能启用 --lan-access")
     target = instance_dir(name)
@@ -578,6 +600,7 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         trusted_host=trusted_host,
         unsafe_no_auth=unsafe_no_auth,
         skip_testing_notice=skip_testing_notice,
+        plugin_node_modules=plugin_node_modules is not None,
     )
     (target / "compose.yaml").write_text(rendered, encoding="utf-8")
     manifest = {
@@ -613,10 +636,12 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
             "workspace": contract["workspace"],
             "presets": contract["presets"],
             "managed": contract["managed"],
+            **({"plugin_node_modules": plugin_node_modules} if plugin_node_modules else {}),
         }),
         "context_mounts": [],
         "mount_modes": ({"analysis_workspace": "ro"} if analysis_workspace else {
             "workspace": "ro", "presets": "ro", "managed": "ro",
+            **({"plugin_node_modules": "ro"} if plugin_node_modules else {}),
         }),
         "required_env_names": required_env_names(contract, analysis_workspace),
     }
@@ -649,6 +674,7 @@ def instance_compose_env(manifest: dict) -> dict:
         "DSH_WORKSPACE_HOST": mounts.get("workspace"),
         "DSH_PRESETS_HOST": mounts.get("presets"),
         "DSH_MANAGED_HOST": mounts.get("managed"),
+        "DSH_PLUGIN_NODE_MODULES_HOST": mounts.get("plugin_node_modules"),
         "DSH_ANALYSIS_WORKSPACE_HOST": mounts.get("analysis_workspace"),
         "DSH_EVAL_TARGET_PRESET": manifest.get("target_preset"),
     }
@@ -741,6 +767,13 @@ def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None
     """解析来源并补齐确定性的实例名与端口，不修改状态。"""
     require_up_arguments(args)
     args.analysis_workspace = validate_analysis_workspace(getattr(args, "analysis_workspace", None))
+    plugin_node_modules = getattr(args, "plugin_node_modules", None)
+    if plugin_node_modules:
+        path = Path(plugin_node_modules)
+        if not path.is_absolute() or not path.is_dir() or path != path.resolve():
+            fail("--plugin-node-modules 必须是已存在的规范化绝对目录")
+    if args.analysis_workspace and plugin_node_modules:
+        fail("归因实例不能装载业务插件依赖")
     if args.analysis_workspace and bool(getattr(args, "lan_access", False)):
         fail("归因实例只允许监听 127.0.0.1，不能启用 --lan-access")
     if args.analysis_workspace and bool(getattr(args, "unsafe_no_auth", False)):
@@ -824,6 +857,8 @@ def build_plan(args: argparse.Namespace, contract: dict) -> dict:
             {"container": "/work/harness/workspace", "mode": "ro"},
             {"container": "/opt/dsh-presets", "mode": "ro"},
             {"container": "/opt/dsh-managed", "mode": "ro"},
+            *([{"container": "/opt/node_modules", "mode": "ro"}]
+              if getattr(args, "plugin_node_modules", None) else []),
         ]),
         "context_assets": [],
         "web_cold_start": web_cold_start_hint(args.mode, analysis_workspace),
@@ -948,6 +983,7 @@ def command_up(args: argparse.Namespace) -> None:
         args.name, mode=args.mode, contract=contract, port=args.port,
         image_id=identity["image_id"], lan_access=bool(getattr(args, "lan_access", False)),
         analysis_workspace=args.analysis_workspace,
+        plugin_node_modules=getattr(args, "plugin_node_modules", None),
         trusted_host=getattr(args, "trusted_host", None),
         unsafe_no_auth=bool(getattr(args, "unsafe_no_auth", False)),
         skip_testing_notice=bool(getattr(args, "skip_testing_notice", False)),
@@ -955,6 +991,7 @@ def command_up(args: argparse.Namespace) -> None:
     environment = compose_env(
         contract, args.mode, args.port, args.name,
         image_id=identity["image_id"], analysis_workspace=args.analysis_workspace,
+        plugin_node_modules=getattr(args, "plugin_node_modules", None),
     )
     run(compose_command(target, args.name, "config", "--quiet"), env=environment)
     run(compose_command(target, args.name, "up", "-d", "--no-build"), env=environment)
@@ -1433,11 +1470,13 @@ def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
             trusted_host=getattr(args, "trusted_host", None),
             unsafe_no_auth=bool(getattr(args, "unsafe_no_auth", False)),
             skip_testing_notice=bool(getattr(args, "skip_testing_notice", False)),
+            plugin_node_modules=bool(getattr(args, "plugin_node_modules", None)),
         )
         compose = root / "compose.yaml"
         compose.write_text(rendered, encoding="utf-8")
         environment = compose_env(
             contract, args.mode, args.port, args.name, analysis_workspace=analysis_workspace,
+            plugin_node_modules=getattr(args, "plugin_node_modules", None),
         )
         run(compose_command(root, args.name, "config", "--quiet"), env=environment)
 
@@ -1510,6 +1549,8 @@ def main() -> None:
                     help="允许额外的浏览器请求 Host（如反向代理入口）；不改变监听地址")
     up.add_argument("--analysis-workspace", metavar="PATH",
                     help=argparse.SUPPRESS)
+    up.add_argument("--plugin-node-modules", metavar="PATH",
+                    help="将已有 Node 插件依赖目录只读挂载到 /opt/node_modules")
     up.set_defaults(handler=command_up)
 
     ps_parser = commands.add_parser("ps", help="默认列出运行中的实例；加 --all 查看全部状态记录")

@@ -1,0 +1,18 @@
+{
+  "instance": "security-operations-expert-voice",
+  "image": "ai-agent-harness/dsh:21638c563",
+  "model": "Qwen3.8-27B",
+  "plugin_source_commit": "4f24085f57a9112f087c0a5cef1d0b737e40a0ff",
+  "browser_test_exit_code": 0,
+  "browser_test_result": {
+    "asrRequests": 84,
+    "submittedText": "这是语音测试。",
+    "modelReplyLength": 17,
+    "replyAudioDecoded": true,
+    "readSession": true,
+    "approvalAudioDecoded": true,
+    "unavailableNotice": true
+  },
+  "test_patch": "browser-test.patch",
+  "scope": "real remote ASR, TTS and local model via isolated DSH Web; the test did not invoke a security operations MCP business tool"
+}

@@ -1,0 +1,88 @@
+--- a/test/browser-voice.integration.mjs
++++ b/test/browser-voice.integration.mjs
+@@ -70,13 +70,33 @@
+     }
+   })
+   await page.goto(bootUrl, { waitUntil: 'domcontentloaded' })
++  const chooser = page.getByRole('button', { name: /Choose workspace|选择工作区/ })
+   const later = page.getByRole('button', { name: 'Configure later' })
++  const continueNotice = page.getByRole('button', { name: 'Continue', exact: true })
++  const composer = page.locator('[data-composer-input="true"]')
++  await composer.waitFor({ state: 'visible', timeout: 60000 })
++  if (await continueNotice.isVisible()) await continueNotice.click()
++  if (await later.isVisible()) await later.click()
++  await page.waitForTimeout(2000)
++  if (await composer.getAttribute('data-phase') === 'inert') {
++    await chooser.click()
++    const dialog = page.getByRole('dialog').last()
++    await dialog.getByRole('button', { name: /Edit path|编辑路径/ }).click()
++    const pathInput = dialog.getByRole('textbox', { name: /Edit path|编辑路径/ })
++    await pathInput.fill('/work/harness/workspace')
++    await pathInput.press('Enter')
++    await dialog.getByRole('button', { name: /Open|打开/ }).click()
++    await page.waitForFunction(() => document.querySelector('[data-composer-input="true"]')?.getAttribute('data-phase') !== 'inert', null, { timeout: 60000 })
++  }
++  await page.getByRole('button', { name: /^选择模型/ }).click()
++  await page.getByRole('menuitem', { name: /模型/ }).click()
++  await page.getByRole('menuitemradio', { name: /Qwen3.8-27B/ }).click()
++  await page.getByRole('button', { name: /^选择模型，当前 Qwen3.8-27B/ }).waitFor()
+   try { await page.locator('[data-dshvm="mic"]').waitFor({ state: 'visible', timeout: 45000 }) }
+   catch (error) {
+     console.error('隔离 DSH 页面未就绪：', (await page.locator('body').innerText()).slice(-1000))
+     throw error
+   }
+-  const continueNotice = page.getByRole('button', { name: 'Continue', exact: true })
+   let readySince = 0
+   let handledNotice = false
+   const onboardingDeadline = Date.now() + 90000
+@@ -108,7 +128,7 @@
+     console.error('隔离 DSH 首次引导未完成：', (await page.locator('body').innerText()).slice(-1000))
+     throw new Error('隔离 DSH 首次引导未完成')
+   }
+-  try { await page.getByRole('button', { name: 'Settings' }).click({ timeout: 10000 }) }
++  try { await page.getByRole('button', { name: /Settings|设置/ }).click({ timeout: 10000 }) }
+   catch (error) {
+     console.error('设置入口被页面遮挡：', (await page.locator('body').innerText()).slice(-1000))
+     throw error
+@@ -134,7 +154,7 @@
+   assert.match(await page.getByRole('list', { name: '语音服务连接结果' }).innerText(), /流式语音识别：成功[\s\S]*批量语音识别：成功[\s\S]*语音合成：成功/)
+   await page.getByRole('button', { name: '保存配置' }).click()
+   await page.getByText('已保存。常开唤醒及唤醒词在返回聊天页后生效；发送触发词在下次进入语音模式时生效。').waitFor()
+-  await page.getByRole('button', { name: 'Close', exact: true }).click()
++  await page.getByRole('dialog').getByRole('button', { name: /Close|关闭/ }).click()
+   const config = await page.evaluate(async () => (await fetch('/voice-mode/config')).json())
+   savedServiceConfig = await page.evaluate(async () => (await fetch('/voice-mode/service-config')).json())
+   assert.deepEqual(savedServiceConfig.sendCommands, ['发送', '确认发送', '确认', '提交消息'])
+@@ -177,7 +197,7 @@
+   await page.waitForFunction(() => document.querySelector('[data-slot="conversation.input.dock"]')?.textContent?.includes('你好'), null, { timeout: 20000 })
+   await page.waitForFunction(() => document.querySelector('[data-composer-input="true"]')?.textContent?.includes('你好'), null, { timeout: 1000 })
+   await page.waitForFunction(() => document.body.innerText.includes('这是语音测试。'), { timeout: 30000 })
+-  try { await page.waitForFunction(() => document.body.innerText.includes('1 turns'), null, { timeout: 30000 }) }
++  try { await page.waitForFunction(() => /1 turns|1 轮/.test(document.body.innerText), null, { timeout: 30000 }) }
+   catch (error) {
+     console.error('语音发送未完成，页面末尾：', (await page.locator('body').innerText()).slice(-1000))
+     console.error('识别接口状态：', asrResponses)
+@@ -188,6 +208,14 @@
+   const bodyText = await page.locator('body').innerText()
+   assert.ok(bodyText.includes('这是语音测试。'), '识别内容没有进入消息')
+   assert.ok(!bodyText.includes('确认发送。'), '语音命令不应作为消息内容')
++
++  const replySpeaker = page.getByRole('button', { name: '朗读这条回复' }).last()
++  await replySpeaker.waitFor({ state: 'visible', timeout: 120000 })
++  const replyText = (await page.locator('[data-chat-anchor-key^="14:assistant-step"]').last().innerText()).trim()
++  assert.ok(replyText.length > 0, '模型没有生成可见回复')
++  const replyDecodeBefore = await page.evaluate(() => window.__dshVoiceDecodeCount)
++  await replySpeaker.click()
++  await page.waitForFunction(before => window.__dshVoiceDecodeCount > before, replyDecodeBefore, { timeout: 60000 })
+ 
+   await page.getByRole('button', { name: '开启后续回复自动播报' }).click()
+   const readConfig = await page.evaluate(async () => (await fetch('/voice-mode/config')).json())
+@@ -224,7 +252,7 @@
+     console.error('页面末尾：', (await page.locator('body').innerText()).slice(-700))
+     throw error
+   }
+-  console.log(JSON.stringify({ asrRequests: asrResponses.length, submittedText: '这是语音测试。', readSession: true, approvalAudioDecoded: true, unavailableNotice: true }, null, 2))
++  console.log(JSON.stringify({ asrRequests: asrResponses.length, submittedText: '这是语音测试。', modelReplyLength: replyText.length, replyAudioDecoded: true, readSession: true, approvalAudioDecoded: true, unavailableNotice: true }, null, 2))
+ } finally {
+   if (savedServiceConfig) {
+     await fetch(new URL('/voice-mode/service-config', bootUrl), {

@@ -171,6 +171,7 @@
         "/work/harness/workspace/.agents/skills",
         "security-operations-expert",
         "/opt/dsh-managed/security-operations-ui/index.js",
+        "/opt/dsh-managed/dsh-voice-hub/lib/index.js",
         "security-operations-mcp-sec-ops",
         "security-operations-mcp-inspection",
         "security-operations-delegate-inspection",

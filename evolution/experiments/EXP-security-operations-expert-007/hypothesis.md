@@ -2,7 +2,7 @@
 
 在不修改 DSH Runtime 的前提下，一个随 Candidate 装载的双端插件即可复用 Web 原生会话侧栏、输入区和右侧栏扩展点，形成接近 AI-SOC 参考图的三栏布局。快捷任务只写入草稿，不自动提交；右栏只呈现当前 Session 的真实状态。
 
-Candidate 继承 EXP-security-operations-expert-006，仅新增 `security-operations-ui` 插件并通过现有 Profile patch 装载。
+初始 Candidate 继承 EXP-security-operations-expert-006，仅新增 `security-operations-ui` 插件并通过现有 Profile patch 装载。
 
 ## 预期观察
 
@@ -16,3 +16,7 @@ Candidate 继承 EXP-security-operations-expert-006，仅新增 `security-operat
 - 插件必须改写 DSH Runtime 才能工作；
 - 快捷任务绕过原生输入流程自动发送；
 - 插件破坏原生会话历史、模型选择、附件或发送能力。
+
+## 后续语音集成研究
+
+在同一锁定 DSH Runtime 镜像中，将 `dsh-voice-hub` 插件及其依赖作为 EXP-007 的只读资产装载；浏览器应能完成麦克风录音、转写编辑与发送、模型回复及 TTS 播报，连续对话和打断不影响原生 Web 会话与安全运营工具。运行时依赖目录留在本机 `.local/`，按插件锁文件安装；更改 Harness 后通过重启实例和新 Session 验证生效，不构建派生镜像。插件来源固定为本地 GitLab 检出提交 `4f24085f57a9112f087c0a5cef1d0b737e40a0ff`，评估以新 Run 的实际观察为准。

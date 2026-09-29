@@ -18,6 +18,7 @@
 - **单一事实源（Single Source of Truth）**：同一项当前事实只保留一个可编辑来源。禁止同时维护内容重叠的 Markdown、YAML、JSONL 或“生成器 + 可编辑投影”；其他位置只能引用该来源。
 - **根因整改（Root-cause Changes）**：从共同根因整体修正，并检查同一根因直接影响的调用方、生成器、消费者和同类路径。禁止只给已暴露症状打补丁；举一反三仅限当前目标的直接影响范围，不借机重构无关内容。
 - **精准修改（Surgical Changes）**：只修改完成当前目标所必需的内容。不顺手重构、润色、格式化或删除相邻代码；遵循现有风格，只清理由本次改动产生的无用内容；每一处变更都应能直接追溯到用户要求。
+- **单智能体单镜像**：同一业务智能体只维护一个当前标准 DSH Runtime 镜像，所有新实例共用该镜像；Harness 提示词、Preset、Plugin 及其依赖等易变资产尽可能通过只读卷映射装载，修改后以重启实例或新 Session 验证生效。不得为 Harness 或插件变更构建派生镜像；只有锁定 Runtime 本身变化或当前镜像与锁定来源不一致时才重建标准镜像。
 
 `Simplicity First` 和 `Surgical Changes` 的来源是 [andrej-karpathy-skills 的 `CLAUDE.md`](https://github.com/multica-ai/andrej-karpathy-skills/blob/main/CLAUDE.md)。本仓库以这里的中文规则为准，不依赖远程文件运行，也不据此增加评分系统、检查平台或审批流程。
 
