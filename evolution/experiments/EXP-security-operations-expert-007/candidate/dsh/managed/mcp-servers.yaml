@@ -1,19 +1,33 @@
 schema_version: "1.0"
 runtime: dsh-container-only
-startup_policy: fail-closed
+startup_policy: existing-required-new-capabilities-optional-fail-closed
 servers:
   - server_name: sec-ops
     transport: streamable-http
     url_env: SEC_OPS_MCP_URL
     bearer_token_env: SEC_OPS_MCP_TOKEN
     tool_prefix: mcp__sec-ops__
-    purpose: SOC 只读取证与策略准备状态查询
+    purpose: SOC 只读取证与故障分析
   - server_name: inspection
     transport: streamable-http
     url_env: INSPECTION_MCP_URL
     bearer_token_env: INSPECTION_MCP_TOKEN
     tool_prefix: mcp__inspection__
     purpose: 巡检能力查询与即时运行的创建、证据采集和收口
+  - server_name: policy-configuration
+    transport: streamable-http
+    url_env: POLICY_CONFIGURATION_MCP_URL
+    bearer_token_env: SEC_OPS_MCP_TOKEN
+    tool_prefix: mcp__policy-configuration__
+    purpose: 策略 DRAFT 准备、候选排序和状态查询；受信确认由运行时独立处理
+    startup_required: false
+  - server_name: emergency-action
+    transport: streamable-http
+    url_env: EMERGENCY_ACTION_MCP_URL
+    bearer_token_env: EMERGENCY_ACTION_MCP_TOKEN
+    tool_prefix: mcp__emergency-action__
+    purpose: 应急单动作草案、修订、查询与取消；受信确认由运行时独立处理
+    startup_required: false
 secrets_policy:
   storage: runtime-injection-only
   repository_values_allowed: false

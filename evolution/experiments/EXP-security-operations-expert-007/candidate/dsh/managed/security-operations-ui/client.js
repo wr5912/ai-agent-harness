@@ -7,6 +7,16 @@ window.__ModuleLoader__.load({
     const STATUS_KIND = 'security-operations-status'
     const actions = [
       {
+        title: '新增访问策略草稿',
+        description: '填写源与目的 IPv4、协议和端口，先生成待确认草稿。',
+        prompt: '请新增 <源IPv4> 到 <目的IPv4> 的 TCP <目的端口> 访问策略，先生成草稿，不要执行。',
+      },
+      {
+        title: '准备应急指令',
+        description: '填写单个目标与动作，先查看冻结草案。',
+        prompt: '请对 <单个目标IP或设备ID> 准备 <单个应急动作> 指令，先展示草案，不要执行。',
+      },
+      {
         title: '最近24小时网络总结报告',
         description: '汇总最近24小时网络运行、安全事件、风险变化及待处理事项。',
         prompt: '请生成最近24小时网络总结报告，汇总网络运行、安全事件、风险变化和待处理事项，并标明事实、推断与证据缺口。',

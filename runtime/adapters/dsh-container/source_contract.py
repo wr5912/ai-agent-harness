@@ -143,16 +143,19 @@ def _experiment_contract(
                 raise ValueError(f"missing or unsafe source file: {key}")
     if item["profile"] != "web":
         raise ValueError("only the verified DSH web profile is supported")
-    for key in ("config_markers", "required_env_names"):
-        values = item[key]
+    for key in ("config_markers", "required_env_names", "optional_env_names"):
+        values = item.get(key, [])
         if not isinstance(values, list) or (key == "config_markers" and not values) \
                 or any(not isinstance(value, str) or not value for value in values):
             raise ValueError(f"invalid {key}")
         if len(values) != len(set(values)):
             raise ValueError(f"duplicate {key}")
-    for name in item["required_env_names"]:
+    optional_env_names = item.get("optional_env_names", [])
+    if set(item["required_env_names"]) & set(optional_env_names):
+        raise ValueError("environment name cannot be both required and optional")
+    for name in item["required_env_names"] + optional_env_names:
         if not re.fullmatch(r"[A-Z][A-Z0-9_]*", name):
-            raise ValueError("invalid required environment name")
+            raise ValueError("invalid environment name")
     # preset_id 是运行时组合身份，agent_id 是业务 Agent 身份；两者允许不同。
     # 实际装载一致性由候选 harness.yaml、sources.json 与基础 patch 默认值的交叉门禁保证。
     declared_preset = preset_id(item["preset"])
@@ -179,6 +182,7 @@ def _experiment_contract(
         "guard": "/opt/dsh-managed/" + item["guard"] if item["guard"] else None,
         "config_markers": item["config_markers"],
         "required_env_names": item["required_env_names"],
+        "optional_env_names": optional_env_names,
         "image": image,
     }
     contract.update(_agent_asset_roots(repo, item["agent_id"]))
@@ -203,7 +207,7 @@ def _resolve_experiment(source_id: str, *, repo: Path, sources: Path, lock_path:
         raise ValueError(f"unknown or inconsistent DSH source: {source_id}")
     required = {"agent_id", "candidate_root", "profile", "patch", "preset", "guard",
                 "config_markers", "required_env_names"}
-    if not required <= set(item) or set(item) - required - {"profile_manifest"}:
+    if not required <= set(item) or set(item) - required - {"profile_manifest", "optional_env_names"}:
         raise ValueError("source fields differ from schema 1.1")
     experiment_root = Path("evolution/experiments") / source_id / "candidate"
     profile_manifest = ADAPTER / "verification-home-controls/web-profile.package.json"
