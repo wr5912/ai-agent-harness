@@ -1,0 +1,6 @@
+schema_version: "1.0"
+experiment_id: EXP-security-operations-expert-008
+agent_id: security-operations-expert
+baseline_ref: git:e406e75ffd4029d0485fe50250be4f701a2adc68
+status: active
+research_question: 能否用新版异步巡检 MCP 合同完成任务发现、幂等发起、结果轮询和真实报告交付，并使独立应急指令在完整运行配置下生成草案

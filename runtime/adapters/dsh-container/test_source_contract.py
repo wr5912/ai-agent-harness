@@ -96,6 +96,17 @@ class SourceContractTest(unittest.TestCase):
         self.assertIn("EMERGENCY_CONFIRMATION_PRIVATE_KEY_B64", contract["optional_env_names"])
         self.assertNotIn("POLICY_CONFIGURATION_MCP_URL", contract["required_env_names"])
 
+    def test_exp008_source_requires_complete_emergency_connection(self):
+        contract = source_contract.resolve("EXP-security-operations-expert-008")
+        emergency = {
+            "EMERGENCY_ACTION_MCP_URL", "EMERGENCY_ACTION_MCP_TOKEN",
+            "EMERGENCY_WORKBENCH_URL", "EMERGENCY_WORKBENCH_TOKEN",
+            "EMERGENCY_CONFIRMATION_PRIVATE_KEY_B64", "EMERGENCY_CONFIRMATION_ACTOR_ID",
+            "AI_WORKBENCH_EMERGENCY_TENANT_ID", "AI_WORKBENCH_EMERGENCY_WORKSPACE_ID",
+        }
+        self.assertTrue(emergency.issubset(contract["required_env_names"]))
+        self.assertTrue(emergency.isdisjoint(contract["optional_env_names"]))
+
     def test_optional_environment_names_reject_invalid_or_required_duplicates(self):
         source = "EXP-security-operations-expert-007"
         original = json.loads(source_contract.SOURCES.read_text(encoding="utf-8"))

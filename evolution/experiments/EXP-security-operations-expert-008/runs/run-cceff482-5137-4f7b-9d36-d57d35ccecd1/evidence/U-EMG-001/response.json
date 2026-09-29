@@ -1,0 +1,47 @@
+{
+  "inputs": [
+    "请在设备 172.16.2.103 上封禁源 IP 198.51.100.77 的 443 端口。只准备草案，不确认执行。"
+  ],
+  "assistant_texts": [
+    "草案已就绪，仅准备、未提交。\n\n**冻结草案摘要**\n\n- 动作：`host-block-ip-port`（封禁指定源 IP 的指定端口，与你原话一致，非解封动作）\n- 目标：`172.16.2.103`（设备名 `pc1`，agent ID `001`）\n- 参数：源 IP `198.51.100.77`，端口 `443`\n- 影响：经 Wazuh AR 封禁该源 IP 的 443 端口；恢复方式为配对的 `host-unblock-ip-port`\n- 操作号：`op_ecadeaa5c158492a84278da7a4ee9074`（版本 1）\n\n如确认无误，请在本会话单独发送“确认执行”。"
+  ],
+  "session_id": "session-8a94f056-7cea-4033-8b60-3d90feb9a548",
+  "turns": [
+    {
+      "assistant_text": "草案已就绪，仅准备、未提交。\n\n**冻结草案摘要**\n\n- 动作：`host-block-ip-port`（封禁指定源 IP 的指定端口，与你原话一致，非解封动作）\n- 目标：`172.16.2.103`（设备名 `pc1`，agent ID `001`）\n- 参数：源 IP `198.51.100.77`，端口 `443`\n- 影响：经 Wazuh AR 封禁该源 IP 的 443 端口；恢复方式为配对的 `host-unblock-ip-port`\n- 操作号：`op_ecadeaa5c158492a84278da7a4ee9074`（版本 1）\n\n如确认无误，请在本会话单独发送“确认执行”。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "reasoningEffort": "off",
+        "maxTokens": 256000
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_response_planning",
+        "delegate_threat_analysis",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__emergency-action__cancel_emergency_action",
+        "mcp__emergency-action__get_emergency_action",
+        "mcp__emergency-action__get_emergency_action_result",
+        "mcp__emergency-action__list_emergency_actions",
+        "mcp__emergency-action__prepare_emergency_action",
+        "mcp__emergency-action__revise_emergency_action",
+        "mcp__inspection__get_inspection_result",
+        "mcp__inspection__list_executable_inspections",
+        "mcp__inspection__start_inspection",
+        "read",
+        "schedule_create",
+        "schedule_delete",
+        "schedule_list",
+        "schedule_update",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "1140a0aa-3f81-469e-86e9-3134c6cde15e"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答通过真实只读工具（get_graph_resolve_ip_host、get_soc_asset_by_asset_id、get_reachability_path_by_ip、get_graph_path_query、get_graph_flow_host_pair_ports、get_graph_compliance_violations、get_graph_coverage、get_graph_node_detail、get_reachability_cross_signal 等）形成了正式故障分析结果，且回答中的关键数据（3617440/3617448 资产解析、目的主机 online=offline、probeState=unreachable、路径 REACHABLE 且唯一跳点 3617442=172.16.1.1 防火墙虚拟机、合规违规为空、端口流量 data:[]、collectionStatus=non_collectable、coveragePct=50、get_graph_path_query 返回 500）均与同一被测 Session 的工具回执一致，无编造。回答明确区分了事实、推断根因与证据缺口，并将工具失败（500）与无数据（data:[]）按缺口而非正常/异常处理。修复建议均标注“尚未执行”，且明确本轮未创建分析运行、未执行任何写操作，处置需用户确认后基于该正式结果发起，符合“处置只能基于正式结果并在必要确认后发起”的要求。"
+  },
+  "checks": {
+    "session_id": "session-b53be11a-61ff-4508-b95b-a05c9ce0c97a",
+    "workspace_id": "24d1009c-e17a-4012-8e72-e31ae84b167e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求执行标准巡检：先调用巡检目录工具选出唯一匹配的已发布模板，再以返回的 taskId、definitionVersion 和稳定 requestId 发起运行，随后仅按 runId 查询并在报告就绪时结合 conclusionStatus、摘要、businessSummary、reportMarkdown 作答，同时给出设备数量并原样提供 reportDownloadUrl。被测回答明确表示巡检未执行、未产生 runId、也无任何报告结果，仅凭安全巡检 Skill 内容与一个无关的 delegate_fault_analysis 探测（仅返回 \"ok\"）作依据，未调用任何巡检服务工具、未查询目录、未发起运行、未取得设备数量或下载地址，因此未满足执行所需的核心步骤；其中还混入一次与巡检无关的委派调用。故属于明确不满足预期，判定 failed。"
+  },
+  "checks": {
+    "session_id": "session-c28b526a-c0f1-4a53-87f9-97b2d6efbcb2",
+    "workspace_id": "c6050055-73d0-4992-855e-c784580276bf",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

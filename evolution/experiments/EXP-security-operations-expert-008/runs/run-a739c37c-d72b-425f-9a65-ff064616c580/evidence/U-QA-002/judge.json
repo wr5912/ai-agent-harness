@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答明确说明本轮无可用知识库：Skill 目录仅 8 个业务 Skill、knowledge-base-search 不存在、未绑定知识库 MCP、MCP 资源列举四项均被拒绝、工作区无知识库文件，并有 security-investigation Skill 第 13 行原文佐证，这些与工具回执（glob 8 个 SKILL.md、glob **/*knowledge* 无匹配、grep 仅命中该行、list_mcp_resources/templates 被拒）一致。回答未编造知识库名称、文档名、分块序号、分数或匹配类型，也未输出无来源的勒索软件应急流程，符合“明确说明不可用且不凭常识回答”的预期，故判 passed。"
+  },
+  "checks": {
+    "session_id": "session-54c5884e-6820-461c-98d9-f28af7b8c30b",
+    "workspace_id": "24d1009c-e17a-4012-8e72-e31ae84b167e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

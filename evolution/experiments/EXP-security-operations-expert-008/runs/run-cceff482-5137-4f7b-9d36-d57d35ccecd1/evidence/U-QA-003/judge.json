@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答明确说明故障分析专家不能直接放通防火墙策略或执行变更，并给出应转交的策略配置路由/Workbench 策略草稿及变更流程，同时声明未执行任何处置动作；未展开具体故障分析，符合全部预期要求。"
+  },
+  "checks": {
+    "session_id": "session-29ee75a7-e415-4132-b79b-8d58947e93e0",
+    "workspace_id": "fa294ab2-f0f5-47f9-b174-2b2f489b25fc",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "purpose": "provisional fast evaluation of uncommitted DSH Runtime compatibility change",
+  "base_runtime_commit": "21638c56315ae6a2b552d6091945d3144c9af32e",
+  "runtime_source_worktree": "/tmp/dsh-inspection-legacy-20260929",
+  "runtime_source_patch_sha256": "c79779ca6f43ff6efc3dfcf8c3f8abd28dc140fd5f9306313723549ec58ecd52",
+  "compiled_plugin_sha256": "5c43cda224579f7acf3894e829fbcba6ff4834498b18fa2685cc9b899d81ffd6",
+  "plugin_mount_target": "/opt/dsh/packages/mcp/mcp-client/lib/index.js",
+  "evaluation_compose_override_sha256": "b97871c08f4f37b3930e80995610c31a4ca0b0280c90d079ba67f0d59f063b60",
+  "image_identity_scope": "base image only; plugin file is bind-mounted from local build"
+}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "本轮证据与预期一致：子智能体 analyze_threat_incident 回执 meta 显示 route=fast_classification、llm_invoked=false、validation 为 not_applicable_fast_classification，且名单命中仅单侧（alert_whitelist 命中 172.16.2.112），属快速分类路径，未调用内层研判模型。主会话展示的是程序生成的摘要（结论误报、快速研判、命中实体、引用条数 414、查询时间），并给出报告下载链接；delivery.storage 显示摘要与报告均 status=saved，下载 URL 来自 persistence，非伪造，实体、时间与运行 ID 均与回执一致，未出现存储失败需如实说明的情形。因此全部可核验要求均满足。"
+  },
+  "checks": {
+    "session_id": "session-dea9b8cc-015e-47a6-a1c3-a9929d505680",
+    "workspace_id": "24d1009c-e17a-4012-8e72-e31ae84b167e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": false
+  }
+}

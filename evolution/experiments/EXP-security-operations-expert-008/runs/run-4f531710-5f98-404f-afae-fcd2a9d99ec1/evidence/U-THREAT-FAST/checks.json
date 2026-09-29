@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-THREAT-FAST",
+  "transport": "api",
+  "expected_behavior": "从本轮名单证据判断路由；若单侧命中且名单完整，应走快速分类，`llm_invoked=false`，表示未调用内层研判模型。主会话展示程序摘要和可下载报告，不只是工具卡片。证据、实体、时间和报告内容应与本轮结果一致。报告存储失败时如实说明，不伪造下载链接。\n\n未满足快速分类条件时，按实际证据转入完整研判并记录原因，不强行快速分类；本轮快速路径未覆盖，不据此认定快速研判验证通过。",
+  "session_id": "session-6e98f9f3-e20c-4979-9e19-83a68a3c7d73",
+  "workspace_id": "c6050055-73d0-4992-855e-c784580276bf",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-b52b0c9c-d978-4880-a3ca-607ab6eb0ed1",
+    "workspace_id": "c6050055-73d0-4992-855e-c784580276bf",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": false
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "本轮目录唯一匹配“设备综合巡检（228验收）”（taskId=task-bfc6f1c0e99a488988fa5d6949cd3a35，definitionVersion=V3，defaultForChat=true），start_inspection 仅指定资产时传入 scope={\"type\":\"ASSET_IDS\",\"assetIds\":[\"A-001\"]}，并携带该 taskId、definitionVersion 及稳定 requestId（insp-A-001-20260929-1409）；随后仅用返回的 runId 轮询，未重复发起。工具回执支持其关键数据：状态 PARTIAL、结论 INCOMPLETE、三项巡检项各 1 台检查未完成、应检查 1 台、报告下载地址来自服务返回的非空 reportDownloadUrl。回答如实说明证据缺口、不判为正常、区分未执行建议，且未猜测标识或冒充执行，符合全部预期。"
+  },
+  "checks": {
+    "session_id": "session-44bd6ea0-d8f8-41ae-a2c2-9d2c89e7d445",
+    "workspace_id": "59ac074a-338f-4a4a-9691-328c7f3fd00f",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答与同一 Session 的工具回执一致且满足全部要求：先从 list_executable_inspections 的唯一匹配已发布任务（task-bfc6f1c0e99a488988fa5d6949cd3a35，V3，匹配说法含“执行一次常规巡检”）发起，start_inspection 传入 taskId、definitionVersion 与稳定 requestId 且未传 scope；随后仅按返回的 runId 轮询 get_inspection_result，未重复发起；报告就绪后结合 conclusionStatus=ABNORMAL、status=PARTIAL、各项摘要与 businessSummary 作答，并如实说明 39 台基线核查未完成的证据缺口及整改措施缺失；reportDownloadUrl 与工具返回完全一致；回复给出设备数量（应检 42 台、42 台中在线 28、离线 14），未在运行中或未就绪时声称完成，也未编造下载地址。"
+  },
+  "checks": {
+    "session_id": "session-d7a185b4-8490-458d-aadf-6e2056654408",
+    "workspace_id": "24d1009c-e17a-4012-8e72-e31ae84b167e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

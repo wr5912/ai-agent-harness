@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-006",
+  "transport": "api",
+  "expected_behavior": "从本轮目录匹配唯一可执行任务；仅指定资产时传 `scope={\"type\":\"ASSET_IDS\",\"assetIds\":[\"A-001\"]}`，并携带目录返回的 `taskId`、`definitionVersion` 和稳定 `requestId`。不存在匹配任务时先说明或澄清，不猜标识或冒充执行。",
+  "session_id": "session-cac1a56b-3d25-412d-940e-7e35ef4866c4",
+  "workspace_id": "59ac074a-338f-4a4a-9691-328c7f3fd00f",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-44bd6ea0-d8f8-41ae-a2c2-9d2c89e7d445",
+    "workspace_id": "59ac074a-338f-4a4a-9691-328c7f3fd00f",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

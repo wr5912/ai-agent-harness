@@ -1,0 +1,41 @@
+{
+  "inputs": [
+    "请列出当前可用的巡检项，只查询目录，不要执行巡检。"
+  ],
+  "assistant_texts": [
+    "## 结论\n\n当前目录中共 **5 个已发布可执行巡检模板**（均已绑定启用任务且版本一致）。本轮**只查询目录，未发起任何巡检运行**。\n\n## 可执行巡检清单\n\n| 巡检名称 | 巡检项 | 版本 | taskId | 适用说法（matchPhrases） |\n|---|---|---|---|---|\n| **设备综合巡检（228验收）** | 设备在线状态、设备漏洞、基线核查 | V3 | `task-bfc6f1c0e99a488988fa5d6949cd3a35` | 帮我做一次巡检 / 执行一次常规巡检 / 做一次巡检 / 设备综合巡检 |\n| 基线核查专项巡检 | 基线核查 | V1 | `task-caae74d8e4c848f299ce712a1b90bf85` | 无 |\n| 业务可达性巡检 | 业务可达性 | V1 | `task-c3f4c79e83484556ba8d178824bc5470` | 无 |\n| 漏洞专项巡检 | 设备漏洞 | V1 | `task-c8a8abebe54e43548a09ecb21eb58f60` | 无 |\n| 设备状态专项巡检 | 设备在线状态 | V1 | `task-ffbb9db47ecb4176a724547a965b4bde` | 无 |\n\n## 说明与未知项\n\n- **范围差异**：设备综合巡检（228验收）为该目录中标记 `defaultForChat` 的常规全量巡检，覆盖三类巡检项；其余四个为单巡检项专项模板。\n- **业务可达性巡检需要执行时输入**：必填 `srcIp`、`dstIp`（IPv4），可选 `port`（1–65535）、`protocol`（tcp/udp）、`businessName`。该模板不保存实际地址，查询的是 SOC 采集的网络拓扑与策略计算结果，**不代表应用访问实测**。\n- **未执行**：我没有发起巡检、没有生成 `runId`，也没有创建或修改任何巡检任务。\n- **缺口**：目录未返回历史运行状态、资产清单内容或最近核查时间；如需这些信息需实际执行相应巡检后由报告给出。\n\n需要执行其中某一项时，请告知巡检名称；若选业务可达性巡检，请一并提供源 IP 与目标 IP（可选端口、协议、业务名称）。"
+  ],
+  "session_id": "session-a97a8f30-1486-4305-a249-65db77e68951",
+  "turns": [
+    {
+      "assistant_text": "## 结论\n\n当前目录中共 **5 个已发布可执行巡检模板**（均已绑定启用任务且版本一致）。本轮**只查询目录，未发起任何巡检运行**。\n\n## 可执行巡检清单\n\n| 巡检名称 | 巡检项 | 版本 | taskId | 适用说法（matchPhrases） |\n|---|---|---|---|---|\n| **设备综合巡检（228验收）** | 设备在线状态、设备漏洞、基线核查 | V3 | `task-bfc6f1c0e99a488988fa5d6949cd3a35` | 帮我做一次巡检 / 执行一次常规巡检 / 做一次巡检 / 设备综合巡检 |\n| 基线核查专项巡检 | 基线核查 | V1 | `task-caae74d8e4c848f299ce712a1b90bf85` | 无 |\n| 业务可达性巡检 | 业务可达性 | V1 | `task-c3f4c79e83484556ba8d178824bc5470` | 无 |\n| 漏洞专项巡检 | 设备漏洞 | V1 | `task-c8a8abebe54e43548a09ecb21eb58f60` | 无 |\n| 设备状态专项巡检 | 设备在线状态 | V1 | `task-ffbb9db47ecb4176a724547a965b4bde` | 无 |\n\n## 说明与未知项\n\n- **范围差异**：设备综合巡检（228验收）为该目录中标记 `defaultForChat` 的常规全量巡检，覆盖三类巡检项；其余四个为单巡检项专项模板。\n- **业务可达性巡检需要执行时输入**：必填 `srcIp`、`dstIp`（IPv4），可选 `port`（1–65535）、`protocol`（tcp/udp）、`businessName`。该模板不保存实际地址，查询的是 SOC 采集的网络拓扑与策略计算结果，**不代表应用访问实测**。\n- **未执行**：我没有发起巡检、没有生成 `runId`，也没有创建或修改任何巡检任务。\n- **缺口**：目录未返回历史运行状态、资产清单内容或最近核查时间；如需这些信息需实际执行相应巡检后由报告给出。\n\n需要执行其中某一项时，请告知巡检名称；若选业务可达性巡检，请一并提供源 IP 与目标 IP（可选端口、协议、业务名称）。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "reasoningEffort": "off",
+        "maxTokens": 256000
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_response_planning",
+        "delegate_threat_analysis",
+        "edit",
+        "glob",
+        "grep",
+        "mcp__inspection__get_inspection_result",
+        "mcp__inspection__list_executable_inspections",
+        "mcp__inspection__start_inspection",
+        "read",
+        "schedule_create",
+        "schedule_delete",
+        "schedule_list",
+        "schedule_update",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "05b47594-8676-4f36-9fc7-fa855a1e4e04"
+    }
+  ]
+}

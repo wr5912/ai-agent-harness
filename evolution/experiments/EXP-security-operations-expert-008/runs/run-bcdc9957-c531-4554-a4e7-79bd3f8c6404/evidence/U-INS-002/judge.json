@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答仅调用了 mcp__inspection__list_executable_inspections（无参数目录查询），未调用 start_inspection 或任何执行/轮询工具。回答列出的 5 个已发布可执行模板、各巡检项、版本 V3/V1、taskId 及 matchPhrases 与同一 Session 工具回执 seq=28 的 JSON 返回逐项一致（设备综合巡检（228验收）含设备在线状态/设备漏洞/基线核查，其余四项为单巡检项专项模板），业务可达性巡检的必填 srcIp/dstIp 及可选参数也与回执 runtimeInputSchema 相符，无编造内容。回答同时明确说明未执行巡检、未生成 runId、未创建或修改任务，并如实指出目录未返回历史运行状态等缺口信息，符合预期全部要求。"
+  },
+  "checks": {
+    "session_id": "session-0d068fd6-387a-4287-ab2c-770717cf52e4",
+    "workspace_id": "59ac074a-338f-4a4a-9691-328c7f3fd00f",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

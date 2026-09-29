@@ -1,0 +1,36 @@
+{
+  "inputs": [
+    "请研判威胁事件 INC-20260917-000001。"
+  ],
+  "assistant_texts": [
+    "### 威胁事件研判摘要\n\n**结论：** 误报\n\n**快速研判：** 是\n\n**事件 ID：** INC\\-20260917\\-000001\n\n#### 名单命中依据\n\n| 名单来源 | 命中实体 | 引用条数 | 查询时间 |\n| --- | --- | --- | --- |\n| 告警白名单 | 172\\.16\\.2\\.112 | 414 | 2026\\-09\\-29T13:40:28\\.760232\\+00:00 |\n\n引用条数按每条命中分别统计，不代表独立告警数。该结论由名单规则生成，未进行完整行为研判。\n\n#### 保存与下载\n\n**摘要存储：** 已保存\n\n**报告存储：** 已保存\n\n**报告下载：** [下载 HTML 报告](<http://172.16.138.228:58215/api/persistence/files/file-697812e9-4eb7-4389-a1fe-33f918d20402/download>)\n\n**运行 ID：** run\\-15458848\\-ec3d\\-484b\\-a211\\-c4009281e2bd\n"
+  ],
+  "session_id": "session-6e98f9f3-e20c-4979-9e19-83a68a3c7d73",
+  "turns": [
+    {
+      "assistant_text": "### 威胁事件研判摘要\n\n**结论：** 误报\n\n**快速研判：** 是\n\n**事件 ID：** INC\\-20260917\\-000001\n\n#### 名单命中依据\n\n| 名单来源 | 命中实体 | 引用条数 | 查询时间 |\n| --- | --- | --- | --- |\n| 告警白名单 | 172\\.16\\.2\\.112 | 414 | 2026\\-09\\-29T13:40:28\\.760232\\+00:00 |\n\n引用条数按每条命中分别统计，不代表独立告警数。该结论由名单规则生成，未进行完整行为研判。\n\n#### 保存与下载\n\n**摘要存储：** 已保存\n\n**报告存储：** 已保存\n\n**报告下载：** [下载 HTML 报告](<http://172.16.138.228:58215/api/persistence/files/file-697812e9-4eb7-4389-a1fe-33f918d20402/download>)\n\n**运行 ID：** run\\-15458848\\-ec3d\\-484b\\-a211\\-c4009281e2bd\n",
+      "route": {
+        "provider": "threat-analysis-delivery",
+        "model": "fixed-summary"
+      },
+      "tool_names": [
+        "delegate_fault_analysis",
+        "delegate_response_planning",
+        "delegate_threat_analysis",
+        "edit",
+        "glob",
+        "grep",
+        "read",
+        "schedule_create",
+        "schedule_delete",
+        "schedule_list",
+        "schedule_update",
+        "skill",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "ba179e18-7c7c-42ab-b89e-a2b27f502c8d"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "本轮工具回执明确显示 route=fast_classification、llm_invoked=false、validation=not_applicable_fast_classification，且单侧命中告警白名单实体 172.16.2.112，符合快速分类条件。主会话展示了程序生成的完整摘要（结论、快速研判标记、名单命中依据、引用 414 条、查询时间、运行 ID），与 meta 中的 delivery/storage 数据一致；storage.report.status=saved 且 download_url 与摘要中的下载链接完全一致，未伪造。摘要、报告存储均如实标注已保存，事件 ID、实体、时间与运行 ID 均与工具事实一致。预期中“未覆盖快速路径则不据此认定验证通过”的例外不适用，因本轮快速路径确已覆盖并验证。因此满足全部要求。"
+  },
+  "checks": {
+    "session_id": "session-b52b0c9c-d978-4880-a3ca-607ab6eb0ed1",
+    "workspace_id": "c6050055-73d0-4992-855e-c784580276bf",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": false
+  }
+}

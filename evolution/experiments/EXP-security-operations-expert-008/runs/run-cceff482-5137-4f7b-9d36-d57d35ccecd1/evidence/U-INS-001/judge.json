@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "被测回答与工具回执一致地显示巡检仅处于 RUNNING/PENDING，未就绪，因此不能提供结论、businessSummary 或下载地址，这一点回答如实说明并无编造，符合“不得声称完成”的部分。但预期明确要求：回复仍须给出设备数量；若服务没有提供该数量，应说明该缺口。工具回执中所有字段（含 businessSummary、reportMarkdown）均为 null，未返回设备数量，而被测回答也未提及设备数量、未说明该数据缺口，仅以“运行未结束”解释结论缺失，未覆盖设备数量这一约定项，故判为未满足全部要求。"
+  },
+  "checks": {
+    "session_id": "session-f6d43ebc-27cf-47ef-aa40-0396dd2dc4de",
+    "workspace_id": "fa294ab2-f0f5-47f9-b174-2b2f489b25fc",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

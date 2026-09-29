@@ -207,6 +207,54 @@
         "AI_WORKBENCH_EMERGENCY_WORKSPACE_ID"
       ]
     },
+    "EXP-security-operations-expert-008": {
+      "agent_id": "security-operations-expert",
+      "candidate_root": "evolution/experiments/EXP-security-operations-expert-008/candidate/dsh",
+      "profile_manifest": "evolution/experiments/EXP-security-operations-expert-008/candidate/dsh/managed/web-profile.package.json",
+      "profile": "web",
+      "patch": "security-operations-expert.patch.yml",
+      "preset": "security-operations-expert/agent.cordis.yml",
+      "guard": "security-operations-guard.mjs",
+      "config_markers": [
+        "/opt/dsh-presets",
+        "/work/harness/workspace/.agents/skills",
+        "security-operations-expert",
+        "/opt/dsh-managed/security-operations-ui/index.js",
+        "/opt/dsh-managed/dsh-voice-hub/lib/index.js",
+        "security-operations-mcp-sec-ops",
+        "security-operations-mcp-inspection",
+        "security-operations-mcp-policy-configuration",
+        "security-operations-mcp-emergency-action",
+        "security-operations-delegate-fault-analysis",
+        "security-operations-delegate-response-planning",
+        "local-qwen",
+        "Qwen3.8-27B",
+        "LOCAL_LLM_BASE_URL",
+        "security-operations-delegate-threat-analysis"
+      ],
+      "required_env_names": [
+        "DEEPSEEK_API_KEY",
+        "SEC_OPS_MCP_URL",
+        "SEC_OPS_MCP_TOKEN",
+        "INSPECTION_MCP_URL",
+        "INSPECTION_MCP_TOKEN",
+        "LOCAL_LLM_BASE_URL",
+        "LOCAL_LLM_API_KEY",
+        "SOC_MCP_BASE_URL",
+        "REPORT_MCP_URL",
+        "EMERGENCY_ACTION_MCP_URL",
+        "EMERGENCY_ACTION_MCP_TOKEN",
+        "EMERGENCY_WORKBENCH_URL",
+        "EMERGENCY_WORKBENCH_TOKEN",
+        "EMERGENCY_CONFIRMATION_PRIVATE_KEY_B64",
+        "EMERGENCY_CONFIRMATION_ACTOR_ID",
+        "AI_WORKBENCH_EMERGENCY_TENANT_ID",
+        "AI_WORKBENCH_EMERGENCY_WORKSPACE_ID"
+      ],
+      "optional_env_names": [
+        "POLICY_CONFIGURATION_MCP_URL"
+      ]
+    },
     "EXP-test01-001": {
       "agent_id": "test01",
       "candidate_root": "evolution/experiments/EXP-test01-001/candidate/dsh",

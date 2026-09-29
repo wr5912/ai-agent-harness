@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测回答明确说明当前无可用知识库、无法选择最相关知识库，并逐项指出知识库名/文档名/分块序号/分数/匹配类型均不存在，未输出任何无来源的勒索软件响应流程内容，符合预期中“工具不可用或无证据时明确说明”的要求。工具回执可佐证：list_mcp_resources 与 list_mcp_resource_templates（server=sec-ops）均被拒绝，glob **/*knowledge* 无结果，glob **/*.md 仅命中 AGENTS.md 与 8 个 SKILL.md，grep 命中 security-investigation/SKILL.md 第 13 行“当前没有知识库检索服务”及 AGENTS.md 第 49 行“当前未配置知识库检索”；回答中的能力缺口与引用行号均与本轮工具事实一致。预期所要求的事实数据（知识库、文档、分块、分数、匹配类型）因检索不可用而不存在，回答亦未编造，故满足预期。"
+  },
+  "checks": {
+    "session_id": "session-08bad096-820f-46b2-9c4f-8222c4e7c4fa",
+    "workspace_id": "fa294ab2-f0f5-47f9-b174-2b2f489b25fc",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

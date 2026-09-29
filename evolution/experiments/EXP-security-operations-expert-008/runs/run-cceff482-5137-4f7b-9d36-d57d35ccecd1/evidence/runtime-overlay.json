@@ -1,0 +1,9 @@
+{
+  "schema_version": "1.0",
+  "purpose": "local DSH MCP client compatibility overlay used for this fast Run",
+  "base_runtime_commit": "21638c56315ae6a2b552d6091945d3144c9af32e",
+  "compiled_plugin_sha256": "5c43cda224579f7acf3894e829fbcba6ff4834498b18fa2685cc9b899d81ffd6",
+  "plugin_mount_target": "/opt/dsh/packages/mcp/mcp-client/lib/index.js",
+  "evaluation_compose_override_sha256": "7d813f69b94893cdb97c5446f4b56586164d97141b33926f799b2fc1319b0576",
+  "image_identity_scope": "base image only; plugin file is bind-mounted from local build"
+}

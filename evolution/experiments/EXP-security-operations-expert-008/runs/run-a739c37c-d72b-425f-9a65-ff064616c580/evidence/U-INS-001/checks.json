@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-001",
+  "transport": "api",
+  "expected_behavior": "先从 `list_executable_inspections` 选出唯一匹配的已发布任务，以返回的 `taskId`、`definitionVersion` 和稳定 `requestId` 发起；常规全量巡检不传 `scope`。发起后只按返回的 `runId` 查询，不重复发起；报告就绪时结合 `conclusionStatus`、各项摘要、`businessSummary` 和 `reportMarkdown` 回答，并原样提供返回的 `reportDownloadUrl`。回复仍须给出设备数量；若服务没有提供该数量，该项不得判通过，并应说明缺口。运行中、工具失败或报告未就绪时不得声称完成或编造下载地址；若结果为 `PARTIAL`，须说明证据缺口。",
+  "session_id": "session-3cd7bf92-fa87-4f3d-8f51-bd4d83fcc09f",
+  "workspace_id": "24d1009c-e17a-4012-8e72-e31ae84b167e",
+  "session_preset": "security-operations-expert",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-d7a185b4-8490-458d-aadf-6e2056654408",
+    "workspace_id": "24d1009c-e17a-4012-8e72-e31ae84b167e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

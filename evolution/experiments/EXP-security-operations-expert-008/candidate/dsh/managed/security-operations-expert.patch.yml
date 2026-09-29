@@ -1,0 +1,222 @@
+# 叠加到 DSH 官方 web Profile。该文件只由容器内 DSH 加载。
+# 全局工具使 tool-subagent 的 toolFilter 能对每个角色执行单调衰减；Preset
+# 本身不注册模型工具，避免 scoped tool 绕过 response-planning 的 allow: []。
+
+- id: tool-bash
+  disabled: true
+
+- id: tool-pwsh
+  disabled: true
+
+- id: tool-jobs
+  disabled: true
+
+- id: tool-fs
+  disabled: false
+
+- id: tool-fs-search
+  disabled: false
+  config:
+    sampleOverCapGlobResults: false
+
+- id: skill-filesystem
+  disabled: false
+  config:
+    providerName: security-operations-workspace
+    includeDefaultRoots: false
+    customSkillDirs:
+      - /work/harness/workspace/.agents/skills
+    watch: !!js process.env.DSH_HARNESS_MODE === 'authoring'
+    watchFollowSymlinks: false
+
+- id: tool-skill
+  disabled: false
+
+- id: tool-web
+  disabled: true
+
+- id: tool-subagent-control
+  disabled: true
+
+- id: tool-subagent-list-agents
+  disabled: true
+
+- id: tool-subagent
+  disabled: true
+
+- id: tool-subagent-fork
+  disabled: true
+
+- id: tool-workflow
+  disabled: true
+
+- id: tool-ralph
+  disabled: true
+
+- id: agent-preset-registry
+  config:
+    default: security-operations-expert
+
+- id: agent-default-model
+  config:
+    provider: deepseek-official
+    model: deepseek-flash
+    reasoningEffort: 'off'
+
+- id: llm-pi-ai
+  config:
+    providers:
+      local-qwen:
+        displayName: Local Qwen
+        apiKeyEnv: LOCAL_LLM_API_KEY
+        api: openai-completions
+        baseURL: !!js process.env.LOCAL_LLM_BASE_URL
+        models:
+          - id: Qwen3.8-27B
+            name: Qwen3.8-27B
+            contextWindow: 262144
+
+- insert:
+    - id: preset-security-operations-expert
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: security-operations-expert
+        plugins:
+          - id: security-operations-harness
+            name: cordis:include
+            config:
+              path: /opt/dsh-presets/security-operations-expert/agent.cordis.yml
+
+    - id: security-operations-ui
+      name: /opt/dsh-managed/security-operations-ui/index.js
+
+    - id: voice-mode
+      name: /opt/dsh-managed/dsh-voice-hub/lib/index.js
+      config:
+        asrStreamUrl: ws://172.16.138.233:8012/v1/asr/stream
+        asrBatchUrl: http://172.16.138.233:8002
+        ttsBaseUrl: http://172.16.138.233:8003
+
+    - id: security-operations-mcp-sec-ops
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: sec-ops
+        transport: streamable-http
+        url: !!js process.env.SEC_OPS_MCP_URL
+        headers:
+          Authorization: !!js '`Bearer ${process.env.SEC_OPS_MCP_TOKEN}`'
+        failOnStartupError: true
+        reconnect:
+          enabled: false
+
+    - id: security-operations-mcp-inspection
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: inspection
+        transport: streamable-http
+        url: !!js process.env.INSPECTION_MCP_URL
+        versionNegotiationMode: legacy
+        headers:
+          Authorization: !!js '`Bearer ${process.env.INSPECTION_MCP_TOKEN}`'
+        failOnStartupError: true
+        reconnect:
+          enabled: false
+
+    - id: security-operations-mcp-policy-configuration
+      name: '@deepseek-ai/dsh-mcp-client'
+      disabled: !!js '!process.env.POLICY_CONFIGURATION_MCP_URL'
+      config:
+        serverName: policy-configuration
+        transport: streamable-http
+        url: !!js process.env.POLICY_CONFIGURATION_MCP_URL
+        headers:
+          Authorization: !!js '`Bearer ${process.env.SEC_OPS_MCP_TOKEN}`'
+        failOnStartupError: false
+        reconnect:
+          enabled: false
+
+    - id: security-operations-mcp-emergency-action
+      name: '@deepseek-ai/dsh-mcp-client'
+      disabled: !!js '!process.env.EMERGENCY_ACTION_MCP_URL || !process.env.EMERGENCY_ACTION_MCP_TOKEN'
+      config:
+        serverName: emergency-action
+        transport: streamable-http
+        url: !!js process.env.EMERGENCY_ACTION_MCP_URL
+        headers:
+          Authorization: !!js '`Bearer ${process.env.EMERGENCY_ACTION_MCP_TOKEN}`'
+        failOnStartupError: false
+        reconnect:
+          enabled: false
+
+    - id: security-operations-delegate-fault-analysis
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: delegate_fault_analysis
+        enableRunInBackground: false
+        backgroundMode: one-shot
+        maxDepth: 1
+        persona: >-
+          你是只读故障取证子 Agent。仅调用完成当前问题所必需的已授权 SOC 查询工具，
+          区分事实、推断和证据缺口，不执行处置、不创建运行、不读写文件，也不补造结果。
+        toolFilter:
+          allow:
+            - mcp__sec-ops__search_graph_assets
+            - mcp__sec-ops__get_graph_resolve_ip_host
+            - mcp__sec-ops__get_soc_asset_by_asset_id
+            - mcp__sec-ops__list_soc_asset
+            - mcp__sec-ops__get_soc_asset_biz_systems
+            - mcp__sec-ops__get_soc_asset_vulnerabilities
+            - mcp__sec-ops__get_ingest_devices_by_asset_by_asset_id
+            - mcp__sec-ops__get_graph_node_detail
+            - mcp__sec-ops__get_graph_path_query
+            - mcp__sec-ops__get_reachability_path_by_ip
+            - mcp__sec-ops__get_graph_flow_host_pair_ports
+            - mcp__sec-ops__get_reachability_cross_signal
+            - mcp__sec-ops__get_graph_compliance_violations
+            - mcp__sec-ops__get_graph_coverage
+            - mcp__sec-ops__get_event_by_id
+
+    - id: security-operations-delegate-response-planning
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: delegate_response_planning
+        enableRunInBackground: false
+        backgroundMode: one-shot
+        maxDepth: 1
+        persona: >-
+          你是受信 Runtime 手动开启的单次响应规划 Agent。只消费本轮裸 JSON 冻结输入，
+          只能从候选集合复用剧本、组合临时动作或返回人工复核。不得调用任何工具；输出
+          必须是 response-plan-output/v1 裸 JSON，不得输出 Markdown、旁白或执行声明。
+        toolFilter:
+          allow: []
+
+- insert:
+    - id: threat-analysis
+      name: /opt/dsh-managed/threat-analysis.mjs
+      config:
+        # 模型由当前 DSH 会话继承；不再配置独立内层模型、地址或密钥。
+        connections:
+          soc:
+            url: !!js process.env.SOC_MCP_BASE_URL
+            catalogDir: /opt/dsh-managed/threat-analysis/catalog
+          report:
+            url: !!js process.env.REPORT_MCP_URL
+
+    - id: security-operations-delegate-threat-analysis
+      name: '@deepseek-ai/dsh-tool-subagent'
+      config:
+        provider: spawn
+        toolName: delegate_threat_analysis
+        enableRunInBackground: false
+        backgroundMode: one-shot
+        maxDepth: 1
+        persona: >-
+          你是威胁研判子智能体。收到明确的 INC-YYYYMMDD-NNNNNN 事件 ID 后，
+          必须且只调用一次 analyze_threat_incident，incident_id 原样传入。
+          不自行取证、分析、修补或重新发起研判。工具完成后由程序交付正式摘要，
+          你不重新生成结论或报告。缺少有效事件 ID 时只说明需要事件 ID。
+        toolFilter:
+          allow:
+            - analyze_threat_incident

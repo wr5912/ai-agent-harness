@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-002",
+  "transport": "api",
+  "completed": false,
+  "failure_reason": "api-case-error"
+}

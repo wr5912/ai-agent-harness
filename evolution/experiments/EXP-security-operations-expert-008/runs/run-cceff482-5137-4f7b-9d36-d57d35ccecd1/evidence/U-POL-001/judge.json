@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "被测回答未满足预期：预期要求基于真实资产、路径和设备能力生成策略预览并说明待确认内容。实际执行中，模型先把“新增网络访问策略”误路由到 emergency-action，调用 list_emergency_actions，并用编造的 action_key（firewall-add-access-policy）提交 prepare_emergency_action，被工具以 NEEDS_INPUT 拒绝；随后虽然自我纠正并列出参数表、提出 A/B/C 三种确认选项，但始终没有通过 policy-configuration 的专用 prepare 工具提交过一次真正的策略准备请求，因此没有任何来自同一被测 Session 的权威 DRAFT、配置预览或命令数组，也就无法基于真实资产、路径和设备能力给出策略预览。回答中模型明确承认“I have not yet performed any policy prepare”，故“生成策略预览并说明待确认内容”这一核心要求未达成。在不得声称已开通方面尚可：模型仅指出草稿 op_1ebe… 无效，未声称策略已开通，并说明其执行状态为 NOT_SUBMITTED。但整体关键要求缺失，判定 failed。"
+  },
+  "checks": {
+    "session_id": "session-7411bb66-afb0-4919-9ac5-7d67cac2fd3c",
+    "workspace_id": "fa294ab2-f0f5-47f9-b174-2b2f489b25fc",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

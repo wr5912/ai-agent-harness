@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "failed",
+    "reason": "预期要求：基于真实资产/路径/设备能力生成策略预览并说明待确认内容，且未获执行回执时不得声称已开通。被测回答确实未声称已开通（符合后半条），但关键要求未能满足：本会话实际加载了 policy-configuration Skill，工具体中不存在 mcp__policy-configuration__* 工具域，被测仅加载 Skill、列举巡检模板并做了一次无效 result 调用（runId=placeholder，回执为“巡检运行不存在”），从未调用 prepare，也就没有 operation_id，没有 Workbench 的资产与可达路径分析，没有候选、DRAFT、配置预览或命令数组。回答把“无法提交”等同于“无策略配置工具”，以客户端合同障碍解释并停止，未产出任何基于真实资产、路径和设备能力的策略预览，也未给出待确认内容（无 taskId、DRAFT 状态或确认提示）。因此对照完整预期，明确不满足“生成策略预览并说明待确认内容”这一核心要求，判定 failed。"
+  },
+  "checks": {
+    "session_id": "session-1cd1d558-19e1-4acb-acec-cb838454bb2e",
+    "workspace_id": "24d1009c-e17a-4012-8e72-e31ae84b167e",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

@@ -1,0 +1,84 @@
+schema_version: "1.0"
+agent:
+  id: security-operations-expert
+  name: 网络安全运营专家智能体
+  language: zh-CN
+  lifecycle_status: experiment
+  runtime_family: dsh
+  load_mode: container-only
+experiment:
+  id: EXP-security-operations-expert-008
+  baseline_ref: git:e406e75ffd4029d0485fe50250be4f701a2adc68
+  status: active
+capabilities:
+  migrated_for_research:
+    - threat.analyze
+    - response.intake
+    - response.plan
+    - fault.read-evidence
+    - inspection.capabilities
+    - inspection.run
+    - inspection.result
+    - policy.prepare
+    - policy.status
+    - policy.result
+    - policy.select
+    - policy.confirm-trusted
+    - emergency.prepare
+    - emergency.revise
+    - emergency.get
+    - emergency.list
+    - emergency.result
+    - emergency.cancel
+    - emergency.confirm-trusted
+  unavailable_in_current_contract:
+    - inspection.task-create
+    - inspection.task-schedule
+    - soc.investigate
+    - knowledge.search
+    - policy.decide
+    - emergency.submit-by-model
+loadable_assets:
+  workspace: dsh/workspace
+  preset_root: dsh/presets
+  managed_root: dsh/managed
+  preset_id: security-operations-expert
+  profile_patch: dsh/managed/security-operations-expert.patch.yml
+runtime_contract:
+  workspace_container_path: /work/harness/workspace
+  preset_container_path: /opt/dsh-presets
+  managed_container_path: /opt/dsh-managed
+  dsh_home_container_path: /var/lib/dsh
+  authoring_workspace_mode: rw
+  authoring_preset_mode: ro
+  authoring_managed_mode: ro
+  verification_candidate_mode: ro
+  release_mode: ro
+  expose_host_port: false
+credential_environment_keys:
+  - DEEPSEEK_API_KEY
+  - SEC_OPS_MCP_URL
+  - SEC_OPS_MCP_TOKEN
+  - INSPECTION_MCP_URL
+  - INSPECTION_MCP_TOKEN
+  - LOCAL_LLM_BASE_URL
+  - LOCAL_LLM_API_KEY
+  - SOC_MCP_BASE_URL
+  - REPORT_MCP_URL
+  - POLICY_CONFIGURATION_MCP_URL
+  - EMERGENCY_ACTION_MCP_URL
+  - EMERGENCY_ACTION_MCP_TOKEN
+  - EMERGENCY_WORKBENCH_URL
+  - EMERGENCY_WORKBENCH_TOKEN
+  - EMERGENCY_CONFIRMATION_PRIVATE_KEY_B64
+  - EMERGENCY_CONFIRMATION_ACTOR_ID
+  - AI_WORKBENCH_EMERGENCY_TENANT_ID
+  - AI_WORKBENCH_EMERGENCY_WORKSPACE_ID
+security:
+  authoring_change_activation: host-reviewed-new-container-and-session
+  user_text_is_authority: false
+  mcp_startup_failure: per-capability-unavailable-on-startup-failure
+  external_service_enforcement_required: true
+  model_can_write_managed_plane: false
+provenance:
+  archive_manifest: ../../../history/imports/security-operations-expert-2026-09-15/source-manifest.json

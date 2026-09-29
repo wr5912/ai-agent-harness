@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "被测会话通过 delegate_threat_analysis 委派子智能体，子智能体调用 analyze_threat_incident，工具回执 meta.threat_analysis 显示 route=fast_classification、llm_invoked=false、verdict=误报、单侧名单命中 alert_whitelist/172.16.2.112、mcp_calls=208、mcp_failures=0，与预期“单侧命中且名单完整走快速分类且不调用内层模型”一致；主会话 assistant 文本展示完整程序摘要（结论、快速研判=是、事件 ID、名单命中表、引用条数说明）而非仅工具卡片，报告下载链接与存储 status=saved 及 persistence 返回的 download_url 完全一致，运行 ID、查询时间、命中实体均与本轮工具结果吻合，未伪造链接或保存状态。预期中“快速路径未覆盖时不认定通过”的条件在本轮已覆盖并由回执证实，故判定满足全部要求。"
+  },
+  "checks": {
+    "session_id": "session-7455626a-19f7-4d6a-80fc-0405d8c12b6d",
+    "workspace_id": "fa294ab2-f0f5-47f9-b174-2b2f489b25fc",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": false
+  }
+}

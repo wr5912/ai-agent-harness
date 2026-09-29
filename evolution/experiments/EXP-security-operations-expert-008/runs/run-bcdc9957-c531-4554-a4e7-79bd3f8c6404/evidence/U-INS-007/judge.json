@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "第二轮仅调用 get_inspection_result 并复用首轮 runId（run-6206c6224168463a8f54eb4f03b64cd5），未再调用 start_inspection；首轮 start_inspection 返回 RUNNING 时回答给出 runId 且未提供下载链接；第二轮工具回执 status=PARTIAL、reportDownloadUrl 非空，回答报告已结束并就绪并原样提供该地址，摘要数值与工具 businessSummary/reportMarkdown 一致。"
+  },
+  "checks": {
+    "session_id": "session-3d81795d-b42b-4223-9d16-4f6679af7b1e",
+    "workspace_id": "59ac074a-338f-4a4a-9691-328c7f3fd00f",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}
