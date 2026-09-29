@@ -178,7 +178,8 @@
         "security-operations-delegate-response-planning",
         "local-qwen",
         "Qwen3.8-27B",
-        "LOCAL_LLM_BASE_URL"
+        "LOCAL_LLM_BASE_URL",
+        "security-operations-delegate-threat-analysis"
       ],
       "required_env_names": [
         "DEEPSEEK_API_KEY",
@@ -187,7 +188,9 @@
         "INSPECTION_MCP_URL",
         "INSPECTION_MCP_TOKEN",
         "LOCAL_LLM_BASE_URL",
-        "LOCAL_LLM_API_KEY"
+        "LOCAL_LLM_API_KEY",
+        "SOC_MCP_BASE_URL",
+        "REPORT_MCP_URL"
       ]
     },
     "EXP-test01-001": {

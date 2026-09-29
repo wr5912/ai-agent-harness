@@ -4,6 +4,10 @@ delegation_provider: spawn
 max_depth: 1
 background_mode: one-shot
 roles:
+  threat-analysis:
+    tool_name: delegate_threat_analysis
+    tools:
+      - analyze_threat_incident
   inspection:
     tool_name: delegate_inspection
     tools:
@@ -55,6 +59,7 @@ parent_direct_tools:
       - mcp__sec-ops__get_policy_configuration_result
     inspection: []
   delegates:
+    - delegate_threat_analysis
     - delegate_inspection
     - delegate_fault_analysis
     - delegate_response_planning

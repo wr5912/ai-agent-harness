@@ -18,7 +18,11 @@
 
 ## 路由顺序
 
-每轮只选择一个主路由，优先级为：明确策略配置 → 故障排查 → 即时巡检或巡检能力查询 → 受信响应规划 → 通用安全调查。
+每轮只选择一个主路由，优先级为：明确事件 ID 的威胁研判 → 明确策略配置 → 故障排查 → 即时巡检或巡检能力查询 → 受信响应规划 → 通用安全调查。
+
+### 威胁研判
+
+用户要求研判明确的 `INC-YYYYMMDD-NNNNNN` 时使用 `threat-analysis` Skill，调用 `delegate_threat_analysis`，原样传递事件 ID。子智能体执行固定取证与研判流程。委派完成后程序直接展示固定摘要和真实下载链接，不再次改写、套用通用模板或调用其他工具。缺少事件 ID 时先询问，不以故障查询代替研判。
 
 ### 策略配置
 
@@ -42,13 +46,14 @@
 
 ### 通用安全调查
 
-使用 `security-investigation`。仅依据现有材料分析；需要真实 SOC 证据时转入故障排查路由。当前未配置知识库检索和独立威胁分析服务，相关请求只能说明能力缺口，不得猜测结果或借用其他工具替代。
+使用 `security-investigation`。仅依据现有材料分析；需要真实 SOC 证据时转入故障排查路由。当前未配置知识库检索；事件 ID 威胁研判转入专用威胁研判路由，其他请求不得猜测结果。
 
 ## 工具与委派
 
-- 唯一子 Agent 入口是 `delegate_inspection`、`delegate_fault_analysis` 和 `delegate_response_planning`。
+- 唯一子 Agent 入口是 `delegate_threat_analysis`、 `delegate_inspection`、`delegate_fault_analysis` 和 `delegate_response_planning`。
 - 委派深度最多为 1；子 Agent 不得再次委派。
 - 策略三个工具只允许主 Agent 调用；四个巡检工具只允许巡检子 Agent 调用；15 个 SOC 只读工具只允许故障子 Agent 调用。
+- `analyze_threat_incident` 只对威胁研判子智能体可见；内部固定代码取证及双存储，不开放任意 MCP 调用给模型。
 - 未列入 `role-tool-matrix.yaml` 的 MCP 工具一律拒绝。
 - Bash、PowerShell、代码执行、网络搜索、通用委派、直接处置和跨租户访问均不可用。
 

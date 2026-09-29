@@ -1,0 +1,1 @@
+{"run_id":"run-fb5b955e-3e23-4b7d-aac0-2727769f3218","trial_id":"trial-u-threat-full","input_id":"U-THREAT-FULL","execution_status":"completed","verdict":"passed","observation":"真实子智能体研判；结果、双存储、父正文与网页检查见 evidence；技术交付通过不代表研判结论正确。","evidence_ref":"evidence/U-THREAT-FULL","duration_ms":233800,"model":"local-qwen/Qwen3.8-27B"}

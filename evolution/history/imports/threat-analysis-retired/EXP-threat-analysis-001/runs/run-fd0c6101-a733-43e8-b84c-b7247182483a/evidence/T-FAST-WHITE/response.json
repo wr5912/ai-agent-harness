@@ -1,0 +1,12 @@
+{
+  "user_input": "请研判威胁事件 INC-20260915-000002。",
+  "assistant_text": "{\"incident_id\":\"INC-20260915-000002\",\"run_id\":\"run-ff549744-c960-4cb6-bf65-22ad2848b75b\",\"status\":\"completed\",\"llm_invoked\":false,\"route\":\"fast_classification\",\"mcp_calls\":208,\"mcp_failures\":77,\"validation\":{\"status\":\"not_applicable_fast_classification\"},\"result\":{\"verdict\":\"误报\",\"matches\":[{\"source\":\"alert_whitelist\",\"entry_id\":\"wl-21c59177-68d9-4f24-b2f2-8f99625c07ab\",\"entity_value\":\"172.16.2.112\",\"evidence_refs\":[\"alerts[10](1789652268.128398797)\",\"alerts[10](1789652268.128398797).source_ip\",\"alerts[11](1789652268.128401005)\",\"alerts[11](1789652268.128401005).source_ip\",\"alerts[12](1789652268.128405499)\",\"alerts[12](1789652268.128405499).source_ip\",\"alerts[13](1789652268.128406261)\",\"alerts[13](1789652268.128406261).source_ip\",\"alerts[14](1789652268.128407022)\",\"alerts[14](1789652268.128407022).source_ip\",\"alerts[15](1789652269.128411594)\",\"alerts[15](1789652269.128411594).source_ip\",\"alerts[16](1789652269.128417689)\",\"alerts[16](1789652269.128417689).source_ip\",\"alerts[17](1789652259.128168462)\",\"alerts[17](1789652259.128168462).source_ip\",\"alerts[18](1789652259.128170689)\",\"alerts[18](1789652259.128170689).source_ip\",\"alerts[19](1789652259.128169946)\",\"alerts[19](1789652259.128169946).source_ip\",\"alerts[1](1789630924.88768899)\",\"alerts[1](1789630924.88768899).source_ip\",\"alerts[20](1789652259.128171431)\",\"alerts[20](1789652259.128171431).source_ip\",\"alerts[2](1789652265.128377837)\",\"alerts[2](1789652265.128377837).source_ip\",\"alerts[3](1789652265.128380954)\",\"alerts[3](1789652265.128380954).source_ip\",\"alerts[4](1789652265.128382112)\",\"alerts[4](1789652265.128382112).source_ip\",\"alerts[5](1789652265.128384437)\",\"alerts[5](1789652265.128384437).source_ip\",\"alerts[6](1789652266.128387939)\",\"alerts[6](1789652266.128387939).source_ip\",\"alerts[7](1789652267.128394070)\",\"alerts[7](1789652267.128394070).source_ip\",\"alerts[8](1789652267.128395854)\",\"alerts[8](1789652267.128395854).source_ip\",\"alerts[9](1789652267.128396589)\",\"alerts[9](1789652267.128396589).source_ip\"],\"list_version\":null,\"queried_at\":\"2026-09-24T04:39:00.408708+00:00\"}]}}",
+  "turn_reason": "completed",
+  "session_id": "session-5b0f06aa-b9f5-4e4e-91c0-f7b817d0899f",
+  "turn": 1,
+  "input_message_id": "7306f7d7-0530-45f6-ab40-1dc47698be56",
+  "route": {
+    "provider": "local-qwen",
+    "model": "Qwen3.8-27B"
+  }
+}

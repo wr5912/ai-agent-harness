@@ -1,0 +1,16 @@
+{
+  "status_code": 200,
+  "result": {
+    "msg": "操作成功",
+    "code": 200,
+    "data": {
+      "judgementId": "JDG-2104827873840672769",
+      "incidentId": "INC-20260912-000004",
+      "roundNo": 4,
+      "leaseUntil": "2026-09-29 15:17:25"
+    }
+  },
+  "log_id": "fcc164da-bf25-426f-a9e2-a14870c5744e",
+  "status": "success",
+  "error_message": null
+}

@@ -1,0 +1,312 @@
+{
+  "observed_at": "2026-09-29T04:11:39.379559+00:00",
+  "baseline_commit": "159d8d2721dd0964e4247b2eeafe82f9abca8f77",
+  "synced_commit": "3b64e7de45e29ba759281aca581ddae1a58b7c00",
+  "dirty": true,
+  "image_id": "sha256:fe06077641ffd3cf8f1b739bebaa4207adab5460bd0a428318f7f68a0e9dd4d8",
+  "runtime_commit": "21638c56315ae6a2b552d6091945d3144c9af32e",
+  "runtime_version": "0.1.7-rc.2",
+  "load": {
+    "status": "mount-and-config-composition-only",
+    "source_id": "experiment:EXP-threat-analysis-001",
+    "agent_id": "threat-analysis",
+    "dsh_mode": "verification",
+    "profile": "web",
+    "patch": "/opt/dsh-managed/threat-analysis.patch.yml",
+    "mounts": {
+      "workspace": {
+        "mount_mode": "ro",
+        "tree_sha256": "sha256:2eaeea98a71774b109df92a843b1ac4411709ec2fe26c5214ced045791d2870c",
+        "file_count": 2,
+        "total_bytes": 495
+      },
+      "presets": {
+        "mount_mode": "ro",
+        "tree_sha256": "sha256:82269ace6edaf1446a2e11ae0877462c4df2975bce82eb6229f3f13a9b4592cd",
+        "file_count": 2,
+        "total_bytes": 1352
+      },
+      "managed": {
+        "mount_mode": "ro",
+        "tree_sha256": "sha256:e0b821810545d16b225da2be35d6d2dffd04c75d4f8c841fcd0ebbc45fed7a0d",
+        "file_count": 45,
+        "total_bytes": 629021
+      }
+    },
+    "grading_material": {
+      "exposed_paths": [],
+      "note": "The subject role receives no grading material; the negative assertion above proves the requirement, acceptance-threshold and expected-answer paths are absent."
+    },
+    "adapter_scripts": {
+      "verify_load": {
+        "mount_mode": "ro",
+        "sha256": "sha256:327d0d14f6d270efcb0ab21ca7926c38af25f26c9e0b0c148d1411c820ffe9f1",
+        "size": 15199
+      },
+      "prepare_home": {
+        "mount_mode": "ro",
+        "sha256": "sha256:f1e48502c65628317f5a427e692a983e88e278e2dfa5f6cee3da22a75798f6db",
+        "size": 8892
+      },
+      "tree_digest": {
+        "mount_mode": "ro",
+        "sha256": "sha256:ae9fd84d98a3392c6989e30fbea0094c1bf7df2b0d39af2469029e44ae410545",
+        "size": 4309
+      }
+    },
+    "dsh_home_mount_mode": "rw",
+    "controlled_home_controls": {
+      "home_user_patch": {
+        "mount_mode": "ro",
+        "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+        "size": 189
+      },
+      "global_agent_instructions": {
+        "mount_mode": "ro",
+        "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size": 0
+      },
+      "home_bootstrap_env": {
+        "mount_mode": "ro",
+        "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+        "size": 84
+      },
+      "workspace_bootstrap_env": {
+        "mount_mode": "ro",
+        "sha256": "sha256:e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+        "size": 84
+      },
+      "web_profile_manifest": {
+        "mount_mode": "ro",
+        "sha256": "sha256:d18317531a037cac1efc616948a68308eb91d32ad4a1032cf1cba3e86a37b274",
+        "size": 239
+      },
+      "web_runtime_patch": {
+        "mount_mode": "volume-rw",
+        "sha256": "sha256:3dfcce27df471fb86105b14ce968bbf01cff44547579f39846a1516f33b3e1ba",
+        "size": 189
+      }
+    },
+    "controlled_module_resolution": {
+      "/var/lib/dsh/node_modules": {
+        "mount_mode": "ro",
+        "module_entries": 0,
+        "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+      },
+      "/var/lib/dsh/profiles/web/node_modules": {
+        "mount_mode": "ro",
+        "module_entries": 0,
+        "policy_sha256": "sha256:d1358c5aa33a1d11b83e310a8cffa840bd767fd3f297ff326d40632c11b848fb"
+      },
+      "/var/lib/dsh/profiles/node_modules": {
+        "mount_mode": "ro",
+        "pinned_installation_symlinks": 0,
+        "resolution_backend": "native",
+        "critical_modules_resolved_inside_image": 4
+      }
+    },
+    "composed_config_sha256": "sha256:fd0f9d21ae83d0edcf0f3e88defbe4b5a7c23c896ada2f2e679aef3b9bac4ad3",
+    "expected_markers_present": 4,
+    "preset_guard_declaration_present": false,
+    "limitations": "Read-only HOME/Module/.env controls and a locked startup manifest prove only mount and resolution identity, not Plugins/MCP or Preset actually activated; no Agent session, real protocol, final business state, or Release acceptance was tested."
+  },
+  "observations": [
+    {
+      "session_id": "session-31de141f-a477-4917-b780-e2c3125e35f6",
+      "tool_run_id": "run-a558e0e3-26ea-4a60-8f5b-3d7ff4cc1329",
+      "route": "fast_classification",
+      "status": "completed",
+      "llm_invoked": false,
+      "mcp_calls": 208,
+      "mcp_failures": 0,
+      "tool_results": 1,
+      "reply_keys": [
+        "verdict",
+        "matches"
+      ],
+      "assistant_messages": 2,
+      "assistant_after_tool": 1,
+      "turn_end": {
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "duration_seconds": 18.036,
+      "markdown_matches": true,
+      "summary_present": true,
+      "final_provider": "threat-analysis-delivery",
+      "validation": {
+        "status": "not_applicable_fast_classification"
+      },
+      "matches": 1,
+      "evidence_ref_counts": [
+        414
+      ],
+      "request_configs": [
+        {
+          "provider": "local-qwen",
+          "model": "Qwen3.8-27B"
+        },
+        {
+          "provider": "threat-analysis-delivery",
+          "model": "fixed-summary"
+        }
+      ],
+      "storage": {
+        "summary": {
+          "status": "saved",
+          "judgement_id": "JDG-2104785142003085314",
+          "replayed": false
+        },
+        "report": {
+          "status": "saved",
+          "id": "file-538d143a-4063-4bd4-a692-5d6c8299ede8",
+          "download_url": "http://172.16.138.228:58215/api/persistence/files/file-538d143a-4063-4bd4-a692-5d6c8299ede8/download"
+        }
+      },
+      "download_matches_report": true,
+      "report_bytes": 30717,
+      "report_sha256": "15636b74b003676d540eab10cec2bc0a4e93d5b006226cae3405e960b112c9c1",
+      "report_has_validation_fields": false,
+      "soc_report_matches_local": true,
+      "soc_summary_length": 63,
+      "soc_validation_status": "not_applicable_fast_classification",
+      "soc_run_id_matches": true,
+      "soc_model": null,
+      "incident_id": "INC-20260917-000001",
+      "browser": {
+        "before": {
+          "summaryVisible": true,
+          "storageVisible": true,
+          "legacyToolViews": 0,
+          "runVisible": true,
+          "validationFieldsVisible": false,
+          "downloadLinks": [
+            "http://172.16.138.228:58215/api/persistence/files/file-538d143a-4063-4bd4-a692-5d6c8299ede8/download"
+          ]
+        },
+        "after": {
+          "summaryVisible": true,
+          "storageVisible": true,
+          "legacyToolViews": 0,
+          "runVisible": true,
+          "validationFieldsVisible": false,
+          "downloadLinks": [
+            "http://172.16.138.228:58215/api/persistence/files/file-538d143a-4063-4bd4-a692-5d6c8299ede8/download"
+          ]
+        }
+      }
+    },
+    {
+      "session_id": "session-6aa6a4f3-1a3f-42ce-bdc6-467d439bf476",
+      "tool_run_id": "run-23d047f4-cf39-4441-8387-d4e735cbf022",
+      "route": "five_source",
+      "status": "completed",
+      "llm_invoked": true,
+      "mcp_calls": 458,
+      "mcp_failures": 6,
+      "tool_results": 1,
+      "reply_keys": [
+        "unified_event_id",
+        "verdict",
+        "primary_claim",
+        "secondary_findings",
+        "confidence_score",
+        "attack_stage",
+        "technique",
+        "technique_name",
+        "verified_facts",
+        "key_claims",
+        "counter_evidence",
+        "uncertainty_notes",
+        "attack_chain_speculation",
+        "rule_optimization_suggestions",
+        "recommended_actions",
+        "reasoning_summary"
+      ],
+      "assistant_messages": 2,
+      "assistant_after_tool": 1,
+      "turn_end": {
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "duration_seconds": 132.339,
+      "markdown_matches": true,
+      "summary_present": true,
+      "final_provider": "threat-analysis-delivery",
+      "validation": {
+        "status": "passed_with_warnings",
+        "warnings": [
+          "claim evidence value does not match input: enriched_context.edr_detail.entities[1].activity_segments[0].processes[2].image",
+          "claim evidence value does not match input: enriched_context.edr_detail.entities[2].activity_segments[0].processes[6].cmdline",
+          "claim evidence value does not match input: enriched_context.edr_detail.entities[2].activity_segments[0].file_operations[6].path"
+        ]
+      },
+      "matches": 0,
+      "evidence_ref_counts": [],
+      "request_configs": [
+        {
+          "provider": "local-qwen",
+          "model": "Qwen3.8-27B"
+        },
+        {
+          "provider": "threat-analysis-delivery",
+          "model": "fixed-summary"
+        }
+      ],
+      "storage": {
+        "summary": {
+          "status": "saved",
+          "judgement_id": "JDG-2104785362476675073",
+          "replayed": false
+        },
+        "report": {
+          "status": "saved",
+          "id": "file-5cdf6a84-8f65-4a77-91eb-d30e130d728b",
+          "download_url": "http://172.16.138.228:58215/api/persistence/files/file-5cdf6a84-8f65-4a77-91eb-d30e130d728b/download"
+        }
+      },
+      "download_matches_report": true,
+      "soc_report_matches_local": true,
+      "soc_summary_length": 172,
+      "soc_validation_status": "passed_with_warnings",
+      "soc_run_id_matches": true,
+      "soc_model": "Qwen3.8-27B",
+      "report_bytes": 8322,
+      "report_sha256": "bf35eeae19c6e04d43a766692f2022fb2c35448839d51b63f13812391b17c433",
+      "report_has_validation_fields": false,
+      "incident_id": "INC-20260912-000004",
+      "browser": {
+        "before": {
+          "summaryVisible": true,
+          "storageVisible": true,
+          "legacyToolViews": 0,
+          "runVisible": true,
+          "validationFieldsVisible": false,
+          "downloadLinks": [
+            "http://172.16.138.228:58215/api/persistence/files/file-5cdf6a84-8f65-4a77-91eb-d30e130d728b/download"
+          ]
+        },
+        "after": {
+          "summaryVisible": true,
+          "storageVisible": true,
+          "legacyToolViews": 0,
+          "runVisible": true,
+          "validationFieldsVisible": false,
+          "downloadLinks": [
+            "http://172.16.138.228:58215/api/persistence/files/file-5cdf6a84-8f65-4a77-91eb-d30e130d728b/download"
+          ]
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Input submitted through Runtime API; browser checked display and reload, not keyboard submission.",
+    "Two live cases do not prove business correctness or all scenario compatibility.",
+    "Full path retains six failed alert detail queries and three evidence value warnings.",
+    "No Research Release created or reproduced."
+  ]
+}

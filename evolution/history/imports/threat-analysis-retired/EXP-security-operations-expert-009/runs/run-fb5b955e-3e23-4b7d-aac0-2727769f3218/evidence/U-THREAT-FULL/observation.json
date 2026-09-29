@@ -1,0 +1,106 @@
+{
+  "session_id": "session-ddf5be8f-551a-4b14-93c7-9d69c766334a",
+  "prompt": "请研判威胁事件 INC-20260912-000004。",
+  "duration_seconds": 233.8,
+  "parent_calls": [
+    "skill",
+    "delegate_threat_analysis"
+  ],
+  "all_calls": [
+    "skill",
+    "delegate_threat_analysis",
+    "analyze_threat_incident"
+  ],
+  "assistant": "### 威胁事件研判摘要\n\n**结论：** 真实告警\n\n**快速研判：** 否\n\n**事件 ID：** INC\\-20260912\\-000004\n\n**结论置信度：** 0\\.86\n\n#### 核心判断\n\n**原始主张：** LATERAL\\_MOVEMENT\\_REASONING\n\n**主张判断：** 支持\n\n**其他攻击发现：** 远程命令执行 · 172\\.16\\.1\\.100 持续访问 172\\.16\\.2\\.99:8080，且 172\\.16\\.2\\.99 上出现由 Java 进程派生的 whoami、ipconfig、端口扫描、certutil 下载和 ping 扫描等命令，符合远程命令执行与后渗透行为。\n\n**攻击阶段：** Lateral Movement\n\n**攻击技术：** T1021\n\n**技术名称：** Remote Services\n\n#### 推理摘要\n\n172\\.16\\.1\\.100 对 172\\.16\\.2\\.99:8080 的持续放行连接与 172\\.16\\.2\\.99 上 Java 派生的 whoami、ipconfig、certutil 下载和 ping 扫描形成远程服务访问与后渗透闭环。172\\.16\\.2\\.110 的 EdrUserSim 脚本执行和 MALWARE\\_EXECUTION 进一步支持多主机受控。威胁情报未命中和缺少明确认证凭据是主要缺口，但不改变真实告警结论。\n\n置信度表示当前结论的可信程度，不是恶意概率。\n\n#### 保存与下载\n\n**摘要存储：** 已保存\n\n**报告存储：** 已保存\n\n**报告下载：** [下载 HTML 报告](<http://172.16.138.228:58215/api/persistence/files/file-1dc9d3b2-505a-4da4-a8e5-27252b15feea/download>)\n\n**运行 ID：** run\\-85f38c34\\-9580\\-46d2\\-83d7\\-9f9745a47db3\n",
+  "turn_end": {
+    "turn": 1,
+    "reason": {
+      "kind": "completed"
+    }
+  },
+  "sessions": [
+    "session.v4.jsonl",
+    "subagents/7670ea89-ab2a-4cd3-b890-304575a80960/session.v4.jsonl"
+  ],
+  "run_id": "run-85f38c34-9580-46d2-83d7-9f9745a47db3",
+  "status": "completed",
+  "route": "five_source",
+  "llm_invoked": true,
+  "model": "Qwen3.8-27B",
+  "mcp_calls": 441,
+  "mcp_failures": 60,
+  "validation": {
+    "status": "passed_with_warnings",
+    "warnings": [
+      "claim evidence value does not match input: enriched_context.graph.firewall_sessions[0]",
+      "claim evidence value does not match input: enriched_context.edr_detail.entities[0].activity_segments[0].processes[7].cmdline",
+      "claim evidence value does not match input: enriched_context.edr_detail.entities[0].activity_segments[0].processes[11].cmdline",
+      "claim evidence value does not match input: enriched_context.edr_detail.entities[2].activity_segments[0].processes[2].cmdline"
+    ]
+  },
+  "markdown_matches": true,
+  "storage": {
+    "summary": {
+      "status": "saved",
+      "judgement_id": "JDG-2104830249960026114",
+      "replayed": false
+    },
+    "report": {
+      "status": "saved",
+      "id": "file-1dc9d3b2-505a-4da4-a8e5-27252b15feea",
+      "download_url": "http://172.16.138.228:58215/api/persistence/files/file-1dc9d3b2-505a-4da4-a8e5-27252b15feea/download"
+    }
+  },
+  "tool_results": 3,
+  "request_configs": [
+    {
+      "provider": "local-qwen",
+      "model": "Qwen3.8-27B"
+    },
+    {
+      "provider": "threat-analysis-delivery",
+      "model": "fixed-summary"
+    },
+    {
+      "provider": "local-qwen",
+      "model": "Qwen3.8-27B"
+    },
+    {
+      "provider": "threat-analysis-delivery",
+      "model": "fixed-summary"
+    }
+  ],
+  "final_provider": "threat-analysis-delivery",
+  "download_matches_report": true,
+  "soc_report_matches_local": true,
+  "soc_summary_length": 244,
+  "soc_validation_status": "passed_with_warnings",
+  "soc_run_id_matches": true,
+  "soc_model": "Qwen3.8-27B",
+  "report_bytes": 8922,
+  "report_sha256": "453c774ab5f7163d02bbdcfd995b09d0ae4e385832503c7d91988840cad724d1",
+  "report_has_validation_fields": false,
+  "export_sha256": "cf0f5a025379a1a22623e394d086b406648a638e36c615e14f902e84ccea312b",
+  "browser": {
+    "before": {
+      "summaryVisible": true,
+      "storageVisible": true,
+      "legacyToolViews": 0,
+      "runVisible": true,
+      "validationFieldsVisible": false,
+      "downloadLinks": [
+        "http://172.16.138.228:58215/api/persistence/files/file-1dc9d3b2-505a-4da4-a8e5-27252b15feea/download"
+      ]
+    },
+    "after": {
+      "summaryVisible": true,
+      "storageVisible": true,
+      "legacyToolViews": 0,
+      "runVisible": true,
+      "validationFieldsVisible": false,
+      "downloadLinks": [
+        "http://172.16.138.228:58215/api/persistence/files/file-1dc9d3b2-505a-4da4-a8e5-27252b15feea/download"
+      ]
+    }
+  }
+}

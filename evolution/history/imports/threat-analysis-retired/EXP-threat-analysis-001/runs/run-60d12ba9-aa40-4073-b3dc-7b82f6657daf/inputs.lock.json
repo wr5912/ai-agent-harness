@@ -1,0 +1,399 @@
+{
+  "schema_version": "2.0",
+  "run_id": "run-60d12ba9-aa40-4073-b3dc-7b82f6657daf",
+  "source_id": "experiment:EXP-threat-analysis-001",
+  "source_kind": "experiment",
+  "baseline_ref": "none:first-experiment",
+  "created_at": "2026-09-28T01:14:30Z",
+  "harness_trees": {
+    "workspace": {
+      "tree_sha256": "sha256:2eaeea98a71774b109df92a843b1ac4411709ec2fe26c5214ced045791d2870c",
+      "directory_sha256": "sha256:9151936e50563dd90179260f937f7da50568baaa2f93c7e141de78d7e43f6d5f",
+      "file_count": 2,
+      "total_bytes": 495,
+      "files": [
+        {
+          "mode": "0664",
+          "path": ".env",
+          "sha256": "e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+          "size": 84
+        },
+        {
+          "mode": "0664",
+          "path": "AGENTS.md",
+          "sha256": "59ff175372fe40cab3c6560de9496ab220f751a4b1362ef12567c3efe5f7a85f",
+          "size": 411
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "2775"
+        }
+      ]
+    },
+    "presets": {
+      "tree_sha256": "sha256:d4231d87c0bddaefb7de889b425d4390825b17c0006bc61724a9cbd3f2ac686d",
+      "directory_sha256": "sha256:ff9693ba0f505ed8dbc2a8aba9f9cd1b9ecb26567a67583e34038c74f0421ec5",
+      "file_count": 2,
+      "total_bytes": 2415,
+      "files": [
+        {
+          "mode": "0664",
+          "path": "threat-analysis/agent.cordis.yml",
+          "sha256": "972f35da73bf6685248091f8066799ff279607e261fee0356db1d36d5dc67739",
+          "size": 2297
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/preset.yml",
+          "sha256": "0562f8bf87f145d708f259c329301fe91e2a6eb9f8b0ac0124659e31a3c76381",
+          "size": 118
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "2775"
+        },
+        {
+          "path": "threat-analysis",
+          "mode": "2775"
+        }
+      ]
+    },
+    "managed": {
+      "tree_sha256": "sha256:200e0fa733cfe3726768ecdf593a4996bc3dd1e835c6c809d4cbf45bfec07ce4",
+      "directory_sha256": "sha256:436a164f70fd0bf7768eb94fe85258244efc29813df85387fbd5d2803a5f48a8",
+      "file_count": 42,
+      "total_bytes": 631104,
+      "files": [
+        {
+          "mode": "0664",
+          "path": "threat-analysis.mjs",
+          "sha256": "a829685ed19c20b7ae881f6ba776b76e4e33c13387f4dfeeb9aba54696c63a1c",
+          "size": 1642
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis.patch.yml",
+          "sha256": "9079874205d3cf6b586d2ac079b2182703e347bfcb1916984d6953dc609b0fd6",
+          "size": 710
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/deepseek_blind_eval.cpython-310.pyc",
+          "sha256": "6abebc414ad5049e90fa317ca786b7404e18f27fecfe9fb2137d242b4cf9b3c1",
+          "size": 9121
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/domain_projection.cpython-310.pyc",
+          "sha256": "5f67a74a09e66f6568ca9278991c2d50a58695b0cdc57e815bf14fa4d85a319c",
+          "size": 22999
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/domain_projection_v6.cpython-310.pyc",
+          "sha256": "0650be52da7e5727d4be6ed26f925fe0b6bfbfae3d190dce33598104b04b90b5",
+          "size": 21728
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/dsh_runner.cpython-310.pyc",
+          "sha256": "da2dda5e3b018d9e4b63af7b66b76c3911faef11cc02cacfeef92b4ef18442a4",
+          "size": 3408
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/evidence_graph.cpython-310.pyc",
+          "sha256": "6e4a4b0f99d4728b6c5bf98e64664a387582a7827cd50c82cadbbac9cc1eb807",
+          "size": 15086
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/fast_classification.cpython-310.pyc",
+          "sha256": "e6b0052cda171bd3e2d241e303d829003d15ffd38927d7c33d6608bc69b2d2be",
+          "size": 11309
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/forced_output_contract.cpython-310.pyc",
+          "sha256": "219492e181b5e7ac45ce948cf0d1dff0abba10a8c9a0e57a0239797a1371d09a",
+          "size": 17165
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/fusion_contract.cpython-310.pyc",
+          "sha256": "3ec4a067e57a9f257bb6e104d02eed051867f2db0a80e0e80f4222dc957f4f8d",
+          "size": 9191
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/fusion_contract_v6.cpython-310.pyc",
+          "sha256": "dddaf1d379d75cf19f0d19abd3fcde9eddd75525d1c19cc0982fdecc6a3e2251",
+          "size": 5691
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/fusion_pipeline.cpython-310.pyc",
+          "sha256": "ff56691f3fe0134b89a3fcbeb3fb3ca3c3b64d4b361dfe5f191b802543f03945",
+          "size": 13978
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/incident_scope.cpython-310.pyc",
+          "sha256": "3d1976059aaa236a8dbd2cede43d67aa7f8c04d8c1ece03bb2f07952792b9db4",
+          "size": 24590
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/judgement_target.cpython-310.pyc",
+          "sha256": "d070d8236d55bfce42bf6cc2642026977bbdc29624dfa602e73593643288178e",
+          "size": 10478
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/mcp_gateway.cpython-310.pyc",
+          "sha256": "950ddebd2ec6cf2fd3558abc4cc3b22af792e26f4d90cf0ef7e19693d26073a4",
+          "size": 8126
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/model_input_compaction_v6.cpython-310.pyc",
+          "sha256": "12794a6da5ff055ffeadf81735b2ee5f7a4e1cd73f62a552b19dd28b67939d5b",
+          "size": 21240
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/universal_replay.cpython-310.pyc",
+          "sha256": "f26c5aa8b5870148ab1328f03a2af532bf6a46c3955d9f352a8b25bd65b9d38c",
+          "size": 36899
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/__pycache__/universal_replay_v6.cpython-310.pyc",
+          "sha256": "5e747ab1f399bb6fa7b3eafff56df74fe9faeba0bb6bdc2a723720ff152a289a",
+          "size": 27010
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/catalog/.current-ai_soc_correlate-tools.local.json",
+          "sha256": "e838bd3fd852cbd0df896d0d80620903b17d3d46b7ee39f8b910fe250f32ff5b",
+          "size": 3727
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/catalog/.current-ai_soc_detect-tools.local.json",
+          "sha256": "543cd68ab5e583c2421303729b84fc911b8ce1d50075537f449f95e28aab46be",
+          "size": 1774
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/catalog/.current-ai_soc_event-tools.local.json",
+          "sha256": "fea69791041ed82767b392c18a0928ee35e2486164d89a59375e319cf90b0652",
+          "size": 7905
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/catalog/.current-ai_soc_graph-tools.local.json",
+          "sha256": "9d9e3dcc77931aaf40653445a19140bd306448381e234ffd0b72380b899ae1e5",
+          "size": 2446
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/catalog/.current-ai_soc_ingest-tools.local.json",
+          "sha256": "4b3621e38e257daaecacdeddadeef36ffa275715e133955d65aa2021372465bc",
+          "size": 530
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/catalog/.current-ai_soc_master-tools.local.json",
+          "sha256": "194e737dbd3e75df28192f732da1d5704604b96ae83e00738e11eab53c15480c",
+          "size": 2006
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/catalog/.current-resources.local.json",
+          "sha256": "5f28892988662d3d5d4cab1db23cace82b17d3c6ebfbbd9fb8833dd7d9dce9c8",
+          "size": 591
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/deepseek_blind_eval.py",
+          "sha256": "b079f61c713c3000d4ce412b4be605b11995098bc0f5702fa192802ee93a4ce2",
+          "size": 10865
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/domain_projection.py",
+          "sha256": "ad909953d4f1e227b704acfdfb1cc1a5b13c83084336ebbe1f070ee207fa4df1",
+          "size": 36811
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/domain_projection_v6.py",
+          "sha256": "d0796b0b4472b0f022dd07e0b1cdeab6d84f7b9b87f26a5040f1e79e02e8095f",
+          "size": 31474
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/dsh_runner.py",
+          "sha256": "aa1b0827f45cf4002cd9fb40ba2ef8cfc1383c2c24d93163c4c4e5e681fa20d4",
+          "size": 3649
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/evidence_graph.py",
+          "sha256": "608fcff32065d6ecf3faa8688bb23605ebecfeaafc4448caa87503618becdd89",
+          "size": 17847
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/fast_classification.py",
+          "sha256": "02fb220e67468d312723b7608d9ac41ff812cd9e2a3fca43fb1e2b72580aed8f",
+          "size": 15437
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/forced_output_contract.py",
+          "sha256": "219fe9224126fcbaf2c0e5477b032bb0949bb914ba8e5229e3082a87360e11e6",
+          "size": 24932
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/fusion_contract.py",
+          "sha256": "9c4211a06658fbdfb9999713f6d24df16367e7ee4bce29ac5e67f6191c3606c1",
+          "size": 10503
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/fusion_contract_v6.py",
+          "sha256": "adeb783f39b0fbae93b6586e93076493b9a9aaadf4c2e615511330fea290912f",
+          "size": 7533
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/fusion_pipeline.py",
+          "sha256": "1d50c0f212df15cb043a086058466baa2f9bb023ae3e346a3893ff865e4cc3ff",
+          "size": 18233
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/incident_scope.py",
+          "sha256": "d60ac1f070b56c626173dba9e6defe8dd9eaf23ac9607750b24d22a2dca971ad",
+          "size": 31027
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/judgement_target.py",
+          "sha256": "8e49319bb6c93e8c927e50718aab89c5b1aee4cf54a795fbb98ad0fa05c14584",
+          "size": 11340
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/mcp_gateway.py",
+          "sha256": "e4eaf4dbe70a4c9ca972bca32fe439c2af6af3afc24356c80e69b0150e76759e",
+          "size": 8887
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/model_input_compaction_v6.py",
+          "sha256": "041c83d9b42e3773444a52081e54a14ee5baab702c0edfdf2605a72cc5c81cfe",
+          "size": 25300
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/prompts/threat-analysis-system.txt",
+          "sha256": "a1b469bf00e1d2032804d6696ef3b6f771733cc46e54f4f3e7e195c07d7f17b1",
+          "size": 8339
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/universal_replay.py",
+          "sha256": "5760592ccf4e2fb844c861b71d31a0665e7a693934d776ed1ec1a7ca68d60ae1",
+          "size": 52411
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/universal_replay_v6.py",
+          "sha256": "d508ae0f27042e36549195f648c1156cc59ea45153e929e510c6a316c94a6926",
+          "size": 37166
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "2775"
+        },
+        {
+          "path": "threat-analysis",
+          "mode": "0775"
+        },
+        {
+          "path": "threat-analysis/__pycache__",
+          "mode": "0775"
+        },
+        {
+          "path": "threat-analysis/catalog",
+          "mode": "0775"
+        },
+        {
+          "path": "threat-analysis/prompts",
+          "mode": "0775"
+        }
+      ]
+    }
+  },
+  "reference_tree": {
+    "tree_sha256": "sha256:058f538925e037ec687fe9799b8f7aacd705ac5995f138a6e242294df3a42c05",
+    "directory_sha256": "sha256:9151936e50563dd90179260f937f7da50568baaa2f93c7e141de78d7e43f6d5f",
+    "file_count": 3,
+    "total_bytes": 19802,
+    "files": [
+      {
+        "mode": "0664",
+        "path": "definition.md",
+        "sha256": "1c58c2471eef6da47f8ce51eb24c12181570f83bae0e4888f5c8f48dfed6a10f",
+        "size": 1750
+      },
+      {
+        "mode": "0664",
+        "path": "evaluation.md",
+        "sha256": "d3329e86aabd2aa6b166251b1303ee4967c9aa7d37d50f0139d7feddd3181972",
+        "size": 17917
+      },
+      {
+        "mode": "0664",
+        "path": "manifest.yaml",
+        "sha256": "f1fff426277e50d9884196868dd94a1c2209e93ed7774915c51ff9aef8cb2e89",
+        "size": 135
+      }
+    ],
+    "directories": [
+      {
+        "path": ".",
+        "mode": "2775"
+      }
+    ]
+  },
+  "evaluation_sha256": "d3329e86aabd2aa6b166251b1303ee4967c9aa7d37d50f0139d7feddd3181972",
+  "evaluation_selection": {
+    "case_ids": [
+      "T-REPLAY-0917"
+    ],
+    "method_ids": [
+      "m-dsh-frozen-chain"
+    ],
+    "acceptance_ids": [
+      "AC-001",
+      "AC-002"
+    ]
+  },
+  "git_version": {
+    "commit": "4362e777a7528fe9a807f545ca8b58bb43724b30",
+    "dirty": true,
+    "changed_path_count": 16
+  },
+  "executor": "api"
+}

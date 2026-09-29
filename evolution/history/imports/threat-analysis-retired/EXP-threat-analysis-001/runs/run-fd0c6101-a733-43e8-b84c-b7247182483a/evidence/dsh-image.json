@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "source_id": "experiment:EXP-threat-analysis-001",
+  "local_image_tag": "ai-agent-harness/dsh:c291e7961",
+  "local_image_id": "sha256:58cad4f513b06a6729f2dc18c99e938b6a94ca4475981da23b83eb5a2b47dd02",
+  "image_ref": "ai-agent-harness/dsh:c291e7961@sha256:58cad4f513b06a6729f2dc18c99e938b6a94ca4475981da23b83eb5a2b47dd02",
+  "image_build_fingerprint": "sha256:062b30e0c4a48b3c21a5e359a6efb9d3ebe33267151b18db1c7eaeacc4ffabc9",
+  "platform": "linux/amd64",
+  "scope": "actual DSH evaluation runtime image identity; no semantic verdict"
+}

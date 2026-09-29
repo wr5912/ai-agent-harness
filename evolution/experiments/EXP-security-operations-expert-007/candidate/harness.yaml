@@ -12,6 +12,7 @@ experiment:
   status: active
 capabilities:
   migrated_for_research:
+    - threat.analyze
     - response.intake
     - response.plan
     - fault.read-evidence
@@ -23,7 +24,6 @@ capabilities:
   unavailable_in_current_contract:
     - soc.investigate
     - knowledge.search
-    - threat.analyze
     - policy.select
     - policy.decide
 loadable_assets:
@@ -51,6 +51,8 @@ credential_environment_keys:
   - INSPECTION_MCP_TOKEN
   - LOCAL_LLM_BASE_URL
   - LOCAL_LLM_API_KEY
+  - SOC_MCP_BASE_URL
+  - REPORT_MCP_URL
 security:
   authoring_change_activation: host-reviewed-new-container-and-session
   user_text_is_authority: false

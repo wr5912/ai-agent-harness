@@ -55,7 +55,9 @@ export const TOOL_ROUTES = Object.freeze({
     'mcp__sec-ops__get_graph_coverage',
     'mcp__sec-ops__get_event_by_id',
   ]),
+  threatAnalysis: Object.freeze(['analyze_threat_incident']),
   delegates: Object.freeze([
+    'delegate_threat_analysis',
     'delegate_inspection',
     'delegate_fault_analysis',
     'delegate_response_planning',
@@ -78,6 +80,7 @@ const ROOT_VISIBLE_TOOLS = Object.freeze([
   ...TOOL_ROUTES.delegates,
 ])
 const CHILD_VISIBLE_TOOLS = Object.freeze([
+  ...TOOL_ROUTES.threatAnalysis,
   ...TOOL_ROUTES.inspection,
   ...TOOL_ROUTES.faultAnalysis,
 ])
@@ -313,6 +316,7 @@ export function createSecurityOperationsGuard(options = {}) {
     if (INSPECTION_TOOLS.has(tool)) {
       return depth === 1 ? undefined : '巡检工具只能由巡检子 Agent 调用'
     }
+    if (TOOL_ROUTES.threatAnalysis.includes(tool)) return depth === 1 ? undefined : '威胁研判工具只能由专用子 Agent 调用'
     if (FAULT_TOOLS.has(tool)) return depth === 1 ? undefined : 'SOC 故障取证工具只能由故障分析子 Agent 调用'
 
     if (tool.startsWith('mcp__')) return '未列入当前角色授权集合的 MCP 工具被拒绝'
