@@ -1,10 +1,10 @@
 # DSH 容器薄适配层
 
-本目录固定官方 DeepSeek Harness（DSH）源码构建身份和卷装载方式；不开发、不复制 DSH Runtime 源码到本仓库，也不把宿主机 Codex 项目协作配置交给 DSH。`sources.json` 声明可选择的 Experiment Candidate 及其锁定身份；新增来源须提供自己的 Candidate 资产，不能只改卷路径。
+本目录固定官方 DeepSeek Harness（DSH）源码构建身份和卷装载方式；不开发、不复制 DSH Runtime 源码到本仓库，也不把宿主机 Codex 项目协作配置交给 DSH。`source.lock.json` 是全仓唯一的当前 DSH 版本声明；`sources.json` 声明可选择的 Experiment Candidate。新增来源须提供自己的 Candidate 资产，不能只改卷路径。
 
 ## 源码与镜像身份
 
-`source.lock.json` 锁定官方仓库提交 `c291e7961a515f6d7af9304e7fd1d257929aef26`、Git tree、`pnpm-lock.yaml` 摘要、`pnpm@11.7.0`、Node 基础镜像 OCI index digest 和 `linux/amd64`。`build-image.sh` 新建临时源码工作树，在宿主侧核对提交、tree 和锁摘要后用 BuildKit named context 构建。官方构建脚本支持显式 `DSH_CLIENT_COMMIT_HASH`；构建器不依赖 named context 是否携带 `.git`，只安装本地 C 编译及 musl 工具，最终镜像不保留这些构建工具或 `.git`。本仓库没有 DSH 源码副本。
+`source.lock.json` 锁定官方仓库提交、Git tree、`pnpm-lock.yaml` 摘要、包管理器版本、Node 基础镜像 OCI index digest 和目标平台；当前提交包含 EXP-007 所需的 Schedule Bundle。所有 Experiment 共用这份锁。`build-image.sh` 新建临时源码工作树，在宿主侧核对提交、tree 和锁摘要后用 BuildKit named context 构建。官方构建脚本支持显式 `DSH_CLIENT_COMMIT_HASH`；构建器不依赖 named context 是否携带 `.git`，只安装本地 C 编译及 musl 工具，最终镜像不保留这些构建工具或 `.git`。本仓库没有 DSH 源码副本。
 
 ```bash
 bash runtime/adapters/dsh-container/build-image.sh
@@ -30,9 +30,9 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 
 评测实例不挂载 `evaluation.md` 或其他判分材料；`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。Harness 修改由宿主开发会话完成，容器只负责装载和评测。
 
-`locked-user.patch.yml`、真正 **0 字节**的 `locked-global.AGENTS.md` 和只含注释的 `locked-bootstrap.env` 分别只读覆盖用户 Patch、全局 Agent instructions 与 Boot 环境文件。模型/MCP Endpoint 和凭据只能由调用环境或 Runtime 受控凭据提供，不能由 Candidate 工作区改变。
+`locked-user.patch.yml` 只读覆盖 HOME 级用户 Patch；Web Profile 的 `cordis.patch.yml` 留在实例 HOME 卷中，由 DSH Web 保存当前实例的设置（新版 DSH 的设置写入要求对该文件原子替换）。真正 **0 字节**的 `locked-global.AGENTS.md` 和只含注释的 `locked-bootstrap.env` 分别只读覆盖全局 Agent instructions 与 Boot 环境文件。模型/MCP Endpoint 和凭据只能由调用环境或 Runtime 受控凭据提供，不能由 Candidate 工作区改变。复用实例时须把 Web Profile 设置视为运行状态，而非 Candidate 资产；评估前核对其摘要或使用新实例。
 
-Web Profile manifest 与本地 module 路径由受控文件和空的 deny-layer 锁定，避免从可写 HOME 装载私有 Plugin。官方 Web 所需的共享 fallback 位于独立数据卷；`home-init` 离线调用锁定 DSH 的官方 healer，并核对包名、symlink 与 `realpath` 均指向镜像内 `/opt/dsh/`。旧 HOME 中被 deny-layer 隐藏的本地模块不会自动删除。
+Web Profile manifest 与本地 module 路径由受控文件和空的 deny-layer 锁定，避免从可写 HOME 装载私有 Plugin。EXP-007 选择自己的 `candidate/dsh/managed/web-profile.package.json`，将 `@deepseek-ai/dsh-experimental-schedule-bundle` 加入 Profile；其他来源仍使用默认 Web Profile。旧版 DSH 使用共享 fallback 卷中的安装链接；新版 DSH 使用原生模块解析，两种路径均须解析到镜像内 `/opt/dsh/`。旧 HOME 中被 deny-layer 隐藏的本地模块不会自动删除。
 
 启动 `web` Profile 并叠加来源声明的 Managed Patch。锁定官方 Loader 在本 Node 镜像的无 internal-loader 路径会从 `/opt/dsh/vendor/loader` 相对查找 bare package，因此仅主 `dsh` 服务使用精确向量 `node --expose-internals /opt/dsh/apps/cli/lib/bin.js`；`home-init` 与装载探针保持普通 `node`。隔离、无 Candidate Managed Patch 的官方 base+web 技术预检可运行至少 15 秒；这不表示 Candidate 业务启动、MCP 或模型连接通过。
 
@@ -148,7 +148,7 @@ bash runtime/adapters/dsh-container/verify-load.sh verification
 # 其他已登记来源：verify-load.sh verification --source EXP-<agent-id>-NNN
 ```
 
-适配层脚本不烘焙进镜像：`prepare-verification-home.mjs`、`verify-load.mjs`、`tree-digest.mjs` 由 Compose 只读挂载到 `/opt/dsh-adapter`。脚本先比对宿主与容器脚本 SHA-256，再比对三棵 Candidate 资产树，并断言 `/work/reference` 与未声明的 `/work/eval-input` 不存在；同时核对挂载模式、HOME 卷、受控 Patch、零字节全局指令、注释 `.env`、module deny-layer、共享 fallback 与 DSH 配置标识。它只证明挂载身份、模块解析和配置组合，不证明 Plugin 激活、MCP 连接、模型行为或 Research Release 复现。
+适配层脚本不烘焙进镜像：`prepare-verification-home.mjs`、`verify-load.mjs`、`tree-digest.mjs` 由 Compose 只读挂载到 `/opt/dsh-adapter`。脚本先比对宿主与容器脚本 SHA-256，再比对三棵 Candidate 资产树，并断言 `/work/reference` 与未声明的 `/work/eval-input` 不存在；同时核对挂载模式、HOME 卷、受控 Patch、零字节全局指令、注释 `.env`、module deny-layer、镜像内模块解析与 DSH 配置标识。它只证明挂载身份、模块解析和配置组合，不证明 Plugin 激活、MCP 连接、模型行为或 Research Release 复现。
 
 取得一棵精确资产树摘要时，使用 `mutation-receipt.py digest <路径>`。
 

@@ -20,6 +20,7 @@ const sourceSelector = /^experiment:EXP-[a-z0-9-]+-[0-9]{3}$/
 const sourceKinds = new Set(['experiment'])
 if (source?.schema_version !== '2.1' || !sourceSelector.test(source.source_id) || !sourceKinds.has(source.source_kind)
   || source.profile !== 'web' || !source.patch?.startsWith('/opt/dsh-managed/')
+  || source.evaluation_patch !== '/opt/dsh-adapter/evaluation-registry.patch.yml'
   || !source.preset?.startsWith('/opt/dsh-presets/')
   || (source.guard !== null && !source.guard?.startsWith('/opt/dsh-managed/'))
   || typeof source.preset_id !== 'string' || source.preset_id.length === 0
@@ -108,11 +109,6 @@ const homeControlEvidence = {}
       expected: process.env.DSH_EXPECT_USER_PATCH_SHA,
     },
     {
-      key: 'web_user_patch',
-      path: '/var/lib/dsh/profiles/web/cordis.patch.yml',
-      expected: process.env.DSH_EXPECT_USER_PATCH_SHA,
-    },
-    {
       key: 'global_agent_instructions',
       path: '/var/lib/dsh/AGENTS.md',
       expected: process.env.DSH_EXPECT_GLOBAL_AGENTS_SHA,
@@ -153,18 +149,32 @@ const homeControlEvidence = {}
   }
 
   const homePatch = readFileSync('/var/lib/dsh/cordis.patch.yml', 'utf8')
-  const profilePatch = readFileSync('/var/lib/dsh/profiles/web/cordis.patch.yml', 'utf8')
-  if (homePatch !== profilePatch || !/^\s*(?:#[^\n]*\n)*\[\]\s*$/.test(homePatch)) {
+  if (!/^\s*(?:#[^\n]*\n)*\[\]\s*$/.test(homePatch)) {
     throw new Error('DSH_HOME user Patch is not the controlled empty deny-layer')
+  }
+  const webPatchPath = '/var/lib/dsh/profiles/web/cordis.patch.yml'
+  const webPatchState = lstatSync(webPatchPath)
+  if (mounts.some(entry => entry.target === webPatchPath)
+    || !webPatchState.isFile() || webPatchState.isSymbolicLink()
+    || webPatchState.nlink !== 1 || webPatchState.size === 0 || webPatchState.size > 64 * 1024) {
+    throw new Error('Web profile settings patch is not a bounded writable volume file')
+  }
+  const webPatchBytes = readFileSync(webPatchPath)
+  homeControlEvidence.web_runtime_patch = {
+    mount_mode: 'volume-rw',
+    sha256: `sha256:${createHash('sha256').update(webPatchBytes).digest('hex')}`,
+    size: webPatchBytes.length,
   }
   const manifestPath = '/var/lib/dsh/profiles/web/package.json'
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  const bundles = manifest.dsh?.profile?.bundles
+  const baseBundles = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app']
+  const scheduleBundles = [...baseBundles, '@deepseek-ai/dsh-experimental-schedule-bundle']
   if (manifest.name !== 'dsh-profile-web' || manifest.private !== true
     || Object.keys(manifest.dependencies ?? {}).length !== 0
     || manifest.dsh?.profile?.patchReload !== 'startup'
-    || JSON.stringify(manifest.dsh?.profile?.bundles) !== JSON.stringify([
-      '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app',
-    ])) {
+    || (JSON.stringify(bundles) !== JSON.stringify(baseBundles)
+      && JSON.stringify(bundles) !== JSON.stringify(scheduleBundles))) {
     throw new Error('web Profile manifest differs from locked startup tuple')
   }
   for (const path of ['/var/lib/dsh/.env', '/work/harness/workspace/.env']) {
@@ -182,7 +192,6 @@ const moduleEvidence = {}
 const deniedModulePaths = [
   '/var/lib/dsh/node_modules',
   '/var/lib/dsh/profiles/web/node_modules',
-  '/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules',
 ]
 for (const path of deniedModulePaths) {
   const mount = mounts.find(entry => entry.target === path)
@@ -207,7 +216,7 @@ if (!fallbackMount || !fallbackMount.options.includes('ro')) {
   throw new Error('trusted installation fallback is not an exact read-only volume mount')
 }
 const closure = installationClosure('/opt/dsh/apps/cli/package.json')
-validateFallback(fallbackPath, closure, false)
+const linkedFallback = validateFallback(fallbackPath, closure, true)
 const profileRequire = createRequire('/var/lib/dsh/profiles/web/cordis.yml')
 const criticalModules = [
   '@deepseek-ai/dsh-base',
@@ -215,23 +224,38 @@ const criticalModules = [
   '@deepseek-ai/dsh-mcp-client',
   '@deepseek-ai/dsh-agent-instructions',
 ]
+if (JSON.parse(readFileSync('/var/lib/dsh/profiles/web/package.json', 'utf8'))
+  .dsh.profile.bundles.includes('@deepseek-ai/dsh-experimental-schedule-bundle')) {
+  criticalModules.push('@deepseek-ai/dsh-experimental-schedule-bundle')
+}
+const nativeResolution = linkedFallback ? undefined : await (await import(
+  createRequire('/opt/dsh/apps/cli/package.json').resolve('@deepseek-ai/dsh-app-boot')
+)).createRuntimeResolution({ installAnchor: '/opt/dsh/apps/cli/package.json' })
 for (const name of criticalModules) {
   if (!closure.has(name)) throw new Error(`critical DSH module is outside pinned installation closure: ${name}`)
-  let first
-  for (const path of profileRequire.resolve.paths(name) ?? []) {
-    const candidate = join(path, name)
-    if (existsSync(join(candidate, 'package.json'))) {
-      first = candidate
-      break
+  if (linkedFallback) {
+    let first
+    for (const path of profileRequire.resolve.paths(name) ?? []) {
+      const candidate = join(path, name)
+      if (existsSync(join(candidate, 'package.json'))) {
+        first = candidate
+        break
+      }
     }
-  }
-  if (!first || !realpathSync.native(first).startsWith('/opt/dsh/')) {
-    throw new Error(`critical module resolution escaped immutable image tree: ${name}`)
+    if (!first || !realpathSync.native(first).startsWith('/opt/dsh/')) {
+      throw new Error(`critical module resolution escaped immutable image tree: ${name}`)
+    }
+  } else {
+    const entry = nativeResolution.entries.find(item => item.name === name && item.scope === 'installation')
+    if (!entry || !realpathSync.native(entry.packageDir).startsWith('/opt/dsh/')) {
+      throw new Error(`critical native module resolution escaped immutable image tree: ${name}`)
+    }
   }
 }
 moduleEvidence[fallbackPath] = {
   mount_mode: 'ro',
-  pinned_installation_symlinks: closure.size,
+  pinned_installation_symlinks: linkedFallback ? closure.size : 0,
+  resolution_backend: linkedFallback ? 'links' : 'native',
   critical_modules_resolved_inside_image: criticalModules.length,
 }
 
@@ -239,6 +263,7 @@ const dump = spawnSync(process.execPath, [
   '/opt/dsh/apps/cli/lib/bin.js',
   '--profile', source.profile,
   '--patch', source.patch,
+  '--patch', source.evaluation_patch,
   '--dump-config',
 ], {
   cwd: '/work/harness/workspace',
@@ -261,6 +286,11 @@ if (dump.status !== 0) {
 for (const marker of source.config_markers) {
   if (!dump.stdout.includes(marker)) {
     throw new Error(`DSH composed config missing expected marker: ${marker}`)
+  }
+}
+for (const preset of ['evaluation-judge', 'scenario-analysis']) {
+  if (!dump.stdout.includes(`preset-${preset}`)) {
+    throw new Error(`declarative ${preset} preset missing from evaluation composition`)
   }
 }
 

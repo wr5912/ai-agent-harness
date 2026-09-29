@@ -56,17 +56,21 @@
 - id: tool-ralph
   disabled: true
 
-- id: agent-presets
-  disabled: false
+- id: agent-preset-registry
   config:
     default: security-operations-expert
-    roots:
-      - path: /opt/dsh-presets
-        trust: system
-    includeShippedRoot: false
-    includeUserRoot: false
 
 - insert:
+    - id: preset-security-operations-expert
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: security-operations-expert
+        plugins:
+          - id: security-operations-expert-harness
+            name: cordis:include
+            config:
+              path: /opt/dsh-presets/security-operations-expert/agent.cordis.yml
+
     - id: security-operations-mcp-sec-ops
       name: '@deepseek-ai/dsh-mcp-client'
       config:

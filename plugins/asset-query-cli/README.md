@@ -13,7 +13,7 @@ docker run --rm --network none --read-only \
   --mount "type=bind,src=$PWD/plugins/asset-query-cli,dst=/opt/harness-plugins/asset-query-cli,readonly" \
   --mount "type=bind,src=$PWD,dst=/asset-repo,readonly" \
   --env HARNESS_ASSET_ROOT=/asset-repo \
-  --entrypoint /bin/sh ai-agent-harness/dsh:c291e7961 \
+  --entrypoint /bin/sh "$(python3 runtime/adapters/dsh-container/source_contract.py --field image.local_image_tag)" \
   -c 'mkdir -p /var/lib/dsh/profiles/asset-query-cli && cp /opt/harness-plugins/asset-query-cli/profile/* /var/lib/dsh/profiles/asset-query-cli/ && exec node /opt/dsh/apps/cli/lib/bin.js --profile asset-query-cli inventory'
 ```
 

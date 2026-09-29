@@ -8,7 +8,6 @@ assert.equal(mode, 'verification')
 const manifestPath = '/var/lib/dsh/profiles/web/package.json'
 const paths = [
   '/var/lib/dsh/cordis.patch.yml',
-  '/var/lib/dsh/profiles/web/cordis.patch.yml',
   manifestPath,
   '/var/lib/dsh/AGENTS.md',
   '/var/lib/dsh/.env',
@@ -18,7 +17,6 @@ const modulePaths = [
   '/var/lib/dsh/node_modules',
   '/var/lib/dsh/profiles/node_modules',
   '/var/lib/dsh/profiles/web/node_modules',
-  '/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules',
 ]
 const mounts = readFileSync('/proc/self/mountinfo', 'utf8')
   .split('\n')
@@ -44,6 +42,10 @@ for (const path of paths) {
     closeSync(descriptor)
   }, error => error.code === 'EROFS' || error.code === 'EACCES')
 }
+const webPatch = '/var/lib/dsh/profiles/web/cordis.patch.yml'
+assert.ok(!mounts.some(item => item.target === webPatch), 'Web settings patch must not be a file bind')
+const webPatchDescriptor = openSync(webPatch, 'r+')
+closeSync(webPatchDescriptor)
 for (const path of modulePaths) {
   assert.ok(mounts.some(item => item.target === path && item.options.includes('ro')))
   assert.throws(() => writeFileSync(`${path}/shadow-package.js`, 'forbidden'),
@@ -56,15 +58,16 @@ for (const path of ['/work/reference', '/work/eval-input', '/work/AGENTS.md', '/
 }
 
 const first = readFileSync(paths[0])
-const second = readFileSync(paths[1])
-assert.deepEqual(first, second)
 assert.match(first.toString('utf8'), /^\s*(?:#[^\n]*\n)*\[\]\s*$/)
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
 assert.deepEqual(manifest.dsh.profile.bundles.slice(0, 2), [
   '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app',
 ])
 assert.equal(manifest.dsh.profile.patchReload, 'startup')
-assert.equal(manifest.dsh.profile.bundles.length, 2)
+assert.ok(manifest.dsh.profile.bundles.length === 2 || (
+  manifest.dsh.profile.bundles.length === 3
+  && manifest.dsh.profile.bundles[2] === '@deepseek-ai/dsh-experimental-schedule-bundle'
+))
 assert.deepEqual(manifest.dependencies, {})
 assert.equal(readFileSync('/var/lib/dsh/AGENTS.md').length, 0)
 for (const path of ['/var/lib/dsh/.env', '/work/harness/workspace/.env']) {

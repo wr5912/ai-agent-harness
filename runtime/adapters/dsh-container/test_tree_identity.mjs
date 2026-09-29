@@ -31,7 +31,6 @@ test('Linux mountinfo escapes are decoded before exact target matching', () => {
 
 test('source lock contains no fabricated registry image digest', () => {
   const lock = JSON.parse(readFileSync(`${adapter}/source.lock.json`, 'utf8'))
-  assert.equal(lock.commit, 'c291e7961a515f6d7af9304e7fd1d257929aef26')
   assert.equal('registry_digest' in lock, false)
   assert.equal('local_image_id' in lock, false)
 })

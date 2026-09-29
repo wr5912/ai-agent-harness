@@ -1,5 +1,5 @@
 - id: persona
-  name: '@deepseek-ai/dsh-persona'
+  name: /opt/dsh/packages/preset/persona/lib/index.js
   disabled: false
   config:
     prefix: >-
@@ -8,7 +8,7 @@
     suffix: 你的工作目录是 {{cwd}}。
 
 - id: agent-instructions
-  name: '@deepseek-ai/dsh-agent-instructions'
+  name: /opt/dsh/packages/context/agent-instructions/lib/index.js
   disabled: false
   config:
     maxBytes: 65536

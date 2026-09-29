@@ -70,7 +70,10 @@ if [[ -n "$task_frozen_root" ]]; then
 fi
 # 适配层脚本不在镜像里，由本目录只读挂载进容器；因此脚本改动只需重启实例，不必重建镜像。
 export DSH_ADAPTER_HOST="$task_adapter_dir"
+export DSH_WEB_PROFILE_MANIFEST_HOST="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field profile_manifest)"
 export DSH_MANAGED_PATCH="$task_patch"
+export DSH_EVAL_TARGET_PRESET="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field preset_id)"
+export DSH_EVALUATION_PATCH="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field evaluation_patch)"
 export DSH_WORKSPACE_HOST="$task_candidate_root/workspace"
 export DSH_PRESETS_HOST="$task_candidate_root/presets"
 export DSH_MANAGED_HOST="$task_candidate_root/managed"
@@ -94,7 +97,7 @@ task_verify_script_sha=""
 task_tree_script_sha=""
 
 task_user_patch_sha="sha256:$(sha256sum "$task_adapter_dir/verification-home-controls/locked-user.patch.yml" | cut -d ' ' -f 1)"
-task_web_manifest_sha="sha256:$(sha256sum "$task_adapter_dir/verification-home-controls/web-profile.package.json" | cut -d ' ' -f 1)"
+task_web_manifest_sha="sha256:$(sha256sum "$DSH_WEB_PROFILE_MANIFEST_HOST" | cut -d ' ' -f 1)"
 task_global_agents_sha="sha256:$(sha256sum "$task_adapter_dir/verification-home-controls/locked-global.AGENTS.md" | cut -d ' ' -f 1)"
 task_bootstrap_env_sha="sha256:$(sha256sum "$task_adapter_dir/verification-home-controls/locked-bootstrap.env" | cut -d ' ' -f 1)"
 task_module_deny_sha="sha256:$(sha256sum "$task_adapter_dir/verification-home-controls/module-deny/POLICY.md" | cut -d ' ' -f 1)"

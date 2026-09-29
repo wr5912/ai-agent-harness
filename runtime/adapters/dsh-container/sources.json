@@ -161,6 +161,7 @@
     "EXP-security-operations-expert-007": {
       "agent_id": "security-operations-expert",
       "candidate_root": "evolution/experiments/EXP-security-operations-expert-007/candidate/dsh",
+      "profile_manifest": "evolution/experiments/EXP-security-operations-expert-007/candidate/dsh/managed/web-profile.package.json",
       "profile": "web",
       "patch": "security-operations-expert.patch.yml",
       "preset": "security-operations-expert/agent.cordis.yml",

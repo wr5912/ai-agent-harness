@@ -10,7 +10,9 @@ const expected = ['node', '--expose-internals', '/opt/dsh/apps/cli/lib/bin.js']
 const required = {
   DSH_IMAGE_TAG: 'ai-agent-harness/dsh:000000000',
   DSH_ADAPTER_HOST: '/tmp/placeholder/adapter',
+  DSH_WEB_PROFILE_MANIFEST_HOST: '/tmp/placeholder/web-profile.package.json',
   DSH_MANAGED_PATCH: '/opt/dsh-managed/placeholder.patch.yml',
+  DSH_EVALUATION_PATCH: '/opt/dsh-adapter/evaluation-registry.patch.yml',
   DSH_WORKSPACE_HOST: '/tmp/placeholder/workspace',
   DSH_PRESETS_HOST: '/tmp/placeholder/presets',
   DSH_MANAGED_HOST: '/tmp/placeholder/managed',
@@ -38,7 +40,7 @@ for (const mode of ['verification']) {
     `${mode}: only the main dsh service may expose Node internals`)
   assert.deepEqual(config.services.dsh.command.slice(0, 6), [
     '--profile', 'web', '--patch', required.DSH_MANAGED_PATCH,
-    '--patch', '/opt/dsh-adapter/evaluation.patch.yml',
+    '--patch', required.DSH_EVALUATION_PATCH,
   ])
   assert.equal(config.services.dsh.environment.DSH_EVAL_TARGET_PRESET, required.DSH_EVAL_TARGET_PRESET)
   assert.deepEqual(config.services['home-init'].entrypoint,
@@ -55,7 +57,6 @@ for (const mode of ['verification']) {
   for (const target of [
     '/var/lib/dsh/profiles/web/package.json',
     '/var/lib/dsh/profiles/web/node_modules',
-    '/var/lib/dsh/profiles/web/.dsh-module-fallback/node_modules',
   ]) {
     assert.ok(volumeTargets.has(target), `${mode}: ${target} must be controlled`)
   }

@@ -38,7 +38,7 @@ IMAGE_BUILD_FILES = ("Dockerfile", "apt-mirror.sh", "build-image.sh", "dsh-cli.s
 
 def image_build_input_digests(*, lock_path: Path = LOCK, adapter: Path = ADAPTER) -> dict[str, str]:
     """返回会改变本地镜像内容或构建方式的输入摘要。"""
-    paths = {"source.lock.json": lock_path}
+    paths = {lock_path.name: lock_path}
     paths.update({name: adapter / name for name in IMAGE_BUILD_FILES})
     digests = {}
     for name, path in paths.items():
@@ -117,6 +117,7 @@ def _experiment_contract(
     repo: Path,
     lock: dict,
     lock_path: Path,
+    profile_manifest: Path,
     require_assets: bool,
 ) -> dict:
     expected = Path("evolution/experiments") / source_id / "candidate/dsh"
@@ -169,6 +170,9 @@ def _experiment_contract(
         "presets": str(root / "presets"),
         "managed": str(root / "managed"),
         "profile": item["profile"],
+        "profile_manifest": str(profile_manifest),
+        "runtime_lock": str(lock_path),
+        "evaluation_patch": "/opt/dsh-adapter/evaluation-registry.patch.yml",
         "patch": "/opt/dsh-managed/" + item["patch"],
         "preset": "/opt/dsh-presets/" + item["preset"],
         "preset_id": declared_preset,
@@ -197,11 +201,21 @@ def _resolve_experiment(source_id: str, *, repo: Path, sources: Path, lock_path:
     match = EXPERIMENT.fullmatch(source_id)
     if not match or not isinstance(item, dict) or item.get("agent_id") != match.group(1):
         raise ValueError(f"unknown or inconsistent DSH source: {source_id}")
-    if set(item) != {"agent_id", "candidate_root", "profile", "patch", "preset", "guard",
-                     "config_markers", "required_env_names"}:
+    required = {"agent_id", "candidate_root", "profile", "patch", "preset", "guard",
+                "config_markers", "required_env_names"}
+    if not required <= set(item) or set(item) - required - {"profile_manifest"}:
         raise ValueError("source fields differ from schema 1.1")
+    experiment_root = Path("evolution/experiments") / source_id / "candidate"
+    profile_manifest = ADAPTER / "verification-home-controls/web-profile.package.json"
+    if "profile_manifest" in item:
+        relative = safe_relative(item["profile_manifest"])
+        if relative != experiment_root / "dsh/managed/web-profile.package.json" \
+                or not real_file_below(repo, relative):
+            raise ValueError("invalid experiment profile manifest")
+        profile_manifest = repo / relative
     lock = _read_source_lock(lock_path)
-    return _experiment_contract(source_id, item, repo=repo, lock=lock, lock_path=lock_path, require_assets=require_assets)
+    return _experiment_contract(source_id, item, repo=repo, lock=lock, lock_path=lock_path,
+                                profile_manifest=profile_manifest, require_assets=require_assets)
 
 
 def _read_source_lock(lock_path: Path) -> dict:
@@ -313,7 +327,8 @@ def main() -> None:
             )
             print(json.dumps(plan, ensure_ascii=False, separators=(",", ":")))
         elif args.image_input_digests:
-            print(json.dumps(image_build_input_digests(), ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+            print(json.dumps(image_build_input_digests(lock_path=Path(contract["runtime_lock"])),
+                             ensure_ascii=False, sort_keys=True, separators=(",", ":")))
         elif args.env_names:
             if contract["required_env_names"]:
                 print("\n".join(contract["required_env_names"]))

@@ -1,5 +1,5 @@
 - id: persona
-  name: '@deepseek-ai/dsh-persona'
+  name: /opt/dsh/packages/preset/persona/lib/index.js
   disabled: false
   config:
     prefix: >-

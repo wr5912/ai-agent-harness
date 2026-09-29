@@ -1,0 +1,32 @@
+- id: tool-fs
+  disabled: false
+
+- id: tool-fs-search
+  disabled: false
+  config:
+    sampleOverCapGlobResults: false
+
+- id: agent-preset-registry
+  config:
+    default: !!js process.env.DSH_EVAL_TARGET_PRESET
+
+- insert:
+    - id: preset-evaluation-judge
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: evaluation-judge
+        plugins:
+          - id: evaluation-judge-harness
+            name: cordis:include
+            config:
+              path: /opt/dsh-adapter/evaluation-presets/evaluation-judge/agent.cordis.yml
+
+    - id: preset-scenario-analysis
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: scenario-analysis
+        plugins:
+          - id: scenario-analysis-harness
+            name: cordis:include
+            config:
+              path: /opt/dsh-adapter/evaluation-presets/scenario-analysis/agent.cordis.yml

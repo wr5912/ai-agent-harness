@@ -1,5 +1,6 @@
 """来源合同只依赖 sources.json 描述：新增第二个 Harness 不改适配工具中的业务名。"""
 
+import hashlib
 import json
 import os
 import subprocess
@@ -59,6 +60,56 @@ class SourceContractTest(unittest.TestCase):
         values = json.loads(completed.stdout)
         self.assertIn("Dockerfile", values)
         self.assertTrue(all(value.startswith("sha256:") for value in values.values()))
+
+    def test_all_experiments_share_runtime_and_schedule_keeps_web_profile(self):
+        catalog = json.loads(source_contract.SOURCES.read_text(encoding="utf-8"))
+        expected = source_contract._read_source_lock(source_contract.LOCK)
+        fingerprints = set()
+        for source in catalog["sources"]:
+            contract = source_contract.resolve(source)
+            self.assertEqual(contract["image"]["commit"], expected["commit"])
+            self.assertEqual(contract["runtime_lock"], str(source_contract.LOCK))
+            candidate = Path(contract["candidate_root"]).parent
+            self.assertFalse((candidate / "runtime.lock.json").exists())
+            self.assertNotRegex((candidate / "harness.yaml").read_text(encoding="utf-8"), r"(?m)^\s*runtime_lock\s*:")
+            fingerprints.add(contract["image"]["build_fingerprint"])
+        self.assertEqual(len(fingerprints), 1)
+        source = "EXP-security-operations-expert-007"
+        contract = source_contract.resolve(source)
+        self.assertEqual(contract["evaluation_patch"], "/opt/dsh-adapter/evaluation-registry.patch.yml")
+        self.assertEqual(
+            json.loads(Path(contract["profile_manifest"]).read_text(encoding="utf-8"))["dsh"]["profile"]["bundles"][-1],
+            "@deepseek-ai/dsh-experimental-schedule-bundle",
+        )
+        digests = json.loads(subprocess.run(
+            [sys.executable, str(source_contract.ADAPTER / "source_contract.py"),
+             "--source", source, "--image-input-digests"],
+            capture_output=True, text=True, check=True,
+        ).stdout)
+        self.assertEqual(digests["source.lock.json"], "sha256:" + hashlib.sha256(
+            source_contract.LOCK.read_bytes()).hexdigest())
+
+    def test_experiment_rejects_runtime_override_and_invalid_profile(self):
+        source = "EXP-security-operations-expert-007"
+        original = json.loads(source_contract.SOURCES.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory(prefix="dsh-source-contract-") as location:
+            catalog_path = Path(location) / "sources.json"
+            for field, value, message in (
+                ("runtime_lock", "evolution/experiments/EXP-security-operations-expert-007/candidate/runtime.lock.json",
+                 "source fields differ from schema"),
+                ("profile_manifest", original["sources"]["EXP-security-operations-expert-001"]["candidate_root"],
+                 "invalid experiment profile manifest"),
+            ):
+                catalog = json.loads(json.dumps(original))
+                catalog["sources"][source][field] = value
+                catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, message):
+                    source_contract.resolve(source, sources=catalog_path)
+            catalog = json.loads(json.dumps(original))
+            catalog["sources"][source]["evaluation_patch"] = "../other.patch.yml"
+            catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "source fields differ from schema"):
+                source_contract.resolve(source, sources=catalog_path)
 
     def test_reference_root_requires_evaluation_source(self):
         with tempfile.TemporaryDirectory(prefix="dsh-source-contract-") as location:

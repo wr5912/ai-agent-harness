@@ -387,7 +387,7 @@ def _review_driver(prompts: list[dict], auth_url: str, image_ref: str,
         driver = ADAPTER / "dsh-eval-api.mjs"
         command = [
             "docker", "run", "--rm", "-i", "--network", "host", "--read-only",
-            "--tmpfs", "/tmp:rw,nosuid,nodev,size=256m", "--cap-drop", "ALL",
+            "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=256m", "--cap-drop", "ALL",
             "--security-opt", "no-new-privileges:true", "--env", "HOME=/tmp",
             "--entrypoint", "node",
             "--mount", f"type=bind,src={driver},dst=/opt/dsh/apps/web/dsh-eval-api.mjs,readonly",
