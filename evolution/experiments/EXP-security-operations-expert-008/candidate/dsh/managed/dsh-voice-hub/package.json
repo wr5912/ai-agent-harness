@@ -1,7 +1,7 @@
 {
   "name": "@aisoc/dsh-voice-hub",
   "description": "DSH Web 语音交互插件：支持语音输入、编辑识别文字和语音指令发送消息；可选唤醒词，支持连续语音对话；可自动播报或单次朗读助手回复，并在待审批、待回答和计划审阅时提供语音提醒。语音识别与合成服务可在设置页配置。",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "type": "module",
   "main": "lib/index.js",
   "repository": {
@@ -44,7 +44,7 @@
   "scripts": {
     "build": "node build.mjs",
     "prepack": "node build.mjs",
-    "test": "node test/segmenter.test.mjs && node test/aec.test.mjs && node test/download.test.mjs && node test/endpoint.test.mjs && node test/endpoint-short.test.mjs && node test/resample.test.mjs && node test/sense-worker.test.mjs && node test/detect-route.test.mjs && node test/verify-client.mjs && node test/asr-host-rebuild.test.mjs && node test/barge-in-manual.test.mjs && node test/sense-lang.test.mjs && node test/caption-a11y.test.mjs && node test/emotion.test.mjs && node test/emotion-tts-local.test.mjs && node test/emotion-integration.test.mjs && node test/backchannel.test.mjs && node test/strings-coverage.test.mjs && node test/yield-ms-wiring.test.mjs && node test/matchBackchannel.test.mjs && node test/settings-load.test.mjs && node test/preview-error.test.mjs && node test/hold-clear.test.mjs && node test/barge-in-detect.test.mjs && node test/wakeword.test.mjs && node test/wake-standby.test.mjs && node test/wake-flow.test.mjs && node test/send-command.test.mjs && node test/tts-playback.test.mjs",
+    "test": "node test/segmenter.test.mjs && node test/aec.test.mjs && node test/download.test.mjs && node test/endpoint.test.mjs && node test/endpoint-short.test.mjs && node test/resample.test.mjs && node test/sense-worker.test.mjs && node test/detect-route.test.mjs && node test/verify-client.mjs && node test/asr-host-rebuild.test.mjs && node test/barge-in-manual.test.mjs && node test/sense-lang.test.mjs && node test/caption-a11y.test.mjs && node test/emotion.test.mjs && node test/emotion-tts-local.test.mjs && node test/emotion-integration.test.mjs && node test/backchannel.test.mjs && node test/strings-coverage.test.mjs && node test/yield-ms-wiring.test.mjs && node test/matchBackchannel.test.mjs && node test/settings-load.test.mjs && node test/preview-error.test.mjs && node test/hold-clear.test.mjs && node test/barge-in-detect.test.mjs && node test/wakeword.test.mjs && node test/wake-standby.test.mjs && node test/wake-flow.test.mjs && node test/send-command.test.mjs && node test/remote-endpoints.test.mjs && node test/tts-playback.test.mjs",
     "verify:client": "node test/verify-client.mjs",
     "prefetch": "node scripts/prefetch.mjs",
     "list-voices": "node scripts/list-voices.mjs",

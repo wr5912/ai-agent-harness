@@ -1,0 +1,14 @@
+{
+  "container": "security-operations-expert-inspection008-lan",
+  "container_image_id": "sha256:07d23ae43b9448db90cbb738533f7cc6d328395dd5181b9dd99e07e0faec37ca",
+  "runtime_overlay_sha256": "5c43cda224579f7acf3894e829fbcba6ff4834498b18fa2685cc9b899d81ffd6",
+  "plugin_archive_sha256": "c36e9744852538049a115e123522ba7126e3449cb0342a6905c0ff5c1f94749c",
+  "browser": "Google Chrome 149.0.7827.155",
+  "sample_sha256": "bbd7d42d83fcb258f058f21ba0572cb8d8e41af021c6703abcf23013a7fbbfc9",
+  "sample_creation": "44.1 kHz test speech; 3.5 seconds of silence inserted after 3.8 seconds to separate body and send command",
+  "reproduction": "gzip -dc voice-sample.wav.gz > /tmp/voice-sample.wav && VOICE_AUDIO_FILE=/tmp/voice-sample.wav python3 browser-driver.py browser-test.mjs",
+  "scope": "Browser at http://127.0.0.1:3102; microphone granted to local secure context; one new Session with default DeepSeek-V41-Flash model",
+  "limit": "Audio decode and AudioBufferSourceNode.start observed; physical speaker output and LAN HTTP microphone access not asserted",
+  "archive_file_match_count": 27,
+  "container_restarted_at": "2026-09-30T01:46:21Z"
+}

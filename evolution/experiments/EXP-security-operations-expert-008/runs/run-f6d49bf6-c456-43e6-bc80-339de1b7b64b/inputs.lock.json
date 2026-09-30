@@ -1,0 +1,926 @@
+{
+  "schema_version": "2.0",
+  "run_id": "run-f6d49bf6-c456-43e6-bc80-339de1b7b64b",
+  "source_id": "experiment:EXP-security-operations-expert-008",
+  "source_kind": "experiment",
+  "baseline_ref": "git:e406e75ffd4029d0485fe50250be4f701a2adc68",
+  "created_at": "2026-09-30T01:44:05Z",
+  "harness_trees": {
+    "workspace": {
+      "tree_sha256": "sha256:160354583bce8026f223e4a74732300e267e986bdd404d12bfb1c474c0c6f2da",
+      "directory_sha256": "sha256:3e21329f076397755a4db6c5eae663f00347c1372413f2fb0f4e2c47d05af540",
+      "file_count": 10,
+      "total_bytes": 27121,
+      "files": [
+        {
+          "mode": "0664",
+          "path": ".agents/skills/emergency-action/SKILL.md",
+          "sha256": "f271e3d6bc5985d698e6f95e933478cf92fdacb117b2bf0b4b439c26c8b40293",
+          "size": 5446
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/fault-analysis/SKILL.md",
+          "sha256": "5bcc10d9be08e61bd2d94a473e6577e2ef501f22832caa9427e03a037585ec28",
+          "size": 1722
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/playbook-impact-assessment/SKILL.md",
+          "sha256": "9293f326283bbf5b9f6c7a0105a73d218f906ebfdcad01f7834a6effbfb004cb",
+          "size": 568
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/policy-configuration/SKILL.md",
+          "sha256": "2ba3371529995cc7bb3d35521e1835671afe5cee13cfcb3892c546e043ca6e57",
+          "size": 6263
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/response-planning/SKILL.md",
+          "sha256": "76d84e82fd9c3edc85ec693a50b6881e54271eb89da77335ac11142998a056a4",
+          "size": 1443
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/security-inspection/SKILL.md",
+          "sha256": "6fa79d6ccb2ca81271d721f0383b05a2faf95cfcbbdca3d9edbf51e6956ee0d1",
+          "size": 2592
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/security-investigation/SKILL.md",
+          "sha256": "887a5b4e60d14d6d732618d41ce76324aef139226bc56896126f1097fbe5879c",
+          "size": 948
+        },
+        {
+          "mode": "0664",
+          "path": ".agents/skills/threat-analysis/SKILL.md",
+          "sha256": "c89902c62c8f5ab0bcf57315855a447c9f4e65159a4695660f5567ca817d4945",
+          "size": 1022
+        },
+        {
+          "mode": "0664",
+          "path": ".env",
+          "sha256": "e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+          "size": 84
+        },
+        {
+          "mode": "0664",
+          "path": "AGENTS.md",
+          "sha256": "d3dbeb13f15f3da9ae6983295431ea7cce1a062569c2f9fb73f1d5e80fa93dfa",
+          "size": 7033
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/emergency-action",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/fault-analysis",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/playbook-impact-assessment",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/policy-configuration",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/response-planning",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/security-inspection",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/security-investigation",
+          "mode": "0775"
+        },
+        {
+          "path": ".agents/skills/threat-analysis",
+          "mode": "0775"
+        }
+      ]
+    },
+    "presets": {
+      "tree_sha256": "sha256:31db329fd207aba71f7075e43960067299aace59cedd3d3988647d016d6da02d",
+      "directory_sha256": "sha256:5342268bd9bbcb7d63f8953f6aec1ec8eacd7c0780b484c69d8e4fa2f6bcb355",
+      "file_count": 2,
+      "total_bytes": 1396,
+      "files": [
+        {
+          "mode": "0664",
+          "path": "security-operations-expert/agent.cordis.yml",
+          "sha256": "65c53819e8d128474603e61c54574385ba40cc517f51d4d81ce44312d66c0ade",
+          "size": 1233
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-expert/preset.yml",
+          "sha256": "e2edf722ed79cc54419a5ac4efcc13693856945347715562f8940c706faf8742",
+          "size": 163
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "0775"
+        },
+        {
+          "path": "security-operations-expert",
+          "mode": "0775"
+        }
+      ]
+    },
+    "managed": {
+      "tree_sha256": "sha256:96c4295bba7e93e021f13283ed61aab8d126704087cee1f2cb2d38d350f4649c",
+      "directory_sha256": "sha256:ddc4c5063929cc2be415ddc3505d7185e4db1a28e51bfe2ba91569521baa5c97",
+      "file_count": 67,
+      "total_bytes": 20354762,
+      "files": [
+        {
+          "mode": "0664",
+          "path": "control-boundary.yaml",
+          "sha256": "b3de96498305a623b94d8fedf10c8082f3d2d8735798926158a7282a31e7c400",
+          "size": 2393
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/LICENSE",
+          "sha256": "b03f61710dbaad309c46c443f56586fa0c9026371cb3948ab64208ca6a904f91",
+          "size": 1185
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/README.md",
+          "sha256": "28f8cff1f9ea18f9f6671a5ae96ef64fcfd5d27ecd6d5ea8840127b25b636753",
+          "size": 9494
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/assets/architecture.svg",
+          "sha256": "1dff425d6d17a8c675ff8feaeab6eac8e9c4410881bc6501efc936e9fa988668",
+          "size": 5898
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/assets/kws/LICENSE.sherpa-onnx",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "size": 11358
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/assets/kws/SHA256SUMS",
+          "sha256": "0625e97b0324610026d48548aa962fb9344710499c1a5dbf324f08bf326bb4cc",
+          "size": 451
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/assets/kws/THIRD-PARTY-NOTICES.md",
+          "sha256": "6b048a6b908de1c199a8e417609e888058aa1035817cd6a27df934dd0f748b6d",
+          "size": 1891
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/assets/kws/kws-capture-worklet.js",
+          "sha256": "b80355c9eafd2d51bf8675e9cf8fb4a047663a71070d5a48d18f560bcb00f9f1",
+          "size": 1281
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/assets/kws/kws-worker.js",
+          "sha256": "a5e079357b30c0ca46cb0f7772f6322c5be625e44f895dae990bfc0997e1361a",
+          "size": 3582
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/assets/kws/sherpa-onnx-kws.js",
+          "sha256": "03b44e372795fd907e84eecd29419e1d052dc6704ac06935c9bf9fe19b3e3434",
+          "size": 9925
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/assets/kws/sherpa-onnx-wasm-kws-main.data",
+          "sha256": "3ec799f46247746484601b8f67f12d36369e9700fd191038f0f4f646ac9a5089",
+          "size": 5027388
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/assets/kws/sherpa-onnx-wasm-kws-main.js",
+          "sha256": "aeea5586a77af01bbac882d81f2a57a61d81d766aafafc829c573dfacd9b8d6b",
+          "size": 81800
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/assets/kws/sherpa-onnx-wasm-kws-main.wasm",
+          "sha256": "952abe4768fbb12117e46259159b7c29c052703edea5fbe77dea5cdc7e58ee0d",
+          "size": 12752155
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/assets/kws/tokens.txt",
+          "sha256": "72316508d9119696145abc6f1f8cdc46287535c34e5ce7e595f845cb1499cf2e",
+          "size": 1627
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/assets/settings-actions.png",
+          "sha256": "229e17bb565467eaacdcf14f6eeadfb4c579b17c1ddc6f1944169d3609132c79",
+          "size": 126447
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/assets/settings-panel.png",
+          "sha256": "2b60499c5283e5ad862bb524f19373523b2e461e78f9b8c42878ba5dc1902f77",
+          "size": 134873
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/cordis.patch.yml",
+          "sha256": "782175c86202cdef225c1c5b1788b0f3a58db5549e53e88bc22cf42f82b89eef",
+          "size": 293
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/lib/client.js",
+          "sha256": "3b066609276519646254e7c5e09bcc72ae94b7553f0c1c881a169d0074cdb898",
+          "size": 776560
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/lib/index.js",
+          "sha256": "eb8ed62ba6f082ef8767017a0e0584f723b3a5c638d3cc75a09e82ac146506fd",
+          "size": 141970
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/lib/msedge-tts.cjs",
+          "sha256": "fc6586c6379eb56e97b34d5590a236f4a6aca4f5f2659e9f26d6d207b1331008",
+          "size": 769928
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/lib/sense-worker.mjs",
+          "sha256": "09227ecbc3729f142a3a488b40463499391813b7b8a8160ff9ab463b1cd9ff73",
+          "size": 3531
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/lib/tts-vits-worker.cjs",
+          "sha256": "6d38dd5bd766c12fd73faa4868719c1ca0497184d7e9dea0b9bd8bdc72028e67",
+          "size": 5113
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/package-lock.json",
+          "sha256": "8e2b7ce9548ea5e15781c03a8a4bf96d369db47f7f404d4b80a7118537edc3d3",
+          "size": 72976
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/package.json",
+          "sha256": "d6f3ec3fe51114a6776574fb6dddf82b5f5262f18a600744b37ed840656dd613",
+          "size": 5227
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/scripts/bench-asr.mjs",
+          "sha256": "d28ad890c6c1454beb9955ffeaca9e319f9f2ceba86e3c2d904521dfcc31a666",
+          "size": 9954
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/scripts/check-anchors.mjs",
+          "sha256": "328217921f4460df19c98ddf625610dc0e5ee0c97fb76106ac6a93d72cfcf9bb",
+          "size": 4045
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/scripts/list-voices.mjs",
+          "sha256": "83221eb37dcbf3c90b9b704eb6bbfc3c0b8fa14a7cf221428e7097dfc5a39ae3",
+          "size": 1213
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/scripts/prefetch.mjs",
+          "sha256": "24af43ad30b4b0b149abc1afc8c3f9613605e2e6489dc341c2bd4444e1a1b526",
+          "size": 12251
+        },
+        {
+          "mode": "0664",
+          "path": "dsh-voice-hub/scripts/verify.mjs",
+          "sha256": "bb85ca7efe407f3ada04fb28ebfae4f14328ad24bdc5fd2dcbd2f50a0e589618",
+          "size": 1481
+        },
+        {
+          "mode": "0664",
+          "path": "emergency-action-guard.mjs",
+          "sha256": "6108d83ab6a2ee0e9ce4958f0b7c0de3a50b4d68784263340b4a8651b98c5308",
+          "size": 5272
+        },
+        {
+          "mode": "0664",
+          "path": "emergency-confirmation-runtime.mjs",
+          "sha256": "57f2eefb01d9bf15164a59f86ba5d2aafe43a855ccf97b208e946eadfecf241b",
+          "size": 11611
+        },
+        {
+          "mode": "0664",
+          "path": "mcp-servers.yaml",
+          "sha256": "dc424fc16e0481de459bc6e808ce0e7eeeb8e9a7f0bc3d5cff1c529578ded625",
+          "size": 2483
+        },
+        {
+          "mode": "0664",
+          "path": "policy-configuration-guard.mjs",
+          "sha256": "7803ed00af2c248fa7b45c52a5c261e01a35f3280c4008204f6f182a8e62477e",
+          "size": 6330
+        },
+        {
+          "mode": "0664",
+          "path": "policy-confirmation-runtime.mjs",
+          "sha256": "ba7e17d28f3686d1032b5348f9810b8b807327b515dfe1b6de89003bc6e8f8a0",
+          "size": 10507
+        },
+        {
+          "mode": "0664",
+          "path": "role-tool-matrix.yaml",
+          "sha256": "eb0ca65957bc088207998ba5a21d0e51e52760271b2c11367068551c2a580008",
+          "size": 2820
+        },
+        {
+          "mode": "0664",
+          "path": "schemas/response-plan-input.schema.json",
+          "sha256": "d5835c248c2e624c39a50c44cd5fc9dd734700d23e8f2ef580c565cb1bd861ce",
+          "size": 4119
+        },
+        {
+          "mode": "0664",
+          "path": "schemas/response-plan-output.schema.json",
+          "sha256": "c3d46e77f133bfee9ad8f6fd30b951f931013f4fee7e1381707d88d12e86c33d",
+          "size": 4750
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-expert.development.patch.yml",
+          "sha256": "712f21d9ca27f818eb1a430529361975e295afb00851f2b258951c2cdeb75b72",
+          "size": 1648
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-expert.patch.yml",
+          "sha256": "6806073ab4be991adc233b8432f4e1efec0020d3b009fed006ee56f0af4cf940",
+          "size": 7480
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-guard.mjs",
+          "sha256": "62d8407fd1da353399aaad2f3cbdb038ab204ddbac4acb88e5a2860e842218c8",
+          "size": 18875
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-ui/client.js",
+          "sha256": "df0f8cd7684fb1b24728207d5cb0b57e1eaae1a0c04a6572f32cd91ce15baed3",
+          "size": 9987
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-ui/index.js",
+          "sha256": "5b2df8275a78de7a341e1ec852d93a8d31e85501c46f9359e8136d7e3033bbef",
+          "size": 27
+        },
+        {
+          "mode": "0664",
+          "path": "security-operations-ui/package.json",
+          "sha256": "53886d18a97d654024a3d141e02a7f85180dc541bf65c11113675848c3a95641",
+          "size": 536
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis.mjs",
+          "sha256": "9233a482f1913db41e83636b82310193eb31245db4ca365bac0cfb84c0b6fe10",
+          "size": 8261
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/catalog/.current-ai_soc_correlate-tools.local.json",
+          "sha256": "a88d20d0fda2a113dbb7b2239d1cfaa96bd3460241e1cfe0ed8d5bd2c14ca73f",
+          "size": 8818
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/catalog/.current-ai_soc_detect-tools.local.json",
+          "sha256": "543cd68ab5e583c2421303729b84fc911b8ce1d50075537f449f95e28aab46be",
+          "size": 1774
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/catalog/.current-ai_soc_event-tools.local.json",
+          "sha256": "fea69791041ed82767b392c18a0928ee35e2486164d89a59375e319cf90b0652",
+          "size": 7905
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/catalog/.current-ai_soc_graph-tools.local.json",
+          "sha256": "9d9e3dcc77931aaf40653445a19140bd306448381e234ffd0b72380b899ae1e5",
+          "size": 2446
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/catalog/.current-ai_soc_ingest-tools.local.json",
+          "sha256": "4b3621e38e257daaecacdeddadeef36ffa275715e133955d65aa2021372465bc",
+          "size": 530
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/catalog/.current-ai_soc_master-tools.local.json",
+          "sha256": "194e737dbd3e75df28192f732da1d5704604b96ae83e00738e11eab53c15480c",
+          "size": 2006
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/catalog/.current-resources.local.json",
+          "sha256": "5f28892988662d3d5d4cab1db23cace82b17d3c6ebfbbd9fb8833dd7d9dce9c8",
+          "size": 591
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/domain_projection.py",
+          "sha256": "e8a8c278df9b483837f1bacd08ced25810a3f58a2a820dd1334ed318f324818b",
+          "size": 35252
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/dsh_runner.py",
+          "sha256": "841474b806ebcfab0dfc13351c6393955fdaaa4edf530a5016172d3d2482cd5e",
+          "size": 7777
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/evidence_collection.py",
+          "sha256": "7f97b6fa96b551a89f58adf6d831cb33749b8f0d04a88ae2dc0977d956da4ca3",
+          "size": 48198
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/fast_classification.py",
+          "sha256": "02fb220e67468d312723b7608d9ac41ff812cd9e2a3fca43fb1e2b72580aed8f",
+          "size": 15437
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/forced_output_contract.py",
+          "sha256": "219fe9224126fcbaf2c0e5477b032bb0949bb914ba8e5229e3082a87360e11e6",
+          "size": 24932
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/fusion_contract.py",
+          "sha256": "8f7ec6ad564a60d3fe20b7d7ed1ec2bb1b3dab1c54ef63a7128c7b8c38c9e399",
+          "size": 9395
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/fusion_pipeline.py",
+          "sha256": "eaa006930bb8734cbdd850737411290522fc380a3162a24216b3ac59ca9e8843",
+          "size": 12749
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/incident_scope.py",
+          "sha256": "86add814e8b6b83f557424e0335ffce4de9e8c5c2af26d18a0569e0f65a2aa46",
+          "size": 31010
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/mcp_gateway.py",
+          "sha256": "e4eaf4dbe70a4c9ca972bca32fe439c2af6af3afc24356c80e69b0150e76759e",
+          "size": 8887
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/model_inference.py",
+          "sha256": "ba26bc6bdb73786ca6737648e3f8c13afe4105ce215a8cc33879dab6469bef4c",
+          "size": 7936
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/model_input_compaction.py",
+          "sha256": "0854d14a7ea6b6fe177e4c20420e07bdbb4417cdb659e2d95baef77c97558f19",
+          "size": 25308
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/prompts/threat-analysis-system.txt",
+          "sha256": "a1b469bf00e1d2032804d6696ef3b6f771733cc46e54f4f3e7e195c07d7f17b1",
+          "size": 8339
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/report.css",
+          "sha256": "3d8a64635c95dd2ab5b31a2f0d0a964c8264fc8822c097e480bf8eae1cd27f5b",
+          "size": 1147
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/result_delivery.py",
+          "sha256": "82f096243cc5ce3d924be143d96db1efa07827f7159b03163611d75c13bd9322",
+          "size": 12137
+        },
+        {
+          "mode": "0664",
+          "path": "threat-analysis/result_storage.py",
+          "sha256": "78088125b416d29543cfeab61032ad1014192fe6d78b3d7bd39c3b58386092b6",
+          "size": 10896
+        },
+        {
+          "mode": "0664",
+          "path": "web-profile.package.json",
+          "sha256": "884be57eab2e30fda8f2c9a3383785e3e8943ebe741960962d278a2c2832815e",
+          "size": 296
+        }
+      ],
+      "directories": [
+        {
+          "path": ".",
+          "mode": "0775"
+        },
+        {
+          "path": "dsh-voice-hub",
+          "mode": "0775"
+        },
+        {
+          "path": "dsh-voice-hub/assets",
+          "mode": "0775"
+        },
+        {
+          "path": "dsh-voice-hub/assets/kws",
+          "mode": "0775"
+        },
+        {
+          "path": "dsh-voice-hub/lib",
+          "mode": "0775"
+        },
+        {
+          "path": "dsh-voice-hub/scripts",
+          "mode": "0775"
+        },
+        {
+          "path": "schemas",
+          "mode": "0775"
+        },
+        {
+          "path": "security-operations-ui",
+          "mode": "0775"
+        },
+        {
+          "path": "threat-analysis",
+          "mode": "0775"
+        },
+        {
+          "path": "threat-analysis/catalog",
+          "mode": "0775"
+        },
+        {
+          "path": "threat-analysis/prompts",
+          "mode": "0775"
+        }
+      ]
+    }
+  },
+  "reference_tree": {
+    "tree_sha256": "sha256:9bcb5acdadee5aaf27c2a5026a7fad75164581c1f1d88e01999cec7a5a6cbc98",
+    "directory_sha256": "sha256:1467be5bbfe4482ffa62e69f571c438c19b1aac232dae85c77f9ff6e64f95417",
+    "file_count": 4,
+    "total_bytes": 20629,
+    "files": [
+      {
+        "mode": "0664",
+        "path": "evaluation.md",
+        "sha256": "7819ac59a8ab9f09fd747edf1f00e6c846483199fa6ca2a88b7d91f0a56529a8",
+        "size": 20458
+      },
+      {
+        "mode": "0664",
+        "path": "instances/security-operations-expert-ui/credentials/admin.initial-password",
+        "sha256": "e150a1ec81e8e93e1eae2c3a77e66ec6dbd6a3b460f89c1d08aecf422ee401a0",
+        "size": 7
+      },
+      {
+        "mode": "0664",
+        "path": "instances/security-operations-expert-ui/credentials/researcher.initial-password",
+        "sha256": "e150a1ec81e8e93e1eae2c3a77e66ec6dbd6a3b460f89c1d08aecf422ee401a0",
+        "size": 7
+      },
+      {
+        "mode": "0664",
+        "path": "manifest.yaml",
+        "sha256": "1e718a5aa2d94f0b1de249212ccac7f032a58ba76736b5da1107fac66e19cac9",
+        "size": 157
+      }
+    ],
+    "directories": [
+      {
+        "path": ".",
+        "mode": "0775"
+      },
+      {
+        "path": "instances",
+        "mode": "0775"
+      },
+      {
+        "path": "instances/security-operations-expert-ui",
+        "mode": "0775"
+      },
+      {
+        "path": "instances/security-operations-expert-ui/credentials",
+        "mode": "0775"
+      }
+    ]
+  },
+  "evaluation_sha256": "ac068e5fdc34e352d18ade93a23325bb813c9a4199fc922858b9f8ad22f932fc",
+  "evaluation_cases": [
+    {
+      "case_id": "U-VOICE-001",
+      "title": "语音发送与回复",
+      "inputs": [
+        "你好，这是语音测试。"
+      ],
+      "expected_behavior": "浏览器麦克风录入后显示可编辑的转写草稿；说出发送触发词后只提交测试语句，不把触发词写入消息。当前 Session 收到模型的实际回复，点击该回复的朗读按钮后进入浏览器音频播放流程；原生会话和输入功能仍可用。"
+    }
+  ],
+  "case_catalog": [
+    {
+      "case_id": "U-INS-001",
+      "scene": "安全巡检",
+      "fast": true
+    },
+    {
+      "case_id": "U-INS-002",
+      "scene": "安全巡检",
+      "fast": false
+    },
+    {
+      "case_id": "U-INS-003",
+      "scene": "安全巡检",
+      "fast": false
+    },
+    {
+      "case_id": "U-INS-004",
+      "scene": "安全巡检",
+      "fast": false
+    },
+    {
+      "case_id": "U-INS-005",
+      "scene": "安全巡检",
+      "fast": false
+    },
+    {
+      "case_id": "U-INS-006",
+      "scene": "安全巡检",
+      "fast": false
+    },
+    {
+      "case_id": "U-INS-007",
+      "scene": "安全巡检",
+      "fast": false
+    },
+    {
+      "case_id": "U-EMG-001",
+      "scene": "独立应急指令",
+      "fast": true
+    },
+    {
+      "case_id": "U-POL-001",
+      "scene": "策略配置",
+      "fast": true
+    },
+    {
+      "case_id": "U-POL-002",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-003",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-004",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-005",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-006",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-007",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-008",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-009",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-010",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-011",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-POL-012",
+      "scene": "策略配置",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-001",
+      "scene": "故障排查",
+      "fast": true
+    },
+    {
+      "case_id": "U-FLT-002",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-003",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-004",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-005",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-006",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-007",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-008",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-009",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-FLT-010",
+      "scene": "故障排查",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-001",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-002",
+      "scene": "智能问答",
+      "fast": true
+    },
+    {
+      "case_id": "U-QA-003",
+      "scene": "智能问答",
+      "fast": true
+    },
+    {
+      "case_id": "U-QA-004",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-005",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-006",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-007",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-008",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-009",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-010",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-011",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-012",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-QA-013",
+      "scene": "智能问答",
+      "fast": false
+    },
+    {
+      "case_id": "U-THREAT-FAST",
+      "scene": "威胁事件研判",
+      "fast": true
+    },
+    {
+      "case_id": "U-THREAT-FULL",
+      "scene": "威胁事件研判",
+      "fast": false
+    },
+    {
+      "case_id": "U-THREAT-WHITELIST",
+      "scene": "威胁事件研判",
+      "fast": false
+    },
+    {
+      "case_id": "U-THREAT-MISSING",
+      "scene": "威胁事件研判",
+      "fast": false
+    },
+    {
+      "case_id": "U-THREAT-FOLLOWUP",
+      "scene": "威胁事件研判",
+      "fast": false
+    },
+    {
+      "case_id": "U-VOICE-001",
+      "scene": "语音交互",
+      "fast": false
+    }
+  ],
+  "selection_mode": "explicit",
+  "git_version": {
+    "commit": "b6d52cf8348ee3513a17a247205f00a1f8e08246",
+    "dirty": true,
+    "changed_path_count": 12
+  },
+  "model": "DeepSeek-V41-Flash",
+  "executor": "browser-cdp-voice"
+}

@@ -1,0 +1,13 @@
+mic-entered true
+state 1 {"draft":"","user":[],"replyButtons":0,"error":[]}
+state 3 {"draft":"你好","user":[],"replyButtons":0,"error":[]}
+state 4 {"draft":"你好这","user":[],"replyButtons":0,"error":[]}
+state 5 {"draft":"你好这是语音","user":[],"replyButtons":0,"error":[]}
+state 6 {"draft":"你好这是语音测试","user":[],"replyButtons":0,"error":[]}
+state 7 {"draft":"你好，这是语音测试。","user":[],"replyButtons":0,"error":[]}
+state 11 {"draft":"你好，这是语音测试。 确认","user":[],"replyButtons":0,"error":[]}
+state 12 {"draft":"你好，这是语音测试。 确认发送","user":[],"replyButtons":0,"error":[]}
+state 14 {"draft":"","user":["你好，这是语音测试。\n18:46"],"replyButtons":0,"error":[]}
+voice-stage {"draftSeen":true,"sent":true,"responses":{"/voice-mode/stream":1,"/voice-mode/config":2,"/voice-mode/toggle":1,"/voice-mode/asr":63,"/api/session/prompt":1}}
+reply-stage {"replyLength":25,"before":0,"button":"朗读这条回复"}
+full-result {"decoded":1,"played":1,"composerEditable":"true","user":["你好，这是语音测试。\n18:46"],"model":"DeepSeek-V41-Flash · Off","responses":{"/voice-mode/stream":1,"/voice-mode/config":3,"/voice-mode/toggle":2,"/voice-mode/asr":63,"/api/session/prompt":1,"/voice-mode/read-once":1},"url":"http://127.0.0.1:3102/"}

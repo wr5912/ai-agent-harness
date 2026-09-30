@@ -23872,7 +23872,7 @@ Path:${messageTypes.SPEECH_CONFIG}${_MsEdgeTTS.JSON_XML_DELIM}
                                         "sentenceBoundaryEnabled": "${this._metadataOptions.sentenceBoundaryEnabled}",
                                         "wordBoundaryEnabled": "${this._metadataOptions.wordBoundaryEnabled}"
                                     },
-                                    "outputFormat": "${this._outputFormat}"
+                                    "outputFormat": "${this._outputFormat}" 
                                 }
                             }
                         }
@@ -23992,7 +23992,7 @@ Path:${messageTypes.SPEECH_CONFIG}${_MsEdgeTTS.JSON_XML_DELIM}
                 <voice name="${this._voice}">
                     <prosody pitch="${options.pitch}" rate="${options.rate}" volume="${options.volume}">
                         ${input}
-                    </prosody>
+                    </prosody> 
                 </voice>
             </speak>`;
       }

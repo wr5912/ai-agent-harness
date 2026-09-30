@@ -26286,11 +26286,14 @@ function VoiceServiceSettingsPage() {
       if (!res.ok) throw new Error(`HTTP\uFF08\u8BF7\u6C42\u72B6\u6001\uFF09${res.status}`);
       return res.json();
     }).then((data) => {
-      if (alive) {
-        setValue(data);
-        setSendCommandsText(data.sendCommands.join("\uFF1B"));
-        setMessage("");
+      if (!alive) return;
+      if (typeof data.ttsStreamUrl !== "string" || typeof data.ttsCancelUrl !== "string") {
+        setMessage("\u8BED\u97F3\u63D2\u4EF6\u670D\u52A1\u7AEF\u4ECD\u5728\u8FD0\u884C\u65E7\u7248\u672C\uFF0C\u8BF7\u91CD\u542F DSH Web \u5E76\u5237\u65B0\u9875\u9762\u3002");
+        return;
       }
+      setValue(data);
+      setSendCommandsText(data.sendCommands.join("\uFF1B"));
+      setMessage("");
     }).catch(() => {
       if (alive) setMessage("\u8BFB\u53D6\u8BED\u97F3\u670D\u52A1\u914D\u7F6E\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u63D2\u4EF6\u662F\u5426\u542F\u7528\u3002");
     });
@@ -26323,7 +26326,7 @@ function VoiceServiceSettingsPage() {
       const data = await res.json();
       if (!res.ok || !data.results) throw new Error(data.error ?? `HTTP\uFF08\u8BF7\u6C42\u72B6\u6001\uFF09${res.status}`);
       setResults(data.results);
-      setMessage(Object.values(data.results).every((item) => item.ok) ? "\u4E09\u9879\u8BED\u97F3\u670D\u52A1\u8FDE\u63A5\u6210\u529F\u3002" : "\u90E8\u5206\u8BED\u97F3\u670D\u52A1\u8FDE\u63A5\u5931\u8D25\uFF0C\u8BF7\u67E5\u770B\u4E0B\u65B9\u7ED3\u679C\u3002");
+      setMessage(Object.values(data.results).every((item) => item.ok) ? "\u6D41\u5F0F\u8BC6\u522B\u3001\u6279\u91CF\u8BC6\u522B\u548C\u8BED\u97F3\u5408\u6210\u8FDE\u63A5\u6210\u529F\uFF1B\u53D6\u6D88\u5730\u5740\u5DF2\u68C0\u67E5\u683C\u5F0F\u3002" : "\u90E8\u5206\u8BED\u97F3\u670D\u52A1\u8FDE\u63A5\u5931\u8D25\uFF0C\u8BF7\u67E5\u770B\u4E0B\u65B9\u7ED3\u679C\u3002");
     } catch (error) {
       setMessage(`\u6D4B\u8BD5\u8FDE\u63A5\u5931\u8D25\uFF1A${error instanceof Error ? error.message : String(error)}`);
     } finally {
@@ -26352,9 +26355,10 @@ function VoiceServiceSettingsPage() {
   };
   const fields = [
     { key: "asrStreamUrl", label: "\u6D41\u5F0F\u8BED\u97F3\u8BC6\u522B\u5730\u5740", hint: "WebSocket\uFF08\u5B9E\u65F6\u8FDE\u63A5\uFF09\u5B8C\u6574\u5730\u5740\uFF0C\u7528\u4E8E\u5B9E\u65F6\u5B57\u5E55\u548C\u8BED\u97F3\u547D\u4EE4\u3002" },
-    { key: "asrBatchUrl", label: "\u6279\u91CF\u8BED\u97F3\u8BC6\u522B\u5730\u5740", hint: "HTTP\uFF08\u7F51\u7EDC\u8BF7\u6C42\uFF09\u670D\u52A1\u6839\u5730\u5740\uFF0C\u6D41\u5F0F\u5931\u8D25\u65F6\u7528\u4E8E\u5B9A\u7A3F\u515C\u5E95\u3002" },
+    { key: "asrBatchUrl", label: "\u6279\u91CF\u8BED\u97F3\u8BC6\u522B\u5730\u5740", hint: "HTTP\uFF08\u7F51\u7EDC\u8BF7\u6C42\uFF09\u8F6C\u5199\u63A5\u53E3\u5B8C\u6574\u5730\u5740\uFF0C\u6D41\u5F0F\u5931\u8D25\u65F6\u7528\u4E8E\u5B9A\u7A3F\u515C\u5E95\u3002" },
     { key: "asrModel", label: "\u6279\u91CF\u8BC6\u522B\u6A21\u578B", hint: "\u6279\u91CF\u8F6C\u5199\u8BF7\u6C42\u4E2D\u7684 model\uFF08\u6A21\u578B\u540D\uFF09\u53C2\u6570\u3002" },
-    { key: "ttsBaseUrl", label: "\u8BED\u97F3\u5408\u6210\u5730\u5740", hint: "HTTP\uFF08\u7F51\u7EDC\u8BF7\u6C42\uFF09\u670D\u52A1\u6839\u5730\u5740\uFF0C\u56DE\u590D\u4E0E\u5BA1\u6279\u63D0\u793A\u5171\u7528\u3002" },
+    { key: "ttsStreamUrl", label: "\u8BED\u97F3\u5408\u6210\u5730\u5740", hint: "HTTP\uFF08\u7F51\u7EDC\u8BF7\u6C42\uFF09\u6D41\u5F0F\u5408\u6210\u63A5\u53E3\u5B8C\u6574\u5730\u5740\uFF0C\u56DE\u590D\u4E0E\u5F85\u5904\u7406\u4E8B\u9879\u63D0\u9192\u5171\u7528\u3002" },
+    { key: "ttsCancelUrl", label: "\u8BED\u97F3\u5408\u6210\u53D6\u6D88\u5730\u5740", hint: "\u586B\u5199\u5B8C\u6574\u63A5\u53E3\u5730\u5740\uFF0C{generationId} \u7531\u63D2\u4EF6\u81EA\u52A8\u66FF\u6362\uFF0C\u65E0\u9700\u624B\u586B\u7F16\u53F7\uFF1B\u7559\u7A7A\u65F6\u4EC5\u4E2D\u65AD\u5F53\u524D\u8BF7\u6C42\u3002" },
     { key: "wakeWord", label: "\u5524\u9192\u8BCD", hint: "\u6700\u591A 10 \u4E2A\uFF0C\u7528\u4E2D\u6587\u5206\u53F7\u300C\uFF1B\u300D\u6216\u82F1\u6587\u5206\u53F7\u300C;\u300D\u9694\u5F00\uFF1B\u5E38\u5F00\u5524\u9192\u65F6\u8BF4\u4EFB\u610F\u4E00\u4E2A\u5373\u53EF\u3002\u624B\u52A8\u70B9\u51FB\u9EA6\u514B\u98CE\u65E0\u9700\u8BF4\u5524\u9192\u8BCD\u3002" }
   ];
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { "data-dshvm-service-settings": "page", style: { maxWidth: 640, padding: "4px 0 32px", color: "var(--dsw-alias-label-primary)" }, children: [
@@ -26423,7 +26427,7 @@ function VoiceServiceSettingsPage() {
           }
         )
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: { fontSize: 12, color: "var(--dsw-alias-label-tertiary)", margin: "8px 0 0" }, children: "\u6D4B\u8BD5\u5F53\u524D\u8F93\u5165\u7684\u5730\u5740\uFF0C\u4E0D\u4FDD\u5B58\u914D\u7F6E\uFF0C\u4E5F\u4E0D\u4F1A\u64AD\u653E\u58F0\u97F3\u3002" })
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: { fontSize: 12, color: "var(--dsw-alias-label-tertiary)", margin: "8px 0 0" }, children: "\u6D4B\u8BD5\u5F53\u524D\u8F93\u5165\u7684\u8BC6\u522B\u4E0E\u5408\u6210\u63A5\u53E3\uFF1B\u53D6\u6D88\u5730\u5740\u53EA\u68C0\u67E5\u683C\u5F0F\uFF0C\u4E0D\u53D1\u9001\u53D6\u6D88\u8BF7\u6C42\u3002\u6D4B\u8BD5\u4E0D\u4F1A\u4FDD\u5B58\u914D\u7F6E\u6216\u64AD\u653E\u58F0\u97F3\u3002" })
     ] }),
     message && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { role: "status", "aria-live": "polite", style: { fontSize: 13, marginTop: 14 }, children: message }),
     results && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", { ref: resultsRef, "aria-label": "\u8BED\u97F3\u670D\u52A1\u8FDE\u63A5\u7ED3\u679C", style: { paddingLeft: 18, fontSize: 13, lineHeight: 1.8 }, children: [["stream", "\u6D41\u5F0F\u8BED\u97F3\u8BC6\u522B"], ["batch", "\u6279\u91CF\u8BED\u97F3\u8BC6\u522B"], ["tts", "\u8BED\u97F3\u5408\u6210"]].map(([key, label]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { style: { color: results[key].ok ? "var(--dsw-alias-label-primary)" : "var(--dsw-alias-state-error-primary)" }, children: [
@@ -26455,7 +26459,7 @@ var TELEMETRY_VIEW = [
   { stage: "first-tts-chunk", key: "telFirstChunk" },
   { stage: "first-audio-played", key: "telFirstPlayed" }
 ];
-var BUILD_TAG = "0.0.1+4f24085";
+var BUILD_TAG = "0.0.3+bafd268";
 var TELEMETRY_FLAG = "dsh-voice-mode.telemetry";
 var telemetryEnabled = typeof localStorage !== "undefined" && localStorage.getItem(TELEMETRY_FLAG) === "1";
 console.log("[dsh-voice] \u63D2\u4EF6\u6784\u5EFA\u7248\u672C\uFF1A" + BUILD_TAG);

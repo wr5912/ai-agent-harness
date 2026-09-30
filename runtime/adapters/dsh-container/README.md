@@ -30,6 +30,8 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 
 评测实例不挂载 `evaluation.md` 或其他判分材料；`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。Harness 修改由宿主开发会话完成，容器只负责装载和评测。
 
+Candidate 的 Managed Patch 如加载带独立 Node 依赖的插件，先按该插件的 `package-lock.json` 在本地忽略目录准备 `node_modules`，启动时通过 `dsh-dev up --plugin-node-modules PATH` 将其只读挂载到 `/opt/node_modules`；只挂载插件源码无法解析这些依赖。
+
 `locked-user.patch.yml` 只读覆盖 HOME 级用户 Patch；Web Profile 的 `cordis.patch.yml` 留在实例 HOME 卷中，由 DSH Web 保存当前实例的设置（新版 DSH 的设置写入要求对该文件原子替换）。真正 **0 字节**的 `locked-global.AGENTS.md` 和只含注释的 `locked-bootstrap.env` 分别只读覆盖全局 Agent instructions 与 Boot 环境文件。模型/MCP Endpoint 和凭据只能由调用环境或 Runtime 受控凭据提供，不能由 Candidate 工作区改变。复用实例时须把 Web Profile 设置视为运行状态，而非 Candidate 资产；评估前核对其摘要或使用新实例。
 
 Web Profile manifest 与本地 module 路径由受控文件和空的 deny-layer 锁定，避免从可写 HOME 装载私有 Plugin。EXP-007 选择自己的 `candidate/dsh/managed/web-profile.package.json`，将 `@deepseek-ai/dsh-experimental-schedule-bundle` 加入 Profile；其他来源仍使用默认 Web Profile。旧版 DSH 使用共享 fallback 卷中的安装链接；新版 DSH 使用原生模块解析，两种路径均须解析到镜像内 `/opt/dsh/`。旧 HOME 中被 deny-layer 隐藏的本地模块不会自动删除。
@@ -122,6 +124,8 @@ python3 runtime/adapters/dsh-container/dsh-eval \
 实例配置与 `instance.json` 写在 `${XDG_STATE_HOME:-~/.local/state}/dsh-dev/<name>/`，记录来源、模式、挂载路径、环境变量**名称**、镜像身份等非秘密元数据，不含 Token。渲染保留只读根文件系统、UID/GID 1000、能力裁剪和无端口发布，只把主 `dsh` 服务切到 host 网络；默认 Web 绑定宿主回环。普通 Token 模式下，`url` 只读取**本次**进程启动后的日志并做 Token→Cookie→根页探针；标准输出不是交互终端时，必须显式加 `--non-interactive`，否则失败关闭，不把 Token 写进状态文件、普通日志或证据。
 
 需要局域网直连时，显式给 `up` 加 `--lan-access`。它仍使用普通 `web` Profile 和 Token 认证，仅通过独立 Patch 将 Web 服务绑定到 `0.0.0.0`；不会启用 HTTP 密码登录。锁定版 DSH 的 `--host 0.0.0.0` 会被命令行拒绝，因此不要直接传该参数。`dsh-dev url` 仍返回本机回环认证 URL；局域网浏览器须把其中的主机名换成宿主机 LAN IP，并保护 URL 中的 Token。已有同名实例切换监听模式时需显式 `up --replace`，该操作保留 HOME 卷。纯 HTTP 下 Token 与 Cookie 都会在网络上传输，应限制访问范围；跨不受信网络使用 HTTPS 反向代理，不把认证 URL 当成门户公共配置。
+
+需要浏览器麦克风的插件在局域网使用时，页面还须由浏览器认可的 HTTPS 入口提供；局域网 IP 上的纯 HTTP 页面没有麦克风所需的安全上下文。本机 `localhost` 页面可以直接使用麦克风。
 
 受控直连试验可另加 `--unsafe-no-auth`，独立于 `--lan-access` 关闭该实例 Web/API 的 Token 与 Host/Origin 校验；`dsh-dev url` 返回不带 Token 的根地址。`--skip-testing-notice` 是独立开关，仅跳过 Web 的“内测声明”弹窗，不改变认证、监听地址或其他引导步骤；可单独用于普通 Token 模式，也可与 `--unsafe-no-auth` 组合。改变已有实例的任一开关需显式 `up --replace`，HOME 卷保留。**免认证模式允许任何能连上端口的人操作整个共享 DSH 实例，不具备门户用户隔离，不得暴露给不受信用户或公网。** EXP-007 的局域网直连验证与门户试点边界见[联调记录](../../../docs/security-operations-expert门户联调记录.md)。
 

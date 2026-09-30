@@ -1117,7 +1117,7 @@ function createRemoteAsrRuntime(options) {
     const form = new FormData();
     form.append("file", new Blob([new Uint8Array(wav16(pcm))], { type: "audio/wav" }), "speech.wav");
     form.append("model", options.model());
-    const res = await fetch(`${options.batchUrl().replace(/\/$/, "")}/v1/audio/transcriptions`, {
+    const res = await fetch(options.batchUrl(), {
       method: "POST",
       body: form,
       signal: AbortSignal.timeout(3e4)
@@ -1580,11 +1580,13 @@ function pcm24ToWav(pcm) {
 }
 var RemoteTtsEngine = class {
   mime = "audio/wav";
-  baseUrl;
+  streamUrl;
+  cancelUrl;
   inFlight = null;
   lastError;
-  constructor(baseUrl) {
-    this.baseUrl = baseUrl;
+  constructor(streamUrl, cancelUrl) {
+    this.streamUrl = streamUrl;
+    this.cancelUrl = cancelUrl;
   }
   updateVoice() {
   }
@@ -1593,8 +1595,7 @@ var RemoteTtsEngine = class {
     const abort = new AbortController();
     this.inFlight = { id, abort };
     try {
-      const url = `${this.baseUrl().replace(/\/$/, "")}/tts/stream/cancellable`;
-      const res = await fetch(url, {
+      const res = await fetch(this.streamUrl(), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ text, generationId: id }),
@@ -1617,7 +1618,9 @@ var RemoteTtsEngine = class {
     if (!active) return;
     active.abort.abort();
     this.inFlight = null;
-    void fetch(`${this.baseUrl().replace(/\/$/, "")}/tts/cancel/${active.id}`, {
+    const cancelUrl = this.cancelUrl();
+    if (!cancelUrl) return;
+    void fetch(cancelUrl.replace("{generationId}", encodeURIComponent(active.id)), {
       method: "POST",
       signal: AbortSignal.timeout(3e3)
     }).catch((error) => console.warn(`[dsh-voice-hub] TTS\uFF08\u8BED\u97F3\u5408\u6210\uFF09\u53D6\u6D88\u5931\u8D25\uFF1A${String(error)}`));
@@ -2259,7 +2262,15 @@ function validUrl(value, protocols, label) {
   if (!protocols.includes(url.protocol) || !url.hostname || url.username || url.password || url.hash) {
     throw new Error(`${label}\u534F\u8BAE\u6216\u683C\u5F0F\u4E0D\u6B63\u786E`);
   }
-  return url.toString().replace(/\/$/, "");
+  return url.toString();
+}
+function validCancelUrl(value) {
+  if (value === "") return "";
+  if (typeof value !== "string" || value.split("{generationId}").length !== 2) {
+    throw new Error("\u8BED\u97F3\u5408\u6210\u53D6\u6D88\u5730\u5740\u9700\u5305\u542B\u4E00\u4E2A {generationId}\uFF0C\u6216\u7559\u7A7A\u7981\u7528\u670D\u52A1\u7AEF\u53D6\u6D88");
+  }
+  const marker = "dshgenerationidplaceholder";
+  return validUrl(value.replace("{generationId}", marker), ["http:", "https:"], "\u8BED\u97F3\u5408\u6210\u53D6\u6D88\u5730\u5740").replace(marker, "{generationId}");
 }
 function validateServiceConfig(value) {
   if (!value || typeof value !== "object") throw new Error("\u8BED\u97F3\u670D\u52A1\u914D\u7F6E\u683C\u5F0F\u4E0D\u6B63\u786E");
@@ -2290,7 +2301,8 @@ function validateServiceConfig(value) {
     asrStreamUrl: validUrl(source.asrStreamUrl, ["ws:", "wss:"], "\u6D41\u5F0F\u8BC6\u522B\u5730\u5740"),
     asrBatchUrl: validUrl(source.asrBatchUrl, ["http:", "https:"], "\u6279\u91CF\u8BC6\u522B\u5730\u5740"),
     asrModel: asrModel.trim(),
-    ttsBaseUrl: validUrl(source.ttsBaseUrl, ["http:", "https:"], "\u8BED\u97F3\u5408\u6210\u5730\u5740"),
+    ttsStreamUrl: validUrl(source.ttsStreamUrl, ["http:", "https:"], "\u8BED\u97F3\u5408\u6210\u5730\u5740"),
+    ttsCancelUrl: validCancelUrl(source.ttsCancelUrl),
     wakeWord: wakeWords.join("\uFF1B"),
     alwaysListen: source.alwaysListen === true,
     sendCommands,
@@ -2300,6 +2312,18 @@ function validateServiceConfig(value) {
 function loadServiceConfig(defaults) {
   try {
     const saved = JSON.parse(readFileSync(serviceConfigPath(), "utf8"));
+    if (typeof saved.ttsBaseUrl === "string" && saved.ttsStreamUrl === void 0) {
+      const base = saved.ttsBaseUrl.replace(/\/+$/, "");
+      saved.ttsStreamUrl = `${base}/tts/stream/cancellable`;
+      saved.ttsCancelUrl = `${base}/tts/cancel/{generationId}`;
+      if (typeof saved.asrBatchUrl === "string") {
+        const batchUrl = new URL(saved.asrBatchUrl);
+        if (batchUrl.pathname === "/") {
+          batchUrl.pathname = "/v1/audio/transcriptions";
+          saved.asrBatchUrl = batchUrl.toString();
+        }
+      }
+    }
     if (Array.isArray(saved.sendCommands) && saved.sendCommands.length > 10) {
       console.warn("[dsh-voice-hub] \u65E7\u914D\u7F6E\u4E2D\u7684\u53D1\u9001\u89E6\u53D1\u8BCD\u8D85\u8FC7 10 \u4E2A\uFF0C\u5F53\u524D\u4EC5\u542F\u7528\u524D 10 \u4E2A\uFF1B\u8BF7\u5728\u8BED\u97F3\u8BBE\u7F6E\u4E2D\u68C0\u67E5\u5E76\u4FDD\u5B58\u3002");
       saved.sendCommands = saved.sendCommands.slice(0, 10);
@@ -2393,7 +2417,7 @@ async function checkBatch(config) {
   const form = new FormData();
   form.append("file", new Blob([new Uint8Array(wav)], { type: "audio/wav" }), "check.wav");
   form.append("model", config.asrModel);
-  const response = await fetch(`${config.asrBatchUrl}/v1/audio/transcriptions`, {
+  const response = await fetch(config.asrBatchUrl, {
     method: "POST",
     body: form,
     signal: AbortSignal.timeout(15e3)
@@ -2404,7 +2428,7 @@ async function checkBatch(config) {
   return "\u8F6C\u5199\u63A5\u53E3\u5DF2\u5904\u7406\u6D4B\u8BD5\u97F3\u9891\uFF08\u9759\u97F3\u7ED3\u679C\u4E3A\u7A7A\u5C5E\u6B63\u5E38\uFF09";
 }
 async function checkTts(config) {
-  const response = await fetch(`${config.ttsBaseUrl}/tts/stream/cancellable`, {
+  const response = await fetch(config.ttsStreamUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ text: "\u4F60\u597D\uFF0C\u8FD9\u662F\u8BED\u97F3\u8FDE\u63A5\u6D4B\u8BD5\u3002", generationId: randomUUID4().replaceAll("-", "") }),
@@ -2455,9 +2479,10 @@ var VOICE_SETTINGS_DEFAULTS = {
   ttsEngine: "remote",
   asrEngine: "remote",
   asrStreamUrl: "ws://127.0.0.1:8012/v1/asr/stream",
-  asrBatchUrl: "http://127.0.0.1:8002",
+  asrBatchUrl: "http://127.0.0.1:8002/v1/audio/transcriptions",
   asrModel: "Qwen3-ASR",
-  ttsBaseUrl: "http://127.0.0.1:8003",
+  ttsStreamUrl: "http://127.0.0.1:8003/tts/stream/cancellable",
+  ttsCancelUrl: "http://127.0.0.1:8003/tts/cancel/{generationId}",
   approvalVoice: true,
   kokoroModel: "int8",
   voice: "zh-CN-XiaoxiaoNeural",
@@ -2496,9 +2521,10 @@ function createVoiceSettingsSchema(defs) {
     ),
     asrEngine: z.union([z.const("local"), z.const("remote")]).default(d.asrEngine).description("\u8BED\u97F3\u8BC6\u522B\u5F15\u64CE\uFF1Aremote \u63A5\u5165 talk-sdk\uFF1Blocal \u4F7F\u7528\u63D2\u4EF6\u5185\u7F6E\u6A21\u578B"),
     asrStreamUrl: z.string().default(d.asrStreamUrl).description("\u6D41\u5F0F ASR WebSocket \u5B8C\u6574\u5730\u5740"),
-    asrBatchUrl: z.string().default(d.asrBatchUrl).description("\u6279\u91CF ASR \u670D\u52A1\u6839\u5730\u5740\uFF1B\u6D41\u5F0F\u5931\u8D25\u6216\u672A\u8FD4\u56DE\u7ED3\u679C\u65F6\u515C\u5E95"),
+    asrBatchUrl: z.string().default(d.asrBatchUrl).description("\u6279\u91CF ASR \u8F6C\u5199\u63A5\u53E3\u5B8C\u6574\u5730\u5740\uFF1B\u6D41\u5F0F\u5931\u8D25\u6216\u672A\u8FD4\u56DE\u7ED3\u679C\u65F6\u4F7F\u7528"),
     asrModel: z.string().default(d.asrModel).description("\u6279\u91CF ASR \u6A21\u578B\u540D"),
-    ttsBaseUrl: z.string().default(d.ttsBaseUrl).description("TTS \u670D\u52A1\u6839\u5730\u5740"),
+    ttsStreamUrl: z.string().default(d.ttsStreamUrl).description("TTS \u6D41\u5F0F\u5408\u6210\u63A5\u53E3\u5B8C\u6574\u5730\u5740"),
+    ttsCancelUrl: z.string().default(d.ttsCancelUrl).description("TTS \u53D6\u6D88\u63A5\u53E3\u5B8C\u6574\u5730\u5740\uFF0C\u5305\u542B {generationId}\uFF1B\u7559\u7A7A\u65F6\u4EC5\u4E2D\u65AD\u8BF7\u6C42"),
     approvalVoice: z.boolean().default(d.approvalVoice).description("\u5F85\u5BA1\u6279\u3001\u5F85\u56DE\u7B54\u548C\u5F85\u5BA1\u9605\u65F6\u64AD\u62A5\u63D0\u793A\uFF1B\u4E0E\u56DE\u590D\u5171\u7528 TTS \u961F\u5217"),
     kokoroModel: z.union([z.const("int8"), z.const("fp32")]).default(d.kokoroModel).description(
       "Kokoro \u6A21\u578B\u7CBE\u5EA6\uFF1Aint8\uFF08\u9ED8\u8BA4\uFF0C\u4F53\u79EF\u5C0F/\u52A0\u8F7D\u5FEB\uFF0CCPU \u53CB\u597D\uFF09/ fp32\uFF08\u97F3\u8D28\u66F4\u597D\u3001\u4F53\u79EF\u5927\uFF0CGPU \u6216\u5927\u5185\u5B58\u673A\u5668\u63A8\u8350\uFF09\uFF1B\u4E24\u6863\u5171\u7528\u540C\u4E00\u5957 103 \u97F3\u8272\uFF0C\u5207\u6362\u5373\u65F6\u751F\u6548"
@@ -2549,9 +2575,10 @@ var Config = z.object({
   ttsEngine: z.union([z.const("edge"), z.const("vits"), z.const("kokoro"), z.const("remote")]).default("remote"),
   asrEngine: z.union([z.const("local"), z.const("remote")]).default("remote"),
   asrStreamUrl: z.string().default("ws://127.0.0.1:8012/v1/asr/stream"),
-  asrBatchUrl: z.string().default("http://127.0.0.1:8002"),
+  asrBatchUrl: z.string().default("http://127.0.0.1:8002/v1/audio/transcriptions"),
   asrModel: z.string().default("Qwen3-ASR"),
-  ttsBaseUrl: z.string().default("http://127.0.0.1:8003"),
+  ttsStreamUrl: z.string().default("http://127.0.0.1:8003/tts/stream/cancellable"),
+  ttsCancelUrl: z.string().default("http://127.0.0.1:8003/tts/cancel/{generationId}"),
   approvalVoice: z.boolean().default(true),
   kokoroModel: z.union([z.const("int8"), z.const("fp32")]).default("int8"),
   allowLan: z.boolean().default(false),
@@ -2590,7 +2617,8 @@ function voiceSettingsFromConfig(config) {
     asrStreamUrl,
     asrBatchUrl,
     asrModel,
-    ttsBaseUrl,
+    ttsStreamUrl,
+    ttsCancelUrl,
     approvalVoice,
     kokoroModel,
     voice,
@@ -2621,7 +2649,8 @@ function voiceSettingsFromConfig(config) {
     asrStreamUrl,
     asrBatchUrl,
     asrModel,
-    ttsBaseUrl,
+    ttsStreamUrl,
+    ttsCancelUrl,
     approvalVoice,
     kokoroModel,
     voice,
@@ -2712,7 +2741,8 @@ function apply(ctx, config) {
           asrStreamUrl: config.asrStreamUrl,
           asrBatchUrl: config.asrBatchUrl,
           asrModel: config.asrModel,
-          ttsBaseUrl: config.ttsBaseUrl,
+          ttsStreamUrl: config.ttsStreamUrl,
+          ttsCancelUrl: config.ttsCancelUrl,
           approvalVoice: config.approvalVoice,
           voice: config.voice,
           rate: config.rate,
@@ -2732,7 +2762,8 @@ function apply(ctx, config) {
     asrStreamUrl: vset.asrStreamUrl,
     asrBatchUrl: vset.asrBatchUrl,
     asrModel: vset.asrModel,
-    ttsBaseUrl: vset.ttsBaseUrl,
+    ttsStreamUrl: vset.ttsStreamUrl,
+    ttsCancelUrl: vset.ttsCancelUrl,
     wakeWord: vset.wakeWord,
     alwaysListen: false,
     sendCommands: [...DEFAULT_SEND_COMMANDS],
@@ -2761,7 +2792,7 @@ function apply(ctx, config) {
   ctx.effect(() => () => asr.dispose());
   void asr.warmup();
   const makeEngine = (kind) => {
-    if (kind === "remote") return new RemoteTtsEngine(() => vset.ttsBaseUrl);
+    if (kind === "remote") return new RemoteTtsEngine(() => vset.ttsStreamUrl, () => vset.ttsCancelUrl);
     if (kind === "edge") return new EdgeTtsEngine(config.voice, config.rate);
     if (kind === "kokoro") {
       return createSherpaKokoroEngine({
@@ -2975,7 +3006,7 @@ function apply(ctx, config) {
             return;
           }
           const asrChanged = serviceConfig.asrStreamUrl !== next.asrStreamUrl || serviceConfig.asrBatchUrl !== next.asrBatchUrl || serviceConfig.asrModel !== next.asrModel;
-          const ttsChanged = serviceConfig.ttsBaseUrl !== next.ttsBaseUrl;
+          const ttsChanged = serviceConfig.ttsStreamUrl !== next.ttsStreamUrl || serviceConfig.ttsCancelUrl !== next.ttsCancelUrl;
           serviceConfig = next;
           vset = { ...vset, ...next };
           if (asrChanged && activeVoiceSession) asr.reset(activeVoiceSession);
