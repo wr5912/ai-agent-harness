@@ -70,7 +70,9 @@ assert.match(decide(regular, mismatched, 1, 'session-1').text, /运行标识.*�
 
 const handlers = new Map<string, Function>()
 let adapter: any
+const available = new Set([list, start, get])
 apply({ on: (name: string, handler: Function) => handlers.set(name, handler),
+  tools: { get: (name: string) => available.has(name) ? {} : undefined },
   llm: { registerAdapter: (_providers: string[], value: any) => { adapter = value } } })
 const agent = { id: 'session-test', options: { provider: 'deepseek-official', model: 'deepseek-flash' },
   session: { id: 'session-test', header: {}, snapshotEvents: () => [] } }
@@ -81,6 +83,14 @@ const chunks: any[] = []
 for await (const chunk of adapter.stream({ sessionId: 'session-test' })) chunks.push(chunk)
 assert.equal(chunks.at(-1).reason.kind, 'stop')
 assert.match(chunks.find(chunk => chunk.type === 'text-delta').text, /不能创建任务/)
+available.delete(list)
+await handlers.get('agent/pre-step')!({ agent, step: 1, messages: [{ source: { kind: 'user' },
+  content: [{ type: 'text', text: '执行一次常规巡检。' }] }] }, async () => undefined)
+assert.equal((await handlers.get('agent/request')!({ agent, turn: 2 }, async () => agent.options)).provider, 'inspection-code')
+const unavailable: any[] = []
+for await (const chunk of adapter.stream({ sessionId: 'session-test' })) unavailable.push(chunk)
+assert.equal(unavailable.at(-1).reason.kind, 'stop')
+assert.match(unavailable.find(chunk => chunk.type === 'text-delta').text, /巡检工具当前不可用.*设备数量：服务未提供/)
 await handlers.get('agent/pre-step')!({ agent, step: 1, messages: [{ source: { kind: 'user' },
   content: [{ type: 'text', text: '你好' }] }] }, async () => undefined)
 assert.equal((await handlers.get('agent/request')!({ agent, turn: 2 }, async () => ({ provider: 'inspection-code', model: 'deterministic-inspection' }))).provider, 'deepseek-official')

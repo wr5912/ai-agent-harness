@@ -2,7 +2,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 
 export const name = 'inspection-code-variant'
-export const inject = ['llm']
+export const inject = ['llm', 'tools']
 
 const provider = 'inspection-code'
 const toolNames = {
@@ -151,7 +151,12 @@ export function apply(ctx     ) {
     const events = agent.session.snapshotEvents()
     const intent = intents.get(agent.id) ?? classify(currentUser(events, turn) ?? '')
     if (intent && (agent.session.header?.delegationDepth ?? 0) === 0) {
-      actions.set(agent.id, decide(intent, events, turn, agent.session.id))
+      const action = decide(intent, events, turn, agent.session.id)
+      actions.set(agent.id, action.kind === 'tool' && !ctx.tools.get(action.name, agent)
+        ? { kind: 'text', text: intent.kind === 'start'
+          ? '巡检工具当前不可用，无法从目录匹配并发起任务；设备数量：服务未提供，无法核实。请在服务恢复后重试。'
+          : '巡检工具当前不可用，无法取得可信目录或运行结果；未执行巡检。请在服务恢复后重试。' }
+        : action)
       return { provider, model: 'deterministic-inspection' }
     }
     actions.delete(agent.id)
