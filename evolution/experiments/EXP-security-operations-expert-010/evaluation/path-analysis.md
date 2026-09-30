@@ -10,6 +10,6 @@
 | 查询与续查 | [U-INS-007 工具轨迹](../../EXP-security-operations-expert-008/runs/run-bcdc9957-c531-4554-a4e7-79bd3f8c6404/evidence/U-INS-007/tools.jsonl) | 只从实际发起回执取 `runId`；同 Session 下一轮复用它，不再次发起。 |
 | 组织报告 | [U-INS-001 工具轨迹](../../EXP-security-operations-expert-008/runs/run-a739c37c-d72b-425f-9a65-ff064616c580/evidence/U-INS-001/tools.jsonl) | 按状态、设备数量、结论、摘要和报告正文复述；`PARTIAL` 明示缺口，报告未就绪时不给下载地址。 |
 
-因此，本轮 TypeScript 插件只是上述可判定路径的**手工固化实现**。`U-INS-003` 的开放式研判仍需模型；`U-INS-005` 缺少创建接口，不能用现有工具伪装完成。新的真实 Baseline 与 Candidate Run、工具回执、模型调用、耗时和资源采样缺失前，无法判断业务等效或算力收益。
+因此，本轮 TypeScript 插件只是上述可判定路径的**手工固化实现**。`U-INS-003` 的开放式研判仍需模型；`U-INS-005` 缺少创建接口，不能用现有工具伪装完成。本轮实际运行及未取得的业务证据见 [Evaluation 观察](observations.md)；同条件 Baseline、有效巡检工具回执和资源采样缺失，无法判断业务等效或算力收益。
 
 专项分析能力可借鉴 `scenario-analysis` 的独立只读 Session、证据引用、替代解释和证伪方法。若后续跨多个任务确有重复需求，再把“封存 Run → 节点归因 → 可固化判定 → 人工审查方案”做成独立 Preset；代码生成仍由开发流程负责，运行效果仍由新的 DSH Session 和 Run 验证。
