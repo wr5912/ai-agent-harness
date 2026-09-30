@@ -9,7 +9,14 @@ const original = {
 }
 const connection = Object.create(original)
 let dispose
-apply({ connection, effect: (setup) => { dispose = setup() } })
+let injectIndex
+apply({ connection, on: (event, listener) => {
+  assert.equal(event, 'webserver/index-inject')
+  injectIndex = listener
+}, effect: (setup) => { dispose = setup() } })
+const rows = []
+injectIndex(rows)
+assert.deepEqual(rows, [{ kind: 'global', name: '__DSH_TRANSPORT__', value: { ownsHost: true } }])
 assert.equal(connection.requestRejection({ headers: { host: 'evil.invalid' } }), undefined)
 assert.equal(connection.authorizeIndex({}, {}), true)
 assert.equal(connection.authenticatedUrl('http://127.0.0.1:3080/'), 'http://127.0.0.1:3080/')
