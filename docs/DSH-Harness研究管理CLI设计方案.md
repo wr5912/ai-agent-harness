@@ -17,7 +17,7 @@
 | `dsh-eval` | 默认通过 DSH Runtime API 执行所选业务 Case；显式选择浏览器时做 UI 冒烟；保存同一 Session 的回答与轨迹并封存 Run | 两种通道分别形成 Run；只自动判定确定性合同，业务语义保留 `inconclusive` |
 | `source_contract.py` | 把来源解析成 Agent、Preset 和挂载计划 | 当前只支持 `experiment:<id>` |
 | `mutation-receipt.py` | 摘要、冻结、校验或恢复 Candidate 的三棵挂载树 | 不记录变更差异，不替代 Git 或人工复核 |
-| `run_record.py` | 创建、追加和封存 Research Run | 不执行任务，不给研究结论打分 |
+| `run_record.py` | 创建、追加、封存 Research Run，并按 Agent 索引、查看、比较已有 Run | 不执行任务；`compare.comparable` 只核对已记录的同条件项，不判断业务等效 |
 | `validate_repository.py` | 检查仓库、Experiment 和 Research Release 的确定性合同 | 退出码 `0` 不表示假设成立 |
 | `validate_experiment.py` | 检查一个 Experiment 的最小研究记录 | 不要求固定 Case 数或生产门禁 |
 | `plugins/asset-query-cli/` | 只读列出 DSH 资产的原型 | 不是管理平台，也不执行写操作 |
@@ -60,12 +60,11 @@ Git 是研究源码和版本历史的主要事实源。`runs/` 保存无法只�
 
 只有答案支持新增时才实现。优先扩展 owning CLI，不创建平行平台。
 
-可能的后续能力只有两项已知缺口：
+当前已知的后续能力缺口是：
 
 - `release:<id>` 的解析与只读装载；
-- 对两个 Run 的简洁对比视图。
 
-它们仍应先以本地命令实现和验证。未出现实际需求前，不规划发布审批、自动优化、分布式 Runner、操作状态卷或多租户管理。
+它仍应先以本地命令实现和验证。现有 `run_record.py compare` 已提供两个 Run 的并列视图。未出现实际需求前，不规划发布审批、自动优化、分布式 Runner、操作状态卷或多租户管理。
 
 ## 5. 数据和安全边界
 
