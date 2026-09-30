@@ -234,13 +234,14 @@
       ],
       "required_env_names": [
         "DEEPSEEK_API_KEY",
+        "LOCAL_LLM_BASE_URL",
+        "LOCAL_LLM_API_KEY"
+      ],
+      "optional_env_names": [
         "SEC_OPS_MCP_URL",
         "SEC_OPS_MCP_TOKEN",
-        "INSPECTION_MCP_URL",
-        "INSPECTION_MCP_TOKEN",
-        "LOCAL_LLM_BASE_URL",
-        "LOCAL_LLM_API_KEY",
         "SOC_MCP_BASE_URL",
+        "INSPECTION_MCP_URL",
         "REPORT_MCP_URL",
         "EMERGENCY_ACTION_MCP_URL",
         "EMERGENCY_ACTION_MCP_TOKEN",
@@ -249,9 +250,7 @@
         "EMERGENCY_CONFIRMATION_PRIVATE_KEY_B64",
         "EMERGENCY_CONFIRMATION_ACTOR_ID",
         "AI_WORKBENCH_EMERGENCY_TENANT_ID",
-        "AI_WORKBENCH_EMERGENCY_WORKSPACE_ID"
-      ],
-      "optional_env_names": [
+        "AI_WORKBENCH_EMERGENCY_WORKSPACE_ID",
         "POLICY_CONFIGURATION_MCP_URL"
       ]
     },
