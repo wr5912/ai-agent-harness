@@ -604,6 +604,11 @@ class RunRecordTests(unittest.TestCase):
             evidence = run_dir / "evidence/U-INS-001/checks.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text('{"loaded":true}\n', encoding="utf-8")
+            (evidence.parent / "response.json").write_text(
+                json.dumps({"assistant_texts": ["请补充证据"],
+                            "turns": [{"route": {"model": "test-model"}}]}, ensure_ascii=False),
+                encoding="utf-8",
+            )
             trial = repository / "trial.json"
             trial.write_text(
                 json.dumps(
@@ -655,7 +660,10 @@ class RunRecordTests(unittest.TestCase):
             view = json.loads(shown.stdout)
             self.assertEqual(view["cases"][0]["frozen"]["case_id"], "U-INS-001")
             self.assertEqual(view["cases"][0]["trials"][0]["verdict"], "passed")
+            self.assertEqual(view["cases"][0]["output"], ["请补充证据"])
+            self.assertEqual(view["cases"][0]["actual_routes"][0]["model"], "test-model")
             self.assertTrue(view["cases"][0]["evidence"][0]["present"])
+            self.assertTrue(view["cases"][0]["raw_evidence"]["response.json"]["present"])
             compared = subprocess.run(base + ["compare", "--left", run_id, "--right", run_id],
                                       cwd=repository, text=True, capture_output=True, check=False, timeout=180)
             self.assertEqual(compared.returncode, 0, compared.stderr)

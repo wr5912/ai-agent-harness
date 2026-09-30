@@ -404,6 +404,18 @@ def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
             continue
         selected_rows = [row for row in rows if row["input_id"] == selected_id]
         review = reviews.get(selected_id)
+        evidence_dir = run_dir / "evidence" / selected_id
+        response_path = evidence_dir / "response.json"
+        response = json.loads(response_path.read_text(encoding="utf-8")) if response_path.is_file() else None
+        trace_path = evidence_dir / "trace.jsonl"
+        session_created_at = None
+        if trace_path.is_file():
+            with trace_path.open(encoding="utf-8") as trace:
+                first_line = trace.readline()
+            if first_line.strip():
+                created = json.loads(first_line).get("event", {}).get("createdAt")
+                if isinstance(created, (int, float)):
+                    session_created_at = datetime.fromtimestamp(created / 1000, timezone.utc).isoformat()
         refs = list(dict.fromkeys([
             *(row["evidence_ref"] for row in selected_rows),
             *(review.get("evidence_refs", []) if review else []),
@@ -416,7 +428,7 @@ def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
             except ValueError:
                 evidence.append({"path": ref, "present": False})
                 missing.append(f"{selected_id}: {ref}")
-        checks_path = run_dir / "evidence" / selected_id / "checks.json"
+        checks_path = evidence_dir / "checks.json"
         checks = json.loads(checks_path.read_text(encoding="utf-8")) if checks_path.is_file() else None
         if not selected_rows:
             missing.append(f"{selected_id}: results.jsonl")
@@ -428,22 +440,32 @@ def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
             "current": current.get(selected_id),
             "contract_changed": current.get(selected_id) != contract,
             "trials": selected_rows,
+            "output": response.get("assistant_texts") if response else None,
+            "actual_routes": [turn.get("route") for turn in response.get("turns", [])] if response else None,
             "review": review,
             "findings": [finding for finding in findings if selected_id in finding.get("support_case_ids", [])
                          or selected_id in finding.get("counterexample_case_ids", [])],
             "load_observation": {key: checks.get(key) for key in (
                 "session_id", "session_preset", "session_workspace", "preset_matches", "workspace_matches",
             )} if checks else None,
+            "session_created_at": session_created_at,
+            "raw_evidence": {name: {"path": (evidence_dir / name).relative_to(repo).as_posix(),
+                                    "present": (evidence_dir / name).is_file()}
+                             for name in ("response.json", "trace.jsonl", "tools.jsonl", "judge.json",
+                                          "judge-trace.jsonl", "checks.json")},
             "evidence": evidence,
         })
     return {
         "run_id": run_id,
         "run_path": run_dir.relative_to(repo).as_posix(),
         "manifest": manifest,
-        "source": {key: inputs.get(key) for key in (
-            "source_id", "baseline_ref", "git_version", "harness_trees", "evaluation_sha256",
+        "source": {**{key: inputs.get(key) for key in (
+            "source_id", "baseline_ref", "git_version", "evaluation_sha256",
             "executor", "model", "created_at",
-        )},
+        )}, "candidate_trees": {key: {"tree_sha256": value.get("tree_sha256"),
+                                        "file_count": value.get("file_count")}
+                                  for key, value in inputs.get("harness_trees", {}).items()},
+            "inputs_lock_path": (run_dir / "inputs.lock.json").relative_to(repo).as_posix()},
         "candidate_path": f"evolution/experiments/{manifest['experiment_id']}/candidate",
         "image": image,
         "summary": summary,
@@ -459,7 +481,8 @@ def command_index(repo: Path, args: argparse.Namespace) -> None:
         raise ValueError("agent 必须是小写 kebab-case")
     experiments = []
     for root in sorted((repo / "evolution/experiments").glob(f"EXP-{args.agent}-[0-9]*")):
-        if not root.is_dir() or root.is_symlink() or not EXPERIMENT_RE.fullmatch(root.name):
+        match = EXPERIMENT_RE.fullmatch(root.name)
+        if not root.is_dir() or root.is_symlink() or not match or match.group(1) != args.agent:
             continue
         change = read_flat_yaml(root / "change.yaml")
         runs = []
@@ -495,6 +518,17 @@ def command_compare(repo: Path, args: argparse.Namespace) -> None:
     for selected_id in shared:
         if left_cases[selected_id]["frozen"] != right_cases[selected_id]["frozen"]:
             differences.append(f"{selected_id}: 冻结 Case 口径不同")
+        a, b = left_cases[selected_id], right_cases[selected_id]
+        for side, item in (("left", a), ("right", b)):
+            if not item["load_observation"] or not all(item["load_observation"].get(key)
+                                                           for key in ("preset_matches", "workspace_matches")):
+                differences.append(f"{selected_id}: {side} 缺少正确装载观察")
+        left_models = [route.get("model") for route in a["actual_routes"] or [] if route]
+        right_models = [route.get("model") for route in b["actual_routes"] or [] if route]
+        if not left_models or not right_models:
+            differences.append(f"{selected_id}: 缺少实际模型记录")
+        elif left_models != right_models:
+            differences.append(f"{selected_id}: 实际模型不同")
     if not shared:
         differences.append("没有共同 Case")
     for field in ("image_build_fingerprint", "local_image_id"):
@@ -509,6 +543,8 @@ def command_compare(repo: Path, args: argparse.Namespace) -> None:
         a, b = left_cases[selected_id], right_cases[selected_id]
         comparisons.append({"case_id": selected_id,
                             "left_trials": a["trials"], "right_trials": b["trials"],
+                            "left_output": a["output"], "right_output": b["output"],
+                            "left_actual_routes": a["actual_routes"], "right_actual_routes": b["actual_routes"],
                             "left_review": a["review"], "right_review": b["review"],
                             "left_evidence": a["evidence"], "right_evidence": b["evidence"]})
     print(json.dumps({"left_run": args.left, "right_run": args.right,
