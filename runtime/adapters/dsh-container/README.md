@@ -96,6 +96,8 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-e
 
 `dsh-eval` 从 Agent 的 `evaluation.md` 读取业务 Case 的名称、用户输入和预期，并复用 `dsh-dev` 与 `run_record.py` 完成一次可封存评测。默认执行器通过 DSH Runtime Session API 运行业务 Case；显式选择 `browser` 时，才使用镜像中已有的 Playwright 依赖做 UI 冒烟：
 
+研究者可用 `run_record.py index --agent <agent-id>` 列出 Experiment 与 Run，使用 `show --run <run-id> [--case <case-id>]` 对照当前与冻结 Case、结果和证据，使用 `compare --left <run-id> --right <run-id> [--case <case-id>]` 查看共同 Case 的差异及比较限制。三个查询命令只读取现有文件，不产生另一套研究记录。`dsh-eval --model <id>` 可把预期使用的模型标识锁入 Run；它不会切换 Runtime 模型，实际模型仍须结合运行配置与 Session 证据核对。
+
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-security-operations-expert-006 --mode fast --dry-run

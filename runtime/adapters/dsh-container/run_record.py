@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""创建、追加并封存一次 Research Run，并生成场景分析报告。"""
+"""创建、查询并封存 Research Run，生成场景分析报告。"""
 
 from __future__ import annotations
 
@@ -374,6 +374,151 @@ def validate_trial_row(
     validate_evidence_ref(run_dir, row["evidence_ref"])
 
 
+def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
+    run_dir, manifest = load_run_manifest(repo, run_id)
+    inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+    frozen = {case["case_id"]: case for case in inputs["evaluation_cases"]}
+    if case_id and case_id not in frozen:
+        raise ValueError(f"Run 未选择 Case：{case_id}")
+    evaluation_path = repo / manifest["evaluation_ref"]
+    current = load_evaluation(evaluation_path)["cases"] if evaluation_path.is_file() else {}
+    rows_path = run_dir / "results.jsonl"
+    rows = [json.loads(line) for line in rows_path.read_text(encoding="utf-8").splitlines() if line.strip()] if rows_path.is_file() else []
+    analysis_path = run_dir / "analysis.json"
+    analysis = json.loads(analysis_path.read_text(encoding="utf-8")) if analysis_path.is_file() else {}
+    reviews = {item["case_id"]: item for scene in analysis.get("scenes", [])
+               for item in scene.get("case_reviews", [])}
+    findings = [item for scene in analysis.get("scenes", []) for item in scene.get("findings", [])]
+    summary_path = run_dir / "summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.is_file() else None
+    image_path = run_dir / "evidence/dsh-image.json"
+    image = json.loads(image_path.read_text(encoding="utf-8")) if image_path.is_file() else None
+    missing = []
+    if summary is None:
+        missing.append("summary.json")
+    if image is None:
+        missing.append("evidence/dsh-image.json")
+    cases = []
+    for selected_id, contract in frozen.items():
+        if case_id and selected_id != case_id:
+            continue
+        selected_rows = [row for row in rows if row["input_id"] == selected_id]
+        review = reviews.get(selected_id)
+        refs = list(dict.fromkeys([
+            *(row["evidence_ref"] for row in selected_rows),
+            *(review.get("evidence_refs", []) if review else []),
+        ]))
+        evidence = []
+        for ref in refs:
+            try:
+                validate_evidence_ref(run_dir, ref)
+                evidence.append({"path": (run_dir / ref).relative_to(repo).as_posix(), "present": True})
+            except ValueError:
+                evidence.append({"path": ref, "present": False})
+                missing.append(f"{selected_id}: {ref}")
+        checks_path = run_dir / "evidence" / selected_id / "checks.json"
+        checks = json.loads(checks_path.read_text(encoding="utf-8")) if checks_path.is_file() else None
+        if not selected_rows:
+            missing.append(f"{selected_id}: results.jsonl")
+        if checks is None:
+            missing.append(f"{selected_id}: checks.json")
+        cases.append({
+            "case_id": selected_id,
+            "frozen": contract,
+            "current": current.get(selected_id),
+            "contract_changed": current.get(selected_id) != contract,
+            "trials": selected_rows,
+            "review": review,
+            "findings": [finding for finding in findings if selected_id in finding.get("support_case_ids", [])
+                         or selected_id in finding.get("counterexample_case_ids", [])],
+            "load_observation": {key: checks.get(key) for key in (
+                "session_id", "session_preset", "session_workspace", "preset_matches", "workspace_matches",
+            )} if checks else None,
+            "evidence": evidence,
+        })
+    return {
+        "run_id": run_id,
+        "run_path": run_dir.relative_to(repo).as_posix(),
+        "manifest": manifest,
+        "source": {key: inputs.get(key) for key in (
+            "source_id", "baseline_ref", "git_version", "harness_trees", "evaluation_sha256",
+            "executor", "model", "created_at",
+        )},
+        "candidate_path": f"evolution/experiments/{manifest['experiment_id']}/candidate",
+        "image": image,
+        "summary": summary,
+        "uncovered_case_ids": [item["case_id"] for item in inputs.get("case_catalog", [])
+                               if item["case_id"] not in frozen],
+        "cases": cases,
+        "missing": missing,
+    }
+
+
+def command_index(repo: Path, args: argparse.Namespace) -> None:
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", args.agent):
+        raise ValueError("agent 必须是小写 kebab-case")
+    experiments = []
+    for root in sorted((repo / "evolution/experiments").glob(f"EXP-{args.agent}-[0-9]*")):
+        if not root.is_dir() or root.is_symlink() or not EXPERIMENT_RE.fullmatch(root.name):
+            continue
+        change = read_flat_yaml(root / "change.yaml")
+        runs = []
+        for path in sorted((root / "runs").glob("run-*/run.yaml")):
+            if path.is_symlink() or path.parent.is_symlink():
+                continue
+            manifest = read_flat_yaml(path)
+            runs.append({key: manifest.get(key) for key in ("run_id", "status", "created_at", "finished_at")})
+        experiments.append({"experiment_id": root.name, "status": change.get("status"), "runs": runs})
+    print(json.dumps({"agent_id": args.agent, "evaluation_path": f"agents/{args.agent}/evaluation.md",
+                      "experiments": experiments}, ensure_ascii=False, indent=2))
+
+
+def command_show(repo: Path, args: argparse.Namespace) -> None:
+    print(json.dumps(run_view(repo, args.run, args.case), ensure_ascii=False, indent=2))
+
+
+def command_compare(repo: Path, args: argparse.Namespace) -> None:
+    left = run_view(repo, args.left, args.case)
+    right = run_view(repo, args.right, args.case)
+    if left["manifest"]["agent_id"] != right["manifest"]["agent_id"]:
+        raise ValueError("只能比较同一 Agent 的 Run")
+    left_cases = {item["case_id"]: item for item in left["cases"]}
+    right_cases = {item["case_id"]: item for item in right["cases"]}
+    shared = sorted(left_cases.keys() & right_cases.keys())
+    differences = []
+    for field in ("executor", "model"):
+        a, b = left["source"].get(field), right["source"].get(field)
+        if not a or not b:
+            differences.append(f"{field}: 未记录")
+        elif a != b:
+            differences.append(f"{field}: 不同")
+    for selected_id in shared:
+        if left_cases[selected_id]["frozen"] != right_cases[selected_id]["frozen"]:
+            differences.append(f"{selected_id}: 冻结 Case 口径不同")
+    if not shared:
+        differences.append("没有共同 Case")
+    for field in ("image_build_fingerprint", "local_image_id"):
+        a = (left["image"] or {}).get(field)
+        b = (right["image"] or {}).get(field)
+        if not a or not b:
+            differences.append(f"{field}: 缺少实际镜像证据")
+        elif a != b:
+            differences.append(f"{field}: 不同")
+    comparisons = []
+    for selected_id in shared:
+        a, b = left_cases[selected_id], right_cases[selected_id]
+        comparisons.append({"case_id": selected_id,
+                            "left_trials": a["trials"], "right_trials": b["trials"],
+                            "left_review": a["review"], "right_review": b["review"],
+                            "left_evidence": a["evidence"], "right_evidence": b["evidence"]})
+    print(json.dumps({"left_run": args.left, "right_run": args.right,
+                      "left_source": left["source"], "right_source": right["source"],
+                      "left_image": left["image"], "right_image": right["image"],
+                      "comparable": not differences, "limits": differences,
+                      "cases": comparisons, "left_missing": left["missing"],
+                      "right_missing": right["missing"]}, ensure_ascii=False, indent=2))
+
+
 def command_init(repo: Path, args: argparse.Namespace) -> None:
     contract = resolve(args.source, repo=repo)
     experiment_id = contract.get("experiment_id")
@@ -398,6 +543,7 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
     if args.selection_mode != "explicit" and selected != expected:
         raise ValueError("selection_mode 与所选 Case 不一致")
     evaluation_ref = evaluation_relative.as_posix()
+    version = git_version(repo)
     run_id = "run-" + str(uuid.uuid4())
     run_dir = experiment / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
@@ -419,7 +565,7 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
             "evaluation_cases": cases,
             "case_catalog": catalog,
             "selection_mode": args.selection_mode,
-            "git_version": git_version(repo),
+            "git_version": version,
         }
         if args.model:
             inputs["model"] = args.model
@@ -633,6 +779,15 @@ def main() -> None:
     finalize_parser = commands.add_parser("finalize", help="生成摘要并封存 Run")
     finalize_parser.add_argument("--run", required=True)
     finalize_parser.add_argument("--status", required=True, choices=FINAL_STATUSES)
+    index_parser = commands.add_parser("index", help="按 Agent 列出 Experiment 和 Run")
+    index_parser.add_argument("--agent", required=True)
+    show_parser = commands.add_parser("show", help="查看 Run 的冻结口径、结果和证据")
+    show_parser.add_argument("--run", required=True)
+    show_parser.add_argument("--case", help="只查看一个已选 Case")
+    compare_parser = commands.add_parser("compare", help="并列比较两个 Run 的共同 Case")
+    compare_parser.add_argument("--left", required=True)
+    compare_parser.add_argument("--right", required=True)
+    compare_parser.add_argument("--case", help="只比较一个共同 Case")
     args = parser.parse_args()
     try:
         repo = args.repo.resolve()
@@ -644,8 +799,14 @@ def main() -> None:
             command_record(repo, args)
         elif args.command == "gap":
             command_gap(repo, args)
-        else:
+        elif args.command == "finalize":
             command_finalize(repo, args)
+        elif args.command == "index":
+            command_index(repo, args)
+        elif args.command == "show":
+            command_show(repo, args)
+        else:
+            command_compare(repo, args)
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
         print(f"run record failed: {error}", file=sys.stderr)
         raise SystemExit(1) from error

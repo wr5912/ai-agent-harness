@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
 import importlib.util
 import json
@@ -12,6 +13,7 @@ import tarfile
 import tempfile
 import time
 import unittest
+from unittest import mock
 import uuid
 import zipfile
 from pathlib import Path
@@ -509,6 +511,35 @@ class ResearchEvalTests(unittest.TestCase):
 
 
 class RunRecordTests(unittest.TestCase):
+    def test_init_captures_clean_git_before_creating_run(self) -> None:
+        spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            experiment = repo / f"evolution/experiments/{EXPERIMENT_ID}"
+            experiment.mkdir(parents=True)
+            (experiment / "change.yaml").write_text("baseline_ref: none:first-experiment\n", encoding="utf-8")
+            subprocess.run(["git", "init", "-q", str(repo)], check=True)
+            subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(repo), "-c", "user.name=Test", "-c",
+                            "user.email=test@example.invalid", "commit", "-qm", "initial"], check=True)
+            contract = {"experiment_id": EXPERIMENT_ID, "agent_id": AGENT_ID,
+                        "source_id": f"experiment:{EXPERIMENT_ID}", "source_kind": "experiment",
+                        "workspace": str(repo), "presets": str(repo), "managed": str(repo)}
+            args = argparse.Namespace(source=f"experiment:{EXPERIMENT_ID}", baseline_ref=None,
+                                      case=["U-INS-001"], selection_mode="explicit",
+                                      kind="research", model=None, executor="api")
+            with mock.patch.object(module, "resolve", return_value=contract), \
+                    mock.patch.object(module, "execution_for", return_value=[{"case_id": "U-INS-001"}]), \
+                    mock.patch.object(module, "load_evaluation", return_value={"catalog": []}), \
+                    mock.patch.object(module, "evaluation_digest", return_value="digest"), \
+                    mock.patch.object(module, "tree_digest", return_value={}):
+                module.command_init(repo, args)
+            run_dir = next((experiment / "runs").iterdir())
+            inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+            self.assertFalse(inputs["git_version"]["dirty"])
+
     def test_flat_yaml_round_trip_preserves_escaped_strings(self) -> None:
         spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
         module = importlib.util.module_from_spec(spec)
@@ -613,6 +644,23 @@ class RunRecordTests(unittest.TestCase):
                 'evaluation_ref: "agents/security-operations-expert/evaluation.md"',
                 (run_dir / "run.yaml").read_text(encoding="utf-8"),
             )
+            indexed = subprocess.run(base + ["index", "--agent", AGENT_ID], cwd=repository,
+                                     text=True, capture_output=True, check=False, timeout=180)
+            self.assertEqual(indexed.returncode, 0, indexed.stderr)
+            self.assertIn(run_id, [item["run_id"] for experiment in json.loads(indexed.stdout)["experiments"]
+                                   for item in experiment["runs"]])
+            shown = subprocess.run(base + ["show", "--run", run_id, "--case", "U-INS-001"],
+                                   cwd=repository, text=True, capture_output=True, check=False, timeout=180)
+            self.assertEqual(shown.returncode, 0, shown.stderr)
+            view = json.loads(shown.stdout)
+            self.assertEqual(view["cases"][0]["frozen"]["case_id"], "U-INS-001")
+            self.assertEqual(view["cases"][0]["trials"][0]["verdict"], "passed")
+            self.assertTrue(view["cases"][0]["evidence"][0]["present"])
+            compared = subprocess.run(base + ["compare", "--left", run_id, "--right", run_id],
+                                      cwd=repository, text=True, capture_output=True, check=False, timeout=180)
+            self.assertEqual(compared.returncode, 0, compared.stderr)
+            self.assertFalse(json.loads(compared.stdout)["comparable"])
+            self.assertIn("model: 未记录", json.loads(compared.stdout)["limits"])
 
     def test_unselected_input_is_rejected(self) -> None:
         spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
