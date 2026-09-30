@@ -138,6 +138,12 @@ window.__ModuleLoader__.load({
     const inject = ['slots', 'sidebarRight', 'sidebarRightTabs']
     function apply(ctx) {
       ctx.effect(() => {
+        const layout = ctx.slots.entries('root')[0]?.store?.create()
+        if (!layout) throw new Error('security-operations-ui: root layout store unavailable')
+        if (layout.getSnapshot().layoutInfo.rightbar === null) layout.actions.setRightbar(400)
+      }, 'security-operations-ui: right sidebar default width')
+
+      ctx.effect(() => {
         const style = document.createElement('style')
         style.dataset.dshSecurityOperationsUi = 'true'
         style.textContent = css
