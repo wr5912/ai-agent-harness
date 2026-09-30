@@ -93,6 +93,33 @@ test('策略指定设备必须原样传入，策略与应急在每轮工具调�
   assert.match(guard.decide(policyPrepare(agent)), /不能跨能力/)
 })
 
+test('阻断意图不能借新增放行策略工具提交', () => {
+  const guard = createSecurityOperationsGuard()
+  const agent = root()
+  guard.beginTurn(agent, '帮我阻断 172.16.138.214 到 172.16.2.103 的 TCP:80 业务')
+  assert.match(guard.decide(policyPrepare(agent)), /阻断或拒绝访问/)
+  guard.beginTurn(agent, '请开通 192.0.2.10 到 198.51.100.20 的 TCP 443 访问策略')
+  assert.equal(guard.decide(policyPrepare(agent)), undefined)
+})
+
+test('限时需求不能丢弃有效期后提交普通策略', () => {
+  const guard = createSecurityOperationsGuard()
+  const agent = root()
+  guard.beginTurn(agent, '允许 192.0.2.10 到 198.51.100.20 的 TCP 443， 有效期 7 天')
+  assert.match(guard.decide(policyPrepare(agent)), /不能丢弃有效期/)
+  guard.beginTurn(agent, '开通 192.0.2.10 到 198.51.100.20 的 TCP 443')
+  assert.equal(guard.decide(policyPrepare(agent)), undefined)
+})
+
+test('双端路径阻断不能改成单目标应急封禁', () => {
+  const guard = createSecurityOperationsGuard()
+  const agent = root()
+  guard.beginTurn(agent, '阻断 172.16.138.214 到 172.16.2.103 的 TCP:80 业务')
+  assert.match(guard.decide(emergencyPrepare(agent)), /不能丢弃目的 IP/)
+  guard.beginTurn(agent, '封禁源 IP 172.16.138.214 的 80 端口')
+  assert.equal(guard.decide(emergencyPrepare(agent)), undefined)
+})
+
 test('新工具只给主 Agent，旧策略路由和模型直调确认继续拒绝', () => {
   const guard = createSecurityOperationsGuard()
   assert.match(guard.decide(policyPrepare(child())), /主 Agent/)
