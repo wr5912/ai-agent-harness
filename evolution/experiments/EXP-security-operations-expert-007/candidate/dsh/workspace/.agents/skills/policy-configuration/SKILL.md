@@ -10,6 +10,7 @@ description: 用户明确要求新增主机到主机网络访问策略时，经 
 ## 参数与设备门禁
 
 - 用户必须给出源 IPv4、目的 IPv4、TCP/UDP 协议、1–65535 的目的端口和明确的新增意图；缺失时只追问，不调用工具。
+- 参数不足时只列出本轮用户尚未提供的必需参数及本路线能力边界；不得把本 Skill 的结构示例、其他会话内容或模型推测当作已确认参数，也不得声称当前会话已有草稿、Operation、taskId 或设备选择。只有本会话真实工具回执才能建立这些状态。
 - intent 使用 `workbench-policy-intent/v1`、`policy_kind=NETWORK_ACCESS`、`operation=ADD`、IP selector、`target_external_id=null`。除下述经旧链路证实的 `device_query` 外，不补造额外字段。
 - 用户明确指定防火墙名称、设备 ID 或管理 IP 时，将原话中的单一设备线索原样放入 `intent.device_query`；不指定设备时省略该字段。不得把 ADD 的设备线索改写为 DELETE 文档字段 `device_name`，也不得丢弃约束后按普通开通。调用前核对 MCP 工具参数表包含 `device_query`；若工具客户端拒绝该字段，停止并记录为客户端合同障碍，不暗中换字段或声称成功。
 - 用户给多个设备或描述有歧义时先澄清；用户指定设备不在路径、未在线、无 ACL 能力或解析失败，以 Workbench 的失败结果为准，不能改选其他设备。
