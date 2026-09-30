@@ -11,7 +11,7 @@ bash runtime/adapters/dsh-container/build-image.sh
 # 多来源时显式选择：build-image.sh --source EXP-<agent-id>-NNN
 ```
 
-APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 IPv4；失败必须中止，而非沿用不完整索引。默认使用 `http://mirrors.aliyun.com/debian` 及同站 security；国内源不可达时可显式加 `--apt-mirror http://deb.debian.org/debian` 回退到官方源。构建前先用同一锁定 Node 底座执行 Debian archive keyring 签名的 APT 更新预检，main、updates、security 任一签名或索引失败即停；Dockerfile 中再次校验，构建证据记录两条实际镜像 URI。回退源改变了构建期软件包的分发路径、可用性和更新时间边界，虽未降低 Debian 签名校验，也不能把它说成与默认源的网络来源完全相同。
+APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 IPv4；失败必须中止，而非沿用不完整索引。默认主源使用 `http://mirrors.tuna.tsinghua.edu.cn/debian`，security 保持 `http://deb.debian.org/debian-security`；TUNA 不可达时可显式加 `--apt-mirror http://deb.debian.org/debian` 回退到官方主源。构建前先用同一锁定 Node 底座执行 Debian archive keyring 签名的 APT 更新预检，main、updates、security 任一签名或索引失败即停；Dockerfile 中再次校验，构建证据记录两条实际镜像 URI。回退源改变了构建期软件包的分发路径、可用性和更新时间边界，虽未降低 Debian 签名校验，也不能把它说成与默认源的网络来源完全相同。
 
 本机 Docker 构建网络异常时还可显式加 `--build-network host`，但这会让构建步骤直接使用宿主网络命名空间；默认仍为 Docker 隔离网络。镜像源与网络选项都不改变锁定 DSH 源码和 Node 基础镜像身份，实际值写入构建证据。
 
@@ -60,7 +60,7 @@ docker compose -f runtime/adapters/dsh-container/verification.compose.yaml confi
 bash runtime/adapters/dsh-container/build-image.sh --build-network host
 ```
 
-构建期统一使用国内阿里云源：APT 走 `http://mirrors.aliyun.com/debian`（security 同站），npm/pnpm 与 corepack 走 `https://registry.npmmirror.com`。两者都不需要调用方额外加参数；只有国内 APT 源不可达时，才用 `--apt-mirror http://deb.debian.org/debian` 显式回退到官方源。
+构建期 APT 默认走 `http://mirrors.tuna.tsinghua.edu.cn/debian`，security 保持 `http://deb.debian.org/debian-security`；npm/pnpm 与 corepack 走 `https://registry.npmmirror.com`。两者都不需要调用方额外加参数；只有 TUNA 不可达时，才用 `--apt-mirror http://deb.debian.org/debian` 显式回退到官方主源。
 
 换源不放松校验：APT 仍由 `debian-archive-keyring` 校验 Release/InRelease 签名与 `Valid-Until`，依赖仍按 `pnpm-lock.yaml` 的完整性摘要校验。实际使用的源写入该次构建证据。
 

@@ -265,11 +265,11 @@ Agent 的当前判分材料只有 `agents/<agent-id>/evaluation.md`，其中每�
 
 ### 5.5 构建期的镜像源
 
-构建锁定 DSH 镜像时统一使用国内阿里云源，不依赖调用方记得加参数：
+构建锁定 DSH 镜像时默认使用清华 TUNA 主源并保留 Debian 官方 security，不依赖调用方记得加参数：
 
 | 用途 | 默认源 | 覆盖方式 |
 |---|---|---|
-| Debian APT（构建阶段安装编译依赖，最终镜像安装 `chromium`） | `http://mirrors.aliyun.com/debian`（security 同站 `debian-security`） | `build-image.sh --apt-mirror http://deb.debian.org/debian`，仅在国内源不可达时使用 |
+| Debian APT（构建阶段安装编译依赖，最终镜像安装 `chromium`） | 主源 `http://mirrors.tuna.tsinghua.edu.cn/debian`，security `http://deb.debian.org/debian-security` | `build-image.sh --apt-mirror http://deb.debian.org/debian`，仅在 TUNA 不可达时使用 |
 | npm/pnpm 依赖与 corepack 下载包管理器 | `https://registry.npmmirror.com` | `DSH_NPM_REGISTRY` 构建参数，由 `build-image.sh` 注入 |
 
 换源不改变锁定内容：APT 仍由 `debian-archive-keyring` 校验 Release/InRelease 签名与 `Valid-Until`；依赖仍按 `pnpm-lock.yaml` 的完整性摘要校验，`corepack` 与 `pnpm` 共用同一个 registry。实际使用的 APT 源与 npm registry 写入该次构建证据。

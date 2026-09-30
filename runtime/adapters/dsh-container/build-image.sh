@@ -7,16 +7,16 @@ task_source_dir=""
 task_source_id="EXP-security-operations-expert-001"
 task_evidence_file=""
 task_build_network="default"
-# 构建期统一使用国内阿里云源：APT 走 mirrors.aliyun.com，npm/pnpm 走 registry.npmmirror.com。
-# 只有国内源不可达时，才由调用方显式改回 Debian 官方 apt 源。
-task_apt_mirror="http://mirrors.aliyun.com/debian"
+# 构建期 APT 默认使用 TUNA 主源和 Debian 官方 security；npm/pnpm 走 registry.npmmirror.com。
+# 只有 TUNA 不可达时，才由调用方显式改回 Debian 官方主源。
+task_apt_mirror="http://mirrors.tuna.tsinghua.edu.cn/debian"
 task_npm_registry="https://registry.npmmirror.com"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help)
-      printf 'Usage: %s [--source EXP-agent-NNN] [--evidence-output FILE] [--build-network host] [--apt-mirror http://mirrors.aliyun.com/debian|http://deb.debian.org/debian]\n' "$0"
-      printf 'Build locked official DSH source. APT and npm both default to Aliyun mirrors;\n'
+      printf 'Usage: %s [--source EXP-agent-NNN] [--evidence-output FILE] [--build-network host] [--apt-mirror http://mirrors.tuna.tsinghua.edu.cn/debian|http://deb.debian.org/debian]\n' "$0"
+      printf 'Build locked official DSH source. APT defaults to TUNA main with Debian official security;\n'
       printf 'the official Debian APT source is an explicit fallback when the mirror is unreachable.\n'
       printf 'Host network is opt-in for local build egress only.\n'
       exit 0
@@ -46,9 +46,9 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --apt-mirror)
-      # 阿里云是默认值；官方源只作为国内源不可达时的显式回退。
-      if [[ $# -lt 2 || ( "$2" != http://mirrors.aliyun.com/debian && "$2" != http://deb.debian.org/debian ) || "$task_apt_mirror" != http://mirrors.aliyun.com/debian ]]; then
-        printf 'Only the Aliyun default or an explicit Debian official fallback is supported\n' >&2
+      # TUNA 是默认主源；官方主源只作为 TUNA 不可达时的显式回退。
+      if [[ $# -lt 2 || ( "$2" != http://mirrors.tuna.tsinghua.edu.cn/debian && "$2" != http://deb.debian.org/debian ) || "$task_apt_mirror" != http://mirrors.tuna.tsinghua.edu.cn/debian ]]; then
+        printf 'Only the TUNA default or an explicit Debian official fallback is supported\n' >&2
         exit 2
       fi
       task_apt_mirror="$2"
@@ -169,11 +169,7 @@ evidence = {
     "pnpm_runtime_version": sys.argv[14],
     "build_network_mode": sys.argv[15],
     "apt_mirror_main": sys.argv[16],
-    "apt_mirror_security": (
-        "http://mirrors.aliyun.com/debian-security"
-        if sys.argv[16] == "http://mirrors.aliyun.com/debian"
-        else "http://deb.debian.org/debian-security"
-    ),
+    "apt_mirror_security": "http://deb.debian.org/debian-security",
     "npm_registry": sys.argv[17],
     "image_build_fingerprint": sys.argv[18],
     "image_label_key": sys.argv[19],

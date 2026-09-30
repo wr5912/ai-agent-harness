@@ -1,21 +1,17 @@
 #!/bin/sh
-# 把基础镜像的 Debian APT 源切换到指定的国内镜像，并在切换后强制签名核验。
-# 默认使用阿里云镜像；仅在镜像不可达时，调用方可以显式改回 Debian 官方源。
+# 把基础镜像的 Debian APT 主源切换到指定镜像，并在切换后强制签名核验。
+# 默认使用 TUNA 主源和 Debian 官方 security；仅在 TUNA 不可达时显式改回官方主源。
 set -eu
 
-aliyun_main=http://mirrors.aliyun.com/debian
-aliyun_security=http://mirrors.aliyun.com/debian-security
+tuna_main=http://mirrors.tuna.tsinghua.edu.cn/debian
 official_main=http://deb.debian.org/debian
 official_security=http://deb.debian.org/debian-security
 
-task_main_mirror="${1:-$aliyun_main}"
+task_main_mirror="${1:-$tuna_main}"
+task_security_mirror="$official_security"
 
 case "$task_main_mirror" in
-  "$aliyun_main")
-    task_security_mirror="$aliyun_security"
-    ;;
-  "$official_main")
-    task_security_mirror="$official_security"
+  "$tuna_main"|"$official_main")
     ;;
   *)
     printf 'Unsupported apt mirror: %s\n' "$task_main_mirror" >&2
@@ -31,12 +27,8 @@ grep -q "^URIs: $official_main\$" "$task_sources"
 grep -q "^URIs: $official_security\$" "$task_sources"
 
 if [ "$task_main_mirror" != "$official_main" ]; then
-  # 不在双引号 sed 表达式使用行尾 `$#`，避免 shell 展开 `$#` 参数个数。
-  # 原始 URI 先被精确 grep 锁定；security 优先替换，避免 main 前缀误匹配。
-  sed -i \
-    -e "s#^URIs: $official_security#URIs: $task_security_mirror#" \
-    -e "s#^URIs: $official_main#URIs: $task_main_mirror#" \
-    "$task_sources"
+  # 原始 URI 已被精确 grep 锁定；security 始终保留 Debian 官方源。
+  sed -i "s#^URIs: $official_main\$#URIs: $task_main_mirror#" "$task_sources"
 fi
 
 grep -Fqx "URIs: $task_main_mirror" "$task_sources"

@@ -9,9 +9,9 @@ ARG DSH_CLIENT_COMMIT_HASH
 ARG DSH_LOCK_SHA256
 ARG DSH_CLI_VERSION
 ARG DSH_PACKAGE_MANAGER
-# 构建期统一使用国内阿里云源：APT 用 mirrors.aliyun.com，npm/pnpm 用 registry.npmmirror.com。
-# 两者仍由 debian-archive-keyring 与包完整性摘要校验；国内源不可达时才由调用方显式改回官方源。
-ARG DSH_APT_MIRROR=http://mirrors.aliyun.com/debian
+# 构建期 APT 默认使用 TUNA 主源并保留 Debian 官方 security；npm/pnpm 使用 registry.npmmirror.com。
+# 两者仍由 debian-archive-keyring 与包完整性摘要校验；TUNA 不可达时才由调用方显式改回官方主源。
+ARG DSH_APT_MIRROR=http://mirrors.tuna.tsinghua.edu.cn/debian
 ARG DSH_NPM_REGISTRY=https://registry.npmmirror.com
 ENV COREPACK_HOME=/opt/corepack
 
@@ -51,7 +51,7 @@ COPY --from=build --chown=node:node /opt/dsh /opt/dsh
 COPY --chmod=0755 dsh-cli.sh /usr/local/bin/dsh
 
 # 评测复用 Playwright；威胁研判固定流程使用 Python 标准库和时区数据。
-ARG DSH_APT_MIRROR=http://mirrors.aliyun.com/debian
+ARG DSH_APT_MIRROR=http://mirrors.tuna.tsinghua.edu.cn/debian
 COPY apt-mirror.sh /opt/dsh-adapter/apt-mirror.sh
 RUN sh /opt/dsh-adapter/apt-mirror.sh "$DSH_APT_MIRROR" \
     && apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::ForceIPv4=true \
