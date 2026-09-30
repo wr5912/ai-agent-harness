@@ -301,10 +301,17 @@ export function createSecurityOperationsGuard(options = {}) {
   const policyGuard = createPolicyGuard()
   const emergencyGuard = createEmergencyGuard()
   const activeDomains = new WeakMap()
+  const pathBlockRequests = new WeakSet()
 
   const beginTurn = (agent, text) => {
     activeDomains.delete(agent)
     setPolicyUserRequest(agent, text)
+    if (/(?:阻断|拒绝|禁止)/.test(text) &&
+        /(?:\d{1,3}\.){3}\d{1,3}\s*(?:到|至|->|→)\s*(?:\d{1,3}\.){3}\d{1,3}/.test(text)) {
+      pathBlockRequests.add(agent)
+    } else {
+      pathBlockRequests.delete(agent)
+    }
   }
 
   const domainDecision = (agent, domain) => {
@@ -368,6 +375,9 @@ export function createSecurityOperationsGuard(options = {}) {
     }
     if (EMERGENCY_TOOLS.has(tool)) {
       if (depth > 0) return '应急能力只允许主 Agent 按显式路由调用'
+      if (tool === 'mcp__emergency-action__prepare_emergency_action' && pathBlockRequests.has(agent)) {
+        return '双端路径阻断不能丢弃目的 IP 改成单目标主机封禁，停止本次准备'
+      }
       const conflict = domainDecision(agent, 'emergency-action')
       if (conflict) return conflict
       const reason = emergencyGuard.decide(exec)

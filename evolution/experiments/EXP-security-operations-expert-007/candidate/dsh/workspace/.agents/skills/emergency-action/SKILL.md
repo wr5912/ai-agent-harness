@@ -5,6 +5,8 @@ description: 独立应急指令：将用户明确要求的单动作、单目标�
 
 # 独立应急指令
 
+单目标主机封禁不能表达“阻断源 IP 到目的 IP 的某端口通信”：该请求限定两端路径，不能丢掉目的 IP 后改成源主机封禁。遇到这种请求先说明当前能力缺口，不调用应急 prepare；只有用户随后明确改为单目标主机封禁，才按新意图处理。
+
 使用 emergency-action MCP 的六个工具：prepare_emergency_action、revise_emergency_action、get_emergency_action、list_emergency_actions、get_emergency_action_result、cancel_emergency_action。工具命名可能带资源前缀，以实际目录为准。不要加载策略或响应业务 Skill 代替此流程。
 
 1. 先从用户原话提取明确的设备 IP、设备 ID 或主机名作为 target_hint；目标不明确时先请用户补充。将原始意图、target_hint 和已知参数交给 prepare，action_key 仅在用户明确指定 SOC 动作键时提供，由 Workbench 先查资产，再核对该设备可执行的动作。用户明确说出的源 IP 和端口分别填写 `params.src_ip`、`params.port`，例如“封禁源 IP 198.51.100.77 的 443 端口”应传 `{"src_ip":"198.51.100.77","port":"443"}`；账号用户名填写 `params.user`，不要填写 `params.account`。不可省略已明确的参数，也不可猜测未提供的值。MCP 的 prepare、revise、cancel 工具将 JSON 请求体放在 `body` 字段中；操作号放在工具顶层 `operationId`。request_id 是本次命令的唯一幂等键，重试原命令时保持不变。不得把目标提示自行认定为稳定目标，不得编造目录、参数或授权。
