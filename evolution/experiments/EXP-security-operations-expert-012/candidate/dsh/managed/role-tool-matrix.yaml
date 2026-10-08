@@ -59,9 +59,10 @@ parent_direct_tools:
       - mcp__emergency-action__get_emergency_action_result
       - mcp__emergency-action__cancel_emergency_action
     inspection:
-      - mcp__inspection__list_executable_inspections
-      - mcp__inspection__start_inspection
-      - mcp__inspection__get_inspection_result
+      - mcp__inspection__inspection_capabilities_list
+      - mcp__inspection__inspection_runs_start_with_plan
+      - mcp__inspection__inspection_runs_collect_evidence
+      - mcp__inspection__inspection_runs_finalize
   delegates:
     - delegate_threat_analysis
     - delegate_fault_analysis

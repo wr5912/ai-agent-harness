@@ -44,9 +44,10 @@ export const TOOL_ROUTES = Object.freeze({
     'schedule_delete',
   ]),
   inspection: Object.freeze([
-    'mcp__inspection__list_executable_inspections',
-    'mcp__inspection__start_inspection',
-    'mcp__inspection__get_inspection_result',
+    'mcp__inspection__inspection_capabilities_list',
+    'mcp__inspection__inspection_runs_start_with_plan',
+    'mcp__inspection__inspection_runs_collect_evidence',
+    'mcp__inspection__inspection_runs_finalize',
   ]),
   faultAnalysis: Object.freeze([
     'mcp__sec-ops__search_graph_assets',
