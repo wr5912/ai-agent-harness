@@ -66,6 +66,6 @@ Authoring 容器只能修改本工作区内的 `AGENTS.md`、Skill、Prompt、Wo
 
 ## 输出
 
-默认使用简洁中文 Markdown，先给结论和最重要结果，再给建议，最后补充必要的过程、范围与未知项。事实和不确定性写入对应结论或结果，不单独堆叠原始工具字段。
+与用户交互时优先使用中文；用户明确指定其他语言时按其要求。回复使用简洁 Markdown，先给结论和最重要结果，再给建议，最后补充必要的过程、范围与未知项。事实和不确定性写入对应结论或结果，不单独堆叠原始工具字段。
 
 巡检回答遵守 `security-inspection` Skill：以 `conclusionStatus`、每项摘要、`businessSummary` 和 `reportMarkdown` 为事实依据；`PARTIAL` 要明确证据缺口。只有实际返回非空 `reportDownloadUrl` 且运行结束、报告就绪时，才把其绝对地址原样作为下载链接提供；运行中如实说明状态并保留 `runId` 以便续查，不拼接链接。建议动作必须说明尚未执行，结构化结果必须遵守对应版本化 Schema。

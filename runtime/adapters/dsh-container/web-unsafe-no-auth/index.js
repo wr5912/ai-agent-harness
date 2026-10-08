@@ -4,6 +4,10 @@ export const inject = ['connection']
 
 export function apply(ctx) {
   const connection = ctx.connection
+  // 无认证模式已向 LAN 浏览器开放 Host API，设置页也需读取同一 Host 文档。
+  ctx.on('webserver/index-inject', (table) => {
+    table.push({ kind: 'global', name: '__DSH_TRANSPORT__', value: { ownsHost: true } })
+  })
   const replacements = {
     requestRejection: () => undefined,
     authorizeIndex: () => true,

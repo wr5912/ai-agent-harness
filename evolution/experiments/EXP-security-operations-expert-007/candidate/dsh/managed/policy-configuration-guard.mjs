@@ -29,6 +29,8 @@ const ALLOWED_SET = new Set(ALLOWED)
 const DENIED_SET = new Set(TOOL_ROUTES.denied)
 const confirmationTurns = new WeakSet()
 const deviceConstraints = new WeakMap()
+const unsupportedWriteRequests = new WeakSet()
+const unsupportedValidityRequests = new WeakSet()
 export function setPolicyConfirmationTurn(agent, active) {
   if (active) confirmationTurns.add(agent)
   else confirmationTurns.delete(agent)
@@ -49,6 +51,16 @@ export function deviceConstraintFromText(text) {
 }
 export function setPolicyUserRequest(agent, text) {
   deviceConstraints.set(agent, deviceConstraintFromText(text))
+  if (typeof text === 'string' && /阻断|拒绝|禁止(?:访问|通信|流量)|\b(?:deny|block)\b/i.test(text)) {
+    unsupportedWriteRequests.add(agent)
+  } else {
+    unsupportedWriteRequests.delete(agent)
+  }
+  if (typeof text === 'string' && /有效期|持续\s*\d+\s*(?:天|日|小时|分钟)|到期|截止时间/.test(text)) {
+    unsupportedValidityRequests.add(agent)
+  } else {
+    unsupportedValidityRequests.delete(agent)
+  }
 }
 const PREPARE = 'mcp__policy-configuration__prepare_policy_configuration'
 const SUPPORTED_INTENT_FIELDS = new Set([
@@ -86,6 +98,12 @@ export function createSecurityOperationsGuard() {
       if (depthOf(exec) !== 0) return '策略能力只允许主 Agent 调用'
       if (!ALLOWED_SET.has(tool)) return '未列入策略角色授权集合的工具被拒绝'
       if (tool === PREPARE) {
+        if (unsupportedWriteRequests.has(exec.agent)) {
+          return '阻断或拒绝访问不能解释为新增放行策略，停止本次准备'
+        }
+        if (unsupportedValidityRequests.has(exec.agent)) {
+          return '本轮尚未验证限时策略的下发与到期语义，不能丢弃有效期生成普通策略'
+        }
         const intent = exec.arguments?.body?.intent
         if (!intent || typeof intent !== 'object' || Array.isArray(intent)) {
           return '策略意图结构无效'

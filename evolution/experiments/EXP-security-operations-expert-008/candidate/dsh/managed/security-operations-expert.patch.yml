@@ -59,9 +59,8 @@
 
 - id: agent-default-model
   config:
-    provider: deepseek-official
-    model: deepseek-flash
-    reasoningEffort: 'off'
+    provider: local-qwen
+    model: Qwen3.8-27B
 
 - id: llm-pi-ai
   config:
@@ -70,7 +69,7 @@
         displayName: Local Qwen
         apiKeyEnv: LOCAL_LLM_API_KEY
         api: openai-completions
-        baseURL: !!js process.env.LOCAL_LLM_BASE_URL
+        baseURL: !!js '`${process.env.LOCAL_LLM_BASE_URL}/v1`'
         models:
           - id: Qwen3.8-27B
             name: Qwen3.8-27B
