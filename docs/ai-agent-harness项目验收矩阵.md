@@ -1,6 +1,6 @@
 # ai-agent-harness 项目验收矩阵
 
-更新日期：2026-09-30
+更新日期：2026-10-07
 
 本文是 **ai-agent-harness 项目与工具链**验证路径、当前证据和缺口的唯一维护位置。它直接回答三个问题：总共有多少条路径、每条做到什么程度、哪些检查应该进入自动化测试。
 
@@ -124,6 +124,7 @@
 - **当前证据**：Run v2 将 `execution_status` 与 `verdict` 分离，要求材料化 `evidence_ref`，并在 `completed` 封存前覆盖全部锁定 Case。`run_record.py` 与 `dsh-eval` 的机器测试覆盖 `fast/full/--case` 选择、所选 Case 的完整输入和预期快照、完整场景目录、API/浏览器通道分离、证据、异常封存、场景分析摘要、报告中去重 Case 的覆盖与归因假设、封存后拒绝追加；`full` 归因测试还覆盖当前 Run 的只读挂载、一场景一 Session、受限只读工具和必读证据访问校验。插件实验另保留一次实际初始化、记录、缺口和封存回执。真实 [`full` Run 报告](../evolution/experiments/EXP-security-operations-expert-007/runs/run-8941fbbc-8f7b-42f0-9890-d2f12249e79b/report.md) 已封存 40/40 个 Case：机器判定为 32 通过、8 失败；[`analysis.json`](../evolution/experiments/EXP-security-operations-expert-007/runs/run-8941fbbc-8f7b-42f0-9890-d2f12249e79b/analysis.json) 记录 4 个独立场景 Session 对 40/40 个 Case 的完整复核，形成 24 条带支持 Case、反例 Case、原始证据引用、替代解释和证伪方法的缺口假设，报告正文同步呈现。
 - **当前新镜像证据**：全仓锁对应的 [`U-QA-003` Run](../evolution/experiments/EXP-security-operations-expert-007/runs/run-2028f3b1-7a8c-42ea-9da6-2a59f5187262/report.md) 已封存完整输入、来源、目标与评审轨迹，机器判定 1/1 通过。[EXP-009 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-009/evaluation/observations.md)关联同一标准镜像下的新旧来源多次封存 Run、人工复核及 Decision；`run_record.py index/show/compare` 在两个真实查证任务中把多处证据定位收敛为查询入口，查找步骤减少，未测人工阅读时间。
 - **语音 Run 证据**：`U-VOICE-001` 的 [Qwen 通过 Run](../evolution/experiments/EXP-security-operations-expert-007/runs/run-fe58afad-133d-44fb-b92c-19bf74523083/report.md)和[默认 DeepSeek 失败 Run](../evolution/experiments/EXP-security-operations-expert-007/runs/run-e6a57ade-9cfe-4a47-9637-85e07ee423fe/report.md)均已记录实际浏览器观察、来源、输入和限制并封存。
+- **跨条件对照工具证据**：2026-10-07 的 Run 生命周期测试以两个不同预期模型封存共同 Case，确认新报告包含来源、冻结口径、Trial、观察、证据和模型差异；旧报告不改写。`compare` 将有共同结果标为可观察对照，将模型差异标为因果归因限制。此为机器合同验证，尚无本次中文优先和本地 Qwen 组合的新实机 Run。
 - **缺口**：已有真实 API Run、模型请求、MCP 调用和场景归因路径；仍需由研究者独立审阅归因质量，并用后续重复 Run 检验可复现性。语音浏览器 Run 仅覆盖单 Case 的两种模型路径，默认模型失败；现有记录不构成 OAuth 或生产验收。
 - **自动化边界**：schema、唯一 ID、状态转换、证据引用和封存进入测试；观察是否支持假设由人审阅。
 

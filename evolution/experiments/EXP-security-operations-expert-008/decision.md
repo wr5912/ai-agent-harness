@@ -10,4 +10,6 @@ Decision: continue
 
 当前 Runtime 改动只存在于独立工作树及本地编译插件覆盖层，锁定镜像本身仍为旧版；新建实例若只按仓库锁装载仍会遇到协议探测失败。先把该 Runtime 改动纳入受控版本并重建镜像，再复验无覆盖层的装载和业务行为。此轮 Decision 保持 `continue`，不生成 Research Release，也不把局部巡检通过或 Web HTTP 200 写成整个 Agent 业务通过。
 
+2026-10-07 合入的中文优先指令和本地 Qwen 默认模型已纳入 Candidate，并增加明确要求英语的评测输入；当前尚无该组合的新实机 Run，跨模型效果不能归因或判定。该补充不改变 `continue` 决策，待配置可用后按 [Evaluation 观察](evaluation/observations.md)中的旧版 Run 与新 Run 复测。
+
 3102 实例只读装载 Candidate 的 `@aisoc/dsh-voice-hub@0.0.3`（安装包 SHA-256：`c36e9744852538049a115e123522ba7126e3449cb0342a6905c0ff5c1f94749c`），安装包的 27 个文件与 Candidate 一致，锁定依赖保持不变，并启用 `allowLan`。新版本使用完整的批量 ASR、TTS 合成和取消接口地址；迁移后的服务配置在实例重启后保持。本机与局域网的 `/voice-mode` 均返回 200；实时 ASR、批量 ASR 和 TTS 服务连接检查通过。首次浏览器 Run [`run-f6d49bf6-c456-43e6-bc80-339de1b7b64b`](runs/run-f6d49bf6-c456-43e6-bc80-339de1b7b64b/report.md) 发生在补齐安装包中的 `lib/msedge-tts.cjs` 前；重启后的最终 Run [`run-42cf6b55-0e59-46c8-96c4-3bc7f6d9a061`](runs/run-42cf6b55-0e59-46c8-96c4-3bc7f6d9a061/report.md) 在本机 `127.0.0.1` 完成 `U-VOICE-001`：麦克风转写、语音口令单次发送、默认模型回复和浏览器音频播放均有证据，原生输入仍可编辑。局域网纯 HTTP 页面没有麦克风所需的浏览器安全上下文，语音使用需受信任 HTTPS 入口或本机 `localhost`；本次未验证实体扬声器出声。

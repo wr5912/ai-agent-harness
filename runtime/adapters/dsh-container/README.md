@@ -96,7 +96,7 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-e
 
 `dsh-eval` 从 Agent 的 `evaluation.md` 读取业务 Case 的名称、用户输入和预期，并复用 `dsh-dev` 与 `run_record.py` 完成一次可封存评测。默认执行器通过 DSH Runtime Session API 运行业务 Case；显式选择 `browser` 时，才使用镜像中已有的 Playwright 依赖做 UI 冒烟：
 
-研究者可用 `run_record.py index --agent <agent-id>` 列出 Experiment 与 Run，使用 `show --run <run-id> [--case <case-id>]` 对照当前与冻结 Case、结果和证据，使用 `compare --left <run-id> --right <run-id> [--case <case-id>]` 查看共同 Case 的差异及比较限制。三个查询命令只读取现有文件，不产生另一套研究记录。`dsh-eval --model <id>` 可把预期使用的模型标识锁入 Run；它不会切换 Runtime 模型，实际模型仍须结合运行配置与 Session 证据核对。
+研究者可用 `run_record.py index --agent <agent-id>` 列出 Experiment 与 Run，使用 `show --run <run-id> [--case <case-id>]` 对照当前与冻结 Case、结果和证据，使用 `compare --left <run-id> --right <run-id> [--case <case-id>]` 查看共同 Case 的观察差异及归因限制。三个查询命令只读取现有文件。`dsh-eval --compare-to <run-id>` 或 `run_record.py init --compare-to <run-id>` 将已封存的同 Agent Run 锁入新 Run；封存时在新报告中生成“与之前版本的对比”，旧 Run 保持不变。不同模型仍可做观察性对照；`comparable` 只表示存在共同 Case 的两侧结果，`causal_comparable` 表示记录的条件未见差异，两者都不证明 Harness 单独造成效果变化。需核对冻结 Case、实际路由、镜像、执行器和 Git 来源，硬件与资源未测时报告为“未记录”。`dsh-eval --model <id>` 只锁定预期模型标识，不切换 Runtime 模型。
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
@@ -107,6 +107,9 @@ python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-security-operations-expert-006 --mode full --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-security-operations-expert-006 --executor browser --case U-INS-001
+python3 runtime/adapters/dsh-container/dsh-eval \
+  --source experiment:EXP-security-operations-expert-008 --case U-QA-012 --case U-QA-013 \
+  --compare-to run-f630f91f-09f1-4c12-bdb3-42f5b815cfdd
 ```
 
 默认 `--mode fast` 执行标记了 `**评估档位：** \`fast\`` 的业务 Case；`--mode full` 执行全部 Case。没有 fast 标记时默认档位明确报错。`--case` 可重复并支持大小写敏感的 shell 风格通配符，一旦出现就覆盖 `--mode`；结果按 `evaluation.md` 顺序去重，为避免 shell 提前展开应给通配符加引号。`--dry-run` 输出请求档位、实际选择方式和 Case 列表。这里的 `--mode` 是评测范围，和 `dsh-dev --mode eval` 的容器运行模式不同。非 `--dry-run` 执行会先校验仓库和 Experiment，再创建独立评测实例。每个 Case 使用新的目标 Session，多轮输入在该 Session 内依次发送；API 和浏览器执行器都导出回答及同一 Session 的工具事件。独立的无工具评审 Session 对照单个 Case 的输入、预期、回答和工具证据给出语义结论。

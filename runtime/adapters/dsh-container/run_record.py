@@ -132,6 +132,7 @@ def write_report(
     analysis: dict | None = None,
     selection_mode: str | None = None,
     gaps: list[dict] | None = None,
+    comparison_markdown: str | None = None,
 ) -> None:
     def cell(value: object) -> str:
         return str(value).replace("\\", "\\\\").replace("|", "\\|").replace("\r", "").replace("\n", "<br>")
@@ -282,6 +283,8 @@ def write_report(
         )
     if not rows:
         lines.append("| - | - | - | - | - | - | - | 本 Run 未记录 Case 结果。 | - |")
+    if comparison_markdown:
+        lines.extend(["", comparison_markdown])
     lines.extend([
         "",
         "## 结构化记录",
@@ -461,7 +464,7 @@ def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
         "manifest": manifest,
         "source": {**{key: inputs.get(key) for key in (
             "source_id", "baseline_ref", "git_version", "evaluation_sha256",
-            "executor", "model", "created_at",
+            "executor", "model", "created_at", "compare_to_run_id",
         )}, "candidate_trees": {key: {"tree_sha256": value.get("tree_sha256"),
                                         "file_count": value.get("file_count")}
                                   for key, value in inputs.get("harness_trees", {}).items()},
@@ -474,6 +477,38 @@ def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
         "cases": cases,
         "missing": missing,
     }
+
+
+def comparison_run_view(repo: Path, run_id: str, agent_id: str | None = None,
+                        case_id: str | None = None) -> dict:
+    run_dir, manifest = load_run_manifest(repo, run_id)
+    if agent_id and manifest.get("agent_id") != agent_id:
+        raise ValueError("只能比较同一 Agent 的 Run")
+    if manifest.get("status") not in FINAL_STATUSES:
+        raise ValueError("对照 Run 必须已封存")
+    for field, name in (("results_sha256", "results.jsonl"), ("summary_sha256", "summary.json"),
+                        ("analysis_sha256", "analysis.json"), ("report_sha256", "report.md")):
+        expected = manifest.get(field)
+        if not expected or not re.fullmatch(r"[0-9a-f]{64}", expected):
+            raise ValueError(f"对照 Run 缺少有效 {field}")
+        path = run_dir / name
+        if path.is_symlink() or (not path.is_file() and (name != "results.jsonl" or path.exists())):
+            raise ValueError(f"对照 Run 缺少有效 {name}")
+        actual = hashlib.sha256(path.read_bytes() if path.is_file() else b"").hexdigest()
+        if actual != expected:
+            raise ValueError(f"对照 Run {name} 摘要不匹配")
+    return run_view(repo, run_id, case_id)
+
+
+def compare_views(left: dict, right: dict) -> dict:
+    completed = subprocess.run(
+        ["node", str(ADAPTER / "run-comparison.ts")],
+        input=json.dumps({"left": left, "right": right}, ensure_ascii=False),
+        text=True, capture_output=True, check=False, timeout=30,
+    )
+    if completed.returncode:
+        raise ValueError("Run 对照生成失败")
+    return json.loads(completed.stdout)
 
 
 def command_index(repo: Path, args: argparse.Namespace) -> None:
@@ -501,58 +536,11 @@ def command_show(repo: Path, args: argparse.Namespace) -> None:
 
 
 def command_compare(repo: Path, args: argparse.Namespace) -> None:
-    left = run_view(repo, args.left, args.case)
-    right = run_view(repo, args.right, args.case)
-    if left["manifest"]["agent_id"] != right["manifest"]["agent_id"]:
-        raise ValueError("只能比较同一 Agent 的 Run")
-    left_cases = {item["case_id"]: item for item in left["cases"]}
-    right_cases = {item["case_id"]: item for item in right["cases"]}
-    shared = sorted(left_cases.keys() & right_cases.keys())
-    differences = []
-    for field in ("executor", "model"):
-        a, b = left["source"].get(field), right["source"].get(field)
-        if not a or not b:
-            differences.append(f"{field}: 未记录")
-        elif a != b:
-            differences.append(f"{field}: 不同")
-    for selected_id in shared:
-        if left_cases[selected_id]["frozen"] != right_cases[selected_id]["frozen"]:
-            differences.append(f"{selected_id}: 冻结 Case 口径不同")
-        a, b = left_cases[selected_id], right_cases[selected_id]
-        for side, item in (("left", a), ("right", b)):
-            if not item["load_observation"] or not all(item["load_observation"].get(key)
-                                                           for key in ("preset_matches", "workspace_matches")):
-                differences.append(f"{selected_id}: {side} 缺少正确装载观察")
-        left_models = [route.get("model") for route in a["actual_routes"] or [] if route]
-        right_models = [route.get("model") for route in b["actual_routes"] or [] if route]
-        if not left_models or not right_models:
-            differences.append(f"{selected_id}: 缺少实际模型记录")
-        elif left_models != right_models:
-            differences.append(f"{selected_id}: 实际模型不同")
-    if not shared:
-        differences.append("没有共同 Case")
-    for field in ("image_build_fingerprint", "local_image_id"):
-        a = (left["image"] or {}).get(field)
-        b = (right["image"] or {}).get(field)
-        if not a or not b:
-            differences.append(f"{field}: 缺少实际镜像证据")
-        elif a != b:
-            differences.append(f"{field}: 不同")
-    comparisons = []
-    for selected_id in shared:
-        a, b = left_cases[selected_id], right_cases[selected_id]
-        comparisons.append({"case_id": selected_id,
-                            "left_trials": a["trials"], "right_trials": b["trials"],
-                            "left_output": a["output"], "right_output": b["output"],
-                            "left_actual_routes": a["actual_routes"], "right_actual_routes": b["actual_routes"],
-                            "left_review": a["review"], "right_review": b["review"],
-                            "left_evidence": a["evidence"], "right_evidence": b["evidence"]})
-    print(json.dumps({"left_run": args.left, "right_run": args.right,
-                      "left_source": left["source"], "right_source": right["source"],
-                      "left_image": left["image"], "right_image": right["image"],
-                      "comparable": not differences, "limits": differences,
-                      "cases": comparisons, "left_missing": left["missing"],
-                      "right_missing": right["missing"]}, ensure_ascii=False, indent=2))
+    left = comparison_run_view(repo, args.left, case_id=args.case)
+    right = comparison_run_view(repo, args.right, left["manifest"]["agent_id"], args.case)
+    result = compare_views(left, right)
+    result.pop("markdown")
+    print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
 def command_init(repo: Path, args: argparse.Namespace) -> None:
@@ -580,6 +568,9 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
         raise ValueError("selection_mode 与所选 Case 不一致")
     evaluation_ref = evaluation_relative.as_posix()
     version = git_version(repo)
+    comparison_ref = getattr(args, "compare_to", None)
+    if comparison_ref:
+        comparison_run_view(repo, comparison_ref, agent_id)
     run_id = "run-" + str(uuid.uuid4())
     run_dir = experiment / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
@@ -607,6 +598,8 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
             inputs["model"] = args.model
         if args.executor:
             inputs["executor"] = args.executor
+        if comparison_ref:
+            inputs["compare_to_run_id"] = comparison_ref
         with (run_dir / "inputs.lock.json").open("w", encoding="utf-8") as handle:
             json.dump(inputs, handle, ensure_ascii=False, indent=2)
             handle.write("\n")
@@ -771,6 +764,10 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
         handle.write("\n")
     manifest["status"] = args.status
     manifest["finished_at"] = utc_now()
+    comparison_markdown = None
+    if inputs.get("compare_to_run_id"):
+        left = comparison_run_view(repo, inputs["compare_to_run_id"], manifest["agent_id"])
+        comparison_markdown = compare_views(left, run_view(repo, args.run))["markdown"]
     report_path = run_dir / "report.md"
     write_report(
         report_path, manifest, summary, rows, inputs.get("executor"),
@@ -778,6 +775,7 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
         analysis,
         inputs.get("selection_mode"),
         gaps,
+        comparison_markdown,
     )
     manifest["results_sha256"] = hashlib.sha256(results.read_bytes() if results.is_file() else b"").hexdigest()
     manifest["summary_sha256"] = hashlib.sha256(summary_path.read_bytes()).hexdigest()
@@ -799,8 +797,9 @@ def main() -> None:
     init_parser.add_argument("--case", action="append", default=[], help="必须显式选择的 Case；可重复")
     init_parser.add_argument("--kind", default="research", choices=RUN_KINDS)
     init_parser.add_argument("--baseline-ref", help="默认读取 Experiment change.yaml")
-    init_parser.add_argument("--model", help="可选的实际模型标识")
+    init_parser.add_argument("--model", help="可选的预期模型标识，不改变 Runtime 设置")
     init_parser.add_argument("--executor", help="可选的执行通道标识")
+    init_parser.add_argument("--compare-to", help="已封存的同 Agent Run ID，封存时在报告中加入对照")
     init_parser.add_argument("--selection-mode", choices=("fast", "full", "explicit"), default="explicit")
     record_parser = commands.add_parser("record", help="追加一条观察")
     record_parser.add_argument("--run", required=True)

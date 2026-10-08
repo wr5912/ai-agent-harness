@@ -265,6 +265,19 @@ def validate_run(
         errors.append(issue("RUN_PLAN_REF", "Run 输入锁不再允许保存本地 plan 摘要", inputs))
     if locked_inputs.get("schema_version") != "2.0" or locked_inputs.get("run_id") != run_dir.name:
         errors.append(issue("RUN_INPUTS_SCHEMA", "输入锁必须是当前 Run 的 2.0 合同", inputs))
+    comparison_ref = locked_inputs.get("compare_to_run_id")
+    if comparison_ref is not None:
+        references = [] if not isinstance(comparison_ref, str) or not RUN_RE.fullmatch(comparison_ref) \
+            or comparison_ref == run_dir.name else list(run_dir.parents[2].glob(f"*/runs/{comparison_ref}/run.yaml"))
+        if len(references) != 1:
+            errors.append(issue("RUN_COMPARISON_REF", "对照 Run 必须是唯一的已封存 Run", inputs))
+        else:
+            try:
+                reference = load_yaml(references[0])
+                if reference.get("agent_id") != agent_id or reference.get("status") not in {"completed", "failed", "cancelled"}:
+                    raise ValueError("对照 Run 必须属于同一 Agent 且已封存")
+            except (OSError, ValueError, RuntimeError) as exc:
+                errors.append(issue("RUN_COMPARISON_REF", str(exc), inputs))
     locked_cases = locked_inputs.get("evaluation_cases")
     valid_cases = isinstance(locked_cases, list) and bool(locked_cases) and all(
         isinstance(case, dict)
