@@ -1753,8 +1753,9 @@ class EvaluationSourceTests(unittest.TestCase):
             ["U-INS-001", "U-EMG-001", "U-POL-001", "U-FLT-001", "U-QA-002", "U-QA-003", "U-THREAT-FAST"],
         )
         self.assertTrue(all(item["scene"] for item in loaded["catalog"]))
-        self.assertIn("回复仍须给出设备数量", loaded["cases"]["U-INS-001"]["expected_behavior"])
-        self.assertIn("reportDownloadUrl", loaded["cases"]["U-INS-001"]["expected_behavior"])
+        self.assertIn("设备数量", loaded["cases"]["U-INS-001"]["expected_behavior"])
+        self.assertIn("user_response_markdown", loaded["cases"]["U-INS-001"]["expected_behavior"])
+        self.assertIn("不改写服务结论或编造下载地址", loaded["cases"]["U-INS-001"]["expected_behavior"])
         self.assertEqual(len(loaded["cases"]["U-POL-008"]["inputs"]), 4)
         for retired in (
             "**执行器", "**工具边界", "**副作用预算", "Experiment 评估选择",
