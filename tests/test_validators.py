@@ -526,10 +526,11 @@ class RunRecordTests(unittest.TestCase):
                             "user.email=test@example.invalid", "commit", "-qm", "initial"], check=True)
             contract = {"experiment_id": EXPERIMENT_ID, "agent_id": AGENT_ID,
                         "source_id": f"experiment:{EXPERIMENT_ID}", "source_kind": "experiment",
-                        "workspace": str(repo), "presets": str(repo), "managed": str(repo)}
+                        "workspace": str(repo), "presets": str(repo), "managed": str(repo),
+                        "config_markers": ["test"], "required_env_names": [], "optional_env_names": []}
             args = argparse.Namespace(source=f"experiment:{EXPERIMENT_ID}", baseline_ref=None,
                                       case=["U-INS-001"], selection_mode="explicit",
-                                      kind="research", model=None, executor="api")
+                                      kind="research", model=None, executor="api", review_mode=None)
             with mock.patch.object(module, "resolve", return_value=contract), \
                     mock.patch.object(module, "execution_for", return_value=[{"case_id": "U-INS-001"}]), \
                     mock.patch.object(module, "load_evaluation", return_value={"catalog": []}), \
@@ -539,6 +540,21 @@ class RunRecordTests(unittest.TestCase):
             run_dir = next((experiment / "runs").iterdir())
             inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
             self.assertFalse(inputs["git_version"]["dirty"])
+            self.assertEqual(inputs["review_mode"], "none")
+
+    def test_historical_inspection_tool_failure_is_visible(self) -> None:
+        spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        view = module.run_view(ROOT, "run-548ae419-80a4-47dc-9fd2-94d972f29010", "U-INS-001")
+        case = view["cases"][0]
+        self.assertNotIn("mcp__inspection__list_executable_inspections", case["registered_tools"][0])
+        self.assertEqual(case["tool_calls"][0], {
+            "name": "mcp__inspection__list_executable_inspections",
+            "status": "error", "error_code": "UNKNOWN_TOOL",
+        })
+        successful = module.run_view(ROOT, "run-548ae419-80a4-47dc-9fd2-94d972f29010", "U-INS-003")
+        self.assertEqual(successful["cases"][0]["tool_calls"][0]["status"], "ok")
 
     def test_flat_yaml_round_trip_preserves_escaped_strings(self) -> None:
         spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
@@ -1174,6 +1190,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         executor: str = "api",
         mode: str | None = None,
         compare_to: str | None = None,
+        review: str | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], dict]:
         command = [
             "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
@@ -1185,6 +1202,8 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             command.extend(("--mode", mode))
         if compare_to:
             command.extend(("--compare-to", compare_to))
+        if review:
+            command.extend(("--review", review))
         for case_id in case_ids:
             command.extend(("--case", case_id))
         completed = subprocess.run(
@@ -1389,6 +1408,21 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             commands[2][commands[2].index("--analysis-workspace") + 1],
             str(run_dir.resolve()),
         )
+
+    def test_explicit_case_can_request_ai_review(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository, env, command_log = self.runtime_fixture(Path(temp))
+            completed, payload = self.run_eval(repository, env, "U-INS-001", review="ai")
+            run_dir = (repository / payload["summary"]).parent
+            inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+            analysis = json.loads((run_dir / "analysis.json").read_text(encoding="utf-8"))
+            commands = [json.loads(line)[0] for line in command_log.read_text().splitlines()]
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(inputs["selection_mode"], "explicit")
+        self.assertEqual(inputs["review_mode"], "ai")
+        self.assertEqual(analysis["review_status"], "completed")
+        self.assertEqual(analysis["reviewed_case_count"], 1)
+        self.assertEqual(commands, ["up", "url", "up", "url", "down", "down"])
 
     def test_full_review_repairs_invalid_output_in_same_session(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

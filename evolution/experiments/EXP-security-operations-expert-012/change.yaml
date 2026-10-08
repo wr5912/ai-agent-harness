@@ -1,0 +1,6 @@
+schema_version: "1.0"
+experiment_id: EXP-security-operations-expert-012
+agent_id: security-operations-expert
+baseline_ref: git:97236e16ebca8e49623959ec9afdfe77002bbdb9
+status: active
+research_question: 当巡检服务不返回设备数量时，明确要求报告缺口并保持同一运行 ID，能否减少 U-INS-001 的错误通过而不退化目录查询和续查

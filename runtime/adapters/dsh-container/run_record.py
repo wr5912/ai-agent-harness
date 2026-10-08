@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -433,6 +434,21 @@ def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
                 missing.append(f"{selected_id}: {ref}")
         checks_path = evidence_dir / "checks.json"
         checks = json.loads(checks_path.read_text(encoding="utf-8")) if checks_path.is_file() else None
+        calls = {}
+        tools_path = evidence_dir / "tools.jsonl"
+        if tools_path.is_file():
+            for line in tools_path.read_text(encoding="utf-8").splitlines():
+                event = json.loads(line).get("event", {})
+                data = event.get("data", {})
+                if event.get("type") == "tool/call":
+                    calls[data.get("callId")] = {"name": data.get("name"), "status": "no_result"}
+                elif event.get("type") == "tool/result":
+                    message = data.get("message", {})
+                    call_id = message.get("source", {}).get("callId")
+                    if call_id in calls:
+                        error = data.get("error")
+                        calls[call_id]["status"] = "error" if error or message.get("isError") else "ok" if message else "unknown"
+                        calls[call_id]["error_code"] = error.get("code") if isinstance(error, dict) else None
         if not selected_rows:
             missing.append(f"{selected_id}: results.jsonl")
         if checks is None:
@@ -445,6 +461,8 @@ def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
             "trials": selected_rows,
             "output": response.get("assistant_texts") if response else None,
             "actual_routes": [turn.get("route") for turn in response.get("turns", [])] if response else None,
+            "registered_tools": [turn.get("tool_names") for turn in response.get("turns", [])] if response else None,
+            "tool_calls": list(calls.values()),
             "review": review,
             "findings": [finding for finding in findings if selected_id in finding.get("support_case_ids", [])
                          or selected_id in finding.get("counterexample_case_ids", [])],
@@ -465,6 +483,7 @@ def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
         "source": {**{key: inputs.get(key) for key in (
             "source_id", "baseline_ref", "git_version", "evaluation_sha256",
             "executor", "model", "created_at", "compare_to_run_id",
+            "review_mode", "configured_capabilities", "dependency_env",
         )}, "candidate_trees": {key: {"tree_sha256": value.get("tree_sha256"),
                                         "file_count": value.get("file_count")}
                                   for key, value in inputs.get("harness_trees", {}).items()},
@@ -592,6 +611,10 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
             "evaluation_cases": cases,
             "case_catalog": catalog,
             "selection_mode": args.selection_mode,
+            "review_mode": args.review_mode or ("ai" if args.selection_mode == "full" else "none"),
+            "configured_capabilities": contract["config_markers"],
+            "dependency_env": {name: bool(os.environ.get(name)) for name in
+                               contract["required_env_names"] + contract["optional_env_names"]},
             "git_version": version,
         }
         if args.model:
@@ -731,9 +754,9 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
     else:
         analysis = analyze(run_dir, rows, inputs, status=args.status)
     validate_analysis(analysis, run_dir, rows, inputs)
-    if args.status == "completed" and inputs.get("selection_mode") == "full" \
+    if args.status == "completed" and inputs.get("review_mode", "ai" if inputs.get("selection_mode") == "full" else "none") == "ai" \
             and analysis.get("review_status") != "completed":
-        raise ValueError("full Run 必须完成全部已选 Case 的证据复核后才能标记 completed")
+        raise ValueError("已请求 AI 复核的 Run 必须完成全部已选 Case 的证据复核后才能标记 completed")
     if not analysis_path.is_file():
         with analysis_path.open("w", encoding="utf-8") as handle:
             json.dump(analysis, handle, ensure_ascii=False, indent=2)
@@ -801,6 +824,7 @@ def main() -> None:
     init_parser.add_argument("--executor", help="可选的执行通道标识")
     init_parser.add_argument("--compare-to", help="已封存的同 Agent Run ID，封存时在报告中加入对照")
     init_parser.add_argument("--selection-mode", choices=("fast", "full", "explicit"), default="explicit")
+    init_parser.add_argument("--review-mode", choices=("ai", "none"), help="默认沿用选择档位的历史复核行为")
     record_parser = commands.add_parser("record", help="追加一条观察")
     record_parser.add_argument("--run", required=True)
     record_parser.add_argument("trial_file", help="Trial JSON 文件；- 表示标准输入")

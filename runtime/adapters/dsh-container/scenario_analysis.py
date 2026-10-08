@@ -93,13 +93,13 @@ def _base_analysis(rows: list[dict], inputs: dict, review_status: str, reason: s
 
 
 def analyze(run_dir: Path, rows: list[dict], inputs: dict, *, status: str, **_: object) -> dict:
-    """生成不调用模型的场景事实；full 的模型复核由 review_full 显式执行。"""
-    if inputs.get("selection_mode") == "full":
-        reason = "Run 未完成，未执行 full 证据复核。" if status != "completed" else "full 证据复核尚未执行。"
+    """生成不调用模型的场景事实；模型复核由 review_full 显式执行。"""
+    if inputs.get("review_mode", "ai" if inputs.get("selection_mode") == "full" else "none") == "ai":
+        reason = "Run 未完成，未执行证据复核。" if status != "completed" else "证据复核尚未执行。"
         result = _base_analysis(rows, inputs, "failed", reason)
         _diagnostic(result, "not-run", reason)
         return result
-    return _base_analysis(rows, inputs, "not_requested", "fast/explicit Run 不要求证据复核。")
+    return _base_analysis(rows, inputs, "not_requested", "本次 Run 未请求证据复核。")
 
 
 def _safe_json(path: Path) -> object:
@@ -989,12 +989,13 @@ def validate_analysis(value: object, run_dir: Path, rows: list[dict], inputs: di
                 raise ValueError("analysis.json 缺口归因引用无效")
     if reviewed != value["reviewed_case_count"]:
         raise ValueError("analysis.json 已复核 Case 数不一致")
-    if inputs.get("selection_mode") != "full" and (value["review_status"] != "not_requested" or reviewed):
-        raise ValueError("fast/explicit Run 不应执行证据复核")
-    if inputs.get("selection_mode") == "full" and value["review_status"] == "not_requested":
-        raise ValueError("full Run 不得跳过证据复核")
+    review_mode = inputs.get("review_mode", "ai" if inputs.get("selection_mode") == "full" else "none")
+    if review_mode == "none" and (value["review_status"] != "not_requested" or reviewed):
+        raise ValueError("未请求证据复核的 Run 不应执行复核")
+    if review_mode == "ai" and value["review_status"] == "not_requested":
+        raise ValueError("已请求证据复核的 Run 不得跳过复核")
     if value["review_status"] == "completed" and reviewed != len(inputs["evaluation_cases"]):
-        raise ValueError("full 证据复核未覆盖全部已选 Case")
+        raise ValueError("证据复核未覆盖全部已选 Case")
     if value["review_status"] == "completed" and any(
         scene["selected_case_ids"] and scene["review_status"] != "completed" for scene in value["scenes"]
     ):
