@@ -19,7 +19,7 @@ servers:
     url_env: INSPECTION_MCP_URL
     bearer_token_env: INSPECTION_MCP_TOKEN
     tool_prefix: mcp__inspection__
-    purpose: 查询可用巡检能力、创建运行与取证计划、分片取证和生成报告
+    purpose: 查询已发布可执行模板、异步发起巡检和按运行 ID 查询结果与报告
   - server_name: soc
     consumer: threat-analysis-python
     transport: gateway-http

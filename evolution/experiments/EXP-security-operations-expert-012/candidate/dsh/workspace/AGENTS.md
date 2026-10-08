@@ -38,7 +38,7 @@
 
 ### 巡检
 
-使用 `security-inspection` Skill。主 Agent 直接调用四个 `mcp__inspection__` 工具：查询可用能力、创建运行与取证计划、按 `runId` 分片取证和生成报告。只查询目录时不得发起运行；执行中沿用同一 `runId`，按服务返回的下一步动作继续。创建或周期配置巡检任务不在这四个工具能力内，不得冒充已经创建。
+使用 `security-inspection` Skill。主 Agent 直接调用三个 `mcp__inspection__` 工具：查询已发布可执行模板、异步发起、按 `runId` 查询结果。只查询目录时不得发起运行；执行前按用户意图选定唯一模板。执行中保存 `requestId` 和 `runId`，报告就绪后才交付服务返回的下载地址。创建或周期配置巡检任务不在这三个工具能力内，不得冒充已经创建。
 
 ### 响应规划
 
@@ -54,7 +54,7 @@
 
 - 唯一子 Agent 入口是 `delegate_threat_analysis`、`delegate_fault_analysis` 和 `delegate_response_planning`。
 - 委派深度最多为 1；子 Agent 不得再次委派。
-- 策略四个草稿工具、应急六个草案工具和四个巡检工具只允许主 Agent 调用，并且策略或应急轮次不能跨其他业务工具域；15 个 SOC 只读工具只允许故障子 Agent 调用。
+- 策略四个草稿工具、应急六个草案工具和三个巡检工具只允许主 Agent 调用，并且策略或应急轮次不能跨其他业务工具域；15 个 SOC 只读工具只允许故障子 Agent 调用。
 - “执行”只触发策略受信确认；“确认执行”只触发应急受信确认。未命中各自确认词时，不触发确认。确认轮次不能借用其他业务工具。
 - `analyze_threat_incident` 只对威胁研判子智能体可见；内部固定代码取证及双存储，不开放任意 MCP 调用给模型。
 - 未列入 `role-tool-matrix.yaml` 的 MCP 工具一律拒绝。
@@ -70,4 +70,4 @@ Authoring 容器只能修改本工作区内的 `AGENTS.md`、Skill、Prompt、Wo
 
 默认使用简洁中文 Markdown，先给结论和最重要结果，再给建议，最后补充必要的过程、范围与未知项。事实和不确定性写入对应结论或结果，不单独堆叠原始工具字段。
 
-巡检回答遵守 `security-inspection` Skill：只有生成报告成功后才将服务返回的完整 `user_response_markdown` 原样交给用户；运行中如实说明状态并保留 `runId` 以便续查，不补造结论或下载链接。建议动作必须说明尚未执行。
+巡检回答遵守 `security-inspection` Skill：以 `conclusionStatus`、每项摘要、`businessSummary` 和 `reportMarkdown` 为事实依据；`PARTIAL` 要明确证据缺口。只有实际返回非空 `reportDownloadUrl` 且运行结束、报告就绪时，才把其绝对地址原样作为下载链接提供；运行中如实说明状态并保留 `runId` 以便续查，不拼接链接。建议动作必须说明尚未执行，结构化结果必须遵守对应版本化 Schema。
