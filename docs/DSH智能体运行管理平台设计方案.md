@@ -38,7 +38,9 @@ DSH 的 [Cordis 插件和 Profile 组合机制](https://github.com/deepseek-ai/d
 | 修改 Prompt、Preset、Skill、插件配置、适配器或必要实现 | 写入业务 Agent 的 Candidate，按既有 Experiment、Evaluation、Decision 比较；评审或管理智能体自身的来源变化也须记录。 |
 | 切换后续运行所用版本 | 工具阶段明确选来源并新建测试实例，核对旧行为是否恢复；长期业务版本切换按后述运行合同处理。 |
 
-最小工具优先复用现有 Python/Shell CLI、来源解析、评测执行和 Run 记录。若需要界面，使用少量 DSH Client 视图与服务方法接入固定工具入口，核对其工作目录、参数、结构化输出、退出码、超时与取消结果；进程启动或页面返回不能代替操作成功。未来平台自有 Host、插件、适配器和 Web 客户端使用 TypeScript/TSX，与 DSH 的类型和接口保持一致；这不要求重写研究 CLI、Harness 文档或第三方能力源码。
+最小工具优先复用现有 Python/Shell CLI、来源解析、评测执行和 Run 记录。若需要界面，使用少量 DSH Client 视图与服务方法接入固定工具入口，核对其工作目录、参数、结构化输出、退出码、超时与取消结果；进程启动或页面返回不能代替操作成功。
+
+新增自研实现遵循[工程语言取向](../AGENTS.md#工程语言取向)：研究与工具阶段的新功能、DSH 插件和适配器使用 TypeScript，界面使用 TSX。现有 Python 随实际变更的调用链逐步迁移；首个迁移切片须核对原 CLI、资产与 Run 语义，以及 TypeScript 源码生成的 JavaScript/ESM 能否通过现有只读装载路径进入 DSH，并用受影响的 Case 和新 Session 验证后替换旧实现。语言迁移不妨碍复用现有 CLI，也不要求改写 Harness 文档或第三方源码。
 
 未来管理平台可运行在特化的 DSH Runtime 中，管理界面与管理智能体调用同一组确定性服务。优先通过 Profile 和插件扩展，不复制 Agent loop；只有扩展接口经原型证明不足时，才考虑可回退的最小上游修改。一元 [Remote API](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/api-gateway.zh.md)用于管理操作，不能据此假定跨容器流式业务会话已经可用。
 
