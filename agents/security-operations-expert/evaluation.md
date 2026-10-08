@@ -82,7 +82,7 @@
 
 **预期**
 
-第二轮复用同一 Session 中的 `runId` 继续调用 `inspection_runs_collect_evidence`，在所有取证项进入终态后调用 `inspection_runs_finalize`；不得重新调用 `inspection_runs_start_with_plan`。运行中只报告状态和运行标识；结束后保留服务返回的完整 `user_response_markdown`，不编造下载链接。
+第二轮复用同一 Session 中的 `runId`，不得重新调用 `inspection_runs_start_with_plan`。若首轮尚未完成，继续调用 `inspection_runs_collect_evidence`，在所有取证项进入终态后调用 `inspection_runs_finalize`；若首轮已完成，用同一 `runId` 再次调用 `inspection_runs_finalize` 读取已有报告，不得另建运行。运行中只报告状态和运行标识；结束后保留服务返回的完整 `user_response_markdown`，不编造下载链接。没有成功的服务回执不能判通过。
 
 ## 独立应急指令
 
