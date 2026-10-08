@@ -3,4 +3,4 @@ experiment_id: EXP-security-operations-expert-012
 agent_id: security-operations-expert
 baseline_ref: git:97236e16ebca8e49623959ec9afdfe77002bbdb9
 status: active
-research_question: 当巡检服务不返回设备数量时，明确要求报告缺口并保持同一运行 ID，能否减少 U-INS-001 的错误通过而不退化目录查询和续查
+research_question: 对齐巡检服务现行四工具合同并保留原始报告，能否完成 U-INS-001 而不退化能力查询和同一运行续查

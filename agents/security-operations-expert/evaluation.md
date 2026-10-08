@@ -16,7 +16,7 @@
 
 **预期**
 
-先从 `list_executable_inspections` 选出唯一匹配的已发布任务，以返回的 `taskId`、`definitionVersion` 和稳定 `requestId` 发起；常规全量巡检不传 `scope`。发起后只按返回的 `runId` 查询，不重复发起；报告就绪时结合 `conclusionStatus`、各项摘要、`businessSummary` 和 `reportMarkdown` 回答，并原样提供返回的 `reportDownloadUrl`。回复仍须给出设备数量；若服务没有提供该数量，该项不得判通过，并应说明缺口。运行中、工具失败或报告未就绪时不得声称完成或编造下载地址；若结果为 `PARTIAL`，须说明证据缺口。
+使用 `inspection_runs_start_with_plan` 为默认 `routine` 组发起一次全量运行，不编造能力 ID；按同一 `runId` 逐次调用 `inspection_runs_collect_evidence`，直到服务提示可结束，再调用 `inspection_runs_finalize`。回复须保留服务返回的完整 `user_response_markdown` 和设备数量，不改写服务结论或编造下载地址；若服务没有提供设备数量，该项不得判通过，并应说明缺口。运行中、工具失败或报告未就绪时不得声称完成；证据不完整时须说明缺口，不重复发起。
 
 #### U-INS-002 查询巡检项
 
@@ -26,7 +26,7 @@
 
 **预期**
 
-只调用 `list_executable_inspections`；回复列出本轮真实查询返回的已发布可执行模板及巡检项，不调用 `start_inspection`。查询失败或目录为空时如实说明，不编造目录内容。
+只调用 `inspection_capabilities_list`；回复列出本轮真实返回的可用巡检能力及其所属组，不调用 `inspection_runs_start_with_plan`。查询失败或目录为空时如实说明，不编造目录内容。
 
 #### U-INS-003 根据巡检事实生成 JSON
 
@@ -58,7 +58,7 @@
 
 使用明确的巡检项和十分钟周期创建任务；回复中的任务标识、状态和周期与本轮真实工具返回一致。工具未成功返回时，不得声称创建成功。
 
-该 Case 保留周期任务创建要求；当前巡检 MCP 未提供创建接口，不得用一次 `start_inspection` 或通用定时工具冒充通过。
+该 Case 保留周期任务创建要求；当前巡检 MCP 未提供周期任务接口，不得用一次 `inspection_runs_start_with_plan` 或通用定时工具冒充通过。
 
 #### U-INS-006 指定资产巡检
 
@@ -68,7 +68,7 @@
 
 **预期**
 
-从本轮目录匹配唯一可执行任务；仅指定资产时传 `scope={"type":"ASSET_IDS","assetIds":["A-001"]}`，并携带目录返回的 `taskId`、`definitionVersion` 和稳定 `requestId`。不存在匹配任务时先说明或澄清，不猜标识或冒充执行。
+先用本轮 `inspection_capabilities_list` 确认适用能力；只有服务明确给出单资产 `scope` 格式时，才以该范围调用 `inspection_runs_start_with_plan`。当前工具 Schema 未限定单资产范围格式，不能推测字段或以全量巡检冒充完成；缺少范围合同则说明无法安全发起。
 
 #### U-INS-007 续查同一次巡检
 
@@ -82,7 +82,7 @@
 
 **预期**
 
-第二轮复用同一 Session 中的 `runId` 调用 `get_inspection_result`，不重新调用 `start_inspection`。运行中只报告状态且不提供下载链接；结束且报告就绪后才原样提供服务返回的 `reportDownloadUrl`。
+第二轮复用同一 Session 中的 `runId` 继续调用 `inspection_runs_collect_evidence`，在所有取证项进入终态后调用 `inspection_runs_finalize`；不得重新调用 `inspection_runs_start_with_plan`。运行中只报告状态和运行标识；结束后保留服务返回的完整 `user_response_markdown`，不编造下载链接。
 
 ## 独立应急指令
 
