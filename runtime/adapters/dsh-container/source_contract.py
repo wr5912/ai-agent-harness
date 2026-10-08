@@ -161,6 +161,7 @@ def _experiment_contract(
     declared_preset = preset_id(item["preset"])
     image = dict(lock)
     image["build_fingerprint"] = image_build_fingerprint(lock, lock_path=lock_path)
+    image["local_image_tag"] = f"{lock['local_image_tag']}-{image['build_fingerprint'][7:19]}"
     contract = {
         "schema_version": "2.1",
         "source_kind": "experiment",

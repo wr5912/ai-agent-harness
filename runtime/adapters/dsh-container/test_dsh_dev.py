@@ -27,7 +27,7 @@ dev = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(dev)
 
 TOKEN = "dsh web: http://127.0.0.1:3081/?token=secret-token-value\n"
-IMAGE_TAG = json.loads((ADAPTER / "source.lock.json").read_text(encoding="utf-8"))["local_image_tag"]
+IMAGE_TAG = dev.resolve()["image"]["local_image_tag"]
 
 
 class HarnessInitTest(unittest.TestCase):

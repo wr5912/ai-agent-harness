@@ -522,6 +522,8 @@ def validate_asset_nodes(root: Path, errors: list[dict[str, str]]) -> None:
             continue
         count = 0
         for path in base.rglob("*"):
+            if "node_modules" in path.relative_to(base).parts:
+                continue
             count += 1
             if count > MAX_ASSET_FILES:
                 errors.append(issue("ASSET_COUNT", f"{name} 节点数超过 100000", name))

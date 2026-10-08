@@ -4,7 +4,7 @@
 
 ## 源码与镜像身份
 
-`source.lock.json` 锁定官方仓库提交、Git tree、`pnpm-lock.yaml` 摘要、包管理器版本、Node 基础镜像 OCI index digest 和目标平台；当前提交包含 EXP-007 所需的 Schedule Bundle。所有 Experiment 共用这份锁。`build-image.sh` 新建临时源码工作树，在宿主侧核对提交、tree 和锁摘要后用 BuildKit named context 构建。官方构建脚本支持显式 `DSH_CLIENT_COMMIT_HASH`；构建器不依赖 named context 是否携带 `.git`，只安装本地 C 编译及 musl 工具，最终镜像不保留这些构建工具或 `.git`。本仓库没有 DSH 源码副本。
+`source.lock.json` 锁定官方仓库提交、Git tree、`pnpm-lock.yaml` 摘要、包管理器版本、Node 基础镜像 OCI index digest 和目标平台；当前提交包含 EXP-007 所需的 Schedule Bundle。所有 Experiment 共用这份锁。实际本地镜像标签在锁定标签后追加构建指纹前 12 位，允许不同构建输入在同一宿主机并行构建而不覆盖彼此。`build-image.sh` 新建临时源码工作树，在宿主侧核对提交、tree 和锁摘要后用 BuildKit named context 构建。官方构建脚本支持显式 `DSH_CLIENT_COMMIT_HASH`；构建器不依赖 named context 是否携带 `.git`，只安装本地 C 编译及 musl 工具，最终镜像不保留这些构建工具或 `.git`。本仓库没有 DSH 源码副本。
 
 ```bash
 bash runtime/adapters/dsh-container/build-image.sh

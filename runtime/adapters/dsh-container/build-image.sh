@@ -98,6 +98,8 @@ git -C "$task_source_dir" checkout --detach --quiet FETCH_HEAD
 [[ "$(git -C "$task_source_dir" rev-parse HEAD)" == "$task_source_commit" ]]
 [[ "$(git -C "$task_source_dir" rev-parse HEAD^{tree})" == "$task_source_tree" ]]
 [[ "$(sha256sum "$task_source_dir/pnpm-lock.yaml" | cut -d ' ' -f 1)" == "$task_lock_sha" ]]
+# 固定提交核验完成后去掉每次 fetch 都不同的 Git 元数据，保持源码构建缓存稳定。
+rm -rf -- "$task_source_dir/.git"
 
 # 使用同一固定 Node 底座与 mirror 规则先签名核验 main/updates/security 索引。
 # 如果镜像缺 security、签名或 Valid-Until 不通过，不进入耗时的 DSH 构建。
@@ -130,17 +132,17 @@ task_image_labels="$(docker image inspect "$task_image_tag" --format '{{json .Co
 task_image_label="$(python3 -c 'import json,sys; print((json.loads(sys.argv[1]) or {}).get(sys.argv[2], ""))' \
   "$task_image_labels" "$task_image_label_key")"
 task_image_ref="$task_image_tag@$task_image_id"
-task_runtime_version="$(docker run --rm --entrypoint node "$task_image_ref" /opt/dsh/apps/cli/lib/bin.js --version)"
-task_dsh_command_version="$(docker run --rm --entrypoint dsh "$task_image_ref" --version)"
-task_dsh_web_help="$(docker run --rm --entrypoint dsh "$task_image_ref" web --help)"
-task_pnpm_runtime_version="$(docker run --rm --entrypoint pnpm "$task_image_ref" --version)"
+task_runtime_version="$(docker run --rm --network none --entrypoint node "$task_image_ref" /opt/dsh/apps/cli/lib/bin.js --version)"
+task_dsh_command_version="$(docker run --rm --network none --entrypoint dsh "$task_image_ref" --version)"
+task_dsh_web_help="$(docker run --rm --network none --entrypoint dsh "$task_image_ref" web --help)"
+task_pnpm_runtime_version="$(docker run --rm --network none --entrypoint pnpm "$task_image_ref" --version)"
 [[ "$task_image_platform" == "$task_platform" ]]
 [[ "$task_image_label" == "$task_image_build_fingerprint" ]]
 [[ "$task_runtime_version" == "$task_cli_version" ]]
 [[ "$task_dsh_command_version" == "$task_cli_version" ]]
 [[ "$task_dsh_web_help" == *"Usage: dsh --profile web"* ]]
 [[ "$task_pnpm_version" != "$task_package_manager" && "$task_pnpm_runtime_version" == "$task_pnpm_version" ]]
-docker run --rm --entrypoint sh "$task_image_ref" -c 'test -x /usr/bin/chromium'
+docker run --rm --network none --entrypoint sh "$task_image_ref" -c 'test -x /usr/bin/chromium'
 
 python3 - "$task_evidence_file" "$task_source_id" "$task_source_repository" "$task_source_commit" "$task_source_tree" "$task_lock_sha" "$task_package_manager" "$task_node_base" "$task_image_tag" "$task_image_id" "$task_image_platform" "$task_runtime_version" "$task_dsh_command_version" "$task_pnpm_runtime_version" "$task_build_network" "$task_apt_mirror" "$task_npm_registry" "$task_image_build_fingerprint" "$task_image_label_key" "$task_image_input_digests" <<'PY'
 from datetime import datetime, timezone

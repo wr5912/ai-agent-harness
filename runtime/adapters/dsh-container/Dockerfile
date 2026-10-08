@@ -28,7 +28,8 @@ COPY --from=dsh_source / /opt/dsh
 
 # corepack 下载包管理器、pnpm 解析依赖都走同一个国内 registry；
 # 依赖仍按 pnpm-lock.yaml 的完整性摘要校验，换源不改变锁定内容。
-RUN test -n "$DSH_CLIENT_COMMIT_HASH" \
+RUN --mount=type=cache,id=dsh-pnpm-store,target=/root/.local/share/pnpm/store,sharing=shared \
+    test -n "$DSH_CLIENT_COMMIT_HASH" \
     && test -n "$DSH_LOCK_SHA256" \
     && test -n "$DSH_CLI_VERSION" \
     && test -n "$DSH_PACKAGE_MANAGER" \
@@ -37,10 +38,12 @@ RUN test -n "$DSH_CLIENT_COMMIT_HASH" \
     && test "$(node -p 'require("./package.json").version')" = "$DSH_CLI_VERSION" \
     && corepack enable \
     && COREPACK_NPM_REGISTRY="$DSH_NPM_REGISTRY" corepack prepare "$DSH_PACKAGE_MANAGER" --activate \
-    && npm_config_registry="$DSH_NPM_REGISTRY" pnpm install --frozen-lockfile \
+    && printf 'registry=%s\n' "$DSH_NPM_REGISTRY" > .npmrc \
+    && test "$(pnpm config get registry)" = "$DSH_NPM_REGISTRY" \
+    && pnpm install --frozen-lockfile \
     && DSH_CLIENT_COMMIT_HASH="$DSH_CLIENT_COMMIT_HASH" pnpm run build \
     && test -s apps/cli/lib/bin.js \
-    && rm -rf /opt/dsh/.git
+    && rm -rf /opt/dsh/.git /opt/dsh/.npmrc
 
 ARG DSH_NODE_BASE
 FROM ${DSH_NODE_BASE}

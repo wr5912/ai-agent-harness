@@ -10,6 +10,7 @@ __pycache__/
 .coverage
 htmlcov/
 .venv/
+node_modules/
 
 # 本地分析缓存
 .code-review-graph/

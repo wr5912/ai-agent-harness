@@ -37,6 +37,9 @@ class SourceContractTest(unittest.TestCase):
         result = source_contract.resolve()
         fingerprint = result["image"]["build_fingerprint"]
         self.assertRegex(fingerprint, r"^sha256:[0-9a-f]{64}$")
+        self.assertEqual(result["image"]["local_image_tag"],
+                         source_contract._read_source_lock(source_contract.LOCK)["local_image_tag"]
+                         + "-" + fingerprint[7:19])
         with tempfile.TemporaryDirectory(prefix="dsh-image-inputs-") as location:
             adapter = Path(location)
             for name in source_contract.IMAGE_BUILD_FILES:
