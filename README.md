@@ -18,7 +18,7 @@
 | 构建锁定 DSH 提交的本地镜像 | 已实现 | `dsh-dev image build` |
 | 按 `evaluation.md` 启动独立实例、逐 Case 新建 Session、导出轨迹并封存 Run | 已实现；默认走 DSH Runtime API，浏览器 UI 冒烟需显式选择；需要 Docker 和运行时环境变量 | `dsh-eval` |
 | 摘要、冻结、校验或恢复 Candidate 三棵资产树 | 已实现 | `mutation-receipt.py` |
-| 归档一次研究运行及其输入、观察、缺口与摘要 | 已实现 | `run_record.py` |
+| 归档研究运行，并按 Agent 索引、查看或并列比较已封存 Run | 已实现；`compare.comparable` 只判断记录的同条件项，业务等效仍需人工复核 | `run_record.py init/record/gap/finalize/index/show/compare` |
 | 校验项目结构、Experiment、Run 与 Research Release 合同 | 已实现 | `validate_repository.py` / `validate_experiment.py` |
 | 新 Preset 的 Web 创建、回流与选择闭环 | 尚未完成 | `PA-09` |
 | 解析并装载 `release:<id>` | 尚未实现 | `PA-11` |
@@ -187,7 +187,16 @@ python3 runtime/adapters/dsh-container/run_record.py --repo . record \
   --run <run-uuid> trial.json
 python3 runtime/adapters/dsh-container/run_record.py --repo . finalize \
   --run <run-uuid> --status completed
+
+# 根据 Agent 找到 Run，再查看冻结 Case 与证据，或并列比较两个 Run
+python3 runtime/adapters/dsh-container/run_record.py --repo . index --agent <agent-id>
+python3 runtime/adapters/dsh-container/run_record.py --repo . show \
+  --run <run-uuid> --case <case-id>
+python3 runtime/adapters/dsh-container/run_record.py --repo . compare \
+  --left <baseline-run-uuid> --right <candidate-run-uuid> --case <case-id>
 ```
+
+`compare.comparable=false` 时先看 `limits`，并列输出只供人工查证，不能据此声称同条件等效；`comparable=true` 也不替代业务效果复核。
 
 ## 规范来源与验收边界
 

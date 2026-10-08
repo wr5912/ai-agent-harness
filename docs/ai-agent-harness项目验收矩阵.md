@@ -1,6 +1,6 @@
 # ai-agent-harness 项目验收矩阵
 
-更新日期：2026-09-29
+更新日期：2026-09-30
 
 本文是 **ai-agent-harness 项目与工具链**验证路径、当前证据和缺口的唯一维护位置。它直接回答三个问题：总共有多少条路径、每条做到什么程度、哪些检查应该进入自动化测试。
 
@@ -42,6 +42,8 @@
 这三层都属于研究项目，不包含生产部署验收。未来若需要生产工程，应另行定义权限、安全、运维和发布合同。
 
 ## 3. 逐条路径
+
+2026-09-30 的 [EXP-010 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-010/evaluation/observations.md)补充了 `PA-04/05/06` 的 Candidate 来源、标准镜像、插件实际路由和评测实例启停证据；`PA-07` 观察到插件修复前后新 Session 的行为变化，尚无来源回退；`PA-08` 完成 7 个巡检 Case 的真实 API Turn，未完成浏览器巡检或真实 MCP 业务链；`PA-10` 封存两次完整 Run 并用 `run_record.py compare` 查证。外部巡检 MCP 拒绝连接，研究效果仍为 `inconclusive`，上述路径状态不因此提升。
 
 ### PA-01 Research Mode、AI 协作入口与项目 Memory
 
