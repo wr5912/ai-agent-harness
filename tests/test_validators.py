@@ -801,6 +801,35 @@ class DshEvalTests(unittest.TestCase):
         "LOCAL_LLM_API_KEY",
     )
 
+    def test_locked_harness_keeps_binary_digest_without_decoding(self) -> None:
+        spec = importlib.util.spec_from_file_location("scenario_analysis_binary_test", SCENARIO_ANALYSIS)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temp:
+            roots = {name: Path(temp) / name for name in ("workspace", "presets", "managed")}
+            for root in roots.values():
+                root.mkdir()
+            files = {"note.md": b"hello", "model.wasm": b"\x00\xff"}
+            for name, content in files.items():
+                (roots["workspace"] / name).write_bytes(content)
+            inputs = {"source_id": "experiment:test", "harness_trees": {
+                name: {"files": [
+                    {"path": path, "size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+                    for path, content in files.items()
+                ] if name == "workspace" else []}
+                for name in roots
+            }}
+            with mock.patch.dict("sys.modules", {"source_contract": mock.Mock(
+                resolve=lambda *_args, **_kwargs: roots,
+            )}):
+                result = module._locked_harness(inputs)
+                self.assertEqual(result[0]["content"], "hello")
+                self.assertEqual(result[1]["content"], None)
+                self.assertTrue(result[1]["binary"])
+                (roots["workspace"] / "model.wasm").write_bytes(b"changed")
+                with self.assertRaisesRegex(ValueError, "harness-lock-digest-mismatch"):
+                    module._locked_harness(inputs)
+
     def test_readable_view_preserves_json_and_deduplicates_tool_content(self) -> None:
         spec = importlib.util.spec_from_file_location("scenario_analysis_view_test", SCENARIO_ANALYSIS)
         module = importlib.util.module_from_spec(spec)

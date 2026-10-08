@@ -318,14 +318,17 @@ def _locked_harness(inputs: dict) -> list[dict]:
                 continue
             try:
                 text = content.decode("utf-8")
-            except UnicodeDecodeError as error:
-                raise ValueError("harness-lock-non-utf8") from error
-            result.append({
+            except UnicodeDecodeError:
+                text = None
+            entry = {
                 "tree": tree_name,
                 "path": relative.as_posix(),
                 "sha256": item["sha256"],
                 "content": text,
-            })
+            }
+            if text is None:
+                entry["binary"] = True
+            result.append(entry)
     return result
 
 
