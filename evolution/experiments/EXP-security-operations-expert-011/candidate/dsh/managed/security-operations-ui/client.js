@@ -39,22 +39,36 @@
       prompt: "\u8BF7\u751F\u6210\u672C\u6708\u622A\u81F3\u5F53\u524D\u7684\u5B89\u5168\u8FD0\u8425\u6708\u62A5\uFF0C\u5206\u6790\u98CE\u9669\u53D8\u5316\u3001\u4E8B\u4EF6\u5904\u7406\u3001\u5DE1\u68C0\u7ED3\u679C\u548C\u6CBB\u7406\u6210\u6548\u3002"
     }
   ];
-  var employees = [
+  var defaultEmployees = [
     {
+      id: "threat-analysis",
       title: "\u5A01\u80C1\u7814\u5224\u5B50\u667A\u80FD\u4F53",
       description: "\u57FA\u4E8E\u4E8B\u4EF6 ID \u53D6\u8BC1\u3001\u7814\u5224\u5E76\u4EA4\u4ED8\u7ED3\u679C\u3002",
-      skills: ["\u4E8B\u4EF6\u7814\u5224", "\u8BC1\u636E\u6838\u67E5", "\u62A5\u544A\u4EA4\u4ED8"],
-      mention: "@\u5A01\u80C1\u7814\u5224\u5B50\u667A\u80FD\u4F53 "
+      skills: ["\u4E8B\u4EF6\u7814\u5224", "\u8BC1\u636E\u6838\u67E5", "\u62A5\u544A\u4EA4\u4ED8"]
     },
     {
+      id: "fault-diagnosis",
       title: "\u6545\u969C\u5206\u6790\u5B50\u667A\u80FD\u4F53",
       description: "\u53EA\u8BFB\u6838\u67E5\u8BBE\u5907\u3001\u670D\u52A1\u4E0E\u94FE\u8DEF\u6545\u969C\u3002",
-      skills: ["\u6545\u969C\u6392\u67E5", "\u53EA\u8BFB\u53D6\u8BC1", "\u6839\u56E0\u5206\u6790"],
-      mention: "@\u6545\u969C\u5206\u6790\u5B50\u667A\u80FD\u4F53 "
+      skills: ["\u6545\u969C\u6392\u67E5", "\u53EA\u8BFB\u53D6\u8BC1", "\u6839\u56E0\u5206\u6790"]
     }
   ];
   var PLUGIN_ID = "dsh-security-operations-ui";
   var STATUS_KIND = "security-operations-status";
+  var WORKSPACE_PATH = "/work/harness/workspace";
+  var AGENT_PRESET = "security-operations-expert";
+  var EMPLOYEES_KEY = "dsh.securityOperations.digitalEmployees.v1";
+  function loadEmployees() {
+    try {
+      const saved = localStorage.getItem(EMPLOYEES_KEY);
+      if (saved === null) return defaultEmployees;
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return defaultEmployees;
+      return parsed.filter((item) => typeof item?.id === "string" && typeof item.title === "string" && typeof item.description === "string" && Array.isArray(item.skills) && item.skills.every((skill) => typeof skill === "string"));
+    } catch {
+      return defaultEmployees;
+    }
+  }
   window.__ModuleLoader__.load({
     id: PLUGIN_ID,
     factory(require2) {
@@ -68,10 +82,55 @@
       function HeroMark() {
         return /* @__PURE__ */ React.createElement("span", { className: "soc-hero-brand" }, /* @__PURE__ */ React.createElement("img", { src: live_chatbot_default, width: "50", height: "50", alt: "" }), /* @__PURE__ */ React.createElement("strong", null, "AI-SOC"));
       }
+      function RuntimeOverview({ employees, sessionList, openStatus, insert }) {
+        const [expanded, setExpanded] = React.useState(false);
+        const running = Object.values(sessionList.byId).filter((item) => !item.blank && !item.parentId && item.running).length;
+        const connected = sessionList.phase === "ready";
+        const state = connected ? running > 0 ? "running" : "healthy" : "pending";
+        return /* @__PURE__ */ React.createElement("section", { className: "soc-runtime", "aria-label": "\u667A\u80FD\u4F53\u8FD0\u884C\u6982\u89C8" }, /* @__PURE__ */ React.createElement("header", { className: "soc-runtime__header" }, /* @__PURE__ */ React.createElement("div", { className: "soc-runtime__title" }, /* @__PURE__ */ React.createElement("strong", null, "\u667A\u80FD\u4F53\u8FD0\u884C\u6982\u89C8"), /* @__PURE__ */ React.createElement("span", null, "\u5F53\u524D\u5B9E\u4F8B")), /* @__PURE__ */ React.createElement("dl", { className: "soc-runtime__summary" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("dt", null, "\u603B\u6570"), /* @__PURE__ */ React.createElement("dd", null, employees.length + 1)), /* @__PURE__ */ React.createElement("div", { title: "\u4F9D\u636E DSH \u4F1A\u8BDD\u670D\u52A1\u8FDE\u63A5\u72B6\u6001" }, /* @__PURE__ */ React.createElement("dt", null, "\u53EF\u7528"), /* @__PURE__ */ React.createElement("dd", null, connected ? 1 : 0)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("dt", null, "\u8FD0\u884C\u4EFB\u52A1"), /* @__PURE__ */ React.createElement("dd", null, running)), /* @__PURE__ */ React.createElement("div", { title: "\u5F53\u524D DSH \u672A\u63D0\u4F9B\u8DE8\u4F1A\u8BDD\u544A\u8B66\u603B\u6570" }, /* @__PURE__ */ React.createElement("dt", null, "\u5173\u6CE8"), /* @__PURE__ */ React.createElement("dd", null, "\u2014"))), /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            type: "button",
+            className: "soc-runtime__expand",
+            "aria-expanded": expanded,
+            onClick: () => setExpanded(!expanded)
+          },
+          expanded ? "\u6536\u8D77\u8BE6\u60C5" : "\u5C55\u5F00\u8BE6\u60C5",
+          " ",
+          /* @__PURE__ */ React.createElement("span", { "aria-hidden": "true" }, expanded ? "\u2303" : "\u2304")
+        )), /* @__PURE__ */ React.createElement("div", { className: "soc-runtime__strip" }, /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            type: "button",
+            className: `soc-runtime__card soc-runtime__card--${state}`,
+            "data-runtime-state": state,
+            onClick: openStatus,
+            "aria-label": "\u67E5\u770B\u5B89\u5168\u8FD0\u8425\u667A\u80FD\u4F53\u72B6\u6001"
+          },
+          /* @__PURE__ */ React.createElement("span", { className: "soc-runtime__card-head" }, /* @__PURE__ */ React.createElement("img", { src: live_chatbot_default, width: "40", height: "40", alt: "" }), /* @__PURE__ */ React.createElement("span", { className: "soc-runtime__identity" }, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("strong", null, "\u5B89\u5168\u8FD0\u8425\u667A\u80FD\u4F53"), /* @__PURE__ */ React.createElement("em", null, connected ? running > 0 ? "\u6267\u884C\u4E2D" : "\u5DF2\u8FDE\u63A5" : "\u8FDE\u63A5\u4E2D")), /* @__PURE__ */ React.createElement("small", null, "\u8FD0\u884C ", /* @__PURE__ */ React.createElement("b", null, running), "\u3000\u6392\u961F ", /* @__PURE__ */ React.createElement("b", null, "\u2014")))),
+          expanded && /* @__PURE__ */ React.createElement("span", { className: "soc-runtime__detail" }, "DSH \u5F53\u524D\u5B9E\u4F8B\u7684\u4E3B\u667A\u80FD\u4F53\u4F1A\u8BDD\u72B6\u6001\u3002\u70B9\u51FB\u67E5\u770B\u5F53\u524D\u4F1A\u8BDD\u8BE6\u60C5\u3002")
+        ), employees.map((person) => /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            key: person.id,
+            type: "button",
+            className: "soc-runtime__card soc-runtime__card--unknown",
+            "data-runtime-state": "unknown",
+            onClick: () => insert(`@${person.title} `),
+            "aria-label": `\u63D0\u53CA${person.title}`
+          },
+          /* @__PURE__ */ React.createElement("span", { className: "soc-runtime__card-head" }, /* @__PURE__ */ React.createElement("img", { src: live_chatbot_default, width: "40", height: "40", alt: "" }), /* @__PURE__ */ React.createElement("span", { className: "soc-runtime__identity" }, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("strong", { title: person.title }, person.title), /* @__PURE__ */ React.createElement("em", null, "\u672A\u63A5\u5165")), /* @__PURE__ */ React.createElement("small", null, "\u8FD0\u884C ", /* @__PURE__ */ React.createElement("b", null, "\u2014"), "\u3000\u6392\u961F ", /* @__PURE__ */ React.createElement("b", null, "\u2014")))),
+          expanded && /* @__PURE__ */ React.createElement("span", { className: "soc-runtime__detail" }, person.description, " \u5F53\u524D\u6CA1\u6709\u72EC\u7ACB\u8FD0\u884C\u72B6\u6001\u6570\u636E\uFF0C\u70B9\u51FB\u53EF\u5728\u8F93\u5165\u6846\u4E2D\u63D0\u53CA\u3002")
+        ))));
+      }
       function QuickActions({ session, inputActions, openStatus, useWorkspaces, useSessions, uiWorkspace }) {
         const [tab, setTab] = React.useState("recommend");
         const [query, setQuery] = React.useState("");
         const [notice, setNotice] = React.useState("");
+        const [employeeItems, setEmployeeItems] = React.useState(loadEmployees);
+        const [employeeEditing, setEmployeeEditing] = React.useState(false);
+        const [editingId, setEditingId] = React.useState(null);
+        const [draft, setDraft] = React.useState(null);
         const workspaceList = useWorkspaces((state) => state);
         const sessionList = useSessions((state) => state);
         React.useEffect(() => {
@@ -82,7 +141,7 @@
         if (!session.blank) return null;
         const keyword = query.trim().toLocaleLowerCase();
         const recommended = recommendations.filter((action) => `${action.title} ${action.description}`.toLocaleLowerCase().includes(keyword));
-        const people = employees.filter((person) => `${person.title} ${person.description} ${person.skills.join(" ")}`.toLocaleLowerCase().includes(keyword));
+        const people = employeeItems.filter((person) => `${person.title} ${person.description} ${person.skills.join(" ")}`.toLocaleLowerCase().includes(keyword));
         const favorites = workspaceList.pinnedSessionIds.map((id) => sessionList.byId[id]).filter((item) => item && item.displayTitle.toLocaleLowerCase().includes(keyword));
         const hasResults = tab === "recommend" ? recommended.length > 0 : tab === "employees" ? people.length > 0 : favorites.length > 0;
         function insert(text) {
@@ -94,7 +153,58 @@
           setQuery("");
           setNotice("");
         }
-        return /* @__PURE__ */ React.createElement("section", { className: "soc-quick", "aria-label": "\u667A\u80FD\u5BF9\u8BDD\u5FEB\u6377\u5165\u53E3" }, /* @__PURE__ */ React.createElement("div", { className: "soc-quick__heading" }, /* @__PURE__ */ React.createElement("strong", null, "\u667A\u80FD\u5BF9\u8BDD"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "soc-quick__status", onClick: openStatus }, "\u7CFB\u7EDF\u6D88\u606F")), /* @__PURE__ */ React.createElement("div", { className: "soc-quick__toolbar" }, /* @__PURE__ */ React.createElement("div", { className: "soc-quick__tabs", role: "tablist", "aria-label": "\u5FEB\u6377\u5165\u53E3\u5206\u7C7B" }, /* @__PURE__ */ React.createElement("button", { type: "button", role: "tab", "aria-selected": tab === "recommend", onClick: () => switchTab("recommend") }, "\u63A8\u8350"), /* @__PURE__ */ React.createElement("button", { type: "button", role: "tab", "aria-selected": tab === "employees", onClick: () => switchTab("employees") }, "\u6570\u5B57\u5458\u5DE5"), /* @__PURE__ */ React.createElement("button", { type: "button", role: "tab", "aria-selected": tab === "favorites", onClick: () => switchTab("favorites") }, "\u6536\u85CF")), /* @__PURE__ */ React.createElement("label", { className: "soc-quick__search" }, /* @__PURE__ */ React.createElement("span", { "aria-hidden": "true" }, "\u2315"), /* @__PURE__ */ React.createElement(
+        function persistEmployees(next) {
+          try {
+            localStorage.setItem(EMPLOYEES_KEY, JSON.stringify(next));
+          } catch {
+            setNotice("\u6570\u5B57\u5458\u5DE5\u4FDD\u5B58\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u6D4F\u89C8\u5668\u5B58\u50A8\u6743\u9650\u3002");
+            return false;
+          }
+          setEmployeeItems(next);
+          setNotice("");
+          return true;
+        }
+        function openEmployeeForm(person) {
+          setEditingId(person?.id ?? null);
+          setDraft({ title: person?.title ?? "", description: person?.description ?? "", skills: person?.skills.join("\u3001") ?? "" });
+          setNotice("");
+        }
+        function saveEmployee(event) {
+          event.preventDefault();
+          if (!draft) return;
+          const title = draft.title.trim();
+          const description = draft.description.trim();
+          const skills = draft.skills.split(/[，,、]/).map((item) => item.trim()).filter(Boolean);
+          if (!title || !description) {
+            setNotice("\u8BF7\u586B\u5199\u6570\u5B57\u5458\u5DE5\u540D\u79F0\u548C\u7B80\u4ECB\u3002");
+            return;
+          }
+          if (employeeItems.some((item) => item.title === title && item.id !== editingId)) {
+            setNotice("\u6570\u5B57\u5458\u5DE5\u540D\u79F0\u4E0D\u80FD\u91CD\u590D\u3002");
+            return;
+          }
+          const next = editingId ? employeeItems.map((item) => item.id === editingId ? { ...item, title, description, skills } : item) : [...employeeItems, { id: crypto.randomUUID(), title, description, skills }];
+          if (persistEmployees(next)) setDraft(null);
+        }
+        function removeEmployee(person) {
+          if (!window.confirm(`\u786E\u5B9A\u5220\u9664\u201C${person.title}\u201D\u5417\uFF1F`)) return;
+          if (persistEmployees(employeeItems.filter((item) => item.id !== person.id)) && editingId === person.id) setDraft(null);
+        }
+        return /* @__PURE__ */ React.createElement("section", { className: "soc-quick", "aria-label": "\u667A\u80FD\u5BF9\u8BDD\u5FEB\u6377\u5165\u53E3" }, /* @__PURE__ */ React.createElement(RuntimeOverview, { employees: employeeItems, sessionList, openStatus, insert }), /* @__PURE__ */ React.createElement("div", { className: "soc-quick__heading" }, /* @__PURE__ */ React.createElement("strong", null, "\u667A\u80FD\u5BF9\u8BDD"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "soc-quick__status", onClick: openStatus }, "\u7CFB\u7EDF\u6D88\u606F")), /* @__PURE__ */ React.createElement("div", { className: "soc-quick__toolbar" }, /* @__PURE__ */ React.createElement("div", { className: "soc-quick__tabs", role: "tablist", "aria-label": "\u5FEB\u6377\u5165\u53E3\u5206\u7C7B" }, /* @__PURE__ */ React.createElement("button", { type: "button", role: "tab", "aria-selected": tab === "recommend", onClick: () => switchTab("recommend") }, "\u63A8\u8350"), /* @__PURE__ */ React.createElement("button", { type: "button", role: "tab", "aria-selected": tab === "employees", onClick: () => switchTab("employees") }, "\u6570\u5B57\u5458\u5DE5"), /* @__PURE__ */ React.createElement("button", { type: "button", role: "tab", "aria-selected": tab === "favorites", onClick: () => switchTab("favorites") }, "\u6536\u85CF")), tab === "employees" && /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            type: "button",
+            className: "soc-employee-edit-toggle",
+            "aria-label": employeeEditing ? "\u5B8C\u6210\u7F16\u8F91\u6570\u5B57\u5458\u5DE5" : "\u7F16\u8F91\u6570\u5B57\u5458\u5DE5",
+            title: employeeEditing ? "\u5B8C\u6210\u7F16\u8F91" : "\u7F16\u8F91\u6570\u5B57\u5458\u5DE5",
+            onClick: () => {
+              setEmployeeEditing(!employeeEditing);
+              setDraft(null);
+              setNotice("");
+            }
+          },
+          employeeEditing ? "\u5B8C\u6210" : "\u270E"
+        ), /* @__PURE__ */ React.createElement("label", { className: "soc-quick__search" }, /* @__PURE__ */ React.createElement("span", { "aria-hidden": "true" }, "\u2315"), /* @__PURE__ */ React.createElement(
           "input",
           {
             value: query,
@@ -102,7 +212,10 @@
             "aria-label": tab === "recommend" ? "\u641C\u7D22\u63A8\u8350" : tab === "employees" ? "\u641C\u7D22\u6570\u5B57\u5458\u5DE5" : "\u641C\u7D22\u6536\u85CF",
             placeholder: tab === "recommend" ? "\u641C\u7D22\u63A8\u8350" : tab === "employees" ? "\u641C\u7D22\u6570\u5B57\u5458\u5DE5" : "\u641C\u7D22\u6536\u85CF"
           }
-        ))), notice && /* @__PURE__ */ React.createElement("p", { className: "soc-quick__notice", role: "alert" }, notice), hasResults ? /* @__PURE__ */ React.createElement("div", { className: "soc-quick__grid", role: "tabpanel" }, tab === "recommend" ? recommended.map((action) => /* @__PURE__ */ React.createElement(
+        ))), notice && /* @__PURE__ */ React.createElement("p", { className: "soc-quick__notice", role: "alert" }, notice), tab === "employees" && employeeEditing && /* @__PURE__ */ React.createElement("p", { className: "soc-employee-scope" }, "\u5361\u7247\u53D8\u66F4\u4EC5\u4FDD\u5B58\u5728\u5F53\u524D\u6D4F\u89C8\u5668\uFF1B\u65B0\u589E\u5361\u7247\u4E0D\u4F1A\u521B\u5EFA\u667A\u80FD\u4F53\u3002"), tab === "employees" && employeeEditing && draft && /* @__PURE__ */ React.createElement("form", { className: "soc-employee-form", "aria-label": editingId ? "\u7F16\u8F91\u6570\u5B57\u5458\u5DE5\u5361\u7247" : "\u65B0\u589E\u6570\u5B57\u5458\u5DE5\u5361\u7247", onSubmit: saveEmployee }, /* @__PURE__ */ React.createElement("label", null, "\u540D\u79F0", /* @__PURE__ */ React.createElement("input", { autoFocus: true, maxLength: 40, value: draft.title, onChange: (event) => setDraft({ ...draft, title: event.target.value }) })), /* @__PURE__ */ React.createElement("label", null, "\u7B80\u4ECB", /* @__PURE__ */ React.createElement("input", { maxLength: 160, value: draft.description, onChange: (event) => setDraft({ ...draft, description: event.target.value }) })), /* @__PURE__ */ React.createElement("label", null, "\u6280\u80FD\uFF08\u7528\u9017\u53F7\u5206\u9694\uFF09", /* @__PURE__ */ React.createElement("input", { maxLength: 160, value: draft.skills, onChange: (event) => setDraft({ ...draft, skills: event.target.value }) })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => {
+          setDraft(null);
+          setNotice("");
+        } }, "\u53D6\u6D88"), /* @__PURE__ */ React.createElement("button", { type: "submit" }, "\u4FDD\u5B58"))), hasResults ? /* @__PURE__ */ React.createElement("div", { className: "soc-quick__grid", role: "tabpanel" }, tab === "recommend" ? recommended.map((action) => /* @__PURE__ */ React.createElement(
           "button",
           {
             key: action.title,
@@ -112,17 +225,17 @@
           },
           /* @__PURE__ */ React.createElement("span", { className: "soc-quick__card-title" }, action.title, /* @__PURE__ */ React.createElement("span", { "aria-hidden": "true" }, "\u2197")),
           /* @__PURE__ */ React.createElement("span", { className: "soc-quick__card-description" }, action.description)
-        )) : tab === "employees" ? people.map((person) => /* @__PURE__ */ React.createElement(
+        )) : tab === "employees" ? /* @__PURE__ */ React.createElement(React.Fragment, null, employeeEditing && /* @__PURE__ */ React.createElement("button", { type: "button", className: "soc-quick__card soc-employee-add", onClick: () => openEmployeeForm() }, /* @__PURE__ */ React.createElement("span", { "aria-hidden": "true" }, "\uFF0B"), "\u65B0\u589E\u6570\u5B57\u5458\u5DE5"), people.map((person) => employeeEditing ? /* @__PURE__ */ React.createElement("article", { key: person.id, className: "soc-quick__card soc-quick__card--employee" }, /* @__PURE__ */ React.createElement("img", { src: live_chatbot_default, width: "42", height: "42", alt: "" }), /* @__PURE__ */ React.createElement("span", { className: "soc-quick__person" }, /* @__PURE__ */ React.createElement("span", { className: "soc-quick__card-title" }, person.title), /* @__PURE__ */ React.createElement("span", { className: "soc-quick__person-label" }, "\u7B80\u4ECB"), /* @__PURE__ */ React.createElement("span", { className: "soc-quick__card-description" }, person.description), /* @__PURE__ */ React.createElement("span", { className: "soc-quick__skills" }, person.skills.map((skill) => /* @__PURE__ */ React.createElement("span", { key: skill }, skill))), /* @__PURE__ */ React.createElement("span", { className: "soc-employee-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", "aria-label": `\u7F16\u8F91${person.title}`, onClick: () => openEmployeeForm(person) }, "\u7F16\u8F91"), /* @__PURE__ */ React.createElement("button", { type: "button", "aria-label": `\u5220\u9664${person.title}`, onClick: () => removeEmployee(person) }, "\u5220\u9664")))) : /* @__PURE__ */ React.createElement(
           "button",
           {
-            key: person.title,
+            key: person.id,
             type: "button",
             className: "soc-quick__card soc-quick__card--employee",
-            onClick: () => insert(person.mention)
+            onClick: () => insert(`@${person.title} `)
           },
           /* @__PURE__ */ React.createElement("img", { src: live_chatbot_default, width: "42", height: "42", alt: "" }),
           /* @__PURE__ */ React.createElement("span", { className: "soc-quick__person" }, /* @__PURE__ */ React.createElement("span", { className: "soc-quick__card-title" }, person.title, /* @__PURE__ */ React.createElement("span", { "aria-hidden": "true" }, "\u2197")), /* @__PURE__ */ React.createElement("span", { className: "soc-quick__person-label" }, "\u7B80\u4ECB"), /* @__PURE__ */ React.createElement("span", { className: "soc-quick__card-description" }, person.description), /* @__PURE__ */ React.createElement("span", { className: "soc-quick__skills" }, person.skills.map((skill) => /* @__PURE__ */ React.createElement("span", { key: skill }, skill))))
-        )) : favorites.map((item) => /* @__PURE__ */ React.createElement("button", { key: item.id, type: "button", className: "soc-quick__card", onClick: () => uiWorkspace.openSession(item.id) }, /* @__PURE__ */ React.createElement("span", { className: "soc-quick__card-title" }, item.displayTitle, /* @__PURE__ */ React.createElement("span", { "aria-hidden": "true" }, "\u2197")), /* @__PURE__ */ React.createElement("span", { className: "soc-quick__card-description" }, "\u5DF2\u7F6E\u9876\u4F1A\u8BDD\uFF0C\u70B9\u51FB\u7EE7\u7EED\u5BF9\u8BDD\u3002")))) : /* @__PURE__ */ React.createElement("p", { className: "soc-quick__empty", role: "tabpanel" }, tab === "favorites" && !keyword ? "\u6682\u65E0\u6536\u85CF\u4F1A\u8BDD\u3002\u53EF\u5728\u5DE6\u4FA7\u4F1A\u8BDD\u83DC\u5355\u4E2D\u9009\u62E9\u201C\u7F6E\u9876\u201D\u3002" : `\u6CA1\u6709\u5339\u914D\u7684${tab === "recommend" ? "\u63A8\u8350\u4EFB\u52A1" : tab === "employees" ? "\u6570\u5B57\u5458\u5DE5" : "\u6536\u85CF\u4F1A\u8BDD"}\u3002`), tab === "favorites" && favorites.length > 0 && /* @__PURE__ */ React.createElement("p", { className: "soc-quick__favorite" }, "\u5728\u5DE6\u4FA7\u4F1A\u8BDD\u83DC\u5355\u4E2D\u4F7F\u7528\u201C\u7F6E\u9876\u201D\u6216\u201C\u53D6\u6D88\u7F6E\u9876\u201D\u7BA1\u7406\u6536\u85CF\u3002"));
+        ))) : favorites.map((item) => /* @__PURE__ */ React.createElement("button", { key: item.id, type: "button", className: "soc-quick__card", onClick: () => uiWorkspace.openSession(item.id) }, /* @__PURE__ */ React.createElement("span", { className: "soc-quick__card-title" }, item.displayTitle, /* @__PURE__ */ React.createElement("span", { "aria-hidden": "true" }, "\u2197")), /* @__PURE__ */ React.createElement("span", { className: "soc-quick__card-description" }, "\u5DF2\u7F6E\u9876\u4F1A\u8BDD\uFF0C\u70B9\u51FB\u7EE7\u7EED\u5BF9\u8BDD\u3002")))) : tab === "employees" && employeeEditing ? /* @__PURE__ */ React.createElement("div", { className: "soc-quick__grid", role: "tabpanel" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "soc-quick__card soc-employee-add", onClick: () => openEmployeeForm() }, /* @__PURE__ */ React.createElement("span", { "aria-hidden": "true" }, "\uFF0B"), "\u65B0\u589E\u6570\u5B57\u5458\u5DE5")) : /* @__PURE__ */ React.createElement("p", { className: "soc-quick__empty", role: "tabpanel" }, tab === "favorites" && !keyword ? "\u6682\u65E0\u6536\u85CF\u4F1A\u8BDD\u3002\u53EF\u5728\u5DE6\u4FA7\u4F1A\u8BDD\u83DC\u5355\u4E2D\u9009\u62E9\u201C\u7F6E\u9876\u201D\u3002" : `\u6CA1\u6709\u5339\u914D\u7684${tab === "recommend" ? "\u63A8\u8350\u4EFB\u52A1" : tab === "employees" ? "\u6570\u5B57\u5458\u5DE5" : "\u6536\u85CF\u4F1A\u8BDD"}\u3002`), tab === "favorites" && favorites.length > 0 && /* @__PURE__ */ React.createElement("p", { className: "soc-quick__favorite" }, "\u5728\u5DE6\u4FA7\u4F1A\u8BDD\u83DC\u5355\u4E2D\u4F7F\u7528\u201C\u7F6E\u9876\u201D\u6216\u201C\u53D6\u6D88\u7F6E\u9876\u201D\u7BA1\u7406\u6536\u85CF\u3002"));
       }
       function StatusPanel({ useSession, useInput }) {
         const queued = useInput((state) => state.queue.length);
@@ -143,6 +256,8 @@
         return /* @__PURE__ */ React.createElement("section", { className: "soc-status", "aria-labelledby": "soc-status-title" }, /* @__PURE__ */ React.createElement("header", null, /* @__PURE__ */ React.createElement("strong", { id: "soc-status-title" }, "\u7CFB\u7EDF\u6D88\u606F"), /* @__PURE__ */ React.createElement("span", null, "\u5F53\u524D\u4F1A\u8BDD")), /* @__PURE__ */ React.createElement("div", { className: "soc-status__metrics" }, metrics.map(([value, label]) => /* @__PURE__ */ React.createElement("div", { key: label }, /* @__PURE__ */ React.createElement("strong", null, value), /* @__PURE__ */ React.createElement("span", null, label)))), /* @__PURE__ */ React.createElement("p", { className: failed ? "soc-status__message soc-status__message--error" : "soc-status__message" }, message));
       }
       const css = `
+      div:has(> button[aria-label="\u9009\u62E9\u5DE5\u4F5C\u533A"]),div:has(> button[aria-label="Choose workspace"]){display:none}
+      button[aria-label="\u6DFB\u52A0\u5DE5\u4F5C\u533A"],button[aria-label="Add workspace"]{display:none}
       .soc-brand-mark{display:block;object-fit:contain}
       .soc-brand-name{font-size:14px;font-weight:600;white-space:nowrap}
       .soc-hero-brand{display:inline-flex;align-items:center;gap:12px;white-space:nowrap}
@@ -151,6 +266,31 @@
       div:has(> span > .soc-hero-brand){justify-content:flex-start}
       span:has(> [data-slot="conversation.hero.brand.mark"] .soc-hero-brand)+span{display:none}
       .soc-quick{order:10;width:100%;padding-top:14px;color:var(--dsw-alias-label-primary,#242933)}
+      .soc-runtime{display:grid;gap:10px;margin-bottom:18px;padding:11px 12px 10px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-radius:12px;background:linear-gradient(135deg,#e9f4ff88,transparent 42%),repeating-linear-gradient(0deg,#1677ff08 0 1px,transparent 1px 22px),repeating-linear-gradient(90deg,#1677ff08 0 1px,transparent 1px 22px),var(--dsw-alias-bg-base,#fff)}
+      .soc-runtime__header{display:flex;align-items:center;gap:12px;min-width:0}
+      .soc-runtime__title{display:flex;align-items:center;gap:6px;white-space:nowrap}
+      .soc-runtime__title strong{font-size:16px}
+      .soc-runtime__title span{padding:3px 7px;border:1px solid #b5d5ff;border-radius:99px;background:#eaf3ff;color:#2465ad;font-size:11px}
+      .soc-runtime__summary{display:flex;flex:1;align-items:center;min-width:0;margin:0}
+      .soc-runtime__summary div{display:flex;align-items:baseline;gap:5px;padding:0 11px;border-left:1px solid var(--dsw-alias-border-l2,#e4e7ec)}
+      .soc-runtime__summary dt{color:var(--dsw-alias-label-secondary,#667085);font-size:12px;white-space:nowrap}
+      .soc-runtime__summary dd{margin:0;font-size:15px;font-weight:700}
+      .soc-runtime__expand{flex:none;padding:6px 9px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-radius:8px;background:var(--dsw-alias-bg-base,#fff);color:inherit;cursor:pointer;font:inherit;font-size:12px}
+      .soc-runtime__strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
+      .soc-runtime__card{flex:1 0 185px;min-width:185px;display:grid;gap:9px;padding:9px 10px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-left:3px solid var(--runtime-accent);border-radius:9px;background:var(--runtime-soft);color:inherit;cursor:pointer;font:inherit;text-align:left}
+      .soc-runtime__card:hover{border-color:var(--runtime-accent);box-shadow:0 5px 14px #1f23291a}
+      .soc-runtime__card--healthy{--runtime-accent:#27b575;--runtime-soft:#f3fbf7}
+      .soc-runtime__card--running{--runtime-accent:#1677ff;--runtime-soft:#f0f6ff}
+      .soc-runtime__card--pending,.soc-runtime__card--unknown{--runtime-accent:#98a2b3;--runtime-soft:#f6f7f9}
+      .soc-runtime__card-head{display:flex;align-items:center;gap:8px;min-width:0}
+      .soc-runtime__card-head img{flex:none;border:1px solid var(--runtime-accent);border-radius:50%;object-fit:cover}
+      .soc-runtime__identity{display:grid;gap:3px;min-width:0;flex:1}
+      .soc-runtime__identity>span{display:flex;align-items:center;justify-content:space-between;gap:5px;min-width:0}
+      .soc-runtime__identity strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+      .soc-runtime__identity em{flex:none;padding:3px 6px;border:1px solid var(--runtime-accent);border-radius:99px;color:var(--runtime-accent);background:var(--dsw-alias-bg-base,#fff);font-size:11px;font-style:normal}
+      .soc-runtime__identity small{color:var(--dsw-alias-label-secondary,#667085);font-size:12px;white-space:nowrap}
+      .soc-runtime__identity b{color:var(--dsw-alias-label-primary,#242933)}
+      .soc-runtime__detail{padding-top:8px;border-top:1px solid var(--dsw-alias-border-l2,#e4e7ec);color:var(--dsw-alias-label-secondary,#667085);font-size:12px;line-height:1.5}
       .soc-quick__heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 12px 10px}
       .soc-quick__heading strong{font-size:16px}
       .soc-quick__status{border:0;background:transparent;color:var(--dsw-alias-brand-primary,#1677ff);cursor:pointer;font:inherit;white-space:nowrap}
@@ -158,7 +298,9 @@
       .soc-quick__tabs{display:flex;align-items:center;gap:5px}
       .soc-quick__tabs button{padding:8px 12px;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary,#667085);cursor:pointer;font:inherit;font-size:13px;white-space:nowrap}
       .soc-quick__tabs button[aria-selected=true]{background:var(--dsw-alias-bg-base,#fff);color:var(--dsw-alias-label-primary,#242933);box-shadow:0 2px 12px rgba(31,35,41,.06)}
+      .soc-employee-edit-toggle{padding:6px 10px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-radius:8px;background:var(--dsw-alias-bg-base,#fff);color:var(--dsw-alias-brand-primary,#1677ff);cursor:pointer;font:inherit;font-size:13px}
       .soc-quick__search{display:flex;align-items:center;gap:7px;min-width:160px;width:min(260px,42%);height:34px;padding:0 10px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-radius:8px;background:var(--dsw-alias-bg-base,#fff);color:var(--dsw-alias-label-secondary,#667085)}
+      .soc-quick__search{margin-left:auto}
       .soc-quick__search input{min-width:0;width:100%;border:0;outline:0;background:transparent;color:var(--dsw-alias-label-primary,#242933);font:inherit;font-size:12px}
       .soc-quick__search:focus-within{border-color:var(--dsw-alias-brand-primary,#1677ff)}
       .soc-quick__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
@@ -170,6 +312,18 @@
       .soc-quick__card-description{display:block;color:var(--dsw-alias-label-secondary,#667085);font-size:13px;line-height:1.5}
       .soc-quick__card--employee{display:flex;align-items:flex-start;gap:9px}
       .soc-quick__card--employee img{flex:none;border-radius:50%;border:1px solid #e4e7ec}
+      .soc-employee-add{display:grid;place-items:center;align-content:center;gap:8px;color:var(--dsw-alias-brand-primary,#1677ff);text-align:center}
+      .soc-employee-add span{font-size:24px}
+      .soc-employee-actions{display:flex;gap:6px;margin-top:12px}
+      .soc-employee-actions button,.soc-employee-form button{padding:5px 9px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-radius:6px;background:var(--dsw-alias-bg-base,#fff);color:inherit;cursor:pointer;font:inherit;font-size:12px}
+      .soc-employee-actions button:last-child{color:var(--dsw-alias-error-primary,#d92d20)}
+      .soc-employee-scope{margin:0 0 10px;color:var(--dsw-alias-label-secondary,#667085);font-size:12px}
+      .soc-employee-form{display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-bottom:14px;padding:14px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-radius:9px;background:var(--dsw-alias-bg-base,#fff)}
+      .soc-employee-form label{display:grid;gap:5px;font-size:12px}
+      .soc-employee-form label:nth-child(3){grid-column:1/-1}
+      .soc-employee-form input{min-width:0;padding:8px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-radius:6px;background:transparent;color:inherit;font:inherit}
+      .soc-employee-form>div{grid-column:1/-1;display:flex;justify-content:flex-end;gap:7px}
+      .soc-employee-form>div button:last-child{border-color:var(--dsw-alias-brand-primary,#1677ff);background:var(--dsw-alias-brand-primary,#1677ff);color:#fff}
       .soc-quick__person{display:block;min-width:0;flex:1}
       .soc-quick__person-label{display:block;margin:2px 0 3px;color:var(--dsw-alias-label-secondary,#667085);font-size:12px}
       .soc-quick__skills{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
@@ -186,11 +340,64 @@
       .soc-status__metrics span{overflow:hidden;color:var(--dsw-alias-label-secondary,#667085);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
       .soc-status__message{margin:22px 0;color:var(--dsw-alias-label-secondary,#667085);font-size:13px;line-height:1.6;text-align:center}
       .soc-status__message--error{color:var(--dsw-alias-error-primary,#d92d20)}
-      @media(max-width:1100px){.soc-quick__grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-      @media(max-width:720px){.soc-quick__grid{grid-template-columns:1fr}.soc-quick__toolbar{align-items:stretch;flex-direction:column}.soc-quick__search{width:100%;box-sizing:border-box}}
+      @media(max-width:1100px){.soc-quick__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.soc-runtime__header{flex-wrap:wrap}.soc-runtime__summary{flex-basis:100%;order:3}.soc-runtime__summary div:first-child{padding-left:0;border-left:0}}
+      @media(max-width:720px){.soc-quick__grid{grid-template-columns:1fr}.soc-quick__toolbar{align-items:stretch;flex-direction:column}.soc-quick__search{width:100%;box-sizing:border-box;margin-left:0}.soc-employee-form{grid-template-columns:1fr}.soc-employee-form label:nth-child(3){grid-column:auto}}
     `;
-      const inject = ["slots", "sidebarRight", "sidebarRightTabs", "uiWorkspace"];
+      const inject = ["slots", "sidebarRight", "sidebarRightTabs", "uiWorkspace", "workspaces", "sessions", "remote.agentPresets"];
       function apply(ctx) {
+        ctx.effect(() => {
+          let disposed = false;
+          let workspaceId;
+          let moving = false;
+          const presetAttempts = /* @__PURE__ */ new Set();
+          const reconcile = () => {
+            if (disposed || !workspaceId) return;
+            const blank = Object.values(ctx.sessions.list.getSnapshot().byId).find((session) => session.blank && (session.retainedBy.mainView ?? 0) > 0);
+            if (!blank) return;
+            const owner = ctx.workspaces.list.getSnapshot().items.find((item) => item.sessionIds.includes(blank.id));
+            if (owner?.workspaceId !== workspaceId) {
+              if (moving) return;
+              moving = true;
+              void ctx.uiWorkspace.openWorkspace(workspaceId).then(
+                () => {
+                  moving = false;
+                  reconcile();
+                },
+                (error) => {
+                  moving = false;
+                  console.error("\u56FA\u5B9A\u5DE5\u4F5C\u533A\u5207\u6362\u5931\u8D25", error);
+                }
+              );
+              return;
+            }
+            if (blank.projectionValues?.agentPreset === AGENT_PRESET || presetAttempts.has(blank.id)) return;
+            presetAttempts.add(blank.id);
+            void ctx.remote.agentPresets.select(blank.id, AGENT_PRESET).then(
+              (result) => {
+                if (!result.ok) console.error("\u56FA\u5B9A Agent \u9884\u8BBE\u5931\u8D25", result.error);
+              },
+              (error) => {
+                console.error("\u56FA\u5B9A Agent \u9884\u8BBE\u5931\u8D25", error);
+              }
+            );
+          };
+          const unsubscribe = ctx.sessions.list.subscribe(reconcile);
+          void ctx.workspaces.create({ path: WORKSPACE_PATH }).then(
+            (workspace) => {
+              if (!disposed) {
+                workspaceId = workspace.workspaceId;
+                reconcile();
+              }
+            },
+            (error) => {
+              console.error("\u6CE8\u518C\u56FA\u5B9A\u5DE5\u4F5C\u533A\u5931\u8D25", error);
+            }
+          );
+          return () => {
+            disposed = true;
+            unsubscribe();
+          };
+        }, "security-operations-ui: fixed workspace and agent preset");
         ctx.effect(() => {
           try {
             if (localStorage.getItem("dsh.workspace.view.v5") !== null) return;

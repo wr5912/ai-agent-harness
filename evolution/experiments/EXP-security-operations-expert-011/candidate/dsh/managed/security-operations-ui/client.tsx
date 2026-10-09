@@ -8,7 +8,8 @@ type InputActions = {
 }
 
 type Action = { title: string; description: string; prompt: string }
-type Employee = { title: string; description: string; skills: string[]; mention: string }
+type Employee = { id: string; title: string; description: string; skills: string[] }
+type EmployeeDraft = { title: string; description: string; skills: string }
 type Tab = 'recommend' | 'employees' | 'favorites'
 
 const recommendations: Action[] = [
@@ -44,23 +45,39 @@ const recommendations: Action[] = [
   },
 ]
 
-const employees: Employee[] = [
+const defaultEmployees: Employee[] = [
   {
+    id: 'threat-analysis',
     title: '威胁研判子智能体',
     description: '基于事件 ID 取证、研判并交付结果。',
     skills: ['事件研判', '证据核查', '报告交付'],
-    mention: '@威胁研判子智能体 ',
   },
   {
+    id: 'fault-diagnosis',
     title: '故障分析子智能体',
     description: '只读核查设备、服务与链路故障。',
     skills: ['故障排查', '只读取证', '根因分析'],
-    mention: '@故障分析子智能体 ',
   },
 ]
 
 const PLUGIN_ID = 'dsh-security-operations-ui'
 const STATUS_KIND = 'security-operations-status'
+const WORKSPACE_PATH = '/work/harness/workspace'
+const AGENT_PRESET = 'security-operations-expert'
+// shortcut: 卡片仅保存在当前浏览器，需要跨设备共享时接入持久化服务。
+const EMPLOYEES_KEY = 'dsh.securityOperations.digitalEmployees.v1'
+
+function loadEmployees(): Employee[] {
+  try {
+    const saved = localStorage.getItem(EMPLOYEES_KEY)
+    if (saved === null) return defaultEmployees
+    const parsed: unknown = JSON.parse(saved)
+    if (!Array.isArray(parsed)) return defaultEmployees
+    return parsed.filter((item): item is Employee => typeof item?.id === 'string'
+      && typeof item.title === 'string' && typeof item.description === 'string'
+      && Array.isArray(item.skills) && item.skills.every((skill: unknown) => typeof skill === 'string'))
+  } catch { return defaultEmployees }
+}
 
 type ModuleLoader = {
   load(plugin: { id: string; factory(require: (name: string) => unknown): unknown }): void
@@ -83,6 +100,50 @@ type ModuleLoader = {
       return <span className="soc-hero-brand"><img src={avatarUrl} width="50" height="50" alt="" /><strong>AI-SOC</strong></span>
     }
 
+    function RuntimeOverview({ employees, sessionList, openStatus, insert }: {
+      employees: Employee[]
+      sessionList: { phase: string; byId: Record<string, { blank: boolean; parentId?: string; running: boolean }> }
+      openStatus: () => void
+      insert: (text: string) => void
+    }) {
+      const [expanded, setExpanded] = React.useState(false)
+      const running = Object.values(sessionList.byId).filter(item => !item.blank && !item.parentId && item.running).length
+      const connected = sessionList.phase === 'ready'
+      const state = connected ? running > 0 ? 'running' : 'healthy' : 'pending'
+      return (
+        <section className="soc-runtime" aria-label="智能体运行概览">
+          <header className="soc-runtime__header">
+            <div className="soc-runtime__title"><strong>智能体运行概览</strong><span>当前实例</span></div>
+            <dl className="soc-runtime__summary">
+              <div><dt>总数</dt><dd>{employees.length + 1}</dd></div>
+              <div title="依据 DSH 会话服务连接状态"><dt>可用</dt><dd>{connected ? 1 : 0}</dd></div>
+              <div><dt>运行任务</dt><dd>{running}</dd></div>
+              <div title="当前 DSH 未提供跨会话告警总数"><dt>关注</dt><dd>—</dd></div>
+            </dl>
+            <button type="button" className="soc-runtime__expand" aria-expanded={expanded}
+              onClick={() => setExpanded(!expanded)}>{expanded ? '收起详情' : '展开详情'} <span aria-hidden="true">{expanded ? '⌃' : '⌄'}</span></button>
+          </header>
+          <div className="soc-runtime__strip">
+            <button type="button" className={`soc-runtime__card soc-runtime__card--${state}`} data-runtime-state={state}
+              onClick={openStatus} aria-label="查看安全运营智能体状态">
+              <span className="soc-runtime__card-head"><img src={avatarUrl} width="40" height="40" alt="" />
+                <span className="soc-runtime__identity"><span><strong>安全运营智能体</strong><em>{connected ? running > 0 ? '执行中' : '已连接' : '连接中'}</em></span>
+                  <small>运行 <b>{running}</b>　排队 <b>—</b></small></span></span>
+              {expanded && <span className="soc-runtime__detail">DSH 当前实例的主智能体会话状态。点击查看当前会话详情。</span>}
+            </button>
+            {employees.map(person => <button key={person.id} type="button"
+              className="soc-runtime__card soc-runtime__card--unknown" data-runtime-state="unknown"
+              onClick={() => insert(`@${person.title} `)} aria-label={`提及${person.title}`}>
+              <span className="soc-runtime__card-head"><img src={avatarUrl} width="40" height="40" alt="" />
+                <span className="soc-runtime__identity"><span><strong title={person.title}>{person.title}</strong><em>未接入</em></span>
+                  <small>运行 <b>—</b>　排队 <b>—</b></small></span></span>
+              {expanded && <span className="soc-runtime__detail">{person.description} 当前没有独立运行状态数据，点击可在输入框中提及。</span>}
+            </button>)}
+          </div>
+        </section>
+      )
+    }
+
     function QuickActions({ session, inputActions, openStatus, useWorkspaces, useSessions, uiWorkspace }: {
       session: { blank: boolean }
       inputActions: InputActions
@@ -94,9 +155,14 @@ type ModuleLoader = {
       const [tab, setTab] = React.useState<Tab>('recommend')
       const [query, setQuery] = React.useState('')
       const [notice, setNotice] = React.useState('')
+      const [employeeItems, setEmployeeItems] = React.useState<Employee[]>(loadEmployees)
+      const [employeeEditing, setEmployeeEditing] = React.useState(false)
+      const [editingId, setEditingId] = React.useState<string | null>(null)
+      const [draft, setDraft] = React.useState<EmployeeDraft | null>(null)
       const workspaceList = useWorkspaces(state => state) as { pinnedSessionIds: string[] }
       const sessionList = useSessions(state => state) as {
-        byId: Record<string, { id: string; displayTitle: string }>
+        phase: string
+        byId: Record<string, { id: string; displayTitle: string; blank: boolean; running: boolean; parentId?: string }>
       }
 
       React.useEffect(() => {
@@ -110,7 +176,7 @@ type ModuleLoader = {
       const keyword = query.trim().toLocaleLowerCase()
       const recommended = recommendations.filter(action =>
         `${action.title} ${action.description}`.toLocaleLowerCase().includes(keyword))
-      const people = employees.filter(person =>
+      const people = employeeItems.filter(person =>
         `${person.title} ${person.description} ${person.skills.join(' ')}`.toLocaleLowerCase().includes(keyword))
       const favorites = workspaceList.pinnedSessionIds
         .map((id: string) => sessionList.byId[id])
@@ -128,8 +194,45 @@ type ModuleLoader = {
         setNotice('')
       }
 
+      function persistEmployees(next: Employee[]) {
+        try { localStorage.setItem(EMPLOYEES_KEY, JSON.stringify(next)) }
+        catch { setNotice('数字员工保存失败，请检查浏览器存储权限。'); return false }
+        setEmployeeItems(next)
+        setNotice('')
+        return true
+      }
+
+      function openEmployeeForm(person?: Employee) {
+        setEditingId(person?.id ?? null)
+        setDraft({ title: person?.title ?? '', description: person?.description ?? '', skills: person?.skills.join('、') ?? '' })
+        setNotice('')
+      }
+
+      function saveEmployee(event: ReactTypes.FormEvent<HTMLFormElement>) {
+        event.preventDefault()
+        if (!draft) return
+        const title = draft.title.trim()
+        const description = draft.description.trim()
+        const skills = draft.skills.split(/[，,、]/).map(item => item.trim()).filter(Boolean)
+        if (!title || !description) { setNotice('请填写数字员工名称和简介。'); return }
+        if (employeeItems.some(item => item.title === title && item.id !== editingId)) {
+          setNotice('数字员工名称不能重复。')
+          return
+        }
+        const next = editingId
+          ? employeeItems.map(item => item.id === editingId ? { ...item, title, description, skills } : item)
+          : [...employeeItems, { id: crypto.randomUUID(), title, description, skills }]
+        if (persistEmployees(next)) setDraft(null)
+      }
+
+      function removeEmployee(person: Employee) {
+        if (!window.confirm(`确定删除“${person.title}”吗？`)) return
+        if (persistEmployees(employeeItems.filter(item => item.id !== person.id)) && editingId === person.id) setDraft(null)
+      }
+
       return (
         <section className="soc-quick" aria-label="智能对话快捷入口">
+          <RuntimeOverview employees={employeeItems} sessionList={sessionList} openStatus={openStatus} insert={insert} />
           <div className="soc-quick__heading">
             <strong>智能对话</strong>
             <button type="button" className="soc-quick__status" onClick={openStatus}>系统消息</button>
@@ -140,6 +243,12 @@ type ModuleLoader = {
               <button type="button" role="tab" aria-selected={tab === 'employees'} onClick={() => switchTab('employees')}>数字员工</button>
               <button type="button" role="tab" aria-selected={tab === 'favorites'} onClick={() => switchTab('favorites')}>收藏</button>
             </div>
+            {tab === 'employees' && <button type="button" className="soc-employee-edit-toggle"
+              aria-label={employeeEditing ? '完成编辑数字员工' : '编辑数字员工'}
+              title={employeeEditing ? '完成编辑' : '编辑数字员工'}
+              onClick={() => { setEmployeeEditing(!employeeEditing); setDraft(null); setNotice('') }}>
+              {employeeEditing ? '完成' : '✎'}
+            </button>}
             <label className="soc-quick__search">
               <span aria-hidden="true">⌕</span>
               <input value={query} onChange={event => setQuery(event.target.value)}
@@ -148,6 +257,13 @@ type ModuleLoader = {
             </label>
           </div>
           {notice && <p className="soc-quick__notice" role="alert">{notice}</p>}
+          {tab === 'employees' && employeeEditing && <p className="soc-employee-scope">卡片变更仅保存在当前浏览器；新增卡片不会创建智能体。</p>}
+          {tab === 'employees' && employeeEditing && draft && <form className="soc-employee-form" aria-label={editingId ? '编辑数字员工卡片' : '新增数字员工卡片'} onSubmit={saveEmployee}>
+            <label>名称<input autoFocus maxLength={40} value={draft.title} onChange={event => setDraft({ ...draft, title: event.target.value })} /></label>
+            <label>简介<input maxLength={160} value={draft.description} onChange={event => setDraft({ ...draft, description: event.target.value })} /></label>
+            <label>技能（用逗号分隔）<input maxLength={160} value={draft.skills} onChange={event => setDraft({ ...draft, skills: event.target.value })} /></label>
+            <div><button type="button" onClick={() => { setDraft(null); setNotice('') }}>取消</button><button type="submit">保存</button></div>
+          </form>}
           {hasResults ? (
             <div className="soc-quick__grid" role="tabpanel">
               {tab === 'recommend'
@@ -158,9 +274,22 @@ type ModuleLoader = {
                     <span className="soc-quick__card-description">{action.description}</span>
                   </button>
                 ))
-                : tab === 'employees' ? people.map(person => (
-                  <button key={person.title} type="button" className="soc-quick__card soc-quick__card--employee"
-                    onClick={() => insert(person.mention)}>
+                : tab === 'employees' ? <>
+                  {employeeEditing && <button type="button" className="soc-quick__card soc-employee-add" onClick={() => openEmployeeForm()}>
+                    <span aria-hidden="true">＋</span>新增数字员工
+                  </button>}
+                  {people.map(person => employeeEditing ? <article key={person.id} className="soc-quick__card soc-quick__card--employee">
+                    <img src={avatarUrl} width="42" height="42" alt="" />
+                    <span className="soc-quick__person">
+                      <span className="soc-quick__card-title">{person.title}</span>
+                      <span className="soc-quick__person-label">简介</span>
+                      <span className="soc-quick__card-description">{person.description}</span>
+                      <span className="soc-quick__skills">{person.skills.map(skill => <span key={skill}>{skill}</span>)}</span>
+                      <span className="soc-employee-actions"><button type="button" aria-label={`编辑${person.title}`} onClick={() => openEmployeeForm(person)}>编辑</button>
+                        <button type="button" aria-label={`删除${person.title}`} onClick={() => removeEmployee(person)}>删除</button></span>
+                    </span>
+                  </article> : <button key={person.id} type="button" className="soc-quick__card soc-quick__card--employee"
+                    onClick={() => insert(`@${person.title} `)}>
                     <img src={avatarUrl} width="42" height="42" alt="" />
                     <span className="soc-quick__person">
                       <span className="soc-quick__card-title">{person.title}<span aria-hidden="true">↗</span></span>
@@ -168,15 +297,15 @@ type ModuleLoader = {
                       <span className="soc-quick__card-description">{person.description}</span>
                       <span className="soc-quick__skills">{person.skills.map(skill => <span key={skill}>{skill}</span>)}</span>
                     </span>
-                  </button>
-                )) : favorites.map((item: any) => (
+                  </button>)}
+                </> : favorites.map((item: any) => (
                   <button key={item.id} type="button" className="soc-quick__card" onClick={() => uiWorkspace.openSession(item.id)}>
                     <span className="soc-quick__card-title">{item.displayTitle}<span aria-hidden="true">↗</span></span>
                     <span className="soc-quick__card-description">已置顶会话，点击继续对话。</span>
                   </button>
                 ))}
             </div>
-          ) : <p className="soc-quick__empty" role="tabpanel">{tab === 'favorites' && !keyword
+          ) : tab === 'employees' && employeeEditing ? <div className="soc-quick__grid" role="tabpanel"><button type="button" className="soc-quick__card soc-employee-add" onClick={() => openEmployeeForm()}><span aria-hidden="true">＋</span>新增数字员工</button></div> : <p className="soc-quick__empty" role="tabpanel">{tab === 'favorites' && !keyword
             ? '暂无收藏会话。可在左侧会话菜单中选择“置顶”。'
             : `没有匹配的${tab === 'recommend' ? '推荐任务' : tab === 'employees' ? '数字员工' : '收藏会话'}。`}</p>}
           {tab === 'favorites' && favorites.length > 0 && <p className="soc-quick__favorite">在左侧会话菜单中使用“置顶”或“取消置顶”管理收藏。</p>}
@@ -221,6 +350,8 @@ type ModuleLoader = {
     }
 
     const css = `
+      div:has(> button[aria-label="选择工作区"]),div:has(> button[aria-label="Choose workspace"]){display:none}
+      button[aria-label="添加工作区"],button[aria-label="Add workspace"]{display:none}
       .soc-brand-mark{display:block;object-fit:contain}
       .soc-brand-name{font-size:14px;font-weight:600;white-space:nowrap}
       .soc-hero-brand{display:inline-flex;align-items:center;gap:12px;white-space:nowrap}
@@ -229,6 +360,31 @@ type ModuleLoader = {
       div:has(> span > .soc-hero-brand){justify-content:flex-start}
       span:has(> [data-slot="conversation.hero.brand.mark"] .soc-hero-brand)+span{display:none}
       .soc-quick{order:10;width:100%;padding-top:14px;color:var(--dsw-alias-label-primary,#242933)}
+      .soc-runtime{display:grid;gap:10px;margin-bottom:18px;padding:11px 12px 10px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-radius:12px;background:linear-gradient(135deg,#e9f4ff88,transparent 42%),repeating-linear-gradient(0deg,#1677ff08 0 1px,transparent 1px 22px),repeating-linear-gradient(90deg,#1677ff08 0 1px,transparent 1px 22px),var(--dsw-alias-bg-base,#fff)}
+      .soc-runtime__header{display:flex;align-items:center;gap:12px;min-width:0}
+      .soc-runtime__title{display:flex;align-items:center;gap:6px;white-space:nowrap}
+      .soc-runtime__title strong{font-size:16px}
+      .soc-runtime__title span{padding:3px 7px;border:1px solid #b5d5ff;border-radius:99px;background:#eaf3ff;color:#2465ad;font-size:11px}
+      .soc-runtime__summary{display:flex;flex:1;align-items:center;min-width:0;margin:0}
+      .soc-runtime__summary div{display:flex;align-items:baseline;gap:5px;padding:0 11px;border-left:1px solid var(--dsw-alias-border-l2,#e4e7ec)}
+      .soc-runtime__summary dt{color:var(--dsw-alias-label-secondary,#667085);font-size:12px;white-space:nowrap}
+      .soc-runtime__summary dd{margin:0;font-size:15px;font-weight:700}
+      .soc-runtime__expand{flex:none;padding:6px 9px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-radius:8px;background:var(--dsw-alias-bg-base,#fff);color:inherit;cursor:pointer;font:inherit;font-size:12px}
+      .soc-runtime__strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
+      .soc-runtime__card{flex:1 0 185px;min-width:185px;display:grid;gap:9px;padding:9px 10px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-left:3px solid var(--runtime-accent);border-radius:9px;background:var(--runtime-soft);color:inherit;cursor:pointer;font:inherit;text-align:left}
+      .soc-runtime__card:hover{border-color:var(--runtime-accent);box-shadow:0 5px 14px #1f23291a}
+      .soc-runtime__card--healthy{--runtime-accent:#27b575;--runtime-soft:#f3fbf7}
+      .soc-runtime__card--running{--runtime-accent:#1677ff;--runtime-soft:#f0f6ff}
+      .soc-runtime__card--pending,.soc-runtime__card--unknown{--runtime-accent:#98a2b3;--runtime-soft:#f6f7f9}
+      .soc-runtime__card-head{display:flex;align-items:center;gap:8px;min-width:0}
+      .soc-runtime__card-head img{flex:none;border:1px solid var(--runtime-accent);border-radius:50%;object-fit:cover}
+      .soc-runtime__identity{display:grid;gap:3px;min-width:0;flex:1}
+      .soc-runtime__identity>span{display:flex;align-items:center;justify-content:space-between;gap:5px;min-width:0}
+      .soc-runtime__identity strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+      .soc-runtime__identity em{flex:none;padding:3px 6px;border:1px solid var(--runtime-accent);border-radius:99px;color:var(--runtime-accent);background:var(--dsw-alias-bg-base,#fff);font-size:11px;font-style:normal}
+      .soc-runtime__identity small{color:var(--dsw-alias-label-secondary,#667085);font-size:12px;white-space:nowrap}
+      .soc-runtime__identity b{color:var(--dsw-alias-label-primary,#242933)}
+      .soc-runtime__detail{padding-top:8px;border-top:1px solid var(--dsw-alias-border-l2,#e4e7ec);color:var(--dsw-alias-label-secondary,#667085);font-size:12px;line-height:1.5}
       .soc-quick__heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 12px 10px}
       .soc-quick__heading strong{font-size:16px}
       .soc-quick__status{border:0;background:transparent;color:var(--dsw-alias-brand-primary,#1677ff);cursor:pointer;font:inherit;white-space:nowrap}
@@ -236,7 +392,9 @@ type ModuleLoader = {
       .soc-quick__tabs{display:flex;align-items:center;gap:5px}
       .soc-quick__tabs button{padding:8px 12px;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary,#667085);cursor:pointer;font:inherit;font-size:13px;white-space:nowrap}
       .soc-quick__tabs button[aria-selected=true]{background:var(--dsw-alias-bg-base,#fff);color:var(--dsw-alias-label-primary,#242933);box-shadow:0 2px 12px rgba(31,35,41,.06)}
+      .soc-employee-edit-toggle{padding:6px 10px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-radius:8px;background:var(--dsw-alias-bg-base,#fff);color:var(--dsw-alias-brand-primary,#1677ff);cursor:pointer;font:inherit;font-size:13px}
       .soc-quick__search{display:flex;align-items:center;gap:7px;min-width:160px;width:min(260px,42%);height:34px;padding:0 10px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-radius:8px;background:var(--dsw-alias-bg-base,#fff);color:var(--dsw-alias-label-secondary,#667085)}
+      .soc-quick__search{margin-left:auto}
       .soc-quick__search input{min-width:0;width:100%;border:0;outline:0;background:transparent;color:var(--dsw-alias-label-primary,#242933);font:inherit;font-size:12px}
       .soc-quick__search:focus-within{border-color:var(--dsw-alias-brand-primary,#1677ff)}
       .soc-quick__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
@@ -248,6 +406,18 @@ type ModuleLoader = {
       .soc-quick__card-description{display:block;color:var(--dsw-alias-label-secondary,#667085);font-size:13px;line-height:1.5}
       .soc-quick__card--employee{display:flex;align-items:flex-start;gap:9px}
       .soc-quick__card--employee img{flex:none;border-radius:50%;border:1px solid #e4e7ec}
+      .soc-employee-add{display:grid;place-items:center;align-content:center;gap:8px;color:var(--dsw-alias-brand-primary,#1677ff);text-align:center}
+      .soc-employee-add span{font-size:24px}
+      .soc-employee-actions{display:flex;gap:6px;margin-top:12px}
+      .soc-employee-actions button,.soc-employee-form button{padding:5px 9px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-radius:6px;background:var(--dsw-alias-bg-base,#fff);color:inherit;cursor:pointer;font:inherit;font-size:12px}
+      .soc-employee-actions button:last-child{color:var(--dsw-alias-error-primary,#d92d20)}
+      .soc-employee-scope{margin:0 0 10px;color:var(--dsw-alias-label-secondary,#667085);font-size:12px}
+      .soc-employee-form{display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-bottom:14px;padding:14px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-radius:9px;background:var(--dsw-alias-bg-base,#fff)}
+      .soc-employee-form label{display:grid;gap:5px;font-size:12px}
+      .soc-employee-form label:nth-child(3){grid-column:1/-1}
+      .soc-employee-form input{min-width:0;padding:8px;border:1px solid var(--dsw-alias-border-l2,#e4e7ec);border-radius:6px;background:transparent;color:inherit;font:inherit}
+      .soc-employee-form>div{grid-column:1/-1;display:flex;justify-content:flex-end;gap:7px}
+      .soc-employee-form>div button:last-child{border-color:var(--dsw-alias-brand-primary,#1677ff);background:var(--dsw-alias-brand-primary,#1677ff);color:#fff}
       .soc-quick__person{display:block;min-width:0;flex:1}
       .soc-quick__person-label{display:block;margin:2px 0 3px;color:var(--dsw-alias-label-secondary,#667085);font-size:12px}
       .soc-quick__skills{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
@@ -264,12 +434,47 @@ type ModuleLoader = {
       .soc-status__metrics span{overflow:hidden;color:var(--dsw-alias-label-secondary,#667085);font-size:11px;text-overflow:ellipsis;white-space:nowrap}
       .soc-status__message{margin:22px 0;color:var(--dsw-alias-label-secondary,#667085);font-size:13px;line-height:1.6;text-align:center}
       .soc-status__message--error{color:var(--dsw-alias-error-primary,#d92d20)}
-      @media(max-width:1100px){.soc-quick__grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-      @media(max-width:720px){.soc-quick__grid{grid-template-columns:1fr}.soc-quick__toolbar{align-items:stretch;flex-direction:column}.soc-quick__search{width:100%;box-sizing:border-box}}
+      @media(max-width:1100px){.soc-quick__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.soc-runtime__header{flex-wrap:wrap}.soc-runtime__summary{flex-basis:100%;order:3}.soc-runtime__summary div:first-child{padding-left:0;border-left:0}}
+      @media(max-width:720px){.soc-quick__grid{grid-template-columns:1fr}.soc-quick__toolbar{align-items:stretch;flex-direction:column}.soc-quick__search{width:100%;box-sizing:border-box;margin-left:0}.soc-employee-form{grid-template-columns:1fr}.soc-employee-form label:nth-child(3){grid-column:auto}}
     `
 
-    const inject = ['slots', 'sidebarRight', 'sidebarRightTabs', 'uiWorkspace']
+    const inject = ['slots', 'sidebarRight', 'sidebarRightTabs', 'uiWorkspace', 'workspaces', 'sessions', 'remote.agentPresets']
     function apply(ctx: any) {
+      ctx.effect(() => {
+        let disposed = false
+        let workspaceId: string | undefined
+        let moving = false
+        const presetAttempts = new Set<string>()
+        const reconcile = () => {
+          if (disposed || !workspaceId) return
+          const blank = Object.values(ctx.sessions.list.getSnapshot().byId).find((session: any) =>
+            session.blank && (session.retainedBy.mainView ?? 0) > 0) as any
+          if (!blank) return
+          const owner = ctx.workspaces.list.getSnapshot().items.find((item: any) => item.sessionIds.includes(blank.id))
+          if (owner?.workspaceId !== workspaceId) {
+            if (moving) return
+            moving = true
+            void ctx.uiWorkspace.openWorkspace(workspaceId).then(
+              () => { moving = false; reconcile() },
+              (error: unknown) => { moving = false; console.error('固定工作区切换失败', error) },
+            )
+            return
+          }
+          if (blank.projectionValues?.agentPreset === AGENT_PRESET || presetAttempts.has(blank.id)) return
+          presetAttempts.add(blank.id)
+          void ctx.remote.agentPresets.select(blank.id, AGENT_PRESET).then(
+            (result: any) => { if (!result.ok) console.error('固定 Agent 预设失败', result.error) },
+            (error: unknown) => { console.error('固定 Agent 预设失败', error) },
+          )
+        }
+        const unsubscribe = ctx.sessions.list.subscribe(reconcile)
+        void ctx.workspaces.create({ path: WORKSPACE_PATH }).then(
+          (workspace: any) => { if (!disposed) { workspaceId = workspace.workspaceId; reconcile() } },
+          (error: unknown) => { console.error('注册固定工作区失败', error) },
+        )
+        return () => { disposed = true; unsubscribe() }
+      }, 'security-operations-ui: fixed workspace and agent preset')
+
       ctx.effect(() => {
         try {
           if (localStorage.getItem('dsh.workspace.view.v5') !== null) return
