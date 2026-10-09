@@ -14,6 +14,7 @@ import http.cookiejar
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -92,13 +93,18 @@ def create_harness(agent_id: str, *, repo: Path = REPO, sources: Path = SOURCES,
     if not NAME_RE.fullmatch(agent_id):
         raise ValueError("agent-id 必须是小写 kebab-case")
 
-    experiment_id = f"EXP-{agent_id}-001"
     agent_dir = repo / "agents" / agent_id
-    experiment_dir = repo / "evolution/experiments" / experiment_id
     original_catalog = sources.read_bytes()
     catalog = strict_json(sources)
     if catalog.get("schema_version") != "1.1" or not isinstance(catalog.get("sources"), dict):
         raise ValueError("unsupported source catalog")
+    for _ in range(5):
+        experiment_id = f"EXP-{agent_id}-001-r{secrets.token_hex(6)}"
+        experiment_dir = repo / "evolution/experiments" / experiment_id
+        if not experiment_dir.exists() and experiment_id not in catalog["sources"]:
+            break
+    else:
+        raise ValueError("无法生成未占用的 Experiment ID")
     collisions = [str(path.relative_to(repo)) for path in (agent_dir, experiment_dir) if path.exists()]
     if experiment_id in catalog["sources"]:
         collisions.append(f"sources.json:{experiment_id}")

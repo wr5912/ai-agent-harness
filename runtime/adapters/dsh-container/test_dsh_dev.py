@@ -47,16 +47,17 @@ class HarnessInitTest(unittest.TestCase):
         self.temporary.cleanup()
 
     def create(self, agent_id="test01"):
-        return dev.create_harness(
-            agent_id, repo=self.repo, sources=self.sources, lock_path=self.lock
-        )
+        with mock.patch.object(dev.secrets, "token_hex", return_value="0123456789ab"):
+            return dev.create_harness(
+                agent_id, repo=self.repo, sources=self.sources, lock_path=self.lock
+            )
 
     def test_creates_minimal_resolvable_first_experiment(self):
         result = self.create()
         self.assertEqual(result, {
             "agent_id": "test01",
-            "experiment_id": "EXP-test01-001",
-            "source_id": "experiment:EXP-test01-001",
+            "experiment_id": "EXP-test01-001-r0123456789ab",
+            "source_id": "experiment:EXP-test01-001-r0123456789ab",
         })
         contract = dev.resolve(
             result["source_id"], repo=self.repo, sources=self.sources, lock_path=self.lock
@@ -66,23 +67,23 @@ class HarnessInitTest(unittest.TestCase):
         expected = {
             "agents/test01/manifest.yaml",
             "agents/test01/evaluation.md",
-            "evolution/experiments/EXP-test01-001/change.yaml",
-            "evolution/experiments/EXP-test01-001/hypothesis.md",
-            "evolution/experiments/EXP-test01-001/candidate/harness.yaml",
-            "evolution/experiments/EXP-test01-001/candidate/dsh/workspace/.env",
-            "evolution/experiments/EXP-test01-001/candidate/dsh/workspace/AGENTS.md",
-            "evolution/experiments/EXP-test01-001/candidate/dsh/managed/test01.patch.yml",
-            "evolution/experiments/EXP-test01-001/candidate/dsh/presets/test01/agent.cordis.yml",
-            "evolution/experiments/EXP-test01-001/candidate/dsh/presets/test01/preset.yml",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/change.yaml",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/hypothesis.md",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/candidate/harness.yaml",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/candidate/dsh/workspace/.env",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/candidate/dsh/workspace/AGENTS.md",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/candidate/dsh/managed/test01.patch.yml",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/candidate/dsh/presets/test01/agent.cordis.yml",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/candidate/dsh/presets/test01/preset.yml",
         }
         actual = {
             path.relative_to(self.repo).as_posix()
-            for root in (self.repo / "agents/test01", self.repo / "evolution/experiments/EXP-test01-001")
+            for root in (self.repo / "agents/test01", self.repo / "evolution/experiments/EXP-test01-001-r0123456789ab")
             for path in root.rglob("*") if path.is_file()
         }
         self.assertEqual(actual, expected)
         self.assertEqual(
-            (self.repo / "evolution/experiments/EXP-test01-001/candidate/dsh/workspace/.env").read_bytes(),
+            (self.repo / "evolution/experiments/EXP-test01-001-r0123456789ab/candidate/dsh/workspace/.env").read_bytes(),
             (ADAPTER / "verification-home-controls/locked-bootstrap.env").read_bytes(),
         )
         evaluation = (self.repo / "agents/test01/evaluation.md").read_text(encoding="utf-8")
@@ -113,7 +114,7 @@ class HarnessInitTest(unittest.TestCase):
             self.create()
         self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
         self.assertEqual(self.sources.read_bytes(), original)
-        self.assertFalse((self.repo / "evolution/experiments/EXP-test01-001").exists())
+        self.assertFalse((self.repo / "evolution/experiments/EXP-test01-001-r0123456789ab").exists())
 
     def test_resolution_failure_rolls_back_files_and_catalog(self):
         original = self.sources.read_bytes()
@@ -122,7 +123,13 @@ class HarnessInitTest(unittest.TestCase):
                 self.create()
         self.assertEqual(self.sources.read_bytes(), original)
         self.assertFalse((self.repo / "agents/test01").exists())
-        self.assertFalse((self.repo / "evolution/experiments/EXP-test01-001").exists())
+        self.assertFalse((self.repo / "evolution/experiments/EXP-test01-001-r0123456789ab").exists())
+
+    def test_random_suffix_retries_occupied_id(self):
+        (self.repo / "evolution/experiments/EXP-test01-001-r0123456789ab").mkdir()
+        with mock.patch.object(dev.secrets, "token_hex", side_effect=["0123456789ab", "abcdef123456"]):
+            result = dev.create_harness("test01", repo=self.repo, sources=self.sources, lock_path=self.lock)
+        self.assertEqual(result["experiment_id"], "EXP-test01-001-rabcdef123456")
 
 
 class RenderComposeTest(unittest.TestCase):

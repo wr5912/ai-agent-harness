@@ -115,7 +115,7 @@ agents/<agent-id>/
   manifest.yaml                          # Agent 研究入口和当前 Experiment
   evaluation.md                          # 业务 Case 的输入与预期的单一事实源
 evolution/
-  experiments/EXP-<agent-id>-NNN/
+  experiments/EXP-<agent-id>-NNN-r<12位随机十六进制>/
     change.yaml                          # 基线引用、状态与结果
     hypothesis.md                        # 为什么改、怎样判断
     candidate/                           # 本实验的可修改 Harness 工作树
@@ -163,7 +163,7 @@ python3 -m pip install -r .agents/skills/harness-evolution/scripts/requirements.
 python3 .agents/skills/legacy-asset-intake/scripts/inspect_source.py <archive-or-directory>
 python3 .agents/skills/harness-evolution/scripts/validate_repository.py .
 python3 .agents/skills/research-eval/scripts/validate_experiment.py \
-  evolution/experiments/EXP-<agent-id>-NNN
+  evolution/experiments/<experiment-id>
 ```
 
 脚本输出 JSON。退出码 `0` 只说明各自覆盖的确定性合同通过，`1` 表示发现问题，`2` 表示输入或读取错误；它们不替代对研究结果的人工判断。
@@ -172,18 +172,18 @@ python3 .agents/skills/research-eval/scripts/validate_experiment.py \
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --mode fast --dry-run
+  --source experiment:<experiment-id> --mode fast --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --mode full
+  --source experiment:<experiment-id> --mode full
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --executor browser --case <case-id>
+  --source experiment:<experiment-id> --executor browser --case <case-id>
 ```
 
 只需手工记录观察时，直接使用底层 Run 台账：
 
 ```bash
 python3 runtime/adapters/dsh-container/run_record.py --repo . init \
-  --source experiment:EXP-<agent-id>-NNN --case <case-id> --kind research
+  --source experiment:<experiment-id> --case <case-id> --kind research
 python3 runtime/adapters/dsh-container/run_record.py --repo . record \
   --run <run-uuid> trial.json
 python3 runtime/adapters/dsh-container/run_record.py --repo . finalize \

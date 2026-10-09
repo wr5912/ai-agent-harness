@@ -60,7 +60,7 @@ Transformation 只是创建 Candidate 的方法，不自动继承源版本的观
 ## 6. 推荐的当前目录表达
 
 ```text
-evolution/experiments/EXP-<agent-id>-NNN/
+evolution/experiments/EXP-<agent-id>-NNN-r<12位随机十六进制>/
   change.yaml          # baseline_ref、status、outcome
   hypothesis.md        # Target、假设、停止条件
   candidate/           # Variant 的具体资产

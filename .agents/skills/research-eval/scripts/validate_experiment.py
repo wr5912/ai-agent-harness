@@ -19,6 +19,7 @@ ADAPTER = Path(__file__).resolve().parents[4] / "runtime/adapters/dsh-container"
 if str(ADAPTER) not in sys.path:
     sys.path.insert(0, str(ADAPTER))
 from scenario_analysis import summarize_review, validate_analysis
+from source_contract import EXPERIMENT as EXPERIMENT_RE
 
 try:
     import yaml
@@ -26,7 +27,6 @@ except ImportError:  # pragma: no cover
     yaml = None
 
 
-EXPERIMENT_RE = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3,}$")
 RUN_RE = re.compile(
     r"^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
     re.IGNORECASE,
@@ -437,7 +437,7 @@ def validate(experiment: Path) -> tuple[dict, int]:
     warnings: list[dict[str, str]] = []
     match = EXPERIMENT_RE.fullmatch(experiment.name)
     if not experiment.is_dir() or experiment.is_symlink() or not match:
-        payload = {"schema_version": "1.0", "valid": False, "errors": [issue("EXPERIMENT_PATH", "输入必须是 EXP-<agent-id>-NNN 实体目录", experiment)], "warnings": []}
+        payload = {"schema_version": "1.0", "valid": False, "errors": [issue("EXPERIMENT_PATH", "输入必须是 EXP-<agent-id>-NNN-r<12位十六进制> 或旧编号实体目录", experiment)], "warnings": []}
         return payload, 2
     agent_id = match.group(1)
     repository = experiment.parents[2]

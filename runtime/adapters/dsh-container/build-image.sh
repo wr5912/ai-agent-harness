@@ -15,7 +15,7 @@ task_npm_registry="https://registry.npmmirror.com"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help)
-      printf 'Usage: %s [--source EXP-agent-NNN] [--evidence-output FILE] [--build-network host] [--apt-mirror http://mirrors.tuna.tsinghua.edu.cn/debian|http://deb.debian.org/debian]\n' "$0"
+      printf 'Usage: %s [--source EXP-agent-NNN-r12hex] [--evidence-output FILE] [--build-network host] [--apt-mirror http://mirrors.tuna.tsinghua.edu.cn/debian|http://deb.debian.org/debian]\n' "$0"
       printf 'Build locked official DSH source. APT defaults to TUNA main with Debian official security;\n'
       printf 'the official Debian APT source is an explicit fallback when the mirror is unreachable.\n'
       printf 'Host network is opt-in for local build egress only.\n'

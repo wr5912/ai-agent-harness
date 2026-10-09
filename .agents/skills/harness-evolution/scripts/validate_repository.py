@@ -69,7 +69,10 @@ RETIRED_SKILLS = {"baseline-eval", "security-control-boundary", "delivery-review
 PROJECT_MATRIX = "docs/ai-agent-harness项目验收矩阵.md"
 PROJECT_REVIEW = "docs/项目审查原则.md"
 KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-EXPERIMENT_RE = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3,}$")
+ADAPTER = Path(__file__).resolve().parents[4] / "runtime/adapters/dsh-container"
+if str(ADAPTER) not in sys.path:
+    sys.path.insert(0, str(ADAPTER))
+from source_contract import EXPERIMENT as EXPERIMENT_RE
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$")
 RELEASE_RE = re.compile(r"^([a-z0-9]+(?:-[a-z0-9]+)*)-v(.+)$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")

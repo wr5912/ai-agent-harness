@@ -11,7 +11,7 @@ description: 以 Research Mode 创建、修改、迁移或审计 DSH Harness Exp
 
 1. 按根级 `AGENTS.md` 确认本次涉及的对象、修改范围、保存位置和验证方式。
 2. 选择 Baseline 引用：`git:<commit>`、`release:<id>` 或首次实验的 `none:first-experiment`。
-3. 建立 `EXP-<agent-id>-NNN`，写清假设、预期观察、停止条件和 Candidate 变化。
+3. 建立 `EXP-<agent-id>-NNN-r<12位随机十六进制>`（旧编号实验保留），写清假设、预期观察、停止条件和 Candidate 变化。
 4. 使用足以回答当前问题的最小 Evaluation。先从少量高价值输入开始；需要扩大结论时再补覆盖和回归。
 5. 保存真实观察、失败、未知状态和限制，作出 `adopt`、`continue`、`reject` 或 `inconclusive` 决定。
 6. 只有版本确实值得独立复用时，才生成自包含、不可变、可校验的 Research Release。

@@ -140,9 +140,9 @@ Memory 位于仓库外的 `$CODEX_HOME/memories`，不得复制进仓库、Resea
 ## 文件与命名
 
 - Agent ID、技能名和普通目录使用小写 kebab-case。
-- Experiment 使用 `EXP-<agent-id>-NNN`；Research Release 使用 `<agent-id>-v<semver>`。
+- 新 Experiment 使用 `EXP-<agent-id>-NNN-r<12位随机十六进制>`，由创建工具生成并检查本地占用，避免并行分支目录重名；既有 `EXP-<agent-id>-NNN` 保持原名和引用。Research Release 使用 `<agent-id>-v<semver>`。
 - Agent 的需求、任务、测试数据、评估方法和测试验收按主要消费方式保存在一个 Markdown 或一个 JSONL；没有真实内容时不创建。
-- 研究 Run 位于 `evolution/experiments/EXP-<agent-id>-NNN/runs/<run-uuid>/`。
+- 研究 Run 位于 `evolution/experiments/<experiment-id>/runs/<run-uuid>/`。
 - 只有出现真实内容时才创建目录，不创建空 Agent、空 Eval、空报告、空证据或占位平台。
 
 ## AI 纠错记录

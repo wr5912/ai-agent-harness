@@ -23,7 +23,9 @@ SOURCES = ADAPTER / "sources.json"
 LOCK = ADAPTER / "source.lock.json"
 DEFAULT_SOURCE = "EXP-security-operations-expert-001"
 NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-EXPERIMENT = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3}$")
+EXPERIMENT = re.compile(
+    r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3}(?:-r[0-9a-f]{12})?$"
+)
 RELEASE_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*-v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
 ROLES = ("subject", "scoring")
 # evaluation.md 是判分材料：评分角色可读，被测角色不可读。

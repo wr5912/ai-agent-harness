@@ -21,7 +21,7 @@ Baseline 是比较起点的引用，不是一套必须复制的目录：
 - `release:<agent-id>-v<semver>`：以已有 Research Release 为对照；
 - `none:first-experiment`：首次实验没有既有对照。
 
-每项语义性 Harness 变化建立一个 `evolution/experiments/EXP-<agent-id>-NNN/`。最小内容包括：
+每项语义性 Harness 变化建立一个 `evolution/experiments/EXP-<agent-id>-NNN-r<12位随机十六进制>/`。既有数字编号实验保留原名。最小内容包括：
 
 - `change.yaml`：Experiment 身份、Baseline 引用、状态，以及完成后的结果；
 - `hypothesis.md`：为什么修改、预期观察和停止条件；
@@ -44,7 +44,7 @@ Evaluation 的规模由假设和拟得出的结论决定，不设固定 Case 数
 运行记录位于：
 
 ```text
-evolution/experiments/EXP-<agent-id>-NNN/runs/run-<UUIDv4>/
+evolution/experiments/<experiment-id>/runs/run-<UUIDv4>/
 ```
 
 Run 至少记录实际来源、Git 提交及 dirty 状态、输入、逐项观察、失败和限制。静态检查或技术探针只能支撑其直接覆盖的结论。
@@ -94,7 +94,7 @@ Runtime 的 Session、设置、缓存和附件位于独立数据根，不进入 
 ## 7. 命名与物化
 
 - Agent ID、技能名和普通目录使用小写 kebab-case。
-- Experiment 使用 `EXP-<agent-id>-NNN`。
+- 新 Experiment 使用 `EXP-<agent-id>-NNN-r<12位随机十六进制>`；既有 `EXP-<agent-id>-NNN` 保留。
 - Research Release 使用 `<agent-id>-v<semver>`。
 - Run 使用 `run-<UUIDv4>`。
 - 只有出现真实资产、观察或复用需求时才创建目录；不使用空文件或占位报告伪造完整性。

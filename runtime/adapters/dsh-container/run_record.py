@@ -25,7 +25,7 @@ for import_root in (ADAPTER, EVALUATION_SCRIPTS):
 
 from evaluation_contract import evaluation_digest, execution_for, load_evaluation
 from scenario_analysis import analyze, summarize_review, validate_analysis
-from source_contract import resolve
+from source_contract import EXPERIMENT as EXPERIMENT_RE, resolve
 
 
 _MUTATION_PATH = Path(__file__).with_name("mutation-receipt.py")
@@ -34,7 +34,6 @@ _mutation_receipt = importlib.util.module_from_spec(_MUTATION_SPEC)
 _MUTATION_SPEC.loader.exec_module(_mutation_receipt)
 snapshot = _mutation_receipt.snapshot
 
-EXPERIMENT_RE = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3,}$")
 RUN_ID_RE = re.compile(
     r"^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
     re.IGNORECASE,
@@ -534,7 +533,7 @@ def command_index(repo: Path, args: argparse.Namespace) -> None:
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", args.agent):
         raise ValueError("agent 必须是小写 kebab-case")
     experiments = []
-    for root in sorted((repo / "evolution/experiments").glob(f"EXP-{args.agent}-[0-9]*")):
+    for root in sorted((repo / "evolution/experiments").glob(f"EXP-{args.agent}-*")):
         match = EXPERIMENT_RE.fullmatch(root.name)
         if not root.is_dir() or root.is_symlink() or not match or match.group(1) != args.agent:
             continue

@@ -8,7 +8,7 @@
 
 ```bash
 bash runtime/adapters/dsh-container/build-image.sh
-# 多来源时显式选择：build-image.sh --source EXP-<agent-id>-NNN
+# 多来源时显式选择：build-image.sh --source <experiment-id>
 ```
 
 APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 IPv4；失败必须中止，而非沿用不完整索引。默认主源使用 `http://mirrors.tuna.tsinghua.edu.cn/debian`，security 保持 `http://deb.debian.org/debian-security`；TUNA 不可达时可显式加 `--apt-mirror http://deb.debian.org/debian` 回退到官方主源。构建前先用同一锁定 Node 底座执行 Debian archive keyring 签名的 APT 更新预检，main、updates、security 任一签名或索引失败即停；Dockerfile 中再次校验，构建证据记录两条实际镜像 URI。回退源改变了构建期软件包的分发路径、可用性和更新时间边界，虽未降低 Debian 签名校验，也不能把它说成与默认源的网络来源完全相同。
@@ -82,7 +82,7 @@ python3 runtime/adapters/dsh-container/dsh-dev logs security-operations-expert-e
 python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-eval
 ```
 
-`init <agent-id>` 创建最小 Agent、`EXP-<agent-id>-001` Candidate，并把该 Experiment 登记到 `sources.json`；已有 Agent、Experiment 或来源登记时拒绝覆盖。它只创建研究资产，不启动实例、不执行 Evaluation，也不创建 Research Release。
+`init <agent-id>` 创建最小 Agent、`EXP-<agent-id>-001-r<12位随机十六进制>` Candidate，并把该 Experiment 登记到 `sources.json`；已有 Agent、Experiment 或来源登记时拒绝覆盖。旧编号 Experiment 继续可用。它只创建研究资产，不启动实例、不执行 Evaluation，也不创建 Research Release。
 
 `--source` 和 `--mode` 始终由用户显式选择；缺失或无值时命令会列出当前可用值并以用法错误退出。`--name` 默认为 `<agent-id>-eval`。新实例未指定 `--port` 时从 `3081` 起选第一个未监听且未被有效实例记录占用的端口；已有同名实例复用记录端口。`--dry-run` 只给出建议，不写状态、不调用 Docker，也不要求运行时环境变量。
 
@@ -167,7 +167,7 @@ node runtime/adapters/dsh-container/stub-mcp-streamable-http.mjs --port 3099 --t
 
 ```bash
 bash runtime/adapters/dsh-container/verify-load.sh verification
-# 其他已登记来源：verify-load.sh verification --source EXP-<agent-id>-NNN
+# 其他已登记来源：verify-load.sh verification --source <experiment-id>
 ```
 
 适配层脚本不烘焙进镜像：`prepare-verification-home.mjs`、`verify-load.mjs`、`tree-digest.mjs` 由 Compose 只读挂载到 `/opt/dsh-adapter`。脚本先比对宿主与容器脚本 SHA-256，再比对三棵 Candidate 资产树，并断言 `/work/reference` 与未声明的 `/work/eval-input` 不存在；同时核对挂载模式、HOME 卷、受控 Patch、零字节全局指令、注释 `.env`、module deny-layer、镜像内模块解析与 DSH 配置标识。它只证明挂载身份、模块解析和配置组合，不证明 Plugin 激活、MCP 连接、模型行为或 Research Release 复现。

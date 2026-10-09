@@ -13,6 +13,24 @@ import source_contract
 
 
 class SourceContractTest(unittest.TestCase):
+    def test_experiment_ids_accept_legacy_and_twelve_hex_suffix(self):
+        self.assertEqual(
+            source_contract.EXPERIMENT.fullmatch("EXP-security-operations-expert-013-r26ecd1295ab4").group(1),
+            "security-operations-expert",
+        )
+        self.assertIsNotNone(source_contract.EXPERIMENT.fullmatch("EXP-security-operations-expert-011"))
+        for invalid in (
+            "EXP-security-operations-expert-013-r26ecd1295ab",
+            "EXP-security-operations-expert-013-r26ecd1295ab4f",
+            "EXP-security-operations-expert-013-r26ECD1295AB4",
+            "EXP-security-operations-expert-0013-r26ecd1295ab4",
+        ):
+            self.assertIsNone(source_contract.EXPERIMENT.fullmatch(invalid))
+        self.assertEqual(
+            source_contract.resolve("EXP-security-operations-expert-013-r26ecd1295ab4")["agent_id"],
+            "security-operations-expert",
+        )
+
     def test_env_name_cli_outputs_names_only(self):
         completed = subprocess.run(
             [sys.executable, str(source_contract.ADAPTER / "source_contract.py"), "--env-names"],
