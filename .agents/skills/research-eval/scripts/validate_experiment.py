@@ -297,6 +297,9 @@ def validate_run(
     has_catalog = "case_catalog" in locked_inputs or "selection_mode" in locked_inputs
     catalog = locked_inputs.get("case_catalog")
     selection_mode = locked_inputs.get("selection_mode")
+    review_mode = locked_inputs.get("review_mode", "ai" if selection_mode == "full" else "none")
+    if review_mode not in {"ai", "none"}:
+        errors.append(issue("RUN_REVIEW_MODE", "Run 证据复核模式无效", inputs))
     valid_catalog = isinstance(catalog, list) and bool(catalog) and all(
         isinstance(item, dict) and set(item) == {"case_id", "scene", "fast"}
         and isinstance(item["case_id"], str) and bool(item["case_id"])
@@ -422,9 +425,9 @@ def validate_run(
                         analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
                         validate_analysis(analysis, run_dir, rows, locked_inputs)
                         if analysis.get("schema_version") == "2.0" \
-                                and status == "completed" and selection_mode == "full" \
+                                and status == "completed" and review_mode == "ai" \
                                 and analysis.get("review_status") != "completed":
-                            raise ValueError("completed full Run 必须完成全部证据复核")
+                            raise ValueError("已请求 AI 复核的 completed Run 必须完成全部证据复核")
                     except (OSError, ValueError, KeyError, TypeError, IndexError) as exc:
                         errors.append(issue("RUN_ANALYSIS", f"场景诊断与 Run 事实不一致：{exc}", analysis_path))
 

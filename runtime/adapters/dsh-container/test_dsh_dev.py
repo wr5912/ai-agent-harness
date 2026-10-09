@@ -406,6 +406,13 @@ class EvaluationModeContractTest(unittest.TestCase):
             self.assertEqual(manifest["optional_env_names"], ["POLICY_CONFIGURATION_MCP_URL"])
             self.assertNotIn("http://policy", json.dumps(manifest))
 
+    def test_inspection_token_is_forwarded_for_inspection_sources(self):
+        for number in ("008", "009", "010", "011", "012"):
+            source = f"experiment:EXP-security-operations-expert-{number}"
+            contract = dev.resolve(source)
+            with mock.patch.dict(os.environ, {"INSPECTION_MCP_TOKEN": "test-token"}):
+                self.assertIn("INSPECTION_MCP_TOKEN", dev.runtime_env_names(contract))
+
     def test_target_preset_comes_from_selected_source(self):
         """目标是来源声明的业务 preset，与本次会话实际运行的 preset 分开。"""
         self.assertEqual(dev.target_preset(self.contract()), "security-operations-expert")
