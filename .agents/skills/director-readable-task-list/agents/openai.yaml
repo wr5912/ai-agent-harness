@@ -1,6 +1,0 @@
-interface:
-  display_name: "总监可读任务清单"
-  short_description: "梳理项目任务并生成便于管理决策的中文 Markdown"
-  default_prompt: "使用 $director-readable-task-list 将这些任务梳理成总监能看懂的 Markdown 文档。"
-policy:
-  allow_implicit_invocation: true
