@@ -30,7 +30,7 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 
 评测实例不挂载 `evaluation.md` 或其他判分材料；`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。Harness 修改由宿主开发会话完成，容器只负责装载和评测。
 
-Candidate 的 Managed Patch 如加载带独立 Node 依赖的插件，先按该插件的 `package-lock.json` 在本地忽略目录准备 `node_modules`，启动时通过 `dsh-dev up --plugin-node-modules PATH` 将其只读挂载到 `/opt/node_modules`；只挂载插件源码无法解析这些依赖。
+Candidate 的 Managed Patch 如加载带独立 Node 依赖的插件，先在该插件目录按 `package-lock.json` 执行 `npm ci --omit=dev --ignore-scripts --legacy-peer-deps --registry=https://registry.npmmirror.com`。`node_modules/` 已被 Git 忽略，会随 `candidate/dsh/managed` 一起只读挂载，Node 从插件文件所在目录向上解析依赖；启动后仍须核对插件实际激活及浏览器功能。只有依赖必须存放在 Candidate 外时，才用 `dsh-dev up --plugin-node-modules PATH` 额外挂载到 `/opt/node_modules`。
 
 `locked-user.patch.yml` 只读覆盖 HOME 级用户 Patch；Web Profile 的 `cordis.patch.yml` 留在实例 HOME 卷中，由 DSH Web 保存当前实例的设置（新版 DSH 的设置写入要求对该文件原子替换）。真正 **0 字节**的 `locked-global.AGENTS.md` 和只含注释的 `locked-bootstrap.env` 分别只读覆盖全局 Agent instructions 与 Boot 环境文件。模型/MCP Endpoint 和凭据只能由调用环境或 Runtime 受控凭据提供，不能由 Candidate 工作区改变。复用实例时须把 Web Profile 设置视为运行状态，而非 Candidate 资产；评估前核对其摘要或使用新实例。
 

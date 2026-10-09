@@ -1467,6 +1467,8 @@ def existing_instance(name: str) -> tuple[Path, dict] | None:
 def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
     """在停旧实例前校验新 Compose 可展开，不写入实例目录。"""
     analysis_workspace = getattr(args, "analysis_workspace", None)
+    if analysis_workspace is None:
+        check_managed_plugin_dependencies(contract, getattr(args, "plugin_node_modules", None))
     with tempfile.TemporaryDirectory(prefix="dsh-dev-preflight-") as location:
         root = Path(location)
         rendered = render_compose(
@@ -1490,6 +1492,20 @@ def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
             plugin_node_modules=getattr(args, "plugin_node_modules", None),
         )
         run(compose_command(root, args.name, "config", "--quiet"), env=environment)
+
+
+def check_managed_plugin_dependencies(contract: dict, external_modules: str | None = None) -> None:
+    """本地插件的运行依赖必须能从已挂载目录解析。"""
+    managed = Path(contract["managed"])
+    for manifest in managed.glob("*/package.json"):
+        dependencies = json.loads(manifest.read_text(encoding="utf-8")).get("dependencies") or {}
+        for name in dependencies:
+            roots = (manifest.parent / "node_modules", managed / "node_modules")
+            if external_modules:
+                roots += (Path(external_modules),)
+            if not any((root / name).is_dir() for root in roots):
+                fail(f"插件 {manifest.parent.name} 缺少运行依赖 {name}；"
+                     f"请在 {manifest.parent} 按 package-lock.json 执行 npm ci 后重试")
 
 
 def migrate_existing_instance(args: argparse.Namespace, contract: dict,

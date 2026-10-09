@@ -24,15 +24,13 @@ DSH Web 语音交互插件，npm 包名为 `@aisoc/dsh-voice-hub`。支持语音
 
 ## 安装和配置
 
-要求 Node.js 18+、支持 Web Audio 和麦克风权限的浏览器，以及 DSH `0.1.7-rc.2` 或更高版本。开发依赖中的 DSH 使用 `next` 标签，不提交依赖锁文件。常开唤醒会加载随插件提供的浏览器端关键词模型；待机音频只在本机处理，唤醒后才连接 ASR。完整对话需要在 DSH 中配置可用的对话模型凭据。
+要求 Node.js 18+、支持 Web Audio 和麦克风权限的浏览器，以及 DSH `0.1.7-rc.2` 或更高版本。本 Candidate 提交 `package-lock.json` 锁定依赖，DSH 实例使用前须在此目录安装运行依赖。常开唤醒会加载随插件提供的浏览器端关键词模型；待机音频只在本机处理，唤醒后才连接 ASR。完整对话需要在 DSH 中配置可用的对话模型凭据。
 
 ```bash
-cd /home/cetc/Coding/ai-dsh-plugin/plugins/dsh-voice-hub
-npm install --ignore-scripts --package-lock=false
-npm run build
-dsh plugin --profile web add "$PWD" --ignore-scripts
-# 重启正在运行的 DSH Web 进程
+npm ci --omit=dev --ignore-scripts --legacy-peer-deps --registry=https://registry.npmmirror.com
 ```
+
+本 Candidate 已包含可装载的 `lib/` 制品，由 `dsh-dev` 把插件目录只读挂载到 DSH 实例，无需再执行 `dsh plugin add`。
 
 打开 DSH 的“设置 → 语音设置”，填写以下配置。先点“测试连接”可用当前输入值分别检查流式 ASR、批量 ASR 和 TTS，并查看每项耗时与结果；取消地址仅检查格式，不会发送取消请求。测试不会保存配置或播放声音。确认后点“保存配置”，设置写入当前 DSH HOME 下的 `voice-mode/service-config.json`。旧版服务根地址配置会在读取时转换为完整接口地址。常开唤醒和唤醒词在返回聊天页后生效；首次开启需在浏览器允许麦克风。审批提示与回复播报共用一处 TTS 合成地址。
 

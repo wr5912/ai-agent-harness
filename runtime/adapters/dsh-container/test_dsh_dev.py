@@ -259,6 +259,25 @@ class EvaluationModeContractTest(unittest.TestCase):
         contract.update(overrides)
         return contract
 
+    def test_managed_plugin_dependencies_are_present_before_start(self):
+        with tempfile.TemporaryDirectory() as temp:
+            managed = Path(temp)
+            plugin = managed / "voice"
+            plugin.mkdir()
+            (plugin / "package.json").write_text(
+                '{"dependencies":{"@deepseek-ai/schemastery":"^3","ws":"^8"}}', encoding="utf-8"
+            )
+            contract = self.contract(managed=str(managed))
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                dev.check_managed_plugin_dependencies(contract)
+            for name in ("@deepseek-ai/schemastery", "ws"):
+                (plugin / "node_modules" / name).mkdir(parents=True)
+            dev.check_managed_plugin_dependencies(contract)
+            (plugin / "node_modules" / "ws").rmdir()
+            external = managed / "external"
+            (external / "ws").mkdir(parents=True)
+            dev.check_managed_plugin_dependencies(contract, str(external))
+
     def test_only_eval_mode_is_supported(self):
         self.assertEqual(dev.normalize_mode("eval"), "verification")
         self.assertEqual(dev.normalize_mode("verification"), "verification")
