@@ -1,5 +1,5 @@
 import type * as ReactTypes from 'react'
-import avatarUrl from './assets/agent-avatar.png'
+import avatarUrl from './assets/live-chatbot.gif'
 import logoUrl from './assets/logo-v1.webp'
 
 type InputActions = {
@@ -227,7 +227,7 @@ type ModuleLoader = {
       .soc-hero-brand img{display:block;object-fit:cover;border-radius:12px}
       .soc-hero-brand strong{font-size:20px;font-weight:600}
       div:has(> span > .soc-hero-brand){justify-content:flex-start}
-      span:has(> .soc-hero-brand)+span{display:none}
+      span:has(> [data-slot="conversation.hero.brand.mark"] .soc-hero-brand)+span{display:none}
       .soc-quick{order:10;width:100%;padding-top:14px;color:var(--dsw-alias-label-primary,#242933)}
       .soc-quick__heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 12px 10px}
       .soc-quick__heading strong{font-size:16px}

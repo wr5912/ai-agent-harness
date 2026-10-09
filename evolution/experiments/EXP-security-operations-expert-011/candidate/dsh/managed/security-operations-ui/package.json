@@ -10,7 +10,7 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "build": "npm run typecheck && esbuild client.tsx --bundle --platform=browser --format=iife --target=es2022 --loader:.png=dataurl --loader:.webp=dataurl --outfile=client.js",
+    "build": "npm run typecheck && esbuild client.tsx --bundle --platform=browser --format=iife --target=es2022 --loader:.gif=dataurl --loader:.webp=dataurl --outfile=client.js",
     "test": "node test-ui.mjs"
   },
   "devDependencies": {

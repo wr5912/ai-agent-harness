@@ -74,7 +74,7 @@ const cards = tree => nodes(tree, node => node.type === 'button' && node.props.c
 const brand = entries.get('sidebar.brand.mark')({ size: 32 })
 const hero = entries.get('conversation.hero.brand.mark')()
 assert.match(brand.props.src, /^data:image\/webp;base64,/)
-assert.match(hero.props.children[0].props.src, /^data:image\/png;base64,/)
+assert.match(hero.props.children[0].props.src, /^data:image\/gif;base64,/)
 
 let tree = render()
 assert.equal(cards(tree).length, 6)
@@ -88,6 +88,7 @@ assert.equal(cards(tree).length, 1)
 nodes(tree, node => node.props?.role === 'tab' && node.props['aria-selected'] === false)[0].props.onClick()
 tree = render()
 assert.equal(cards(tree).length, 2)
+assert(cards(tree).every(card => card.props.children[0].props.src === hero.props.children[0].props.src))
 cards(tree)[0].props.onClick()
 assert.equal(inserted[1], '@威胁研判子智能体 ')
 
