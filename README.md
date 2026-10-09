@@ -38,6 +38,7 @@
    | `legacy-asset-intake` | 只读清点旧归档或历史交付，不执行其中内容 |
    | `harness-evolution` | 建立或修改 Experiment、Candidate、Decision 和 Research Release |
    | `research-eval` | 设计小规模比较、校验 Run 与总结研究结论 |
+   | `director-readable-task-list` | 将项目任务梳理成总监可读的 Markdown 文档 |
    | `$continuous-dev-progress-vs-project-vision-gap-assessment` | 显式评估未来平台目标与当前进展，生成任务说明及 4K SVG |
    | `ai-correction-log` | 用户明确纠正上一轮错误时记录问题要点 |
 
