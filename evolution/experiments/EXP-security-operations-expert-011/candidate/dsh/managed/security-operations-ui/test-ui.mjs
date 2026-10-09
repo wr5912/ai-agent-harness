@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 
 const entries = new Map()
+const storage = new Map()
+const groupModes = []
 let plugin
 let states = []
 let cursor = 0
@@ -22,6 +24,7 @@ const opened = []
 
 runInNewContext(readFileSync(new URL('./client.js', import.meta.url), 'utf8'), {
   window: { __ModuleLoader__: { load(value) { plugin = value } } },
+  localStorage: { getItem(key) { return storage.get(key) ?? null }, setItem(key, value) { storage.set(key, value) } },
   document: { createElement() { return { dataset: {} } }, head: { appendChild() {} } },
 })
 assert.equal(plugin.id, 'dsh-security-operations-ui')
@@ -30,7 +33,15 @@ const { apply } = plugin.factory(name => {
   assert.equal(name, 'react')
   return React
 })
-apply({
+const workspaceView = { actions: { setGroupBy(mode) {
+  groupModes.push(mode)
+  storage.set('dsh.workspace.view.v5', JSON.stringify({ groupBy: mode }))
+} } }
+const layoutView = {
+  getSnapshot() { return { layoutInfo: { rightbar: null } } },
+  actions: { setRightbar() {} },
+}
+const context = {
   effect(effect) { effect() },
   get(name) {
     return {
@@ -40,16 +51,19 @@ apply({
     }[name]
   },
   slots: {
-    entries() { return [{ store: { create() { return {
-      getSnapshot() { return { layoutInfo: { rightbar: null } } },
-      actions: { setRightbar() {} },
-    } } } }] },
+    entries(name) { return [{ store: { create: () => name === 'sidebar.workspaces' ? workspaceView : layoutView } }] },
+    subscribe() { return () => {} },
     inject(_name, register) { register() },
     register(options, component) { entries.set(options.name, component) },
   },
   sidebarRight: { openTab() {} },
   sidebarRightTabs: { register() {} },
-})
+}
+apply(context)
+assert.deepEqual(groupModes, ['flat'])
+storage.set('dsh.workspace.view.v5', JSON.stringify({ groupBy: 'workspace' }))
+apply(context)
+assert.deepEqual(groupModes, ['flat'])
 
 function nodes(root, predicate) {
   if (Array.isArray(root)) return root.flatMap(item => nodes(item, predicate))
@@ -97,4 +111,4 @@ tree = render()
 assert.equal(cards(tree).length, 1)
 cards(tree)[0].props.onClick()
 assert.deepEqual(opened, ['saved-session'])
-console.log('本地图片、推荐筛选、数字员工、收藏与草稿插入通过')
+console.log('默认单列表与偏好保留、本地图片、推荐筛选、数字员工、收藏与草稿插入通过')

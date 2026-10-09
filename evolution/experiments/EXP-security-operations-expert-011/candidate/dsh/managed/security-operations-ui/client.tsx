@@ -271,6 +271,23 @@ type ModuleLoader = {
     const inject = ['slots', 'sidebarRight', 'sidebarRightTabs', 'uiWorkspace']
     function apply(ctx: any) {
       ctx.effect(() => {
+        try {
+          if (localStorage.getItem('dsh.workspace.view.v5') !== null) return
+        } catch { return }
+        let applied = false
+        const setDefault = () => {
+          if (applied) return
+          const view = ctx.slots.entries('sidebar.workspaces')[0]?.store?.create()
+          if (!view) return
+          applied = true
+          view.actions.setGroupBy('flat')
+        }
+        const unsubscribe = ctx.slots.subscribe('sidebar.workspaces', setDefault)
+        setDefault()
+        return unsubscribe
+      }, 'security-operations-ui: default workspace grouping')
+
+      ctx.effect(() => {
         const layout = ctx.slots.entries('root')[0]?.store?.create()
         if (!layout) throw new Error('security-operations-ui: root layout store unavailable')
         if (window.innerWidth > 720 && layout.getSnapshot().layoutInfo.rightbar === null) layout.actions.setRightbar(350)
