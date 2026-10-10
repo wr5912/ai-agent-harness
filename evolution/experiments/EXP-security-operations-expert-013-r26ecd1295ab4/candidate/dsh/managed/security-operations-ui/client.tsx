@@ -133,7 +133,7 @@ type ModuleLoader = {
           <div className="soc-runtime__strip">
             <article className={`soc-runtime__card soc-runtime__card--${parentState === 'idle' ? 'healthy' : parentState}`} data-runtime-state={parentState}>
               <div className="soc-runtime__card-head"><img src={avatarUrl} width="40" height="40" alt="" />
-                <span className="soc-runtime__identity"><span><strong>安全运营智能体</strong><em>{stateText(parentState)}</em></span>
+                <span className="soc-runtime__identity"><span><strong title="主智能体：网络安全运营专家">网络安全运营专家</strong><em>{stateText(parentState)}</em></span>
                   <small>运行 <b>{overview?.parent.active ?? '—'}</b>　会话 <b>{overview?.parent.sessions ?? '—'}</b></small></span></div>
               {expanded && <div className="soc-runtime__detail">主智能体会话由 DSH 会话服务统计。<br />
                 <button type="button" onClick={() => overview?.parent.recentSessionId ? openSession(overview.parent.recentSessionId) : openStatus()}>查看最近会话</button></div>}

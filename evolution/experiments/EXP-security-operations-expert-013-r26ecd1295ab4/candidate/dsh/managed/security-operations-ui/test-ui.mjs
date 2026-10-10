@@ -101,6 +101,7 @@ const overviewNode = nodes(tree, node => node.type?.name === 'RuntimeOverview')[
 cursor = 100
 let overview = overviewNode.type(overviewNode.props)
 assert.equal(nodes(overview, node => node.props?.['data-runtime-state']).length, 4)
+assert.equal(nodes(overview, node => node.type === 'strong' && node.props.title === '主智能体：网络安全运营专家')[0]?.props.children[0], '网络安全运营专家')
 assert(nodes(overview, node => node.props?.['data-runtime-state']).every(node => node.props['data-runtime-state'] === 'unknown'))
 assert.equal(nodes(overview, node => node.props?.['aria-expanded'] === false).length, 1)
 nodes(overview, node => node.props?.['aria-expanded'] === false)[0].props.onClick()
