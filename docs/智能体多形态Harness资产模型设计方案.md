@@ -45,6 +45,24 @@ Transformation 只是创建 Candidate 的方法，不自动继承源版本的观
 
 具体模型、推理强度、上下文、工具次数和停止条件必须写进 Run；不要只凭层级名称推断能力。运行中不自动跨层切换，除非“动态选择”本身就是本次假设并被明确记录。
 
+### 有限选项决策模型的候选路径
+
+多算力 Variant 的“等效”指同一任务合同下的业务结果和可接受的失败范围。接口兼容或一次分流正确，都不足以证明整条任务等效。先区分确定性规则可以完成的步骤、需要从有限选项中判断的步骤，以及仍需开放式研判和证据说明的步骤。Jev、Laya 适合研究有限选项判断，不能代替生成式分析或真实工具回执。
+
+| 候选 | 算力与接入边界 | 研究时需要注意 |
+|---|---|---|
+| [TypeSafe Jev](https://docs.typesafe.ai/models) | 公开接入方式是远端 `/v1/systemone` API，返回 [`noul`、`choice`、`score`](https://docs.typesafe.ai/primitives) 等类型化判断 | 本地有算力不等于能本地运行 Jev；把远端模型调用计入总成本。官方说明英语效果最好，中文输入需要单独验证。 |
+| [腾讯云 EdgeOne Makers 的 Jev](https://cloud.tencent.com/document/product/1552/138731) | 远端 `https://ai-gateway.edgeone.link/v1/systemone`，模型别名 `@makers/jev`，使用 Makers API Key 鉴权 | 与 TypeSafe 直连是不同接入渠道；记录响应中的实际模型版本、用量及费用。 |
+| [Laya](https://github.com/NandhaKishorM/laya) | 开放权重，可在本地运行，也提供兼容 `/v1/systemone` 的 HTTP 服务 | 协议兼容不代表与 Jev 的准确率或概率校准等效；单独记录模型版本、本地硬件占用和中文任务表现。 |
+
+腾讯云的调用密钥保存在本地忽略文件 `.tencent-edgeone-jev.llm-api-key`，变量名为 `MAKERS_MODELS_KEY`。EdgeOne 教程使用 `state` 和 `questions` 请求体；社区插件 `dsh-jev-decide` 默认使用 TypeSafe 地址及 `jev-latest`，复用前需验证插件配置能否切换地址、模型别名和请求格式，不能视作已经完成接入。
+
+DSH 社区的 [dsh-jev-decide](https://github.com/nanami-0713/dsh-jev-decide) 把 Jev 注册为 Agent 工具，适合验证明确的判断点；调用仍由对话模型决定，装上插件本身不证明减少了主模型调用。[dsh-jev](https://github.com/buberlo/dsh-jev) 还探索了工具筛选和请求路由，但截至 2026-10-10 仓库已归档，适合作为设计参考。这些都是社区插件，不需要修改 DSH 源码。[DeepSeek 社区的 prefix completion 与 logprobs 实验](https://github.com/deepseek-ai/deepseek-harness/discussions/7301) 是另一条有限选项判断研究路线，并非 Jev；其概率质量和调用代价需独立比较。
+
+若要验证这类 Variant，先在 `security-operations-expert` 中选择一个只读、选项明确的判断点，以现有任务路径为 Baseline。Jev 与 Laya 分别作为不同 Experiment 的 Candidate，避免一次改变决策模型、提示词和工具链。用相同输入与判断口径记录最终业务结果、误分流与不确定时的回退、中文及边界输入、主模型和决策模型调用、延迟、远端费用与本地资源占用。
+
+先用新 Session 验证插件与决策服务实际被调用，再以 Run 判断效果。[EXP-010 的结论](../evolution/experiments/EXP-security-operations-expert-010/decision.md) 仍是 `inconclusive`，不能据此声称业务等效或算力收益。一项[配对研究预印本](https://arxiv.org/abs/2610.02267)也显示 Jev 与 Laya 在不同决策点上的表现差异明显，不能把通用基准结果直接当成本项目结论。
+
 ## 5. 怎样比较
 
 比较范围由研究问题决定：
