@@ -2,9 +2,8 @@ import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { test } from 'node:test'
 
-import { callOpenApiTool, loadOpenApi, readOpenApiResource } from '../../evolution/experiments/EXP-security-operations-expert-013/candidate/dsh/managed/mcp-manager/openapi.mjs'
-
-test('OpenAPI 规范生成工具与资源，携带 API Key 调用接口', async () => {
+for (const experiment of ['EXP-security-operations-expert-013', 'EXP-security-operations-expert-014-r8b1bd54e8be7']) test(`${experiment} OpenAPI 规范生成工具与资源，携带 API Key 调用接口`, async () => {
+  const { callOpenApiTool, loadOpenApi, readOpenApiResource } = await import(`../../evolution/experiments/${experiment}/candidate/dsh/managed/mcp-manager/openapi.mjs`)
   let origin
   const server = createServer(async (req, res) => {
     res.setHeader('content-type', 'application/json')

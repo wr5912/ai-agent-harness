@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -30,6 +31,21 @@ class SourceContractTest(unittest.TestCase):
             source_contract.resolve("EXP-security-operations-expert-013-r26ecd1295ab4")["agent_id"],
             "security-operations-expert",
         )
+
+    def test_container_verifier_accepts_same_experiment_ids(self):
+        verifier = (source_contract.ADAPTER / "verify-load.mjs").read_text(encoding="utf-8")
+        pattern = re.search(r"const sourceSelector = /(.+)/", verifier).group(1)
+        for value in (
+            "EXP-security-operations-expert-011",
+            "EXP-security-operations-expert-014-r8b1bd54e8be7",
+            "EXP-security-operations-expert-014-r8b1bd54e8be",
+            "EXP-security-operations-expert-014-r8b1bd54e8be70",
+        ):
+            self.assertEqual(
+                re.fullmatch(pattern, "experiment:" + value) is not None,
+                source_contract.EXPERIMENT.fullmatch(value) is not None,
+                value,
+            )
 
     def test_env_name_cli_outputs_names_only(self):
         completed = subprocess.run(

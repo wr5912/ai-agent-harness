@@ -1570,6 +1570,10 @@ const { createRequire } = require('node:module');
 const yaml = createRequire('/opt/dsh/packages/mcp/mcp-client/package.json')('js-yaml');
 const rows = yaml.load(fs.readFileSync('/var/lib/dsh/profiles/web/cordis.patch.yml', 'utf8'));
 if (!Array.isArray(rows)) throw new Error('invalid Web profile patch');
+if (!rows.some(row => Array.isArray(row.insert) && row.insert.some(item =>
+  item.id === 'mcp-session-manager' && item.name === 'file:///opt/dsh-managed/mcp-manager/index.mjs'))) {
+  throw new Error('MCP manager plugin insert missing');
+}
 const matches = rows.flatMap(row => row.id === 'mcp-session-manager' ? [row]
   : Array.isArray(row.insert) ? row.insert.filter(item => item.id === 'mcp-session-manager') : []);
 const current = matches.at(-1);
@@ -1577,26 +1581,36 @@ if (!current || current.name && current.name !== 'file:///opt/dsh-managed/mcp-ma
   || !Array.isArray(current.config?.servers) || !Array.isArray(current.config?.groups)) {
   throw new Error('MCP manager config missing or overridden');
 }
-const allowed = new Set(['id', 'serverName', 'description', 'enabled', 'specUrl', 'apiKey', 'url', 'urlEnv', 'tokenEnv', 'managementUrl', 'tools']);
+const allowed = new Set(['id', 'serverName', 'description', 'enabled', 'specUrl', 'apiKey',
+  'authType', 'authHeader', 'loginUrl', 'loginUsername', 'loginPassword', 'loginTokenPath',
+  'url', 'headers', 'managementUrl', 'tools']);
+const servers = [];
 for (const server of current.config.servers) {
   if (Object.keys(server).some(key => !allowed.has(key))) {
     throw new Error('unexpected MCP server field');
   }
   for (const [address, isSpec] of [[server.specUrl, true], [server.url, false],
-    [server.managementUrl, false]].filter(([address]) => address)) {
+    [server.loginUrl, true], [server.managementUrl, false]].filter(([address]) => address)) {
     const url = new URL(address);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password
       || url.hash || (!isSpec && url.search)) {
       throw new Error('MCP URL contains unsupported fields');
     }
   }
-  for (const name of [server.urlEnv, server.tokenEnv].filter(Boolean)) {
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error('MCP env name invalid');
+  if (server.headers && (!Array.isArray(server.headers) || server.headers.some(header =>
+    typeof header.name !== 'string' || typeof header.value !== 'string'))) {
+    throw new Error('MCP headers invalid');
   }
+  const needsCredential = Boolean(server.apiKey || server.loginPassword || server.headers?.some(header => header.value));
+  servers.push({ ...server, enabled: needsCredential ? false : server.enabled,
+    apiKey: server.apiKey ? '' : server.apiKey,
+    loginPassword: server.loginPassword ? '' : server.loginPassword,
+    headers: server.headers?.map(header => ({ name: header.name, value: '' })) });
 }
+const config = { servers, groups: current.config.groups, sharedToken: '' };
 const result = yaml.dump([{ insert: [{ id: 'mcp-session-manager',
-  name: 'file:///opt/dsh-managed/mcp-manager/index.mjs', config: current.config }] }]);
-if (JSON.stringify(yaml.load(result)[0].insert[0].config) !== JSON.stringify(current.config)) {
+  name: 'file:///opt/dsh-managed/mcp-manager/index.mjs', config }] }]);
+if (JSON.stringify(yaml.load(result)[0].insert[0].config) !== JSON.stringify(config)) {
   throw new Error('MCP seed round trip failed');
 }
 process.stdout.write(result);

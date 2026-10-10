@@ -35,6 +35,7 @@
    | 技能 | 使用时机 |
    |---|---|
    | `harness-guided-workflow` | 按讨论、计划、执行、验证的多轮 SOP 引导完整任务 |
+   | `harness-experiment-fusion` | 融合并行 Experiment，核对来源、装载依赖与组合行为 |
    | `legacy-asset-intake` | 只读清点旧归档或历史交付，不执行其中内容 |
    | `harness-evolution` | 建立或修改 Experiment、Candidate、Decision 和 Research Release |
    | `research-eval` | 设计小规模比较、校验 Run 与总结研究结论 |
