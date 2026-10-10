@@ -30,6 +30,37 @@ TOKEN = "dsh web: http://127.0.0.1:3081/?token=secret-token-value\n"
 IMAGE_TAG = dev.resolve()["image"]["local_image_tag"]
 
 
+class McpPromoteTest(unittest.TestCase):
+    def test_promote_writes_only_candidate_seed_from_matching_running_instance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            managed = Path(directory)
+            seed = managed / "web-profile.seed.patch.yml"
+            seed.write_text("old", encoding="utf-8")
+            source = "experiment:EXP-security-operations-expert-013"
+            manifest = {"source_id": source, "mounts": {"managed": str(managed)}}
+            result = subprocess.CompletedProcess([], 0, stdout="new", stderr="")
+            with mock.patch.object(dev, "load_instance", return_value=(managed, manifest)), \
+                 mock.patch.object(dev, "resolve", return_value={"managed": str(managed)}), \
+                 mock.patch.object(dev, "running_container", return_value=("container", "started")), \
+                 mock.patch.object(dev.subprocess, "run", return_value=result):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    dev.command_mcp_promote(types.SimpleNamespace(name="example"))
+            self.assertEqual(seed.read_text(encoding="utf-8"), "new")
+
+    def test_promote_rejects_mismatched_candidate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            managed = Path(directory)
+            seed = managed / "web-profile.seed.patch.yml"
+            seed.write_text("old", encoding="utf-8")
+            manifest = {"source_id": "experiment:EXP-security-operations-expert-013",
+                        "mounts": {"managed": "/another/candidate"}}
+            with mock.patch.object(dev, "load_instance", return_value=(managed, manifest)), \
+                 mock.patch.object(dev, "resolve", return_value={"managed": str(managed)}), \
+                 self.assertRaises(SystemExit):
+                dev.command_mcp_promote(types.SimpleNamespace(name="example"))
+            self.assertEqual(seed.read_text(encoding="utf-8"), "old")
+
+
 class HarnessInitTest(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -148,7 +179,7 @@ class RenderComposeTest(unittest.TestCase):
         self.assertNotIn("source: ./", rendered)
         self.assertIn(f"source: {ADAPTER}/verification-home-controls", rendered)
 
-    def test_lan_template_only_overrides_listener(self):
+    def test_lan_template_enables_authenticated_remote_settings(self):
         template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
         rendered = dev.render_compose(
             template, mode="verification", name="lan", project="dsh-dev-lan", port=3154,
@@ -166,6 +197,7 @@ class RenderComposeTest(unittest.TestCase):
         listener_patch = (ADAPTER / "verification-home-controls/lan-listen.patch.yml").read_text()
         self.assertIn("- id: webserver\n", listener_patch)
         self.assertIn("host: 0.0.0.0\n", listener_patch)
+        self.assertIn("name: /opt/dsh-adapter/web-remote-settings/index.js\n", listener_patch)
         self.assertNotIn("auth-gate", listener_patch)
         self.assertIn('      - --port\n      - "3154"\n', rendered)
 

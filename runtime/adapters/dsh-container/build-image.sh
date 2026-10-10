@@ -98,6 +98,8 @@ git -C "$task_source_dir" checkout --detach --quiet FETCH_HEAD
 [[ "$(git -C "$task_source_dir" rev-parse HEAD)" == "$task_source_commit" ]]
 [[ "$(git -C "$task_source_dir" rev-parse HEAD^{tree})" == "$task_source_tree" ]]
 [[ "$(sha256sum "$task_source_dir/pnpm-lock.yaml" | cut -d ' ' -f 1)" == "$task_lock_sha" ]]
+git -C "$task_source_dir" apply --check "$task_adapter_dir/remote-host-settings.patch"
+git -C "$task_source_dir" apply "$task_adapter_dir/remote-host-settings.patch"
 # 固定提交核验完成后去掉每次 fetch 都不同的 Git 元数据，保持源码构建缓存稳定。
 rm -rf -- "$task_source_dir/.git"
 

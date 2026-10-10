@@ -35,7 +35,7 @@ CONTAINER_REFERENCE = "/work/reference"
 CONTAINER_EVAL_INPUT = "/work/eval-input"
 IMAGE_FINGERPRINT_VERSION = "1"
 IMAGE_LABEL_KEY = "org.ai-agent-harness.dsh.image-build-fingerprint"
-IMAGE_BUILD_FILES = ("Dockerfile", "apt-mirror.sh", "build-image.sh", "dsh-cli.sh", "source_contract.py")
+IMAGE_BUILD_FILES = ("Dockerfile", "apt-mirror.sh", "build-image.sh", "dsh-cli.sh", "source_contract.py", "remote-host-settings.patch")
 
 
 def image_build_input_digests(*, lock_path: Path = LOCK, adapter: Path = ADAPTER) -> dict[str, str]:

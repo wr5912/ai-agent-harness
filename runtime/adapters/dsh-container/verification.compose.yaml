@@ -26,6 +26,10 @@ services:
         source: ${DSH_WEB_PROFILE_MANIFEST_HOST:?Web Profile 由所选来源注入}
         target: /opt/dsh-verification-controls/web-profile.package.json
         read_only: true
+      - type: bind
+        source: ${DSH_WEB_PROFILE_SEED_DIR_HOST:?Web Profile 来源目录由所选来源注入}
+        target: /opt/dsh-profile-seed
+        read_only: true
       - type: volume
         source: dsh-verification-home
         target: /var/lib/dsh

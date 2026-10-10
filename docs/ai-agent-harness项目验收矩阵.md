@@ -49,6 +49,8 @@
 
 2026-10-08 的 [EXP-012 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-012/evaluation/observations.md)补充了 `PA-04/05/06/07/08/10` 的来源、标准镜像、四工具实际注册和调用、Candidate 修改后新 Session、三个 Case 的真实 API Run、重复验证及同报告对照；[实例操作记录](../evolution/experiments/EXP-security-operations-expert-012/evaluation/evidence/research-tool-instance-20261008.json)证明一个实例重启前后目标与实际镜像及只读挂载一致，错误实例名被拒绝。机器评审曾误判续查，新 Run 已经原始记录复核；[Decision](../evolution/experiments/EXP-security-operations-expert-012/decision.md)仍是 AI 临时 `continue`，人类采纳、浏览器页面验收和稳定工具效率收益均未确认，路径状态不因此提升。
 
+2026-10-09 的 [EXP-013 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-013/evaluation/observations.md)补充了 `PA-05/06/07/08` 的当前实例装载、三页 MCP 配置浏览器交互、实际 Web profile 保存和恢复、受控 MCP 分组端点调用及新 Web Session 模型回复证据。外部业务 MCP、语音和业务 Case 尚未验收，路径状态不因此提升。
+
 ### PA-01 Research Mode、AI 协作入口与项目 Memory
 
 - **要回答**：新的 AI 开发会话能否读到 Research Mode、中文优先、简洁优先、单一事实源、根因整改、精准修改和四项安全底线；收到 review 请求时能否定位项目审查原则并覆盖开发工具与目标智能体 Harness；是否能进入 Harness 引导式 SOP；Memory 是否只作为辅助上下文。

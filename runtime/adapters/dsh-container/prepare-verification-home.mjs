@@ -176,7 +176,8 @@ export async function prepareControlledHome() {
 
   const patch = join(controls, 'locked-user.patch.yml')
   ensureTarget(join(home, 'cordis.patch.yml'), patch)
-  ensureTarget(join(home, 'profiles', 'web', 'cordis.patch.yml'), patch, false, true)
+  const seed = '/opt/dsh-profile-seed/web-profile.seed.patch.yml'
+  ensureTarget(join(home, 'profiles', 'web', 'cordis.patch.yml'), existsSync(seed) ? seed : patch, false, true)
   ensureTarget(join(home, 'AGENTS.md'), join(controls, 'locked-global.AGENTS.md'), true)
   ensureTarget(join(home, '.env'), join(controls, 'locked-bootstrap.env'))
 

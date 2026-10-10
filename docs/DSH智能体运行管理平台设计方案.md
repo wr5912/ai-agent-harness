@@ -61,6 +61,8 @@ DSH 的 [Cordis 插件和 Profile 组合机制](https://github.com/deepseek-ai/d
 
 ## 按需启动的运行平台
 
+当前 [EXP-013 DSH Web MCP 管理插件](../evolution/experiments/EXP-security-operations-expert-013/hypothesis.md)已在单个 DSH 实例内提供服务器编辑、按工具分组的 MCP 链接和新会话装载。新增 OpenAPI 服务器时，插件根据 Web profile 中的规范地址动态生成 MCP tools/resources；无需独立的来源数据库。Web profile patch 是实例在线工作态，Experiment Candidate 的种子是新卷恢复的定稿配置。未来运行平台若需要统一管理多个实例，应读取 Candidate 与实例实际 profile，标明实际加载版本、差异及验证时间，通过现有 DSH 插件操作，不复制一套可编辑 MCP 清单。组链接由配置生成；分组 Token 值只在运行环境中提供。只有实际跨实例管理需求明确后，才决定统一页面、权限和运行状态存储的边界。
+
 只有长期提供业务 Agent 服务、管理多个业务 Agent 或服务独立用户时，才按实际需要考虑单机 Docker、Agent 独立容器、统一业务入口和平台状态库等形态。每个实例使用自己的 Profile、只读 Harness 装载、运行配置和持久化卷；这隔离 Agent 实例，不自动隔离共享实例的用户。平台只记录必要的期望状态和决定，实际健康与装载来自 DSH 和容器观测；只有持久查询与操作状态确有需要时才评估 SQLite 等状态库，不把 `$DSH_HOME`、Session 或缓存打包成 Harness。
 
 确需发布时，`HarnessVersion` 是不可变装载清单，固定 Git 来源、资产摘要、DSH 镜像、Profile/能力版本和非秘密运行配置。`Deployment` 只记录某 Agent 的期望版本、回退目标与决定；`Instance` 的实际状态仍由容器和 DSH 观察，不以期望状态代替。

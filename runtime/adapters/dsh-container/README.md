@@ -54,6 +54,8 @@ docker compose -f runtime/adapters/dsh-container/verification.compose.yaml confi
 
 官方 Web 默认只绑定容器内 `127.0.0.1`，基础 Compose 不发布宿主端口。需要浏览器访问时使用 `dsh-dev` 生成的本地 host-network 实例；容器启动或配置展开仍不能替代 `PA-08` 的实际 Web 交互。
 
+`--lan-access` 保留 Web Token 和 Host/Origin 校验，并让已认证的局域网浏览器使用 Host 设置。标准镜像对锁定 DSH 来源应用 `remote-host-settings.patch`；适配层的 LAN Patch 注入启用标记。模型设置与使用设置表单的插件入口均依赖这条路径；升级 Runtime 时需重新核对补丁与浏览器行为。
+
 仅在受控反向代理保留外部 `Host`、后端仍监听本机回环时，`dsh-dev up` 可显式加 `--trusted-host HOST[:PORT]` 让 DSH 接受该代理地址；这不提供用户认证，也不允许把启动令牌写进菜单 URL。EXP-007 门户接入的实际拓扑、验证和限制见[联调记录](../../../docs/security-operations-expert门户联调记录.md)。
 
 ## 构建镜像
