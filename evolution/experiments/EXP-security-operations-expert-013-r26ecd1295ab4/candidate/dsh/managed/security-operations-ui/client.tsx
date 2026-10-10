@@ -12,8 +12,9 @@ type Employee = { id: string; title: string; description: string; skills: string
 type EmployeeDraft = { title: string; description: string; skills: string }
 type Tab = 'recommend' | 'employees' | 'favorites'
 type OverviewCall = { parentSessionId: string; childSessionId?: string; startedAt: number; status: string }
-type OverviewRole = { id: string; title: string; state: string; active: number; completed: number; failed: number; noChild: number; unknown: number; recent: OverviewCall[] }
-type Overview = { windowHours: number; parent: { state: string; active: number; sessions: number; recentSessionId: string | null }; roles: OverviewRole[] }
+type OverviewCounts = { toolCalls: number; skillLoads: number }
+type OverviewRole = OverviewCounts & { id: string; title: string; state: string; active: number; completed: number; failed: number; noChild: number; unknown: number; recent: OverviewCall[] }
+type Overview = { windowHours: number; parent: OverviewCounts & { state: string; active: number; sessions: number; recentSessionId: string | null }; roles: OverviewRole[] }
 
 const recommendations: Action[] = [
   {
@@ -113,7 +114,7 @@ type ModuleLoader = {
         { id: 'delegate_threat_analysis', title: '威胁研判子智能体' },
         { id: 'delegate_fault_analysis', title: '故障分析子智能体' },
         { id: 'delegate_response_planning', title: '响应规划子智能体' },
-      ].map(role => ({ ...role, state: 'unknown', active: 0, completed: 0, failed: 0, noChild: 0, unknown: 0, recent: [] }))
+      ].map(role => ({ ...role, state: 'unknown', active: 0, completed: 0, failed: 0, noChild: 0, unknown: 0, toolCalls: 0, skillLoads: 0, recent: [] }))
       const running = overview ? overview.parent.active + roles.reduce((sum, role) => sum + role.active, 0) : null
       const failed = overview ? roles.reduce((sum, role) => sum + role.failed + role.noChild, 0) : null
       const stateText = (state: string) => state === 'running' ? '执行中' : state === 'idle' ? '空闲' : '未知'
@@ -121,7 +122,7 @@ type ModuleLoader = {
       return (
         <section className="soc-runtime" aria-label="智能体运行概览">
           <header className="soc-runtime__header">
-            <div className="soc-runtime__title"><strong>智能体运行概览</strong><span>当前实例 · 委派调用近 {overview?.windowHours ?? 24} 小时</span></div>
+            <div className="soc-runtime__title"><strong>智能体运行概览</strong><span>当前实例 · 近 {overview?.windowHours ?? 24} 小时 · 统计启用后</span></div>
             <dl className="soc-runtime__summary">
               <div><dt>角色</dt><dd>4</dd></div>
               <div><dt>运行中</dt><dd>{running ?? '—'}</dd></div>
@@ -134,7 +135,8 @@ type ModuleLoader = {
             <article className={`soc-runtime__card soc-runtime__card--${parentState === 'idle' ? 'healthy' : parentState}`} data-runtime-state={parentState}>
               <div className="soc-runtime__card-head"><img src={avatarUrl} width="40" height="40" alt="" />
                 <span className="soc-runtime__identity"><span><strong title="主智能体：网络安全运营专家">网络安全运营专家</strong><em>{stateText(parentState)}</em></span>
-                  <small>运行 <b>{overview?.parent.active ?? '—'}</b>　会话 <b>{overview?.parent.sessions ?? '—'}</b></small></span></div>
+                  <small>运行 <b>{overview?.parent.active ?? '—'}</b>　会话 <b>{overview?.parent.sessions ?? '—'}</b></small>
+                  <small className="soc-runtime__activity"><span>工具调用 <b>{overview?.parent.toolCalls ?? '—'}</b></span><span>Skill 加载 <b>{overview?.parent.skillLoads ?? '—'}</b></span></small></span></div>
               {expanded && <div className="soc-runtime__detail">主智能体会话由 DSH 会话服务统计。<br />
                 <button type="button" onClick={() => overview?.parent.recentSessionId ? openSession(overview.parent.recentSessionId) : openStatus()}>查看最近会话</button></div>}
             </article>
@@ -143,7 +145,8 @@ type ModuleLoader = {
               data-runtime-state={role.state}>
               <div className="soc-runtime__card-head"><img src={avatarUrl} width="40" height="40" alt="" />
                 <span className="soc-runtime__identity"><span><strong title={role.title}>{role.title}</strong><em>{stateText(role.state)}</em></span>
-                  <small>运行 <b>{overview ? role.active : '—'}</b>　完成 <b>{overview ? role.completed : '—'}</b></small></span></div>
+                  <small>运行 <b>{overview ? role.active : '—'}</b>　完成 <b>{overview ? role.completed : '—'}</b></small>
+                  <small className="soc-runtime__activity"><span>工具调用 <b>{overview ? role.toolCalls : '—'}</b></span><span>Skill 加载 <b>{overview ? role.skillLoads : '—'}</b></span></small></span></div>
               {expanded && <div className="soc-runtime__detail">失败 {overview ? role.failed : '—'} · 无子会话 {overview ? role.noChild : '—'} · 状态未知 {overview ? role.unknown : '—'}
                 {role.recent.length ? <ul>{role.recent.map((call, index) => <li key={`${call.startedAt}-${index}`}>
                   <button type="button" onClick={() => openSession(call.childSessionId ?? call.parentSessionId)}>
@@ -411,6 +414,7 @@ type ModuleLoader = {
       .soc-runtime__identity strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
       .soc-runtime__identity em{flex:none;padding:3px 6px;border:1px solid var(--runtime-accent);border-radius:99px;color:var(--runtime-accent);background:var(--dsw-alias-bg-base,#fff);font-size:11px;font-style:normal}
       .soc-runtime__identity small{color:var(--dsw-alias-label-secondary,#667085);font-size:12px;white-space:nowrap}
+      .soc-runtime__identity .soc-runtime__activity{display:flex;flex-wrap:wrap;gap:2px 8px}
       .soc-runtime__identity b{color:var(--dsw-alias-label-primary,#242933)}
       .soc-runtime__detail{padding-top:8px;border-top:1px solid var(--dsw-alias-border-l2,#e4e7ec);color:var(--dsw-alias-label-secondary,#667085);font-size:12px;line-height:1.5}
       .soc-quick__heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 12px 10px}

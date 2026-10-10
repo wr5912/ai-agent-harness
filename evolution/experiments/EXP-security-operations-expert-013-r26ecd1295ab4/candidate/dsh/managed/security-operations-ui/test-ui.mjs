@@ -120,6 +120,9 @@ let overview = overviewNode.type(overviewNode.props)
 assert.equal(nodes(overview, node => node.props?.['data-runtime-state']).length, 4)
 assert.equal(nodes(overview, node => node.type === 'strong' && node.props.title === '主智能体：网络安全运营专家')[0]?.props.children[0], '网络安全运营专家')
 assert(nodes(overview, node => node.props?.['data-runtime-state']).every(node => node.props['data-runtime-state'] === 'unknown'))
+const activityCounts = tree => nodes(tree, node => node.props?.className === 'soc-runtime__activity')
+  .map(node => nodes(node, child => child.type === 'b').map(child => child.props.children[0]))
+assert.deepEqual(activityCounts(overview), [['—', '—'], ['—', '—'], ['—', '—'], ['—', '—']])
 assert.equal(nodes(overview, node => node.props?.['aria-expanded'] === false).length, 1)
 nodes(overview, node => node.props?.['aria-expanded'] === false)[0].props.onClick()
 cursor = 100
@@ -128,16 +131,17 @@ assert.equal(nodes(overview, node => node.props?.className === 'soc-runtime__det
 cursor = 100
 overview = overviewNode.type({ ...overviewNode.props, overview: {
   windowHours: 24,
-  parent: { state: 'running', active: 1, sessions: 2, recentSessionId: 'parent-1' },
+  parent: { state: 'running', active: 1, sessions: 2, recentSessionId: 'parent-1', toolCalls: 6, skillLoads: 2 },
   roles: [
-    { id: 'delegate_threat_analysis', title: '威胁研判子智能体', state: 'running', active: 1, completed: 0, failed: 0, noChild: 0, unknown: 0,
+    { id: 'delegate_threat_analysis', title: '威胁研判子智能体', state: 'running', active: 1, completed: 0, failed: 0, noChild: 0, unknown: 0, toolCalls: 3, skillLoads: 1,
       recent: [{ parentSessionId: 'parent-1', childSessionId: 'child-1', startedAt: 1, status: 'running' }] },
     ...['delegate_fault_analysis', 'delegate_response_planning'].map(id =>
-      ({ id, title: id, state: 'idle', active: 0, completed: 0, failed: 0, noChild: 0, unknown: 0, recent: [] })),
+      ({ id, title: id, state: 'idle', active: 0, completed: 0, failed: 0, noChild: 0, unknown: 0, toolCalls: 0, skillLoads: 0, recent: [] })),
   ],
 }, openSession: id => opened.push(id) })
 assert.deepEqual(nodes(overview, node => node.props?.['data-runtime-state']).map(node => node.props['data-runtime-state']),
   ['running', 'running', 'idle', 'idle'])
+assert.deepEqual(activityCounts(overview), [[6, 2], [3, 1], [0, 0], [0, 0]])
 nodes(overview, node => node.type === 'button' && node.props.children.includes('查看最近会话'))[0].props.onClick()
 nodes(overview, node => node.type === 'button' && node.props.children.includes('子会话'))[0].props.onClick()
 assert.deepEqual(opened, ['parent-1', 'child-1'])

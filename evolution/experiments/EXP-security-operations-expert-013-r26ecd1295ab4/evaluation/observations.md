@@ -11,4 +11,10 @@ EXP-013 以 [EXP-011](../../EXP-security-operations-expert-011/) 的完整 Candi
 | 巡检服务合同 | 对当前 `INSPECTION_MCP_URL` 只读调用 MCP `initialize`、`tools/list`，实际仅返回 `list_executable_inspections`、`start_inspection`、`get_inspection_result`；见 [工具目录证据](evidence/inspection-tools-list-20261009.json)。EXP-012 已验证的四工具名称均未出现。 | 当前服务与 Candidate 合同不一致，不能把 EXP-012 在先前 Run 中通过的行为推定为本次运行可用。未取得可用四工具地址前，不再发起巡检模型请求。 |
 | 越界防护修正 | Candidate Guard 现依据本轮加载的 Skill 锁定策略、应急或其他业务域；策略、应急工具要求先加载对应 Skill。新增测试覆盖巡检 Skill 后的跨域拒绝、下一轮策略路由及应急确认查询。 | 目前只通过插件单元测试；尚无修正后新实例/新 Session 的业务 Run。 |
 
-实例已停止，独立 DSH HOME 卷保留。当前可确认专用运行概览的主会话、故障子会话事件采集与浏览器展示可用；巡检融合在现用服务上未通过，整体 Decision 保持 `continue`。
+本节验证结束时实例已停止，独立 DSH HOME 卷保留。当前可确认专用运行概览的主会话、故障子会话事件采集与浏览器展示可用；巡检融合在现用服务上未通过，整体 Decision 保持 `continue`。
+
+## 2026-10-09 运行活动计数追加验证
+
+针对 `PA-06/08`，运行概览现在按主智能体和三个子智能体分别显示近 24 小时的工具调用次数与 Skill 加载次数。工具调用按 DSH `tools/result` 的最终结果计数，成功与失败均计入；Skill 加载按成功的 `skill` 工具结果或用户显式调用后产生的 `skill-invocation` 事件计数。统计从本次采集启用后开始，旧事件不回补；持久记录仅保存会话 ID、时间与计数，不保存 Skill 内容或工具参数。
+
+`npm run build`、`node test-overview.mjs`、`npm test` 通过。重启只读挂载当前 Candidate 的 `soe-exp013-probe` 后，实际概览 API 返回四个角色的 `toolCalls` 和 `skillLoads` 字段；认证浏览器页面渲染四张卡片及两个计数，当前均为 0。此验证覆盖插件装载、API 与零值展示；新增计数尚未经过真实工具调用或真实 Skill 加载的非零端到端验证，不能据此评价业务效果。
