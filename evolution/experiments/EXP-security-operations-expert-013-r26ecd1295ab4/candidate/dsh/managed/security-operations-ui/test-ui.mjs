@@ -21,6 +21,9 @@ const React = {
 const workspaceSnapshot = { pinnedSessionIds: ['saved-session'] }
 const sessionSnapshot = { phase: 'ready', byId: { 'saved-session': { id: 'saved-session', displayTitle: '已收藏的研判会话', blank: false, running: false } } }
 const opened = []
+const selectedLocales = []
+let localeSnapshot = { mode: 'host', status: 'loading' }
+let notifyLocale
 
 runInNewContext(readFileSync(new URL('./client.js', import.meta.url), 'utf8'), {
   window: { confirm() { return true }, __ModuleLoader__: { load(value) { plugin = value } } },
@@ -44,6 +47,11 @@ const layoutView = {
 }
 const context = {
   effect(effect) { effect() },
+  locale: { setLocale(id) { selectedLocales.push(id) } },
+  configForms: { get(name) {
+    assert.equal(name, 'locale')
+    return { getSnapshot: () => localeSnapshot, subscribe(listener) { notifyLocale = listener; return () => {} } }
+  } },
   sessions: { list: { subscribe() { return () => {} }, getSnapshot: () => sessionSnapshot } },
   workspaces: { create: async () => ({ workspaceId: 'workspace-id' }), list: { getSnapshot: () => ({ items: [] }) } },
   uiWorkspace: { openWorkspace: async () => {} },
@@ -66,9 +74,18 @@ const context = {
 }
 apply(context)
 assert.deepEqual(groupModes, ['flat'])
+assert.deepEqual(selectedLocales, [])
+localeSnapshot = { mode: 'host', status: 'ready', value: { preference: 'en' } }
+notifyLocale()
+assert.deepEqual(selectedLocales, [])
 storage.set('dsh.workspace.view.v5', JSON.stringify({ groupBy: 'workspace' }))
+localeSnapshot = { mode: 'host', status: 'ready', value: {} }
 apply(context)
 assert.deepEqual(groupModes, ['flat'])
+assert.deepEqual(selectedLocales, ['zh'])
+localeSnapshot = { mode: 'memory', status: 'unavailable' }
+apply(context)
+assert.deepEqual(selectedLocales, ['zh', 'zh'])
 
 function nodes(root, predicate) {
   if (Array.isArray(root)) return root.flatMap(item => nodes(item, predicate))

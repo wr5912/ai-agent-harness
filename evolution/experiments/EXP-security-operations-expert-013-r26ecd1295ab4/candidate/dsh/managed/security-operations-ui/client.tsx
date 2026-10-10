@@ -466,8 +466,27 @@ type ModuleLoader = {
       @media(max-width:720px){.soc-quick__grid{grid-template-columns:1fr}.soc-quick__toolbar{align-items:stretch;flex-direction:column}.soc-quick__search{width:100%;box-sizing:border-box;margin-left:0}.soc-employee-form{grid-template-columns:1fr}.soc-employee-form label:nth-child(3){grid-column:auto}}
     `
 
-    const inject = ['slots', 'sidebarRight', 'sidebarRightTabs', 'uiWorkspace', 'workspaces', 'sessions', 'remote.agentPresets']
+    const inject = ['slots', 'sidebarRight', 'sidebarRightTabs', 'uiWorkspace', 'workspaces', 'sessions', 'remote.agentPresets', 'locale', 'configForms']
     function apply(ctx: any) {
+      ctx.effect(() => {
+        const preference = ctx.configForms.get('locale')
+        let settled = false
+        const setDefault = () => {
+          if (settled) return
+          const snapshot = preference.getSnapshot()
+          if (snapshot.mode === 'memory') {
+            settled = true
+            ctx.locale.setLocale('zh')
+          } else if (snapshot.status === 'ready') {
+            settled = true
+            if (!snapshot.value?.preference) ctx.locale.setLocale('zh')
+          }
+        }
+        const unsubscribe = preference.subscribe(setDefault)
+        setDefault()
+        return unsubscribe
+      }, 'security-operations-ui: default Chinese locale')
+
       ctx.effect(() => {
         let disposed = false
         let workspaceId: string | undefined
