@@ -30,7 +30,7 @@ DSH 实例名为 `security-operations-expert-portal-pilot`，来源是 `experime
 
 当前没有加载 `dsh-auth-gate`，也没有把门户 SSO ticket 转换为 DSH 身份。门户登录与 DSH Web 认证是两道独立边界：仅登录门户的浏览器在 iframe 中仍会遇到 DSH `401`；受信操作者需在同一浏览器中使用该实例的启动令牌完成一次认证。令牌只通过 `dsh-dev url security-operations-expert-portal-pilot` 在受信终端获取，随后在受信浏览器打开 `https://172.16.138.232:18120/?token=<本次令牌>`，确认跳转到无令牌根路径；真实令牌不写入菜单 URL、文档或研究证据。DSH 启动日志本身含令牌，应限制日志访问，不导出原始日志。带令牌的 URL 不得分发给普通门户用户。曾提供的 [门户 SSO-ticket 集成说明](http://172.16.138.233/luolin/ai-port/-/blob/main/docs/architecture/sso-ticket.md)当前跳转登录页，未能独立核对协议细节；不能据此宣称 SSO 已接通。
 
-此试点只有一个 DSH Host 和一个共享的 HOME 卷；Session、附件、自动化任务及执行历史都不按门户用户隔离。DSH 的浏览器 Cookie 是该 Host 的 owner 认证，不是门户用户身份或对象授权。因此此入口只适用于受控单操作者联调，**不得作为面向多用户开放的正式 AI 助手**。未来平台共享 Host 与按用户分 Host 的选择、Session 与 Schedule 统一归属及逐入口授权门槛，见[平台设计方案的多用户数据边界](DSH智能体运行管理平台设计方案.md#多用户数据边界与选型门槛)。不能仅靠 iframe、前端过滤或再加一个登录页面解决该问题。
+此试点只有一个 DSH Host 和一个共享的 HOME 卷；Session、附件、自动化任务及执行历史都不按门户用户隔离。DSH 的浏览器 Cookie 是该 Host 的 owner 认证，不是门户用户身份或对象授权。因此此入口只适用于受控单操作者联调，**不得作为面向多用户开放的正式 AI 助手**。未来平台共享 Host 与按用户分 Host 的选择、Session 与 Schedule 统一归属及逐入口授权门槛，见[平台设计方案的多用户数据边界](platform-design/04_核心业务闭环与服务接口.md#多用户数据边界与选型门槛)。不能仅靠 iframe、前端过滤或再加一个登录页面解决该问题。
 
 门户现有和试点代理均使用同一张 `172.16.138.232` 的自签名 TLS 证书；本次自动化浏览器允许了该证书错误，因此尚未证明未信任证书的普通浏览器可直接使用。使用者需先经受信渠道校验证书并在其环境中建立信任；不能以关闭 TLS 校验作为正式接入方式。SSH 主机 ED25519 指纹发生过变化，本次连接按用户提供的 `SHA256:YCO74qtFhM/YGqVgXCYtpE8BtpEsZufhsjToyig+Jzw` 严格匹配；项目无法单凭 SSH 握手证明该值已由主机控制台等独立渠道核验。后续若再次变化仍须重新核验，不能沿用本记录自动接受新密钥。
 
