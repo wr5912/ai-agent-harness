@@ -79,13 +79,15 @@ Harness 资产说明“要装载什么”，DSH Runtime 负责实际装载和执
 
 Runtime 的 Session、设置、缓存和附件位于独立数据根，不进入 Candidate 或 Research Release。平台和实例凭据可以使用 Agent 的实例专用仓库文件作为来源；LLM API Key 只保存在匹配 `*.llm-api-key` 的本地忽略文件中，并由环境或受控凭据机制注入。
 
+当前最小研究平台通过系统全局 DSH 装载仓库维护的 Cordis 扩展，读取已有 Agent、Experiment 和 Run。它属于研究工具，不改变业务评测容器的来源锁或 Candidate。平台组合、启动、插件兼容性和独立 HOME 的合同见[平台设计方案](../DSH智能体运行管理平台设计方案.md)；平台工具变更按 `PA-12` 验证，不为目录或启动器本身创建业务 Experiment。
+
 ## 6. 三层验证
 
 本项目只维护以下三层结论：
 
 | 层级 | 结论对象 | 主要证据 |
 |---|---|---|
-| 项目与工具链验证 | 仓库规则、CLI、来源解析、容器接入 | 项目验收矩阵、自动化测试、技术探针 |
+| 项目与工具链验证 | 仓库规则、CLI、来源解析、容器接入、全局 DSH 平台接入 | 项目验收矩阵、自动化测试、技术探针 |
 | Experiment Evaluation | 某项 Harness 变化在声明范围内的效果 | 假设、输入、Run、观察、Decision |
 | Research Release 复现 | 某个不可变研究版本能否恢复并重新装载 | Release 清单、摘要、复现记录 |
 

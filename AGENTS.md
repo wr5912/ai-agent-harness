@@ -33,12 +33,12 @@
 
 ## 项目使命与边界
 
-- 核心研究是 Harness 改进、资产演化、多 Variant 派生与比较；资产仅供容器内 DSH Agent Runtime 装载。
+- 核心研究是 Harness 改进、资产演化、多 Variant 派生与比较；业务 Harness 资产供容器内 DSH Agent Runtime 装载，研究平台扩展供系统全局 DSH 装载。
 - 优先复用 DSH 现有能力和插件；只有扩展接口确实不足时，才考虑有记录、可回退的最小框架修改。DSH Runtime 源码不混入本仓库。
 - 不复制 Runtime 内部目录，不把 Session、缓存、附件或整个 `$DSH_HOME` 作为 Harness 资产；需入仓的平台和实例凭据只保存为专用文件，不通过复制 Runtime HOME 回流。
 - `agents/` 保存业务 Agent 的研究资料；`.agents/skills/` 保存维护本仓库的 Codex 项目技能，两者不得混用。
 - `.codex/` 和根级 `AGENTS.md` 只约束仓库研发协作，不是 DSH Runtime 策略或业务 Harness 资产。
-- 研究管理当前只建设必要的本地 CLI；未来可能演化为平台，但平台建设不是当前阶段的任务。
+- 研究管理使用必要的本地 CLI，以及基于系统全局 DSH-Cordis 的最小只读资产平台。平台组合与启动入口放在 `platform/`，平台扩展源码放在 `plugins/harness-platform/`；接入合同集中维护在[平台设计方案](docs/DSH智能体运行管理平台设计方案.md)。后续能力按真实研究需求扩展，仍遵守 Research Mode。
 
 ## 开发对象与修改边界
 
@@ -79,6 +79,7 @@ Baseline 引用 → Experiment（含 candidate 工作树）→ Evaluation → De
 - Baseline 是 `git:<commit>`、`release:<id>` 或 `none:first-experiment` 引用，不复制稳定 Baseline 目录。
 - `candidate/` 是 Experiment 中的待比较工作树，不表示生产候选或发布准入。
 - 每个语义性 Harness 变化建立 Experiment，至少说明为什么改、改了什么、怎样比较、结果与回归、限制和下一步。
+- 平台组合、启动器和只读查询插件属于研究工具；按项目验收路径验证。只有改变被研究业务 Harness 的语义时，才按上述要求建立 Experiment。
 - Evaluation 规模由研究假设决定；可以从一个或少量高价值输入开始，不设固定 Case 数、R1/R2/R3 或安全控制映射。
 - Decision 使用 `adopt`、`continue`、`reject` 或 `inconclusive`，失败和证据不足都是合法研究结果。
 - Research Release 是值得保留的、自包含、不可变、可校验的研究版本，不表示生产可用或上线批准。
