@@ -57,6 +57,8 @@
 
 2026-10-11 的 [EXP-016 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-016-r77d4eb1119fb/evaluation/observations.md)补充了 `PA-06/07/08/10` 的可配置语音摘要插件实际装载、共用连接、取消与重连、历史冷加载及无插件/卸载浏览器证据。保留修复前失败后，[最终 Run](../evolution/experiments/EXP-security-operations-expert-016-r77d4eb1119fb/runs/run-7a091380-a7d6-4381-947b-2f6c5c876892/report.md)两项 Case 在受控模型和测试音调范围通过；真实模型摘要质量与真实语音效果尚未评估，Decision 为 `continue`，全项目路径状态不因此提升。
 
+2026-10-12 的 [EXP-017 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-017-rb20b8c6b906f/evaluation/observations.md)补充了 `PA-04/05/06/08` 的匿名规范读取与授权回退、真实浏览器发现、DSH 工具 Schema、分组鉴权和业务调用证据。`tee` 不在当前 Agent Guard 工具范围，上游部分接口仍返回 403；没有业务 Case Run，全项目路径状态不因此提升。
+
 ### PA-01 Research Mode、AI 协作入口与项目 Memory
 
 - **要回答**：新的 AI 开发会话能否读到 Research Mode、中文优先、简洁优先、单一事实源、根因整改、精准修改和四项安全底线；收到 review 请求时能否定位项目审查原则并覆盖开发工具与目标智能体 Harness；是否能进入 Harness 引导式 SOP；Memory 是否只作为辅助上下文。
