@@ -72,4 +72,18 @@ assert.equal(judged.response.verdict, 'passed')
 assert.deepEqual(judged.checks.tools, [])
 assert.equal(judged.checks.same_route_as_target, true)
 
-console.log(JSON.stringify({ status: 'dsh-eval-common-tests-passed', cases: 4 }))
+const englishReply = await judgeCase({ ...item, expected_behavior: '用中文指出证据缺口。' }, {
+  assistant_texts: ['Please provide the evidence.'],
+  turns: targetTurns,
+}, targetArchive, async input => ({
+  session: { session_id: 'judge-session' },
+  archive: archive([
+    user('judge-user', input), header([]),
+    assistant('{"verdict":"passed","reason":"内容符合要求"}'), end(1),
+  ]),
+}))
+assert.equal(englishReply.response.verdict, 'failed')
+assert.equal(englishReply.checks.model_verdict, 'passed')
+assert.equal(englishReply.checks.deterministic_check, 'language-mismatch')
+
+console.log(JSON.stringify({ status: 'dsh-eval-common-tests-passed', cases: 5 }))

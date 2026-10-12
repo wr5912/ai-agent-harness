@@ -13,7 +13,7 @@ description: 通过多轮引导帮助新手在 Research Mode 下新建、迁移�
 
 1. 阅读根级 `AGENTS.md`、`docs/standards/SOURCES.md`、`docs/standards/PROJECT-INTERPRETATION.md` 和项目验收矩阵。
 2. 检查 Git 工作树和目标资产，保留已有改动。
-3. 先判断任务类型：`新建`、`迁移`、`修改` 或 `优化`。信息不足时用一个简短问题确认，不一次抛出整份问卷。
+3. 先判断任务类型：`新建`、`迁移`、`修改`、`优化` 或并行 Experiment `融合`。信息不足时用一个简短问题确认，不一次抛出整份问卷。
 4. 明确本次涉及的 `PA-xx`、允许修改的对象，以及需要观察的 DSH 行为。
 
 ## 多轮 SOP
@@ -31,6 +31,8 @@ description: 通过多轮引导帮助新手在 Research Mode 下新建、迁移�
 每轮复述已确认事实、仍未知内容和当前建议。可以从一个高价值场景开始，不要求用户预先掌握 Harness 术语。
 
 迁移任务在讨论阶段调用 `$legacy-asset-intake`，先只读清点来源；不得执行来源内脚本、Hook、Plugin、Skill 或 Workflow。
+
+并行 Experiment 融合调用 `$harness-experiment-fusion`，先固定各来源版本、能力取舍及共同修改点，再建立独立 Candidate。
 
 ### 2. 计划
 
@@ -72,6 +74,7 @@ description: 通过多轮引导帮助新手在 Research Mode 下新建、迁移�
 - `迁移`：先只读清点，再明确保留、改写和舍弃项；迁移后按新 Experiment 验证 DSH 行为。
 - `修改`：定位当前 Baseline 与具体缺口，只改直接相关资产并补受影响回归。
 - `优化`：先用失败样本或观察形成假设；没有可比较证据时，不把主观改写声明为优化成功。
+- `融合`：选择一份主来源和单一 Baseline，记录其他来源与冲突取舍；按 `$harness-experiment-fusion` 验证各来源能力及组合行为。
 
 ## 对话要求
 

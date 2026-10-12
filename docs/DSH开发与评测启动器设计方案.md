@@ -60,7 +60,7 @@
 python3 runtime/adapters/dsh-container/dsh-dev init test01
 ```
 
-该命令创建 `agents/test01/`、`EXP-test01-001` 的最小 Candidate 和对应 `sources.json` 登记。它不启动实例、不执行 Evaluation、不生成 Decision 或 Research Release；已有 Agent、Experiment 或来源登记时直接失败。
+该命令创建 `agents/test01/`、`EXP-test01-001-r<12位随机十六进制>` 的最小 Candidate 和对应 `sources.json` 登记。它不启动实例、不执行 Evaluation、不生成 Decision 或 Research Release；已有 Agent、Experiment 或来源登记时直接失败。
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-dev up \

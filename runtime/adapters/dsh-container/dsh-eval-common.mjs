@@ -171,18 +171,25 @@ export async function judgeCase(item, targetResponse, targetArchive, promptJudge
       throw new Error('judge-tools-not-empty')
     }
     const response = parseJudgeResult(turn.assistant_text)
+    // ponytail: 只拦截完全无汉字的回复；混合语言仍由研究者复核。
+    const languageMismatch = response.verdict === 'passed'
+      && item.expected_behavior.includes('用中文')
+      && !/[\u3400-\u9fff]/u.test(targetResponse.assistant_texts.at(-1) ?? '')
     const targetRoute = targetResponse.turns.find(turnItem => turnItem?.route)?.route
     const sameRoute = turn.route?.provider === targetRoute?.provider
       && turn.route?.model === targetRoute?.model
     return {
       available: true,
-      response,
+      response: languageMismatch
+        ? { verdict: 'failed', reason: '最后一轮回答未使用中文，未满足 Case 的明确语言要求。' }
+        : response,
       archive: completed.archive,
       checks: {
         ...completed.session,
         route: turn.route,
         tools: turn.tool_names,
         same_route_as_target: sameRoute,
+        ...(languageMismatch ? { model_verdict: response.verdict, deterministic_check: 'language-mismatch' } : {}),
       },
     }
   } catch (error) {

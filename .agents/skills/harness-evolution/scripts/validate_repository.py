@@ -69,7 +69,10 @@ RETIRED_SKILLS = {"baseline-eval", "security-control-boundary", "delivery-review
 PROJECT_MATRIX = "docs/ai-agent-harness项目验收矩阵.md"
 PROJECT_REVIEW = "docs/项目审查原则.md"
 KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-EXPERIMENT_RE = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3,}$")
+ADAPTER = Path(__file__).resolve().parents[4] / "runtime/adapters/dsh-container"
+if str(ADAPTER) not in sys.path:
+    sys.path.insert(0, str(ADAPTER))
+from source_contract import EXPERIMENT as EXPERIMENT_RE
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$")
 RELEASE_RE = re.compile(r"^([a-z0-9]+(?:-[a-z0-9]+)*)-v(.+)$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -522,6 +525,8 @@ def validate_asset_nodes(root: Path, errors: list[dict[str, str]]) -> None:
             continue
         count = 0
         for path in base.rglob("*"):
+            if "node_modules" in path.relative_to(base).parts:
+                continue
             count += 1
             if count > MAX_ASSET_FILES:
                 errors.append(issue("ASSET_COUNT", f"{name} 节点数超过 100000", name))

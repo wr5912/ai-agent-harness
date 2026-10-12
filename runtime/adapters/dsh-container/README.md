@@ -4,11 +4,11 @@
 
 ## 源码与镜像身份
 
-`source.lock.json` 锁定官方仓库提交、Git tree、`pnpm-lock.yaml` 摘要、包管理器版本、Node 基础镜像 OCI index digest 和目标平台；当前提交包含 EXP-007 所需的 Schedule Bundle。所有 Experiment 共用这份锁。`build-image.sh` 新建临时源码工作树，在宿主侧核对提交、tree 和锁摘要后用 BuildKit named context 构建。官方构建脚本支持显式 `DSH_CLIENT_COMMIT_HASH`；构建器不依赖 named context 是否携带 `.git`，只安装本地 C 编译及 musl 工具，最终镜像不保留这些构建工具或 `.git`。本仓库没有 DSH 源码副本。
+`source.lock.json` 锁定官方仓库提交、Git tree、`pnpm-lock.yaml` 摘要、包管理器版本、Node 基础镜像 OCI index digest 和目标平台；当前提交包含 EXP-007 所需的 Schedule Bundle。所有 Experiment 共用这份锁。实际本地镜像标签在锁定标签后追加构建指纹前 12 位，允许不同构建输入在同一宿主机并行构建而不覆盖彼此。`build-image.sh` 新建临时源码工作树，在宿主侧核对提交、tree 和锁摘要后用 BuildKit named context 构建。官方构建脚本支持显式 `DSH_CLIENT_COMMIT_HASH`；构建器不依赖 named context 是否携带 `.git`，只安装本地 C 编译及 musl 工具，最终镜像不保留这些构建工具或 `.git`。本仓库没有 DSH 源码副本。
 
 ```bash
 bash runtime/adapters/dsh-container/build-image.sh
-# 多来源时显式选择：build-image.sh --source EXP-<agent-id>-NNN
+# 多来源时显式选择：build-image.sh --source <experiment-id>
 ```
 
 APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 IPv4；失败必须中止，而非沿用不完整索引。默认主源使用 `http://mirrors.tuna.tsinghua.edu.cn/debian`，security 保持 `http://deb.debian.org/debian-security`；TUNA 不可达时可显式加 `--apt-mirror http://deb.debian.org/debian` 回退到官方主源。构建前先用同一锁定 Node 底座执行 Debian archive keyring 签名的 APT 更新预检，main、updates、security 任一签名或索引失败即停；Dockerfile 中再次校验，构建证据记录两条实际镜像 URI。回退源改变了构建期软件包的分发路径、可用性和更新时间边界，虽未降低 Debian 签名校验，也不能把它说成与默认源的网络来源完全相同。
@@ -30,7 +30,7 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 
 评测实例不挂载 `evaluation.md` 或其他判分材料；`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。Harness 修改由宿主开发会话完成，容器只负责装载和评测。
 
-Candidate 的 Managed Patch 如加载带独立 Node 依赖的插件，先按该插件的 `package-lock.json` 在本地忽略目录准备 `node_modules`，启动时通过 `dsh-dev up --plugin-node-modules PATH` 将其只读挂载到 `/opt/node_modules`；只挂载插件源码无法解析这些依赖。
+Candidate 的 Managed Patch 如加载带独立 Node 依赖的插件，先在该插件目录按 `package-lock.json` 执行 `npm ci --omit=dev --ignore-scripts --legacy-peer-deps --registry=https://registry.npmmirror.com`。`node_modules/` 已被 Git 忽略，会随 `candidate/dsh/managed` 一起只读挂载，Node 从插件文件所在目录向上解析依赖；启动后仍须核对插件实际激活及浏览器功能。只有依赖必须存放在 Candidate 外时，才用 `dsh-dev up --plugin-node-modules PATH` 额外挂载到 `/opt/node_modules`。
 
 `locked-user.patch.yml` 只读覆盖 HOME 级用户 Patch；Web Profile 的 `cordis.patch.yml` 留在实例 HOME 卷中，由 DSH Web 保存当前实例的设置（新版 DSH 的设置写入要求对该文件原子替换）。真正 **0 字节**的 `locked-global.AGENTS.md` 和只含注释的 `locked-bootstrap.env` 分别只读覆盖全局 Agent instructions 与 Boot 环境文件。模型/MCP Endpoint 和凭据只能由调用环境或 Runtime 受控凭据提供，不能由 Candidate 工作区改变。复用实例时须把 Web Profile 设置视为运行状态，而非 Candidate 资产；评估前核对其摘要或使用新实例。
 
@@ -53,6 +53,8 @@ docker compose -f runtime/adapters/dsh-container/verification.compose.yaml confi
 `DSH_PERMISSION_MODE=read-only` 是官方 base Profile 的新 Session 进程后备预设；Web 中持久化的 General Settings 仍可能影响后续 Session，因此不能只凭该变量推断实际状态。三棵 Candidate 资产同时使用 Docker `read_only` bind mount。比较变更前后行为时，应在宿主核对 Git diff 和资产摘要，再用新的评测容器与 Session 重建加载。
 
 官方 Web 默认只绑定容器内 `127.0.0.1`，基础 Compose 不发布宿主端口。需要浏览器访问时使用 `dsh-dev` 生成的本地 host-network 实例；容器启动或配置展开仍不能替代 `PA-08` 的实际 Web 交互。
+
+`--lan-access` 保留 Web Token 和 Host/Origin 校验，并让已认证的局域网浏览器使用 Host 设置。标准镜像对锁定 DSH 来源应用 `remote-host-settings.patch`；适配层的 LAN Patch 注入启用标记。模型设置与使用设置表单的插件入口均依赖这条路径；升级 Runtime 时需重新核对补丁与浏览器行为。
 
 仅在受控反向代理保留外部 `Host`、后端仍监听本机回环时，`dsh-dev up` 可显式加 `--trusted-host HOST[:PORT]` 让 DSH 接受该代理地址；这不提供用户认证，也不允许把启动令牌写进菜单 URL。EXP-007 门户接入的实际拓扑、验证和限制见[联调记录](../../../docs/security-operations-expert门户联调记录.md)。
 
@@ -82,7 +84,7 @@ python3 runtime/adapters/dsh-container/dsh-dev logs security-operations-expert-e
 python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-eval
 ```
 
-`init <agent-id>` 创建最小 Agent、`EXP-<agent-id>-001` Candidate，并把该 Experiment 登记到 `sources.json`；已有 Agent、Experiment 或来源登记时拒绝覆盖。它只创建研究资产，不启动实例、不执行 Evaluation，也不创建 Research Release。
+`init <agent-id>` 创建最小 Agent、`EXP-<agent-id>-001-r<12位随机十六进制>` Candidate，并把该 Experiment 登记到 `sources.json`；已有 Agent、Experiment 或来源登记时拒绝覆盖。旧编号 Experiment 继续可用。它只创建研究资产，不启动实例、不执行 Evaluation，也不创建 Research Release。
 
 `--source` 和 `--mode` 始终由用户显式选择；缺失或无值时命令会列出当前可用值并以用法错误退出。`--name` 默认为 `<agent-id>-eval`。新实例未指定 `--port` 时从 `3081` 起选第一个未监听且未被有效实例记录占用的端口；已有同名实例复用记录端口。`--dry-run` 只给出建议，不写状态、不调用 Docker，也不要求运行时环境变量。
 
@@ -96,6 +98,21 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-e
 
 `dsh-eval` 从 Agent 的 `evaluation.md` 读取业务 Case 的名称、用户输入和预期，并复用 `dsh-dev` 与 `run_record.py` 完成一次可封存评测。默认执行器通过 DSH Runtime Session API 运行业务 Case；显式选择 `browser` 时，才使用镜像中已有的 Playwright 依赖做 UI 冒烟：
 
+本地 TypeScript 研究入口直接读取现有来源与 Run，不另存可编辑副本。`edit` 调用编辑器修改所选 Experiment 的 `candidate/`；`run` 默认对显式 Case 启用 AI 证据复核，完成后输出封存状态、工具调用与证据路径。真实业务判断仍需核对原始回答及工具记录。
+
+```bash
+node runtime/adapters/dsh-container/research-tool.mts context --source experiment:EXP-security-operations-expert-012
+node runtime/adapters/dsh-container/research-tool.mts edit --source experiment:EXP-security-operations-expert-012 --file dsh/workspace/.agents/skills/security-inspection/SKILL.md
+node runtime/adapters/dsh-container/research-tool.mts run --source experiment:EXP-security-operations-expert-012 --case U-INS-001 --case U-INS-002 --case U-INS-007 --dry-run
+node runtime/adapters/dsh-container/research-tool.mts run --source experiment:EXP-security-operations-expert-012 --case U-INS-001 --case U-INS-002 --case U-INS-007 --compare-to <baseline-run-id>
+node runtime/adapters/dsh-container/research-tool.mts review --left <baseline-run-id> --right <candidate-run-id>
+node runtime/adapters/dsh-container/research-tool.mts instance --source experiment:EXP-security-operations-expert-012
+```
+
+`context --run <run-id> [--case <case-id>]` 显示冻结口径、当前口径、已注册工具和实际调用；`instance --restart --name <已存在且属于该来源的实例名>` 重启后重新读取容器镜像与只读挂载。`--review ai|none` 也可直接传给 `dsh-eval`；它独立于 Case 选择，`full` 默认 `ai`，其他选择默认 `none`。
+
+研究者可用 `run_record.py index --agent <agent-id>` 列出 Experiment 与 Run，使用 `show --run <run-id> [--case <case-id>]` 对照当前与冻结 Case、结果和证据，使用 `compare --left <run-id> --right <run-id> [--case <case-id>]` 查看共同 Case 的观察差异及归因限制。三个查询命令只读取现有文件。`dsh-eval --compare-to <run-id>` 或 `run_record.py init --compare-to <run-id>` 将已封存的同 Agent Run 锁入新 Run；封存时在新报告中生成“与之前版本的对比”，旧 Run 保持不变。不同模型仍可做观察性对照；`comparable` 只表示存在共同 Case 的两侧结果，`causal_comparable` 表示记录的条件未见差异，两者都不证明 Harness 单独造成效果变化。需核对冻结 Case、实际路由、镜像、执行器和 Git 来源，硬件与资源未测时报告为“未记录”。`dsh-eval --model <id>` 只锁定预期模型标识，不切换 Runtime 模型。
+
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-security-operations-expert-006 --mode fast --dry-run
@@ -105,13 +122,16 @@ python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-security-operations-expert-006 --mode full --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-security-operations-expert-006 --executor browser --case U-INS-001
+python3 runtime/adapters/dsh-container/dsh-eval \
+  --source experiment:EXP-security-operations-expert-008 --case U-QA-012 --case U-QA-013 \
+  --compare-to run-f630f91f-09f1-4c12-bdb3-42f5b815cfdd
 ```
 
 默认 `--mode fast` 执行标记了 `**评估档位：** \`fast\`` 的业务 Case；`--mode full` 执行全部 Case。没有 fast 标记时默认档位明确报错。`--case` 可重复并支持大小写敏感的 shell 风格通配符，一旦出现就覆盖 `--mode`；结果按 `evaluation.md` 顺序去重，为避免 shell 提前展开应给通配符加引号。`--dry-run` 输出请求档位、实际选择方式和 Case 列表。这里的 `--mode` 是评测范围，和 `dsh-dev --mode eval` 的容器运行模式不同。非 `--dry-run` 执行会先校验仓库和 Experiment，再创建独立评测实例。每个 Case 使用新的目标 Session，多轮输入在该 Session 内依次发送；API 和浏览器执行器都导出回答及同一 Session 的工具事件。独立的无工具评审 Session 对照单个 Case 的输入、预期、回答和工具证据给出语义结论。
 
-`full` 完成逐 Case 评审后，适配层再启动使用 `scenario-analysis` Preset 的独立 DSH 实例，只把当前 Run 以只读方式挂载到 `/work/evaluation-run`；被测 Candidate 的 workspace、Preset、managed patch、MCP、Skill 和 delegate 均不进入归因实例。每个已选场景使用一个 Session，通过 `read`、`grep` 和 `glob` 核对 Run 证据与锁定的 Harness，并显式选择目标 Run 实际使用的同一模型路由；当前只支持内置 `deepseek-official` 路由，缺失、混用或不支持的路由失败关闭。为避开 `read` 的行数、单行和字节上限，适配层在 Run 内生成带原文件路径、字节数和 SHA-256 的 JSON/JSONL 语义无损场景包，并对重复的大型工具结果按内容摘要引用；原文件仍是事实源，报告也只引用原文件。执行器要求每次工具调用都有成功结果，并验证所有必读分片的每一行均被读取，漏读、读取失败或路由漂移都会使复核失败。缺口可以同时引用支持 Case 与反例 Case 的原始证据；空 `tools.jsonl` 是“未调用工具”的有效证据，其他材料证据必须非空。`evaluation-judge` 与 `scenario-analysis` 都是评测适配层 Harness，不属于被测 Candidate；`.agents/skills/research-eval` 只指导仓库研发流程，不会被 DSH 归因实例装载。技术装载、合同和工具链检查由运行前的项目与 Experiment 校验承担，不是业务 Case。认证 URL 只经进程标准输入交给执行器，不写入 Run 或普通输出；无论成功、失败或中断都尝试停止实例。
+启用 AI 复核后，适配层在逐 Case 评审后，再启动使用 `scenario-analysis` Preset 的独立 DSH 实例，只把当前 Run 以只读方式挂载到 `/work/evaluation-run`；被测 Candidate 的 workspace、Preset、managed patch、MCP、Skill 和 delegate 均不进入归因实例。每个已选场景使用一个 Session，通过 `read`、`grep` 和 `glob` 核对 Run 证据与锁定的 Harness，并显式选择目标 Run 实际使用的同一模型路由；当前只支持内置 `deepseek-official` 路由，缺失、混用或不支持的路由失败关闭。为避开 `read` 的行数、单行和字节上限，适配层在 Run 内生成带原文件路径、字节数和 SHA-256 的 JSON/JSONL 语义无损场景包，并对重复的大型工具结果按内容摘要引用；原文件仍是事实源，报告也只引用原文件。执行器要求每次工具调用都有成功结果，并验证所有必读分片的每一行均被读取，漏读、读取失败或路由漂移都会使复核失败。缺口可以同时引用支持 Case 与反例 Case 的原始证据；空 `tools.jsonl` 是“未调用工具”的有效证据，其他材料证据必须非空。`evaluation-judge` 与 `scenario-analysis` 都是评测适配层 Harness，不属于被测 Candidate；`.agents/skills/research-eval` 只指导仓库研发流程，不会被 DSH 归因实例装载。技术装载、合同和工具链检查由运行前的项目与 Experiment 校验承担，不是业务 Case。认证 URL 只经进程标准输入交给执行器，不写入 Run 或普通输出；无论成功、失败或中断都尝试停止实例。
 
-退出码 `0` 表示锁定 Case 均得到 `passed`；`1` 表示运行已完整封存但至少一个语义结论为 `failed` 或 `inconclusive`；`2` 表示参数、环境或执行基础设施失败。基础设施失败导致未执行的 Case 记为 `execution_status=error`；中断后未开始的 Case 记为 `execution_status=skipped`，两者的 `verdict` 均为 `inconclusive`。每次封存保留 `summary.json`、逐项事实 `results.jsonl`、完整场景目录与选择方式，以及只读的 `analysis.json` 和 `report.md`。报告按场景展示去重 Case 的覆盖、失败、无法判定和未执行数；归因只给出可证伪假设，不改变 Case 原判定。`full` 证据复核不完整时 `review_status` 为 `failed`，Run 失败封存；`fast`、显式 Case 和手工封存路径只生成确定性场景覆盖，不启动归因 Session。非 `--dry-run` 的 stdout 只输出一个不含凭据的 JSON，字段为 `run_id`、`experiment_id`、`executor`、`verdict`、`cases`、`review_status`、`reviewed_cases`、`summary`、`report` 和 `instance_stopped`。
+退出码 `0` 表示锁定 Case 均得到 `passed`；`1` 表示运行已完整封存但至少一个语义结论为 `failed` 或 `inconclusive`；`2` 表示参数、环境或执行基础设施失败。基础设施失败导致未执行的 Case 记为 `execution_status=error`；中断后未开始的 Case 记为 `execution_status=skipped`，两者的 `verdict` 均为 `inconclusive`。每次封存保留 `summary.json`、逐项事实 `results.jsonl`、完整场景目录与选择方式，以及只读的 `analysis.json` 和 `report.md`。报告按场景展示去重 Case 的覆盖、失败、无法判定和未执行数；归因只给出可证伪假设，不改变 Case 原判定。启用 AI 复核时证据复核不完整会使 `review_status` 为 `failed`，Run 失败封存；未启用时只生成确定性场景覆盖，不启动归因 Session。非 `--dry-run` 的 stdout 只输出一个不含凭据的 JSON，字段为 `run_id`、`experiment_id`、`executor`、`verdict`、`cases`、`review_status`、`reviewed_cases`、`summary`、`report` 和 `instance_stopped`。
 
 **手工打开 Web 或使用浏览器执行器时，首次需要在界面注册工作区。** DSH Web 的输入栏在没有已打开会话时是惰性的，必须先选定一个**已注册工作区**才能开会话；工作区注册表（`$DSH_HOME/storages/workspace.json`）只从已存会话头 bootstrap，新实例的 HOME 卷里因此为空——容器的 `working_dir` 只是进程工作目录，不等于 DSH 工作区。API 执行器使用 Runtime 的 `workspace/create` 完成同一注册；启动器不改写 Runtime 存储内部格式。浏览器操作如下：
 
@@ -149,7 +169,7 @@ node runtime/adapters/dsh-container/stub-mcp-streamable-http.mjs --port 3099 --t
 
 ```bash
 bash runtime/adapters/dsh-container/verify-load.sh verification
-# 其他已登记来源：verify-load.sh verification --source EXP-<agent-id>-NNN
+# 其他已登记来源：verify-load.sh verification --source <experiment-id>
 ```
 
 适配层脚本不烘焙进镜像：`prepare-verification-home.mjs`、`verify-load.mjs`、`tree-digest.mjs` 由 Compose 只读挂载到 `/opt/dsh-adapter`。脚本先比对宿主与容器脚本 SHA-256，再比对三棵 Candidate 资产树，并断言 `/work/reference` 与未声明的 `/work/eval-input` 不存在；同时核对挂载模式、HOME 卷、受控 Patch、零字节全局指令、注释 `.env`、module deny-layer、镜像内模块解析与 DSH 配置标识。它只证明挂载身份、模块解析和配置组合，不证明 Plugin 激活、MCP 连接、模型行为或 Research Release 复现。

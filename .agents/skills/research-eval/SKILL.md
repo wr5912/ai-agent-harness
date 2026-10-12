@@ -22,16 +22,16 @@ description: 为 DSH Harness Experiment 设计轻量比较，校验 Run 记录�
 
 ```bash
 python3 .agents/skills/research-eval/scripts/validate_experiment.py \
-  evolution/experiments/EXP-<agent-id>-NNN
+  evolution/experiments/<experiment-id>
 ```
 
 可先预览再运行受管评测：
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --mode fast --dry-run
+  --source experiment:<experiment-id> --mode fast --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --mode full
+  --source experiment:<experiment-id> --mode full
 ```
 
 默认 `--mode fast` 只运行标记的 Case；`--mode full` 运行全部 Case。`--case '<case-pattern>'` 覆盖档位、可重复并支持大小写敏感的 shell 风格通配符；结果按 `evaluation.md` 顺序执行。每个 Case 使用新的被测 Session，多轮输入在该 Session 中依次发送；回复和同一 Session 的工具轨迹共同进入 Run，再按预期进行语义判定。

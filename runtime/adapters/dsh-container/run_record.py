@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""创建、追加并封存一次 Research Run，并生成场景分析报告。"""
+"""创建、查询并封存 Research Run，生成场景分析报告。"""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -24,7 +25,7 @@ for import_root in (ADAPTER, EVALUATION_SCRIPTS):
 
 from evaluation_contract import evaluation_digest, execution_for, load_evaluation
 from scenario_analysis import analyze, summarize_review, validate_analysis
-from source_contract import resolve
+from source_contract import EXPERIMENT as EXPERIMENT_RE, resolve
 
 
 _MUTATION_PATH = Path(__file__).with_name("mutation-receipt.py")
@@ -33,7 +34,6 @@ _mutation_receipt = importlib.util.module_from_spec(_MUTATION_SPEC)
 _MUTATION_SPEC.loader.exec_module(_mutation_receipt)
 snapshot = _mutation_receipt.snapshot
 
-EXPERIMENT_RE = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3,}$")
 RUN_ID_RE = re.compile(
     r"^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
     re.IGNORECASE,
@@ -132,6 +132,7 @@ def write_report(
     analysis: dict | None = None,
     selection_mode: str | None = None,
     gaps: list[dict] | None = None,
+    comparison_markdown: str | None = None,
 ) -> None:
     def cell(value: object) -> str:
         return str(value).replace("\\", "\\\\").replace("|", "\\|").replace("\r", "").replace("\n", "<br>")
@@ -282,6 +283,8 @@ def write_report(
         )
     if not rows:
         lines.append("| - | - | - | - | - | - | - | 本 Run 未记录 Case 结果。 | - |")
+    if comparison_markdown:
+        lines.extend(["", comparison_markdown])
     lines.extend([
         "",
         "## 结构化记录",
@@ -374,6 +377,190 @@ def validate_trial_row(
     validate_evidence_ref(run_dir, row["evidence_ref"])
 
 
+def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
+    run_dir, manifest = load_run_manifest(repo, run_id)
+    inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+    frozen = {case["case_id"]: case for case in inputs["evaluation_cases"]}
+    if case_id and case_id not in frozen:
+        raise ValueError(f"Run 未选择 Case：{case_id}")
+    evaluation_path = repo / manifest["evaluation_ref"]
+    current = load_evaluation(evaluation_path)["cases"] if evaluation_path.is_file() else {}
+    rows_path = run_dir / "results.jsonl"
+    rows = [json.loads(line) for line in rows_path.read_text(encoding="utf-8").splitlines() if line.strip()] if rows_path.is_file() else []
+    analysis_path = run_dir / "analysis.json"
+    analysis = json.loads(analysis_path.read_text(encoding="utf-8")) if analysis_path.is_file() else {}
+    reviews = {item["case_id"]: item for scene in analysis.get("scenes", [])
+               for item in scene.get("case_reviews", [])}
+    findings = [item for scene in analysis.get("scenes", []) for item in scene.get("findings", [])]
+    summary_path = run_dir / "summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.is_file() else None
+    image_path = run_dir / "evidence/dsh-image.json"
+    image = json.loads(image_path.read_text(encoding="utf-8")) if image_path.is_file() else None
+    missing = []
+    if summary is None:
+        missing.append("summary.json")
+    if image is None:
+        missing.append("evidence/dsh-image.json")
+    cases = []
+    for selected_id, contract in frozen.items():
+        if case_id and selected_id != case_id:
+            continue
+        selected_rows = [row for row in rows if row["input_id"] == selected_id]
+        review = reviews.get(selected_id)
+        evidence_dir = run_dir / "evidence" / selected_id
+        response_path = evidence_dir / "response.json"
+        response = json.loads(response_path.read_text(encoding="utf-8")) if response_path.is_file() else None
+        trace_path = evidence_dir / "trace.jsonl"
+        session_created_at = None
+        if trace_path.is_file():
+            with trace_path.open(encoding="utf-8") as trace:
+                first_line = trace.readline()
+            if first_line.strip():
+                created = json.loads(first_line).get("event", {}).get("createdAt")
+                if isinstance(created, (int, float)):
+                    session_created_at = datetime.fromtimestamp(created / 1000, timezone.utc).isoformat()
+        refs = list(dict.fromkeys([
+            *(row["evidence_ref"] for row in selected_rows),
+            *(review.get("evidence_refs", []) if review else []),
+        ]))
+        evidence = []
+        for ref in refs:
+            try:
+                validate_evidence_ref(run_dir, ref)
+                evidence.append({"path": (run_dir / ref).relative_to(repo).as_posix(), "present": True})
+            except ValueError:
+                evidence.append({"path": ref, "present": False})
+                missing.append(f"{selected_id}: {ref}")
+        checks_path = evidence_dir / "checks.json"
+        checks = json.loads(checks_path.read_text(encoding="utf-8")) if checks_path.is_file() else None
+        calls = {}
+        tools_path = evidence_dir / "tools.jsonl"
+        if tools_path.is_file():
+            for line in tools_path.read_text(encoding="utf-8").splitlines():
+                event = json.loads(line).get("event", {})
+                data = event.get("data", {})
+                if event.get("type") == "tool/call":
+                    calls[data.get("callId")] = {"name": data.get("name"), "status": "no_result"}
+                elif event.get("type") == "tool/result":
+                    message = data.get("message", {})
+                    call_id = message.get("source", {}).get("callId")
+                    if call_id in calls:
+                        error = data.get("error")
+                        calls[call_id]["status"] = "error" if error or message.get("isError") else "ok" if message else "unknown"
+                        calls[call_id]["error_code"] = error.get("code") if isinstance(error, dict) else None
+        if not selected_rows:
+            missing.append(f"{selected_id}: results.jsonl")
+        if checks is None:
+            missing.append(f"{selected_id}: checks.json")
+        cases.append({
+            "case_id": selected_id,
+            "frozen": contract,
+            "current": current.get(selected_id),
+            "contract_changed": current.get(selected_id) != contract,
+            "trials": selected_rows,
+            "output": response.get("assistant_texts") if response else None,
+            "actual_routes": [turn.get("route") for turn in response.get("turns", [])] if response else None,
+            "registered_tools": [turn.get("tool_names") for turn in response.get("turns", [])] if response else None,
+            "tool_calls": list(calls.values()),
+            "review": review,
+            "findings": [finding for finding in findings if selected_id in finding.get("support_case_ids", [])
+                         or selected_id in finding.get("counterexample_case_ids", [])],
+            "load_observation": {key: checks.get(key) for key in (
+                "session_id", "session_preset", "session_workspace", "preset_matches", "workspace_matches",
+            )} if checks else None,
+            "session_created_at": session_created_at,
+            "raw_evidence": {name: {"path": (evidence_dir / name).relative_to(repo).as_posix(),
+                                    "present": (evidence_dir / name).is_file()}
+                             for name in ("response.json", "trace.jsonl", "tools.jsonl", "judge.json",
+                                          "judge-trace.jsonl", "checks.json")},
+            "evidence": evidence,
+        })
+    return {
+        "run_id": run_id,
+        "run_path": run_dir.relative_to(repo).as_posix(),
+        "manifest": manifest,
+        "source": {**{key: inputs.get(key) for key in (
+            "source_id", "baseline_ref", "git_version", "evaluation_sha256",
+            "executor", "model", "created_at", "compare_to_run_id",
+            "review_mode", "configured_capabilities", "dependency_env",
+        )}, "candidate_trees": {key: {"tree_sha256": value.get("tree_sha256"),
+                                        "file_count": value.get("file_count")}
+                                  for key, value in inputs.get("harness_trees", {}).items()},
+            "inputs_lock_path": (run_dir / "inputs.lock.json").relative_to(repo).as_posix()},
+        "candidate_path": f"evolution/experiments/{manifest['experiment_id']}/candidate",
+        "image": image,
+        "summary": summary,
+        "uncovered_case_ids": [item["case_id"] for item in inputs.get("case_catalog", [])
+                               if item["case_id"] not in frozen],
+        "cases": cases,
+        "missing": missing,
+    }
+
+
+def comparison_run_view(repo: Path, run_id: str, agent_id: str | None = None,
+                        case_id: str | None = None) -> dict:
+    run_dir, manifest = load_run_manifest(repo, run_id)
+    if agent_id and manifest.get("agent_id") != agent_id:
+        raise ValueError("只能比较同一 Agent 的 Run")
+    if manifest.get("status") not in FINAL_STATUSES:
+        raise ValueError("对照 Run 必须已封存")
+    for field, name in (("results_sha256", "results.jsonl"), ("summary_sha256", "summary.json"),
+                        ("analysis_sha256", "analysis.json"), ("report_sha256", "report.md")):
+        expected = manifest.get(field)
+        if not expected or not re.fullmatch(r"[0-9a-f]{64}", expected):
+            raise ValueError(f"对照 Run 缺少有效 {field}")
+        path = run_dir / name
+        if path.is_symlink() or (not path.is_file() and (name != "results.jsonl" or path.exists())):
+            raise ValueError(f"对照 Run 缺少有效 {name}")
+        actual = hashlib.sha256(path.read_bytes() if path.is_file() else b"").hexdigest()
+        if actual != expected:
+            raise ValueError(f"对照 Run {name} 摘要不匹配")
+    return run_view(repo, run_id, case_id)
+
+
+def compare_views(left: dict, right: dict) -> dict:
+    completed = subprocess.run(
+        ["node", str(ADAPTER / "run-comparison.ts")],
+        input=json.dumps({"left": left, "right": right}, ensure_ascii=False),
+        text=True, capture_output=True, check=False, timeout=30,
+    )
+    if completed.returncode:
+        raise ValueError("Run 对照生成失败")
+    return json.loads(completed.stdout)
+
+
+def command_index(repo: Path, args: argparse.Namespace) -> None:
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", args.agent):
+        raise ValueError("agent 必须是小写 kebab-case")
+    experiments = []
+    for root in sorted((repo / "evolution/experiments").glob(f"EXP-{args.agent}-*")):
+        match = EXPERIMENT_RE.fullmatch(root.name)
+        if not root.is_dir() or root.is_symlink() or not match or match.group(1) != args.agent:
+            continue
+        change = read_flat_yaml(root / "change.yaml")
+        runs = []
+        for path in sorted((root / "runs").glob("run-*/run.yaml")):
+            if path.is_symlink() or path.parent.is_symlink():
+                continue
+            manifest = read_flat_yaml(path)
+            runs.append({key: manifest.get(key) for key in ("run_id", "status", "created_at", "finished_at")})
+        experiments.append({"experiment_id": root.name, "status": change.get("status"), "runs": runs})
+    print(json.dumps({"agent_id": args.agent, "evaluation_path": f"agents/{args.agent}/evaluation.md",
+                      "experiments": experiments}, ensure_ascii=False, indent=2))
+
+
+def command_show(repo: Path, args: argparse.Namespace) -> None:
+    print(json.dumps(run_view(repo, args.run, args.case), ensure_ascii=False, indent=2))
+
+
+def command_compare(repo: Path, args: argparse.Namespace) -> None:
+    left = comparison_run_view(repo, args.left, case_id=args.case)
+    right = comparison_run_view(repo, args.right, left["manifest"]["agent_id"], args.case)
+    result = compare_views(left, right)
+    result.pop("markdown")
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
 def command_init(repo: Path, args: argparse.Namespace) -> None:
     contract = resolve(args.source, repo=repo)
     experiment_id = contract.get("experiment_id")
@@ -398,6 +585,10 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
     if args.selection_mode != "explicit" and selected != expected:
         raise ValueError("selection_mode 与所选 Case 不一致")
     evaluation_ref = evaluation_relative.as_posix()
+    version = git_version(repo)
+    comparison_ref = getattr(args, "compare_to", None)
+    if comparison_ref:
+        comparison_run_view(repo, comparison_ref, agent_id)
     run_id = "run-" + str(uuid.uuid4())
     run_dir = experiment / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
@@ -419,12 +610,18 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
             "evaluation_cases": cases,
             "case_catalog": catalog,
             "selection_mode": args.selection_mode,
-            "git_version": git_version(repo),
+            "review_mode": args.review_mode or ("ai" if args.selection_mode == "full" else "none"),
+            "configured_capabilities": contract["config_markers"],
+            "dependency_env": {name: bool(os.environ.get(name)) for name in
+                               contract["required_env_names"] + contract["optional_env_names"]},
+            "git_version": version,
         }
         if args.model:
             inputs["model"] = args.model
         if args.executor:
             inputs["executor"] = args.executor
+        if comparison_ref:
+            inputs["compare_to_run_id"] = comparison_ref
         with (run_dir / "inputs.lock.json").open("w", encoding="utf-8") as handle:
             json.dump(inputs, handle, ensure_ascii=False, indent=2)
             handle.write("\n")
@@ -556,9 +753,9 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
     else:
         analysis = analyze(run_dir, rows, inputs, status=args.status)
     validate_analysis(analysis, run_dir, rows, inputs)
-    if args.status == "completed" and inputs.get("selection_mode") == "full" \
+    if args.status == "completed" and inputs.get("review_mode", "ai" if inputs.get("selection_mode") == "full" else "none") == "ai" \
             and analysis.get("review_status") != "completed":
-        raise ValueError("full Run 必须完成全部已选 Case 的证据复核后才能标记 completed")
+        raise ValueError("已请求 AI 复核的 Run 必须完成全部已选 Case 的证据复核后才能标记 completed")
     if not analysis_path.is_file():
         with analysis_path.open("w", encoding="utf-8") as handle:
             json.dump(analysis, handle, ensure_ascii=False, indent=2)
@@ -589,6 +786,10 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
         handle.write("\n")
     manifest["status"] = args.status
     manifest["finished_at"] = utc_now()
+    comparison_markdown = None
+    if inputs.get("compare_to_run_id"):
+        left = comparison_run_view(repo, inputs["compare_to_run_id"], manifest["agent_id"])
+        comparison_markdown = compare_views(left, run_view(repo, args.run))["markdown"]
     report_path = run_dir / "report.md"
     write_report(
         report_path, manifest, summary, rows, inputs.get("executor"),
@@ -596,6 +797,7 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
         analysis,
         inputs.get("selection_mode"),
         gaps,
+        comparison_markdown,
     )
     manifest["results_sha256"] = hashlib.sha256(results.read_bytes() if results.is_file() else b"").hexdigest()
     manifest["summary_sha256"] = hashlib.sha256(summary_path.read_bytes()).hexdigest()
@@ -617,9 +819,11 @@ def main() -> None:
     init_parser.add_argument("--case", action="append", default=[], help="必须显式选择的 Case；可重复")
     init_parser.add_argument("--kind", default="research", choices=RUN_KINDS)
     init_parser.add_argument("--baseline-ref", help="默认读取 Experiment change.yaml")
-    init_parser.add_argument("--model", help="可选的实际模型标识")
+    init_parser.add_argument("--model", help="可选的预期模型标识，不改变 Runtime 设置")
     init_parser.add_argument("--executor", help="可选的执行通道标识")
+    init_parser.add_argument("--compare-to", help="已封存的同 Agent Run ID，封存时在报告中加入对照")
     init_parser.add_argument("--selection-mode", choices=("fast", "full", "explicit"), default="explicit")
+    init_parser.add_argument("--review-mode", choices=("ai", "none"), help="默认沿用选择档位的历史复核行为")
     record_parser = commands.add_parser("record", help="追加一条观察")
     record_parser.add_argument("--run", required=True)
     record_parser.add_argument("trial_file", help="Trial JSON 文件；- 表示标准输入")
@@ -633,6 +837,15 @@ def main() -> None:
     finalize_parser = commands.add_parser("finalize", help="生成摘要并封存 Run")
     finalize_parser.add_argument("--run", required=True)
     finalize_parser.add_argument("--status", required=True, choices=FINAL_STATUSES)
+    index_parser = commands.add_parser("index", help="按 Agent 列出 Experiment 和 Run")
+    index_parser.add_argument("--agent", required=True)
+    show_parser = commands.add_parser("show", help="查看 Run 的冻结口径、结果和证据")
+    show_parser.add_argument("--run", required=True)
+    show_parser.add_argument("--case", help="只查看一个已选 Case")
+    compare_parser = commands.add_parser("compare", help="并列比较两个 Run 的共同 Case")
+    compare_parser.add_argument("--left", required=True)
+    compare_parser.add_argument("--right", required=True)
+    compare_parser.add_argument("--case", help="只比较一个共同 Case")
     args = parser.parse_args()
     try:
         repo = args.repo.resolve()
@@ -644,8 +857,14 @@ def main() -> None:
             command_record(repo, args)
         elif args.command == "gap":
             command_gap(repo, args)
-        else:
+        elif args.command == "finalize":
             command_finalize(repo, args)
+        elif args.command == "index":
+            command_index(repo, args)
+        elif args.command == "show":
+            command_show(repo, args)
+        else:
+            command_compare(repo, args)
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
         print(f"run record failed: {error}", file=sys.stderr)
         raise SystemExit(1) from error

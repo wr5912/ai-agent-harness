@@ -92,7 +92,8 @@ async function exportSession(page, sessionId) {
 
 async function resolveNewSession(page, existingIds, presetId, workspace, timeoutMs, signal) {
   const session = await poll(
-    async () => (await listSessions(page)).find(item => !existingIds.has(item.sessionId)),
+    async () => (await listSessions(page)).find(item =>
+      !existingIds.has(item.sessionId) && item.origin !== 'subagent' && item.parentSessionId === undefined),
     item => item !== undefined,
     timeoutMs,
     signal,

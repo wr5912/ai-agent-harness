@@ -9,7 +9,7 @@ task_frozen_root=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help)
-      printf 'Usage: %s [verification] [--source experiment:EXP-agent-NNN] [--frozen FROZEN_SOURCES_DIR]\n' "$0"
+      printf 'Usage: %s [verification] [--source experiment:EXP-agent-NNN-r12hex] [--frozen FROZEN_SOURCES_DIR]\n' "$0"
       printf 'Compare exact host/container mounts and DSH composed config; no business acceptance.\n'
       exit 0 ;;
     verification)
@@ -71,6 +71,7 @@ fi
 # 适配层脚本不在镜像里，由本目录只读挂载进容器；因此脚本改动只需重启实例，不必重建镜像。
 export DSH_ADAPTER_HOST="$task_adapter_dir"
 export DSH_WEB_PROFILE_MANIFEST_HOST="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field profile_manifest)"
+export DSH_WEB_PROFILE_SEED_DIR_HOST="$(dirname -- "$DSH_WEB_PROFILE_MANIFEST_HOST")"
 export DSH_MANAGED_PATCH="$task_patch"
 export DSH_EVAL_TARGET_PRESET="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field preset_id)"
 export DSH_EVALUATION_PATCH="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field evaluation_patch)"

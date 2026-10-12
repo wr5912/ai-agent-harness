@@ -17,3 +17,8 @@
 - 008 来源把八项应急 MCP 与 Workbench 配置列为启动必填。缺少其中任一项时 `dsh-dev up` 在重建实例前报错；完整配置下生成的 Compose 显式传入八项。3102 实例按正式入口重建后，镜像、HOME 及原有九项运行变量保持一致，容器内可列出六个应急工具并只读调用 `list_emergency_actions`。
 - 3102 新 Session `session-25efbed5-d8b2-4b32-a07c-f49739000c86` 暴露六个应急工具；对于设备 `172.16.2.103` 封禁源 IP `198.51.100.77` 的 443 端口，实际调用 `prepare_emergency_action`，Workbench 返回动作 `host-block-ip-port`、匹配的目标与参数，以及 `READY/NOT_SUBMITTED` 草案。未调用确认或执行。
 - 新 fast Run [`run-cceff482-5137-4f7b-9d36-d57d35ccecd1`](../runs/run-cceff482-5137-4f7b-9d36-d57d35ccecd1/report.md) 执行 7/7 Case，机器结论为 4 通过、2 失败、1 无法判定。`U-EMG-001` 通过，回答交付操作号并等待单独确认。`U-INS-001` 在巡检运行中未说明设备数量缺口；`U-POL-001` 未生成权威策略预览；`U-FLT-001` 的评审未得有效结论。两项问答和威胁快速研判通过。该 Run 仍使用本地 MCP 客户端只读覆盖层，摘要见 `evidence/runtime-overlay.json`；未做人工证据复核。
+
+2026-10-07，针对中文优先与本地 Qwen 默认模型的补充观察：
+
+- 本分支合入 `main` 的 Candidate 变更：008 的业务工作区指令规定用户明确指定其他语言时遵从要求；默认模型配置指向 `local-qwen/Qwen3.8-27B`。业务评测定义新增 `U-QA-014`（明确指定英语），用于检查语言例外。
+- 已封存的旧版 DeepSeek API Run [`run-f630f91f-09f1-4c12-bdb3-42f5b815cfdd`](../runs/run-f630f91f-09f1-4c12-bdb3-42f5b815cfdd/report.md)选择 `U-QA-012/013`，可作为后续新 Run 的观察性对照。跨模型比较工具已通过隔离 Run 生命周期测试；当前会话缺少 `DEEPSEEK_API_KEY`、`LOCAL_LLM_BASE_URL`、`LOCAL_LLM_API_KEY`，且本机没有运行中的 DSH 容器，本轮尚未创建新的 Qwen Run，中文优先和明确指定英语的实际效果仍无新证据。

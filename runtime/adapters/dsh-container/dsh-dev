@@ -10,10 +10,12 @@ Docker CLI 与 Compose；实例配置生成在仓库外，Token 不落盘、不�
 from __future__ import annotations
 
 import argparse
+import hashlib
 import http.cookiejar
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -92,13 +94,18 @@ def create_harness(agent_id: str, *, repo: Path = REPO, sources: Path = SOURCES,
     if not NAME_RE.fullmatch(agent_id):
         raise ValueError("agent-id 必须是小写 kebab-case")
 
-    experiment_id = f"EXP-{agent_id}-001"
     agent_dir = repo / "agents" / agent_id
-    experiment_dir = repo / "evolution/experiments" / experiment_id
     original_catalog = sources.read_bytes()
     catalog = strict_json(sources)
     if catalog.get("schema_version") != "1.1" or not isinstance(catalog.get("sources"), dict):
         raise ValueError("unsupported source catalog")
+    for _ in range(5):
+        experiment_id = f"EXP-{agent_id}-001-r{secrets.token_hex(6)}"
+        experiment_dir = repo / "evolution/experiments" / experiment_id
+        if not experiment_dir.exists() and experiment_id not in catalog["sources"]:
+            break
+    else:
+        raise ValueError("无法生成未占用的 Experiment ID")
     collisions = [str(path.relative_to(repo)) for path in (agent_dir, experiment_dir) if path.exists()]
     if experiment_id in catalog["sources"]:
         collisions.append(f"sources.json:{experiment_id}")
@@ -375,6 +382,7 @@ def compose_env(contract: dict, mode: str, port: int, name: str,
             if analysis_workspace else contract.get("profile_manifest", str(ADAPTER / "verification-home-controls/web-profile.package.json"))
         ),
     })
+    environment["DSH_WEB_PROFILE_SEED_DIR_HOST"] = str(Path(environment["DSH_WEB_PROFILE_MANIFEST_HOST"]).parent)
     if analysis_workspace:
         environment["DSH_ANALYSIS_WORKSPACE_HOST"] = analysis_workspace
     else:
@@ -676,6 +684,9 @@ def instance_compose_env(manifest: dict) -> dict:
         "DSH_IMAGE_TAG": image_reference(manifest.get("image_tag"), manifest.get("image_id")),
         "DSH_ADAPTER_HOST": manifest.get("adapter_root") or str(ADAPTER),
         "DSH_WEB_PROFILE_MANIFEST_HOST": manifest.get("web_profile_manifest"),
+        "DSH_WEB_PROFILE_SEED_DIR_HOST": (
+            str(Path(manifest["web_profile_manifest"]).parent) if manifest.get("web_profile_manifest") else None
+        ),
         "DSH_EVALUATION_PATCH": manifest.get("evaluation_patch"),
         "DSH_DEV_TARGET_HOST": manifest.get("dev_target_file"),
         "DSH_MANAGED_PATCH": manifest.get("managed_patch"),
@@ -1467,6 +1478,8 @@ def existing_instance(name: str) -> tuple[Path, dict] | None:
 def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
     """在停旧实例前校验新 Compose 可展开，不写入实例目录。"""
     analysis_workspace = getattr(args, "analysis_workspace", None)
+    if analysis_workspace is None:
+        check_managed_plugin_dependencies(contract, getattr(args, "plugin_node_modules", None))
     with tempfile.TemporaryDirectory(prefix="dsh-dev-preflight-") as location:
         root = Path(location)
         rendered = render_compose(
@@ -1490,6 +1503,20 @@ def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
             plugin_node_modules=getattr(args, "plugin_node_modules", None),
         )
         run(compose_command(root, args.name, "config", "--quiet"), env=environment)
+
+
+def check_managed_plugin_dependencies(contract: dict, external_modules: str | None = None) -> None:
+    """本地插件的运行依赖必须能从已挂载目录解析。"""
+    managed = Path(contract["managed"])
+    for manifest in managed.glob("*/package.json"):
+        dependencies = json.loads(manifest.read_text(encoding="utf-8")).get("dependencies") or {}
+        for name in dependencies:
+            roots = (manifest.parent / "node_modules", managed / "node_modules")
+            if external_modules:
+                roots += (Path(external_modules),)
+            if not any((root / name).is_dir() for root in roots):
+                fail(f"插件 {manifest.parent.name} 缺少运行依赖 {name}；"
+                     f"请在 {manifest.parent} 按 package-lock.json 执行 npm ci 后重试")
 
 
 def migrate_existing_instance(args: argparse.Namespace, contract: dict,
@@ -1523,6 +1550,79 @@ def command_image_build(args: argparse.Namespace) -> None:
         fail("缺少 bash，无法调用 build-image.sh")
     run(["bash", str(script), "--source", args.source], check=True, capture=False, timeout=None)
     print(json.dumps({"built": True, "source": args.source}, ensure_ascii=False))
+
+
+def command_mcp_promote(args: argparse.Namespace) -> None:
+    """将已保存的实例 Web MCP 配置定稿到所选 Experiment 的新卷种子。"""
+    _, manifest = load_instance(args.name)
+    source_id = manifest.get("source_id", "")
+    if not source_id.startswith("experiment:"):
+        fail("MCP 配置定稿只支持 Experiment 来源")
+    contract = resolve(source_id)
+    managed = Path(contract["managed"])
+    seed = managed / "web-profile.seed.patch.yml"
+    if manifest.get("mounts", {}).get("managed") != str(managed) or not seed.is_file():
+        fail("实例来源与 Candidate MCP 种子不一致")
+    container, _ = running_container(args.name)
+    script = r'''
+const fs = require('node:fs');
+const { createRequire } = require('node:module');
+const yaml = createRequire('/opt/dsh/packages/mcp/mcp-client/package.json')('js-yaml');
+const rows = yaml.load(fs.readFileSync('/var/lib/dsh/profiles/web/cordis.patch.yml', 'utf8'));
+if (!Array.isArray(rows)) throw new Error('invalid Web profile patch');
+if (!rows.some(row => Array.isArray(row.insert) && row.insert.some(item =>
+  item.id === 'mcp-session-manager' && item.name === 'file:///opt/dsh-managed/mcp-manager/index.mjs'))) {
+  throw new Error('MCP manager plugin insert missing');
+}
+const matches = rows.flatMap(row => row.id === 'mcp-session-manager' ? [row]
+  : Array.isArray(row.insert) ? row.insert.filter(item => item.id === 'mcp-session-manager') : []);
+const current = matches.at(-1);
+if (!current || current.name && current.name !== 'file:///opt/dsh-managed/mcp-manager/index.mjs'
+  || !Array.isArray(current.config?.servers) || !Array.isArray(current.config?.groups)) {
+  throw new Error('MCP manager config missing or overridden');
+}
+const allowed = new Set(['id', 'serverName', 'description', 'enabled', 'specUrl', 'apiKey',
+  'authType', 'authHeader', 'loginUrl', 'loginUsername', 'loginPassword', 'loginTokenPath',
+  'url', 'headers', 'managementUrl', 'tools']);
+const servers = [];
+for (const server of current.config.servers) {
+  if (Object.keys(server).some(key => !allowed.has(key))) {
+    throw new Error('unexpected MCP server field');
+  }
+  for (const [address, isSpec] of [[server.specUrl, true], [server.url, false],
+    [server.loginUrl, true], [server.managementUrl, false]].filter(([address]) => address)) {
+    const url = new URL(address);
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password
+      || url.hash || (!isSpec && url.search)) {
+      throw new Error('MCP URL contains unsupported fields');
+    }
+  }
+  if (server.headers && (!Array.isArray(server.headers) || server.headers.some(header =>
+    typeof header.name !== 'string' || typeof header.value !== 'string'))) {
+    throw new Error('MCP headers invalid');
+  }
+  const needsCredential = Boolean(server.apiKey || server.loginPassword || server.headers?.some(header => header.value));
+  servers.push({ ...server, enabled: needsCredential ? false : server.enabled,
+    apiKey: server.apiKey ? '' : server.apiKey,
+    loginPassword: server.loginPassword ? '' : server.loginPassword,
+    headers: server.headers?.map(header => ({ name: header.name, value: '' })) });
+}
+const config = { servers, groups: current.config.groups, sharedToken: '' };
+const result = yaml.dump([{ insert: [{ id: 'mcp-session-manager',
+  name: 'file:///opt/dsh-managed/mcp-manager/index.mjs', config }] }]);
+if (JSON.stringify(yaml.load(result)[0].insert[0].config) !== JSON.stringify(config)) {
+  throw new Error('MCP seed round trip failed');
+}
+process.stdout.write(result);
+'''
+    result = subprocess.run(["docker", "exec", container, "node", "-e", script],
+                            text=True, capture_output=True, timeout=30, check=False)
+    if result.returncode or not result.stdout:
+        fail("读取 Web profile MCP 配置失败；请检查实例配置和插件状态")
+    _atomic_replace(seed, result.stdout.encode("utf-8"))
+    print(json.dumps({"source": source_id, "candidate_seed": str(seed),
+                      "sha256": hashlib.sha256(result.stdout.encode("utf-8")).hexdigest()},
+                     ensure_ascii=False))
 
 
 def main() -> None:
@@ -1582,6 +1682,10 @@ def main() -> None:
     down_parser = commands.add_parser("down", help="停止实例并保留 HOME")
     down_parser.add_argument("name")
     down_parser.set_defaults(handler=command_down)
+
+    promote_parser = commands.add_parser("mcp-promote", help="将实例 Web MCP 配置定稿到 Experiment Candidate")
+    promote_parser.add_argument("name")
+    promote_parser.set_defaults(handler=command_mcp_promote)
 
     args = parser.parse_args()
     args.handler(args)

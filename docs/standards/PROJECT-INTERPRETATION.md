@@ -9,7 +9,7 @@
 3. 《Harness Repo 目录结构设计说明（v1.1）》和《Harness Asset Repository 规范（v1.0）》作为目录与资产模型的设计输入；保留原文和摘要，不要求把其中每个生产化目录都物化。
 4. `agent-engineering-spec` 锁定提交提供任务分流、多轮澄清和外部资产复用参考；本项目仅通过 `harness-guided-workflow` 吸收与 Research Mode 一致的指导，不直接继承其生产交付合同。
 
-若来源中的生产化要求与 Research Mode 冲突，以当前研究范围为准，不自动引入稳定 Baseline、R1/R2/R3、审批、安全控制映射或生产部署流程。若未来正式启动生产化阶段，应另建清晰合同并重新评估这些来源，而不是静默改变本项目语义。
+若来源中的生产化要求与 Research Mode 冲突，以当前研究范围为准，不自动引入稳定 Baseline、R1/R2/R3、审批、安全控制映射或生产部署流程。若未来正式启动平台或生产化阶段，应明确该阶段的合同并重新评估这些来源；阶段转换不预设仓库边界，也不要求重做已验证的研究能力。
 
 `harness-guided-workflow` 是新建、迁移、修改和优化 Harness 的对话入口。它借鉴阶段式工作流，把任务分成讨论、计划、执行和验证四轮，并分别复用现有的资产清点、Experiment 演进和研究评估技能；最终事实仍写回现有 Agent、Experiment 与 Run，不建立第二套流程台账。
 
@@ -21,7 +21,7 @@ Baseline 是比较起点的引用，不是一套必须复制的目录：
 - `release:<agent-id>-v<semver>`：以已有 Research Release 为对照；
 - `none:first-experiment`：首次实验没有既有对照。
 
-每项语义性 Harness 变化建立一个 `evolution/experiments/EXP-<agent-id>-NNN/`。最小内容包括：
+每项语义性 Harness 变化建立一个 `evolution/experiments/EXP-<agent-id>-NNN-r<12位随机十六进制>/`。既有数字编号实验保留原名。最小内容包括：
 
 - `change.yaml`：Experiment 身份、Baseline 引用、状态，以及完成后的结果；
 - `hypothesis.md`：为什么修改、预期观察和停止条件；
@@ -44,7 +44,7 @@ Evaluation 的规模由假设和拟得出的结论决定，不设固定 Case 数
 运行记录位于：
 
 ```text
-evolution/experiments/EXP-<agent-id>-NNN/runs/run-<UUIDv4>/
+evolution/experiments/<experiment-id>/runs/run-<UUIDv4>/
 ```
 
 Run 至少记录实际来源、Git 提交及 dirty 状态、输入、逐项观察、失败和限制。静态检查或技术探针只能支撑其直接覆盖的结论。
@@ -94,7 +94,7 @@ Runtime 的 Session、设置、缓存和附件位于独立数据根，不进入 
 ## 7. 命名与物化
 
 - Agent ID、技能名和普通目录使用小写 kebab-case。
-- Experiment 使用 `EXP-<agent-id>-NNN`。
+- 新 Experiment 使用 `EXP-<agent-id>-NNN-r<12位随机十六进制>`；既有 `EXP-<agent-id>-NNN` 保留。
 - Research Release 使用 `<agent-id>-v<semver>`。
 - Run 使用 `run-<UUIDv4>`。
 - 只有出现真实资产、观察或复用需求时才创建目录；不使用空文件或占位报告伪造完整性。

@@ -16,7 +16,7 @@
 
 **预期**
 
-先从 `list_executable_inspections` 选出唯一匹配的已发布任务，以返回的 `taskId`、`definitionVersion` 和稳定 `requestId` 发起；常规全量巡检不传 `scope`。发起后只按返回的 `runId` 查询，不重复发起；报告就绪时结合 `conclusionStatus`、各项摘要、`businessSummary` 和 `reportMarkdown` 回答，并原样提供返回的 `reportDownloadUrl`。回复仍须给出设备数量；若服务没有提供该数量，该项不得判通过，并应说明缺口。运行中、工具失败或报告未就绪时不得声称完成或编造下载地址；若结果为 `PARTIAL`，须说明证据缺口。
+先调用 `list_executable_inspections` 选择真实可执行的常规模板；用该模板的 `taskId`、`definitionVersion` 和本次请求稳定的 `requestId` 调用一次 `start_inspection`，省略 `scope`。按同一 `runId` 调用 `get_inspection_result` 直到报告就绪；运行中不得声称完成或重复发起。回复依据服务的 `conclusionStatus`、`businessSummary`、完整 `reportMarkdown` 和设备数量，不改写结论或编造下载地址；设备数量缺失时说明缺口，该项不得判通过。只有非空 `reportDownloadUrl` 才提供下载地址。
 
 #### U-INS-002 查询巡检项
 
@@ -26,7 +26,7 @@
 
 **预期**
 
-只调用 `list_executable_inspections`；回复列出本轮真实查询返回的已发布可执行模板及巡检项，不调用 `start_inspection`。查询失败或目录为空时如实说明，不编造目录内容。
+只调用 `list_executable_inspections`；回复列出本轮真实返回的可执行模板及其巡检项，不调用 `start_inspection`。查询失败或目录为空时如实说明，不编造目录内容。
 
 #### U-INS-003 根据巡检事实生成 JSON
 
@@ -46,7 +46,7 @@
 
 **预期**
 
-说明当前三个巡检工具只能查询可执行模板、发起一次运行和查询结果，不能创建任务；询问用户是要执行已有任务，还是要另行配置新任务，不声称任务已创建。
+说明当前三个巡检工具只能查询已发布可执行模板、发起一次巡检并查询结果，不能创建任务；询问用户是要执行一次巡检，还是要另行配置新任务，不声称任务已创建。
 
 #### U-INS-005 创建周期巡检任务
 
@@ -58,7 +58,7 @@
 
 使用明确的巡检项和十分钟周期创建任务；回复中的任务标识、状态和周期与本轮真实工具返回一致。工具未成功返回时，不得声称创建成功。
 
-该 Case 保留周期任务创建要求；当前巡检 MCP 未提供创建接口，不得用一次 `start_inspection` 或通用定时工具冒充通过。
+该 Case 保留周期任务创建要求；当前巡检 MCP 未提供周期任务接口，不得用一次 `start_inspection` 或通用定时工具冒充通过。
 
 #### U-INS-006 指定资产巡检
 
@@ -68,7 +68,7 @@
 
 **预期**
 
-从本轮目录匹配唯一可执行任务；仅指定资产时传 `scope={"type":"ASSET_IDS","assetIds":["A-001"]}`，并携带目录返回的 `taskId`、`definitionVersion` 和稳定 `requestId`。不存在匹配任务时先说明或澄清，不猜标识或冒充执行。
+先用本轮 `list_executable_inspections` 确认唯一适用模板；有匹配时调用 `start_inspection`，传其 `taskId`、`definitionVersion`、稳定的 `requestId` 与 `scope: {"type":"ASSET_IDS","assetIds":["A-001"]}`，再按同一 `runId` 查询结果。模板不匹配或资产不存在时如实说明；不得以全量巡检冒充指定资产巡检。
 
 #### U-INS-007 续查同一次巡检
 
@@ -82,7 +82,7 @@
 
 **预期**
 
-第二轮复用同一 Session 中的 `runId` 调用 `get_inspection_result`，不重新调用 `start_inspection`。运行中只报告状态且不提供下载链接；结束且报告就绪后才原样提供服务返回的 `reportDownloadUrl`。
+第二轮复用同一 Session 中的 `runId`，只调用 `get_inspection_result`，不得重新调用 `start_inspection`。运行中只报告状态和运行标识；报告就绪后根据本轮服务返回的 `conclusionStatus`、`businessSummary`、完整 `reportMarkdown` 与设备数量回答，仅提供非空的真实 `reportDownloadUrl`。没有成功的服务回执不能判通过。
 
 ## 独立应急指令
 
@@ -235,6 +235,16 @@
 若当前 Session 没有可复用的完整参数，明确说明无法执行并索取参数；若已有参数，则原样使用，不查询资产、不改写标识，只生成交换机 ACL 预览且不执行策略。
 
 ## 故障排查
+
+#### U-FLT-MENTION 数字员工故障分析入口
+
+**用户输入**
+
+> @故障分析子智能体 业务系统访问异常，帮我做故障分析。
+
+**预期**
+
+按故障排查路由处理；信息不足时询问源、目的、协议、端口和现象，不编造根因，也不进入威胁研判或处置路由。
 
 #### U-FLT-001 连通故障分析与后续处置
 
@@ -476,9 +486,29 @@
 
 **预期**
 
-识别出缺少具体漏洞标识、受影响组件或证据并先询问；在没有这些信息时不臆测漏洞根因。
+用中文指出缺少具体漏洞标识、受影响组件或证据并先询问；在没有这些信息时不臆测漏洞根因。
+
+#### U-QA-014 明确指定英语
+
+**用户输入**
+
+> Please explain what a CVE ID identifies, in English.
+
+**预期**
+
+用英语准确说明 CVE ID 标识公开记录的漏洞，不把编号本身当成严重度或是否已被利用的证明。
 
 ## 威胁事件研判
+
+#### U-THREAT-MENTION 数字员工威胁研判入口
+
+**用户输入**
+
+> @威胁研判子智能体 请研判威胁事件 INC-20260917-000001。
+
+**预期**
+
+按威胁研判路由调用 `delegate_threat_analysis`，原样传递事件 ID；回复和工具轨迹满足 `U-THREAT-FAST` 的证据要求。委派不可用时如实说明，不改走故障排查或编造研判结果。
 
 #### U-THREAT-FAST 名单快速研判
 

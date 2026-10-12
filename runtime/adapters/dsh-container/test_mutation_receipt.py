@@ -87,6 +87,18 @@ class CandidateSourceTest(unittest.TestCase):
         current = receipt.snapshot(receipt.WORKSPACE)
         self.assertEqual(current["files"][0]["mode"], "1755")
 
+    def test_node_modules_are_not_candidate_assets(self):
+        dependencies = receipt.DSH_ROOT / "managed/node_modules"
+        dependencies.mkdir()
+        (dependencies / "package.js").write_text("dependency", encoding="utf-8")
+        (dependencies / "link.js").symlink_to("package.js")
+        current = receipt.snapshot(receipt.DSH_ROOT / "managed")
+        self.assertEqual([item["path"] for item in current["files"]], ["guard.mjs"])
+        self.assertEqual([item["path"] for item in current["directories"]], ["."])
+        (receipt.DSH_ROOT / "managed/link.js").symlink_to("guard.mjs")
+        with self.assertRaisesRegex(ValueError, "unsupported asset type"):
+            receipt.snapshot(receipt.DSH_ROOT / "managed")
+
     def test_hardlinked_asset_is_rejected_before_freeze(self):
         os.link(receipt.WORKSPACE / "AGENTS.md", receipt.WORKSPACE / "shared.md")
         with self.assertRaisesRegex(ValueError, "hardlinked asset"):

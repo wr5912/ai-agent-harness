@@ -73,6 +73,8 @@ def snapshot(root: Path, override: dict = None, *, allowed_roots: set[Path] = No
         })
         has_entry = False
         for entry in folder.iterdir():
+            if entry.name == "node_modules":
+                continue
             has_entry = True
             nodes += 1
             if nodes > limits["max_nodes"]:

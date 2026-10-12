@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,39 @@ import source_contract
 
 
 class SourceContractTest(unittest.TestCase):
+    def test_experiment_ids_accept_legacy_and_twelve_hex_suffix(self):
+        self.assertEqual(
+            source_contract.EXPERIMENT.fullmatch("EXP-security-operations-expert-013-r26ecd1295ab4").group(1),
+            "security-operations-expert",
+        )
+        self.assertIsNotNone(source_contract.EXPERIMENT.fullmatch("EXP-security-operations-expert-011"))
+        for invalid in (
+            "EXP-security-operations-expert-013-r26ecd1295ab",
+            "EXP-security-operations-expert-013-r26ecd1295ab4f",
+            "EXP-security-operations-expert-013-r26ECD1295AB4",
+            "EXP-security-operations-expert-0013-r26ecd1295ab4",
+        ):
+            self.assertIsNone(source_contract.EXPERIMENT.fullmatch(invalid))
+        self.assertEqual(
+            source_contract.resolve("EXP-security-operations-expert-013-r26ecd1295ab4")["agent_id"],
+            "security-operations-expert",
+        )
+
+    def test_container_verifier_accepts_same_experiment_ids(self):
+        verifier = (source_contract.ADAPTER / "verify-load.mjs").read_text(encoding="utf-8")
+        pattern = re.search(r"const sourceSelector = /(.+)/", verifier).group(1)
+        for value in (
+            "EXP-security-operations-expert-011",
+            "EXP-security-operations-expert-014-r8b1bd54e8be7",
+            "EXP-security-operations-expert-014-r8b1bd54e8be",
+            "EXP-security-operations-expert-014-r8b1bd54e8be70",
+        ):
+            self.assertEqual(
+                re.fullmatch(pattern, "experiment:" + value) is not None,
+                source_contract.EXPERIMENT.fullmatch(value) is not None,
+                value,
+            )
+
     def test_env_name_cli_outputs_names_only(self):
         completed = subprocess.run(
             [sys.executable, str(source_contract.ADAPTER / "source_contract.py"), "--env-names"],
@@ -37,6 +71,9 @@ class SourceContractTest(unittest.TestCase):
         result = source_contract.resolve()
         fingerprint = result["image"]["build_fingerprint"]
         self.assertRegex(fingerprint, r"^sha256:[0-9a-f]{64}$")
+        self.assertEqual(result["image"]["local_image_tag"],
+                         source_contract._read_source_lock(source_contract.LOCK)["local_image_tag"]
+                         + "-" + fingerprint[7:19])
         with tempfile.TemporaryDirectory(prefix="dsh-image-inputs-") as location:
             adapter = Path(location)
             for name in source_contract.IMAGE_BUILD_FILES:
@@ -59,6 +96,7 @@ class SourceContractTest(unittest.TestCase):
         )
         values = json.loads(completed.stdout)
         self.assertIn("Dockerfile", values)
+        self.assertIn("remote-host-settings.patch", values)
         self.assertTrue(all(value.startswith("sha256:") for value in values.values()))
 
     def test_all_experiments_share_runtime_and_schedule_keeps_web_profile(self):
@@ -96,7 +134,7 @@ class SourceContractTest(unittest.TestCase):
         self.assertIn("EMERGENCY_CONFIRMATION_PRIVATE_KEY_B64", contract["optional_env_names"])
         self.assertNotIn("POLICY_CONFIGURATION_MCP_URL", contract["required_env_names"])
 
-    def test_exp008_source_requires_complete_emergency_connection(self):
+    def test_exp008_source_declares_optional_emergency_connection(self):
         contract = source_contract.resolve("EXP-security-operations-expert-008")
         emergency = {
             "EMERGENCY_ACTION_MCP_URL", "EMERGENCY_ACTION_MCP_TOKEN",
@@ -104,8 +142,8 @@ class SourceContractTest(unittest.TestCase):
             "EMERGENCY_CONFIRMATION_PRIVATE_KEY_B64", "EMERGENCY_CONFIRMATION_ACTOR_ID",
             "AI_WORKBENCH_EMERGENCY_TENANT_ID", "AI_WORKBENCH_EMERGENCY_WORKSPACE_ID",
         }
-        self.assertTrue(emergency.issubset(contract["required_env_names"]))
-        self.assertTrue(emergency.isdisjoint(contract["optional_env_names"]))
+        self.assertTrue(emergency.issubset(contract["optional_env_names"]))
+        self.assertTrue(emergency.isdisjoint(contract["required_env_names"]))
 
     def test_optional_environment_names_reject_invalid_or_required_duplicates(self):
         source = "EXP-security-operations-expert-007"

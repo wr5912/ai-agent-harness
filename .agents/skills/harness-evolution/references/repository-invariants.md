@@ -10,7 +10,7 @@ Baseline 引用 → Experiment（含 Candidate）→ Evaluation → Decision
 ```
 
 - Agent ID、技能名和普通目录使用小写 kebab-case。
-- Experiment 使用 `EXP-<agent-id>-NNN`。
+- 新 Experiment 使用 `EXP-<agent-id>-NNN-r<12位随机十六进制>`；旧编号实验保留原名。
 - Run 使用 `run-<UUIDv4>`，每次执行独立保存，封存后不覆盖。
 - Research Release 使用 `<agent-id>-v<semver>`，只能保存值得独立复用的研究版本。
 - Baseline 使用 `git:<40 位 commit>`、`release:<id>` 或 `none:first-experiment` 引用，不复制 `evolution/baselines/`。

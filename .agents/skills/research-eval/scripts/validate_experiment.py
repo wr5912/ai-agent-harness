@@ -19,6 +19,7 @@ ADAPTER = Path(__file__).resolve().parents[4] / "runtime/adapters/dsh-container"
 if str(ADAPTER) not in sys.path:
     sys.path.insert(0, str(ADAPTER))
 from scenario_analysis import summarize_review, validate_analysis
+from source_contract import EXPERIMENT as EXPERIMENT_RE
 
 try:
     import yaml
@@ -26,7 +27,6 @@ except ImportError:  # pragma: no cover
     yaml = None
 
 
-EXPERIMENT_RE = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3,}$")
 RUN_RE = re.compile(
     r"^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
     re.IGNORECASE,
@@ -265,6 +265,19 @@ def validate_run(
         errors.append(issue("RUN_PLAN_REF", "Run 输入锁不再允许保存本地 plan 摘要", inputs))
     if locked_inputs.get("schema_version") != "2.0" or locked_inputs.get("run_id") != run_dir.name:
         errors.append(issue("RUN_INPUTS_SCHEMA", "输入锁必须是当前 Run 的 2.0 合同", inputs))
+    comparison_ref = locked_inputs.get("compare_to_run_id")
+    if comparison_ref is not None:
+        references = [] if not isinstance(comparison_ref, str) or not RUN_RE.fullmatch(comparison_ref) \
+            or comparison_ref == run_dir.name else list(run_dir.parents[2].glob(f"*/runs/{comparison_ref}/run.yaml"))
+        if len(references) != 1:
+            errors.append(issue("RUN_COMPARISON_REF", "对照 Run 必须是唯一的已封存 Run", inputs))
+        else:
+            try:
+                reference = load_yaml(references[0])
+                if reference.get("agent_id") != agent_id or reference.get("status") not in {"completed", "failed", "cancelled"}:
+                    raise ValueError("对照 Run 必须属于同一 Agent 且已封存")
+            except (OSError, ValueError, RuntimeError) as exc:
+                errors.append(issue("RUN_COMPARISON_REF", str(exc), inputs))
     locked_cases = locked_inputs.get("evaluation_cases")
     valid_cases = isinstance(locked_cases, list) and bool(locked_cases) and all(
         isinstance(case, dict)
@@ -284,6 +297,9 @@ def validate_run(
     has_catalog = "case_catalog" in locked_inputs or "selection_mode" in locked_inputs
     catalog = locked_inputs.get("case_catalog")
     selection_mode = locked_inputs.get("selection_mode")
+    review_mode = locked_inputs.get("review_mode", "ai" if selection_mode == "full" else "none")
+    if review_mode not in {"ai", "none"}:
+        errors.append(issue("RUN_REVIEW_MODE", "Run 证据复核模式无效", inputs))
     valid_catalog = isinstance(catalog, list) and bool(catalog) and all(
         isinstance(item, dict) and set(item) == {"case_id", "scene", "fast"}
         and isinstance(item["case_id"], str) and bool(item["case_id"])
@@ -409,9 +425,9 @@ def validate_run(
                         analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
                         validate_analysis(analysis, run_dir, rows, locked_inputs)
                         if analysis.get("schema_version") == "2.0" \
-                                and status == "completed" and selection_mode == "full" \
+                                and status == "completed" and review_mode == "ai" \
                                 and analysis.get("review_status") != "completed":
-                            raise ValueError("completed full Run 必须完成全部证据复核")
+                            raise ValueError("已请求 AI 复核的 completed Run 必须完成全部证据复核")
                     except (OSError, ValueError, KeyError, TypeError, IndexError) as exc:
                         errors.append(issue("RUN_ANALYSIS", f"场景诊断与 Run 事实不一致：{exc}", analysis_path))
 
@@ -421,7 +437,7 @@ def validate(experiment: Path) -> tuple[dict, int]:
     warnings: list[dict[str, str]] = []
     match = EXPERIMENT_RE.fullmatch(experiment.name)
     if not experiment.is_dir() or experiment.is_symlink() or not match:
-        payload = {"schema_version": "1.0", "valid": False, "errors": [issue("EXPERIMENT_PATH", "输入必须是 EXP-<agent-id>-NNN 实体目录", experiment)], "warnings": []}
+        payload = {"schema_version": "1.0", "valid": False, "errors": [issue("EXPERIMENT_PATH", "输入必须是 EXP-<agent-id>-NNN-r<12位十六进制> 或旧编号实体目录", experiment)], "warnings": []}
         return payload, 2
     agent_id = match.group(1)
     repository = experiment.parents[2]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
 import importlib.util
 import json
@@ -12,6 +13,7 @@ import tarfile
 import tempfile
 import time
 import unittest
+from unittest import mock
 import uuid
 import zipfile
 from pathlib import Path
@@ -509,6 +511,51 @@ class ResearchEvalTests(unittest.TestCase):
 
 
 class RunRecordTests(unittest.TestCase):
+    def test_init_captures_clean_git_before_creating_run(self) -> None:
+        spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            experiment = repo / f"evolution/experiments/{EXPERIMENT_ID}"
+            experiment.mkdir(parents=True)
+            (experiment / "change.yaml").write_text("baseline_ref: none:first-experiment\n", encoding="utf-8")
+            subprocess.run(["git", "init", "-q", str(repo)], check=True)
+            subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(repo), "-c", "user.name=Test", "-c",
+                            "user.email=test@example.invalid", "commit", "-qm", "initial"], check=True)
+            contract = {"experiment_id": EXPERIMENT_ID, "agent_id": AGENT_ID,
+                        "source_id": f"experiment:{EXPERIMENT_ID}", "source_kind": "experiment",
+                        "workspace": str(repo), "presets": str(repo), "managed": str(repo),
+                        "config_markers": ["test"], "required_env_names": [], "optional_env_names": []}
+            args = argparse.Namespace(source=f"experiment:{EXPERIMENT_ID}", baseline_ref=None,
+                                      case=["U-INS-001"], selection_mode="explicit",
+                                      kind="research", model=None, executor="api", review_mode=None)
+            with mock.patch.object(module, "resolve", return_value=contract), \
+                    mock.patch.object(module, "execution_for", return_value=[{"case_id": "U-INS-001"}]), \
+                    mock.patch.object(module, "load_evaluation", return_value={"catalog": []}), \
+                    mock.patch.object(module, "evaluation_digest", return_value="digest"), \
+                    mock.patch.object(module, "tree_digest", return_value={}):
+                module.command_init(repo, args)
+            run_dir = next((experiment / "runs").iterdir())
+            inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+            self.assertFalse(inputs["git_version"]["dirty"])
+            self.assertEqual(inputs["review_mode"], "none")
+
+    def test_historical_inspection_tool_failure_is_visible(self) -> None:
+        spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        view = module.run_view(ROOT, "run-548ae419-80a4-47dc-9fd2-94d972f29010", "U-INS-001")
+        case = view["cases"][0]
+        self.assertNotIn("mcp__inspection__list_executable_inspections", case["registered_tools"][0])
+        self.assertEqual(case["tool_calls"][0], {
+            "name": "mcp__inspection__list_executable_inspections",
+            "status": "error", "error_code": "UNKNOWN_TOOL",
+        })
+        successful = module.run_view(ROOT, "run-548ae419-80a4-47dc-9fd2-94d972f29010", "U-INS-003")
+        self.assertEqual(successful["cases"][0]["tool_calls"][0]["status"], "ok")
+
     def test_flat_yaml_round_trip_preserves_escaped_strings(self) -> None:
         spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
         module = importlib.util.module_from_spec(spec)
@@ -562,7 +609,7 @@ class RunRecordTests(unittest.TestCase):
                 [
                     "python3", str(repository / "runtime/adapters/dsh-container/run_record.py"),
                     "--repo", str(repository), "init", "--source", f"experiment:{EXPERIMENT_ID}",
-                    "--case", "U-INS-001", "--kind", "research",
+                    "--case", "U-INS-001", "--kind", "research", "--model", "deepseek-official",
                 ],
                 cwd=repository, text=True, capture_output=True, check=False, timeout=180,
                 env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
@@ -573,6 +620,11 @@ class RunRecordTests(unittest.TestCase):
             evidence = run_dir / "evidence/U-INS-001/checks.json"
             evidence.parent.mkdir(parents=True)
             evidence.write_text('{"loaded":true}\n', encoding="utf-8")
+            (evidence.parent / "response.json").write_text(
+                json.dumps({"assistant_texts": ["请补充证据"],
+                            "turns": [{"route": {"model": "test-model"}}]}, ensure_ascii=False),
+                encoding="utf-8",
+            )
             trial = repository / "trial.json"
             trial.write_text(
                 json.dumps(
@@ -613,6 +665,63 @@ class RunRecordTests(unittest.TestCase):
                 'evaluation_ref: "agents/security-operations-expert/evaluation.md"',
                 (run_dir / "run.yaml").read_text(encoding="utf-8"),
             )
+            indexed = subprocess.run(base + ["index", "--agent", AGENT_ID], cwd=repository,
+                                     text=True, capture_output=True, check=False, timeout=180)
+            self.assertEqual(indexed.returncode, 0, indexed.stderr)
+            self.assertIn(run_id, [item["run_id"] for experiment in json.loads(indexed.stdout)["experiments"]
+                                   for item in experiment["runs"]])
+            shown = subprocess.run(base + ["show", "--run", run_id, "--case", "U-INS-001"],
+                                   cwd=repository, text=True, capture_output=True, check=False, timeout=180)
+            self.assertEqual(shown.returncode, 0, shown.stderr)
+            view = json.loads(shown.stdout)
+            self.assertEqual(view["cases"][0]["frozen"]["case_id"], "U-INS-001")
+            self.assertEqual(view["cases"][0]["trials"][0]["verdict"], "passed")
+            self.assertEqual(view["cases"][0]["output"], ["请补充证据"])
+            self.assertEqual(view["cases"][0]["actual_routes"][0]["model"], "test-model")
+            self.assertTrue(view["cases"][0]["evidence"][0]["present"])
+            self.assertTrue(view["cases"][0]["raw_evidence"]["response.json"]["present"])
+            compared = subprocess.run(base + ["compare", "--left", run_id, "--right", run_id],
+                                      cwd=repository, text=True, capture_output=True, check=False, timeout=180)
+            self.assertEqual(compared.returncode, 0, compared.stderr)
+            self.assertTrue(json.loads(compared.stdout)["comparable"])
+            old_report = (run_dir / "report.md").read_bytes()
+            invalid = subprocess.run(base + ["init", "--source", f"experiment:{EXPERIMENT_ID}",
+                                             "--case", "U-INS-001", "--compare-to", "run-invalid"],
+                                     cwd=repository, text=True, capture_output=True, check=False, timeout=180)
+            self.assertNotEqual(invalid.returncode, 0)
+            next_run = subprocess.run(base + ["init", "--source", f"experiment:{EXPERIMENT_ID}",
+                                              "--case", "U-INS-001", "--model", "local-qwen",
+                                              "--compare-to", run_id], cwd=repository, text=True,
+                                      capture_output=True, check=False, timeout=180)
+            self.assertEqual(next_run.returncode, 0, next_run.stderr)
+            next_id = next_run.stdout.strip()
+            next_dir = repository / f"evolution/experiments/{EXPERIMENT_ID}/runs/{next_id}"
+            next_evidence = next_dir / "evidence/U-INS-001"
+            next_evidence.mkdir(parents=True)
+            (next_evidence / "checks.json").write_text('{"loaded":true}\n', encoding="utf-8")
+            next_trial = {**json.loads(trial.read_text(encoding="utf-8")),
+                          "run_id": next_id, "trial_id": "trial-2", "verdict": "failed",
+                          "observation": "新版结果有差异"}
+            next_record = subprocess.run(base + ["record", "--run", next_id, "-"],
+                                         cwd=repository, text=True, capture_output=True, check=False,
+                                         input=json.dumps(next_trial), timeout=180)
+            self.assertEqual(next_record.returncode, 0, next_record.stderr)
+            next_finalize = subprocess.run(base + ["finalize", "--run", next_id, "--status", "completed"],
+                                           cwd=repository, text=True, capture_output=True,
+                                           check=False, timeout=180)
+            self.assertEqual(next_finalize.returncode, 0, next_finalize.stderr)
+            report = (next_dir / "report.md").read_text(encoding="utf-8")
+            self.assertIn("## 与之前版本的对比", report)
+            self.assertIn("model: 不同", report)
+            self.assertIn("U-INS-001", report)
+            self.assertEqual((run_dir / "report.md").read_bytes(), old_report)
+            newer = subprocess.run(base + ["compare", "--left", run_id, "--right", next_id],
+                                   cwd=repository, text=True, capture_output=True,
+                                   check=False, timeout=180)
+            self.assertEqual(newer.returncode, 0, newer.stderr)
+            self.assertTrue(json.loads(newer.stdout)["comparable"])
+            self.assertFalse(json.loads(newer.stdout)["causal_comparable"])
+            self.assertIn("model: 不同", json.loads(newer.stdout)["limits"])
 
     def test_unselected_input_is_rejected(self) -> None:
         spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
@@ -691,6 +800,35 @@ class DshEvalTests(unittest.TestCase):
         "LOCAL_LLM_BASE_URL",
         "LOCAL_LLM_API_KEY",
     )
+
+    def test_locked_harness_keeps_binary_digest_without_decoding(self) -> None:
+        spec = importlib.util.spec_from_file_location("scenario_analysis_binary_test", SCENARIO_ANALYSIS)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temp:
+            roots = {name: Path(temp) / name for name in ("workspace", "presets", "managed")}
+            for root in roots.values():
+                root.mkdir()
+            files = {"note.md": b"hello", "model.wasm": b"\x00\xff"}
+            for name, content in files.items():
+                (roots["workspace"] / name).write_bytes(content)
+            inputs = {"source_id": "experiment:test", "harness_trees": {
+                name: {"files": [
+                    {"path": path, "size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+                    for path, content in files.items()
+                ] if name == "workspace" else []}
+                for name in roots
+            }}
+            with mock.patch.dict("sys.modules", {"source_contract": mock.Mock(
+                resolve=lambda *_args, **_kwargs: roots,
+            )}):
+                result = module._locked_harness(inputs)
+                self.assertEqual(result[0]["content"], "hello")
+                self.assertEqual(result[1]["content"], None)
+                self.assertTrue(result[1]["binary"])
+                (roots["workspace"] / "model.wasm").write_bytes(b"changed")
+                with self.assertRaisesRegex(ValueError, "harness-lock-digest-mismatch"):
+                    module._locked_harness(inputs)
 
     def test_readable_view_preserves_json_and_deduplicates_tool_content(self) -> None:
         spec = importlib.util.spec_from_file_location("scenario_analysis_view_test", SCENARIO_ANALYSIS)
@@ -1080,6 +1218,8 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         timeout: int = 240,
         executor: str = "api",
         mode: str | None = None,
+        compare_to: str | None = None,
+        review: str | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], dict]:
         command = [
             "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
@@ -1089,6 +1229,10 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         ]
         if mode:
             command.extend(("--mode", mode))
+        if compare_to:
+            command.extend(("--compare-to", compare_to))
+        if review:
+            command.extend(("--review", review))
         for case_id in case_ids:
             command.extend(("--case", case_id))
         completed = subprocess.run(
@@ -1130,7 +1274,10 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             repository, env, command_log = self.runtime_fixture(root)
-            completed, payload = self.run_eval(repository, env, "U-INS-001")
+            previous_run = "run-a739c37c-d72b-425f-9a65-ff064616c580"
+            previous_report = repository / f"evolution/experiments/EXP-security-operations-expert-008/runs/{previous_run}/report.md"
+            old_report = previous_report.read_bytes()
+            completed, payload = self.run_eval(repository, env, "U-INS-001", compare_to=previous_run)
             run_dir = (repository / payload["summary"]).parent
             summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
             report = (repository / payload["report"]).read_text(encoding="utf-8")
@@ -1139,6 +1286,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             manifest = (run_dir / "run.yaml").read_text(encoding="utf-8")
             commands = [json.loads(line) for line in command_log.read_text(encoding="utf-8").splitlines()]
             persisted = b"\n".join(path.read_bytes() for path in run_dir.rglob("*") if path.is_file())
+            self.assertEqual(previous_report.read_bytes(), old_report)
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(payload["executor"], "api")
         self.assertEqual(payload["verdict"], "passed")
@@ -1155,6 +1303,8 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertIn("- Case 选择：`explicit`", report)
         self.assertIn("`U-INS-001`", report)
         self.assertIn("## Case 结果与证据复核", report)
+        self.assertIn("## 与之前版本的对比", report)
+        self.assertIn(f"[{previous_run}]", report)
         self.assertIn(
             "| Case | 输入 | 判定依据 | 执行状态 | 机器结论 | 复核结论 | 是否修正 | 判定说明 | 证据 |",
             report,
@@ -1163,7 +1313,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertIn("通过", report)
         self.assertIn("## 场景覆盖与归因", report)
         self.assertIn("### 缺口与归因", report)
-        self.assertEqual(sum(len(scene["case_ids"]) for scene in analysis["scenes"]), 46)
+        self.assertEqual(sum(len(scene["case_ids"]) for scene in analysis["scenes"]), 52)
         self.assertEqual(sum(len(scene["selected_case_ids"]) for scene in analysis["scenes"]), 1)
         self.assertEqual(analysis["review_status"], "not_requested")
         self.assertEqual(
@@ -1171,6 +1321,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             len(analysis["scenes"]) - 1,
         )
         self.assertIn('executor": "api"', inputs)
+        self.assertIn(f'"compare_to_run_id": "{previous_run}"', inputs)
         self.assertIn("report_sha256:", manifest)
         self.assertEqual([command[0] for command in commands], ["up", "url", "down"])
         self.assertNotIn("opaque-eval-auth-token", completed.stdout + completed.stderr)
@@ -1256,15 +1407,15 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertEqual(completed.returncode, 1, completed.stderr)
         self.assertEqual(payload["review_status"], "completed")
         self.assertEqual(payload["cases"], {
-            "total": 46, "passed": 46, "failed": 0, "inconclusive": 0,
+            "total": 52, "passed": 52, "failed": 0, "inconclusive": 0,
         })
         self.assertEqual(payload["reviewed_cases"], {
-            "total": 46, "passed": 45, "failed": 1, "inconclusive": 0,
+            "total": 52, "passed": 51, "failed": 1, "inconclusive": 0,
         })
         self.assertEqual(summary["machine_overall_verdict"], "passed")
         self.assertEqual(summary["reviewed_overall_verdict"], "failed")
         self.assertEqual(summary["effective_verdict"], "failed")
-        self.assertEqual(analysis["reviewed_case_count"], 46)
+        self.assertEqual(analysis["reviewed_case_count"], 52)
         self.assertTrue(all(scene["review_status"] == "completed" for scene in selected_scenes))
         self.assertEqual(
             len({scene["analysis_session"]["session_id"] for scene in selected_scenes}),
@@ -1287,6 +1438,21 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             str(run_dir.resolve()),
         )
 
+    def test_explicit_case_can_request_ai_review(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository, env, command_log = self.runtime_fixture(Path(temp))
+            completed, payload = self.run_eval(repository, env, "U-INS-001", review="ai")
+            run_dir = (repository / payload["summary"]).parent
+            inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+            analysis = json.loads((run_dir / "analysis.json").read_text(encoding="utf-8"))
+            commands = [json.loads(line)[0] for line in command_log.read_text().splitlines()]
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(inputs["selection_mode"], "explicit")
+        self.assertEqual(inputs["review_mode"], "ai")
+        self.assertEqual(analysis["review_status"], "completed")
+        self.assertEqual(analysis["reviewed_case_count"], 1)
+        self.assertEqual(commands, ["up", "url", "up", "url", "down", "down"])
+
     def test_full_review_repairs_invalid_output_in_same_session(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repository, env, _ = self.runtime_fixture(Path(temp))
@@ -1305,7 +1471,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(analysis["review_status"], "completed")
-        self.assertEqual(analysis["reviewed_case_count"], 46)
+        self.assertEqual(analysis["reviewed_case_count"], 52)
         self.assertEqual(len(attempts), 5)
         self.assertTrue(all(first == repaired for first, repaired in sessions))
 
@@ -1408,11 +1574,11 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             )
         self.assertEqual(fast.returncode, 0, fast.stderr)
         self.assertEqual(json.loads(fast.stdout)["case_ids"], [
-            "U-INS-001", "U-POL-001", "U-FLT-009", "U-QA-002", "U-QA-003", "U-THREAT-FAST",
+            "U-INS-001", "U-EMG-001", "U-POL-001", "U-FLT-001", "U-QA-002", "U-QA-003", "U-THREAT-FAST",
         ])
         self.assertEqual(json.loads(fast.stdout)["selection_mode"], "fast")
         self.assertEqual(full.returncode, 0, full.stderr)
-        self.assertEqual(len(json.loads(full.stdout)["case_ids"]), 46)
+        self.assertEqual(len(json.loads(full.stdout)["case_ids"]), 52)
         self.assertEqual(json.loads(full.stdout)["selection_mode"], "full")
         self.assertEqual(explicit.returncode, 0, explicit.stderr)
         self.assertEqual(json.loads(explicit.stdout)["case_ids"], ["U-INS-002"])
@@ -1432,10 +1598,10 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertEqual(inputs["selection_mode"], "fast")
         self.assertIn("- Case 选择：`fast`", report)
         self.assertEqual([item["case_id"] for item in inputs["evaluation_cases"]], [
-            "U-INS-001", "U-POL-001", "U-FLT-009", "U-QA-002", "U-QA-003", "U-THREAT-FAST",
+            "U-INS-001", "U-EMG-001", "U-POL-001", "U-FLT-001", "U-QA-002", "U-QA-003", "U-THREAT-FAST",
         ])
         self.assertEqual(analysis["review_status"], "not_requested")
-        self.assertEqual(sum(scene["machine_counts"]["passed"] for scene in analysis["scenes"]), 6)
+        self.assertEqual(sum(scene["machine_counts"]["passed"] for scene in analysis["scenes"]), 7)
         self.assertEqual(sum(scene["machine_counts"]["not_executed"] for scene in analysis["scenes"]), 0)
 
     def test_case_patterns_select_in_document_order(self) -> None:
@@ -1460,7 +1626,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             selected_payload = json.loads(selected.stdout)
         self.assertEqual(selected.returncode, 0, selected.stderr)
         self.assertEqual(selected_payload["case_ids"], [
-            "U-INS-001", "U-INS-002", "U-INS-003", "U-INS-004", "U-INS-005",
+            "U-INS-001", "U-INS-002", "U-INS-003", "U-INS-004", "U-INS-005", "U-INS-006", "U-INS-007",
         ])
         self.assertEqual(unmatched.returncode, 2, unmatched.stderr)
         self.assertIn("未匹配 Case 模式：U-NOT-*", unmatched.stderr)
@@ -1567,11 +1733,12 @@ class EvaluationSourceTests(unittest.TestCase):
         text = evaluation.read_text(encoding="utf-8")
         loaded = self.load_contract().load_evaluation(evaluation)
         expected_ids = (
-            [f"U-INS-{index:03d}" for index in range(1, 6)]
+            [f"U-INS-{index:03d}" for index in range(1, 8)]
+            + ["U-EMG-001"]
             + [f"U-POL-{index:03d}" for index in range(1, 13)]
-            + [f"U-FLT-{index:03d}" for index in range(1, 11)]
-            + [f"U-QA-{index:03d}" for index in range(1, 14)]
-            + ["U-THREAT-FAST", "U-THREAT-FULL", "U-THREAT-WHITELIST", "U-THREAT-MISSING", "U-THREAT-FOLLOWUP"]
+            + ["U-FLT-MENTION"] + [f"U-FLT-{index:03d}" for index in range(1, 11)]
+            + [f"U-QA-{index:03d}" for index in range(1, 15)]
+            + ["U-THREAT-MENTION", "U-THREAT-FAST", "U-THREAT-FULL", "U-THREAT-WHITELIST", "U-THREAT-MISSING", "U-THREAT-FOLLOWUP"]
             + ["U-VOICE-001"]
         )
         self.assertFalse((agent / "definition.md").exists())
@@ -1583,11 +1750,12 @@ class EvaluationSourceTests(unittest.TestCase):
         self.assertEqual(loaded["cases"]["U-INS-001"]["inputs"], ["执行一次常规巡检。"])
         self.assertEqual(
             [item["case_id"] for item in loaded["catalog"] if item["fast"]],
-            ["U-INS-001", "U-POL-001", "U-FLT-009", "U-QA-002", "U-QA-003", "U-THREAT-FAST"],
+            ["U-INS-001", "U-EMG-001", "U-POL-001", "U-FLT-001", "U-QA-002", "U-QA-003", "U-THREAT-FAST"],
         )
         self.assertTrue(all(item["scene"] for item in loaded["catalog"]))
-        self.assertIn("设备数量和巡检报告链接", loaded["cases"]["U-INS-001"]["expected_behavior"])
-        self.assertIn("真实巡检工具返回", loaded["cases"]["U-INS-001"]["expected_behavior"])
+        self.assertIn("设备数量", loaded["cases"]["U-INS-001"]["expected_behavior"])
+        self.assertIn("reportMarkdown", loaded["cases"]["U-INS-001"]["expected_behavior"])
+        self.assertIn("不改写结论或编造下载地址", loaded["cases"]["U-INS-001"]["expected_behavior"])
         self.assertEqual(len(loaded["cases"]["U-POL-008"]["inputs"]), 4)
         for retired in (
             "**执行器", "**工具边界", "**副作用预算", "Experiment 评估选择",

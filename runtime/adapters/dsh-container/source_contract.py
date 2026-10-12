@@ -23,7 +23,9 @@ SOURCES = ADAPTER / "sources.json"
 LOCK = ADAPTER / "source.lock.json"
 DEFAULT_SOURCE = "EXP-security-operations-expert-001"
 NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-EXPERIMENT = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3}$")
+EXPERIMENT = re.compile(
+    r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-[0-9]{3}(?:-r[0-9a-f]{12})?$"
+)
 RELEASE_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*-v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
 ROLES = ("subject", "scoring")
 # evaluation.md 是判分材料：评分角色可读，被测角色不可读。
@@ -33,7 +35,7 @@ CONTAINER_REFERENCE = "/work/reference"
 CONTAINER_EVAL_INPUT = "/work/eval-input"
 IMAGE_FINGERPRINT_VERSION = "1"
 IMAGE_LABEL_KEY = "org.ai-agent-harness.dsh.image-build-fingerprint"
-IMAGE_BUILD_FILES = ("Dockerfile", "apt-mirror.sh", "build-image.sh", "dsh-cli.sh", "source_contract.py")
+IMAGE_BUILD_FILES = ("Dockerfile", "apt-mirror.sh", "build-image.sh", "dsh-cli.sh", "source_contract.py", "remote-host-settings.patch")
 
 
 def image_build_input_digests(*, lock_path: Path = LOCK, adapter: Path = ADAPTER) -> dict[str, str]:
@@ -161,6 +163,7 @@ def _experiment_contract(
     declared_preset = preset_id(item["preset"])
     image = dict(lock)
     image["build_fingerprint"] = image_build_fingerprint(lock, lock_path=lock_path)
+    image["local_image_tag"] = f"{lock['local_image_tag']}-{image['build_fingerprint'][7:19]}"
     contract = {
         "schema_version": "2.1",
         "source_kind": "experiment",

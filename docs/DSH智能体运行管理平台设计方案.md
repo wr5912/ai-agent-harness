@@ -38,7 +38,9 @@ DSH 的 [Cordis 插件和 Profile 组合机制](https://github.com/deepseek-ai/d
 | 修改 Prompt、Preset、Skill、插件配置、适配器或必要实现 | 写入业务 Agent 的 Candidate，按既有 Experiment、Evaluation、Decision 比较；评审或管理智能体自身的来源变化也须记录。 |
 | 切换后续运行所用版本 | 工具阶段明确选来源并新建测试实例，核对旧行为是否恢复；长期业务版本切换按后述运行合同处理。 |
 
-最小工具优先复用现有 Python/Shell CLI、来源解析、评测执行和 Run 记录。若需要界面，使用少量 DSH Client 视图与服务方法接入固定工具入口，核对其工作目录、参数、结构化输出、退出码、超时与取消结果；进程启动或页面返回不能代替操作成功。未来平台自有 Host、插件、适配器和 Web 客户端使用 TypeScript/TSX，与 DSH 的类型和接口保持一致；这不要求重写研究 CLI、Harness 文档或第三方能力源码。
+最小工具优先复用现有 Python/Shell CLI、来源解析、评测执行和 Run 记录。若需要界面，使用少量 DSH Client 视图与服务方法接入固定工具入口，核对其工作目录、参数、结构化输出、退出码、超时与取消结果；进程启动或页面返回不能代替操作成功。
+
+新增自研实现遵循[工程语言取向](../AGENTS.md#工程语言取向)：研究与工具阶段的新功能、DSH 插件和适配器使用 TypeScript，界面使用 TSX。现有 Python 随实际变更的调用链逐步迁移；首个迁移切片须核对原 CLI、资产与 Run 语义，以及 TypeScript 源码生成的 JavaScript/ESM 能否通过现有只读装载路径进入 DSH，并用受影响的 Case 和新 Session 验证后替换旧实现。语言迁移不妨碍复用现有 CLI，也不要求改写 Harness 文档或第三方源码。
 
 未来管理平台可运行在特化的 DSH Runtime 中，管理界面与管理智能体调用同一组确定性服务。优先通过 Profile 和插件扩展，不复制 Agent loop；只有扩展接口经原型证明不足时，才考虑可回退的最小上游修改。一元 [Remote API](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/api-gateway.zh.md)用于管理操作，不能据此假定跨容器流式业务会话已经可用。
 
@@ -58,6 +60,8 @@ DSH 的 [Cordis 插件和 Profile 组合机制](https://github.com/deepseek-ai/d
 业务知识保留原文来源和位置；当前运行事实查询确定性接口并标明时间；研究材料精确引用原始 Run；生成报告关联输入与证据，不自动升级为已核验知识。文档解析、检索、文件生成和外部业务工具在真实场景需要时接入现有服务或可选插件。业务工具的受理、完成、失败、超时和结果不明须保留各自语义；有外部副作用且结果不明时先核查，不盲目重试。
 
 ## 按需启动的运行平台
+
+当前 [EXP-014 DSH Web MCP 管理插件](../evolution/experiments/EXP-security-operations-expert-014-r8b1bd54e8be7/hypothesis.md)已在单个 DSH 实例内提供服务器编辑、按工具分组的 MCP 链接和新会话装载。新增 OpenAPI 服务器时，插件根据 Web profile 中的规范地址动态生成 MCP tools/resources；现成 MCP 服务则保存 URL 和请求 Header。Web profile patch 是实例在线工作态，Experiment Candidate 的种子是新卷恢复的定稿配置。未来运行平台若需要统一管理多个实例，应读取 Candidate 与实例实际 profile，标明实际加载版本、差异及验证时间，通过现有 DSH 插件操作，不复制一套可编辑 MCP 清单。组链接由配置生成；统一 Token 在插件页面生成并保存在实例 Web profile，Candidate 种子不包含 Token 和凭据值。只有实际跨实例管理需求明确后，才决定统一页面、权限和运行状态存储的边界。
 
 只有长期提供业务 Agent 服务、管理多个业务 Agent 或服务独立用户时，才按实际需要考虑单机 Docker、Agent 独立容器、统一业务入口和平台状态库等形态。每个实例使用自己的 Profile、只读 Harness 装载、运行配置和持久化卷；这隔离 Agent 实例，不自动隔离共享实例的用户。平台只记录必要的期望状态和决定，实际健康与装载来自 DSH 和容器观测；只有持久查询与操作状态确有需要时才评估 SQLite 等状态库，不把 `$DSH_HOME`、Session 或缓存打包成 Harness。
 

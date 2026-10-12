@@ -2,7 +2,9 @@
 
 本项目是面向个人开发者的 DSH-only Harness 研究与资产管理仓库。它用于创建、修改、比较和持续优化 Harness，并用 Git、Experiment、Run 与可选 Research Release 保存可复现的研究结果。
 
-项目默认且唯一采用 **Research Mode**：研究优先，禁止过度工程化和过度安全化；遵循简洁优先（Simplicity First）和精准修改（Surgical Changes）。这里不建设生产级 Agent 平台，也不把权限、审批、治理或多阶段发布机制作为每个实验的前置条件。完整规则见 [`AGENTS.md`](./AGENTS.md)。
+项目默认且唯一采用 **Research Mode**：研究优先，禁止过度工程化和过度安全化；遵循简洁优先（Simplicity First）和精准修改（Surgical Changes）。这里不建设生产级 Agent 平台，也不把权限、审批、治理或多阶段发布机制作为每个实验的前置条件。
+
+长期方向是研究验证、自用工具、能力逐步完善，最终演进为 AI 原生的 Harness工程平台（Harness Engineering Platform）。只有反复验证有价值的能力才逐步扩展，具体工程边界届时决定；当前约束与演进原则见 [`AGENTS.md`](./AGENTS.md)。
 
 当前已实现 eval-only 容器实例启动器 `runtime/adapters/dsh-container/dsh-dev`、受管评测入口 `runtime/adapters/dsh-container/dsh-eval`，以及来源解析、Candidate 冻结与摘要、Run 台账和仓库校验工具。Harness 的创建、迁移、修改和优化由宿主开发会话通过 `harness-guided-workflow` 引导，源码写入后再用新的只读评测实例验证。历史上曾完成一次容器内 Headless Skill 修改闭环，证据见 [`dsh-dev-real-session-20260919.json`](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json)；该证据只记录当时已退役的开发模式，不代表当前入口仍支持容器内修改。
 
@@ -18,7 +20,7 @@
 | 构建锁定 DSH 提交的本地镜像 | 已实现 | `dsh-dev image build` |
 | 按 `evaluation.md` 启动独立实例、逐 Case 新建 Session、导出轨迹并封存 Run | 已实现；默认走 DSH Runtime API，浏览器 UI 冒烟需显式选择；需要 Docker 和运行时环境变量 | `dsh-eval` |
 | 摘要、冻结、校验或恢复 Candidate 三棵资产树 | 已实现 | `mutation-receipt.py` |
-| 归档一次研究运行及其输入、观察、缺口与摘要 | 已实现 | `run_record.py` |
+| 归档研究运行，并按 Agent 索引、查看或并列比较已封存 Run | 已实现；`compare.comparable` 只判断记录的同条件项，业务等效仍需人工复核 | `run_record.py init/record/gap/finalize/index/show/compare` |
 | 校验项目结构、Experiment、Run 与 Research Release 合同 | 已实现 | `validate_repository.py` / `validate_experiment.py` |
 | 新 Preset 的 Web 创建、回流与选择闭环 | 尚未完成 | `PA-09` |
 | 解析并装载 `release:<id>` | 尚未实现 | `PA-11` |
@@ -35,9 +37,11 @@
    | 技能 | 使用时机 |
    |---|---|
    | `harness-guided-workflow` | 按讨论、计划、执行、验证的多轮 SOP 引导完整任务 |
+   | `harness-experiment-fusion` | 融合并行 Experiment，核对来源、装载依赖与组合行为 |
    | `legacy-asset-intake` | 只读清点旧归档或历史交付，不执行其中内容 |
    | `harness-evolution` | 建立或修改 Experiment、Candidate、Decision 和 Research Release |
    | `research-eval` | 设计小规模比较、校验 Run 与总结研究结论 |
+   | `dsh-platform-task-list` | 梳理未来 DSH 智能体运行平台的页面开发任务清单 |
    | `$continuous-dev-progress-vs-project-vision-gap-assessment` | 显式评估未来平台目标与当前进展，生成任务说明及 4K SVG |
    | `ai-correction-log` | 用户明确纠正上一轮错误时记录问题要点 |
 
@@ -114,7 +118,7 @@ agents/<agent-id>/
   manifest.yaml                          # Agent 研究入口和当前 Experiment
   evaluation.md                          # 业务 Case 的输入与预期的单一事实源
 evolution/
-  experiments/EXP-<agent-id>-NNN/
+  experiments/EXP-<agent-id>-NNN-r<12位随机十六进制>/
     change.yaml                          # 基线引用、状态与结果
     hypothesis.md                        # 为什么改、怎样判断
     candidate/                           # 本实验的可修改 Harness 工作树
@@ -162,7 +166,7 @@ python3 -m pip install -r .agents/skills/harness-evolution/scripts/requirements.
 python3 .agents/skills/legacy-asset-intake/scripts/inspect_source.py <archive-or-directory>
 python3 .agents/skills/harness-evolution/scripts/validate_repository.py .
 python3 .agents/skills/research-eval/scripts/validate_experiment.py \
-  evolution/experiments/EXP-<agent-id>-NNN
+  evolution/experiments/<experiment-id>
 ```
 
 脚本输出 JSON。退出码 `0` 只说明各自覆盖的确定性合同通过，`1` 表示发现问题，`2` 表示输入或读取错误；它们不替代对研究结果的人工判断。
@@ -171,23 +175,32 @@ python3 .agents/skills/research-eval/scripts/validate_experiment.py \
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --mode fast --dry-run
+  --source experiment:<experiment-id> --mode fast --dry-run
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --mode full
+  --source experiment:<experiment-id> --mode full
 python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:EXP-<agent-id>-NNN --executor browser --case <case-id>
+  --source experiment:<experiment-id> --executor browser --case <case-id>
 ```
 
 只需手工记录观察时，直接使用底层 Run 台账：
 
 ```bash
 python3 runtime/adapters/dsh-container/run_record.py --repo . init \
-  --source experiment:EXP-<agent-id>-NNN --case <case-id> --kind research
+  --source experiment:<experiment-id> --case <case-id> --kind research
 python3 runtime/adapters/dsh-container/run_record.py --repo . record \
   --run <run-uuid> trial.json
 python3 runtime/adapters/dsh-container/run_record.py --repo . finalize \
   --run <run-uuid> --status completed
+
+# 根据 Agent 找到 Run，再查看冻结 Case 与证据，或并列比较两个 Run
+python3 runtime/adapters/dsh-container/run_record.py --repo . index --agent <agent-id>
+python3 runtime/adapters/dsh-container/run_record.py --repo . show \
+  --run <run-uuid> --case <case-id>
+python3 runtime/adapters/dsh-container/run_record.py --repo . compare \
+  --left <baseline-run-uuid> --right <candidate-run-uuid> --case <case-id>
 ```
+
+`compare.comparable=false` 时先看 `limits`，并列输出只供人工查证，不能据此声称同条件等效；`comparable=true` 也不替代业务效果复核。
 
 ## 规范来源与验收边界
 

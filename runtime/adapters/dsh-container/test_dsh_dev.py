@@ -27,7 +27,38 @@ dev = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(dev)
 
 TOKEN = "dsh web: http://127.0.0.1:3081/?token=secret-token-value\n"
-IMAGE_TAG = json.loads((ADAPTER / "source.lock.json").read_text(encoding="utf-8"))["local_image_tag"]
+IMAGE_TAG = dev.resolve()["image"]["local_image_tag"]
+
+
+class McpPromoteTest(unittest.TestCase):
+    def test_promote_writes_only_candidate_seed_from_matching_running_instance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            managed = Path(directory)
+            seed = managed / "web-profile.seed.patch.yml"
+            seed.write_text("old", encoding="utf-8")
+            source = "experiment:EXP-security-operations-expert-013"
+            manifest = {"source_id": source, "mounts": {"managed": str(managed)}}
+            result = subprocess.CompletedProcess([], 0, stdout="new", stderr="")
+            with mock.patch.object(dev, "load_instance", return_value=(managed, manifest)), \
+                 mock.patch.object(dev, "resolve", return_value={"managed": str(managed)}), \
+                 mock.patch.object(dev, "running_container", return_value=("container", "started")), \
+                 mock.patch.object(dev.subprocess, "run", return_value=result):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    dev.command_mcp_promote(types.SimpleNamespace(name="example"))
+            self.assertEqual(seed.read_text(encoding="utf-8"), "new")
+
+    def test_promote_rejects_mismatched_candidate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            managed = Path(directory)
+            seed = managed / "web-profile.seed.patch.yml"
+            seed.write_text("old", encoding="utf-8")
+            manifest = {"source_id": "experiment:EXP-security-operations-expert-013",
+                        "mounts": {"managed": "/another/candidate"}}
+            with mock.patch.object(dev, "load_instance", return_value=(managed, manifest)), \
+                 mock.patch.object(dev, "resolve", return_value={"managed": str(managed)}), \
+                 self.assertRaises(SystemExit):
+                dev.command_mcp_promote(types.SimpleNamespace(name="example"))
+            self.assertEqual(seed.read_text(encoding="utf-8"), "old")
 
 
 class HarnessInitTest(unittest.TestCase):
@@ -47,16 +78,17 @@ class HarnessInitTest(unittest.TestCase):
         self.temporary.cleanup()
 
     def create(self, agent_id="test01"):
-        return dev.create_harness(
-            agent_id, repo=self.repo, sources=self.sources, lock_path=self.lock
-        )
+        with mock.patch.object(dev.secrets, "token_hex", return_value="0123456789ab"):
+            return dev.create_harness(
+                agent_id, repo=self.repo, sources=self.sources, lock_path=self.lock
+            )
 
     def test_creates_minimal_resolvable_first_experiment(self):
         result = self.create()
         self.assertEqual(result, {
             "agent_id": "test01",
-            "experiment_id": "EXP-test01-001",
-            "source_id": "experiment:EXP-test01-001",
+            "experiment_id": "EXP-test01-001-r0123456789ab",
+            "source_id": "experiment:EXP-test01-001-r0123456789ab",
         })
         contract = dev.resolve(
             result["source_id"], repo=self.repo, sources=self.sources, lock_path=self.lock
@@ -66,23 +98,23 @@ class HarnessInitTest(unittest.TestCase):
         expected = {
             "agents/test01/manifest.yaml",
             "agents/test01/evaluation.md",
-            "evolution/experiments/EXP-test01-001/change.yaml",
-            "evolution/experiments/EXP-test01-001/hypothesis.md",
-            "evolution/experiments/EXP-test01-001/candidate/harness.yaml",
-            "evolution/experiments/EXP-test01-001/candidate/dsh/workspace/.env",
-            "evolution/experiments/EXP-test01-001/candidate/dsh/workspace/AGENTS.md",
-            "evolution/experiments/EXP-test01-001/candidate/dsh/managed/test01.patch.yml",
-            "evolution/experiments/EXP-test01-001/candidate/dsh/presets/test01/agent.cordis.yml",
-            "evolution/experiments/EXP-test01-001/candidate/dsh/presets/test01/preset.yml",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/change.yaml",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/hypothesis.md",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/candidate/harness.yaml",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/candidate/dsh/workspace/.env",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/candidate/dsh/workspace/AGENTS.md",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/candidate/dsh/managed/test01.patch.yml",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/candidate/dsh/presets/test01/agent.cordis.yml",
+            "evolution/experiments/EXP-test01-001-r0123456789ab/candidate/dsh/presets/test01/preset.yml",
         }
         actual = {
             path.relative_to(self.repo).as_posix()
-            for root in (self.repo / "agents/test01", self.repo / "evolution/experiments/EXP-test01-001")
+            for root in (self.repo / "agents/test01", self.repo / "evolution/experiments/EXP-test01-001-r0123456789ab")
             for path in root.rglob("*") if path.is_file()
         }
         self.assertEqual(actual, expected)
         self.assertEqual(
-            (self.repo / "evolution/experiments/EXP-test01-001/candidate/dsh/workspace/.env").read_bytes(),
+            (self.repo / "evolution/experiments/EXP-test01-001-r0123456789ab/candidate/dsh/workspace/.env").read_bytes(),
             (ADAPTER / "verification-home-controls/locked-bootstrap.env").read_bytes(),
         )
         evaluation = (self.repo / "agents/test01/evaluation.md").read_text(encoding="utf-8")
@@ -113,7 +145,7 @@ class HarnessInitTest(unittest.TestCase):
             self.create()
         self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
         self.assertEqual(self.sources.read_bytes(), original)
-        self.assertFalse((self.repo / "evolution/experiments/EXP-test01-001").exists())
+        self.assertFalse((self.repo / "evolution/experiments/EXP-test01-001-r0123456789ab").exists())
 
     def test_resolution_failure_rolls_back_files_and_catalog(self):
         original = self.sources.read_bytes()
@@ -122,7 +154,13 @@ class HarnessInitTest(unittest.TestCase):
                 self.create()
         self.assertEqual(self.sources.read_bytes(), original)
         self.assertFalse((self.repo / "agents/test01").exists())
-        self.assertFalse((self.repo / "evolution/experiments/EXP-test01-001").exists())
+        self.assertFalse((self.repo / "evolution/experiments/EXP-test01-001-r0123456789ab").exists())
+
+    def test_random_suffix_retries_occupied_id(self):
+        (self.repo / "evolution/experiments/EXP-test01-001-r0123456789ab").mkdir()
+        with mock.patch.object(dev.secrets, "token_hex", side_effect=["0123456789ab", "abcdef123456"]):
+            result = dev.create_harness("test01", repo=self.repo, sources=self.sources, lock_path=self.lock)
+        self.assertEqual(result["experiment_id"], "EXP-test01-001-rabcdef123456")
 
 
 class RenderComposeTest(unittest.TestCase):
@@ -141,7 +179,7 @@ class RenderComposeTest(unittest.TestCase):
         self.assertNotIn("source: ./", rendered)
         self.assertIn(f"source: {ADAPTER}/verification-home-controls", rendered)
 
-    def test_lan_template_only_overrides_listener(self):
+    def test_lan_template_enables_authenticated_remote_settings(self):
         template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
         rendered = dev.render_compose(
             template, mode="verification", name="lan", project="dsh-dev-lan", port=3154,
@@ -159,6 +197,7 @@ class RenderComposeTest(unittest.TestCase):
         listener_patch = (ADAPTER / "verification-home-controls/lan-listen.patch.yml").read_text()
         self.assertIn("- id: webserver\n", listener_patch)
         self.assertIn("host: 0.0.0.0\n", listener_patch)
+        self.assertIn("name: /opt/dsh-adapter/web-remote-settings/index.js\n", listener_patch)
         self.assertNotIn("auth-gate", listener_patch)
         self.assertIn('      - --port\n      - "3154"\n', rendered)
 
@@ -258,6 +297,25 @@ class EvaluationModeContractTest(unittest.TestCase):
         }
         contract.update(overrides)
         return contract
+
+    def test_managed_plugin_dependencies_are_present_before_start(self):
+        with tempfile.TemporaryDirectory() as temp:
+            managed = Path(temp)
+            plugin = managed / "voice"
+            plugin.mkdir()
+            (plugin / "package.json").write_text(
+                '{"dependencies":{"@deepseek-ai/schemastery":"^3","ws":"^8"}}', encoding="utf-8"
+            )
+            contract = self.contract(managed=str(managed))
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                dev.check_managed_plugin_dependencies(contract)
+            for name in ("@deepseek-ai/schemastery", "ws"):
+                (plugin / "node_modules" / name).mkdir(parents=True)
+            dev.check_managed_plugin_dependencies(contract)
+            (plugin / "node_modules" / "ws").rmdir()
+            external = managed / "external"
+            (external / "ws").mkdir(parents=True)
+            dev.check_managed_plugin_dependencies(contract, str(external))
 
     def test_only_eval_mode_is_supported(self):
         self.assertEqual(dev.normalize_mode("eval"), "verification")
@@ -386,6 +444,13 @@ class EvaluationModeContractTest(unittest.TestCase):
             self.assertEqual(manifest["required_env_names"], ["DEEPSEEK_API_KEY"])
             self.assertEqual(manifest["optional_env_names"], ["POLICY_CONFIGURATION_MCP_URL"])
             self.assertNotIn("http://policy", json.dumps(manifest))
+
+    def test_inspection_token_is_forwarded_for_inspection_sources(self):
+        for number in ("008", "009", "010", "011", "012"):
+            source = f"experiment:EXP-security-operations-expert-{number}"
+            contract = dev.resolve(source)
+            with mock.patch.dict(os.environ, {"INSPECTION_MCP_TOKEN": "test-token"}):
+                self.assertIn("INSPECTION_MCP_TOKEN", dev.runtime_env_names(contract))
 
     def test_target_preset_comes_from_selected_source(self):
         """目标是来源声明的业务 preset，与本次会话实际运行的 preset 分开。"""
