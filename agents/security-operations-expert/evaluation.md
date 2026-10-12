@@ -16,7 +16,7 @@
 
 **预期**
 
-使用 `inspection_runs_start_with_plan` 为默认 `routine` 组发起一次全量运行，不编造能力 ID；按同一 `runId` 逐次调用 `inspection_runs_collect_evidence`，直到服务提示可结束，再调用 `inspection_runs_finalize`。回复须保留服务返回的完整 `user_response_markdown` 和设备数量，不改写服务结论或编造下载地址；若服务没有提供设备数量，该项不得判通过，并应说明缺口。运行中、工具失败或报告未就绪时不得声称完成；证据不完整时须说明缺口，不重复发起。
+先调用 `list_executable_inspections` 选择真实可执行的常规模板；用该模板的 `taskId`、`definitionVersion` 和本次请求稳定的 `requestId` 调用一次 `start_inspection`，省略 `scope`。按同一 `runId` 调用 `get_inspection_result` 直到报告就绪；运行中不得声称完成或重复发起。回复依据服务的 `conclusionStatus`、`businessSummary`、完整 `reportMarkdown` 和设备数量，不改写结论或编造下载地址；设备数量缺失时说明缺口，该项不得判通过。只有非空 `reportDownloadUrl` 才提供下载地址。
 
 #### U-INS-002 查询巡检项
 
@@ -26,7 +26,7 @@
 
 **预期**
 
-只调用 `inspection_capabilities_list`；回复列出本轮真实返回的可用巡检能力及其所属组，不调用 `inspection_runs_start_with_plan`。查询失败或目录为空时如实说明，不编造目录内容。
+只调用 `list_executable_inspections`；回复列出本轮真实返回的可执行模板及其巡检项，不调用 `start_inspection`。查询失败或目录为空时如实说明，不编造目录内容。
 
 #### U-INS-003 根据巡检事实生成 JSON
 
@@ -46,7 +46,7 @@
 
 **预期**
 
-说明当前四个巡检工具只能查询能力、创建一次运行与取证计划、分片取证和生成报告，不能创建任务；询问用户是要执行一次巡检，还是要另行配置新任务，不声称任务已创建。
+说明当前三个巡检工具只能查询已发布可执行模板、发起一次巡检并查询结果，不能创建任务；询问用户是要执行一次巡检，还是要另行配置新任务，不声称任务已创建。
 
 #### U-INS-005 创建周期巡检任务
 
@@ -58,7 +58,7 @@
 
 使用明确的巡检项和十分钟周期创建任务；回复中的任务标识、状态和周期与本轮真实工具返回一致。工具未成功返回时，不得声称创建成功。
 
-该 Case 保留周期任务创建要求；当前巡检 MCP 未提供周期任务接口，不得用一次 `inspection_runs_start_with_plan` 或通用定时工具冒充通过。
+该 Case 保留周期任务创建要求；当前巡检 MCP 未提供周期任务接口，不得用一次 `start_inspection` 或通用定时工具冒充通过。
 
 #### U-INS-006 指定资产巡检
 
@@ -68,7 +68,7 @@
 
 **预期**
 
-先用本轮 `inspection_capabilities_list` 确认适用能力；只有服务明确给出单资产 `scope` 格式时，才以该范围调用 `inspection_runs_start_with_plan`。当前工具 Schema 未限定单资产范围格式，不能推测字段或以全量巡检冒充完成；缺少范围合同则说明无法安全发起。
+先用本轮 `list_executable_inspections` 确认唯一适用模板；有匹配时调用 `start_inspection`，传其 `taskId`、`definitionVersion`、稳定的 `requestId` 与 `scope: {"type":"ASSET_IDS","assetIds":["A-001"]}`，再按同一 `runId` 查询结果。模板不匹配或资产不存在时如实说明；不得以全量巡检冒充指定资产巡检。
 
 #### U-INS-007 续查同一次巡检
 
@@ -82,7 +82,7 @@
 
 **预期**
 
-第二轮复用同一 Session 中的 `runId`，不得重新调用 `inspection_runs_start_with_plan`。若首轮尚未完成，继续调用 `inspection_runs_collect_evidence`，在所有取证项进入终态后调用 `inspection_runs_finalize`；若首轮已完成，用同一 `runId` 再次调用 `inspection_runs_finalize` 读取已有报告，不得另建运行。运行中只报告状态和运行标识；结束后保留服务返回的完整 `user_response_markdown`，不编造下载链接。没有成功的服务回执不能判通过。
+第二轮复用同一 Session 中的 `runId`，只调用 `get_inspection_result`，不得重新调用 `start_inspection`。运行中只报告状态和运行标识；报告就绪后根据本轮服务返回的 `conclusionStatus`、`businessSummary`、完整 `reportMarkdown` 与设备数量回答，仅提供非空的真实 `reportDownloadUrl`。没有成功的服务回执不能判通过。
 
 ## 独立应急指令
 

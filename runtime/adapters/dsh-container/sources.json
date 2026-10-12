@@ -520,6 +520,47 @@
         "POLICY_CONFIGURATION_MCP_URL"
       ]
     },
+    "EXP-security-operations-expert-015-r904bdcd81005": {
+      "agent_id": "security-operations-expert",
+      "candidate_root": "evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/candidate/dsh",
+      "profile_manifest": "evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/candidate/dsh/managed/web-profile.package.json",
+      "profile": "web",
+      "patch": "security-operations-expert.patch.yml",
+      "preset": "security-operations-expert/agent.cordis.yml",
+      "guard": "security-operations-guard.mjs",
+      "config_markers": [
+        "/opt/dsh-presets",
+        "/work/harness/workspace/.agents/skills",
+        "security-operations-expert",
+        "/opt/dsh-managed/security-operations-ui/index.js",
+        "/opt/dsh-managed/dsh-voice-hub/lib/index.js",
+        "security-operations-delegate-fault-analysis",
+        "security-operations-delegate-response-planning",
+        "local-qwen",
+        "Qwen3.8-27B",
+        "LOCAL_LLM_BASE_URL",
+        "security-operations-delegate-threat-analysis",
+        "/opt/dsh-managed/mcp-manager/index.mjs",
+        "mcp-session-manager"
+      ],
+      "required_env_names": [
+        "DEEPSEEK_API_KEY",
+        "LOCAL_LLM_BASE_URL",
+        "LOCAL_LLM_API_KEY"
+      ],
+      "optional_env_names": [
+        "SEC_OPS_MCP_TOKEN",
+        "SOC_MCP_BASE_URL",
+        "REPORT_MCP_URL",
+        "EMERGENCY_WORKBENCH_URL",
+        "EMERGENCY_WORKBENCH_TOKEN",
+        "EMERGENCY_CONFIRMATION_PRIVATE_KEY_B64",
+        "EMERGENCY_CONFIRMATION_ACTOR_ID",
+        "AI_WORKBENCH_EMERGENCY_TENANT_ID",
+        "AI_WORKBENCH_EMERGENCY_WORKSPACE_ID",
+        "POLICY_CONFIGURATION_MCP_URL"
+      ]
+    },
     "EXP-security-operations-expert-014-r8b1bd54e8be7": {
       "agent_id": "security-operations-expert",
       "candidate_root": "evolution/experiments/EXP-security-operations-expert-014-r8b1bd54e8be7/candidate/dsh",
