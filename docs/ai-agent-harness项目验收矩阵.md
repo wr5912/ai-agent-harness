@@ -53,7 +53,7 @@
 
 2026-10-09 的 [EXP-014 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-014-r8b1bd54e8be7/evaluation/observations.md)补充了 `PA-03/04/05/06/08` 的融合来源、当前实例只读装载、MCP 授权与分组技术链路、浏览器新 Session、语音识别和播报证据。`ai_soc_*` 的 OpenAPI 规范未取得，业务 Run 未完成；路径状态不因此提升。
 
-2026-10-10 的 [EXP-015 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/evaluation/observations.md)补充了 `PA-03/04/05/06/07/08/10` 的 Web MCP 配置回流、四服务工具发现与分组鉴权、同名实例重建、新 HOME 恢复和六个真实新 Session Case 的[封存 Run](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/runs/run-d442726d-c74c-42f7-91c2-8bb881424c29/report.md)。巡检三项通过，故障分析一项无法判定，策略与应急各一项因上游结果未达业务预期而失败；修正巡检解析指令后又有[三项巡检补充 Run](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/runs/run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017/report.md)，均通过。浏览器页面未在本次重验，全项目路径状态不因此提升。
+2026-10-10 的 [EXP-015 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/evaluation/observations.md)补充了 `PA-03/04/05/06/07/08/10` 的 Web MCP 配置回流、四服务工具发现与分组鉴权、同名实例重建、新 HOME 恢复和六个真实新 Session Case 的[封存 Run](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/runs/run-d442726d-c74c-42f7-91c2-8bb881424c29/report.md)。巡检三项通过，故障分析一项无法判定，策略与应急各一项因上游结果未达业务预期而失败；修正巡检解析指令后又有[三项巡检补充 Run](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/runs/run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017/report.md)，均通过。[跨版本对照 Run](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/runs/run-7bc9d938-4522-4ea6-be33-5e2c04e19e11/report.md)与 EXP-012 的三个共同 Case 各为 3/3 通过，但 Case 口径和运行条件不同，且未验证本地 Qwen 组合。浏览器页面未在本次重验，全项目路径状态不因此提升。
 
 ### PA-01 Research Mode、AI 协作入口与项目 Memory
 

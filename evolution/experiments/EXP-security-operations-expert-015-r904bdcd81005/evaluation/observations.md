@@ -10,6 +10,8 @@
 
 据此修正了巡检 Skill 中“必须先解析 JSON”的错误前提，重建主实例并保留 HOME。[修正后 Run](../runs/run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017/report.md)另用三个新 Session 重跑受影响的巡检 Case，均通过：只读目录、一次发起并取回报告、同 Session 续查同一 `runId`。这次服务返回应检 50 台、在线 31 台、离线 19 台；两次动态结果分别以各自回执为准。修正后的装载身份与 Web 配置见[新 Run 的容器摘要](../runs/run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017/evidence/dsh-image.json)及[profile 摘要](../runs/run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017/evidence/mcp-profile.json)。
 
+[跨版本对照 Run](../runs/run-7bc9d938-4522-4ea6-be33-5e2c04e19e11/report.md)以 EXP-012 的[已封存 Run](../../EXP-security-operations-expert-012/runs/run-204006db-50d8-44c1-b3d8-55e77c255337/report.md)为对照，在主实例的三个新 Session 中重跑共同的 `U-INS-001`、`U-INS-002`、`U-INS-007`：两边机器结果均为 3/3 通过。EXP-014 没有可用 Run，因此这不是与直接 Baseline 的对照。旧版与新版的巡检工具及冻结 Case 口径、能力配置、环境变量和镜像不同；新版工具代码尚未提交，Run 记录 `dirty=true`。这只能说明各自在当时条件下完成了这三个 Case，不能将结果差异单独归因于 Harness，也未验证默认 Qwen 模型。首次[对照尝试](../runs/run-44198d2c-a70d-45ce-bbe6-e234ab2c2b45/report.md)的 `U-INS-001` 因评审输出无效而无法判定；该 Run 保留原始结果，未覆盖改写。
+
 `U-FLT-002` 的三个目标 IP 在当前 SOC 资产目录中均未查到；智能体做了只读查询并说明证据缺口，但不足以逐台确认状态，保持无法判定。`U-POL-010` 调用真实 `prepare_policy_configuration` 后，上游在候选解析阶段返回 `POLICY_CONFIGURATION_AUTHORITY_UNAVAILABLE/network_path_not_reachable`，没有生成 PPV，判失败。`U-EMG-001` 正确传入目标、源 IP 和端口，未确认执行；Workbench 因目标未在资产目录中精确匹配而返回 `NEEDS_INPUT/SELECT_TARGET`，未生成 `READY/NOT_SUBMITTED` 草案，判失败。不能把连接成功等同于这两项业务完成。
 
 本次验证了 Web 配置写入、工具发现、分组范围、鉴权、同名重建、新 HOME 恢复及真实新 Session 调用。未重新做浏览器点击验收、语音回归或 `ai_soc_*` OpenAPI 转换；原定规范地址的可用性仍按 EXP-014 的观察保留为未验证。策略与应急的后续验证依赖可解析的真实资产及上游服务恢复，不能通过改写本次 Case 口径得出通过结论。

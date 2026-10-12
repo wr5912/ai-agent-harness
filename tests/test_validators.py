@@ -511,6 +511,37 @@ class ResearchEvalTests(unittest.TestCase):
 
 
 class RunRecordTests(unittest.TestCase):
+    def test_inspection_comparison_uses_tool_receipt_without_legacy_env(self) -> None:
+        def view(run_id: str, calls: list[dict]) -> dict:
+            return {
+                "run_id": run_id, "run_path": f"runs/{run_id}",
+                "manifest": {"agent_id": AGENT_ID, "status": "completed"},
+                "source": {"executor": "api", "model": "test-model", "review_mode": "none",
+                           "configured_capabilities": {}, "dependency_env": {},
+                           "git_version": {"commit": "test", "dirty": False}},
+                "image": {"image_build_fingerprint": "test", "local_image_id": "test"},
+                "cases": [{"case_id": "U-INS-001", "frozen": {},
+                           "trials": [{"execution_status": "completed", "verdict": "passed",
+                                       "observation": "成功"}], "output": [],
+                           "actual_routes": [{"model": "test-model"}], "review": None,
+                           "load_observation": {"preset_matches": True, "workspace_matches": True},
+                           "tool_calls": calls, "evidence": []}], "missing": [],
+            }
+
+        old = view("old", [{"name": "mcp__inspection__list_executable_inspections", "status": "ok"}])
+        new = view("new", [{"name": "mcp__inspection__get_inspection_result", "status": "ok"}])
+        script = ROOT / "runtime/adapters/dsh-container/run-comparison.ts"
+        compared = subprocess.run(["node", str(script)], input=json.dumps({"left": old, "right": new}),
+                                  text=True, capture_output=True, check=False)
+        self.assertEqual(compared.returncode, 0, compared.stderr)
+        self.assertFalse(any("巡检服务依赖未确认可用" in item
+                             for item in json.loads(compared.stdout)["limits"]))
+        new["cases"][0]["tool_calls"] = []
+        unconfirmed = subprocess.run(["node", str(script)], input=json.dumps({"left": old, "right": new}),
+                                     text=True, capture_output=True, check=False)
+        self.assertEqual(unconfirmed.returncode, 0, unconfirmed.stderr)
+        self.assertIn("U-INS-001: right 巡检服务依赖未确认可用", json.loads(unconfirmed.stdout)["limits"])
+
     def test_init_captures_clean_git_before_creating_run(self) -> None:
         spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
         module = importlib.util.module_from_spec(spec)
