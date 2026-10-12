@@ -55,6 +55,8 @@
 
 2026-10-10 的 [EXP-015 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/evaluation/observations.md)补充了 `PA-03/04/05/06/07/08/10` 的 Web MCP 配置回流、四服务工具发现与分组鉴权、同名实例重建、新 HOME 恢复和六个真实新 Session Case 的[封存 Run](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/runs/run-d442726d-c74c-42f7-91c2-8bb881424c29/report.md)。巡检三项通过，故障分析一项无法判定，策略与应急各一项因上游结果未达业务预期而失败；修正巡检解析指令后又有[三项巡检补充 Run](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/runs/run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017/report.md)，均通过。[跨版本对照 Run](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/runs/run-7bc9d938-4522-4ea6-be33-5e2c04e19e11/report.md)与 EXP-012 的三个共同 Case 各为 3/3 通过，但 Case 口径和运行条件不同，且未验证本地 Qwen 组合。浏览器页面未在本次重验，全项目路径状态不因此提升。
 
+2026-10-11 的 [EXP-016 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-016-r77d4eb1119fb/evaluation/observations.md)补充了 `PA-06/07/08/10` 的可配置语音摘要插件实际装载、共用连接、取消与重连、历史冷加载及无插件/卸载浏览器证据。保留修复前失败后，[最终 Run](../evolution/experiments/EXP-security-operations-expert-016-r77d4eb1119fb/runs/run-7a091380-a7d6-4381-947b-2f6c5c876892/report.md)两项 Case 在受控模型和测试音调范围通过；真实模型摘要质量与真实语音效果尚未评估，Decision 为 `continue`，全项目路径状态不因此提升。
+
 ### PA-01 Research Mode、AI 协作入口与项目 Memory
 
 - **要回答**：新的 AI 开发会话能否读到 Research Mode、中文优先、简洁优先、单一事实源、根因整改、精准修改和四项安全底线；收到 review 请求时能否定位项目审查原则并覆盖开发工具与目标智能体 Harness；是否能进入 Harness 引导式 SOP；Memory 是否只作为辅助上下文。
