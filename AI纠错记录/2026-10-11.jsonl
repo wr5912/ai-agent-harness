@@ -1,0 +1,1 @@
+{"时间":"2026-10-11 20:40","原提问要点":"按建议迁移本地自动研判功能并创建新 Experiment","AI错误要点":"建议使用顺序编号 EXP-security-operations-expert-016","我的纠正要点":"使用 EXP-security-operations-expert-015-r<12位随机十六进制字符> 的并行 Variant 命名","AI反思":"迁移前没有先核对最新主分支已支持随机后缀的并行 Variant 命名","根因":"沿用旧的顺序编号习惯，未先按最新来源合同确认 Experiment 身份规则","改进方法":"迁移前先更新 origin/main 并检查来源合同和现有 Variant 命名，再生成并校验随机 ID","标签":["命名错误","遗漏约束"]}
