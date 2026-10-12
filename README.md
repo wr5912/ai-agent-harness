@@ -2,7 +2,9 @@
 
 本项目是面向个人开发者的 DSH-only Harness 研究与资产管理仓库。它用于创建、修改、比较和持续优化 Harness，并用 Git、Experiment、Run 与可选 Research Release 保存可复现的研究结果。
 
-项目默认且唯一采用 **Research Mode**：研究优先，禁止过度工程化和过度安全化；遵循简洁优先（Simplicity First）和精准修改（Surgical Changes）。这里不建设生产级 Agent 平台，也不把权限、审批、治理或多阶段发布机制作为每个实验的前置条件。完整规则见 [`AGENTS.md`](./AGENTS.md)。
+项目默认且唯一采用 **Research Mode**：研究优先，禁止过度工程化和过度安全化；遵循简洁优先（Simplicity First）和精准修改（Surgical Changes）。这里不建设生产级 Agent 平台，也不把权限、审批、治理或多阶段发布机制作为每个实验的前置条件。
+
+长期方向是研究验证、自用工具、能力逐步完善，最终演进为 AI 原生的 Harness工程平台（Harness Engineering Platform）。只有反复验证有价值的能力才逐步扩展，具体工程边界届时决定；当前约束与演进原则见 [`AGENTS.md`](./AGENTS.md)。
 
 当前已实现 eval-only 容器实例启动器 `runtime/adapters/dsh-container/dsh-dev`、受管评测入口 `runtime/adapters/dsh-container/dsh-eval`，以及来源解析、Candidate 冻结与摘要、Run 台账和仓库校验工具。Harness 的创建、迁移、修改和优化由宿主开发会话通过 `harness-guided-workflow` 引导，源码写入后再用新的只读评测实例验证。历史上曾完成一次容器内 Headless Skill 修改闭环，证据见 [`dsh-dev-real-session-20260919.json`](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json)；该证据只记录当时已退役的开发模式，不代表当前入口仍支持容器内修改。
 
