@@ -295,7 +295,7 @@ window.__ModuleLoader__.load({
                                                     React.createElement("option", { value: "mcp" }, "\u73B0\u6210 MCP \u8FDE\u63A5"))))),
                                     'specUrl' in editingServer ? React.createElement("section", { className: "mcp-section" },
                                         React.createElement("h3", null, "OpenAPI \u63A5\u53E3"),
-                                        React.createElement("p", { className: "mcp-muted" }, "\u4FDD\u5B58\u540E\uFF0C\u63A5\u53E3\u89C4\u8303\u4E2D\u7684\u64CD\u4F5C\u4F1A\u81EA\u52A8\u751F\u6210 MCP \u5DE5\u5177\u6216\u8D44\u6E90\uFF1B\u670D\u52A1\u5668\u5185\u5168\u90E8\u5F00\u653E\u3002"),
+                                        React.createElement("p", { className: "mcp-muted" }, "\u4FDD\u5B58\u540E\uFF0C\u63A5\u53E3\u89C4\u8303\u4E2D\u7684\u64CD\u4F5C\u4F1A\u81EA\u52A8\u751F\u6210 MCP \u5DE5\u5177\u6216\u8D44\u6E90\uFF1B\u670D\u52A1\u5668\u5185\u5168\u90E8\u5F00\u653E\u3002\u89C4\u8303\u5148\u533F\u540D\u8BFB\u53D6\uFF0C\u9047 401/403 \u518D\u7528\u5DF2\u914D\u7F6E\u7684\u6388\u6743\u91CD\u8BD5\uFF1B\u4E1A\u52A1\u63A5\u53E3\u59CB\u7EC8\u6309\u6388\u6743\u65B9\u5F0F\u8C03\u7528\u3002"),
                                         React.createElement("div", { className: "mcp-fields" },
                                             React.createElement("label", { className: "mcp-field mcp-wide" },
                                                 "OpenAPI \u63A5\u53E3\u89C4\u8303\u5730\u5740",

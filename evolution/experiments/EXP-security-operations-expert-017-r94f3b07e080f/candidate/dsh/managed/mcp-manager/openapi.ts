@@ -26,22 +26,37 @@ function resolveObject(spec: any, value: any): any {
   return target
 }
 
-function schemaOf(spec: any, value: any, defs: Record<string, any>): any {
-  if (Array.isArray(value)) return value.map(item => schemaOf(spec, item, defs))
-  if (!value || typeof value !== 'object') return value
+function schemaOf(spec: any, value: any, seen = new Set<string>()): any {
+  // shortcut: 仅保留 DSH 支持的约束；需要严格校验完整 OpenAPI Schema 时扩展 Runtime 子集。
+  if (!value || typeof value !== 'object') return {}
   if (value.$ref) {
     const prefix = '#/components/schemas/'
     if (!String(value.$ref).startsWith(prefix)) throw new Error(`不支持的 Schema 引用：${value.$ref}`)
     const name = String(value.$ref).slice(prefix.length)
     const original = spec.components?.schemas?.[name]
     if (!original) throw new Error(`Schema 不存在：${name}`)
-    if (!(name in defs)) {
-      defs[name] = {}
-      defs[name] = schemaOf(spec, original, defs)
-    }
-    return { ...value, $ref: `#/$defs/${name}` }
+    // shortcut: 递归引用退化为任意 JSON；需要保留递归约束时再扩展 DSH Schema 支持。
+    if (seen.has(name)) return {}
+    return schemaOf(spec, original, new Set([...seen, name]))
   }
-  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, schemaOf(spec, item, defs)]))
+  const type = value.type ?? (value.properties ? 'object' : value.items ? 'array' : undefined)
+  const result: any = {}
+  for (const key of ['description', 'title', 'default', 'examples']) {
+    if (value[key] !== undefined) result[key] = value[key]
+  }
+  if (['object', 'array', 'string', 'number', 'integer', 'boolean', 'null'].includes(type)) result.type = type
+  if (result.type === 'object') {
+    result.properties = Object.fromEntries(Object.entries(value.properties ?? {}).map(([key, item]) => [key, schemaOf(spec, item, seen)]))
+    if (Array.isArray(value.required)) result.required = value.required
+    if (typeof value.additionalProperties === 'boolean') result.additionalProperties = value.additionalProperties
+  } else if (result.type === 'array' && value.items) result.items = schemaOf(spec, value.items, seen)
+  else if (['string', 'number', 'integer', 'boolean', 'null'].includes(result.type)) {
+    const matches = (item: any) => result.type === 'null' ? item === null :
+      result.type === 'integer' ? Number.isInteger(item) : typeof item === result.type
+    if (Array.isArray(value.enum) && value.enum.length && value.enum.every(matches)) result.enum = value.enum
+    if (value.const !== undefined && matches(value.const) && (!result.enum || result.enum.includes(value.const))) result.const = value.const
+  }
+  return result
 }
 
 function operationUrl(base: URL, path: string): URL {
@@ -49,22 +64,20 @@ function operationUrl(base: URL, path: string): URL {
 }
 
 function operationSchema(spec: any, parameters: any[], body: any): any {
-  const defs: Record<string, any> = {}
   const properties: Record<string, any> = {}
   const required: string[] = []
   for (const parameter of parameters) {
-    properties[parameter.name] = schemaOf(spec, parameter.schema ?? { type: 'string' }, defs)
+    properties[parameter.name] = schemaOf(spec, parameter.schema ?? { type: 'string' })
     if (parameter.description) properties[parameter.name].description = parameter.description
     if (parameter.required || parameter.in === 'path') required.push(parameter.name)
   }
   if (body) {
     const content = body.content?.['application/json']
     if (!content) throw new Error('当前仅支持 application/json 请求体')
-    properties.body = schemaOf(spec, content.schema ?? { type: 'object' }, defs)
+    properties.body = schemaOf(spec, content.schema ?? { type: 'object' })
     if (body.required) required.push('body')
   }
-  return { type: 'object', properties, ...(required.length ? { required: [...new Set(required)] } : {}),
-    ...(Object.keys(defs).length ? { $defs: defs } : {}) }
+  return { type: 'object', properties, ...(required.length ? { required: [...new Set(required)] } : {}) }
 }
 
 function authHeaders(spec: any, operation: any, apiKey?: string): Record<string, string> {
@@ -141,8 +154,14 @@ async function authorizedFetch(server: any, url: URL, init: RequestInit, spec?: 
 
 export async function loadOpenApi(server: any): Promise<any> {
   const specUrl = validateSpecUrl(server.specUrl)
-  const { response } = await authorizedFetch(server, new URL(specUrl), { signal: AbortSignal.timeout(20_000) })
-  if (!response.ok) throw new Error(`读取 OpenAPI 规范失败：HTTP ${response.status}`)
+  let response = await fetch(specUrl, { signal: AbortSignal.timeout(20_000) })
+  let retriedWithAuth = false
+  if ([401, 403].includes(response.status) && (server.authType === 'login' || server.apiKey)) {
+    await response.body?.cancel()
+    response = (await authorizedFetch(server, new URL(specUrl), { signal: AbortSignal.timeout(20_000) })).response
+    retriedWithAuth = true
+  }
+  if (!response.ok) throw new Error(`读取 OpenAPI 规范失败：HTTP ${response.status}（${retriedWithAuth ? '凭据重试' : '匿名访问'}）`)
   const spec = JSON.parse(await limitedText(response, MAX_DOCUMENT))
   if (!spec.openapi || !spec.paths || typeof spec.paths !== 'object') throw new Error('OpenAPI 规范缺少 openapi 或 paths')
   const base = new URL(spec.servers?.[0]?.url ?? '/', specUrl)
