@@ -51,4 +51,4 @@ for (const entry of entries) {
 console.log(`来源 ${sourceId}@${sourceCommit} → ${targetId}: ${entries.length} 个文件；缺失 ${missing.length}；内容变化 ${changed.length}`)
 for (const path of missing) console.log(`缺失 ${path}`)
 for (const path of changed) console.log(`需审查 ${path}`)
-if (missing.length) process.exitCode = 1
+if (missing.length || changed.length) process.exitCode = 1

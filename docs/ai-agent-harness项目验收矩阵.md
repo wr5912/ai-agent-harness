@@ -66,6 +66,8 @@
 
 2026-10-12 的 [EXP-017 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-017-rb20b8c6b906f/evaluation/observations.md)补充了 `PA-04/05/06/08` 的匿名规范读取与授权回退、真实浏览器发现、DSH 工具 Schema、分组鉴权和业务调用证据。`tee` 不在当前 Agent Guard 工具范围，上游部分接口仍返回 403；没有业务 Case Run，全项目路径状态不因此提升。
 
+2026-10-12 的 [EXP-017-r94 OpenAPI 回归与继承整改](../evolution/experiments/EXP-security-operations-expert-017-r94f3b07e080f/evaluation/observations.md#2026-10-12-openapi-回归与继承整改)补充 `PA-03/05/06/08` 的继承检查退出码、目标制品回归、同名实例保留 HOME 重建、实际 DSH Schema 和 Web 发现操作证据。技术回归已修复，业务授权与历史未决结论不因此改变，全项目路径状态不提升。
+
 ### PA-01 Research Mode、AI 协作入口与项目 Memory
 
 - **要回答**：新的 AI 开发会话能否读到 Research Mode、中文优先、简洁优先、单一事实源、根因整改、精准修改和四项安全底线；收到 review 请求时能否定位项目审查原则并覆盖开发工具与目标智能体 Harness；是否能进入 Harness 引导式 SOP；Memory 是否只作为辅助上下文。

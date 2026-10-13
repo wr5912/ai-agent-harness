@@ -27,11 +27,10 @@ function resolveObject(spec, value) {
         throw new Error(`OpenAPI 引用不存在：${value.$ref}`);
     return target;
 }
-function schemaOf(spec, value, defs) {
-    if (Array.isArray(value))
-        return value.map(item => schemaOf(spec, item, defs));
+function schemaOf(spec, value, seen = new Set()) {
+    // shortcut: 仅保留 DSH 支持的约束；需要严格校验完整 OpenAPI Schema 时扩展 Runtime 子集。
     if (!value || typeof value !== 'object')
-        return value;
+        return {};
     if (value.$ref) {
         const prefix = '#/components/schemas/';
         if (!String(value.$ref).startsWith(prefix))
@@ -40,23 +39,46 @@ function schemaOf(spec, value, defs) {
         const original = spec.components?.schemas?.[name];
         if (!original)
             throw new Error(`Schema 不存在：${name}`);
-        if (!(name in defs)) {
-            defs[name] = {};
-            defs[name] = schemaOf(spec, original, defs);
-        }
-        return { ...value, $ref: `#/$defs/${name}` };
+        // shortcut: 递归引用退化为任意 JSON；需要保留递归约束时再扩展 DSH Schema 支持。
+        if (seen.has(name))
+            return {};
+        return schemaOf(spec, original, new Set([...seen, name]));
     }
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, schemaOf(spec, item, defs)]));
+    const type = value.type ?? (value.properties ? 'object' : value.items ? 'array' : undefined);
+    const result = {};
+    for (const key of ['description', 'title', 'default', 'examples']) {
+        if (value[key] !== undefined)
+            result[key] = value[key];
+    }
+    if (['object', 'array', 'string', 'number', 'integer', 'boolean', 'null'].includes(type))
+        result.type = type;
+    if (result.type === 'object') {
+        result.properties = Object.fromEntries(Object.entries(value.properties ?? {}).map(([key, item]) => [key, schemaOf(spec, item, seen)]));
+        if (Array.isArray(value.required))
+            result.required = value.required;
+        if (typeof value.additionalProperties === 'boolean')
+            result.additionalProperties = value.additionalProperties;
+    }
+    else if (result.type === 'array' && value.items)
+        result.items = schemaOf(spec, value.items, seen);
+    else if (['string', 'number', 'integer', 'boolean', 'null'].includes(result.type)) {
+        const matches = (item) => result.type === 'null' ? item === null :
+            result.type === 'integer' ? Number.isInteger(item) : typeof item === result.type;
+        if (Array.isArray(value.enum) && value.enum.length && value.enum.every(matches))
+            result.enum = value.enum;
+        if (value.const !== undefined && matches(value.const) && (!result.enum || result.enum.includes(value.const)))
+            result.const = value.const;
+    }
+    return result;
 }
 function operationUrl(base, path) {
     return new URL(`${base.pathname.replace(/\/$/, '')}${path}`, base.origin);
 }
 function operationSchema(spec, parameters, body) {
-    const defs = {};
     const properties = {};
     const required = [];
     for (const parameter of parameters) {
-        properties[parameter.name] = schemaOf(spec, parameter.schema ?? { type: 'string' }, defs);
+        properties[parameter.name] = schemaOf(spec, parameter.schema ?? { type: 'string' });
         if (parameter.description)
             properties[parameter.name].description = parameter.description;
         if (parameter.required || parameter.in === 'path')
@@ -66,12 +88,11 @@ function operationSchema(spec, parameters, body) {
         const content = body.content?.['application/json'];
         if (!content)
             throw new Error('当前仅支持 application/json 请求体');
-        properties.body = schemaOf(spec, content.schema ?? { type: 'object' }, defs);
+        properties.body = schemaOf(spec, content.schema ?? { type: 'object' });
         if (body.required)
             required.push('body');
     }
-    return { type: 'object', properties, ...(required.length ? { required: [...new Set(required)] } : {}),
-        ...(Object.keys(defs).length ? { $defs: defs } : {}) };
+    return { type: 'object', properties, ...(required.length ? { required: [...new Set(required)] } : {}) };
 }
 function authHeaders(spec, operation, apiKey) {
     if (!apiKey)
@@ -156,9 +177,15 @@ async function authorizedFetch(server, url, init, spec, operation) {
 }
 export async function loadOpenApi(server) {
     const specUrl = validateSpecUrl(server.specUrl);
-    const { response } = await authorizedFetch(server, new URL(specUrl), { signal: AbortSignal.timeout(20_000) });
+    let response = await fetch(specUrl, { signal: AbortSignal.timeout(20_000) });
+    let retriedWithAuth = false;
+    if ([401, 403].includes(response.status) && (server.authType === 'login' || server.apiKey)) {
+        await response.body?.cancel();
+        response = (await authorizedFetch(server, new URL(specUrl), { signal: AbortSignal.timeout(20_000) })).response;
+        retriedWithAuth = true;
+    }
     if (!response.ok)
-        throw new Error(`读取 OpenAPI 规范失败：HTTP ${response.status}`);
+        throw new Error(`读取 OpenAPI 规范失败：HTTP ${response.status}（${retriedWithAuth ? '凭据重试' : '匿名访问'}）`);
     const spec = JSON.parse(await limitedText(response, MAX_DOCUMENT));
     if (!spec.openapi || !spec.paths || typeof spec.paths !== 'object')
         throw new Error('OpenAPI 规范缺少 openapi 或 paths');

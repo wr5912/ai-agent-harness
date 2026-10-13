@@ -53,3 +53,26 @@
 收紧事实与推断边界后，[第二轮复测](../runs/run-410452e3-9a47-4963-8536-eaaeb073f8f1/report.md)两项机器通过；`U-INS-003` 的原始回答为单个可解析 JSON，完整保留 39、12、4、2 及单位，事实与尚未执行的提示分开。`U-FLT-002` 仍在开头把 SOC 未命中排序为较可能的巡检原因；[第三轮复测](../runs/run-03640284-1951-4b53-9539-3ca691ccfa0a/report.md)也有同类跨系统推断。最终将规则限定为无同一对象、时段的交叉证据时只分别描述各系统观察。[末轮故障复测](../runs/run-fb7b2d57-5441-41dc-ae88-4b8ecf272cc4/report.md)机器通过，原始工具事件只有 Skill、委派和 `sec-ops` 只读查询；三台目标 IP 在本次 SOC 资产清单和图谱查询均未命中，路径查询的 `verdict` 为 `UNKNOWN`。回答明确未确认三台离线原因，也未对可能原因排序。未取得巡检侧原始探测记录及同一时段关联，因此目标设备实际状态与根因仍为 `inconclusive`；同路由机器评测通过不覆盖这个证据缺口。上述各 Run 均为隔离实例，评测后已停止，原周期巡检实例未改动。
 
 对 001 的缺失路径进一步按业务语义核对：旧 `fault-analysis` 依赖 `fault_analysis_start`、取证结果提交、收口、状态和结果查询等正式运行接口；当前 EXP-017 的 `fault-analysis` 只做 SOC 只读取证，不能产生旧流程的正式结果。[当前服务的会话化工具目录](evidence/sec-ops-legacy-tool-discovery-20261012.json)包含 163 个工具，EXP-017 选择的 15 个只读工具均在目录中，但没有 `fault_analysis_*` 或 `weknora_knowledge__*`；旧知识库 Skill 也没有可调用的服务。因此 `U-FLT-001` 所需正式故障结果和 `U-QA-002` 所需真实知识库检索仍未打通，不能以 `U-FLT-002` 的只读取证通过替代。001 的研究假设是旧资产迁入 DSH 并观察装载，旧路径存在不等于该业务流程已被采纳或验证。010 的 TypeScript 巡检代码 Variant 的 Decision 为 `inconclusive`，其等效性和算力收益需要同服务独立 Run；本次不把它合入主线，也不将未合入本身判作当前主线故障。
+
+## 2026-10-12 OpenAPI 回归与继承整改
+
+本地 `228:3230` 实例保存的 `AAA` 是 OpenAPI 连接。修复前，实际 Web API 发现返回 HTTP 400，错误为“读取 OpenAPI 规范失败：HTTP 403”；规范匿名读取却返回 200，携带已保存的业务凭据返回 403。当前 Candidate 沿用了无条件携带凭据读取规范的旧实现，漏掉已在并行 EXP-017-rb20 修复的匿名读取和 DSH Schema 转换。原回归用例只加载 rb20，因此来源版本通过仍掩盖目标版本失败；旧继承检查在无缺失文件、但内容变化时返回 0，不能据此认定继承完整。
+
+已恢复 rb20 的相关 TypeScript 源码、页面说明和实际生成制品，保留本实验较新的 Agent MCP 本地令牌挂载逻辑；未修改业务请求的授权规则。规范先匿名读取，仅在 401/403 且已有授权配置时重试；业务拒绝不会改成匿名调用。来源和取舍的当前入口为[研究假设](../hypothesis.md)，其中也已将此前未提交的 r632 来源固定。远端分支和本地同 Agent 资产重新盘点后，对四个固定来源的[检查原文](evidence/openapi-inheritance-20261012/check-inheritance.txt)如下。此次检查都因内容变化返回 1，含义是仍需审查差异。
+
+| 来源 | 来源文件数 | 缺失 | 内容或模式变化 |
+| --- | ---: | ---: | ---: |
+| EXP-016-r77 | 197 | 0 | 21 |
+| EXP-015-rbe | 101 | 0 | 21 |
+| EXP-015-r632 | 99 | 0 | 27 |
+| EXP-017-rb20 | 99 | 0 | 22 |
+
+rb20 剩余 22 个差异逐项复核后保留现有融合结果：语音的 6 个路径沿用 EXP-016，其中 5 个配置或制品与固定来源一致，README 说明当前集成；自动研判的 5 个实现路径与 EXP-015-rbe 固定来源一致；MCP 的 2 个入口制品保留本地令牌挂载；角色矩阵、Guard 和测试的 3 个路径保留周期任务与待研判路由；模型 patch、Web 种子、故障 Skill、巡检 Skill、工作区指令和 Harness 清单各 1 个路径沿用当前能力及既有验证。其他三个来源的变化覆盖同类融合路径；r632 的 `control-boundary.yaml` 不再注册旧应急环境变量，与当前直连配置一致；rbe 的 `msedge-tts.cjs` 差异为生成制品空格，目标沿用 EXP-016。相关旧 Run 的限制仍适用，本次没有重跑真实语音或自动研判，也没有证明全部历史语义等效。
+
+修复前，同一组用例在 rb20 为 3 项通过、当前目标为 3 项失败。修复后，已有用例同时加载两者实际 `openapi.mjs`，覆盖公开规范、401/403 授权重试、无凭据、错误凭据、500 不重试、登录缓存、递归 Schema 和业务 403；加上继承检查的缺失、变化与一致分支，以及 EXP-013/014 相关回归，共 [10 项通过](evidence/openapi-inheritance-20261012/test-checks.txt)。继承 skill 和项目审查原则现要求复核并行来源、明确差异取舍、测试目标制品并核对实际装载。
+
+同名重建本地浏览器实例并保留原 HOME，继续使用原标准镜像；[实际装载与 API 回执](evidence/openapi-inheritance-20261012/live-checks.json)记录当前 Git 提交及 dirty 状态、镜像、Runtime、目标来源、宿主与挂载制品相同的 SHA256。Web 发现返回 200，取得 90 个工具、14 个资源和 25 个资源模板；90 个输入 Schema 均通过锁定 DSH 的 `assertSupportedJsonSchema`。只读 `get_soc_asset_online_summary` 返回 1 个 Resource contents；`/soc/layer/list` 的上游业务 403 仍保留，Web API 如实返回读取失败。上述业务拒绝不阻塞规范发现修复，不要求修改外部服务。
+
+[简单浏览器检查](evidence/openapi-inheritance-20261012/browser-checks.json)在 `http://172.16.138.228:3230` 从“插件 → MCP 配置管理 → 工具与资源”选择 `AAA`，实际点击“发现工具与资源”，核对成功提示及三类计数，再点击“读取 Resource”，返回 HTTP 200 和 1 个 contents。[页面截图](evidence/openapi-inheritance-20261012/discovery.png)保留发现后的视图；容器缺少中文字体，截图中文显示方框，操作定位使用页面中文 DOM 文本。临时探针最初遇到 Chromium 缓存目录不可写，改用临时 XDG 目录后启动；随后[入口定位失败](evidence/openapi-inheritance-20261012/browser-navigation-failure.json)和[服务器标签定位失败](evidence/openapi-inheritance-20261012/browser-probe-failure-031110.json)保留，没有改写为通过。本次未修改浏览器评测器。
+
+此次完成的是目标 Candidate 的 OpenAPI 发现回归和继承检查整改，没有新增业务 Case Run 或 Research Release。Schema 仍按锁定 DSH 支持的子集转换，未保留的约束及递归引用不能当作完整 OpenAPI 校验；`AAA` 工具也未据此加入当前 Agent 的角色工具范围。全 Agent 的历史能力、其他业务路径及长期运行结论继续沿用各自证据，Decision 保持 `continue`。
