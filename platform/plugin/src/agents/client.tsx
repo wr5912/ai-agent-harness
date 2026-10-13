@@ -7,6 +7,8 @@ type AgentRow = { id: string; active_experiment?: string | null }
 type PreviewState = { path: string; body: string; before: string; diff: string }
 
 const panel = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
   border: '1px solid var(--dsw-alias-border-l4, #d1d5db)',
   borderRadius: 8,
   padding: 16,
@@ -17,7 +19,7 @@ function text(value: unknown) {
   return typeof value === 'string' ? value : JSON.stringify(value, null, 2)
 }
 
-const field = { display: 'grid', gap: 4 } as const
+const field = { display: 'grid', minWidth: 0, gap: 4 } as const
 
 export function AgentsPage({ rpc }: PlatformPageProps) {
   const [agents, setAgents] = useState<AgentRow[]>([])
@@ -268,7 +270,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
   }, [detail])
 
   return <main style={{ height: '100%', overflow: 'auto', padding: '24px clamp(16px, 3vw, 36px)', boxSizing: 'border-box' }}>
-    <div style={{ maxWidth: 1180, margin: '0 auto', display: 'grid', gap: 16 }}>
+    <div style={{ maxWidth: 1180, minWidth: 0, margin: '0 auto', display: 'grid', gap: 16 }}>
       <header style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
         <h1 style={{ fontSize: 24, margin: 0, overflowWrap: 'anywhere' }}>智能体研究版本</h1>
         <button type="button" onClick={() => void refreshList()}>刷新</button>
@@ -285,12 +287,12 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
             </button>)}
           </div>
         </aside>
-        <section style={{ display: 'grid', gap: 16 }}>
+        <section style={{ display: 'grid', minWidth: 0, gap: 16 }}>
           {detail && <section style={panel}>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'start' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', alignItems: 'start' }}>
               <div style={{ minWidth: 0 }}>
                 <h2 style={{ margin: '0 0 6px', fontSize: 18, overflowWrap: 'anywhere' }}>{detail.experiment.id}</h2>
-                <select aria-label="版本" value={selectedExperiment} onChange={event => setSelectedExperiment(event.target.value)}>
+                <select aria-label="版本" style={{ maxWidth: '100%' }} value={selectedExperiment} onChange={event => setSelectedExperiment(event.target.value)}>
                   {detail.versions.map((version: any) => <option key={version.id} value={version.id}>{version.id}</option>)}
                 </select>
                 <div style={{ opacity: 0.75, marginTop: 8 }}>Baseline：{detail.baseline.ref || '未知'} · Parent：{detail.baseline.parent_experiment_id || '无'}</div>
@@ -299,7 +301,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
               </div>
               <button type="button" onClick={() => void createExperiment()}>新建 Experiment</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12, marginTop: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 12, marginTop: 14 }}>
               <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto', margin: 0 }}>Features{'\n'}{text(detail.features)}</pre>
               <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto', margin: 0 }}>Declared{'\n'}{text(detail.declared)}</pre>
               <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto', margin: 0 }}>Loaded{'\n'}{text(detail.loaded_instance)}</pre>
@@ -356,7 +358,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
                 <input type="checkbox" checked={selectedCases.includes(item.id)} onChange={event => setSelectedCases(current => event.target.checked ? [...current, item.id] : current.filter(id => id !== item.id))} /> {item.id}
               </label>)}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <label style={field}>Run
                 <input value={runId} onChange={event => setRunId(event.target.value)} list="run-options" placeholder="run-..." />
               </label>
