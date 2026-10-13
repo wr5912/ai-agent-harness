@@ -13,7 +13,7 @@ description: 通过多轮引导帮助新手在 Research Mode 下新建、迁移�
 
 1. 阅读根级 `AGENTS.md`、`docs/standards/SOURCES.md`、`docs/standards/PROJECT-INTERPRETATION.md` 和项目验收矩阵。
 2. 检查 Git 工作树和目标资产，保留已有改动。
-3. 先判断任务类型：`新建`、`迁移`、`修改`、`优化` 或并行 Experiment `融合`。信息不足时用一个简短问题确认，不一次抛出整份问卷。
+3. 先判断任务类型：`新建`、`迁移`、`修改`、`优化` 或并行 Experiment `融合`。针对既有 Agent，先盘点同 Agent 的现有 Experiment、Git refs 和工作树；即使用户只说“新版本”或“修改”，发现并行保留能力时也调用 `$harness-experiment-fusion`，不能按版本编号推断继承。不同算力的等效 `end` 版本从同一 Agent 完整、可恢复且来源固定的主线父版派生，属于终端分支，不要求后续主线融合；研究阶段优先选已发布父版，没有时可用固定 Git 提交或 Research Release。探索性低算力 Experiment 未满足父版和等效条件时不能据此排除。信息不足时用一个简短问题确认，不一次抛出整份问卷。
 4. 明确本次涉及的 `PA-xx`、允许修改的对象，以及需要观察的 DSH 行为。
 
 ## 多轮 SOP

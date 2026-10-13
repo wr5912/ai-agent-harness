@@ -1,0 +1,288 @@
+#!/usr/bin/env node
+/**
+ * 回声门控离线基准（ADR-0005 第一批：零依赖、零录音、可进 CI）。
+ *
+ * 用法：
+ *   node scripts/bench-echo-gate.mjs            # 打印 Markdown 报告
+ *   node scripts/bench-echo-gate.mjs --json     # 追加机器可读 JSON（基线对比用）
+ *
+ * 为什么是「bench」而不是「test」：ADR-0005 的第一阶段是「先报告不拦截」。
+ * 本脚本当前报告的是**现状**，而现状里有一个已确认的缺陷（见下），所以它
+ * 不能当断言门用——先把数字晒出来，等修法确定后再转成 test。
+ *
+ * ── 它测什么 ──
+ * 回声门控（asr.ts:575-593 + aboveEchoFloor）在「纯 TTS 回声期」应当保持关闭
+ * （不把回声判成用户人声），在「用户开口」时应当打开。本脚本用确定性合成残差
+ * 扫描 crest factor（峰值/均值，dB），量出两件事：
+ *   1) 纯回声期的门开率（理想 0%）
+ *   2) 回声地板对真实回声电平的估计误差（理想 0dB）
+ *
+ * ── 重要：这是压力测试，不是真机预测器（2026-09-02 真机修订） ──
+ * 本脚本的合成残差比真机残差"尖"得多，下表的 99.8% 门开率是**机制的上界**，不是现状。
+ * 真机实测：门开率 0.3%（纯听）/ 27.1%（打断场景）。见
+ * docs/findings/2026-09-02-echo-gate-ratchet.md。
+ *
+ * **不要把本脚本的数字当真机预测。** 试过用中位/均值、p90/中位、调制周期等统计量把合成档
+ * 映射到真机，都不成立（合成中位/均值 1.07 冻结 85%，真机 1.00 只冻结 0.3%）——棘轮是双稳态
+ * 动态，不是分布形状的函数。要知道真机什么样，只能录一条跑 analyze-fixture.mjs。
+ *
+ * 保留尖锐档的意义：它守的是「原生 AEC 失效、走自研 NLMS」那条尚无真机数据的路径。
+ *
+ * ── 机制（真实存在，强度随残差尖锐度单调上升） ──
+ * `doubleTalk` 冻结让回声地板变成**单向棘轮**：
+ *   doubleTalk = playing && floor > 0 && rms > floor * gateRatio   (asr.ts:588)
+ *   地板仅在 !doubleTalk 时更新                                     (asr.ts:591)
+ * ⇒ 凡是「响于 floor×gateRatio」的帧一律不参与地板更新，只有安静帧能更新地板，
+ *   而安静帧只会把地板往下拉。地板因此收敛到**音节间隙的电平**而非回声均值。
+ *   同时 echoPeak 是峰值保持（asr.ts:583），停在响的一端。
+ * ⇒ peak/floor 比值被系统性放大，门几乎恒开。
+ *
+ * TTS 回声本身就是语音，crest 天然在 7dB 以上，所以这条路径在**它被设计来防的
+ * 那个场景里**失效。详见 docs/findings/2026-09-02-echo-gate-ratchet.md。
+ *
+ * 本脚本无外部依赖（不需要 npm install、不需要模型、不联网）。
+ */
+
+const FRAME_MS = 64 // AudioWorklet 每 1024 样本 @16k 投一帧（audio-worklet.ts CHUNK/TARGET_RATE）
+const DEFAULT_GATE_DB = 6
+
+/** 确定性伪随机（mulberry32），与 test/aec.test.mjs 同款，保证跨机可复现。 */
+function mulberry32(a) {
+  return () => {
+    a |= 0
+    a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/**
+ * 参考实现：逐行转写 src/asr.ts:575-593 与 aboveEchoFloor(:849-852)。
+ *
+ * **不要改这里的算式** —— 它的唯一职责是与生产代码对拍。生产代码改了，
+ * 这里跟着改，并且改动必须体现在报告数字上（这就是回归保护的机制）。
+ */
+function refEchoGate(gateDb = DEFAULT_GATE_DB) {
+  let floorRms = 0
+  let peakRms = 0
+  let residualRms = 0
+  return {
+    /** 送入一帧 AEC 后残差 RMS；返回本帧 { doubleTalk, gateOpen }。 */
+    step(rms, durationMs, playing) {
+      const gateRatio = Math.pow(10, gateDb / 20) //                        asr.ts:575
+      const peakDecay = Math.pow(0.9, durationMs / 64) //                   asr.ts:578
+      const floorAlpha = 1 - Math.pow(0.98, durationMs / 64) //             asr.ts:579
+      if (playing) {
+        residualRms = rms //                                               asr.ts:581
+        peakRms = Math.max(peakRms * peakDecay, rms) //                     asr.ts:583
+      }
+      // 关键：doubleTalk 用**更新前**的 floor（asr.ts:588）
+      const doubleTalk = playing && floorRms > 0 && rms > floorRms * gateRatio
+      if (playing) {
+        if (floorRms === 0) floorRms = rms //                              asr.ts:590
+        else if (!doubleTalk) floorRms = floorRms * (1 - floorAlpha) + rms * floorAlpha // asr.ts:591
+      } else {
+        peakRms = 0 //                                                     asr.ts:593
+      }
+      // aboveEchoFloor：floor===0 保守拒绝；否则比较**峰值**（asr.ts:849-852）
+      const gateOpen = floorRms !== 0 && peakRms > floorRms * Math.pow(10, gateDb / 20)
+      return { doubleTalk, gateOpen }
+    },
+    levels: () => ({ floorRms, residualRms, peakRms }),
+  }
+}
+
+/**
+ * 分布偏度代理：中位/均值。越接近 1 越准平稳，越接近 0 越「深谷+高峰」。
+ * **这是棘轮强度的正确预测量**——crest（下面那个）不是，它被单个离群帧主导。
+ * 真机参照：纯听 1.00、打断场景 0.80；本脚本的尖锐档 ~0.49。
+ */
+function medianOverMean(a) {
+  const sorted = [...a].sort((x, y) => x - y)
+  const mean = sorted.reduce((s, x) => s + x, 0) / sorted.length
+  return mean > 0 ? sorted[Math.floor(sorted.length / 2)] / mean : 0
+}
+
+/** crest factor（峰值/均值，dB）——**保留仅作对照，它不预测棘轮**。 */
+function crestDb(a) {
+  const mean = a.reduce((s, x) => s + x, 0) / a.length
+  return 20 * Math.log10(Math.max(...a) / mean)
+}
+
+const meanOf = (a) => a.reduce((s, x) => s + x, 0) / a.length
+
+/**
+ * 合成一段「AEC 后残差」的逐帧 RMS 序列。
+ *
+ * gapDepth 控制词间/句间静音有多深：1 = 完全没有停顿（准平稳噪声，
+ * 接近原生 AEC + RES 之后的残留），0.03 = 真实语音的停顿深度。
+ * 这个参数就是 crest factor 的旋钮。
+ */
+function synthResidual({ frames = 470, level = 0.01, gapDepth = 0.03, seed = 11 } = {}) {
+  const rng = mulberry32(seed)
+  return Array.from({ length: frames }, (_, i) => {
+    const syllable = Math.pow(Math.abs(Math.sin((i * Math.PI) / 3.5)), 2.2) // 音节起伏 ~0.45s
+    const gap = i % 47 < 8 ? gapDepth : 1 // 词间/句间静音
+    return level * (0.05 + 2.6 * syllable) * gap * (0.8 + 0.4 * rng())
+  })
+}
+
+/** 跑一条序列，返回门开率 / 冻结率 / 地板估计误差。 */
+function evaluate(signal, { gateDb = DEFAULT_GATE_DB, playing = true } = {}) {
+  const gate = refEchoGate(gateDb)
+  let open = 0
+  let frozen = 0
+  const openFlags = []
+  for (const rms of signal) {
+    const d = gate.step(rms, FRAME_MS, playing)
+    if (d.gateOpen) open++
+    if (d.doubleTalk) frozen++
+    openFlags.push(d.gateOpen)
+  }
+  const lv = gate.levels()
+  const trueLevel = meanOf(signal)
+  return {
+    openPct: (100 * open) / signal.length,
+    frozenPct: (100 * frozen) / signal.length,
+    floorRms: lv.floorRms,
+    trueLevel,
+    // 地板低估真实回声电平多少 dB（正数 = 低估）
+    floorErrorDb: 20 * Math.log10(trueLevel / Math.max(lv.floorRms, 1e-12)),
+    openFlags,
+  }
+}
+
+/** 判别力：纯回声段应关、用户开口段应开，两者门开率之差才是这道门的价值。 */
+function discrimination({ gateDb = DEFAULT_GATE_DB, seed = 11 } = {}) {
+  const echo = synthResidual({ seed })
+  const split = Math.floor(echo.length / 2)
+  const rng = mulberry32(3)
+  // 后半段叠加用户人声（幅度约为回声的 3 倍）
+  const mixed = echo.map((v, i) =>
+    i < split ? v : v + 0.03 * Math.pow(Math.abs(Math.sin((i * Math.PI) / 4)), 1.5) * (0.8 + 0.4 * rng()),
+  )
+  const r = evaluate(mixed, { gateDb })
+  const echoPart = r.openFlags.slice(0, split)
+  const userPart = r.openFlags.slice(split)
+  const echoOpen = (100 * echoPart.filter(Boolean).length) / echoPart.length
+  const userOpen = (100 * userPart.filter(Boolean).length) / userPart.length
+  return { echoOpen, userOpen, marginPct: userOpen - echoOpen }
+}
+
+/** 轮询观测栅格：worklet 64ms/帧 + asr.ts:700 的 100ms 阈值 ⇒ 稳态 128ms。 */
+function pollGrid() {
+  let last = 0
+  const at = []
+  for (let i = 0; i < 40; i++) {
+    const t = Math.round(((i + 1) * 1024) / 16000 * 1000)
+    if (t - last >= 100) {
+      at.push(t)
+      last = t
+    }
+  }
+  const gaps = at.slice(1).map((v, i) => v - at[i])
+  return { intervalMs: [...new Set(gaps)], confirmMs: { 0: 3, 1: 2, 2: 1 } }
+}
+
+// ─────────────────────────── 报告 ───────────────────────────
+
+const wantJson = process.argv.includes('--json')
+const out = []
+const p = (s) => out.push(s)
+
+p('# 回声门控离线基准（ADR-0005 · 报告模式）')
+p('')
+p(`帧长 ${FRAME_MS}ms · 门限 ${DEFAULT_GATE_DB}dB · 确定性合成 · 无外部依赖`)
+p('')
+
+p('## 1. 纯回声期门开率 vs 信号 crest（理想：全 0%）')
+p('')
+p('| 词间静音深度 | **中位/均值** | 门开率 | 地板冻结率 | 地板低估真实回声 | crest (dB) |')
+p('|---|---|---|---|---|---|')
+const sweep = []
+for (const gapDepth of [1, 0.6, 0.3, 0.15, 0.08, 0.03]) {
+  const sig = synthResidual({ gapDepth })
+  const r = evaluate(sig)
+  const mom = medianOverMean(sig)
+  sweep.push({ gapDepth, medianOverMean: +mom.toFixed(2), crestDb: +crestDb(sig).toFixed(2), openPct: +r.openPct.toFixed(1), frozenPct: +r.frozenPct.toFixed(1), floorErrorDb: +r.floorErrorDb.toFixed(1) })
+  p(`| ${gapDepth} | **${mom.toFixed(2)}** | ${r.openPct.toFixed(1)}% | ${r.frozenPct.toFixed(1)}% | ${r.floorErrorDb.toFixed(1)} dB | ${crestDb(sig).toFixed(1)} |`)
+}
+p('')
+p('')
+p('**真机实测对照**（`analyze-fixture.mjs`，原生 AEC 生效，外放）：')
+p('')
+p('| 录制 | 中位/均值 | 门开率 | doubleTalk 触发率 | 地板低估 |')
+p('|---|---|---|---|---|')
+p('| ① 纯听 124.6s | 1.00 | 0.3% | 0.3% | 0.1 dB |')
+p('| ② 打断 61.8s | 0.80 | 27.1% | 16.4% | 2.8 dB |')
+p('')
+p('> 真机上棘轮几乎不发作（原生 AEC 生效时）。合成档是**机制上界**，两者之间没有可用的映射关系——')
+p('> 试过中位/均值、p90/中位、调制周期，都不单调。棘轮是双稳态动态，只能实测。')
+p('> 机制本身是真的：真机②相对①更"尖"一点，冻结率就从 0.3% 跳到 16.4%。')
+p('')
+
+p('## 2. 调大 echoGateDb 能否补救（README 目前教用户这么做）')
+p('')
+p('| echoGateDb | 门开率 | 地板低估 |')
+p('|---|---|---|')
+const gateSweep = []
+for (const gateDb of [6, 8, 10, 12, 15, 20, 30]) {
+  const r = evaluate(synthResidual({ gapDepth: 0.03 }), { gateDb })
+  gateSweep.push({ gateDb, openPct: +r.openPct.toFixed(1), floorErrorDb: +r.floorErrorDb.toFixed(1) })
+  p(`| ${gateDb} | ${r.openPct.toFixed(1)}% | ${r.floorErrorDb.toFixed(1)} dB |`)
+}
+p('')
+p('> README 建议的范围是 8-10。在尖锐档下该范围内门开率不变。')
+p('> 但真机上这个旋钮无效是另一个原因：朗读期 Silero 从未把回声判成语音（真机 0/777 帧），')
+p('> 门控这一道**根本没被查询到**。见 docs/findings/2026-09-02-echo-gate-ratchet.md。')
+p('')
+
+p('## 3. 判别力（这道门到底值多少）')
+p('')
+p('| echoGateDb | 纯回声段门开 | 用户开口段门开 | 判别余量 |')
+p('|---|---|---|---|')
+const disc = []
+for (const gateDb of [6, 10, 20]) {
+  const d = discrimination({ gateDb })
+  disc.push({ gateDb, echoOpen: +d.echoOpen.toFixed(1), userOpen: +d.userOpen.toFixed(1), marginPct: +d.marginPct.toFixed(1) })
+  p(`| ${gateDb} | ${d.echoOpen.toFixed(1)}% | ${d.userOpen.toFixed(1)}% | ${d.marginPct.toFixed(1)} pt |`)
+}
+p('')
+p('> 尖锐档下判别余量 ≈ 0。真机上无从比较——门控从未被触及。')
+p('> 真正拦住自打断的是 Silero VAD 对（被原生 AEC 压低的）残差不判语音：真机 3.1 分钟朗读期 0/777 帧判真。')
+p('')
+
+const grid = pollGrid()
+p('## 4. 打断确认观测栅格（顺带核对的常数）')
+p('')
+p(`AudioWorklet 每 ${FRAME_MS}ms 投一帧，\`asr.ts:700\` 阈值 100ms，仅派发时推进 \`lastPollAt\``)
+p(`⇒ 稳态派发间隔 **${grid.intervalMs.join('/')}ms**，不是 100ms。`)
+p('')
+p('| interruptLevel | confirmFrames | 实际确认窗 | 代码注释/文档写的 |')
+p('|---|---|---|---|')
+for (const [lvl, frames] of Object.entries(grid.confirmMs)) {
+  p(`| ${lvl} | ${frames} | ${frames * grid.intervalMs[0]}ms | ${frames * 100}ms |`)
+}
+p('')
+p('> `client.tsx` 的「墙钟节拍 100ms/拍，三档确认约 0.3/0.2/0.1s」低估了约 28%。')
+
+console.log(out.join('\n'))
+
+if (wantJson) {
+  console.log('\n---\n')
+  console.log(
+    JSON.stringify(
+      {
+        schema: 'dsh-voice-mode/echo-gate-bench@1',
+        frameMs: FRAME_MS,
+        crestSweep: sweep,
+        gateDbSweep: gateSweep,
+        discrimination: disc,
+        pollGrid: { intervalMs: grid.intervalMs, confirmWindowMs: Object.fromEntries(Object.entries(grid.confirmMs).map(([k, v]) => [k, v * grid.intervalMs[0]])) },
+      },
+      null,
+      2,
+    ),
+  )
+}

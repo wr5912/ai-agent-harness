@@ -1,0 +1,1 @@
+{"时间":"2026-10-12 01:21","原提问要点":"研究阶段等效 Harness end 变体的父版选择","AI错误要点":"把已发布 HarnessVersion 写成 end 变体父版的硬性前提","我的纠正要点":"已发布是推荐来源；固定 Git 提交或 Research Release 也可作为可恢复父版","AI反思":"误将未来平台的发布约束套到当前 Research Mode，导致研究路径被不必要地阻断","根因":"未区分版本可恢复性与发布状态，混淆研究对象和平台 HarnessVersion","改进方法":"按 Research Mode 的 git/release 来源合同写规则，并检查 AGENTS、设计文档和相关 Skill 的同类表述","标签":["规则错误","研究模式"]}
