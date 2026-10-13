@@ -6,6 +6,11 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import { inventory as agentExperimentInventory } from '../../../plugins/asset-query-cli/query.mjs'
 import { CHANNEL } from './protocol.ts'
 import type { Inventory, RunAsset } from './protocol.ts'
+import { DOMAIN_PREFIXES } from './protocol.ts'
+import { recentRuns } from './dashboard.ts'
+import { createAgentsHandler } from './agents/index.ts'
+import { createInstancesHandler } from './instances/index.ts'
+import { applyMcpGateway, createMcpHandler } from './mcp/index.ts'
 
 export const name = 'harness-platform'
 export const inject = ['connection', 'webServer']
@@ -45,7 +50,7 @@ function failure(code: string, message: string, details = {}): ConnectionRpcResu
 }
 
 export function createInventoryHandler(assetRoot: string): ConnectionRpcHandler {
-  return async (endpoint, payload, signal) => {
+  return async (endpoint, payload, signal, peer) => {
     if (endpoint !== 'inventory') return failure('not_found', '未知的资产查询操作')
     if (!payload || typeof payload !== 'object' || Array.isArray(payload) || Object.keys(payload).length) {
       return failure('invalid_request', 'inventory 不接受查询参数')
@@ -60,11 +65,52 @@ export function createInventoryHandler(assetRoot: string): ConnectionRpcHandler 
   }
 }
 
+export function createPlatformHandler(assetRoot: string, domains: Record<'agents' | 'instances' | 'mcp', ConnectionRpcHandler>): ConnectionRpcHandler {
+  const readInventory = createInventoryHandler(assetRoot)
+  return async (endpoint, payload, signal, peer) => {
+    if (signal.aborted) return failure('aborted', '请求已取消')
+    if (endpoint === 'inventory') return readInventory(endpoint, payload, signal, peer)
+    if (endpoint === 'home') {
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload) || Object.keys(payload).length) {
+        return failure('invalid_request', '首页查询不接受参数')
+      }
+      try {
+        const assets = inventory(assetRoot)
+        const [runs, instances, mcp] = await Promise.all([
+          recentRuns(assets.root, assets.agents.map(agent => agent.id), signal),
+          domains.instances('list', {}, signal, peer),
+          domains.mcp('list', {}, signal, peer),
+        ])
+        return { ok: true, value: { recent_runs: runs, instances, mcp } }
+      } catch {
+        return failure('run_read_failed', '无法读取 Run 索引，请核对记录和 Python 环境。')
+      }
+    }
+    const prefix = DOMAIN_PREFIXES.find(value => endpoint.startsWith(value))
+    if (!prefix) return failure('not_found', '未知的平台操作')
+    const result = await domains[prefix.slice(0, -1) as keyof typeof domains](endpoint.slice(prefix.length), payload, signal, peer)
+    if (endpoint === 'agents/detail' && result.ok) {
+      const instances = await domains.instances('list', {}, signal, peer)
+      const value = result.value as { experiment: { id: string }; loaded_instance: unknown }
+      value.loaded_instance = instances.ok
+        ? { status: 'observed', instances: (instances.value as { instances: { source_id: string }[] }).instances
+          .filter(instance => instance.source_id === `experiment:${value.experiment.id}`),
+        note: '实例与只读挂载来自 Docker 观察；具体能力是否生效仍需相应 Session/Run 证据。' }
+        : { status: 'unknown', reason: instances.error.message }
+    }
+    return result
+  }
+}
+
 export function apply(ctx: Context) {
   const assetRoot = process.env.HARNESS_ASSET_ROOT
   if (!assetRoot) throw new Error('未设置 HARNESS_ASSET_ROOT')
   // 当前 Cordis 的 Service getter 在内部注册时沿提供方 Fiber 解析依赖。
   // 把已注入的载体绑定到子上下文，供原生 RPC 注册读取；父上下文不变。
   const registrationContext = ctx.extend({ webServer: ctx.webServer })
-  registrationContext.connection.rpc.handle(CHANNEL, createInventoryHandler(assetRoot))
+  const mcp = createMcpHandler(assetRoot)
+  registrationContext.connection.rpc.handle(CHANNEL, createPlatformHandler(assetRoot, {
+    agents: createAgentsHandler(assetRoot), instances: createInstancesHandler(assetRoot), mcp,
+  }))
+  applyMcpGateway(registrationContext, assetRoot, mcp)
 }

@@ -19,6 +19,7 @@ await build({
   platform: 'browser',
   target: 'es2022',
   format: 'cjs',
+  loader: { '.svg': 'dataurl' },
   external: ['react', 'react/jsx-runtime'],
   legalComments: 'none',
   banner: {

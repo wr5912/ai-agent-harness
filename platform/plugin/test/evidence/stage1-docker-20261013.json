@@ -1,0 +1,317 @@
+{
+  "scope": "真实本机Docker，临时实例；非业务Evaluation",
+  "source": "experiment:EXP-test01-001",
+  "before": [
+    {
+      "name": "stage1-final-1791877624-a",
+      "source_id": "experiment:EXP-test01-001",
+      "state": "running",
+      "port": 3081,
+      "image_tag": "ai-agent-harness/dsh:21638c563-54f335ef05ac",
+      "image_id": "sha256:2cfbb30906d871a9bd43445194339a52c7952de3b6fb2a7b1d688cfb5ad8bcfc",
+      "image_build_fingerprint": "sha256:54f335ef05ac817d2d40a34186cf4e9573a6800979520da8ec65b1bfc82e9eae",
+      "home_volume": "dsh-dev-stage1-final-1791877624-a_dsh-dev-stage1-final-1791877624-a-home",
+      "home_preserved": true,
+      "mount_modes": {
+        "managed": "ro",
+        "presets": "ro",
+        "workspace": "ro"
+      },
+      "actual_image": "sha256:2cfbb30906d871a9bd43445194339a52c7952de3b6fb2a7b1d688cfb5ad8bcfc",
+      "actual_mounts": [
+        {
+          "Destination": "/opt/dsh-adapter",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/work/harness/workspace/.env",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/work/harness/workspace",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/opt/dsh-managed",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh",
+          "RW": true,
+          "Type": "volume",
+          "Name": "dsh-dev-stage1-final-1791877624-a_dsh-dev-stage1-final-1791877624-a-home"
+        },
+        {
+          "Destination": "/opt/dsh-presets",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/cordis.patch.yml",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/AGENTS.md",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/profiles/node_modules",
+          "RW": false,
+          "Type": "volume",
+          "Name": "dsh-dev-stage1-final-1791877624-a_dsh-dev-stage1-final-1791877624-a-fallback"
+        },
+        {
+          "Destination": "/var/lib/dsh/node_modules",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/profiles/web/node_modules",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/profiles/web/package.json",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/.env",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        }
+      ]
+    },
+    {
+      "name": "stage1-final-1791877624-b",
+      "source_id": "experiment:EXP-test01-001",
+      "state": "running",
+      "port": 3082,
+      "image_tag": "ai-agent-harness/dsh:21638c563-54f335ef05ac",
+      "image_id": "sha256:2cfbb30906d871a9bd43445194339a52c7952de3b6fb2a7b1d688cfb5ad8bcfc",
+      "image_build_fingerprint": "sha256:54f335ef05ac817d2d40a34186cf4e9573a6800979520da8ec65b1bfc82e9eae",
+      "home_volume": "dsh-dev-stage1-final-1791877624-b_dsh-dev-stage1-final-1791877624-b-home",
+      "home_preserved": true,
+      "mount_modes": {
+        "managed": "ro",
+        "presets": "ro",
+        "workspace": "ro"
+      },
+      "actual_image": "sha256:2cfbb30906d871a9bd43445194339a52c7952de3b6fb2a7b1d688cfb5ad8bcfc",
+      "actual_mounts": [
+        {
+          "Destination": "/opt/dsh-adapter",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/opt/dsh-presets",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/opt/dsh-managed",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh",
+          "RW": true,
+          "Type": "volume",
+          "Name": "dsh-dev-stage1-final-1791877624-b_dsh-dev-stage1-final-1791877624-b-home"
+        },
+        {
+          "Destination": "/var/lib/dsh/profiles/node_modules",
+          "RW": false,
+          "Type": "volume",
+          "Name": "dsh-dev-stage1-final-1791877624-b_dsh-dev-stage1-final-1791877624-b-fallback"
+        },
+        {
+          "Destination": "/var/lib/dsh/profiles/web/node_modules",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/cordis.patch.yml",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/profiles/web/package.json",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/work/harness/workspace",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/node_modules",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/AGENTS.md",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/.env",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/work/harness/workspace/.env",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        }
+      ]
+    }
+  ],
+  "delete": {
+    "name": "stage1-final-1791877624-a",
+    "project": "dsh-dev-stage1-final-1791877624-a",
+    "registration_dir": "/tmp/harness-stage1-lifecycle-ozhi_gh8/dsh-dev/stage1-final-1791877624-a",
+    "state": "stopped",
+    "containers_before": [],
+    "home_volume_before": "dsh-dev-stage1-final-1791877624-a_dsh-dev-stage1-final-1791877624-a-home",
+    "home_preserved_before": true,
+    "home_volume": "dsh-dev-stage1-final-1791877624-a_dsh-dev-stage1-final-1791877624-a-home",
+    "home_preserved": true,
+    "deleted": true,
+    "registration_deleted": true
+  },
+  "remaining": [
+    {
+      "name": "stage1-final-1791877624-b",
+      "source_id": "experiment:EXP-test01-001",
+      "state": "running",
+      "port": 3082,
+      "image_tag": "ai-agent-harness/dsh:21638c563-54f335ef05ac",
+      "image_id": "sha256:2cfbb30906d871a9bd43445194339a52c7952de3b6fb2a7b1d688cfb5ad8bcfc",
+      "image_build_fingerprint": "sha256:54f335ef05ac817d2d40a34186cf4e9573a6800979520da8ec65b1bfc82e9eae",
+      "home_volume": "dsh-dev-stage1-final-1791877624-b_dsh-dev-stage1-final-1791877624-b-home",
+      "home_preserved": true,
+      "mount_modes": {
+        "managed": "ro",
+        "presets": "ro",
+        "workspace": "ro"
+      },
+      "actual_image": "sha256:2cfbb30906d871a9bd43445194339a52c7952de3b6fb2a7b1d688cfb5ad8bcfc",
+      "actual_mounts": [
+        {
+          "Destination": "/opt/dsh-adapter",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/opt/dsh-presets",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/opt/dsh-managed",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh",
+          "RW": true,
+          "Type": "volume",
+          "Name": "dsh-dev-stage1-final-1791877624-b_dsh-dev-stage1-final-1791877624-b-home"
+        },
+        {
+          "Destination": "/var/lib/dsh/profiles/node_modules",
+          "RW": false,
+          "Type": "volume",
+          "Name": "dsh-dev-stage1-final-1791877624-b_dsh-dev-stage1-final-1791877624-b-fallback"
+        },
+        {
+          "Destination": "/var/lib/dsh/profiles/web/node_modules",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/cordis.patch.yml",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/profiles/web/package.json",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/work/harness/workspace",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/node_modules",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/AGENTS.md",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/var/lib/dsh/.env",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        },
+        {
+          "Destination": "/work/harness/workspace/.env",
+          "RW": false,
+          "Type": "bind",
+          "Name": null
+        }
+      ]
+    }
+  ],
+  "same_image": true,
+  "distinct_home_and_port": true,
+  "readonly_harness_mounts": true,
+  "delete_one_other_running": true,
+  "cleanup": "两个测试容器与登记均删除，两个HOME卷保留；未触碰用户实例"
+}

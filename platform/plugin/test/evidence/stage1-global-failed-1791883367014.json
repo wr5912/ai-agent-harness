@@ -1,0 +1,117 @@
+{
+  "checked_at": "2026-10-13T09:20:42.732Z",
+  "scope": "真实系统全局 DSH、原生欢迎与认证、平台独立 HOME；不执行模型或外部业务调用",
+  "source": {
+    "node_version": "v24.21.0",
+    "dsh_version": "0.2.1-alpha.2",
+    "git_commit": "ad75a3c97678aecb4418b40a39df74d696a252d4",
+    "dirty": true,
+    "built_files": {
+      "index.js": "e386c06159ffe99a44bae4e0575de1417cd28c5092bdde890c7c625087502d64",
+      "client.js": "a22fa048e2c88b0d583b8d09ae5a081750efd20020c5e76981901770e715d086"
+    }
+  },
+  "home": "/home/cmp/.local/state/ai-agent-harness/platform/dsh-home",
+  "checks": {
+    "anonymous_index_rejected": true,
+    "native_welcome_deferred": true,
+    "native_auth_redirect_and_home": true,
+    "native_home_recent_runs": true,
+    "native_agents_existing_trace": true,
+    "native_instance_preview_only": true,
+    "native_mcp_gateway_lifecycle": true,
+    "stop_releases_listener": true
+  },
+  "rpc": [
+    {
+      "endpoint": "inventory",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "inventory",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "home",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/list",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/read",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/read",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/runs/evidence",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "instances/list",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "instances/preview",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "mcp/list",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "mcp",
+      "http": 200
+    },
+    {
+      "endpoint": "mcp",
+      "http": 200
+    },
+    {
+      "endpoint": "inventory",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "inventory",
+      "http": 200,
+      "ok": true
+    }
+  ],
+  "validation": "failed",
+  "failure": "Expected values to be strictly equal:\n\n1 !== 0\n"
+}
