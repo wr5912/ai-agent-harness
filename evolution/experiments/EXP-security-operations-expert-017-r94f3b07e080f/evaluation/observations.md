@@ -76,3 +76,11 @@ rb20 剩余 22 个差异逐项复核后保留现有融合结果：语音的 6 �
 [简单浏览器检查](evidence/openapi-inheritance-20261012/browser-checks.json)在 `http://172.16.138.228:3230` 从“插件 → MCP 配置管理 → 工具与资源”选择 `AAA`，实际点击“发现工具与资源”，核对成功提示及三类计数，再点击“读取 Resource”，返回 HTTP 200 和 1 个 contents。[页面截图](evidence/openapi-inheritance-20261012/discovery.png)保留发现后的视图；容器缺少中文字体，截图中文显示方框，操作定位使用页面中文 DOM 文本。临时探针最初遇到 Chromium 缓存目录不可写，改用临时 XDG 目录后启动；随后[入口定位失败](evidence/openapi-inheritance-20261012/browser-navigation-failure.json)和[服务器标签定位失败](evidence/openapi-inheritance-20261012/browser-probe-failure-031110.json)保留，没有改写为通过。本次未修改浏览器评测器。
 
 此次完成的是目标 Candidate 的 OpenAPI 发现回归和继承检查整改，没有新增业务 Case Run 或 Research Release。Schema 仍按锁定 DSH 支持的子集转换，未保留的约束及递归引用不能当作完整 OpenAPI 校验；`AAA` 工具也未据此加入当前 Agent 的角色工具范围。全 Agent 的历史能力、其他业务路径及长期运行结论继续沿用各自证据，Decision 保持 `continue`。
+
+## 2026-10-12 API 重复 Baseline 与后续实验
+
+在 Git `5e1447d14a9c202aae05144034100a1ce685dee0` 固定本来源，用同一标准镜像和 `local-qwen / Qwen3.8-27B` 重跑 `U-INS-003/007`、`U-QA-012/013`。[第一次 Run](../runs/run-5f10a9a2-e40a-4d5c-a1e6-8dae2db5ea92/report.md)机器结果为 3 通过、1 不确定；[第二次 Run](../runs/run-4df73407-f103-42eb-b0e6-c8cb4fee3f26/report.md)为 2 通过、2 不确定。第一次 Git 为 clean，第二次仅新增前一条 Run；两次 Candidate 三棵资产树与所选四个 Case 快照相同。
+
+第一次 `U-INS-003` 的完整回答无法直接解析 JSON，并补入输入外时间、尝试写入只读工作区；第二次返回裸 JSON，保留原始事实和单位。机器评审自身还出现非 JSON 输出，原始结果全部保留。两次 `U-INS-007` 均在同一 Session 续查原 `runId`，第二轮只查询结果；服务实际返回 `PARTIAL / ABNORMAL`，不能判完整业务通过。问答给出检索判别方法或追问缺少的漏洞信息，未证明真实知识库检索。
+
+上述不稳定输出在独立 [EXP-018](../../EXP-security-operations-expert-018-rfbf7fd53a340/hypothesis.md)整改并重复验证，详细结果、证据定位测量和双实例 API 观察只维护在其[观察](../../EXP-security-operations-expert-018-rfbf7fd53a340/evaluation/observations.md)。本 EXP-017 Candidate 未因后续实验改写，原周期实例未停止或重建；历史结论和本来源 Decision 保持 `continue`。

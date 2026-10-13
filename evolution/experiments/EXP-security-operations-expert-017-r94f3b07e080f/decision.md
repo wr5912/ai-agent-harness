@@ -9,3 +9,5 @@
 [旧版接口复核](evaluation/observations.md)表明当前服务没有正式故障分析运行和知识库工具；`U-FLT-001` 的正式结果、`U-QA-002` 的真实检索仍是未完成的业务路径。010 的代码 Variant 保持独立的 `inconclusive` Decision，不在本次继承中直接采纳。
 
 [OpenAPI 回归整改](evaluation/observations.md#2026-10-12-openapi-回归与继承整改)已恢复并行 EXP-017-rb20 的规范读取和 Schema 转换，并补齐目标制品回归、继承检查退出码及来源复核规则。本地 `228:3230` 的实际装载、API 和简单浏览器检查通过；这是该技术回归的修复证据，不提升前述未完成业务路径的结论。Decision 维持 `continue`。
+
+[API 重复 Baseline](evaluation/observations.md#2026-10-12-api-重复-baseline-与后续实验)显示结构化输出仍有格式、补造字段及无请求写入问题，巡检结果仍为 `PARTIAL`。这些变化在独立 [EXP-018](../EXP-security-operations-expert-018-rfbf7fd53a340/decision.md)继续研究；不改写本来源 Candidate 或已封存 Run，本 Decision 仍为 `continue`。

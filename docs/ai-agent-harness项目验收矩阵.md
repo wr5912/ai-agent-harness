@@ -68,6 +68,8 @@
 
 2026-10-12 的 [EXP-017-r94 OpenAPI 回归与继承整改](../evolution/experiments/EXP-security-operations-expert-017-r94f3b07e080f/evaluation/observations.md#2026-10-12-openapi-回归与继承整改)补充 `PA-03/05/06/08` 的继承检查退出码、目标制品回归、同名实例保留 HOME 重建、实际 DSH Schema 和 Web 发现操作证据。技术回归已修复，业务授权与历史未决结论不因此改变，全项目路径状态不提升。
 
+2026-10-12 的 [EXP-018 API 重复比较与实例观察](../evolution/experiments/EXP-security-operations-expert-018-rfbf7fd53a340/evaluation/observations.md)补充 `PA-04/05/06/07/08/10`：固定 EXP-017 来源后两次 Baseline、独立 Candidate 修订与重复 Run、同标准镜像的两个隔离实例身份及只读装载、活动/空闲/停止未知/重启恢复 Session 的 API 记录。失败 Run 和评审分歧保留，巡检 `PARTIAL` 不作为完整业务通过；本次只覆盖修改后新装载，不证明来源回退。证据定位步骤减少尚未证明人工效率收益，跨实例页面、`232:18120`、当前分支全局平台 `PA-12` 与 Research Release 均未由此验收，全项目路径状态不提升。
+
 ### PA-01 Research Mode、AI 协作入口与项目 Memory
 
 - **要回答**：新的 AI 开发会话能否读到 Research Mode、中文优先、简洁优先、单一事实源、根因整改、精准修改和四项安全底线；收到 review 请求时能否定位项目审查原则并覆盖开发工具与目标智能体 Harness；是否能进入 Harness 引导式 SOP；Memory 是否只作为辅助上下文。
