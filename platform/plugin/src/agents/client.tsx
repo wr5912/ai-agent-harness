@@ -51,6 +51,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
   const selectedAgent = useMemo(() => agents.find(agent => agent.id === selected), [agents, selected])
 
   function selectVersion(agentId: string, experimentId = '') {
+    if (agentId === selected && experimentId === selectedExperiment) return
     detailRequest.current++
     setSelected(agentId)
     setSelectedExperiment(experimentId)
@@ -342,7 +343,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
           {detail && <section style={panel}>
             <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>资产编辑</h2>
             <label style={field}>编辑文件
-              <select value={editPath} onChange={event => selectEditFile(event.target.value)} style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8 }}>
+              <select value={editPath} onChange={event => { if (event.target.value !== editPath) selectEditFile(event.target.value) }} style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8 }}>
                 {detail.editable_files.map((file: string) => <option key={file} value={file}>{file}</option>)}
               </select>
             </label>
