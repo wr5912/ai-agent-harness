@@ -1,12 +1,12 @@
 # 多 Variant Harness 研究方法
 
-> 状态：研究方法。当前未物化 Variant 专用目录或 Release；只有真实实验需要时才创建对应资产。
+> 状态：研究方法。当前未物化 Variant 专用目录或已发布的智能体 HarnessVersion；只有真实实验需要时才创建对应资产。
 
 ## 1. 目标
 
-同一个业务 Agent 可以派生不同 Harness Variant，用来研究提示、Skill、Preset、插件组合、模型或算力配置的影响。本项目关心的是：变化是什么、在相同输入下表现怎样、代价与限制是什么。
+同一个业务 Agent 可以用 Experiment 探索不同 Harness 配置，研究提示、Skill、Preset、插件组合、模型或算力的影响。本项目关心的是：变化是什么、在相同输入下表现怎样、代价与限制是什么。
 
-Variant 不是新的权限等级、发布通道或四套重复交付。它只是一个带明确差异的 Experiment Candidate。
+不同算力需求的**等效 Harness 变体**以同一 Agent 完整、可恢复且来源固定的主线版本为父版；研究阶段可用固定 Git 提交或 Research Release，有已发布 HarnessVersion 时优先选用。经过共同任务合同下的效果与资源验证后，它成为 `end`（终端）版本，后续主线无需继承其差异；需要新版对应变体时，从新版主线另行派生。未固定父版或尚未证明等效的低算力 Candidate 只是探索性 Experiment。`end` 表示继承关系，不要求新增版本编号或状态字段。
 
 ## 2. 最小对象
 
@@ -14,7 +14,8 @@ Variant 不是新的权限等级、发布通道或四套重复交付。它只是
 |---|---|---|
 | Target | 想服务的任务或约束，例如低延迟、离线、低成本 | 写入 Experiment 假设 |
 | Baseline | 对照版本 | `git:<commit>`、`release:<id>` 或 `none:first-experiment` |
-| Variant | 相对 Baseline 的一组明确变化 | 一个新的 Experiment Candidate |
+| 等效变体的父版 | 同一 Agent 完整、可恢复的主线版本 | 固定 Experiment ID 与 Git 提交或 Research Release；有已发布 HarnessVersion 时优先选用，不使用浮动的 Git HEAD 或未提交工作树 |
+| Variant Candidate | 相对父版或探索性 Baseline 的一组明确变化 | 一个新的 Experiment Candidate；未验证等效前不称 `end` 版本 |
 | Evaluation | 在共同输入和环境下的观察 | Run 与研究总结 |
 | Decision | 是否采用或继续研究 | `adopt/continue/reject/inconclusive` |
 | Research Release | 值得独立复用的不可变研究版本 | `releases/<agent-id>-v<semver>/` |
@@ -23,12 +24,12 @@ Variant 不是新的权限等级、发布通道或四套重复交付。它只是
 
 ## 3. 如何建立 Variant
 
-1. 选择可恢复的 Baseline 引用。
+1. 选择可恢复的 Baseline；要建立 `end` 变体，先固定同一 Agent 的完整主线父版。已发布版是推荐来源，不是研究阶段的前置条件。
 2. 写清 Target 和假设，例如“减少工具调用能否在这类只读问答上保持结果质量并降低延迟”。
 3. 只修改与假设直接相关的内容；不要顺手重构其他 Prompt、Skill 或插件。
 4. 用相同输入、判断口径和尽可能相同的环境运行 Baseline 与 Candidate。
 5. 分别记录质量、失败、成本、延迟和未覆盖范围；没有区别也是有效结果。
-6. 作出 Decision。只有需要长期复用时才生成 Research Release。
+6. 作出 Decision。只有父版来源固定且效果、资源比较支持等效的变体，才归为独立的 `end` 版本；它不进入后续主线继承集合。Research Release 仅在研究版本值得长期复用时生成。
 
 Transformation 只是创建 Candidate 的方法，不自动继承源版本的观察或结论。通过 LLM 重写、规则裁剪、人工修改或复制 Preset 得到的内容，都要在目标 Experiment 中重新观察。
 
@@ -87,13 +88,13 @@ evolution/experiments/EXP-<agent-id>-NNN-r<12位随机十六进制>/
   decision.md
 ```
 
-不同 Variant 使用不同 Experiment，无需预建 `agents/<id>/variants/` 或 `evolution/baselines/<id>/<variant>/`。当某个 Variant 值得长期复用时，可以直接生成一个自包含 Research Release，并在其 README 说明 Target、来源、证据与限制。
+不同算力探索使用不同 Experiment，无需预建 `agents/<id>/variants/` 或 `evolution/baselines/<id>/<variant>/`。值得长期复用的研究 Candidate 可以生成自包含 Research Release，并在其 README 说明 Target、来源、证据与限制；是否属于 `end` 仍取决于父版来源与等效证据。
 
 ## 7. 当前最小试点
 
 对 `security-operations-expert` 选择一个范围明确的只读任务：
 
-1. 以当前 Experiment 的可恢复 Git 版本为 Baseline；
+1. 以当前 Experiment 的可恢复 Git 版本为探索性 Baseline；此试点只研究一个判断点，不声称整个 Harness 等效；
 2. 只改变一个 Harness 因素，例如工具路由或提示结构；
 3. 在少量共同输入上分别运行并记录真实观察；
 4. 保留采用、不采用或证据不足的结论；

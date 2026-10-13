@@ -136,12 +136,11 @@ function parseJudgeResult(text) {
     throw new Error('judge-output-not-json')
   }
   if (!value || typeof value !== 'object' || Array.isArray(value)
-    || JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(['reason', 'verdict'])
     || !['passed', 'failed', 'inconclusive'].includes(value.verdict)
     || typeof value.reason !== 'string' || !value.reason.trim()) {
     throw new Error('judge-output-invalid')
   }
-  return value
+  return { verdict: value.verdict, reason: value.reason }
 }
 
 export async function judgeCase(item, targetResponse, targetArchive, promptJudge) {

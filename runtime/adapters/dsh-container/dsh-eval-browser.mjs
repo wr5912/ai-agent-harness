@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 
-import { mkdir } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
 import {
   SAFETY_STOP_REASONS,
   assertSessionIdentity,
-  judgeCase,
   parseArchive,
   result,
   saveEvidence,
@@ -15,13 +14,15 @@ import {
 } from './dsh-eval-common.mjs'
 
 const COMPOSER = '[data-composer-input][contenteditable="true"]'
+let evidenceRoot
+let startupStage = 'input'
 
 async function readInput() {
   const chunks = []
   for await (const chunk of process.stdin) chunks.push(chunk)
   const payload = JSON.parse(Buffer.concat(chunks).toString('utf8'))
   if (!payload || typeof payload !== 'object' || !Array.isArray(payload.cases)) throw new Error('invalid-payload')
-  for (const name of ['auth_url', 'workspace', 'preset_id', 'judge_preset_id', 'evidence_root']) {
+  for (const name of ['auth_url', 'workspace', 'preset_id', 'evidence_root']) {
     if (typeof payload[name] !== 'string' || payload[name] === '') throw new Error('invalid-payload')
   }
   if (!Number.isInteger(payload.timeout_ms) || payload.timeout_ms < 1) throw new Error('invalid-payload')
@@ -90,10 +91,12 @@ async function exportSession(page, sessionId) {
   return parseArchive(new Uint8Array(await response.body()))
 }
 
-async function resolveNewSession(page, existingIds, presetId, workspace, timeoutMs, signal) {
+async function resolveNewSession(page, existingSessions, input, presetId, workspace, timeoutMs, signal) {
   const session = await poll(
     async () => (await listSessions(page)).find(item =>
-      !existingIds.has(item.sessionId) && item.origin !== 'subagent' && item.parentSessionId === undefined),
+      (!existingSessions.has(item.sessionId) || item.updatedAt > existingSessions.get(item.sessionId))
+      && item.projections?.values?.turnOutline?.at(-1)?.prompt === input
+      && item.origin !== 'subagent' && item.parentSessionId === undefined),
     item => item !== undefined,
     timeoutMs,
     signal,
@@ -104,31 +107,11 @@ async function resolveNewSession(page, existingIds, presetId, workspace, timeout
   }
 }
 
-async function createApiSession(page, payload, workspace, presetId, signal) {
-  const created = await rpc(page, 'session/create', {
-    request: { workspaceId: workspace.workspaceId, agentPreset: presetId },
-  })
-  if (typeof created?.sessionId !== 'string' || created.agentPreset !== presetId) {
-    throw new Error('identity-drift')
-  }
-  const summary = await poll(
-    async () => (await listSessions(page)).find(item => item.sessionId === created.sessionId),
-    item => item !== undefined,
-    payload.timeout_ms,
-    signal,
-  )
-  return {
-    session_id: created.sessionId,
-    workspace_id: workspace.workspaceId,
-    ...assertSessionIdentity(summary, presetId, payload.workspace),
-  }
-}
-
 async function dismissTestingNotice(page, timeoutMs) {
-  const notice = page.getByRole('dialog', { name: 'Internal Testing Notice' })
+  const notice = page.getByRole('dialog', { name: /^(Internal Testing Notice|内测声明)$/ })
   try {
     await notice.waitFor({ state: 'visible', timeout: timeoutMs })
-    await notice.getByRole('button', { name: 'Continue', exact: true }).click({ timeout: timeoutMs })
+    await notice.getByRole('button').last().click({ timeout: timeoutMs })
     return true
   } catch (error) {
     if (error?.name !== 'TimeoutError') throw error
@@ -136,8 +119,20 @@ async function dismissTestingNotice(page, timeoutMs) {
   }
 }
 
+async function clickAfterNotice(page, locator, timeoutMs) {
+  try {
+    await locator.click({ timeout: 5000 })
+    return false
+  } catch (error) {
+    if (error?.name !== 'TimeoutError') throw error
+    const dismissed = await dismissTestingNotice(page, 5000)
+    await locator.click({ timeout: timeoutMs })
+    return dismissed
+  }
+}
+
 async function connectWorkspace(page, workspace, timeoutMs) {
-  const chooser = page.getByRole('textbox', { name: 'Choose workspace' })
+  const chooser = page.getByRole('textbox', { name: /^(Choose workspace|选择工作区)$/ })
   const composer = page.locator(COMPOSER).last()
   let noticeDismissed = false
   const state = await poll(async () => {
@@ -148,13 +143,14 @@ async function connectWorkspace(page, workspace, timeoutMs) {
     }
   }, value => value.ready || value.chooser, timeoutMs)
   if (state.ready) return { testing_notice_dismissed: noticeDismissed, workspace_action: 'already-registered' }
-  await chooser.click({ timeout: timeoutMs })
+  noticeDismissed = await clickAfterNotice(page, chooser, timeoutMs) || noticeDismissed
+  await page.getByRole('menuitem', { name: /^(Add workspace|添加工作区)/ }).click({ timeout: timeoutMs })
   const dialog = page.getByRole('dialog').last()
-  await dialog.getByRole('button', { name: 'Edit path' }).click()
-  const pathInput = dialog.getByRole('textbox', { name: 'Edit path' })
+  await dialog.getByRole('button', { name: /^(Edit path|编辑路径)$/ }).click()
+  const pathInput = dialog.getByRole('textbox', { name: /^(Edit path|编辑路径)$/ })
   await pathInput.fill(workspace)
   await pathInput.press('Enter')
-  await dialog.getByRole('button', { name: 'Open', exact: true }).click()
+  await dialog.getByRole('button', { name: /^(Open|打开)$/ }).click()
   await composer.waitFor({ timeout: timeoutMs })
   return { testing_notice_dismissed: noticeDismissed, workspace_action: 'selected' }
 }
@@ -162,10 +158,10 @@ async function connectWorkspace(page, workspace, timeoutMs) {
 async function send(page, text, timeoutMs) {
   const composer = page.locator(COMPOSER).last()
   await composer.waitFor({ timeout: timeoutMs })
-  await composer.click()
-  await page.keyboard.press('ControlOrMeta+A')
-  await page.keyboard.type(text)
+  await composer.fill(text)
   await composer.press('Enter')
+  await page.locator('[data-chat-flow-kind="user"]').filter({ hasText: text }).last()
+    .waitFor({ timeout: timeoutMs })
 }
 
 async function waitForTurns(page, sessionId, inputs, timeoutMs, signal) {
@@ -177,47 +173,38 @@ async function waitForTurns(page, sessionId, inputs, timeoutMs, signal) {
   return { archive, turns }
 }
 
-async function waitForDisplayedTurn(page, turn, timeoutMs, signal) {
-  if (turn.input_message_id === null || turn.turn === null) throw new Error('turn-render-key-missing')
-  const userKey = `${'input-message'.length}:input-message${turn.input_message_id}`
+async function waitForDisplayedTurn(page, sessionId, turn, timeoutMs, signal) {
+  if (turn.turn === null) throw new Error('turn-render-key-missing')
+  await page.locator(`[data-row-key="session:${sessionId}"]`).click({ timeout: timeoutMs })
   const assistantPrefix = `${'assistant-step'.length}:assistant-step${turn.turn}:`
-  return await poll(async () => ({
-    input_message_displayed: await page.locator(`[data-chat-anchor-key="${userKey}"]`).isVisible().catch(() => false),
-    assistant_message_displayed: await page.locator(`[data-chat-anchor-key^="${assistantPrefix}"]`).last()
-      .isVisible().catch(() => false),
-  }), value => value.input_message_displayed && value.assistant_message_displayed, timeoutMs, signal)
+  return await poll(() => page.locator(`[data-chat-anchor-key^="${assistantPrefix}"]`).last()
+    .isVisible().catch(() => false), visible => visible, timeoutMs, signal)
 }
 
-async function promptApiSession(page, session, input, timeoutMs, signal) {
-  const accepted = await rpc(page, 'session/prompt', {
-    request: {
-      requestId: crypto.randomUUID(),
-      sessionId: session.session_id,
-      mode: 'queue',
-      content: [{ type: 'text', text: input }],
-    },
-  })
-  if (accepted?.accepted !== true) throw new Error('prompt-not-accepted')
-  const completed = await waitForTurns(page, session.session_id, [input], timeoutMs, signal)
-  return { ...completed, session }
-}
-
-async function runCase(page, payload, item, workspace, uiStartup, signal) {
-  const existingIds = new Set((await listSessions(page)).map(session => session.sessionId))
-  await page.getByRole('button', { name: 'New session', exact: true }).last().click()
+async function runCase(page, payload, item, uiStartup, signal) {
+  const existingSessions = new Map((await listSessions(page))
+    .map(session => [session.sessionId, session.updatedAt]))
+  const newSession = page.getByRole('button', { name: /^(New session|新会话|新建会话)$/ }).last()
+  uiStartup.testing_notice_dismissed =
+    await clickAfterNotice(page, newSession, payload.timeout_ms) || uiStartup.testing_notice_dismissed
   let session = null
   let completed
   for (let index = 0; index < item.inputs.length; index += 1) {
     await send(page, item.inputs[index], payload.timeout_ms)
     if (session === null) {
       session = await resolveNewSession(
-        page, existingIds, payload.preset_id, payload.workspace, payload.timeout_ms, signal,
+        page, existingSessions, item.inputs[index], payload.preset_id, payload.workspace, payload.timeout_ms, signal,
       )
     }
     completed = await waitForTurns(
       page, session.session_id, item.inputs.slice(0, index + 1), payload.timeout_ms, signal,
     )
-    await waitForDisplayedTurn(page, completed.turns.at(-1), payload.timeout_ms, signal)
+    try {
+      await waitForDisplayedTurn(page, session.session_id, completed.turns.at(-1), payload.timeout_ms, signal)
+    } catch (error) {
+      error.archive = completed.archive
+      throw error
+    }
   }
   const { archive, turns } = completed
   const response = {
@@ -236,28 +223,21 @@ async function runCase(page, payload, item, workspace, uiStartup, signal) {
     trace_format: 'dsh-session-export-envelope-v1',
     completed: turns.every(turn => turn.turn_reason === 'completed'),
   }
-  if (!checks.completed) {
+  checks.ui_smoke_passed = checks.completed && turns.every(turn => turn.assistant_text.trim() !== '')
+  if (!checks.ui_smoke_passed) {
     await saveEvidence(payload.evidence_root, item, response, archive, checks)
-    return result(item, 'error', 'inconclusive', 'DSH Turn 未正常完成。', 'turn-not-completed')
+    return result(item, 'error', 'inconclusive',
+      checks.completed ? '页面回答为空。' : 'DSH Turn 未正常完成。',
+      checks.completed ? 'empty-assistant-reply' : 'turn-not-completed')
   }
-  const judge = await judgeCase(item, response, archive, async input => {
-    const judgeSession = await createApiSession(
-      page, payload, workspace, payload.judge_preset_id, signal,
-    )
-    return await promptApiSession(page, judgeSession, input, payload.timeout_ms, signal)
-  })
-  checks.judge = judge.checks
-  await saveEvidence(payload.evidence_root, item, response, archive, checks, judge)
-  if (!judge.available) {
-    return result(item, 'completed', 'inconclusive', '评审未产生有效结论，需人工判定。')
-  }
-  const limitation = judge.checks.same_route_as_target ? ' 同一路由自评，仅作研究辅助。' : ''
-  return result(item, 'completed', judge.response.verdict,
-    `语义判定：${judge.response.reason}${limitation}`)
+  await saveEvidence(payload.evidence_root, item, response, archive, checks)
+  return result(item, 'completed', 'inconclusive', '浏览器冒烟通过：目标会话完成且页面显示回答；业务语义需由 API Run 判定。')
 }
 
 async function main() {
   const payload = await readInput()
+  evidenceRoot = payload.evidence_root
+  startupStage = 'browser-launch'
   const browser = await chromium.launch({
     executablePath: '/usr/bin/chromium',
     headless: true,
@@ -268,18 +248,16 @@ async function main() {
   try {
     const context = await browser.newContext({ locale: 'en-US', timezoneId: 'Asia/Shanghai' })
     const page = await context.newPage()
+    startupStage = 'page-open'
     await page.goto(payload.auth_url, { waitUntil: 'domcontentloaded', timeout: payload.timeout_ms })
+    startupStage = 'workspace-connect'
     await page.locator('[class*="frame"]').waitFor({ timeout: payload.timeout_ms })
     const uiStartup = await connectWorkspace(page, payload.workspace, payload.timeout_ms)
-    const workspaceValue = await rpc(page, 'workspace/create', { request: { path: payload.workspace } })
-    const workspace = workspaceValue?.workspace
-    if (typeof workspace?.workspaceId !== 'string' || workspace.path !== payload.workspace) {
-      throw new Error('identity-drift')
-    }
+    startupStage = 'case-run'
     for (const item of payload.cases) {
       try {
         rows.push(await withCaseTimeout(
-          signal => runCase(page, payload, item, workspace, uiStartup, signal),
+          signal => runCase(page, payload, item, uiStartup, signal),
           payload.timeout_ms * (item.inputs.length + 2),
         ))
       } catch (error) {
@@ -314,7 +292,15 @@ async function main() {
   })}\n`)
 }
 
-main().catch(error => {
-  process.stderr.write(`dsh-eval-browser failed: ${error?.name ?? 'Error'}\n`)
+main().catch(async error => {
+  const detail = diagnostic(error)
+  if (evidenceRoot) {
+    try {
+      await mkdir(evidenceRoot, { recursive: true })
+      await writeFile(join(evidenceRoot, 'browser-startup-error.json'),
+        `${JSON.stringify({ stage: startupStage, failure_detail: detail })}\n`)
+    } catch {}
+  }
+  process.stderr.write(`dsh-eval-browser failed: ${startupStage}: ${detail}\n`)
   process.exitCode = 2
 })

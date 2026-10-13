@@ -135,7 +135,7 @@ python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:EXP-security-operations-expert-006 --executor browser --case U-INS-001
 ```
 
-`dsh-eval` 只执行通过 `--case` 显式选择的业务 Case；缺失选择时列出可选项并退出。该参数可重复，也可使用大小写敏感的 shell 风格通配符，最终按 `evaluation.md` 声明顺序展开并去重。默认 API 执行器只通过 DSH Runtime 完成 Workspace 注册、每 Case 新建 Session、目标 Preset 与 Workspace 核对、消息发送、Turn 等待和 Session 导出，不直连底层模型 API；一个 Case 的多轮输入在同一 Session 中依次发送。浏览器执行器负责对应的 UI 链路。两者导出回答与同一 Session 的工具事件，再由独立无工具 Session 对照输入和预期给出语义结论。技术装载、合同和工具链检查由运行前校验承担，不写成业务 Case。
+`dsh-eval` 只执行通过 `--case` 显式选择的业务 Case；缺失选择时列出可选项并退出。该参数可重复，也可使用大小写敏感的 shell 风格通配符，最终按 `evaluation.md` 声明顺序展开并去重。默认 API 执行器只通过 DSH Runtime 完成 Workspace 注册、每 Case 新建 Session、目标 Preset 与 Workspace 核对、消息发送、Turn 等待和 Session 导出，不直连底层模型 API；一个 Case 的多轮输入在同一 Session 中依次发送。API 执行器另用独立无工具 Session 对照输入和预期给出语义结论。浏览器执行器只验证真实页面进入、目标新 Session、发送及回答显示；保存同一 Session 的回答与工具轨迹供核对，不创建判分 Session，业务 `verdict` 保持 `inconclusive`。浏览器冒烟完成时命令返回 `0`，`--mode full` 也不启动 AI 复核。技术装载、合同和工具链检查由运行前校验承担，不写成业务 Case。
 
 评测模式运行的是被测目标，容器里没有判分材料（见第 5.3 节）。任务输入通过对话给出，环境状态由 MCP 服务端或受控预置提供。`dsh-eval` 无论成功、失败或中断都尝试停止实例；基础设施失败导致未执行的 Case 记为 `error/inconclusive`，中断或安全停机后未开始的 Case 记为 `skipped/inconclusive`，不把运行故障写成 Harness 语义失败。
 
@@ -344,7 +344,7 @@ Agent 的当前判分材料只有 `agents/<agent-id>/evaluation.md`，其中每�
 | Preset 试验与回流 | 在 `--mode dev` 用户根用临时新 ID 试验；审查后把内容合并回稳定 `target_preset`，`up --replace` 重载并在 Web 新会话核对 | 原业务 Agent 与稳定目标 ID 不变；候选 `preset_id`、来源 preset 路径和 Profile 默认值一致。该 Web 路径仍待实测 |
 | 判分材料隔离 | 在 `--mode eval` 容器内检查 `/work/reference`、`/work/eval-input` | 两条路径都不存在，也不在 `/proc/self/mountinfo` 中 |
 | API 业务评测与轨迹 | 用默认 `dsh-eval` 运行一个运行态 Case | DSH Runtime 新 Session 的目标 Preset、Workspace、用户输入、Turn、回答、工具目录与调用轨迹均可从封存 Run 核对；认证 Token 不在证据中 |
-| 浏览器 UI 冒烟 | 用 `dsh-eval --executor browser` 运行适用 Case | 初始提示、工作区、模型、发送和回答显示可用；结果以 `executor=browser` 单独封存和统计，不替代 API 业务评测 |
+| 浏览器 UI 冒烟 | 用 `dsh-eval --executor browser` 运行适用 Case | 页面进入、目标新 Session 的 Preset/Workspace、发送和回答显示可用；结果以 `executor=browser` 单独封存且业务 `verdict=inconclusive`，不替代 API 业务评测 |
 | 运行记录 | 记录实际提交、未提交状态、镜像、模型与测试范围 | 记录与实际使用一致，不虚构完整冻结 |
 | 停止失败 | 模拟 `docker compose down` 返回非零退出码 | 命令失败，不输出 `stopped: true` |
 | 启动未生效 | 模拟 `up -d` 返回 0 但 `dsh` 容器已退出 | 在 stderr 报告 `dsh_running: false` 并以非零退出码结束，stdout 为空 |
