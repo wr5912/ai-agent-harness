@@ -13,6 +13,10 @@
 
 `harness-guided-workflow` 是新建、迁移、修改和优化 Harness 的对话入口。它借鉴阶段式工作流，把任务分成讨论、计划、执行和验证四轮，并分别复用现有的资产清点、Experiment 演进和研究评估技能；最终事实仍写回现有 Agent、Experiment 与 Run，不建立第二套流程台账。
 
+### 平台设计输入的适用关系
+
+[`docs/platform-design/README.md`](../platform-design/README.md) 是未来平台设计的当前维护入口，不属于高于根级规则的规范来源，也不表示平台功能已实现。其 R0–R5 表示按需能力演进，不是受控规范中的生产 R1/R2/R3，亦不替代 PA 路径或研究证据。阶段条件只在该目录 `05` 维护，数据合同只在 `03` 维护；归档的项目修改草案不生效。是否实施新的工具或平台故事，仍由当前任务范围、实际价值与根级 Research Mode 合同决定。
+
 ## 2. Baseline、Experiment 与 Decision
 
 Baseline 是比较起点的引用，不是一套必须复制的目录：
@@ -79,7 +83,7 @@ Harness 资产说明“要装载什么”，DSH Runtime 负责实际装载和执
 
 Runtime 的 Session、设置、缓存和附件位于独立数据根，不进入 Candidate 或 Research Release。平台和实例凭据可以使用 Agent 的实例专用仓库文件作为来源；LLM API Key 只保存在匹配 `*.llm-api-key` 的本地忽略文件中，并由环境或受控凭据机制注入。
 
-当前最小研究平台通过系统全局 DSH 装载仓库维护的 Cordis 扩展，读取已有 Agent、Experiment 和 Run。它属于研究工具，不改变业务评测容器的来源锁或 Candidate。平台组合、启动、插件兼容性和独立 HOME 的合同见[平台设计方案](../DSH智能体运行管理平台设计方案.md)；平台工具变更按 `PA-12` 验证，不为目录或启动器本身创建业务 Experiment。
+当前最小研究平台通过系统全局 DSH 装载仓库维护的 Cordis 扩展，读取已有 Agent、Experiment 和 Run。它属于研究工具，不改变业务评测容器的来源锁或 Candidate。平台组合、启动、插件兼容性和独立 HOME 的合同见[平台设计方案](../platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)；平台工具变更按 `PA-12` 验证，不为目录或启动器本身创建业务 Experiment。
 
 ## 6. 三层验证
 

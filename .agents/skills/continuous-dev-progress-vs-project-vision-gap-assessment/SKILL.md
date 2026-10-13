@@ -9,7 +9,7 @@ description: 显式评估 ai-agent-harness 的持续开发进展与未来智能�
 
 ## 开始
 
-读取当前版本的根级 `AGENTS.md`、`docs/standards/SOURCES.md`、`docs/standards/PROJECT-INTERPRETATION.md`、`docs/项目审查原则.md`、`docs/ai-agent-harness项目验收矩阵.md` 和用户指定的目标文档。默认目标来源为 `docs/DSH智能体运行管理平台设计方案.md`。用户提供参考图时，对照其架构分层、信息密度和关系表达；不沿用其中的旧任务、数值或结论。
+读取当前版本的根级 `AGENTS.md`、`docs/standards/SOURCES.md`、`docs/standards/PROJECT-INTERPRETATION.md`、`docs/项目审查原则.md`、`docs/ai-agent-harness项目验收矩阵.md` 和用户指定的目标文档。默认目标来源为 `docs/platform-design/README.md`，按选定情境读取相关章节及任务依赖；不将全部 112 项库存自动计作当前目标。用户提供参考图时，对照其架构分层、信息密度和关系表达；不沿用其中的旧任务、数值或结论。
 
 分析前读取[评估方法](references/assessment-method.md)；制作产物前读取[呈现约定](references/presentation-spec.md)。以相应版本的源码、配置、原始运行记录和目标文档判断事实，旧报告与 Memory 仅作线索。
 

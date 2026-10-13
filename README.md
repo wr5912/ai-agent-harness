@@ -6,9 +6,11 @@
 
 长期方向是研究验证、自用工具、能力逐步完善，最终演进为 AI 原生的 Harness工程平台（Harness Engineering Platform）。只有反复验证有价值的能力才逐步扩展，具体工程边界届时决定；当前约束与演进原则见 [`AGENTS.md`](./AGENTS.md)。
 
+未来平台设计与分阶段路线的维护入口见 [`docs/platform-design/README.md`](docs/platform-design/README.md)；其中的任务映射和界面草图属于设计输入，实际能力状态仍以项目验收矩阵为准。
+
 当前已实现 eval-only 容器实例启动器 `runtime/adapters/dsh-container/dsh-dev`、受管评测入口 `runtime/adapters/dsh-container/dsh-eval`，以及来源解析、Candidate 冻结与摘要、Run 台账和仓库校验工具。Harness 的创建、迁移、修改和优化由宿主开发会话通过 `harness-guided-workflow` 引导，源码写入后再用新的只读评测实例验证。历史上曾完成一次容器内 Headless Skill 修改闭环，证据见 [`dsh-dev-real-session-20260919.json`](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json)；该证据只记录当时已退役的开发模式，不代表当前入口仍支持容器内修改。
 
-研究平台通过系统全局 DSH 装载仓库维护的 Cordis 插件，提供只读“研究资产”首页，显示现有 Agent、Experiment、Run 和仓库来源。平台启动入口是 `platform/dsh-platform`；完整接入合同见[平台设计方案](./docs/DSH智能体运行管理平台设计方案.md)，实际验证状态见 `PA-12`。
+研究平台通过系统全局 DSH 装载仓库维护的 Cordis 插件，提供只读“研究资产”首页，显示现有 Agent、Experiment、Run 和仓库来源。平台启动入口是 `platform/dsh-platform`；完整接入合同见[平台设计方案](./docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)，实际验证状态见 `PA-12`。
 
 本项目共有多少条验证路径、当前完成到哪里、哪些适合进入自动化测试，统一见[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)。
 
@@ -66,7 +68,7 @@
 ./platform/dsh-platform start --port 3091
 ```
 
-在启动终端完成 DSH 原生认证交接。新 HOME 的原生欢迎流程可以选择“稍后配置”，再从侧栏打开“研究资产”；资产查询不需要 LLM API Key。使用 `Ctrl+C` 停止，再次 `start` 复用平台 HOME。运行数据位置、兼容版本和失败处理见[平台接入合同](./docs/DSH智能体运行管理平台设计方案.md#当前最小平台接入合同)。
+在启动终端完成 DSH 原生认证交接。新 HOME 的原生欢迎流程可以选择“稍后配置”，再从侧栏打开“研究资产”；资产查询不需要 LLM API Key。使用 `Ctrl+C` 停止，再次 `start` 复用平台 HOME。运行数据位置、兼容版本和失败处理见[平台接入合同](./docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。
 
 ### 启动本地评测实例
 

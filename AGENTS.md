@@ -42,7 +42,7 @@
 - 不复制 Runtime 内部目录，不把 Session、缓存、附件或整个 `$DSH_HOME` 作为 Harness 资产；需入仓的平台和实例凭据只保存为专用文件，不通过复制 Runtime HOME 回流。
 - `agents/` 保存业务 Agent 的研究资料；`.agents/skills/` 保存维护本仓库的 Codex 项目技能，两者不得混用。
 - `.codex/` 和根级 `AGENTS.md` 只约束仓库研发协作，不是 DSH Runtime 策略或业务 Harness 资产。
-- 研究管理使用必要的本地 CLI，以及基于系统全局 DSH-Cordis 的最小只读资产平台。平台启动入口、Profile 与插件源码集中在 `platform/`，其中 `platform/plugin/` 是独立 DSH 插件包；接入合同集中维护在[平台设计方案](docs/DSH智能体运行管理平台设计方案.md)。后续能力按真实研究需求扩展，仍遵守 Research Mode。
+- 研究管理使用必要的本地 CLI，以及基于系统全局 DSH-Cordis 的最小只读资产平台。平台启动入口、Profile 与插件源码集中在 `platform/`，其中 `platform/plugin/` 是独立 DSH 插件包；接入合同集中维护在[平台设计方案](docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。后续能力按真实研究需求扩展，仍遵守 Research Mode。
 
 ## 工程语言取向
 
@@ -119,6 +119,7 @@ Memory 位于仓库外的 `$CODEX_HOME/memories`，不得复制进仓库、Resea
 - 使用完整、直接的中文句子。术语首次出现时解释，代码、命令、协议字段和稳定 ID 保持准确。
 - 表格用于比较和索引，长解释使用段落；不为短文档机械套模板。
 - 原始输入、历史记录和外部证据保留原貌，不以润色为由改写事实。
+- 当前平台设计以 [`docs/platform-design/README.md`](docs/platform-design/README.md) 为维护入口，未来设计不改变当前 Research Mode。导入资料注明来源、版本和处置；草案与历史原件标明不生效。替换旧入口前迁移仍有效的独有内容，再清理旧文件或按需归档，并同步直接入站引用；同一设计事实只维护一个当前来源。
 - 只有存在实际机器消费者时才使用 JSONL；以人工维护为主时直接使用 Markdown。不得为同一内容同时维护 Markdown、YAML、JSONL 等投影。
 - 确需生成临时阅读视图时，视图不可编辑且不作为事实入口；生成需求消失后删除生成器与投影。
 - 同一事实只保留一个可编辑维护位置，其他位置只引用。
