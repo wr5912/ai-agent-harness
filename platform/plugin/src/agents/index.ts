@@ -156,7 +156,7 @@ function writeYamlMap(file: string, values: JsonMap) {
 function redact(text: string, limit = 4000): string {
   return text
     .replace(/Bearer\s+[^\s"'&]+/gi, 'Bearer [REDACTED]')
-    .replace(/("(?:api[_-]?key|token|password|secret)"\s*:\s*")[^"]*(")/gi, '$1[REDACTED]$2')
+    .replace(/("(?:api[_-]?key|token|password|secret)"\s*:\s*")[^"]*("|$)/gi, '$1[REDACTED]$2')
     .replace(/((?:api[_-]?key|token|password|secret)=)[^\s"'&]+/gi, '$1[REDACTED]')
     .slice(0, limit)
 }
