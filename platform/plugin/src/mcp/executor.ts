@@ -71,7 +71,7 @@ function sourceDigestOf(assetRoot: string): string {
   const files = ['client.tsx', 'definition.ts', 'executor.ts', 'index.ts', 'openapi.ts']
   try {
     const hash = createHash('sha256')
-    for (const file of files) hash.update(file).update('\0').update(readFileSync(join(assetRoot, 'src', 'mcp', file)))
+    for (const file of files) hash.update(file).update('\0').update(readFileSync(join(assetRoot, 'platform', 'plugin', 'src', 'mcp', file)))
     return hash.digest('hex')
   } catch {
     return 'unknown'

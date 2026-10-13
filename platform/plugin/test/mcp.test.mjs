@@ -441,3 +441,14 @@ test('同 ID 重新登记会排除另一种连接类型，默认状态写入 XDG
     else process.env.XDG_STATE_HOME = previous
   }
 })
+
+
+test('平台接入传入仓库根目录时组合回执仍含实际实现摘要', async () => {
+  const module = await loadMcpModule()
+  const temp = await mkdtemp(join(tmpdir(), 'mcp-root-digest-'))
+  const handler = module.createMcpHandler(join(process.cwd(), '../..'), { stateFile: join(temp, 'state.json') })
+  const result = await handler('list', {})
+  assert.equal(result.ok, true)
+  assert.match(result.value.composition.sourceDigest, /^[0-9a-f]{64}$/)
+  assert.match(result.value.composition.gitCommit, /^[0-9a-f]{40}$/)
+})
