@@ -155,7 +155,7 @@
 
 - **要回答**：研究者能否通过系统全局 DSH 装载仓库平台插件，从原生认证进入只读资产首页，并获得与仓库一致的 Agent、Experiment、Run 及来源信息。
 - **操作链**：`platform/dsh-platform prepare` → `start --dry-run` → `start` → 原生认证交接 → 打开“研究资产”首页 → 经真实 `inventory` RPC 核对清单与来源 → 刷新 → `Ctrl+C` 停止 → 重启并核对相同来源；命令和装载合同见[平台设计方案](DSH智能体运行管理平台设计方案.md#当前最小平台接入合同)。
-- **当前证据（2026-10-12）**：本分支合入平台实现后，启动器 [10 项测试](../platform/test_dsh_platform.py)和[插件 8 项测试](../plugins/harness-platform/test/)通过，TypeScript 检查与构建通过，仓库合同校验通过。只读查询在当前仓库识别 **2 个 Agent、20 个 Experiment、61 个 Run**，包括带 `-r<12hex>` 后缀的 Experiment；插件测试覆盖真实 Cordis RPC 注册、查询、刷新、失败恢复和卸载。来源提交 `5c0f50a` 的文档记录了源仓库上全局 DSH、原生认证和 Chromium 页面验证；其资产数量与当前分支不同，不能作为本分支的实机验收结果。
+- **当前证据（2026-10-12）**：本分支合入平台实现后，启动器 [10 项测试](../platform/test_dsh_platform.py)和[插件 8 项测试](../platform/plugin/test/)通过，TypeScript 检查与构建通过，仓库合同校验通过。只读查询在当前仓库识别 **2 个 Agent、20 个 Experiment、61 个 Run**，包括带 `-r<12hex>` 后缀的 Experiment；插件测试覆盖真实 Cordis RPC 注册、查询、刷新、失败恢复和卸载。来源提交 `5c0f50a` 的文档记录了源仓库上全局 DSH、原生认证和 Chromium 页面验证；其资产数量与当前分支不同，不能作为本分支的实机验收结果。
 - **验证范围与限制**：当前环境的 `PATH` 中没有全局 `dsh`，因此本分支尚未执行 `prepare`、真实启动、认证交接、浏览器查询、停止和重启。当前已验证的是静态合同与插件行为；新 DSH 版本须重新核对兼容声明和实际装载。本路径不产生业务 Experiment Evaluation 或 Research Release 复现结论。
 - **自动化边界**：只读预览、任意工作目录定位、发现和归属、缺少产物、版本不兼容及端口冲突进入确定性测试；真实 DSH 装载、认证 RPC 和用户可见页面用实机及浏览器验证。资产查询不需要 LLM API Key，不产生业务 Experiment Evaluation 结论。
 

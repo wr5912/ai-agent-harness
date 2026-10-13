@@ -13,7 +13,7 @@ import sys
 
 
 REPO = Path(__file__).resolve().parent.parent
-PLUGIN = REPO / "plugins" / "harness-platform"
+PLUGIN = REPO / "platform" / "plugin"
 PROFILE_NAME = "harness-platform"
 PROFILE_FILES = ("package.json", "cordis.patch.yml", "pnpm-workspace.yaml")
 PLATFORM_PATCH = "harness-platform.patch.yml"

@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionRpcHandler, ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import { inventory as agentExperimentInventory } from '../../asset-query-cli/query.mjs'
+import { inventory as agentExperimentInventory } from '../../../plugins/asset-query-cli/query.mjs'
 import { CHANNEL } from './protocol.ts'
 import type { Inventory, RunAsset } from './protocol.ts'
 

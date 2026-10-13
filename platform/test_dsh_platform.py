@@ -22,8 +22,8 @@ class PlatformLauncherTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         self.repo = self.root / "repository with spaces"
-        shutil.copytree(PLATFORM, self.repo / "platform")
-        self.plugin = self.repo / "plugins" / "harness-platform"
+        shutil.copytree(PLATFORM, self.repo / "platform", ignore=shutil.ignore_patterns("plugin"))
+        self.plugin = self.repo / "platform" / "plugin"
         self.plugin.mkdir(parents=True)
         (self.plugin / "package.json").write_text(json.dumps({
             "name": "@ai-agent-harness/harness-platform", "peerDependencies": {

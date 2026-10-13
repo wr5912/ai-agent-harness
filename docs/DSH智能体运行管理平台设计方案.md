@@ -16,19 +16,18 @@
 
 ## 当前最小平台接入合同
 
-平台直接运行系统全局 `dsh`，使用 DSH 原生 Web Profile 和 Cordis 插件组合；本仓库不安装或复制 DSH Runtime。业务评测容器继续使用其独立的 `source.lock.json`，平台全局 DSH 的兼容性由 [`plugins/harness-platform/package.json`](../plugins/harness-platform/package.json) 的 `peerDependencies` 声明；启动器读取这份声明检查现场版本，不维护另一份平台版本锁。
+平台直接运行系统全局 `dsh`，使用 DSH 原生 Web Profile 和 Cordis 插件组合；本仓库不安装或复制 DSH Runtime。业务评测容器继续使用其独立的 `source.lock.json`，平台全局 DSH 的兼容性由 [`platform/plugin/package.json`](../platform/plugin/package.json) 的 `peerDependencies` 声明；启动器读取这份声明检查现场版本，不维护另一份平台版本锁。
 
 ```text
 platform/
   profile/                  # 平台 Profile 与插件组合的可编辑来源
   dsh-platform              # 准备、预览和前台启动入口
-plugins/
-  harness-platform/         # TypeScript Host、客户端和构建入口
+  plugin/                   # TypeScript Host、客户端和构建入口
 agents/                     # 已有业务 Agent 研究资料
 evolution/experiments/      # 已有 Experiment、candidate 和 Run
 ```
 
-`platform/` 负责平台组合与启动约定，`plugins/harness-platform/` 负责研究平台扩展。业务 Harness 仍在各 Experiment 的 `candidate/` 维护。平台查询直接读取 `agents/` 与 `evolution/experiments/`；不另建 `platform/data/`、可编辑索引或研究数据副本。
+`platform/` 集中维护平台启动约定、Profile 和独立的 DSH 插件包。业务 Harness 仍在各 Experiment 的 `candidate/` 维护。平台查询直接读取 `agents/` 与 `evolution/experiments/`；不另建 `platform/data/`、可编辑索引或研究数据副本。
 
 平台 HOME 默认是 `$XDG_STATE_HOME/ai-agent-harness/platform/dsh-home`，未设置 `XDG_STATE_HOME` 时使用 `~/.local/state/ai-agent-harness/platform/dsh-home`。它与用户通常使用的 DSH HOME、业务评测容器 HOME 分开。
 

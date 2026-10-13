@@ -277,12 +277,15 @@ class RepositoryValidatorTests(unittest.TestCase):
     def test_plugin_build_dependencies_are_not_research_assets(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repository = copy_repository(Path(temp))
-            cache = repository / "plugins/harness-platform/node_modules"
+            cache = repository / "platform/plugin/node_modules"
             cache.mkdir(parents=True)
             (cache / "local-dependency").symlink_to(repository / "README.md")
+            output = repository / "platform/plugin/lib"
+            output.mkdir(exist_ok=True)
+            (output / "linked-build.js").symlink_to(repository / "README.md")
             completed, payload = run_json(VALIDATE_REPOSITORY, repository)
             self.assertEqual(completed.returncode, 0, payload)
-            source = repository / "plugins/harness-platform/src"
+            source = repository / "platform/plugin/src"
             (source / "linked-source.ts").symlink_to(repository / "README.md")
             completed, payload = run_json(VALIDATE_REPOSITORY, repository)
             self.assertIn("ASSET_SYMLINK", error_codes(payload))

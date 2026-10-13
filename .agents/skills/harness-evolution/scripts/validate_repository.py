@@ -526,7 +526,7 @@ def validate_retired_topology(root: Path, errors: list[dict[str, str]]) -> None:
 
 
 def validate_asset_nodes(root: Path, errors: list[dict[str, str]]) -> None:
-    for name in ("agents", "evolution", "plugins", "releases"):
+    for name in ("agents", "evolution", "plugins", "platform", "releases"):
         base = root / name
         if not base.exists() or not base.is_dir():
             continue
@@ -534,7 +534,8 @@ def validate_asset_nodes(root: Path, errors: list[dict[str, str]]) -> None:
         for directory, directories, files in os.walk(base, followlinks=False):
             # 本地依赖不属于研究资产；仓库自有插件的编译输出也不参与校验。
             directories[:] = [entry for entry in directories if entry != "node_modules"
-                              and not (name == "plugins" and Path(directory).parent == base and entry == "lib")]
+                              and not (name == "plugins" and Path(directory).parent == base and entry == "lib")
+                              and not (name == "platform" and Path(directory) == base / "plugin" and entry == "lib")]
             for entry in directories + files:
                 path = Path(directory) / entry
                 count += 1

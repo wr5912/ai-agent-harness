@@ -152,8 +152,8 @@ evolution/
 platform/
   profile/                               # 全局 DSH 平台组合的可编辑来源
   dsh-platform                           # 准备、预览和前台启动入口
+  plugin/                                 # 平台 TypeScript Host 和客户端源码
 plugins/
-  harness-platform/                      # 平台 TypeScript Host 和客户端源码
   asset-query-cli/                       # 只读资产查询原型与发现逻辑
 runtime/adapters/dsh-container/           # DSH 容器只读装载与评测适配层
 releases/<agent-id>-v<semver>/            # 可选、不可变的 Research Release
@@ -186,7 +186,7 @@ Baseline 引用 → Experiment（含 Candidate）→ Evaluation → Decision
 - 现有需求、任务、判断标准和 321 条待复核输入可以作为后续研究素材；它们不是所有新 Experiment 必须复制的模板。
 - 当前没有 Research Release，`release:<id>` 解析和装载尚未实现。
 - `plugins/asset-query-cli/` 是只读本地管理 CLI 原型，不是管理平台。
-- `platform/` 与 `plugins/harness-platform/` 已提供最小只读平台工具；研究工作台和评测执行仍使用现有入口。
+- `platform/` 已提供最小只读平台工具；研究工作台和评测执行仍使用现有入口。
 
 ## 常用检查
 
