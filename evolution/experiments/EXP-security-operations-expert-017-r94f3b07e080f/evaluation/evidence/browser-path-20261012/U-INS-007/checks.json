@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-INS-007",
+  "transport": "browser",
+  "completed": false,
+  "failure_reason": "browser-case-error",
+  "failure_detail": "Error:poll-timeout"
+}

@@ -13,7 +13,7 @@
 | 智能体首页与 Harness 资产 | 找到 Agent、看来源和实际状态、进入编辑与比较 | 可编辑 Candidate、Git 差异、已发布版和实例装载快照各有身份；页面不维护第二份资产正文 |
 | 管理智能体对话 | 用对话新建、修改、配置、诊断、评估和优化 Agent | 专用管理 DSH；精确目标、多轮上下文、预览、确认、持久操作回执；与 GUI 共用确定性服务 |
 | MCP、Skill、Plugin、知识库 Hub | 查找、登记、绑定、验证和维护能力 | 四类来源与生命周期各自明确；MCP 工具编排组合并发布新工具；Plugin 的安装、启停和卸载不等于登记 |
-| 算力变体 | 从已发布父版派生更省资源、效果近似的 Harness | 同 Agent `published` 且可恢复的 HarnessVersion；独立 Candidate、共同 Case、质量与资源双门槛、真实 Run、人工 Decision |
+| 算力变体 | 从可恢复主线父版派生更省资源、效果近似的 Harness | 固定 Git 提交或 Research Release；有同 Agent `published` HarnessVersion 时优先选用；独立 Candidate、共同 Case、质量与资源双门槛、真实 Run、人工 Decision |
 | DSH 实例 | 创建、观察、启停和恢复容器 | 精确资产快照与标准镜像、只读 Harness、独立 HOME、期望与实际状态、真实 Session 探针 |
 | 业务对话与定时任务 | 真实多轮提问、流式查看、取消、找回历史和定时执行 | 模型与工具执行证据、断线恢复、Session 与版本/实例固定关联；管理对话另存 |
 | 执行追踪 | 从一次回答定位模型、工具、失败和用量 | DSH 原始事件与平台索引、持久采集与缺口显示；组合 MCP 的父调用与子步骤可靠关联 |
@@ -25,7 +25,7 @@
 ## 必须分清的状态和事实源
 
 - `Candidate` 是可编辑的 Experiment 工作树；`Run` 是一次执行的原始记录；`Research Release` 是研究归档。平台的 `HarnessVersion` 是另行显式发布、不可变且可恢复的 Agent Harness；`Deployment` 管新业务会话路由；`Instance` 是实际 DSH 容器。研究 `adopt`、发布和业务启用是三个动作。
-- 平台算力变体只以**同一 Agent 已发布且可恢复的 HarnessVersion**为父版。Git HEAD、Research Release、尚在编辑的 Candidate 和正在运行的实例都不能替代。未业务启用的已发布版仍可派生；变体通过研究比较后还需另行发布，发布也不自动接业务流量。
+- 等效算力变体以**同一 Agent 完整、可恢复且来源固定的主线版本**为父版。研究阶段可用固定 Git 提交或 Research Release，有已发布 HarnessVersion 时优先选用；浮动的 Git HEAD、未提交 Candidate 和正在运行的实例不能替代。证明等效后的变体是独立 `end` 终端版本，不进入后续主线继承集合；平台发布和业务启用是另行的动作。
 - “效果几乎等价”在试验前写定适用任务、Case、评审口径、最低质量、关键 Case 退步红线、相对父版差额和资源目标；所有必要门槛同时满足才可标记达标。`no-compute` 须说明本地、远端和工具内部的推理及 embedding。资源和效果都从真实 Run 取证。
 - 同一业务 Agent 的新实例复用当前标准 DSH Runtime 镜像；Harness 和 Plugin 的易变资产尽量经只读快照装载，不为每个变体造派生镜像。要精确复现历史父版时按其清单锁定镜像；换新 Runtime 做比较须标明迁移并重新验证。
 - 按锁定 DSH 版本核对：`Profile` 怎样组合启动扩展，`Preset` 怎样决定 Session 配置，实际模型又在哪里选择和运行；配置文件写好、实例装载与模型或工具真实调用分层展示。

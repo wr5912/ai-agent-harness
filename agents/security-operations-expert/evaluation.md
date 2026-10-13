@@ -16,7 +16,7 @@
 
 **预期**
 
-先调用 `list_executable_inspections` 选择真实可执行的常规模板；用该模板的 `taskId`、`definitionVersion` 和本次请求稳定的 `requestId` 调用一次 `start_inspection`，省略 `scope`。按同一 `runId` 调用 `get_inspection_result` 直到报告就绪；运行中不得声称完成或重复发起。回复依据服务的 `conclusionStatus`、`businessSummary`、完整 `reportMarkdown` 和设备数量，不改写结论或编造下载地址；设备数量缺失时说明缺口，该项不得判通过。只有非空 `reportDownloadUrl` 才提供下载地址。
+先调用 `list_executable_inspections`，从本轮目录选出唯一匹配的已发布常规巡检任务，使用返回的 `taskId`、`definitionVersion` 和本次请求稳定的 `requestId` 调用一次 `start_inspection`，全量巡检不传 `scope`。之后只以同一 `runId` 调用 `get_inspection_result` 直到报告就绪，不重复发起。回复依据服务的 `conclusionStatus`、`businessSummary` 和完整 `reportMarkdown`，准确给出设备数量，不改写结论；设备数量缺失时说明缺口，该项不得判通过。仅当 `reportDownloadUrl` 非空时原样提供下载地址。运行中、工具失败或报告未就绪时不得声称完成；结果为 `PARTIAL` 时须说明证据缺口。
 
 #### U-INS-002 查询巡检项
 
@@ -46,19 +46,19 @@
 
 **预期**
 
-说明当前三个巡检工具只能查询已发布可执行模板、发起一次巡检并查询结果，不能创建任务；询问用户是要执行一次巡检，还是要另行配置新任务，不声称任务已创建。
+询问用户是要立即执行一次巡检，还是创建 DSH 周期任务；创建周期任务还需明确巡检项、范围和周期。未得到这些条件前不得创建提醒或发起巡检；三个巡检 MCP 工具本身没有任务创建入口。
 
 #### U-INS-005 创建周期巡检任务
 
 **用户输入**
 
-> 创建一个每 10 分钟执行一次的资产运行状态巡检任务。
+> 创建一个每 10 分钟执行一次、覆盖当前巡检服务全部资产的设备在线状态巡检任务；每次执行时以当时的资产清单为准。
 
 **预期**
 
-使用明确的巡检项和十分钟周期创建任务；回复中的任务标识、状态和周期与本轮真实工具返回一致。工具未成功返回时，不得声称创建成功。
+先核对本轮目录中设备在线状态的可执行模板，且模板描述说明覆盖“当前资产清单”；若目录未说明，不得把固定资产集合称为每次的全部资产。用 DSH `schedule_create` 的 `every_seconds: 600` 创建绑定本 Session 的周期提醒，回复中的提醒 ID、状态和下次到期时间与真实回执一致，并明确尚未执行巡检。无需追问单个资产 ID。工具未成功返回时，不得声称创建成功。
 
-该 Case 保留周期任务创建要求；当前巡检 MCP 未提供周期任务接口，不得用一次 `start_inspection` 或通用定时工具冒充通过。
+到期后应以原用户授权和提醒 ID 确认触发，重新查询当时目录，省略 `scope` 对模板当前任务范围调用一次 `start_inspection`，同一到期时点重试复用 `requestId`，再按 `runId` 查询结果，并核对结果中的 `scopeLabel` 与设备数量。需要一条真实到期消息和相应巡检工具回执才能判定周期执行通过；只见 `schedule_create` 或提醒投递，最多证明创建或投递。历史 Run 仍按旧口径保留。
 
 #### U-INS-006 指定资产巡检
 
@@ -68,7 +68,7 @@
 
 **预期**
 
-先用本轮 `list_executable_inspections` 确认唯一适用模板；有匹配时调用 `start_inspection`，传其 `taskId`、`definitionVersion`、稳定的 `requestId` 与 `scope: {"type":"ASSET_IDS","assetIds":["A-001"]}`，再按同一 `runId` 查询结果。模板不匹配或资产不存在时如实说明；不得以全量巡检冒充指定资产巡检。
+先调用 `list_executable_inspections`，从本轮目录选出唯一匹配且无需额外必填输入的可执行任务；使用返回的 `taskId`、`definitionVersion` 和稳定 `requestId` 调用 `start_inspection`，指定 `scope={"type":"ASSET_IDS","assetIds":["A-001"]}`，再按同一 `runId` 查询结果。不存在匹配任务或资产时如实说明或澄清，不猜任务标识，也不以全量巡检冒充完成。
 
 #### U-INS-007 续查同一次巡检
 
@@ -82,7 +82,7 @@
 
 **预期**
 
-第二轮复用同一 Session 中的 `runId`，只调用 `get_inspection_result`，不得重新调用 `start_inspection`。运行中只报告状态和运行标识；报告就绪后根据本轮服务返回的 `conclusionStatus`、`businessSummary`、完整 `reportMarkdown` 与设备数量回答，仅提供非空的真实 `reportDownloadUrl`。没有成功的服务回执不能判通过。
+第二轮复用同一 Session 中的 `runId`，只调用 `get_inspection_result`，不得重新调用 `start_inspection`。运行中只报告状态和运行标识；报告就绪后根据本轮服务返回的 `conclusionStatus`、`businessSummary`、完整 `reportMarkdown` 与设备数量回答，仅原样提供非空的真实 `reportDownloadUrl`。没有成功的服务回执不能判通过。
 
 ## 独立应急指令
 
@@ -580,3 +580,23 @@
 **预期**
 
 浏览器麦克风录入后显示可编辑的转写草稿；说出发送触发词后只提交测试语句，不把触发词写入消息。当前 Session 收到模型的实际回复，点击该回复的朗读按钮后进入浏览器音频播放流程；原生会话和输入功能仍可用。
+
+#### U-VOICE-002 自动摘要播报
+
+**用户输入**
+
+> 开启会话自动播报，分析可疑登录，并保留尚未确认的状态。
+
+**预期**
+
+每次主 LLM Call 正常完成且含可见正文时独立生成一次摘要，默认目标约 30 字；工具前正文可触发，纯推理、纯工具调用、失败和中断不触发。摘要事件与原生 Session 流共用 `/api/remote.mux`，音频合成输入与摘要文字一致。设置页可保存字数、提示词和已配置模型，后续摘要采用新值；不开启自动播报或未装插件时不增加摘要调用。
+
+#### U-VOICE-003 摘要队列与取消
+
+**用户输入**
+
+> 连续产生同一回合的两步正文；分别在摘要生成时打断、关闭播报、切换会话和断开连接。
+
+**预期**
+
+同一会话按正文完成顺序生成和播报，下一步不取消前一步。取消会中止辅助请求和音频，忽略迟到结果；失败时提示并跳过，不阻塞主回合或退回全文播报。插件卸载后释放队列和订阅。重连只接收未来事件，冷加载历史 Session 不产生重复摘要或未知事件错误。受控模型和测试音频仅证明链路；真实模型的语义保真、字数偏差、延迟与听感另行观察。
