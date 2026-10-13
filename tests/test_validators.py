@@ -57,7 +57,7 @@ def copy_repository(destination: Path) -> Path:
     shutil.copytree(
         ROOT,
         target,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", "__pycache__", "*.pyc"),
+        ignore=shutil.ignore_patterns(".git", ".pytest_cache", "__pycache__", "*.pyc", "node_modules"),
     )
     return target
 
@@ -256,14 +256,49 @@ class RepositoryValidatorTests(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("MEMORY", error_codes(payload))
 
-    def test_acceptance_matrix_has_exactly_eleven_paths(self) -> None:
+    def test_acceptance_matrix_rejects_undeclared_path(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repository = copy_repository(Path(temp))
             matrix = repository / "docs/ai-agent-harness项目验收矩阵.md"
-            matrix.write_text(matrix.read_text(encoding="utf-8") + "\n新增 `PA-12`。\n", encoding="utf-8")
+            matrix.write_text(matrix.read_text(encoding="utf-8") + "\n新增 `PA-99`。\n", encoding="utf-8")
             completed, payload = run_json(VALIDATE_REPOSITORY, repository)
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("MATRIX_COUNT", error_codes(payload))
+
+    def test_acceptance_matrix_rejects_missing_path_details(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = copy_repository(Path(temp))
+            matrix = repository / "docs/ai-agent-harness项目验收矩阵.md"
+            matrix.write_text(matrix.read_text(encoding="utf-8").replace("### PA-01 ", "### 准备 ", 1), encoding="utf-8")
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("MATRIX_COUNT", error_codes(payload))
+
+    def test_plugin_build_dependencies_are_not_research_assets(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = copy_repository(Path(temp))
+            cache = repository / "platform/plugin/node_modules"
+            cache.mkdir(parents=True)
+            (cache / "local-dependency").symlink_to(repository / "README.md")
+            output = repository / "platform/plugin/lib"
+            output.mkdir(exist_ok=True)
+            (output / "linked-build.js").symlink_to(repository / "README.md")
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+            self.assertEqual(completed.returncode, 0, payload)
+            source = repository / "platform/plugin/src"
+            (source / "linked-source.ts").symlink_to(repository / "README.md")
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+            self.assertIn("ASSET_SYMLINK", error_codes(payload))
+            (source / "linked-source.ts").unlink()
+            candidate_cache = repository / "evolution/experiments" / EXPERIMENT_ID / "candidate/dsh/workspace/node_modules"
+            candidate_cache.mkdir()
+            (candidate_cache / "linked-asset").symlink_to(repository / "README.md")
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+            self.assertEqual(completed.returncode, 0, payload)
+            candidate_source = candidate_cache.parent / "linked-asset"
+            candidate_source.symlink_to(repository / "README.md")
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+            self.assertIn("ASSET_SYMLINK", error_codes(payload))
 
     def test_review_principles_link_is_required(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -511,6 +546,42 @@ class ResearchEvalTests(unittest.TestCase):
 
 
 class RunRecordTests(unittest.TestCase):
+    def test_inspection_comparison_uses_tool_receipt_without_legacy_env(self) -> None:
+        def view(run_id: str, calls: list[dict]) -> dict:
+            return {
+                "run_id": run_id, "run_path": f"runs/{run_id}",
+                "manifest": {"agent_id": AGENT_ID, "status": "completed"},
+                "source": {"executor": "api", "model": "test-model", "review_mode": "none",
+                           "configured_capabilities": {}, "dependency_env": {},
+                           "git_version": {"commit": "test", "dirty": False}},
+                "image": {"image_build_fingerprint": "test", "local_image_id": "test"},
+                "cases": [{"case_id": "U-INS-001", "frozen": {},
+                           "trials": [{"execution_status": "completed", "verdict": "passed",
+                                       "observation": "成功"}], "output": [],
+                           "actual_routes": [{"model": "test-model"}], "review": None,
+                           "load_observation": {"preset_matches": True, "workspace_matches": True},
+                           "tool_calls": calls, "evidence": []}], "missing": [],
+            }
+
+        old = view("old", [{"name": "mcp__inspection__list_executable_inspections", "status": "ok"}])
+        new = view("new", [{"name": "mcp__inspection__get_inspection_result", "status": "ok"}])
+        script = ROOT / "runtime/adapters/dsh-container/run-comparison.ts"
+        compared = subprocess.run(["node", str(script)], input=json.dumps({"left": old, "right": new}),
+                                  text=True, capture_output=True, check=False)
+        self.assertEqual(compared.returncode, 0, compared.stderr)
+        self.assertFalse(any("巡检服务依赖未确认可用" in item
+                             for item in json.loads(compared.stdout)["limits"]))
+        new["cases"][0]["tool_calls"] = []
+        unconfirmed = subprocess.run(["node", str(script)], input=json.dumps({"left": old, "right": new}),
+                                     text=True, capture_output=True, check=False)
+        self.assertEqual(unconfirmed.returncode, 0, unconfirmed.stderr)
+        self.assertIn("U-INS-001: right 巡检服务依赖未确认可用", json.loads(unconfirmed.stdout)["limits"])
+        new["cases"][0]["tool_calls"] = [{"name": None, "status": "ok"}]
+        unnamed = subprocess.run(["node", str(script)], input=json.dumps({"left": old, "right": new}),
+                                 text=True, capture_output=True, check=False)
+        self.assertEqual(unnamed.returncode, 0, unnamed.stderr)
+        self.assertIn("U-INS-001: right 巡检服务依赖未确认可用", json.loads(unnamed.stdout)["limits"])
+
     def test_init_captures_clean_git_before_creating_run(self) -> None:
         spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
         module = importlib.util.module_from_spec(spec)
@@ -1126,8 +1197,7 @@ if payload.get("operation") == "review":
         elif analysis_mode == "partial-read":
             accesses[0]["result"]["read"]["line_numbers"].pop()
         if analysis_mode == "repair-output" and not repairing:
-            finding["evidence_refs"].append(f"evidence/{cases[-1]['case_id']}/tools.jsonl")
-            text = json.dumps({"case_reviews": reviews, "findings": [finding]})
+            text = json.dumps({"case_reviews": reviews, "findings": [finding], "unexpected": True})
         results.append({
             "scene_id": scene["scene_id"],
             "session_id": scene.get("session_id", f"judge-session-{scene_index}"),
@@ -1182,7 +1252,8 @@ for index, item in enumerate(payload["cases"]):
             "stop_reason": "identity-drift",
         }))
         raise SystemExit(0)
-    verdict = "failed" if mode == "case-failure" and index == 0 else "passed"
+    verdict = "inconclusive" if mode == "browser-smoke" else \
+        "failed" if mode == "case-failure" and index == 0 else "passed"
     rows.append({
         "case_id": item["case_id"],
         "execution_status": "completed",
@@ -1313,7 +1384,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertIn("通过", report)
         self.assertIn("## 场景覆盖与归因", report)
         self.assertIn("### 缺口与归因", report)
-        self.assertEqual(sum(len(scene["case_ids"]) for scene in analysis["scenes"]), 52)
+        self.assertEqual(sum(len(scene["case_ids"]) for scene in analysis["scenes"]), 54)
         self.assertEqual(sum(len(scene["selected_case_ids"]) for scene in analysis["scenes"]), 1)
         self.assertEqual(analysis["review_status"], "not_requested")
         self.assertEqual(
@@ -1335,7 +1406,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
                 env,
                 "U-INS-001",
                 "U-INS-002",
-                executor="browser",
+                executor="api",
             )
             results = [
                 json.loads(line)
@@ -1348,7 +1419,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             report = (run_dir / "report.md").read_text(encoding="utf-8")
             commands = [json.loads(line)[0] for line in command_log.read_text().splitlines()]
         self.assertEqual(completed.returncode, 1, completed.stderr)
-        self.assertEqual(payload["executor"], "browser")
+        self.assertEqual(payload["executor"], "api")
         self.assertEqual(payload["verdict"], "failed")
         self.assertEqual(
             payload["cases"],
@@ -1362,6 +1433,35 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertEqual(analysis["review_status"], "not_requested")
         self.assertFalse(any(scene["findings"] for scene in analysis["scenes"]))
         self.assertIn("未形成结构化缺口与根因假设；这不表示不存在缺口。", report)
+
+    def test_browser_smoke_completes_without_business_verdict_or_review(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository, env, command_log = self.runtime_fixture(Path(temp), mode="browser-smoke")
+            completed, payload = self.run_eval(repository, env, "U-INS-001", executor="browser")
+            run_dir = (repository / payload["summary"]).parent
+            result = json.loads((run_dir / "results.jsonl").read_text(encoding="utf-8"))
+            commands = [json.loads(line)[0] for line in command_log.read_text().splitlines()]
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(payload["executor"], "browser")
+        self.assertEqual(payload["verdict"], "inconclusive")
+        self.assertEqual(payload["review_status"], "not_requested")
+        self.assertEqual(result["execution_status"], "completed")
+        self.assertEqual(result["verdict"], "inconclusive")
+        self.assertEqual(commands, ["up", "url", "down"])
+
+    def test_browser_refuses_business_review_and_verdict(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository, env, _ = self.runtime_fixture(Path(temp))
+            reviewed, _ = self.run_eval(
+                repository, env, "U-INS-001", executor="browser", review="ai",
+            )
+            judged, payload = self.run_eval(repository, env, "U-INS-001", executor="browser")
+            result = json.loads((repository / payload["summary"]).parent.joinpath("results.jsonl")
+                                .read_text(encoding="utf-8"))
+        self.assertEqual(reviewed.returncode, 2, reviewed.stderr)
+        self.assertEqual(judged.returncode, 2, judged.stderr)
+        self.assertEqual(result["execution_status"], "error")
+        self.assertEqual(payload["verdict"], "inconclusive")
 
     def test_invalid_full_review_preserves_evidence_and_fails_closed(self) -> None:
         for analysis_mode in ("invalid", "failed-read", "partial-read"):
@@ -1407,15 +1507,15 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertEqual(completed.returncode, 1, completed.stderr)
         self.assertEqual(payload["review_status"], "completed")
         self.assertEqual(payload["cases"], {
-            "total": 52, "passed": 52, "failed": 0, "inconclusive": 0,
+            "total": 54, "passed": 54, "failed": 0, "inconclusive": 0,
         })
         self.assertEqual(payload["reviewed_cases"], {
-            "total": 52, "passed": 51, "failed": 1, "inconclusive": 0,
+            "total": 54, "passed": 53, "failed": 1, "inconclusive": 0,
         })
         self.assertEqual(summary["machine_overall_verdict"], "passed")
         self.assertEqual(summary["reviewed_overall_verdict"], "failed")
         self.assertEqual(summary["effective_verdict"], "failed")
-        self.assertEqual(analysis["reviewed_case_count"], 52)
+        self.assertEqual(analysis["reviewed_case_count"], 54)
         self.assertTrue(all(scene["review_status"] == "completed" for scene in selected_scenes))
         self.assertEqual(
             len({scene["analysis_session"]["session_id"] for scene in selected_scenes}),
@@ -1471,8 +1571,8 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(analysis["review_status"], "completed")
-        self.assertEqual(analysis["reviewed_case_count"], 52)
-        self.assertEqual(len(attempts), 5)
+        self.assertEqual(analysis["reviewed_case_count"], 54)
+        self.assertEqual(len(attempts), sum(bool(scene["selected_case_ids"]) for scene in analysis["scenes"]))
         self.assertTrue(all(first == repaired for first, repaired in sessions))
 
     def test_manual_gap_is_rendered_without_starting_analysis_instance(self) -> None:
@@ -1578,7 +1678,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         ])
         self.assertEqual(json.loads(fast.stdout)["selection_mode"], "fast")
         self.assertEqual(full.returncode, 0, full.stderr)
-        self.assertEqual(len(json.loads(full.stdout)["case_ids"]), 52)
+        self.assertEqual(len(json.loads(full.stdout)["case_ids"]), 54)
         self.assertEqual(json.loads(full.stdout)["selection_mode"], "full")
         self.assertEqual(explicit.returncode, 0, explicit.stderr)
         self.assertEqual(json.loads(explicit.stdout)["case_ids"], ["U-INS-002"])
@@ -1739,7 +1839,7 @@ class EvaluationSourceTests(unittest.TestCase):
             + ["U-FLT-MENTION"] + [f"U-FLT-{index:03d}" for index in range(1, 11)]
             + [f"U-QA-{index:03d}" for index in range(1, 15)]
             + ["U-THREAT-MENTION", "U-THREAT-FAST", "U-THREAT-FULL", "U-THREAT-WHITELIST", "U-THREAT-MISSING", "U-THREAT-FOLLOWUP"]
-            + ["U-VOICE-001"]
+            + ["U-VOICE-001", "U-VOICE-002", "U-VOICE-003"]
         )
         self.assertFalse((agent / "definition.md").exists())
         self.assertEqual(loaded["case_ids"], expected_ids)
@@ -1755,7 +1855,8 @@ class EvaluationSourceTests(unittest.TestCase):
         self.assertTrue(all(item["scene"] for item in loaded["catalog"]))
         self.assertIn("设备数量", loaded["cases"]["U-INS-001"]["expected_behavior"])
         self.assertIn("reportMarkdown", loaded["cases"]["U-INS-001"]["expected_behavior"])
-        self.assertIn("不改写结论或编造下载地址", loaded["cases"]["U-INS-001"]["expected_behavior"])
+        self.assertIn("不改写结论", loaded["cases"]["U-INS-001"]["expected_behavior"])
+        self.assertIn("仅当 `reportDownloadUrl` 非空时原样提供下载地址", loaded["cases"]["U-INS-001"]["expected_behavior"])
         self.assertEqual(len(loaded["cases"]["U-POL-008"]["inputs"]), 4)
         for retired in (
             "**执行器", "**工具边界", "**副作用预算", "Experiment 评估选择",

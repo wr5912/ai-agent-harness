@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import stat
 import sys
@@ -218,10 +219,16 @@ def validate_governance(root: Path, errors: list[dict[str, str]]) -> None:
     matrix_path = root / PROJECT_MATRIX
     try:
         matrix_text = read_text(matrix_path)
-        expected_paths = {f"PA-{number:02d}" for number in range(1, 12)}
+        count_match = re.search(r"共有 \*\*([0-9]+) 条一级验证路径\*\*", matrix_text)
+        count = int(count_match.group(1)) if count_match else 0
+        expected_paths = {f"PA-{number:02d}" for number in range(1, count + 1)}
         actual_paths = set(re.findall(r"PA-[0-9]{2}", matrix_text))
-        if actual_paths != expected_paths or "共有 **11 条一级验证路径**" not in matrix_text:
-            errors.append(issue("MATRIX_COUNT", "项目验收矩阵必须明确且仅包含 PA-01 至 PA-11 共 11 条一级路径", PROJECT_MATRIX))
+        detailed_paths = re.findall(r"^### (PA-[0-9]{2})\b", matrix_text, re.MULTILINE)
+        overview_paths = re.findall(r"^\|[^\n|]+\|\s*`(PA-[0-9]{2})`\s*\|[^\n|]+\|[^\n|]+\|", matrix_text, re.MULTILINE)
+        if (count < 1 or actual_paths != expected_paths
+                or set(detailed_paths) != expected_paths or len(detailed_paths) != count
+                or set(overview_paths) != expected_paths or len(overview_paths) != count):
+            errors.append(issue("MATRIX_COUNT", "项目验收矩阵的声明总数、连续编号、总览和逐条路径必须一致", PROJECT_MATRIX))
     except (OSError, ValueError) as exc:
         errors.append(issue("MATRIX_READ", str(exc), PROJECT_MATRIX))
     config_path = root / ".codex/config.toml"
@@ -519,27 +526,31 @@ def validate_retired_topology(root: Path, errors: list[dict[str, str]]) -> None:
 
 
 def validate_asset_nodes(root: Path, errors: list[dict[str, str]]) -> None:
-    for name in ("agents", "evolution", "plugins", "releases"):
+    for name in ("agents", "evolution", "plugins", "platform", "releases"):
         base = root / name
         if not base.exists() or not base.is_dir():
             continue
         count = 0
-        for path in base.rglob("*"):
-            if "node_modules" in path.relative_to(base).parts:
-                continue
-            count += 1
-            if count > MAX_ASSET_FILES:
-                errors.append(issue("ASSET_COUNT", f"{name} 节点数超过 100000", name))
-                break
-            try:
-                mode = path.lstat().st_mode
-            except OSError as exc:
-                errors.append(issue("ASSET_READ", str(exc), relative(path, root)))
-                continue
-            if stat.S_ISLNK(mode):
-                errors.append(issue("ASSET_SYMLINK", "研究资产不得使用符号链接", relative(path, root)))
-            elif not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
-                errors.append(issue("ASSET_SPECIAL", "研究资产只能是普通文件或目录", relative(path, root)))
+        for directory, directories, files in os.walk(base, followlinks=False):
+            # 本地依赖不属于研究资产；仓库自有插件的编译输出也不参与校验。
+            directories[:] = [entry for entry in directories if entry != "node_modules"
+                              and not (name == "plugins" and Path(directory).parent == base and entry == "lib")
+                              and not (name == "platform" and Path(directory) == base / "plugin" and entry == "lib")]
+            for entry in directories + files:
+                path = Path(directory) / entry
+                count += 1
+                if count > MAX_ASSET_FILES:
+                    errors.append(issue("ASSET_COUNT", f"{name} 节点数超过 100000", name))
+                    return
+                try:
+                    mode = path.lstat().st_mode
+                except OSError as exc:
+                    errors.append(issue("ASSET_READ", str(exc), relative(path, root)))
+                    continue
+                if stat.S_ISLNK(mode):
+                    errors.append(issue("ASSET_SYMLINK", "研究资产不得使用符号链接", relative(path, root)))
+                elif not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
+                    errors.append(issue("ASSET_SPECIAL", "研究资产只能是普通文件或目录", relative(path, root)))
 
 
 def run(root: Path) -> tuple[dict[str, Any], int]:

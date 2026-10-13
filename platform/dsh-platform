@@ -1,0 +1,198 @@
+#!/usr/bin/env python3
+"""准备和前台启动使用全局 DSH 的研究资产平台。"""
+
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import socket
+import subprocess
+import sys
+
+
+REPO = Path(__file__).resolve().parent.parent
+PLUGIN = REPO / "platform" / "plugin"
+PROFILE_NAME = "harness-platform"
+PROFILE_FILES = ("package.json", "cordis.patch.yml", "pnpm-workspace.yaml")
+PLATFORM_PATCH = "harness-platform.patch.yml"
+HOST = "127.0.0.1"
+
+
+class PlatformError(Exception):
+    pass
+
+
+def platform_home():
+    state = os.environ.get("XDG_STATE_HOME")
+    base = Path(state).expanduser() if state else Path.home() / ".local" / "state"
+    return (base / "ai-agent-harness" / "platform" / "dsh-home").resolve()
+
+
+def runtime_environment(home):
+    return {**os.environ, "DSH_HOME": str(home), "HARNESS_ASSET_ROOT": str(REPO)}
+
+
+def global_dsh(home):
+    executable = shutil.which("dsh")
+    if not executable:
+        raise PlatformError("PATH 中没有全局 dsh；请先安装系统全局 DSH。")
+    try:
+        result = subprocess.run(
+            [executable, "--version"], capture_output=True, text=True,
+            env=runtime_environment(home), check=True, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise PlatformError("无法读取全局 dsh 版本。") from exc
+    version = result.stdout.strip()
+    if not re.fullmatch(r"\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?", version):
+        raise PlatformError("全局 dsh --version 未返回有效版本。")
+    manifest_path = PLUGIN / "package.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        peers = manifest["peerDependencies"]
+        requirements = {name: value for name, value in peers.items()
+                        if name.startswith("@deepseek-ai/dsh-")}
+    except (OSError, ValueError, KeyError, AttributeError) as exc:
+        raise PlatformError(f"无法读取插件兼容声明：{manifest_path}") from exc
+    if not requirements:
+        raise PlatformError("插件没有声明 DSH API peerDependencies。")
+    incompatible = [f"{name}={required}" for name, required in requirements.items()
+                    if required != version]
+    if incompatible:
+        raise PlatformError(
+            f"全局 DSH {version} 与插件精确 peerDependencies 不兼容："
+            + ", ".join(incompatible)
+        )
+    return str(Path(executable).absolute()), version
+
+
+def rendered_profile():
+    result = {}
+    for name in PROFILE_FILES:
+        path = REPO / "platform" / "profile" / name
+        try:
+            source = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise PlatformError(f"缺少平台 Profile 模板：{path}") from exc
+        # JSON 字符串同样是合法 YAML 标量，可保留空格、引号等路径字符。
+        runtime_name = PLATFORM_PATCH if name == "cordis.patch.yml" else name
+        result[runtime_name] = source.replace(
+            "{{HARNESS_PLATFORM_PLUGIN}}", json.dumps(str(PLUGIN / "lib" / "index.js"))
+        )
+    return result
+
+
+def check_artifacts():
+    for name in ("index.js", "client.js"):
+        path = PLUGIN / "lib" / name
+        if not path.is_file():
+            raise PlatformError(f"缺少插件构建产物：{path}；请先运行 prepare。")
+
+
+def check_profile(profile, rendered):
+    for name, content in rendered.items():
+        path = profile / name
+        try:
+            actual = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise PlatformError(f"平台 Profile 尚未准备：{path}；请先运行 prepare。") from exc
+        if actual != content:
+            raise PlatformError(f"平台 Profile 与仓库模板不一致：{path}；请重新运行 prepare。")
+
+
+def check_port(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        # 与 Node 监听行为一致，允许停止后的 TIME_WAIT 连接释放端口。
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            listener.bind((HOST, port))
+        except OSError as exc:
+            raise PlatformError(f"平台端口不可用：{HOST}:{port}；请停止占用进程或指定 --port。") from exc
+
+
+def prepare(home):
+    executable, version = global_dsh(home)
+    rendered = rendered_profile()
+    pnpm = shutil.which("pnpm")
+    if not pnpm:
+        raise PlatformError("PATH 中没有 pnpm；请先安装插件构建工具。")
+    if not (PLUGIN / "pnpm-lock.yaml").is_file():
+        raise PlatformError(f"缺少插件依赖锁：{PLUGIN / 'pnpm-lock.yaml'}")
+    try:
+        subprocess.run([pnpm, "install", "--frozen-lockfile"], cwd=PLUGIN, check=True)
+        subprocess.run([pnpm, "run", "build"], cwd=PLUGIN, check=True)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise PlatformError("插件依赖安装或构建失败；平台 Profile 未更新。") from exc
+    check_artifacts()
+    profile = home / "profiles" / PROFILE_NAME
+    profile.mkdir(parents=True, exist_ok=True)
+    for name, content in rendered.items():
+        (profile / name).write_text(content, encoding="utf-8")
+    # 原生用户 Patch 保存 DSH 设置；仓库组合通过独立 overlay 装载。
+    user_patch = profile / "cordis.patch.yml"
+    if not user_patch.exists():
+        user_patch.write_text("[]\n", encoding="utf-8")
+    print(f"平台准备完成：DSH {version} ({executable})")
+    print(f"Profile：{profile}")
+    print("启动：./platform/dsh-platform start")
+
+
+def start(home, port, dry_run):
+    executable, version = global_dsh(home)
+    rendered = rendered_profile()
+    check_artifacts()
+    profile = home / "profiles" / PROFILE_NAME
+    check_profile(profile, rendered)
+    check_port(port)
+    # Launcher 选项必须先于 Web app 选项，否则 DSH 会将其透传给 Web。
+    command = [executable, "--profile", PROFILE_NAME, "--patch", str(profile / PLATFORM_PATCH),
+               "--host", HOST, "--port", str(port), "--no-open"]
+    if dry_run:
+        print(json.dumps({
+            "repository": str(REPO), "dsh": executable, "dsh_version": version,
+            "home": str(home), "profile": str(profile),
+            "patch": str(profile / PLATFORM_PATCH),
+            "plugin": str(PLUGIN / "lib" / "index.js"),
+            "client": str(PLUGIN / "lib" / "client.js"),
+            "host": HOST, "port": port, "command": command,
+        }, ensure_ascii=False, indent=2))
+        return
+    print(f"平台地址：http://{HOST}:{port}（按原生 DSH 提示认证）", flush=True)
+    print("前台运行；Ctrl+C 停止，重启复用同一平台 HOME。", flush=True)
+    os.execvpe(executable, command, runtime_environment(home))
+
+
+def port_value(value):
+    try:
+        port = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("端口必须是 1 至 65535 的整数。") from exc
+    if not 1 <= port <= 65535:
+        raise argparse.ArgumentTypeError("端口必须是 1 至 65535 的整数。")
+    return port
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("prepare", help="安装插件构建依赖、构建并生成独立平台 Profile")
+    start_parser = commands.add_parser("start", help="使用全局 DSH 前台启动平台")
+    start_parser.add_argument("--port", type=port_value, default=3090, help="监听端口，默认 3090")
+    start_parser.add_argument("--dry-run", action="store_true", help="只读检查并预览启动参数")
+    args = parser.parse_args()
+    try:
+        home = platform_home()
+        if args.command == "prepare":
+            prepare(home)
+        else:
+            start(home, args.port, args.dry_run)
+    except (PlatformError, OSError) as exc:
+        print(f"dsh-platform: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

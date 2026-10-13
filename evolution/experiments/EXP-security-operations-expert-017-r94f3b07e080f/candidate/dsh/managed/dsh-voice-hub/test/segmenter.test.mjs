@@ -1,0 +1,117 @@
+/**
+ * SentenceSegmenter 单元测试（纯函数，无网络、无 dsh 依赖）。
+ * 运行：node test/segmenter.test.mjs（或 npm test）
+ */
+import { build } from 'esbuild'
+import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+
+// 用 esbuild 把 TS 原样转译到临时文件再导入（引擎 >=18 无 type-strip 依赖）。
+const here = fileURLToPath(new URL('.', import.meta.url))
+const tmp = mkdtempSync(join(tmpdir(), 'dsh-vm-seg-'))
+const out = join(tmp, 'segmenter.mjs')
+await build({
+  entryPoints: [join(here, '..', 'src', 'segmenter.ts')],
+  outfile: out,
+  bundle: true,
+  format: 'esm',
+  platform: 'node',
+  logLevel: 'silent',
+})
+const { SentenceSegmenter, plainText, splitSentences, sanitizeForTts } = await import(pathToFileURL(out).href)
+
+let passed = 0
+const t = (name, fn) => {
+  fn()
+  passed++
+  console.log(`  ✓ ${name}`)
+}
+
+console.log('plainText')
+t('剥离代码块/行内代码/链接/行首标题/行首列表', () => {
+  assert.equal(
+    plainText('**你好** `code` [链接](https://x) # 标题'),
+    '你好 code 链接 # 标题',
+  )
+  assert.equal(plainText('# 标题\n- item'), '标题\nitem')
+})
+t('剥离图片与 HTML', () => {
+  const out = plainText('![图](a.png) <b>粗</b>').replace(/\s+/g, ' ').trim()
+  assert.equal(out, '粗')
+})
+
+console.log('sanitizeForTts')
+t('剔除会被英文念出的 markdown 噪声字符（批 4 收口：> 字符不再被剥——emotion 标签闭合需要）', () => {
+  // 批 4 收口 B1：sanitizeForTts 字符集移除 < 和 >——plainText 已确保不再有合法 HTML 残留，
+  //   剩下的 <...> 一定是 emotion 标签（break/whisper/laugh/sigh/emphasis），闭合 > 必须保留，
+  //   否则 sanitize 会把 <laugh> 变成 <laugh （闭合 > 被吃）。
+  //   注：| 字符仍被剥成空格（字符集 [*_#|^=+~`] 仍含 |，实证见 lib/index.js:1026）——
+  //   只有 > / < 不被剥；副作用 = blockquote `>` 残留可能逐字读出（emotion 完整性优先于 markdown 残留）。
+  assert.equal(sanitizeForTts('**加粗** _斜体_ ~~删除~~ > 引用 | 表格'), '加粗斜体删除 > 引用表格')
+  assert.equal(sanitizeForTts('a*b#c`d~e^f=g+h'), 'a b c d e f g h')
+  assert.equal(sanitizeForTts('你好，世界。'), '你好，世界。')
+  assert.equal(sanitizeForTts('你好 world 世界'), '你好 world 世界')
+})
+t('sanitizeForTts 保留 emotion 标签（闭合 > 与开闭合 < 不被剥）', () => {
+  assert.equal(sanitizeForTts('你好<laugh>世界'), '你好<laugh>世界')
+  assert.equal(sanitizeForTts('<break 300ms>'), '<break 300ms>')
+  assert.equal(sanitizeForTts('<whisper>x</whisper>'), '<whisper>x</whisper>')
+})
+t('流式截断的配对符经分句器后不再残留', () => {
+  const s = new SentenceSegmenter()
+  s.feed('**这是')
+  const out = s.feed('加粗**的内容。')
+  assert.deepEqual(out, ['这是加粗的内容。'])
+  assert.equal(s.flush().join('').includes('*'), false)
+})
+
+console.log('splitSentences')
+t('中文终止标点切分', () => {
+  const { sentences, tail } = splitSentences('你好。世界！如何？')
+  assert.deepEqual(sentences, ['你好。', '世界！', '如何？'])
+  assert.equal(tail, '')
+})
+t('小数与 URL 不被拆散', () => {
+  const { sentences, tail } = splitSentences('圆周率 3.14 是。请看 https://a.b/c')
+  assert.deepEqual(sentences, ['圆周率 3.14 是。'])
+  assert.equal(tail, '请看 https://a.b/c')
+})
+t('英文句点仅在空白后终止', () => {
+  const { sentences } = splitSentences('Hello world. Next')
+  assert.deepEqual(sentences, ['Hello world.'])
+})
+t('省略号与换行终止', () => {
+  const { sentences, tail } = splitSentences('等等…\n继续')
+  assert.deepEqual(sentences, ['等等…\n'])
+  assert.equal(tail, '继续')
+})
+
+console.log('SentenceSegmenter')
+t('跨 chunk 累积成句', () => {
+  const s = new SentenceSegmenter()
+  assert.deepEqual(s.feed('你好，'), [])
+  assert.deepEqual(s.feed('世界。'), ['你好，世界。'])
+  assert.deepEqual(s.flush(), [])
+})
+t('flush 输出剩余缓冲', () => {
+  const s = new SentenceSegmenter()
+  s.feed('没有标点的一段话')
+  assert.deepEqual(s.flush(), ['没有标点的一段话'])
+  assert.deepEqual(s.flush(), [])
+})
+t('纯标点尾巴不输出', () => {
+  const s = new SentenceSegmenter()
+  s.feed('好。…')
+  assert.deepEqual(s.feed('好。…')[0], '好。…')
+})
+t('无标点长墙按安全阀切分', () => {
+  const s = new SentenceSegmenter({ maxSentenceChars: 10 })
+  const out = s.feed('一二三四五六七八九十甲乙丙丁')
+  assert.ok(out.length >= 1 && out[0].length <= 10)
+})
+
+console.log(`\nsegmenter：${passed} 项通过`)
+rmSync(tmp, { recursive: true, force: true })

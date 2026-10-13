@@ -1,12 +1,12 @@
 # ai-agent-harness 项目验收矩阵
 
-更新日期：2026-10-07
+更新日期：2026-10-12
 
 本文是 **ai-agent-harness 项目与工具链**验证路径、当前证据和缺口的唯一维护位置。它直接回答三个问题：总共有多少条路径、每条做到什么程度、哪些检查应该进入自动化测试。
 
-## 1. 直接答案：共有 11 条一级验证路径
+## 1. 直接答案：共有 12 条一级验证路径
 
-当前共有 **11 条一级验证路径**，编号 `PA-01` 至 `PA-11`。一级路径是用户可以独立完成、并且能够独立成功或失败的一条完整工作链；内部命令和正反向检查不重复计数。
+当前共有 **12 条一级验证路径**，编号 `PA-01` 至 `PA-12`。一级路径是用户可以独立完成、并且能够独立成功或失败的一条完整工作链；内部命令和正反向检查不重复计数。
 
 | 阶段 | ID | 一级验证路径 | 当前状态 |
 |---|---|---|---|
@@ -21,6 +21,7 @@
 | 派生 | `PA-09` | 新 Preset 创建、登记、重载与选择闭环 | 部分验证 |
 | 记录 | `PA-10` | Research Run 的创建、记录、缺口与封存 | 已验证（机器范围） |
 | 复用 | `PA-11` | Research Release 打包、解析与复现装载 | 未实现 |
+| 平台 | `PA-12` | 全局 DSH 平台启动、认证与只读资产查询 | 部分验证；当前分支待实机复验 |
 
 状态含义：
 
@@ -29,7 +30,7 @@
 - **未验证**：可能已有设计或局部实现，但没有足以确认完整路径的证据。
 - **未实现**：完整入口尚不存在，不能靠补一条测试把它描述为可用。
 
-这 11 条只统计项目与工具链，不把每个 Harness 的研究输入数量或每个 Release 的复现次数算进去。新增稳定 CLI、运行模式或独立用户流程时，先判断它是既有路径中的步骤，还是能独立成功或失败的新一级路径；只有后者才增加总数。
+这 12 条只统计项目与工具链，不把每个 Harness 的研究输入数量或每个 Release 的复现次数算进去。新增稳定 CLI、运行模式或独立用户流程时，先判断它是既有路径中的步骤，还是能独立成功或失败的新一级路径；只有后者才增加总数。
 
 ## 2. 三种结论必须分开
 
@@ -53,7 +54,17 @@
 
 2026-10-09 的 [EXP-014 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-014-r8b1bd54e8be7/evaluation/observations.md)补充了 `PA-03/04/05/06/08` 的融合来源、当前实例只读装载、MCP 授权与分组技术链路、浏览器新 Session、语音识别和播报证据。`ai_soc_*` 的 OpenAPI 规范未取得，业务 Run 未完成；路径状态不因此提升。
 
-2026-10-10 的 [EXP-015 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/evaluation/observations.md)补充了 `PA-03/04/05/06/07/08/10` 的 Web MCP 配置回流、四服务工具发现与分组鉴权、同名实例重建、新 HOME 恢复和六个真实新 Session Case 的[封存 Run](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/runs/run-d442726d-c74c-42f7-91c2-8bb881424c29/report.md)。巡检三项通过，故障分析一项无法判定，策略与应急各一项因上游结果未达业务预期而失败；修正巡检解析指令后又有[三项巡检补充 Run](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/runs/run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017/report.md)，均通过。浏览器页面未在本次重验，全项目路径状态不因此提升。
+2026-10-10 的 [EXP-015 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/evaluation/observations.md)补充了 `PA-03/04/05/06/07/08/10` 的 Web MCP 配置回流、四服务工具发现与分组鉴权、同名实例重建、新 HOME 恢复和六个真实新 Session Case 的[封存 Run](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/runs/run-d442726d-c74c-42f7-91c2-8bb881424c29/report.md)。巡检三项通过，故障分析一项无法判定，策略与应急各一项因上游结果未达业务预期而失败；修正巡检解析指令后又有[三项巡检补充 Run](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/runs/run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017/report.md)，均通过。[跨版本对照 Run](../evolution/experiments/EXP-security-operations-expert-015-r904bdcd81005/runs/run-7bc9d938-4522-4ea6-be33-5e2c04e19e11/report.md)与 EXP-012 的三个共同 Case 各为 3/3 通过，但 Case 口径和运行条件不同，且未验证本地 Qwen 组合。浏览器页面未在本次重验，全项目路径状态不因此提升。
+
+2026-10-10 的 [EXP-015 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-015-r6328dfd1ae6e/evaluation/observations.md)补充了 `PA-04/05/06/08/10` 的新来源、隔离实例、三工具实际发现、非零实例概览和六个巡检 Case 的真实 API Run。常规巡检与两轮续查有工具回执；周期任务创建失败，指定资产结果查询有服务端错误，同路由模型自动评审仍需人工判读。平台身份链和浏览器业务路径尚未验收，路径状态不因此提升。
+
+2026-10-11 的 [EXP-015 浏览器补充观察](../evolution/experiments/EXP-security-operations-expert-015-r6328dfd1ae6e/evaluation/observations.md)为 `PA-08` 增加同一实例的目录查询、同 Session 两轮续查和概览→MCP 配置→业务对话的连续试跑，保存页面回答及原始工具轨迹。简化后的浏览器执行器在两个新 HOME 的正式 Run 中完成目录查询 UI 冒烟；新增失败 Run 定位在工作区连接阶段。浏览器结果不能代替 API 业务判定或跨实例平台身份链验收，路径状态不因此提升。
+
+2026-10-11 的 [EXP-016 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-016-r77d4eb1119fb/evaluation/observations.md)补充了 `PA-06/07/08/10` 的可配置语音摘要插件实际装载、共用连接、取消与重连、历史冷加载及无插件/卸载浏览器证据。保留修复前失败后，[最终 Run](../evolution/experiments/EXP-security-operations-expert-016-r77d4eb1119fb/runs/run-7a091380-a7d6-4381-947b-2f6c5c876892/report.md)两项 Case 在受控模型和测试音调范围通过；真实模型摘要质量与真实语音效果尚未评估，Decision 为 `continue`，全项目路径状态不因此提升。
+
+2026-10-12 的 [EXP-017 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-017-r94f3b07e080f/evaluation/observations.md)补充 `PA-05/06/08/10` 的新实例、真实 MCP 装载、周期任务创建、原 Session 恢复和两次到期巡检回执。[正式 API Run](../evolution/experiments/EXP-security-operations-expert-017-r94f3b07e080f/runs/run-fc23de09-a04f-4d74-8c05-b26dfe214eae/report.md)在首次到期前停止实例，失败结论保留；[追录 Run](../evolution/experiments/EXP-security-operations-expert-017-r94f3b07e080f/runs/run-3c86eb9a-b49b-435e-aad3-0610c8fab123/report.md)人工核对两次到期的目录、巡检发起和结果查询，`U-INS-005` 在此范围通过。[定向浏览器证据](../evolution/experiments/EXP-security-operations-expert-017-r94f3b07e080f/evaluation/evidence/browser-path-20261012/continuation/U-INS-007/checks.json)又在当前实例核对概览、MCP 配置、新会话与同 `runId` 续查；服务结果 `PARTIAL`，不判业务通过。长期周期稳定性、其他业务和跨实例平台身份链未由此验证，全项目路径状态不因此提升。
+
+2026-10-12 的 [EXP-017 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-017-rb20b8c6b906f/evaluation/observations.md)补充了 `PA-04/05/06/08` 的匿名规范读取与授权回退、真实浏览器发现、DSH 工具 Schema、分组鉴权和业务调用证据。`tee` 不在当前 Agent Guard 工具范围，上游部分接口仍返回 403；没有业务 Case Run，全项目路径状态不因此提升。
 
 ### PA-01 Research Mode、AI 协作入口与项目 Memory
 
@@ -111,11 +122,12 @@
 ### PA-08 DSH Runtime API 与 Web UI 的 Session、消息与结果闭环
 
 - **要回答**：受管评测能否分别通过 DSH Runtime API 完成业务 Turn，并通过 Web UI 完成用户可见链路冒烟，两者不混算结果。
-- **操作链**：启动 Web → 使用本次认证 URL → API 默认路径注册 Workspace、逐 Case 创建正确 Preset 的 Session、发送消息、等待 Turn 并导出轨迹；或显式选择浏览器路径，核对初始提示、工作区、模型、发送和显示。
+- **操作链**：启动 Web → 使用本次认证 URL → API 默认路径注册 Workspace、逐 Case 创建正确 Preset 的 Session、发送消息、等待 Turn 并导出轨迹；或显式选择浏览器路径，核对页面进入、新会话身份、发送和回答显示。
 - **当前证据**：[`dsh-web-technical-preflight-20260915T054223Z.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-web-technical-preflight-20260915T054223Z.json) 记录技术预检。`dsh-eval` 已实现默认 API 与显式浏览器执行器；两者共享 Case、精确 Preset/Workspace 身份检查和证据格式，分别形成 Run。评审 Preset 放在评测适配层，与被测 Candidate 分离。命令结果用 `executor` 标明通道，运行态 Case 证据用 `transport` 标明通道。替身进程测试覆盖 `fast/full/--case` 选择、通道选择、每 Case 新 Session、多轮同 Session、启动、认证入口、结果封存、停止和 Token 不落盘；插件实验另记录了宿主重启后的 Profile 持久化。[`run-8941fbbc-8f7b-42f0-9890-d2f12249e79b`](../evolution/experiments/EXP-security-operations-expert-007/runs/run-8941fbbc-8f7b-42f0-9890-d2f12249e79b/report.md) 是本实现产生的真实 DSH Runtime API `full` Run：40 个 Case 全部完成，原始 Session、工具事件和逐 Case 评审证据均已封存，受管实例已停止。
 - **当前新镜像证据**：[`run-2028f3b1-7a8c-42ea-9da6-2a59f5187262`](../evolution/experiments/EXP-security-operations-expert-007/runs/run-2028f3b1-7a8c-42ea-9da6-2a59f5187262/report.md) 以全仓锁构建的新镜像完成 `U-QA-003` 的真实 API Turn 和独立评审 Turn；评审请求的工具列表为空，机器判定 1/1 通过，受管实例已停止。
 - **当前工具切片证据**：[EXP-009 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-009/evaluation/observations.md)关联两次修订 Candidate 的 `U-QA-012/013` 真实 API Run、对应基线及来源回退 Run；分别保留被测 Session、评审证据、实际模型路由和原始回答。机器两题通过，人工结论限定为所选问法下方法说明更完整。
 - **语音浏览器证据**：同一标准镜像的隔离实例已封存 [`Qwen 浏览器 Run`](../evolution/experiments/EXP-security-operations-expert-007/runs/run-fe58afad-133d-44fb-b92c-19bf74523083/report.md)，真实麦克风、远程 ASR、语音发送、模型回复和 TTS 解码链路通过；[`默认 DeepSeek 浏览器 Run`](../evolution/experiments/EXP-security-operations-expert-007/runs/run-e6a57ade-9cfe-4a47-9637-85e07ee423fe/report.md) 因外部 MCP 工具 schema 悬空引用失败。
+- **巡检浏览器补充证据**：[EXP-015-r632 观察](../evolution/experiments/EXP-security-operations-expert-015-r6328dfd1ae6e/evaluation/observations.md)关联同一实例的 `U-INS-002/007` 页面试跑和连续导航，确认可见回答、一次发起及同 `runId` 续查；两个新 HOME 的正式浏览器 [Run 1](../evolution/experiments/EXP-security-operations-expert-015-r6328dfd1ae6e/runs/run-1aa3c04c-8a53-482a-951a-16f06f12f827/report.md)、[Run 2](../evolution/experiments/EXP-security-operations-expert-015-r6328dfd1ae6e/runs/run-1d3814b5-b1b1-4812-90a0-74f464ac8218/report.md)完成 `U-INS-002` UI 冒烟，核对目标会话与回答显示，业务结论均为 `inconclusive`；[新增失败 Run](../evolution/experiments/EXP-security-operations-expert-015-r6328dfd1ae6e/runs/run-0631c1d6-4d37-40b3-bb13-9dffd754490c/report.md)在连接工作区时超时，未执行 Case。此前[另一新实例 Run](../evolution/experiments/EXP-security-operations-expert-015-r6328dfd1ae6e/runs/run-d3a1e3d5-dddc-42a6-9543-e02a3e129924/report.md)在执行 Case 前失败，原因尚未定位。
 - **缺口**：[EXP-007 门户联调](security-operations-expert门户联调记录.md)历史试点曾在 iframe 中完成真实 Web 会话；当前免认证直连实例的浏览器工作台、模型回复、自动化任务入口及独立启用 `--skip-testing-notice` 后“内测声明”刷新不再弹出已验证，但门户代理切换后的 iframe 尚未重测。语音 Run 使用真实浏览器脚本与 `run_record.py` 封存，其他业务 Case 的浏览器链路及默认模型的语音回复仍待验证；现有 Run 不证明全部 MCP 业务语义，也不代表生产验收。
 - **自动化边界**：确定性的通道编排与异常闭环进入测试；身份、工具目录和证据由执行器生成，仍需从真实 API Run 或浏览器冒烟 Run 核对；模型与 MCP 语义仍需人工判读。
 
@@ -146,7 +158,15 @@
 - **当前证据与缺口**：静态目录合同将由仓库校验器覆盖，但当前没有 Research Release，`dsh-dev` 也未实现 `release:<id>`，因此完整路径未实现。
 - **自动化边界**：清单、摘要和解析进入测试；真实 DSH 重新装载用复现探针。该结论不包含生产部署验收。
 
-## 4. 为什么是 11 条
+### PA-12 全局 DSH 平台启动、认证与只读资产查询
+
+- **要回答**：研究者能否通过系统全局 DSH 装载仓库平台插件，从原生认证进入只读资产首页，并获得与仓库一致的 Agent、Experiment、Run 及来源信息。
+- **操作链**：`platform/dsh-platform prepare` → `start --dry-run` → `start` → 原生认证交接 → 打开“研究资产”首页 → 经真实 `inventory` RPC 核对清单与来源 → 刷新 → `Ctrl+C` 停止 → 重启并核对相同来源；命令和装载合同见[平台设计方案](DSH智能体运行管理平台设计方案.md#当前最小平台接入合同)。
+- **当前证据（2026-10-12）**：本分支合入平台实现后，启动器 [10 项测试](../platform/test_dsh_platform.py)和[插件 8 项测试](../platform/plugin/test/)通过，TypeScript 检查与构建通过，仓库合同校验通过。只读查询在当前仓库识别 **2 个 Agent、20 个 Experiment、61 个 Run**，包括带 `-r<12hex>` 后缀的 Experiment；插件测试覆盖真实 Cordis RPC 注册、查询、刷新、失败恢复和卸载。来源提交 `5c0f50a` 的文档记录了源仓库上全局 DSH、原生认证和 Chromium 页面验证；其资产数量与当前分支不同，不能作为本分支的实机验收结果。
+- **验证范围与限制**：当前环境的 `PATH` 中没有全局 `dsh`，因此本分支尚未执行 `prepare`、真实启动、认证交接、浏览器查询、停止和重启。当前已验证的是静态合同与插件行为；新 DSH 版本须重新核对兼容声明和实际装载。本路径不产生业务 Experiment Evaluation 或 Research Release 复现结论。
+- **自动化边界**：只读预览、任意工作目录定位、发现和归属、缺少产物、版本不兼容及端口冲突进入确定性测试；真实 DSH 装载、认证 RPC 和用户可见页面用实机及浏览器验证。资产查询不需要 LLM API Key，不产生业务 Experiment Evaluation 结论。
+
+## 4. 为什么是 12 条
 
 | 稳定入口或能力 | 归入路径 |
 |---|---|
@@ -161,6 +181,7 @@
 | Preset 创建、登记、重载和选择 | `PA-09` |
 | `run_record.py` 的 Run 记录、索引、查看与比较 | `PA-10` |
 | Research Release 清单、解析和复现 | `PA-11` |
+| `platform/dsh-platform`、平台 Cordis Host/客户端、原生认证与只读资产首页 | `PA-12` |
 
 单元测试、负向样例、日志和证据文件用于证明某条路径，不因数量增加而成为新的一级路径。某个 Experiment 使用 1 个还是 100 个输入，也不改变项目级路径总数。
 
@@ -179,7 +200,7 @@
 ## 6. 维护规则
 
 - 项目治理、CLI、适配层或工作流变化时，先标出受影响的 `PA-xx`。
-- 总数、总览行数和“为什么是 11 条”的入口映射必须一致。
+- 总数、总览行数和“为什么是 12 条”的入口映射必须一致。
 - 新证据与该路径的完成标准一致时才提升状态；依赖变化或证据失效时应降级。
 - 本矩阵不复制某个 Experiment 的输入、阈值或结论，只链接其主要事实源。
 - 完成工作时分别报告：机器合同、真实运行路径、Experiment 结论和未验证项。
