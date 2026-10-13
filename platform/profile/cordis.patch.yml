@@ -1,0 +1,4 @@
+# 此模板由 prepare 将仓库插件路径渲染为绝对路径；修改后重新 prepare 并启动。
+- insert:
+    - id: harness-platform
+      name: {{HARNESS_PLATFORM_PLUGIN}}

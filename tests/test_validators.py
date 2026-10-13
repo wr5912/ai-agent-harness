@@ -57,7 +57,7 @@ def copy_repository(destination: Path) -> Path:
     shutil.copytree(
         ROOT,
         target,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", "__pycache__", "*.pyc"),
+        ignore=shutil.ignore_patterns(".git", ".pytest_cache", "__pycache__", "*.pyc", "node_modules"),
     )
     return target
 
@@ -256,14 +256,46 @@ class RepositoryValidatorTests(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("MEMORY", error_codes(payload))
 
-    def test_acceptance_matrix_has_exactly_eleven_paths(self) -> None:
+    def test_acceptance_matrix_rejects_undeclared_path(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repository = copy_repository(Path(temp))
             matrix = repository / "docs/ai-agent-harness项目验收矩阵.md"
-            matrix.write_text(matrix.read_text(encoding="utf-8") + "\n新增 `PA-12`。\n", encoding="utf-8")
+            matrix.write_text(matrix.read_text(encoding="utf-8") + "\n新增 `PA-99`。\n", encoding="utf-8")
             completed, payload = run_json(VALIDATE_REPOSITORY, repository)
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("MATRIX_COUNT", error_codes(payload))
+
+    def test_acceptance_matrix_rejects_missing_path_details(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = copy_repository(Path(temp))
+            matrix = repository / "docs/ai-agent-harness项目验收矩阵.md"
+            matrix.write_text(matrix.read_text(encoding="utf-8").replace("### PA-01 ", "### 准备 ", 1), encoding="utf-8")
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("MATRIX_COUNT", error_codes(payload))
+
+    def test_plugin_build_dependencies_are_not_research_assets(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = copy_repository(Path(temp))
+            cache = repository / "plugins/harness-platform/node_modules"
+            cache.mkdir(parents=True)
+            (cache / "local-dependency").symlink_to(repository / "README.md")
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+            self.assertEqual(completed.returncode, 0, payload)
+            source = repository / "plugins/harness-platform/src"
+            (source / "linked-source.ts").symlink_to(repository / "README.md")
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+            self.assertIn("ASSET_SYMLINK", error_codes(payload))
+            (source / "linked-source.ts").unlink()
+            candidate_cache = repository / "evolution/experiments" / EXPERIMENT_ID / "candidate/dsh/workspace/node_modules"
+            candidate_cache.mkdir()
+            (candidate_cache / "linked-asset").symlink_to(repository / "README.md")
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+            self.assertEqual(completed.returncode, 0, payload)
+            candidate_source = candidate_cache.parent / "linked-asset"
+            candidate_source.symlink_to(repository / "README.md")
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+            self.assertIn("ASSET_SYMLINK", error_codes(payload))
 
     def test_review_principles_link_is_required(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

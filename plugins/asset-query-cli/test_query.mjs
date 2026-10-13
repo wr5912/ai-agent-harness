@@ -13,10 +13,12 @@ test('只列出符合身份格式的真实资产目录并稳定排序', () => {
     mkdirSync(join(root, 'agents', 'Invalid_Name'))
     mkdirSync(join(root, 'evolution', 'experiments', 'EXP-first-agent-002'), { recursive: true })
     mkdirSync(join(root, 'evolution', 'experiments', 'EXP-first-agent-001'))
+    mkdirSync(join(root, 'evolution', 'experiments', 'EXP-first-agent-003-r123456789abc'))
+    mkdirSync(join(root, 'evolution', 'experiments', 'EXP-first-agent-004-rinvalid'))
     assert.deepEqual(inventory(root), {
       schema_version: '1.0',
       agents: ['first-agent', 'second-agent'],
-      experiments: ['EXP-first-agent-001', 'EXP-first-agent-002'],
+      experiments: ['EXP-first-agent-001', 'EXP-first-agent-002', 'EXP-first-agent-003-r123456789abc'],
     })
   } finally {
     rmSync(root, { recursive: true, force: true })

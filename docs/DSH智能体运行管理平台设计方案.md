@@ -1,6 +1,6 @@
 # DSH 智能体运行管理平台设计方案
 
-> 状态：未来工具与运行平台的设计方向，尚未实现。当前仓库仍是 Research Mode，本文不改变现行合同，也不构成生产验收标准。当前边界以[项目解释](standards/PROJECT-INTERPRETATION.md)和[项目验收矩阵](ai-agent-harness项目验收矩阵.md)为准。
+> 状态：当前已实现基于系统全局 DSH-Cordis 的最小只读资产平台；后续研究工作台和业务运行能力仍是设计方向。本文集中维护平台接入合同，当前验证状态见[项目验收矩阵](ai-agent-harness项目验收矩阵.md)的 `PA-12`。平台仍属于 Research Mode，不构成生产验收。
 
 ## 目标与适用阶段
 
@@ -9,14 +9,47 @@
 | 使用情形 | 进入条件与目标 |
 | --- | --- |
 | 当前 Research Mode | 用现有 CLI、Experiment、Run 和 Decision 验证 Harness 变化；必要的本地工具仍遵守当前合同。 |
-| 明确启动的最小工具阶段 | 研究者反复定位来源、证据和评测入口，且连接这些操作能减少实际重复劳动；在对应工程明确用户、操作范围和验收对象。 |
+| 已启动的最小工具阶段 | 当前研究者通过全局 DSH 打开仓库资产首页，确认 Agent、Experiment、Run 的归属和来源；后续操作按实际需求连接。 |
 | 按需启动的运行平台阶段 | 独立用户、长期业务 Agent 或统一业务调用出现后，分别为实际启用的身份、会话入口和版本切换建立合同与验证。 |
 
-设计文档本身不会启动新阶段。首个工具切片不以多用户、统一业务流量入口、生产发布或完整 Research Release 为前提；当前 [PA-11](ai-agent-harness项目验收矩阵.md#pa-11-research-release-打包解析与复现装载) 仍未实现。
+当前最小工具阶段提供只读资产入口。它不以多用户、统一业务流量入口、生产发布或完整 Research Release 为前提；当前 [PA-11](ai-agent-harness项目验收矩阵.md#pa-11-research-release-打包解析与复现装载) 仍未实现。
 
-## 首个工具切片与价值验证
+## 当前最小平台接入合同
 
-首个使用者是当前研究者。选择一个已有 Agent 和一项有原始证据的问题，将以下操作接成一条路径：
+平台直接运行系统全局 `dsh`，使用 DSH 原生 Web Profile 和 Cordis 插件组合；本仓库不安装或复制 DSH Runtime。业务评测容器继续使用其独立的 `source.lock.json`，平台全局 DSH 的兼容性由 [`plugins/harness-platform/package.json`](../plugins/harness-platform/package.json) 的 `peerDependencies` 声明；启动器读取这份声明检查现场版本，不维护另一份平台版本锁。
+
+```text
+platform/
+  profile/                  # 平台 Profile 与插件组合的可编辑来源
+  dsh-platform              # 准备、预览和前台启动入口
+plugins/
+  harness-platform/         # TypeScript Host、客户端和构建入口
+agents/                     # 已有业务 Agent 研究资料
+evolution/experiments/      # 已有 Experiment、candidate 和 Run
+```
+
+`platform/` 负责平台组合与启动约定，`plugins/harness-platform/` 负责研究平台扩展。业务 Harness 仍在各 Experiment 的 `candidate/` 维护。平台查询直接读取 `agents/` 与 `evolution/experiments/`；不另建 `platform/data/`、可编辑索引或研究数据副本。
+
+平台 HOME 默认是 `$XDG_STATE_HOME/ai-agent-harness/platform/dsh-home`，未设置 `XDG_STATE_HOME` 时使用 `~/.local/state/ai-agent-harness/platform/dsh-home`。它与用户通常使用的 DSH HOME、业务评测容器 HOME 分开。
+
+平台装载组合以仓库 `platform/profile/` 为唯一可编辑来源，`prepare` 将其物化到平台 HOME 的 `profiles/harness-platform/`。其中仓库 `cordis.patch.yml` 渲染为 `harness-platform.patch.yml`，`start` 通过 DSH 原生 `--patch` 装载；这些产物只是运行副本，不在那里修改平台组合。同目录的原生 `cordis.patch.yml` 仅在缺失时初始化为 `[]`，由 DSH 维护欢迎流程、模型设置等实例偏好；再次 `prepare` 和重启都保留这些偏好。Session、设置、缓存、附件与认证状态留在独立 HOME，不回流为平台源码或研究资产。
+
+| 命令 | 行为 |
+| --- | --- |
+| `./platform/dsh-platform prepare` | 检查全局 DSH，安装平台插件构建依赖，构建 Host 与客户端产物，生成平台 HOME 内的 Profile；首次使用及插件源码修改后执行。 |
+| `./platform/dsh-platform start --dry-run` | 只读预览全局 DSH 来源与版本、平台 HOME、Profile、插件路径和监听参数；不生成配置、不启动服务。 |
+| `./platform/dsh-platform start` | 检查版本兼容性、构建产物、Profile 与端口，前台启动全局 DSH；默认监听 `127.0.0.1:3090`。 |
+| `./platform/dsh-platform start --port 3091` | 显式选择端口并按同一合同启动。 |
+
+启动器从自身路径定位仓库，可从任意工作目录调用。全局 DSH 缺失、插件产物缺失、版本不兼容或端口冲突时明确失败；不能把失败写成已启动。使用 `Ctrl+C` 停止，重新 `start` 复用同一平台 HOME。平台插件或 Profile 修改后重新 `prepare`，再停止和启动进程验证生效。认证交接使用 DSH 原生方式，认证链接、Token 和 Cookie 不进入普通日志或项目证据。
+
+Host 通过受 DSH 原生认证保护的 `/harness-platform` 查询通道提供只读 `inventory` 操作。首页使用 DSH 原生 `main` 与 `sidebar.panellist` 槽位，显示 Agent、Experiment、Run 的清单、数量、所属关系及仓库来源，提供刷新按钮；数据为空和读取失败分别显示。客户端由 `esbuild` 生成符合 DSH ModuleLoader 契约的产物，并复用 DSH 共享 React。查询过程不执行业务 Agent、不写入研究资产，也不需要 LLM API Key。
+
+平台工具的完成标准是：从准备、只读预览到真实启动，经原生认证打开页面并完成 RPC 查询，清单与仓库一致，刷新有效，停止和重启后来源一致。构建、HTTP `200` 和插件声明只能证明各自局部状态；实际证据集中写入 `PA-12`。这个最小工具不证明后述修改、评测、管理智能体或业务运行流程已经实现。
+
+## 后续研究工作台与价值验证
+
+后续研究工作台仍服务当前研究者。选择一个已有 Agent 和一项有原始证据的问题，将以下操作接成一条路径：
 
 1. 明确选择 Agent、Experiment 和 Run，显示精确来源、Git 提交及 dirty 状态、实际装载记录。
 2. 按场景查看完整 Case：当前 `evaluation.md` 定义、该 Run 冻结的输入和预期、实际输出、原始证据及已有归因分别标明来源。证据缺失时显示缺失，不用摘要补全。
@@ -24,7 +57,7 @@
 4. 在明确的 Experiment `candidate/` 中修改与问题相关的资产，复用现有评测入口运行所选 Case，生成新的 Run 并比较来源、观察、回归和限制；不覆盖历史 Run，不静默改变比较口径。
 5. 由人将 `adopt`、`continue`、`reject` 或 `inconclusive` 及依据写入原有 `decision.md`。管理智能体可以帮助解释证据和准备修改，不能把推断写成事实、替人改评判标准或把研究判断当成业务发布许可。
 
-Agent 中心工作台先提供这条维护路径；需要真实业务任务入口时，再扩展任务视图。确定性选择、查看、执行与记录不依赖自然语言入口。界面读取现有 `evaluation.md`、Experiment、Run 和 Decision，不建立第二套可编辑 Case 库或建议库。
+计划中的 Agent 中心工作台将连接这条维护路径；当前只读首页仅提供资产清单和来源。需要真实业务任务入口时，再扩展任务视图。确定性选择、查看、执行与记录不依赖自然语言入口。界面读取现有 `evaluation.md`、Experiment、Run 和 Decision，不建立第二套可编辑 Case 库或建议库。
 
 用一项真实研究任务验证：选择未串错来源，候选改动进入正确工作树，新运行确实装载该内容，失败和缺失如实呈现，并比原操作减少实际步骤或来源错误。首条路径证明价值后，再按复用需求用第二个 Agent 或另一种 Variant 检验；若只是给现有 CLI 增加维护成本，就停止扩展工具。
 
@@ -38,11 +71,11 @@ DSH 的 [Cordis 插件和 Profile 组合机制](https://github.com/deepseek-ai/d
 | 修改 Prompt、Preset、Skill、插件配置、适配器或必要实现 | 写入业务 Agent 的 Candidate，按既有 Experiment、Evaluation、Decision 比较；评审或管理智能体自身的来源变化也须记录。 |
 | 切换后续运行所用版本 | 工具阶段明确选来源并新建测试实例，核对旧行为是否恢复；长期业务版本切换按后述运行合同处理。 |
 
-最小工具优先复用现有 Python/Shell CLI、来源解析、评测执行和 Run 记录。若需要界面，使用少量 DSH Client 视图与服务方法接入固定工具入口，核对其工作目录、参数、结构化输出、退出码、超时与取消结果；进程启动或页面返回不能代替操作成功。
+最小工具优先复用现有 Python/Shell CLI、来源解析、评测执行和 Run 记录。后续连接操作界面时，使用少量 DSH Client 视图与服务方法接入固定工具入口，核对其工作目录、参数、结构化输出、退出码、超时与取消结果；进程启动或页面返回不能代替操作成功。
 
 新增自研实现遵循[工程语言取向](../AGENTS.md#工程语言取向)：研究与工具阶段的新功能、DSH 插件和适配器使用 TypeScript，界面使用 TSX。现有 Python 随实际变更的调用链逐步迁移；首个迁移切片须核对原 CLI、资产与 Run 语义，以及 TypeScript 源码生成的 JavaScript/ESM 能否通过现有只读装载路径进入 DSH，并用受影响的 Case 和新 Session 验证后替换旧实现。语言迁移不妨碍复用现有 CLI，也不要求改写 Harness 文档或第三方源码。
 
-未来管理平台可运行在特化的 DSH Runtime 中，管理界面与管理智能体调用同一组确定性服务。优先通过 Profile 和插件扩展，不复制 Agent loop；只有扩展接口经原型证明不足时，才考虑可回退的最小上游修改。一元 [Remote API](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/api-gateway.zh.md)用于管理操作，不能据此假定跨容器流式业务会话已经可用。
+平台 Host 使用系统全局 DSH，由仓库 Profile 与 Cordis 插件定义装载组合。后续管理界面与管理智能体将调用同一组确定性服务，继续通过这一组合扩展；不复制 Agent loop，只有扩展接口经原型证明不足时，才考虑可回退的最小上游修改。一元 [Remote API](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/api-gateway.zh.md)用于管理操作，不能据此假定跨容器流式业务会话已经可用。
 
 ## 事实来源与按需能力
 

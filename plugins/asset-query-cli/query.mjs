@@ -5,7 +5,7 @@ export const name = 'harness-asset-query'
 export const inject = ['cmdlineArgs']
 
 const AGENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-const EXPERIMENT_ID = /^EXP-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]{3,}$/
+const EXPERIMENT_ID = /^EXP-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]{3}(?:-r[0-9a-f]{12})?$/
 
 function directoryNames(path, pattern) {
   let entries
