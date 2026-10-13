@@ -380,7 +380,11 @@ def validate_trial_row(
 def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
     run_dir, manifest = load_run_manifest(repo, run_id)
     inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
-    frozen = {case["case_id"]: case for case in inputs["evaluation_cases"]}
+    locked_cases = inputs.get("evaluation_cases")
+    # 历史 Run 只有选择记录时，保留未知合同，不用当前定义补造冻结事实。
+    frozen = {case["case_id"]: case for case in locked_cases} if isinstance(locked_cases, list) else {
+        selected_id: None for selected_id in inputs.get("evaluation_selection", {}).get("case_ids", [])
+    }
     if case_id and case_id not in frozen:
         raise ValueError(f"Run 未选择 Case：{case_id}")
     evaluation_path = repo / manifest["evaluation_ref"]
@@ -397,6 +401,8 @@ def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
     image_path = run_dir / "evidence/dsh-image.json"
     image = json.loads(image_path.read_text(encoding="utf-8")) if image_path.is_file() else None
     missing = []
+    if not isinstance(locked_cases, list):
+        missing.append("inputs.lock.json 未冻结 Case 定义，无法判断合同是否变化")
     if summary is None:
         missing.append("summary.json")
     if image is None:
@@ -456,7 +462,7 @@ def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
             "case_id": selected_id,
             "frozen": contract,
             "current": current.get(selected_id),
-            "contract_changed": current.get(selected_id) != contract,
+            "contract_changed": current.get(selected_id) != contract if contract is not None else None,
             "trials": selected_rows,
             "output": response.get("assistant_texts") if response else None,
             "actual_routes": [turn.get("route") for turn in response.get("turns", [])] if response else None,

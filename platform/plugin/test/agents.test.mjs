@@ -394,3 +394,49 @@ test('eval job status parses redacted stdout result', async () => {
     await rm(fx.root, { recursive: true, force: true })
   }
 })
+
+for (const legacy of [false, true]) test(`Run evidence reads ${legacy ? 'legacy selection with unknown contract' : 'frozen case'}, redacts and never rewrites records`, async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  const runId = 'run-11111111-1111-4111-8111-111111111111'
+  const base = join(fx.root, 'evolution/experiments/EXP-test-agent-001/runs', runId)
+  try {
+    write(join(base, 'run.yaml'), 'run_id: ' + runId + '\nexperiment_id: EXP-test-agent-001\nagent_id: test-agent\nstatus: completed\nevaluation_ref: agents/test-agent/evaluation.md\n')
+    const inputs = JSON.stringify(legacy
+      ? { evaluation_selection: { case_ids: ['U-CASE-001'] } }
+      : { evaluation_cases: [{ case_id: 'U-CASE-001', inputs: ['ping'] }] })
+    write(join(base, 'inputs.lock.json'), inputs)
+    write(join(base, 'summary.json'), '{"status":"completed"}')
+    const trace = JSON.stringify({ event: { type: 'session/created', createdAt: 1, data: { token: 'fixture-secret-value' } } }) + '\n'
+    write(join(base, 'evidence/U-CASE-001/trace.jsonl'), trace)
+    const handler = createAgentsHandler(fx.root)
+    const shown = await rpc(handler, 'runs/show', { run_id: runId })
+    assert.equal(shown.cases[0].case_id, 'U-CASE-001')
+    if (legacy) {
+      assert.equal(shown.cases[0].frozen, null)
+      assert.equal(shown.cases[0].contract_changed, null)
+      assert.ok(shown.missing.some(item => item.includes('未冻结 Case 定义')))
+    } else assert.equal(shown.cases[0].frozen.inputs[0], 'ping')
+    const payload = { run_id: runId, case_id: 'U-CASE-001', filename: 'trace.jsonl' }
+    const evidence = await rpc(handler, 'runs/evidence', payload)
+    assert.equal(evidence.truncated, false)
+    assert.match(evidence.content, /session\/created/)
+    assert.match(evidence.content, /REDACTED/)
+    assert.equal(evidence.content.includes('fixture-secret-value'), false)
+    assert.equal(readFileSync(join(base, 'inputs.lock.json'), 'utf8'), inputs)
+    assert.equal(readFileSync(join(base, 'evidence/U-CASE-001/trace.jsonl'), 'utf8'), trace)
+    await assert.rejects(() => rpc(handler, 'runs/evidence', { ...payload, filename: '../../inputs.lock.json' }), /not_found:/)
+    await assert.rejects(() => rpc(handler, 'runs/evidence', { ...payload, filename: 'tools.jsonl' }), /not_found:/)
+    write(join(base, 'evidence/U-CASE-001/tools.jsonl'), JSON.stringify({ event: { type: 'session/created' }, long: 'a'.repeat(70 * 1024) }) + '\n')
+    const bounded = await rpc(handler, 'runs/evidence', { ...payload, filename: 'tools.jsonl' })
+    assert.equal(bounded.truncated, true)
+    assert.ok(Buffer.byteLength(bounded.content) <= 64 * 1024)
+    const outside = join(fx.root, 'outside.json')
+    write(outside, '{"token":"outside-secret"}')
+    symlinkSync(outside, join(base, 'evidence/U-CASE-001/judge.json'))
+    await assert.rejects(() => rpc(handler, 'runs/evidence', { ...payload, filename: 'judge.json' }), /path_rejected:/)
+    await assert.rejects(() => rpc(handler, 'runs/show', { run_id: runId }), /path_rejected:/)
+  } finally {
+    await rm(fx.root, { recursive: true, force: true })
+  }
+})
