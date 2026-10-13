@@ -1,0 +1,396 @@
+import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import test from 'node:test'
+import { build } from 'esbuild'
+
+const repo = new URL('../../../', import.meta.url).pathname
+const plugin = new URL('../', import.meta.url).pathname
+
+async function loadServer() {
+  const outdir = mkdtempSync(join(tmpdir(), 'agents-build-'))
+  const outfile = join(outdir, 'agents-server.mjs')
+  await build({
+    entryPoints: [join(plugin, 'src/agents/index.ts')],
+    outfile,
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    external: ['@deepseek-ai/dsh-client-connection'],
+  })
+  return import(`file://${outfile}`)
+}
+
+function run(cwd, command, args) {
+  const result = spawnSync(command, args, { cwd, encoding: 'utf8' })
+  assert.equal(result.status, 0, `${command} ${args.join(' ')}\n${result.stderr}\n${result.stdout}`)
+  return result.stdout.trim()
+}
+
+function write(file, body) {
+  mkdirSync(dirname(file), { recursive: true })
+  writeFileSync(file, body)
+}
+
+function copyFixtureFile(root, rel) {
+  const target = join(root, rel)
+  mkdirSync(dirname(target), { recursive: true })
+  copyFileSync(join(repo, rel), target)
+}
+
+function fixture() {
+  const root = mkdtempSync(join(tmpdir(), 'agents-fixture-'))
+  for (const rel of [
+    'runtime/adapters/dsh-container/dsh-eval',
+    'runtime/adapters/dsh-container/source_contract.py',
+    'runtime/adapters/dsh-container/scenario_analysis.py',
+    'runtime/adapters/dsh-container/run_record.py',
+    'runtime/adapters/dsh-container/mutation-receipt.py',
+    '.agents/skills/research-eval/scripts/evaluation_contract.py',
+    '.agents/skills/research-eval/scripts/validate_experiment.py',
+    '.agents/skills/harness-evolution/scripts/validate_repository.py',
+  ]) copyFixtureFile(root, rel)
+  for (const name of ['Dockerfile', 'apt-mirror.sh', 'build-image.sh', 'dsh-cli.sh', 'remote-host-settings.patch']) {
+    write(join(root, 'runtime/adapters/dsh-container', name), `${name}\n`)
+  }
+  write(join(root, 'runtime/adapters/dsh-container/source.lock.json'), JSON.stringify({
+    repository: 'https://github.com/deepseek-ai/deepseek-harness.git',
+    commit: '21638c5630000000000000000000000000000000',
+    tree: '31638c5630000000000000000000000000000000',
+    pnpm_lock_sha256: '4'.repeat(64),
+    package_manager: 'pnpm@10.0.0',
+    node_base: `node:20@sha256:${'5'.repeat(64)}`,
+    platform: 'linux/amd64',
+    local_image_tag: 'ai-agent-harness/dsh:21638c563',
+    cli_version: '0.2.1-alpha.2',
+    cli_package: '@deepseek-ai/dsh',
+  }, null, 2) + '\n')
+  write(join(root, 'agents/test-agent/manifest.yaml'), 'schema_version: 1.0\nagent_id: test-agent\nactive_experiment: EXP-test-agent-001\n')
+  write(join(root, 'agents/test-agent/evaluation.md'), [
+    '# Evaluation',
+    '',
+    '## 基础',
+    '',
+    '#### U-CASE-001 基础',
+    '**评估档位：** `fast`',
+    '',
+    '**用户输入**',
+    '> ping',
+    '',
+    '**预期**',
+    '返回 pong。',
+    '',
+  ].join('\n'))
+  write(join(root, 'evolution/experiments/EXP-test-agent-001/change.yaml'), 'schema_version: 1.0\nexperiment_id: EXP-test-agent-001\nagent_id: test-agent\nbaseline_ref: none:first-experiment\nstatus: active\nfusion_sources:\n  - EXP-test-agent-000\n')
+  write(join(root, 'evolution/experiments/EXP-test-agent-001/hypothesis.md'), '# Hypothesis\n\n验证基础资产。参考 EXP-test-agent-099 但不声明继承。\n')
+  write(join(root, 'evolution/experiments/EXP-test-agent-001/evaluation/observations.md'), '# Observations\n\n尚未执行。\n')
+  write(join(root, 'evolution/experiments/EXP-test-agent-001/decision.md'), '# Decision\n\n状态：continue\n')
+  write(join(root, 'evolution/experiments/EXP-test-agent-001/candidate/harness.yaml'), 'name: test\n')
+  write(join(root, 'evolution/experiments/EXP-test-agent-001/candidate/roles/analyst/AGENTS.md'), '# Analyst\n')
+  write(join(root, 'evolution/experiments/EXP-test-agent-001/candidate/dsh/workspace/input.txt'), 'workspace\n')
+  write(join(root, 'evolution/experiments/EXP-test-agent-001/candidate/dsh/managed/test-agent.patch.yml'), 'patch: test\n')
+  write(join(root, 'evolution/experiments/EXP-test-agent-001/candidate/dsh/presets/test-agent/preset.yml'), 'preset: test\n')
+  write(join(root, 'evolution/experiments/EXP-test-agent-001/candidate/RuntimeHOME/session.txt'), 'must not copy\n')
+  write(join(root, 'evolution/experiments/EXP-test-agent-001/candidate/history/log.txt'), 'must not copy\n')
+  write(join(root, 'evolution/experiments/EXP-test-agent-001/runs/run-11111111-1111-4111-8111-111111111111/run.json'), '{"status":"failed"}\n')
+  write(join(root, 'runtime/adapters/dsh-container/sources.json'), JSON.stringify({
+    schema_version: '1.1',
+    sources: {
+      'EXP-test-agent-001': {
+        agent_id: 'test-agent',
+        candidate_root: 'evolution/experiments/EXP-test-agent-001/candidate/dsh',
+        profile: 'web',
+        patch: 'test-agent.patch.yml',
+        preset: 'test-agent/preset.yml',
+        guard: null,
+        config_markers: ['test'],
+        required_env_names: [],
+      },
+    },
+  }, null, 2) + '\n')
+  run(root, 'git', ['init'])
+  run(root, 'git', ['config', 'user.email', 'test@example.invalid'])
+  run(root, 'git', ['config', 'user.name', 'Test'])
+  run(root, 'git', ['add', '.'])
+  run(root, 'git', ['commit', '-m', 'fixture'])
+  const commit = run(root, 'git', ['rev-parse', 'HEAD'])
+  return { root, commit }
+}
+
+async function rpc(handler, endpoint, payload = {}) {
+  const result = await handler(endpoint, payload, new AbortController().signal)
+  if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message} ${JSON.stringify(result.error.details ?? {})}`)
+  return result.value
+}
+
+async function waitForJob(handler, jobId) {
+  for (let index = 0; index < 20; index += 1) {
+    const status = await rpc(handler, 'eval/status', { job_id: jobId })
+    if (status.status !== 'running') return status
+    await new Promise(resolve => setTimeout(resolve, 25))
+  }
+  throw new Error('job did not finish')
+}
+
+test('agents detail reads manifest, selectable versions, real cases, refs and editable files', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const detail = await rpc(createAgentsHandler(fx.root), 'detail', { agent_id: 'test-agent' })
+    assert.equal(detail.agent.manifest.agent_id, 'test-agent')
+    assert.equal(detail.declared.catalog_source.candidate_root, 'evolution/experiments/EXP-test-agent-001/candidate/dsh')
+    assert.equal(detail.loaded_instance.status, 'not_queried')
+    assert.equal(detail.evaluation.cases[0].id, 'U-CASE-001')
+    assert.equal(detail.fusion.status, 'declared')
+    assert.deepEqual(detail.fusion.experiments, ['EXP-test-agent-000'])
+    assert.deepEqual(detail.related_references, ['EXP-test-agent-099'])
+    assert.ok(detail.editable_files.includes('evolution/experiments/EXP-test-agent-001/candidate/harness.yaml'))
+    assert.ok(detail.editable_files.includes('evolution/experiments/EXP-test-agent-001/candidate/roles/analyst/AGENTS.md'))
+    assert.equal(detail.verification.runs[0].id, 'run-11111111-1111-4111-8111-111111111111')
+  } finally {
+    await rm(fx.root, { recursive: true, force: true })
+  }
+})
+
+test('create validation failure restores catalog and removes dangling source', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const before = readFileSync(join(fx.root, 'runtime/adapters/dsh-container/sources.json'), 'utf8')
+    const detail = await rpc(handler, 'detail', { agent_id: 'test-agent' })
+    write(join(fx.root, '.agents/skills/research-eval/scripts/validate_experiment.py'), 'import sys\nraise SystemExit("bad validator")\n')
+    await assert.rejects(
+      () => rpc(handler, 'create', {
+        agent_id: 'test-agent',
+        parent_ref: `git:${fx.commit}`,
+        parent_experiment_id: 'EXP-test-agent-001',
+        catalog_sha256: detail.declared.source_catalog_sha256,
+        research_question: '验证校验失败时不会留下 dangling source',
+      }),
+      /command_failed:/,
+    )
+    assert.equal(readFileSync(join(fx.root, 'runtime/adapters/dsh-container/sources.json'), 'utf8'), before)
+    const sources = JSON.parse(before).sources
+    assert.deepEqual(Object.keys(sources), ['EXP-test-agent-001'])
+  } finally {
+    await rm(fx.root, { recursive: true, force: true })
+  }
+})
+
+test('create source_contract failure restores catalog and removes dangling source', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const sourcesPath = join(fx.root, 'runtime/adapters/dsh-container/sources.json')
+    const badCatalog = JSON.parse(readFileSync(sourcesPath, 'utf8'))
+    badCatalog.sources['EXP-test-agent-001'].preset = 'missing/preset.yml'
+    write(sourcesPath, JSON.stringify(badCatalog, null, 2) + '\n')
+    run(fx.root, 'git', ['add', 'runtime/adapters/dsh-container/sources.json'])
+    run(fx.root, 'git', ['commit', '-m', 'bad preset catalog'])
+    const badCommit = run(fx.root, 'git', ['rev-parse', 'HEAD'])
+
+    const handler = createAgentsHandler(fx.root)
+    const before = readFileSync(sourcesPath, 'utf8')
+    const detail = await rpc(handler, 'detail', { agent_id: 'test-agent' })
+    await assert.rejects(
+      () => rpc(handler, 'create', {
+        agent_id: 'test-agent',
+        parent_ref: `git:${badCommit}`,
+        parent_experiment_id: 'EXP-test-agent-001',
+        catalog_sha256: detail.declared.source_catalog_sha256,
+        research_question: '验证 source_contract 失败时不会留下 dangling source',
+      }),
+      /command_failed:/,
+    )
+    assert.equal(readFileSync(sourcesPath, 'utf8'), before)
+    assert.deepEqual(Object.keys(JSON.parse(before).sources), ['EXP-test-agent-001'])
+  } finally {
+    await rm(fx.root, { recursive: true, force: true })
+  }
+})
+
+test('create keeps files and returns needs_recovery when catalog changed after write', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const detail = await rpc(handler, 'detail', { agent_id: 'test-agent' })
+    write(join(fx.root, '.agents/skills/research-eval/scripts/validate_experiment.py'), [
+      'import json',
+      'from pathlib import Path',
+      'path = Path("runtime/adapters/dsh-container/sources.json")',
+      'data = json.loads(path.read_text(encoding="utf-8"))',
+      'data["external_change"] = True',
+      'path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")',
+      'raise SystemExit("bad validator with external catalog change")',
+      '',
+    ].join('\n'))
+    await assert.rejects(
+      () => rpc(handler, 'create', {
+        agent_id: 'test-agent',
+        parent_ref: `git:${fx.commit}`,
+        parent_experiment_id: 'EXP-test-agent-001',
+        catalog_sha256: detail.declared.source_catalog_sha256,
+        research_question: '验证外部 catalog 变化时保留恢复现场',
+      }),
+      /needs_recovery:/,
+    )
+    const catalog = JSON.parse(readFileSync(join(fx.root, 'runtime/adapters/dsh-container/sources.json'), 'utf8'))
+    const createdId = Object.keys(catalog.sources).find(id => id !== 'EXP-test-agent-001')
+    assert.ok(createdId)
+    assert.equal(existsSync(join(fx.root, 'evolution/experiments', createdId)), true)
+  } finally {
+    await rm(fx.root, { recursive: true, force: true })
+  }
+})
+
+test('create copies fixed git parent candidate, validates source and dry-runs dsh-eval', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const detail = await rpc(handler, 'detail', { agent_id: 'test-agent' })
+    const created = await rpc(handler, 'create', {
+      agent_id: 'test-agent',
+      parent_ref: `git:${fx.commit}`,
+      parent_experiment_id: 'EXP-test-agent-001',
+      catalog_sha256: detail.declared.source_catalog_sha256,
+      research_question: '验证从当前版本派生新 Candidate 后仍能定位 DSH source',
+    })
+    assert.match(created.experiment_id, /^EXP-test-agent-002-r[0-9a-f]{12}$/)
+    assert.equal(created.validation.valid, true)
+    assert.deepEqual(created.dry_run.case_ids, ['U-CASE-001'])
+    assert.equal(readFileSync(join(fx.root, `evolution/experiments/${created.experiment_id}/candidate/harness.yaml`), 'utf8'), 'name: test\n')
+    assert.equal(existsSync(join(fx.root, `evolution/experiments/${created.experiment_id}/candidate/RuntimeHOME/session.txt`)), false)
+    const sources = JSON.parse(readFileSync(join(fx.root, 'runtime/adapters/dsh-container/sources.json'), 'utf8'))
+    assert.equal(sources.sources[created.experiment_id].candidate_root, `evolution/experiments/${created.experiment_id}/candidate/dsh`)
+    assert.equal(readFileSync(join(fx.root, `evolution/experiments/${created.experiment_id}/change.yaml`), 'utf8').includes('parent_experiment_id: "EXP-test-agent-001"'), true)
+  } finally {
+    await rm(fx.root, { recursive: true, force: true })
+  }
+})
+
+test('edit reads existing content, uses preview hash, rejects unsafe writes and preserves runs', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const read = await rpc(handler, 'edit/read', { experiment_id: 'EXP-test-agent-001', path: 'candidate/harness.yaml' })
+    assert.equal(read.content, 'name: test\n')
+    await assert.rejects(
+      () => rpc(handler, 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'candidate/harness.yaml', content: 'name: changed\n', expected_sha256: 'bad' }] }),
+      /conflict:/,
+    )
+    const preview = await rpc(handler, 'edit/preview', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'candidate/harness.yaml', content: 'name: changed\n', expected_sha256: read.sha256 }] })
+    assert.equal(preview.edits[0].before_sha256, read.sha256)
+    await rpc(handler, 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'candidate/harness.yaml', content: 'name: changed\n', expected_sha256: preview.edits[0].before_sha256 }] })
+    assert.equal(readFileSync(join(fx.root, 'evolution/experiments/EXP-test-agent-001/candidate/harness.yaml'), 'utf8'), 'name: changed\n')
+    await assert.rejects(
+      () => rpc(handler, 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'evolution/experiments/EXP-test-agent-001/runs/run-11111111-1111-4111-8111-111111111111/run.json', content: '{}', expected_sha256: 'bad' }] }),
+      /path_rejected:/,
+    )
+    for (const path of ['candidate/cache/x', 'candidate/sessions/x', 'candidate/.git/config', 'candidate/nested/key.llm-api-key']) {
+      await assert.rejects(
+        () => rpc(handler, 'edit/read', { experiment_id: 'EXP-test-agent-001', path }),
+        /path_rejected:/,
+      )
+    }
+    const outside = join(fx.root, 'outside.txt')
+    writeFileSync(outside, 'outside\n')
+    symlinkSync(outside, join(fx.root, 'evolution/experiments/EXP-test-agent-001/candidate/link.txt'))
+    await assert.rejects(
+      () => rpc(handler, 'edit/preview', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'candidate/link.txt', content: 'nope\n' }] }),
+      /path_rejected:/,
+    )
+    await assert.rejects(
+      () => rpc(handler, 'edit/preview', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'decision.md', content: 'LOCAL_LLM_API_KEY=sk-secret' }] }),
+      error => error instanceof Error && /secret_rejected:/.test(error.message) && !error.message.includes('sk-secret'),
+    )
+    const beforeRun = readFileSync(join(fx.root, 'evolution/experiments/EXP-test-agent-001/runs/run-11111111-1111-4111-8111-111111111111/run.json'), 'utf8')
+    const evalPreview = await rpc(handler, 'edit/preview', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'evaluation.md', content: [
+      '# Evaluation',
+      '',
+      '#### U-CASE-002 新',
+      '**评估档位：** `fast`',
+      '',
+      '**用户输入**',
+      '> pong',
+      '',
+      '**预期**',
+      '返回 ping。',
+      '',
+    ].join('\n') }] })
+    assert.equal(evalPreview.edits[0].changed, true)
+    assert.equal(readFileSync(join(fx.root, 'evolution/experiments/EXP-test-agent-001/runs/run-11111111-1111-4111-8111-111111111111/run.json'), 'utf8'), beforeRun)
+  } finally {
+    await rm(fx.root, { recursive: true, force: true })
+  }
+})
+
+test('edit apply rejects traversal, duplicate paths and concurrent same-hash writes', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    await assert.rejects(() => rpc(handler, 'detail', { agent_id: '../../bad' }), /invalid_request:/)
+    await assert.rejects(() => rpc(handler, 'cases/list', { agent_id: '../../bad' }), /invalid_request:/)
+    await assert.rejects(() => rpc(handler, 'edit/read', { experiment_id: '../../bad', path: 'candidate/harness.yaml' }), /invalid_request:/)
+    const read = await rpc(handler, 'edit/read', { experiment_id: 'EXP-test-agent-001', path: 'candidate/harness.yaml' })
+    await assert.rejects(
+      () => rpc(handler, 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits: [
+        { path: 'candidate/harness.yaml', content: 'a\n', expected_sha256: read.sha256 },
+        { path: 'evolution/experiments/EXP-test-agent-001/candidate/harness.yaml', content: 'b\n', expected_sha256: read.sha256 },
+      ] }),
+      /重复路径/,
+    )
+    const first = rpc(handler, 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'candidate/harness.yaml', content: 'name: one\n', expected_sha256: read.sha256 }] })
+    const second = rpc(handler, 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'candidate/harness.yaml', content: 'name: two\n', expected_sha256: read.sha256 }] })
+    const results = await Promise.allSettled([first, second])
+    assert.equal(results.filter(item => item.status === 'fulfilled').length, 1)
+    assert.equal(results.filter(item => item.status === 'rejected' && /conflict:/.test(item.reason.message)).length, 1)
+  } finally {
+    await rm(fx.root, { recursive: true, force: true })
+  }
+})
+
+test('eval preview, case list, run index and decision update use existing backend contracts', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const cases = await rpc(handler, 'cases/list', { agent_id: 'test-agent' })
+    assert.deepEqual(cases.cases.map(item => item.id), ['U-CASE-001'])
+    const preview = await rpc(handler, 'eval/preview', { source: 'experiment:EXP-test-agent-001', mode: 'fast', executor: 'api', review: 'none', cases: ['U-CASE-001'] })
+    assert.deepEqual(preview.result.case_ids, ['U-CASE-001'])
+    const runs = await rpc(handler, 'runs/index', { agent_id: 'test-agent' })
+    assert.equal(runs.agent_id, 'test-agent')
+    const detail = await rpc(handler, 'detail', { agent_id: 'test-agent' })
+    const saved = await rpc(handler, 'decision/update', { experiment_id: 'EXP-test-agent-001', content: '# Decision\n\n状态：inconclusive\n', expected_sha256: detail.decision.sha256 })
+    assert.equal(saved.path, 'evolution/experiments/EXP-test-agent-001/decision.md')
+  } finally {
+    await rm(fx.root, { recursive: true, force: true })
+  }
+})
+
+test('eval job status parses redacted stdout result', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    write(join(fx.root, 'runtime/adapters/dsh-container/dsh-eval'), 'import json\nprint(json.dumps({"status":"ok","token":"secret-value","api_key":"key-value"}))\n')
+    const handler = createAgentsHandler(fx.root)
+    const started = await rpc(handler, 'eval/start', { source: 'experiment:EXP-test-agent-001', mode: 'fast', executor: 'api', review: 'none' })
+    const status = await waitForJob(handler, started.job_id)
+    assert.equal(status.status, 'completed')
+    assert.equal(status.result.token, '[REDACTED]')
+    assert.equal(status.stdout.includes('secret-value'), false)
+    assert.equal(status.result.api_key, '[REDACTED]')
+    assert.equal(status.stdout.includes('key-value'), false)
+    assert.match(status.log_note, /截断显示/)
+  } finally {
+    await rm(fx.root, { recursive: true, force: true })
+  }
+})
