@@ -2,9 +2,12 @@ import { spawn, spawnSync } from 'node:child_process'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import {
   existsSync,
+  closeSync,
   lstatSync,
   mkdirSync,
+  openSync,
   readFileSync,
+  readSync,
   readdirSync,
   realpathSync,
   renameSync,
@@ -150,12 +153,12 @@ function writeYamlMap(file: string, values: JsonMap) {
   writeFileSync(file, `${lines.join('\n')}\n`)
 }
 
-function redact(text: string): string {
+function redact(text: string, limit = 4000): string {
   return text
     .replace(/Bearer\s+[^\s"'&]+/gi, 'Bearer [REDACTED]')
     .replace(/("(?:api[_-]?key|token|password|secret)"\s*:\s*")[^"]*(")/gi, '$1[REDACTED]$2')
     .replace(/((?:api[_-]?key|token|password|secret)=)[^\s"'&]+/gi, '$1[REDACTED]')
-    .slice(0, 4000)
+    .slice(0, limit)
 }
 
 function catalog(root: string) {
@@ -491,7 +494,7 @@ function assertNoSymlinkPath(root: string, target: string) {
   for (const part of rel.split(sep)) {
     cursor = join(cursor, part)
     if (!existsSync(cursor)) break
-    if (lstatSync(cursor).isSymbolicLink()) throw new RpcError('path_rejected', '拒绝编辑符号链接路径', { path: repoRelative(root, cursor) })
+    if (lstatSync(cursor).isSymbolicLink()) throw new RpcError('path_rejected', '拒绝访问符号链接路径', { path: repoRelative(root, cursor) })
   }
 }
 
@@ -694,16 +697,52 @@ function runRecord(root: string, op: 'index' | 'show' | 'compare', payload: Json
   const args = [RUN_RECORD, '--repo', root, op]
   if (op === 'index') args.push('--agent', agentIdField(payload))
   if (op === 'show') {
+    assertRunFiles(root, stringField(payload, 'run_id'))
     args.push('--run', stringField(payload, 'run_id'))
     const caseId = optionalString(payload, 'case_id')
     if (caseId) args.push('--case', caseId)
   }
   if (op === 'compare') {
+    assertRunFiles(root, stringField(payload, 'left'))
+    assertRunFiles(root, stringField(payload, 'right'))
     args.push('--left', stringField(payload, 'left'), '--right', stringField(payload, 'right'))
     const caseId = optionalString(payload, 'case_id')
     if (caseId) args.push('--case', caseId)
   }
-  return ok(commandJson(root, args) as JsonMap)
+  return ok(JSON.parse(redact(JSON.stringify(commandJson(root, args)), Infinity)) as JsonMap)
+}
+
+function assertRunFiles(root: string, runId: string) {
+  if (!RUN_ID.test(runId)) throw new RpcError('invalid_request', 'run_id 必须是 run-<UUIDv4>')
+  const experiments = join(root, 'evolution/experiments')
+  function visit(path: string) {
+    if (lstatSync(path).isSymbolicLink()) throw new RpcError('path_rejected', 'Run 不得通过符号链接读取外部文件')
+    if (lstatSync(path).isDirectory()) for (const entry of readdirSync(path)) visit(join(path, entry))
+  }
+  for (const id of listDirs(experiments)) {
+    const path = join(experiments, id, 'runs', runId)
+    if (existsSync(path)) { assertNoSymlinkPath(root, path); visit(path) }
+  }
+}
+
+function readRunEvidence(root: string, payload: JsonMap) {
+  const filename = stringField(payload, 'filename')
+  const caseId = stringField(payload, 'case_id')
+  const view = runRecord(root, 'show', payload)
+  if (!view.ok) return view
+  const cases = view.value.cases as JsonMap[]
+  const selected = cases.find(item => item.case_id === caseId)
+  const entry = (selected?.raw_evidence as Record<string, { path: string; present: boolean }> | undefined)?.[filename]
+  if (!entry?.present) throw new RpcError('not_found', '该 Run/Case 没有此轨迹或证据文件')
+  const file = repoPath(root, entry.path)
+  assertNoSymlinkPath(root, file)
+  const limit = 64 * 1024
+  const buffer = Buffer.alloc(limit + 1)
+  const fd = openSync(file, 'r')
+  let size: number
+  try { size = readSync(fd, buffer, 0, buffer.length, 0) } finally { closeSync(fd) }
+  // shortcut: 轨迹只展示前 64 KiB；日常使用需要完整浏览时再增加分页读取。
+  return ok({ path: entry.path, content: redact(buffer.subarray(0, Math.min(size, limit)).toString('utf8'), Infinity), truncated: size > limit })
 }
 
 function decisionUpdate(root: string, payload: JsonMap) {
@@ -736,6 +775,7 @@ export function createAgentsHandler(assetRoot: string): ConnectionRpcHandler {
         case 'eval/cancel': return cancelJob(body, jobs)
         case 'runs/index': return runRecord(root, 'index', body)
         case 'runs/show': return runRecord(root, 'show', body)
+        case 'runs/evidence': return readRunEvidence(root, body)
         case 'runs/compare': return runRecord(root, 'compare', body)
         case 'decision/update': return await decisionUpdate(root, body)
         default: return failure(new RpcError('not_found', '未知的智能体操作', { endpoint }))

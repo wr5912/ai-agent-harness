@@ -38,6 +38,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
   const [jobId, setJobId] = useState('')
   const [runId, setRunId] = useState('')
   const [caseId, setCaseId] = useState('')
+  const [evidenceFile, setEvidenceFile] = useState('trace.jsonl')
   const [leftRun, setLeftRun] = useState('')
   const [rightRun, setRightRun] = useState('')
   const [runsIndex, setRunsIndex] = useState('')
@@ -222,7 +223,17 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
     if (!runId) return
     try {
       const value = await call('runs/show', { run_id: runId, case_id: caseId || undefined })
+      if (!caseId) setCaseId(value.cases?.[0]?.case_id ?? '')
       setEvalResult(text(value))
+    } catch (err) {
+      setEvalResult((err as Error).message)
+    }
+  }
+
+  async function showEvidence() {
+    try {
+      const value = await call('runs/evidence', { run_id: runId, case_id: caseId, filename: evidenceFile })
+      setEvalResult(`${value.path}${value.truncated ? '（仅显示前 64 KiB）' : ''}\n${value.content}`)
     } catch (err) {
       setEvalResult((err as Error).message)
     }
@@ -353,6 +364,12 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
                 <input value={caseId} onChange={event => setCaseId(event.target.value)} placeholder="Case ID" />
               </label>
               <button type="button" onClick={showRun}>查看 Run/Case</button>
+              <label style={field}>轨迹文件
+                <select value={evidenceFile} onChange={event => setEvidenceFile(event.target.value)}>
+                  {['trace.jsonl', 'tools.jsonl', 'judge-trace.jsonl', 'response.json', 'checks.json', 'judge.json'].map(name => <option key={name}>{name}</option>)}
+                </select>
+              </label>
+              <button type="button" onClick={showEvidence} disabled={!runId || !caseId}>查看轨迹</button>
               <label style={field}>左侧 Run
                 <input value={leftRun} onChange={event => setLeftRun(event.target.value)} list="run-options" placeholder="left run" />
               </label>
