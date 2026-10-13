@@ -548,9 +548,19 @@ class ExtractAuthUrlTest(unittest.TestCase):
         self.assertIsNone(dev.extract_auth_url(TOKEN, 3099))
 
     def test_redaction_hides_token(self):
-        redacted = dev.redact_secrets(TOKEN)
+        redacted = dev.redact_secrets(
+            TOKEN
+            + "Authorization: Bearer bearer-secret\n"
+            + '{"apiKey":"json-secret","password":"password-secret"} TOKEN=plain-secret\n'
+        )
         self.assertNotIn("secret-token-value", redacted)
+        self.assertNotIn("bearer-secret", redacted)
+        self.assertNotIn("json-secret", redacted)
+        self.assertNotIn("password-secret", redacted)
+        self.assertNotIn("plain-secret", redacted)
         self.assertIn("token=<redacted>", redacted)
+        self.assertIn("Bearer <redacted>", redacted)
+        self.assertIn('"apiKey":"<redacted>"', redacted)
 
 
 class InstanceStateTest(unittest.TestCase):
@@ -810,6 +820,118 @@ class DownCommandTest(unittest.TestCase):
                          "/opt/dsh-managed/security-operations-expert.patch.yml")
         self.assertEqual(environment["DSH_WORKSPACE_HOST"], "/tmp/ws")
         self.assertNotIn("DSH_MANAGED_PATCH_OVERLAY", environment)
+
+
+class DeleteCommandTest(unittest.TestCase):
+    """`delete` 只能删除已停止实例登记，不能把失败或未知状态当作可清理。"""
+
+    def setUp(self):
+        self._temp = tempfile.TemporaryDirectory()
+        dev.STATE_ROOT = Path(self._temp.name)
+        dev.write_instance("delete-probe", mode="verification", contract={
+            "source_id": "experiment:EXP-security-operations-expert-001",
+            "source_kind": "experiment",
+            "agent_id": "security-operations-expert",
+            "workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed",
+            "preset_id": "security-operations-expert",
+            "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+            "evaluation_patch": "/opt/dsh-adapter/evaluation-registry.patch.yml",
+            "required_env_names": [],
+            "image": {"local_image_tag": IMAGE_TAG},
+        }, port=3081)
+
+    def tearDown(self):
+        self._temp.cleanup()
+
+    def call(self, effects):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with mock.patch.object(dev, "run", side_effect=effects), \
+                contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            try:
+                dev.command_delete(types.SimpleNamespace(name="delete-probe"))
+            except SystemExit as stop:
+                return stop.code, stdout.getvalue(), stderr.getvalue()
+        return 0, stdout.getvalue(), stderr.getvalue()
+
+    def test_delete_removes_stopped_container_and_registration_but_keeps_home(self):
+        stopped = subprocess.CompletedProcess(
+            [], 0,
+            stdout="abc\texited\tExited (0)\tdsh-dev-delete-probe-dsh-1\tdsh\n", stderr="")
+        volume = subprocess.CompletedProcess([], 0, stdout="dsh-dev-delete-probe-home\n", stderr="")
+        removed = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        empty = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        code, printed, _ = self.call([stopped, volume, removed, empty, volume])
+        report = json.loads(printed)
+        self.assertEqual(code, 0)
+        self.assertTrue(report["deleted"])
+        self.assertTrue(report["registration_deleted"])
+        self.assertTrue(report["home_preserved_before"])
+        self.assertTrue(report["home_preserved"])
+        self.assertFalse((dev.STATE_ROOT / "delete-probe").exists())
+
+    def test_delete_removes_stopped_registration_when_container_is_already_gone(self):
+        empty = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        volume = subprocess.CompletedProcess([], 0, stdout="dsh-dev-delete-probe-home\n", stderr="")
+        code, printed, _ = self.call([empty, volume, volume])
+        self.assertEqual(code, 0)
+        self.assertTrue(json.loads(printed)["deleted"])
+        self.assertFalse((dev.STATE_ROOT / "delete-probe").exists())
+
+    def test_delete_keeps_registration_when_home_recheck_is_unknown(self):
+        stopped = subprocess.CompletedProcess(
+            [], 0,
+            stdout="abc\texited\tExited (0)\tdsh-dev-delete-probe-dsh-1\tdsh\n", stderr="")
+        volume = subprocess.CompletedProcess([], 0, stdout="dsh-dev-delete-probe-home\n", stderr="")
+        removed = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        empty = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        unknown_volume = subprocess.CompletedProcess([], 1, stdout="", stderr="daemon down")
+        code, printed, errors = self.call([stopped, volume, removed, empty, unknown_volume])
+        self.assertNotEqual(code, 0)
+        self.assertEqual(printed, "")
+        self.assertIn('"deleted": "unknown"', errors)
+        self.assertTrue((dev.STATE_ROOT / "delete-probe" / "instance.json").is_file())
+
+    def test_delete_keeps_registration_when_home_is_lost_after_delete(self):
+        stopped = subprocess.CompletedProcess(
+            [], 0,
+            stdout="abc\texited\tExited (0)\tdsh-dev-delete-probe-dsh-1\tdsh\n", stderr="")
+        volume = subprocess.CompletedProcess([], 0, stdout="dsh-dev-delete-probe-home\n", stderr="")
+        removed = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        empty = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        gone = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        code, printed, errors = self.call([stopped, volume, removed, empty, gone])
+        self.assertNotEqual(code, 0)
+        self.assertEqual(printed, "")
+        self.assertIn('"deleted": false', errors)
+        self.assertTrue((dev.STATE_ROOT / "delete-probe" / "instance.json").is_file())
+
+    def test_running_failed_and_unknown_states_keep_registration(self):
+        cases = [
+            subprocess.CompletedProcess(
+                [], 0, stdout="abc\trunning\tUp\tdsh-dev-delete-probe-dsh-1\tdsh\n", stderr=""),
+            subprocess.CompletedProcess(
+                [], 0, stdout="abc\texited\tExited (17)\tdsh-dev-delete-probe-dsh-1\tdsh\n", stderr=""),
+            subprocess.CompletedProcess([], 1, stdout="", stderr="daemon down"),
+        ]
+        for completed in cases:
+            with self.subTest(stdout=completed.stdout, returncode=completed.returncode):
+                if not (dev.STATE_ROOT / "delete-probe").exists():
+                    dev.write_instance("delete-probe", mode="verification", contract={
+                        "source_id": "experiment:EXP-security-operations-expert-001",
+                        "source_kind": "experiment",
+                        "agent_id": "security-operations-expert",
+                        "workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed",
+                        "preset_id": "security-operations-expert",
+                        "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+                        "evaluation_patch": "/opt/dsh-adapter/evaluation-registry.patch.yml",
+                        "required_env_names": [],
+                        "image": {"local_image_tag": IMAGE_TAG},
+                    }, port=3081)
+                code, printed, errors = self.call([completed])
+                self.assertNotEqual(code, 0)
+                self.assertEqual(printed, "")
+                self.assertTrue((dev.STATE_ROOT / "delete-probe" / "instance.json").is_file())
+                self.assertTrue("unknown" in errors or '"deleted": false' in errors)
 
 
 class UpCommandStateTest(unittest.TestCase):
