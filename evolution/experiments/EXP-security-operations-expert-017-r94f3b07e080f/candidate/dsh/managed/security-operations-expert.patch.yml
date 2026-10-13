@@ -60,7 +60,6 @@
   config:
     provider: local-qwen
     model: Qwen3.8-27B
-    reasoningEffort: 'off'
 
 - id: llm-pi-ai
   config:
