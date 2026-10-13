@@ -9,7 +9,7 @@ type Case = {
   case_id: string; frozen: unknown; trials: Trial[]; output: unknown;
   actual_routes: Array<{ model?: string } | null> | null;
   registered_tools?: Array<string[] | null> | null;
-  tool_calls?: Array<{ name: string; status: string; error_code?: string | null }>;
+  tool_calls?: Array<{ name: string | null; status: string; error_code?: string | null }>;
   review: { reviewed_verdict?: string; reason?: string } | null;
   load_observation: { preset_matches?: boolean; workspace_matches?: boolean } | null;
   evidence: Array<{ path: string; present: boolean }>;
@@ -74,7 +74,7 @@ const cases = shared.map(case_id => {
   for (const [side, item] of [['left', a], ['right', b]] as const) {
     if (item.tool_calls?.some(call => call.status !== 'ok')) limit(`${case_id}: ${side} 工具调用失败或结果未知`);
     if (case_id.startsWith('U-INS-') && !item.tool_calls?.some(call =>
-      call.name.startsWith('mcp__inspection__') && call.status === 'ok'))
+      call.name?.startsWith('mcp__inspection__') && call.status === 'ok'))
       limit(`${case_id}: ${side} 巡检服务依赖未确认可用`);
   }
   return {

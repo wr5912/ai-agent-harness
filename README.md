@@ -200,7 +200,7 @@ python3 .agents/skills/research-eval/scripts/validate_experiment.py \
 
 脚本输出 JSON。退出码 `0` 只说明各自覆盖的确定性合同通过，`1` 表示发现问题，`2` 表示输入或读取错误；它们不替代对研究结果的人工判断。
 
-受管评测会自动完成 Run 创建、执行、证据导出、场景诊断、封存和实例停止。默认 `--mode fast` 运行标记的 Case，`--mode full` 运行全部 Case，`--case` 可覆盖档位；三者均不改变 `dsh-dev --mode eval` 的容器运行模式。默认通过 DSH Runtime Session API 执行业务 Case；浏览器通道只核对初始提示、工作区、模型、发送和显示等 UI 链路，需显式指定。先用 `--dry-run` 核对选择与环境变量名称：
+受管评测会自动完成 Run 创建、执行、证据导出、场景诊断、封存和实例停止。默认 `--mode fast` 运行标记的 Case，`--mode full` 运行全部 Case，`--case` 可覆盖档位；三者均不改变 `dsh-dev --mode eval` 的容器运行模式。默认通过 DSH Runtime Session API 执行业务 Case；显式选择的浏览器通道只核对页面进入、新会话身份、消息发送及回答显示。浏览器冒烟完成时命令返回 `0`，Run 的业务 `verdict` 仍为 `inconclusive`；业务结论以 API Run 和原始回执为准，浏览器通道不执行 AI 评审。先用 `--dry-run` 核对选择与环境变量名称：
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-eval \
