@@ -19,7 +19,7 @@
 | T09 原生 Session Query | 创建/继续/刷新 Session、部分中断 | 原生持久记录可重读，缺失 delta 明示 | 缩范围或窄只读桥，先不建事件湖 | R2/R4 |
 | T10 修改操作对账 | Docker 已执行但服务在回包前退出 | 同 request_key/Operation 查询，无法确认 unknown | 禁止重试高副作用工具 | R4 |
 | T11 GUI/Meta 一致性（仅 Meta 启用时） | 同一管理任务两入口调用 | 相同来源校验、动作阶段、证据链接 | 禁止 AI 绕过 Service | R4 |
-| T12 MCP 两步 Tool | 两个实际 MCP Server 工具 → 单组合 Tool | Gateway tools/list+tools/call，外部 DSH 发现并调用 | 不做画布，先解决 Schema/鉴权/超时 | R5 |
+| T12 MCP 两步 Tool | 开发者定义的两个实际 API 或 MCP 步骤 → 单业务组合 Tool | 实际参数传递/结果、Gateway tools/list+tools/call、外部 DSH 调用与效果比较 | 先解决 Schema/鉴权/超时及依赖停止，不以编辑器代替执行验证 | R5 |
 | T13 发布/启用分离 | 发布 HarnessVersion 后未切换业务，新会话确认后再切换 | published≠enabled；旧 Session 来源不变 | 不开放发布/变体派生页面 | R5 |
 | T14 备份实复 | Git + 各 DSH HOME + 后期 PG/制品恢复 | 历史 Run/Session/Operation 能在隔离环境打开 | “备份存在”仍为未验收 | R2 起渐进 |
 | T15 真实使用收益 | 在一周实际工作中反复使用同一个新工具/页面 | 节省步骤/时间或显著降低选错目标，且无质量退步 | 删除或退回薄工具，不继续铺平台 | R1/R4 |
@@ -27,6 +27,25 @@
 | T17 双用户 Session/Schedule | 同 Agent 下两个用户从 UI/Remote 交叉操作，检查模型工具、到期投递和重启 | `04` 所列全部已开放入口服务端归属一致，不能越权或串投递 | 不开放共享 Host；按用户隔离 Host/HOME 并验证 Gateway 路由 | 选定多人故事时 |
 
 每条 POC 的结果可以是 **pass / fail / inconclusive / not-run**；必须写出证据路径、锁定镜像/依赖、运行环境、失败/未知，不能因“架构图通过审阅”标成 pass。
+
+<a id="mcp-composition-poc"></a>
+### 2.1 T12：业务组合的最小验证与复用候选
+
+业务设计引用 [W6](04_核心业务闭环与服务接口.md#mcp-business-composition)，阶段顺序引用 [05](05_实施路线与迭代计划.md#mcp-composition-route)。先选实际只读两步任务，例如查询资产后用资产 ID 查询告警，保存真实输入、第一步输出、第二步实际参数、最终业务结果和子调用证据；验证已有凭据与登录缓存复用、结果范围、工具 Schema，以及外部 DSH 的初始化、发现和调用。页面交互在 UI-04 验收，T12 不要求先建界面。
+
+异常验证覆盖无效输入、缺少前置输出、授权失败、下游超时和前置步骤失败后的依赖停止。涉及写操作时，另用可控操作验证超时结果未知与对账，不能自动重跑整个组合；只读 POC 不能证明写操作恢复已成立。页面测试和工具调用必须使用同一执行入口，不另做仅供演示的测试逻辑。
+
+以相同 Case、模型、输入和已核验上游状态比较“原子工具逐个调用”与“单组合 Tool”，遵循 [03 的外部状态合同](03_存储架构与数据契约.md#comparison-environment)。记录任务正确性、模型往返次数、token、总耗时及下游调用次数；减少模型调用不等于减少业务 API 调用。收益未证实时保留观察与限制，不宣称已提高准确率或效率。
+
+下列开源能力是待 POC 验证的复用候选，未选型或安装。来源核对日期为 2026-10-12：
+
+| 候选 | 拟复用范围 | 需要验证的边界 |
+|---|---|---|
+| [OpenAPI Arazzo](https://spec.openapis.org/arazzo/latest.html) | API 调用序列、依赖、输入/输出和成功条件的标准定义 | 当前最新规范为 1.1.0；候选组件只确认支持到 1.0.1，POC 先验证共同支持的 1.0.1 范围；不自行设计通用编排格式 |
+| [Redocly Respect](https://redocly.com/docs/respect/commands/respect) | 执行 API 序列的命令行验证与测试证据 | 文档支持 Arazzo 1.0.1；CLI 测试能力不等于可直接嵌入平台执行内核，需实测授权、超时和结果映射 |
+| [@jentic/arazzo-ui](https://github.com/jentic/jentic-arazzo-tools/blob/main/packages/jentic-arazzo-ui/README.md) | React 只读流程图和定义说明 | 文档支持 Arazzo 1.0.0/1.0.1；验证与当前界面依赖兼容、能否关联实际步骤状态，不据此引入编辑器 |
+
+执行器以这个固定两步 POC 决定：优先验证现有实现能否复用授权/缓存、参数映射、超时、依赖停止和有界业务输出，并供页面测试与 MCP 调用共用。集成成本高于当前任务时，用最小 TypeScript 固定组合复用现有调用逻辑，不建设通用 Arazzo 引擎。[Jentic TypeScript runner](https://github.com/jentic/jentic-arazzo-tools/blob/main/packages/jentic-arazzo-runner/README.md)目前仍在积极开发且未发布 npm，不作为默认依赖。Arazzo 的 API 描述不能直接证明原生 MCP 步骤可用；MCP 步骤经已有 MCP 客户端执行，并单独验证协议与结果映射。
 
 ## 3. TR02/TR03 的验证与范围决策
 
@@ -46,7 +65,7 @@ Trace 路线、持久衍生副本许可与写权统一引用 [03 的 Trace 合�
 | ADR-06 工具边界 | 优先组合现有 CLI/函数，避免微服务 | 第二消费者、部署故障边界/扩容实证要求拆 Service |
 | ADR-07 LUI | 目标体验，但不是研究前置条件 | 管理自然语言场景重复发生，LUI 提升真实效率/正确率 |
 | ADR-08 Variant | 按任务/预算/等效门槛独立验证 | 真实任务族证明标准方案可以复用，才抽模板/自动路由 |
-| ADR-09 MCP | 先单工具、固定二工具 POC，再 Gateway | 组合真实有益且需反复编辑时才做画布和不可变版本 |
+| ADR-09 MCP | 开发者维护组合定义，按 [05](05_实施路线与迭代计划.md#mcp-composition-route)验证执行、发布与只读测试；版本遵循 [03](03_存储架构与数据契约.md#mcp-composition-contract) | 真实任务证明需要用户反复改调用逻辑时，再评估手动编排；不影响首版只读展示 |
 | ADR-10 部署 | 单机受控内网、独立 HOME，必要时 PG | 容量/可靠性实测不足再扩多宿主、队列或 OTEL/分析系统 |
 | ADR-11 产品发布 | Research adopt、Release、published、enabled 分离 | 不能以简化为由让研究 Decision 自动触发生产行为 |
 | ADR-12 最小安全 | 不在模型上下文/日志泄漏凭据，禁止未经授权破坏性动作 | 多人对外服务触发服务端认证、session 所有权和定时任务验证 |
@@ -84,7 +103,7 @@ Trace 路线、持久衍生副本许可与写权统一引用 [03 的 Trace 合�
 | Trace 过度承诺 | Session 中断后 UI 仍显示“完整” | 显示覆盖/未知，TR02 另立验收范围 |
 | 多变体伪等效 | 只比较平均分，关键 Case 大退步 | 事前业务质量下限+退化红线+资源证据 |
 | LUI 结果缺少操作证据 | 答复“完成”但没有操作回执 | 共用 Service/真实 ID/证据链 |
-| MCP 画布先于 Gateway | 画布可编辑，发布后 tools/call 不通 | 固定两步 POC，真实调用再做画布 |
+| MCP 展示与执行脱节 | 页面测试成功，外部 tools/call 失败；图中状态与实际步骤不符 | 一份定义、同一执行入口、真实子调用与外部 DSH 验证 |
 | 多用户共享 HOME 串数据 | 猜 ID 可以读取他人 Session | G2 开放前做服务端归属验证，必要时独立 HOME |
 
 ## 8. 记录所选故事的决策
