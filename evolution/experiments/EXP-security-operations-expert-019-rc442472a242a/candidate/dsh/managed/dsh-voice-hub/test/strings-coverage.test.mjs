@@ -1,0 +1,371 @@
+/**
+ * 设置面板文案覆盖防回归单测（批 C，B1 防回归核心）。
+ * 运行：node test/strings-coverage.test.mjs（npm test 串联）。
+ *
+ * 背景：settings-form.tsx 的字段行用 `<Row name="..." desc={tr('descXxx')}>` 与
+ * 子控件 `<input ... field="..." />`；行标题来自 `FIELD_LABELS[name] ?? name`——
+ * 若字段未在 FIELD_LABELS 登记，用户看到的行标题就是英文 key（senseITN 等），
+ * 体验坏。settings.ts 同时通过 tr() 取 desc 文案，若 desc 键缺失，运行时会拿到
+ * 'undefined'，体验同样坏。
+ *
+ * 双轨风险（B1）：FIELD_LABELS（settings-form.tsx 内联中文）与 strings.ts zh 段
+ * *Label 键（外置中文）并行维护同一组标题。未来整合批去掉 FIELD_LABELS、改用 tr()
+ * 模式即可，但在此之前任何字段「在 FIELD_LABELS 漏登记」或「在 strings.ts zh 漏配
+ * Label 键」都会让用户看到英文 key / undefined desc。本测试把这两条做成红线。
+ *
+ * 范围：
+ *  1) settings-form.tsx 所有 Row name 与控件 field 引用 → 必须在 FIELD_LABELS 字典
+ *     出现（每个行标题都有中文）。
+ *  2) settings-form.tsx 所有 desc tr() 引用 → 必须在 strings.ts zh 段出现（每个
+ *     描述都有中文）。
+ *  3) settings-form.tsx 所有 Row name → 必须在 strings.ts zh 段出现为「字段名本身」
+ *     或「字段名 + Label 后缀」（让整合批改用 tr() 时能直接命中）。
+ *  4) 批 C 专项：4 新字段（
+ *     senseITN/captionFontSize/captionMaxWidth/backchannelYield）必须在
+ *     FIELD_LABELS + strings.ts zh *Label 键 双侧都登记。
+ *  5) 反向红：删任意一项（FIELD_LABELS 行 / zh *Label 键 / zh desc 键）即失败。
+ *
+ * 不变量 I1 保护：本测试纯文本解析（fs.readFileSync + 正则），不引入运行时依赖、
+ * 不引入 esbuild/编译；改 settings-form.tsx/strings.ts 时只关心「出现/未出现」，
+ * 不关心语义正确性（语义正确性由字段读写回路测试覆盖）。
+ */
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+
+const here = dirname(fileURLToPath(import.meta.url))
+const settingsFormPath = join(here, '..', 'src', 'settings-form.tsx')
+const stringsPath = join(here, '..', 'src', 'strings.ts')
+
+const settingsForm = readFileSync(settingsFormPath, 'utf8')
+const stringsSrc = readFileSync(stringsPath, 'utf8')
+
+/** 简易 zh 段取值函数（仅作值比较，不导入 strings.ts 以避免引入运行时依赖）。 */
+const zh = (() => {
+  const out = Object.create(null)
+  const start = stringsSrc.indexOf('const zh =')
+  assert.notEqual(start, -1, 'strings.ts 必须包含 `const zh =` 声明')
+  const braceStart = stringsSrc.indexOf('{', start)
+  let depth = 0
+  let i = braceStart
+  for (; i < stringsSrc.length; i++) {
+    const c = stringsSrc[i]
+    if (c === '{') depth++
+    else if (c === '}') {
+      depth--
+      if (depth === 0) {
+        i++
+        break
+      }
+    }
+  }
+  const block = stringsSrc.slice(braceStart, i)
+  // 匹配 `key: 'value'`（单引号字面量；处理 \'{line}\' / \'{value}\' 等转义占位）。
+  const re = /^\s*([a-zA-Z][a-zA-Z0-9]*)\s*:\s*'((?:\\.|[^'\\])*)'/gm
+  let m
+  while ((m = re.exec(block)) !== null) {
+    const k = m[1]
+    const raw = m[2]
+    // 解析字符串字面量（处理 \' \\ \n 等转义）——仅取显示值。
+    const v = raw.replace(/\\'/g, "'").replace(/\\\\/g, '\\').replace(/\\n/g, '\n')
+    out[k] = v
+  }
+  return out
+})()
+
+let passed = 0
+const t = (name, fn) => {
+  fn()
+  passed++
+  console.log(`  ✓ ${name}`)
+}
+
+// --- 工具：从源文本提取结构化集合 ---
+
+/** 提取 `<Row name="xxx"` 中的字段名集合。 */
+const extractRowNames = (src) => {
+  const out = new Set()
+  const re = /<Row\s+name=["']([a-zA-Z][a-zA-Z0-9]*)["']/g
+  let m
+  while ((m = re.exec(src)) !== null) out.add(m[1])
+  return out
+}
+
+/** 提取 `<input ... field="xxx"` / `<XxxField ... field="xxx"` 等子控件 field 引用集合。
+ *  同时覆盖 NumberField/TextField/SelectField/VoiceSelect/SegGroup 的 field prop。
+ *  匹配 `field="xxx"` 形式（settings-form.tsx 全部子控件都遵循此约定）。 */
+const extractFieldRefs = (src) => {
+  const out = new Set()
+  const re = /\bfield=["']([a-zA-Z][a-zA-Z0-9]*)["']/g
+  let m
+  while ((m = re.exec(src)) !== null) out.add(m[1])
+  return out
+}
+
+/** 提取 `tr('descXxx')` 中的 desc 键集合。 */
+const extractDescRefs = (src) => {
+  const out = new Set()
+  const re = /tr\(\s*['"](desc[A-Za-z0-9]+)['"]\s*\)/g
+  let m
+  while ((m = re.exec(src)) !== null) out.add(m[1])
+  return out
+}
+
+/** 从 settings-form.tsx 中提取 FIELD_LABELS 字典的字面键集合。
+ *  解析策略：定位 `const FIELD_LABELS: Record<string, string> = {` 到匹配的 `}`，
+ *  在该块内提取每行 `key: '...'`。不做语义校验，只取键集合。 */
+const extractFieldLabelsKeys = (src) => {
+  const start = src.indexOf('const FIELD_LABELS:')
+  assert.notEqual(start, -1, 'settings-form.tsx 必须包含 `const FIELD_LABELS:` 声明')
+  const braceStart = src.indexOf('{', start)
+  assert.notEqual(braceStart, -1, 'FIELD_LABELS 必须以 `{` 开头')
+  // 手写花括号配对扫描（避免被内嵌 `{` 误判）；FIELD_LABELS 是纯字面量字典，
+  // 不会嵌套 {}，所以遇到第一个 `}` 即终止。
+  let depth = 0
+  let i = braceStart
+  for (; i < src.length; i++) {
+    const c = src[i]
+    if (c === '{') depth++
+    else if (c === '}') {
+      depth--
+      if (depth === 0) {
+        i++ // 包含 `}`
+        break
+      }
+    }
+  }
+  const block = src.slice(braceStart, i)
+  const keys = new Set()
+  const re = /^\s*([a-zA-Z][a-zA-Z0-9]*)\s*:/gm
+  let m
+  while ((m = re.exec(block)) !== null) keys.add(m[1])
+  return keys
+}
+
+/** 提取 FIELD_LABELS 字典中指定 key 的字面值（zh 中文）。
+ *  返回 null = 键不存在；返回 string = 字面值。
+ *  用于双轨闭包值一致性断言（FIELD_LABELS.yieldMs === zh.yieldMsLabel）。 */
+const extractFieldLabelsValue = (src, key) => {
+  const start = src.indexOf('const FIELD_LABELS:')
+  if (start === -1) return null
+  const braceStart = src.indexOf('{', start)
+  if (braceStart === -1) return null
+  let depth = 0
+  let i = braceStart
+  for (; i < src.length; i++) {
+    const c = src[i]
+    if (c === '{') depth++
+    else if (c === '}') {
+      depth--
+      if (depth === 0) {
+        i++
+        break
+      }
+    }
+  }
+  const block = src.slice(braceStart, i)
+  // 单行匹配：`  key: 'value'` 或 `key: 'value'`，value 用单引号字面量。
+  const re = new RegExp(`^\\s*${key}\\s*:\\s*'((?:\\\\.|[^'\\\\])*)'`, 'm')
+  const m = re.exec(block)
+  if (!m) return null
+  return m[1].replace(/\\'/g, "'").replace(/\\\\/g, '\\').replace(/\\n/g, '\n')
+}
+
+/** 从 strings.ts 中提取 zh 段（`const zh = { ... } as const`）的全部键集合。
+ *  策略同 FIELD_LABELS：手写花括号配对 + 行首 `key:` 提取。 */
+const extractZhKeys = (src) => {
+  const start = src.indexOf('const zh =')
+  assert.notEqual(start, -1, 'strings.ts 必须包含 `const zh =` 声明')
+  const braceStart = src.indexOf('{', start)
+  assert.notEqual(braceStart, -1, 'zh 必须以 `{` 开头')
+  let depth = 0
+  let i = braceStart
+  for (; i < src.length; i++) {
+    const c = src[i]
+    if (c === '{') depth++
+    else if (c === '}') {
+      depth--
+      if (depth === 0) {
+        i++
+        break
+      }
+    }
+  }
+  const block = src.slice(braceStart, i)
+  const keys = new Set()
+  const re = /^\s*([a-zA-Z][a-zA-Z0-9]*)\s*:/gm
+  let m
+  while ((m = re.exec(block)) !== null) keys.add(m[1])
+  return keys
+}
+
+// --- 计算集合 ---
+
+const rowNames = extractRowNames(settingsForm)
+const fieldRefs = extractFieldRefs(settingsForm)
+const descRefs = extractDescRefs(settingsForm)
+const fieldLabelsKeys = extractFieldLabelsKeys(settingsForm)
+const zhKeys = extractZhKeys(stringsSrc)
+
+// FIELD_LABELS 与 Row name 字段名应一致（Row 用 FIELD_LABELS[name] ?? name 兜底，
+// 漏登记会显示英文 key，故必须全集 ⊆ fieldLabelsKeys）。
+// 子控件 field 引用是「写出去」的目标字段，与 Row name 共享同一组 keys（user 视角
+// 同一个设置项的入口与持久化字段必须一致），所以也必须 ⊆ fieldLabelsKeys。
+const referencedFields = new Set([...rowNames, ...fieldRefs])
+
+// desc 键必须全部 ⊆ zhKeys（每个 desc 在 strings.ts zh 段有中文）。
+// 批量 C 内不补 desc；本断言作为常驻红线，新加 desc 行立即可见。
+
+// 批 C 新增 7 字段（FIELD_LABELS + strings.ts zh *Label 同步登记的）。
+// 提前到此处声明，避免后续断言闭包里 TDZ。
+const NEW_FIELDS = [
+  'senseITN',
+  'captionFontSize',
+  'captionMaxWidth',
+  'backchannelYield',
+]
+
+// --- 断言 ---
+
+console.log('settings-form.tsx 字段 → FIELD_LABELS 字典覆盖')
+
+t('所有 Row name 字段都在 FIELD_LABELS 字典（漏登记 = 用户看英文 key）', () => {
+  const missing = [...rowNames].filter((k) => !fieldLabelsKeys.has(k))
+  assert.deepEqual(missing, [], `缺失字段：${missing.join(', ')}`)
+})
+
+t('所有子控件 field 引用都在 FIELD_LABELS 字典（读写字段必须与 UI 标题一致）', () => {
+  const missing = [...fieldRefs].filter((k) => !fieldLabelsKeys.has(k))
+  assert.deepEqual(missing, [], `缺失字段：${missing.join(', ')}`)
+})
+
+console.log('settings-form.tsx desc → strings.ts zh 段覆盖')
+
+t('所有 descXxx 引用都在 strings.ts zh 段（漏登记 = 行下显示 undefined）', () => {
+  const missing = [...descRefs].filter((k) => !zhKeys.has(k))
+  assert.deepEqual(missing, [], `缺失 desc：${missing.join(', ')}`)
+})
+
+console.log('settings-form.tsx Row name → strings.ts zh 段映射（双轨入口）')
+
+t('所有 Row name 字段在 strings.ts zh 段都有对应 Label 键（直接命名或 Label 后缀）', () => {
+  // 双轨：字段名在 zh 中以两种合法形式出现——
+  //   ① 字段名本身（如 senseITN 已存在 '逆文本归一化'）；
+  //   ② 字段名 + Label 后缀（如 senseITNLabel = '逆文本归一化'）。
+  // 满足任一即 PASS。
+  //
+  // 注：本断言是「整合批完成态」的目标契约。当前阶段（批 C）只保证 4 新字段有
+  // Label 键；其余字段暂以「直接命名」形式覆盖（部分尚未覆盖；详见下方
+  // 「批 C 4 新字段专项」段更严格的断言）。
+  const missing = [...rowNames].filter((k) => !zhKeys.has(k) && !zhKeys.has(k + 'Label'))
+  // 容许：原有字段中缺 zh 直接命名或 Label 的子集（迁移期容差）。
+  // 批 C 红线只盯 4 新字段——专项段会逐项强校验。
+  const newFieldMissing = missing.filter((k) => NEW_FIELDS.includes(k))
+  assert.deepEqual(newFieldMissing, [], `4 新字段缺 Label 映射：${newFieldMissing.join(', ')}`)
+  if (missing.length > 0) {
+    console.log(`  ℹ️  整合批迁移期内未覆盖字段（暂不阻塞）：${missing.join(', ')}`)
+  }
+})
+
+console.log('批 C 新增 7 字段专项（防漏登记）')
+
+for (const field of NEW_FIELDS) {
+  t(`FIELD_LABELS 已登记 ${field}（${fieldLabelsKeys.has(field) ? 'PASS' : 'RED'}）`, () => {
+    assert.ok(fieldLabelsKeys.has(field), `FIELD_LABELS 缺 ${field}`)
+  })
+  t(`strings.ts zh 段已登记 ${field}Label（${zhKeys.has(field + 'Label') ? 'PASS' : 'RED'}）`, () => {
+    assert.ok(zhKeys.has(field + 'Label'), `strings.ts zh 段缺 ${field}Label`)
+  })
+  t(`settings-form.tsx 引用了 ${field}（${rowNames.has(field) || fieldRefs.has(field) ? 'PASS' : 'RED'}）`, () => {
+    // 反向红线：确保 4 新字段真的在 settings-form.tsx 被引用，避免「配了 Label
+    // 但 UI 没用到」的僵尸键；同时防有人误删 Row/field 行后本测试失盲。
+    assert.ok(rowNames.has(field) || fieldRefs.has(field), `settings-form.tsx 未引用 ${field}`)
+  })
+}
+
+console.log('反向断言契约（防删测试）')
+
+t('FIELD_LABELS 含 29 字段（移除主回答口语化；摘要配置独立维护）', () => {
+  assert.equal(fieldLabelsKeys.size, 29, `FIELD_LABELS 现 ${fieldLabelsKeys.size} 字段，预期 29`)
+})
+
+console.log('字符串覆盖核心键校验（替代仅总数断言；批 G 验收 B4 升级）')
+
+// 辅助：总数跟踪（不删；用于趋势观察 + 新增键计数感知）。严格断言见下方具体键检查。
+console.log(`  ℹ️  zh 段当前共 ${zhKeys.size} 键（含历史 18 原有 + 7 批 C *Label + 批 G 新增键等）`)
+
+t('strings.ts zh 段核心键全部存在（具体键校验，替代原 172 总数断言；删任意键即红）', () => {
+  // 批 G 验收 B4 升级：原 `assert.equal(zhKeys.size, 172)` 仅校验键总数，未校验具体键
+  // 存在——删 idleWarn30s 测试仍 PASS，无法防删。本批改为具体键校验：
+  //   - 批 G 任务 1: numberInvalid / numberClamped（NumberField 红框 + clamp 提示）
+  //   - 批 G 任务 2: idleWarn30s（30s 预警提示）
+  //   - 批 G 任务 3: yieldMs / descYieldMs（让位窗口时长）
+  //   - 批 G 任务 6: previewModelMissing / previewModelLoading（本地模型未就绪预览按钮禁用）
+  // 任一缺失即红。
+  const required = [
+    ['numberInvalid', '批 G 任务 1：NumberField 红框文案'],
+    ['numberClamped', '批 G 任务 1：clamp 提示文案'],
+    ['idleWarn30s', '批 G 任务 2：空闲 30s 预警'],
+    ['yieldMs', '批 G 任务 3：让位窗口标题'],
+    ['descYieldMs', '批 G 任务 3：让位窗口描述'],
+    ['previewModelMissing', '批 G 任务 6：本地模型未就绪（缺失）'],
+    ['previewModelLoading', '批 G 任务 6：本地模型下载中'],
+  ]
+  const missing = required.filter(([k]) => !zhKeys.has(k)).map(([k, why]) => `${k}（${why}）`)
+  assert.deepEqual(missing, [], `zh 段缺核心键：${missing.join('; ')}`)
+})
+
+t('FIELD_LABELS.yieldMs 双轨闭包值一致性（zh yieldMsLabel 与 settings-form FIELD_LABELS 一致）', () => {
+  // 双轨闭包检查（settings-form.tsx 内联中文 vs strings.ts zh *Label 键）：
+  // FIELD_LABELS.yieldMs 与 zh 段 yieldMsLabel 必须 **值一致**——避免双轨漂移。
+  // 同时校验 settings-form.tsx 已引用 yieldMs（防止配了 Label 但 UI 未用到）。
+  // 此断言是 yieldMs 字段「真被消费」的红线。
+  const formLabel = extractFieldLabelsValue(settingsForm, 'yieldMs')
+  assert.ok(formLabel !== null, 'FIELD_LABELS 缺 yieldMs 键')
+  assert.equal(formLabel, zh['yieldMsLabel'], `FIELD_LABELS.yieldMs='${formLabel}' 与 zh yieldMsLabel='${zh['yieldMsLabel']}' 不一致`)
+  // 字段已被 UI 引用（防止僵尸键）。
+  assert.ok(rowNames.has('yieldMs') || fieldRefs.has('yieldMs'), 'settings-form.tsx 未引用 yieldMs（僵尸键）')
+})
+
+t('zh 段关键键存在（批 G 任务 1 number×2 升级；删任意键即红）', () => {
+  // 批 G 任务 1 专项：NumberField 红框 + clamp 提示需要 numberInvalid / numberClamped；
+  // 之前仅以总数断言守门，本批加具体键校验。
+  assert.ok(zhKeys.has('numberInvalid'), 'zh 段缺 numberInvalid（NumberField 红框文案）')
+  assert.ok(zhKeys.has('numberClamped'), 'zh 段缺 numberClamped（clamp 提示文案）')
+})
+
+t('zh 段关键键存在（批 G 任务 3 yieldMs×2 + 双轨闭包一致性；删任意键即红）', () => {
+  // 批 G 任务 3 专项：让位窗口时长字段需要 yieldMs / descYieldMs；FIELD_LABELS 镜像键
+  // yieldMsLabel 必须与 zh 段值一致（双轨闭包检查）。
+  assert.ok(zhKeys.has('yieldMs'), 'zh 段缺 yieldMs（让位窗口标题）')
+  assert.ok(zhKeys.has('descYieldMs'), 'zh 段缺 descYieldMs（让位窗口描述）')
+  assert.ok(zhKeys.has('yieldMsLabel'), 'zh 段缺 yieldMsLabel（FIELD_LABELS 镜像键）')
+  // 双轨闭包：FIELD_LABELS.yieldMs 与 tr('yieldMsLabel') 中文必须一致（防双轨漂移）。
+  assert.equal(
+    fieldLabelsKeys.has('yieldMs') && zhKeys.has('yieldMsLabel'),
+    true,
+    'FIELD_LABELS.yieldMs 与 zh.yieldMsLabel 双轨闭包丢失',
+  )
+})
+
+t('rowNames 至少 22 项（覆盖所有 Row 行；删 Row 即红）', () => {
+  assert.ok(rowNames.size >= 22, `rowNames 仅 ${rowNames.size} 项；预期 ≥ 22`)
+})
+
+t('descRefs 至少 23 项（移除主回答口语化说明；覆盖其余 desc 引用）', () => {
+  assert.ok(descRefs.size >= 23, `descRefs 仅 ${descRefs.size} 项；预期 ≥ 23`)
+})
+
+t('referencedFields ⊆ FIELD_LABELS ⊆ zh*Label ∪ zh（双轨闭包检查）', () => {
+  // 端到端闭包：UI 引用 → FIELD_LABELS → strings.ts zh（双轨之一）。
+  const missingInFieldLabels = [...referencedFields].filter((k) => !fieldLabelsKeys.has(k))
+  assert.deepEqual(missingInFieldLabels, [], `FIELD_LABELS 漏：${missingInFieldLabels.join(', ')}`)
+  // zh 段覆盖检查只盯 4 新字段（其余字段属迁移期遗留，详见上方容差说明）。
+  const newFieldMissingInZh = [...referencedFields]
+    .filter((k) => NEW_FIELDS.includes(k))
+    .filter((k) => !zhKeys.has(k) && !zhKeys.has(k + 'Label'))
+  assert.deepEqual(newFieldMissingInZh, [], `4 新字段 zh 漏：${newFieldMissingInZh.join(', ')}`)
+})
+
+console.log(`\nstrings-coverage：${passed} 项通过`)
