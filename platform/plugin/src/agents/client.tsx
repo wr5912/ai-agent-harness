@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CHANNEL } from '../protocol.ts'
 import type { PlatformPageProps } from '../protocol.ts'
 
@@ -46,7 +46,26 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
   const [runsIndex, setRunsIndex] = useState('')
   const [decisionBody, setDecisionBody] = useState('')
   const [decisionHash, setDecisionHash] = useState('')
+  const detailRequest = useRef(0)
+  const editRequest = useRef(0)
   const selectedAgent = useMemo(() => agents.find(agent => agent.id === selected), [agents, selected])
+
+  function selectVersion(agentId: string, experimentId = '') {
+    detailRequest.current++
+    setSelected(agentId)
+    setSelectedExperiment(experimentId)
+    setDetail(null)
+    selectEditFile('')
+  }
+
+  function selectEditFile(path: string) {
+    editRequest.current++
+    setEditPath(path)
+    setEditBody('')
+    setEditHash('')
+    setEditPreview(null)
+    setEditMessage('')
+  }
 
   async function call(operation: string, payload: Record<string, unknown> = {}) {
     const result = await rpc.call(CHANNEL, `agents/${operation}`, payload) as RpcResult
@@ -67,34 +86,38 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
 
   async function refreshDetail(agentId = selected, experimentId = selectedExperiment) {
     if (!agentId) return
+    const request = ++detailRequest.current
     setError('')
     try {
       const payload = experimentId ? { agent_id: agentId, experiment_id: experimentId } : { agent_id: agentId }
       const value = await call('detail', payload)
+      if (request !== detailRequest.current) return
       setDetail(value)
       setSelectedExperiment(value.experiment.id)
       setDecisionBody(value.decision?.content ?? '')
       setDecisionHash(value.decision?.sha256 ?? '')
       setSelectedCases((current) => current.filter(caseItem => value.evaluation.cases.some((item: any) => item.id === caseItem)))
-      if (!editPath || !value.editable_files.includes(editPath)) setEditPath(value.editable_files[0] ?? '')
+      if (!editPath || !value.editable_files.includes(editPath)) selectEditFile(value.editable_files[0] ?? '')
       setEditMessage('')
     } catch (err) {
-      setError((err as Error).message)
+      if (request === detailRequest.current) setError((err as Error).message)
     }
   }
 
   async function loadEditFile(path = editPath) {
     if (!detail || !path) return
+    const request = ++editRequest.current
     setError('')
     try {
       const value = await call('edit/read', { experiment_id: detail.experiment.id, path })
+      if (request !== editRequest.current) return
       setEditPath(value.path)
       setEditBody(value.content)
       setEditHash(value.sha256)
       setEditPreview(null)
       setEditMessage('')
     } catch (err) {
-      setError((err as Error).message)
+      if (request === editRequest.current) setError((err as Error).message)
     }
   }
 
@@ -108,6 +131,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
     if (!parent) return
     const researchQuestion = window.prompt('真实用户研究问题')
     if (!researchQuestion) return
+    const request = detailRequest.current
     try {
       const value = await call('create', {
         agent_id: selected,
@@ -116,27 +140,30 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
         catalog_sha256: detail.declared?.source_catalog_sha256,
         research_question: researchQuestion,
       })
+      if (request !== detailRequest.current) return
       await refreshList()
-      setSelectedExperiment(value.experiment_id)
-      await refreshDetail(selected, value.experiment_id)
+      if (request !== detailRequest.current) return
+      selectVersion(selected, value.experiment_id)
       setEditMessage(`已创建 ${value.experiment_id}`)
     } catch (err) {
-      setError((err as Error).message)
+      if (request === detailRequest.current) setError((err as Error).message)
     }
   }
 
   async function doPreview() {
-    if (!detail || !editPath) return
+    if (!detail || !editPath || !editHash) return
+    const request = editRequest.current
     try {
       const value = await call('edit/preview', {
         experiment_id: detail.experiment.id,
         edits: [{ path: editPath, content: editBody, expected_sha256: editHash }],
       })
+      if (request !== editRequest.current) return
       const row = value.edits?.[0]
       setEditPreview({ path: row.path, body: editBody, before: row.before_sha256, diff: row.diff || '无变化' })
       setEditMessage('')
     } catch (err) {
-      setError((err as Error).message)
+      if (request === editRequest.current) setError((err as Error).message)
     }
   }
 
@@ -146,17 +173,19 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
       setError('正文已变更，请重新预览后写入')
       return
     }
+    const request = detailRequest.current
     try {
       const value = await call('edit/apply', {
         experiment_id: detail.experiment.id,
         edits: [{ path: editPath, content: editBody, expected_sha256: editPreview.before }],
       })
+      if (request !== detailRequest.current) return
       setEditMessage(`已写入 ${value.written?.[0]?.path}`)
       setEditPreview(null)
-      await refreshDetail()
       await loadEditFile(editPath)
+      if (request === detailRequest.current) await refreshDetail()
     } catch (err) {
-      setError((err as Error).message)
+      if (request === detailRequest.current) setError((err as Error).message)
     }
   }
 
@@ -253,12 +282,14 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
 
   async function saveDecision() {
     if (!detail) return
+    const request = detailRequest.current
     try {
       const value = await call('decision/update', { experiment_id: detail.experiment.id, content: decisionBody, expected_sha256: decisionHash })
+      if (request !== detailRequest.current) return
       setDecisionHash(value.sha256)
       await refreshDetail()
     } catch (err) {
-      setError((err as Error).message)
+      if (request === detailRequest.current) setError((err as Error).message)
     }
   }
 
@@ -280,7 +311,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
         <aside style={panel}>
           <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>Agent</h2>
           <div style={{ display: 'grid', gap: 8 }}>
-            {agents.map(agent => <button key={agent.id} type="button" onClick={() => { setSelected(agent.id); setSelectedExperiment('') }}
+            {agents.map(agent => <button key={agent.id} type="button" onClick={() => selectVersion(agent.id)}
               style={{ textAlign: 'left', padding: 10, borderRadius: 6, border: agent.id === selected ? '2px solid currentColor' : '1px solid var(--dsw-alias-border-l3, #d1d5db)', background: 'transparent', color: 'inherit' }}>
               <strong>{agent.id}</strong>
               <small style={{ display: 'block', opacity: 0.7 }}>{agent.active_experiment || '无 active_experiment'}</small>
@@ -292,7 +323,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', alignItems: 'start' }}>
               <div style={{ minWidth: 0 }}>
                 <h2 style={{ margin: '0 0 6px', fontSize: 18, overflowWrap: 'anywhere' }}>{detail.experiment.id}</h2>
-                <select aria-label="版本" style={{ maxWidth: '100%' }} value={selectedExperiment} onChange={event => setSelectedExperiment(event.target.value)}>
+                <select aria-label="版本" style={{ maxWidth: '100%' }} value={selectedExperiment} onChange={event => selectVersion(selected, event.target.value)}>
                   {detail.versions.map((version: any) => <option key={version.id} value={version.id}>{version.id}</option>)}
                 </select>
                 <div style={{ opacity: 0.75, marginTop: 8 }}>Baseline：{detail.baseline.ref || '未知'} · Parent：{detail.baseline.parent_experiment_id || '无'}</div>
@@ -311,16 +342,16 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
           {detail && <section style={panel}>
             <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>资产编辑</h2>
             <label style={field}>编辑文件
-              <select value={editPath} onChange={event => setEditPath(event.target.value)} style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8 }}>
+              <select value={editPath} onChange={event => selectEditFile(event.target.value)} style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8 }}>
                 {detail.editable_files.map((file: string) => <option key={file} value={file}>{file}</option>)}
               </select>
             </label>
             <label style={field}>编辑正文
-              <textarea value={editBody} onChange={event => { setEditBody(event.target.value); setEditPreview(null); setEditMessage('') }} rows={10} style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace' }} />
+              <textarea value={editBody} disabled={!editHash} onChange={event => { editRequest.current++; setEditBody(event.target.value); setEditPreview(null); setEditMessage('') }} rows={10} style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace' }} />
             </label>
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button type="button" onClick={() => void loadEditFile()}>重读</button>
-              <button type="button" onClick={() => void doPreview()}>预览差异</button>
+              <button type="button" onClick={() => void doPreview()} disabled={!editHash}>预览差异</button>
               <button type="button" onClick={() => void doApply()} disabled={!editPreview}>写入</button>
             </div>
             {editMessage && <p>{editMessage}</p>}
