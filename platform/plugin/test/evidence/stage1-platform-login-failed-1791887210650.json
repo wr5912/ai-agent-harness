@@ -1,0 +1,22 @@
+{
+  "checked_at": "2026-10-13T10:26:15.533Z",
+  "scope": "系统全局 DSH；首次浏览器使用的独立 HOME、登录与四页、原生设置、重启及失败启动。未调用模型或外部业务接口。",
+  "source": {
+    "node": "v24.21.0",
+    "dsh": "0.2.1-alpha.2",
+    "git_commit": "0237f2962700a94aa4b9903f34d165116d7a49c4",
+    "dirty": true,
+    "built_files": {
+      "index.js": "24d355569334c5dd8a8a086d17fa67b26ee12f353b580e84dba5292b177ca3b2",
+      "client.js": "3cc6867b147e146d46b5ab69bc863f2d7f9ea0fb932b712d9128d5e7fb633cce"
+    }
+  },
+  "checks": {
+    "anonymous_index_redirect_and_all_api_domains_denied": true,
+    "no_token_in_startup_output": true,
+    "login_logo_desktop_mobile_no_overflow": true
+  },
+  "rpc": [],
+  "validation": "failed",
+  "failure": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('alert').filter({ hasText: '用户名或密码错误' }) to be visible\u001b[22m\n"
+}

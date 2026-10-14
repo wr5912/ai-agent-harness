@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-
 export const COMPOSITION_TOOL_NAME = 'query_asset_related_alerts'
 
 export const compositionDefinition = {
@@ -48,7 +46,3 @@ export const compositionDefinition = {
     },
   ],
 } as const
-
-export function compositionDigest(gitCommit = 'unknown', gitDirty: boolean | 'unknown' = 'unknown', sourceDigest = 'unknown'): string {
-  return createHash('sha256').update(JSON.stringify({ gitCommit, gitDirty, sourceDigest, definition: compositionDefinition })).digest('hex')
-}

@@ -1,0 +1,10 @@
+{
+  "at": "2026-10-13T12:52:31.588Z",
+  "scope": "隔离平台 HOME；原生 DSH 会话界面；不调用模型",
+  "checks": {},
+  "limits": [
+    "未发送模型请求，未验证有消息会话的重命名、归档与内容检索"
+  ],
+  "validation": "failed",
+  "failure": "locator.innerText: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-slot=\"sidebar.brand.name\"]')\u001b[22m\n"
+}

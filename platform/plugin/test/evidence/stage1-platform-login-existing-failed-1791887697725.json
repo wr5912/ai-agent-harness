@@ -1,0 +1,17 @@
+{
+  "checked_at": "2026-10-13T10:34:57.387Z",
+  "scope": "当前 3090 实例；原生认证迁移到密码登录，复用原有 HOME，浏览器登录、重启与退出。没有模型或外部业务调用。",
+  "source": {
+    "git_commit": "0237f2962700a94aa4b9903f34d165116d7a49c4",
+    "dirty": true,
+    "node": "v24.21.0",
+    "dsh": "0.2.1-alpha.2",
+    "built_files": {
+      "index.js": "c1ad605c3344f4d3494a4bd7a475d177d1e42e36f9f8cc9ed489086dc70dd8b0",
+      "client.js": "3cc6867b147e146d46b5ab69bc863f2d7f9ea0fb932b712d9128d5e7fb633cce"
+    }
+  },
+  "checks": {},
+  "validation": "failed",
+  "failure": "Expected values to be strictly equal:\n\n401 !== 200\n"
+}

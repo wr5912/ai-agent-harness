@@ -13,7 +13,7 @@ test('客户端产物使用 DSH ModuleLoader 和共享 React，导出可装载�
   const dependencies = []
   const require = createRequire(import.meta.url)
   const plugin = registration.factory(name => { dependencies.push(name); return require(name) })
-  assert.deepEqual(new Set(dependencies), new Set(['react', 'react/jsx-runtime']))
+  assert.deepEqual(new Set(dependencies), new Set(['react', 'react/jsx-runtime', 'react-dom']))
   assert.equal(typeof plugin.apply, 'function')
-  assert.deepEqual(Array.from(plugin.inject), ['connection', 'slots', 'layout'])
+  assert.deepEqual(Array.from(plugin.inject), ['connection', 'slots', 'configForms', 'layout', 'workspaces', 'uiWorkspace'])
 })

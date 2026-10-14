@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { request as httpRequest } from 'node:http'
 import test from 'node:test'
 import { Context, Service } from '@deepseek-ai/cordis'
 import * as Connection from '@deepseek-ai/dsh-client-connection'
 import WebServer from '@deepseek-ai/dsh-host-webserver'
+import * as WebApp from '@deepseek-ai/dsh-web-app'
 import * as plugin from '../lib/index.js'
 
-test('原生认证保护三个写入域与 MCP 生命周期，卸载同时移除 RPC 和网关', async t => {
+test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie 被拒绝且退出可撤销会话', async t => {
   const root = new Context()
   const assetRoot = mkdtempSync(join(tmpdir(), 'harness-native-auth-'))
   const previous = process.env.HARNESS_ASSET_ROOT
@@ -20,7 +22,14 @@ test('原生认证保护三个写入域与 MCP 生命周期，卸载同时移除
     else process.env.HARNESS_ASSET_ROOT = previous
   })
   mkdirSync(join(assetRoot, 'agents/auth-agent'), { recursive: true })
-  // 仅替换认证记录的存储，签名 Cookie、认证交接及 HTTP/RPC/Fetch 均运行原生实现。
+  mkdirSync(join(assetRoot, 'platform/credentials'), { recursive: true })
+  writeFileSync(join(assetRoot, 'platform/credentials/admin.json'), JSON.stringify({ username: 'admin', password: 'admin123' }))
+  const index = join(assetRoot, 'index.html')
+  writeFileSync(index, '<html><head></head><body>index</body></html>')
+  const originalDist = WebApp.internals.resolveDistIndex
+  WebApp.internals.resolveDistIndex = () => index
+  t.after(() => { WebApp.internals.resolveDistIndex = originalDist })
+  // 仅替换凭据存储与静态页面；认证、Cordis、HTTP/RPC/Fetch 均运行真实实现。
   class Credentials extends Service {
     records = new Map()
     constructor(ctx) { super(ctx, 'credentials') }
@@ -33,13 +42,20 @@ test('原生认证保护三个写入域与 MCP 生命周期，卸载同时移除
   await root.plugin({ name: 'test-credentials', apply(ctx) { new Credentials(ctx) } })
   await root.plugin(WebServer, { host: '127.0.0.1', port: 0 })
   await root.plugin(Connection)
-  const loaded = root.plugin(plugin)
+  await root.plugin({ name: 'test-platform-mcp', apply(ctx) { ctx.provide('platformMcp', { servers: { get: () => [] }, groups: { get: () => [] } }) } })
+  const base = `http://127.0.0.1:${root.webServer.port}`
+  // 在新认证安装前取得旧原生会话，证明迁移不会继续接受它。
+  const oldUrl = root.connection.authenticatedUrl(base + '/')
+  const oldCookie = await new Promise(resolve => {
+    root.webServer.register({ kind: 'exact', path: '/old-auth', handler(req, res) {
+      req.url = new URL(oldUrl).pathname + new URL(oldUrl).search
+      root.connection.authorizeIndex(req, res)
+    } })
+    fetch(base + '/old-auth', { redirect: 'manual' }).then(response => resolve(response.headers.get('set-cookie').split(';')[0]))
+  })
+  const loaded = root.plugin(plugin, { openBrowser: false, printUrl: false, surfaceContext: false })
   await loaded
   assert.equal(loaded.state, 2)
-  const base = `http://127.0.0.1:${root.webServer.port}`
-  root.webServer.register({ kind: 'exact', path: '/', handler(req, res) {
-    if (root.connection.authorizeIndex(req, res)) res.end('index')
-  } })
   const request = (path, body, cookie) => fetch(base + path, {
     method: 'POST', headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
     body: JSON.stringify(body),
@@ -53,9 +69,51 @@ test('原生认证保护三个写入域与 MCP 生命周期，卸载同时移除
     protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'native-test', version: '1' },
   } }
   assert.equal((await request(gateway, initialize)).status, 401)
-  const handoff = await fetch(root.connection.authenticatedUrl(base + '/'), { redirect: 'manual' })
-  assert.equal(handoff.status, 303)
-  const cookie = handoff.headers.get('set-cookie').split(';')[0]
+  const anonymous = await fetch(oldUrl, { redirect: 'manual' })
+  assert.equal(anonymous.status, 303)
+  assert.equal(anonymous.headers.get('location'), '/login')
+  assert.equal(anonymous.headers.get('set-cookie'), null)
+  assert.equal((await request('/harness-platform/inventory', envelope('inventory'), oldCookie)).status, 401)
+  assert.equal(root.connection.authenticatedUrl(base + '/?token=discard'), base + '/')
+  const login = body => fetch(base + '/login', { method: 'POST', redirect: 'manual',
+    headers: { 'content-type': 'application/x-www-form-urlencoded', origin: base }, body })
+  assert.equal((await fetch(base + '/login')).headers.get('referrer-policy'), 'same-origin')
+  const wrong = await login('username=admin&password=wrong')
+  assert.equal(wrong.status, 401)
+  assert.match(await wrong.text(), /用户名或密码错误/)
+  assert.equal(wrong.headers.get('set-cookie'), null)
+  const signedIn = await login('username=admin&password=admin123')
+  assert.equal(signedIn.status, 303)
+  assert.equal(signedIn.headers.get('referrer-policy'), 'same-origin')
+  const setCookie = signedIn.headers.get('set-cookie')
+  assert.match(setCookie, /HttpOnly; SameSite=Strict; Max-Age=2592000/)
+  const cookie = setCookie.split(';')[0]
+  const storedSession = root.credentials.records.get('harness-platform/browser-sessions')
+  assert.ok(storedSession.payload.sessions.every(item => /^[a-f0-9]{64}$/.test(item.digest)))
+  assert.ok(!JSON.stringify(storedSession).includes(cookie.split('=')[1]))
+  assert.ok(!JSON.stringify(storedSession).includes('admin123'))
+  assert.equal((await fetch(base + '/', { headers: { cookie } })).status, 200)
+  assert.equal((await login('username=admin&username=admin&password=admin123')).status, 401)
+  assert.equal((await login('x'.repeat(4097))).status, 413)
+  assert.equal((await fetch(base + '/login', { method: 'POST', headers: {
+    'content-type': 'application/x-www-form-urlencoded', origin: 'http://untrusted.invalid',
+  }, body: 'username=admin&password=admin123' })).status, 403)
+  assert.equal((await fetch(base + '/login', { method: 'POST', headers: {
+    'content-type': 'application/x-www-form-urlencoded', origin: 'null',
+  }, body: 'username=admin&password=admin123' })).status, 403)
+  const untrustedHost = await new Promise((resolve, reject) => {
+    const request = httpRequest(base + '/login', { headers: { host: 'untrusted.invalid' } }, response => {
+      response.resume()
+      resolve(response.statusCode)
+    })
+    request.on('error', reject)
+    request.end()
+  })
+  assert.equal(untrustedHost, 403)
+  assert.equal((await fetch(base + '/harness-platform/inventory', { method: 'POST', headers: {
+    cookie, origin: 'http://untrusted.invalid', 'content-type': 'application/json',
+  }, body: JSON.stringify(envelope('inventory')) })).status, 403)
+  assert.equal((await fetch(base + '/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status, 401)
   const inventory = await request('/harness-platform/inventory', envelope('inventory'), cookie)
   assert.equal((await inventory.json()).result.value.root, assetRoot)
   const init = await request(gateway, initialize, cookie)
@@ -68,7 +126,47 @@ test('原生认证保护三个写入域与 MCP 生命周期，卸载同时移除
   const call = await request(gateway, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: list[0].name, arguments: {} } }, cookie)
   const failed = await call.json()
   assert.ok(failed.error || failed.result?.isError)
+  const logout = await fetch(base + '/logout', { method: 'POST', headers: { cookie, origin: base }, redirect: 'manual' })
+  assert.equal(logout.status, 303)
+  assert.match(logout.headers.get('set-cookie'), /Max-Age=0/)
+  assert.equal((await request('/harness-platform/inventory', envelope('inventory'), cookie)).status, 401)
+  const second = await login('username=admin&password=admin123')
+  const secondCookie = second.headers.get('set-cookie').split(';')[0]
   await loaded.dispose()
   assert.equal((await request('/harness-platform/inventory', envelope('inventory'), cookie)).status, 404)
-  assert.equal((await request(gateway, initialize, cookie)).status, 404)
+  assert.equal((await request(gateway, initialize, cookie)).status, 401)
+  assert.equal((await fetch(base + '/api', { method: 'POST', headers: { cookie: secondCookie }, body: '{}' })).status, 401)
+  const reloaded = root.plugin(plugin, { openBrowser: false, printUrl: false, surfaceContext: false })
+  await reloaded
+  assert.equal(reloaded.state, 2)
+  assert.equal((await request('/harness-platform/inventory', envelope('inventory'), secondCookie)).status, 200)
+  await reloaded.dispose()
+  writeFileSync(join(assetRoot, 'platform/credentials/admin.json'), JSON.stringify({ username: 'admin', password: 'changed' }))
+  const changed = root.plugin(plugin, { openBrowser: false, printUrl: false, surfaceContext: false })
+  await changed
+  assert.equal(changed.state, 2)
+  assert.equal((await request('/harness-platform/inventory', envelope('inventory'), secondCookie)).status, 401)
+  assert.equal((await login('username=admin&password=admin123')).status, 401)
+  assert.equal((await login('username=admin&password=changed')).status, 303)
+  await changed.dispose()
+  const records = root.credentials.records
+  const key = 'harness-platform/browser-sessions'
+  const sessionRecord = records.get(key)
+  sessionRecord.payload.sessions.forEach(item => { item.expires = Date.now() - 1 })
+  const expired = root.plugin(plugin, { openBrowser: false, printUrl: false, surfaceContext: false })
+  await expired
+  assert.equal(expired.state, 2)
+  assert.equal(records.get(key).payload.sessions.length, 0)
+  await expired.dispose()
+  records.set(key, { kind: 'grant', payload: { version: 'invalid' } })
+  const corrupt = root.plugin(plugin, { openBrowser: false, printUrl: false, surfaceContext: false })
+  await assert.rejects(async () => { await corrupt }, /平台会话记录无效/)
+  assert.equal(corrupt.state, 3)
+  assert.equal((await fetch(base + '/api', { method: 'POST', headers: { cookie: oldCookie }, body: '{}' })).status, 401)
+  await corrupt.dispose()
+  writeFileSync(join(assetRoot, 'platform/credentials/admin.json'), '{invalid')
+  const invalid = root.plugin(plugin, { openBrowser: false, printUrl: false, surfaceContext: false })
+  await assert.rejects(async () => { await invalid }, /无法读取平台账号配置/)
+  assert.equal(invalid.state, 3)
+  assert.equal((await fetch(base + '/api', { method: 'POST', headers: { cookie: oldCookie }, body: '{}' })).status, 401)
 })

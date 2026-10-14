@@ -57,7 +57,7 @@ if (args[0] === 'ps') {
   const dry = args.includes('--dry-run')
   const name = args[args.indexOf('--name') + 1]
   const source = args[args.indexOf('--source') + 1]
-  if (dry) out({name, source_id:source, image_tag:'dsh:locked', port:3199, mounts:[{container:'/work/harness/workspace', mode:'ro'}], state_dir:'state'})
+  if (dry) out({args, name, source_id:source, image_tag:'dsh:locked', port:3199, mounts:[{container:'/work/harness/workspace', mode:'ro'}], state_dir:'state'})
   else process.stdout.write(JSON.stringify({warning:'first'}) + '\\n' + JSON.stringify({name, dsh_running:true, token:'receipt-secret'}) + '\\n')
 } else if (args[0] === 'down') {
   const name = args[1]
@@ -221,5 +221,24 @@ test('json object parser handles adjacent command reports', async () => {
     assert.deepEqual(module.parseJsonObjects('x {"a":1}\\n{"b":[2]} tail'), [{ a: 1 }, { b: [2] }])
   } finally {
     cleanup()
+  }
+})
+
+ test('启动与重启预览保留已有端口、认证和装载目录', async t => {
+  const { module, cleanup } = await loadModule()
+  const fx = fixture()
+  const previous = process.env.XDG_STATE_HOME
+  process.env.XDG_STATE_HOME = fx.state
+  t.after(() => { fx.cleanup(); cleanup(); if (previous === undefined) delete process.env.XDG_STATE_HOME; else process.env.XDG_STATE_HOME = previous })
+  writeFileSync(join(fx.state, 'dsh-dev/running-one/instance.json'), JSON.stringify({ name: 'running-one', source_id: 'experiment:EXP-real-001', port: 3181,
+    lan_access: true, unsafe_no_auth: true, skip_testing_notice: true, trusted_host: 'example.local:3181', mounts: { plugin_node_modules: '/opt/shared-dependencies' } }))
+  const handler = module.createInstancesHandler(fx.root)
+  for (const operation of ['start', 'restart']) {
+    const result = await handler('preview', { name: 'running-one', operation }, new AbortController().signal)
+    assert.equal(result.ok, true)
+    const args = result.value.plan.args
+    for (const flag of ['--lan-access', '--unsafe-no-auth', '--skip-testing-notice']) assert.ok(args.includes(flag))
+    for (const [flag, value] of [['--port', '3181'], ['--trusted-host', 'example.local:3181'], ['--plugin-node-modules', '/opt/shared-dependencies']]) assert.equal(args[args.indexOf(flag) + 1], value)
+    assert.equal(args.includes('--replace'), operation === 'restart')
   }
 })

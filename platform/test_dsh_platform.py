@@ -34,6 +34,7 @@ class PlatformLauncherTests(unittest.TestCase):
         (self.plugin / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n")
         self.bin = self.root / "bin"
         self.bin.mkdir()
+        self.write_executable("ip", 'import os\nprint(os.environ.get("FAKE_ROUTE", \'[{"prefsrc":"127.0.0.1"}]\'))\n')
         self.trace = self.root / "dsh-trace.jsonl"
         self.pnpm_trace = self.root / "pnpm-trace.jsonl"
         self.write_executable("dsh", r'''
@@ -46,7 +47,8 @@ else:
         sys.exit(2)
     with open(os.environ["FAKE_DSH_TRACE"], "a") as handle:
         handle.write(json.dumps({"args": sys.argv[1:], "home": os.environ["DSH_HOME"],
-                                 "repository": os.environ["HARNESS_ASSET_ROOT"]}) + "\n")
+                                 "repository": os.environ["HARNESS_ASSET_ROOT"],
+                                 "runtime_entry": os.environ["HARNESS_DSH_ENTRY"]}) + "\n")
     if os.environ.get("FAKE_DSH_WELCOME"):
         patch = pathlib.Path(os.environ["DSH_HOME"]) / "profiles/harness-platform/cordis.patch.yml"
         if "ui-settings-general" not in patch.read_text():
@@ -66,6 +68,7 @@ if os.environ.get("FAKE_PNPM_FAIL"):
 if sys.argv[1:] == ["run", "build"]:
     pathlib.Path("lib").mkdir(exist_ok=True)
     pathlib.Path("lib/index.js").write_text("export function apply() {}\n")
+    pathlib.Path("lib/mcp-manager.js").write_text("export function apply() {}\n")
     pathlib.Path("lib/client.js").write_text("export function apply() {}\n")
 ''')
         self.env = {**os.environ, "PATH": str(self.bin), "HOME": str(self.root / "user"),
@@ -114,7 +117,11 @@ if sys.argv[1:] == ["run", "build"]:
         self.assertTrue(all(call["cwd"] == str(self.plugin) for call in calls))
         manifest = json.loads((self.profile / "package.json").read_text())
         self.assertEqual(manifest["dsh"]["profile"]["bundles"],
-                         ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app"])
+                         ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app",
+                          "@ai-agent-harness/harness-platform"])
+        bundle = self.profile / "node_modules/@ai-agent-harness/harness-platform"
+        self.assertTrue(bundle.is_symlink())
+        self.assertEqual(bundle.resolve(), self.plugin)
         self.assertEqual(manifest["dsh"]["profile"]["patchReload"], "startup")
         patch = (self.profile / "harness-platform.patch.yml").read_text()
         self.assertIn(json.dumps(str(self.plugin / "lib" / "index.js")), patch)
@@ -147,6 +154,20 @@ if sys.argv[1:] == ["run", "build"]:
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("缺少插件构建产物", result.stderr)
         self.assertFalse(self.home.exists())
+
+    def test_foreign_bundle_is_preserved_and_stale_link_blocks_start(self):
+        self.prepare()
+        bundle = self.profile / "node_modules/@ai-agent-harness/harness-platform"
+        bundle.unlink()
+        bundle.mkdir()
+        (bundle / "keep").write_text("foreign")
+        result = self.run_cli("prepare")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual((bundle / "keep").read_text(), "foreign")
+        result = self.run_cli("start", "--dry-run")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("bundle 未关联", result.stderr)
+        self.assertFalse(self.trace.exists())
 
     def test_missing_dsh_and_incompatible_version_fail_before_preparation(self):
         (self.bin / "dsh").unlink()
@@ -230,6 +251,7 @@ if sys.argv[1:] == ["run", "build"]:
         for call in calls:
             self.assertEqual(call["home"], str(self.home))
             self.assertEqual(call["repository"], str(self.repo))
+            self.assertEqual(call["runtime_entry"], str((self.bin / "dsh").resolve()))
             self.assertEqual(call["args"][:6], ["--profile", "harness-platform", "--patch",
                              str(self.profile / "harness-platform.patch.yml"), "--host", "127.0.0.1"])
             self.assertEqual(call["args"][-1], "--no-open")
@@ -259,6 +281,34 @@ if sys.argv[1:] == ["run", "build"]:
             result = self.run_cli("start", "--port", port)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("1 至 65535", result.stderr)
+
+    def test_default_route_and_explicit_host_use_same_address_everywhere(self):
+        self.prepare()
+        env = {**self.env, "FAKE_ROUTE": '[{"prefsrc":"127.0.0.2"}]'}
+        result = self.run_cli("start", "--dry-run", "--port", str(self.free_port()), env=env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        preview = json.loads(result.stdout)
+        self.assertEqual(preview["host"], "127.0.0.2")
+        self.assertEqual(preview["command"][preview["command"].index("--host") + 1], "127.0.0.2")
+        (self.bin / "ip").unlink()
+        result = self.run_cli("start", "--host", "127.0.0.1", "--dry-run", "--port", str(self.free_port()))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["host"], "127.0.0.1")
+        result = self.run_cli("start", "--dry-run")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--host", result.stderr)
+
+    def test_invalid_route_and_wildcard_hosts_fail_without_launch(self):
+        self.prepare()
+        for route in ('[]', 'invalid', '[{}]', '[{"prefsrc":"0.0.0.0"}]'):
+            result = self.run_cli("start", "--dry-run", env={**self.env, "FAKE_ROUTE": route})
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("--host", result.stderr)
+        for host in ("0.0.0.0", "::", "localhost", "bad", "224.0.0.1", "255.255.255.255"):
+            result = self.run_cli("start", "--host", host)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("IPv4", result.stderr)
+        self.assertFalse(self.trace.exists())
 
 
 if __name__ == "__main__":

@@ -1,184 +1,63 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
+import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
+import { Manager } from 'harness-mcp-manager-client'
 import { CHANNEL, type PlatformPageProps } from '../protocol.ts'
+import { COMPOSITION_TOOL_NAME, compositionDefinition } from './definition.ts'
 
-type State = {
-  loading: boolean
-  data?: any
-  error?: string
-  result?: any
-  tools?: any[]
-  toolResult?: any
-  connectionId: string
-  specUrl: string
-  credentialPath: string
-  connectionKind: 'openapi' | 'mcp-http'
-  toolName: string
-  toolArgs: string
-  asset: string
-  limit: number
-}
+const tabs = [
+  { id: 'servers', title: '服务器接入', hint: '接入 OpenAPI 或现成 MCP，配置认证并验证连接。' },
+  { id: 'groups', title: '工具分组与发布', hint: '选择向外开放的工具，保存分组后复制 MCP 入口。' },
+  { id: 'connection', title: '工具与资源调试', hint: '发现工具、读取资源、预览参数并执行真实调用。' },
+  { id: 'composition', title: '组合工具', hint: '查看步骤与参数映射，测试组合工具并检查执行回执。' },
+] as const
 
-export function McpPage({ rpc }: PlatformPageProps) {
-  const [state, setState] = useState<State>({
-    loading: true,
-    connectionId: 'security-readonly-api',
-    specUrl: '',
-    credentialPath: '',
-    connectionKind: 'openapi',
-    toolName: '',
-    toolArgs: '{}',
-    asset: '',
-    limit: 5,
-  })
-  const call = useMemo(() => async (endpoint: string, payload: any) => {
-    const result = await rpc.call(CHANNEL, `mcp/${endpoint}`, payload)
-    if (!result.ok) throw new Error(result.error.message)
-    return result.value
-  }, [rpc])
-  const refresh = async () => {
-    setState(current => ({ ...current, loading: true, error: undefined }))
+export function McpPage({ rpc, form }: PlatformPageProps & { form: ConfigForm<any> }) {
+  const subscribe = useMemo(() => form.subscribe.bind(form), [form])
+  const snapshot = useMemo(() => form.getSnapshot.bind(form), [form])
+  const state = useSyncExternalStore(subscribe, snapshot)
+  const [page, setPage] = useState<string>('servers')
+  const [asset, setAsset] = useState('')
+  const [result, setResult] = useState<any>(null)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const servers = state.status === 'ready' ? state.value.servers ?? [] : []
+  const groups = state.status === 'ready' ? state.value.groups ?? [] : []
+  const upstream = servers.find((item: any) => item.id === compositionDefinition.upstream.connectionId && item.enabled && item.specUrl)
+  async function execute() {
+    setBusy(true); setResult(null); setError('')
     try {
-      const data = await call('list', {})
-      setState(current => ({ ...current, loading: false, data }))
-    }
-    catch (error) { setState(current => ({ ...current, loading: false, error: error instanceof Error ? error.message : String(error) })) }
+      const response = await rpc.call(CHANNEL, 'mcp/executeComposition', { asset, limit: 5 })
+      if (response.ok) setResult(response.value)
+      else setError(response.error.message)
+    } catch { setError('组合查询失败，请检查连接。') }
+    finally { setBusy(false) }
   }
-  useEffect(() => { void refresh() }, [])
-  const register = async () => {
-    setState(current => ({ ...current, loading: true, error: undefined }))
-    try {
-      await call(state.connectionKind === 'openapi' ? 'registerOpenApi' : 'registerMcp', {
-        id: state.connectionId,
-        ...(state.connectionKind === 'openapi' ? { specUrl: state.specUrl } : { endpointUrl: state.specUrl }),
-        credentialRef: state.credentialPath.trim() ? { kind: 'file', path: state.credentialPath.trim() } : undefined,
-      })
-      await refresh()
-    } catch (error) {
-      setState(current => ({ ...current, loading: false, error: error instanceof Error ? error.message : String(error) }))
-    }
-  }
-  const deleteConnection = async () => {
-    setState(current => ({ ...current, loading: true, error: undefined }))
-    try {
-      await call('deleteConnection', { connectionId: state.connectionId })
-      await refresh()
-    } catch (error) {
-      setState(current => ({ ...current, loading: false, error: error instanceof Error ? error.message : String(error) }))
-    }
-  }
-  const refreshSpec = async () => {
-    setState(current => ({ ...current, loading: true, error: undefined, tools: undefined }))
-    try {
-      const value = await call('refreshSpec', { connectionId: state.connectionId }) as { tools?: Array<{ name: string }> }
-      setState(current => ({ ...current, loading: false, tools: value.tools, toolName: value.tools?.[0]?.name ?? current.toolName }))
-    } catch (error) {
-      setState(current => ({ ...current, loading: false, error: error instanceof Error ? error.message : String(error) }))
-    }
-  }
-  const runTool = async () => {
-    setState(current => ({ ...current, loading: true, error: undefined, toolResult: undefined }))
-    try {
-      const value = await call('callTool', { connectionId: state.connectionId, toolName: state.toolName, arguments: JSON.parse(state.toolArgs) })
-      setState(current => ({ ...current, loading: false, toolResult: value }))
-    } catch (error) {
-      setState(current => ({ ...current, loading: false, error: error instanceof Error ? error.message : String(error) }))
-    }
-  }
-  const run = async () => {
-    setState(current => ({ ...current, loading: true, error: undefined, result: undefined }))
-    try {
-      const result = await call('executeComposition', { asset: state.asset, limit: state.limit })
-      setState(current => ({ ...current, loading: false, result }))
-    } catch (error) {
-      setState(current => ({ ...current, loading: false, error: error instanceof Error ? error.message : String(error) }))
-    }
-  }
-  const definition = state.data?.composition?.definition
-  const statusText = (value: boolean | 'unknown') => value === 'unknown' ? '未知' : value ? '是' : '否'
-  const selectConnection = (connection: any) => setState(current => ({
-    ...current,
-    connectionId: connection.id,
-    connectionKind: connection.kind,
-    specUrl: connection.kind === 'openapi' ? connection.specUrl : connection.endpointUrl,
-    tools: undefined,
-    toolName: '',
-    toolResult: undefined,
-  }))
-  return <main style={{ height: '100%', overflow: 'auto', padding: '28px clamp(18px, 4vw, 44px)', boxSizing: 'border-box' }}>
-    <div style={{ maxWidth: 1080, margin: '0 auto', display: 'grid', gap: 18 }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center' }}>
-        <div>
-          <h1 style={{ margin: '0 0 8px', fontSize: 24 }}>MCP 组合</h1>
-          <p style={{ margin: 0, opacity: 0.68 }}>固定两步只读组合与 Gateway 发布视图：/api/harness-platform/mcp。</p>
-        </div>
-        <button type="button" onClick={() => { void refresh() }} disabled={state.loading}>刷新</button>
-      </header>
-      {state.error && <p role="alert" style={{ color: '#b42318' }}>{state.error}</p>}
-      {definition && <section>
-        <h2 style={{ fontSize: 18 }}>{definition.title}</h2>
-        <code style={{ overflowWrap: 'anywhere' }}>digest: {state.data.composition.digest}</code>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 16 }}>
-          {definition.steps.map((step: any) => <article key={step.id} style={{ border: '1px solid #d1d5db', borderRadius: 8, padding: 14 }}>
-            <strong>{step.title}</strong>
-            <div style={{ fontSize: 13, opacity: 0.7, marginTop: 6 }}>
-              {step.operationId}{step.dependsOn?.length ? `，依赖：${step.dependsOn.join(', ')}` : '，第一步'}
-            </div>
-            <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{JSON.stringify(step.input, null, 2)}</pre>
-          </article>)}
-        </div>
-      </section>}
-      <section>
-        <h2 style={{ fontSize: 18 }}>OpenAPI / MCP 连接</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-          <select aria-label="连接类型" value={state.connectionKind} onChange={event => setState(current => ({ ...current, connectionKind: event.target.value as State['connectionKind'] }))}>
-            <option value="openapi">OpenAPI</option>
-            <option value="mcp-http">HTTP MCP</option>
-          </select>
-          <input aria-label="连接 ID" value={state.connectionId} onChange={event => setState(current => ({ ...current, connectionId: event.target.value }))} />
-          <input aria-label="规范 URL" value={state.specUrl} onChange={event => setState(current => ({ ...current, specUrl: event.target.value }))} placeholder="https://.../openapi.json" />
-          <input aria-label="凭据文件" value={state.credentialPath} onChange={event => setState(current => ({ ...current, credentialPath: event.target.value }))} placeholder="/path/to/credential-file" />
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
-          <button type="button" onClick={() => { void register() }} disabled={state.loading || !state.connectionId.trim() || !state.specUrl.trim()}>注册</button>
-          <button type="button" onClick={() => { void deleteConnection() }} disabled={state.loading || !state.connectionId.trim()}>删除登记</button>
-          <button type="button" onClick={() => { void refreshSpec() }} disabled={state.loading || !state.connectionId.trim()}>刷新规范</button>
-        </div>
-        {!!state.data?.connections?.length && <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-          {state.data.connections.map((connection: any) => <button key={connection.id} type="button" onClick={() => selectConnection(connection)}
-            style={{ textAlign: 'left', border: '1px solid #d1d5db', borderRadius: 8, padding: 10, background: connection.id === state.connectionId ? 'rgba(107, 114, 128, 0.14)' : 'transparent', color: 'inherit' }}>
-            <strong>{connection.id}</strong>
-            <span style={{ marginLeft: 10, fontSize: 12, opacity: 0.7 }}>
-              注册 {statusText(connection.status.registered)} / 规范 {statusText(connection.status.specLoaded)} / 调用 {statusText(connection.status.toolCallSucceeded)}
-            </span>
-          </button>)}
-        </div>}
-      </section>
-      <section>
-        <h2 style={{ fontSize: 18 }}>单工具试跑</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 10, alignItems: 'start' }}>
-          <select aria-label="工具" value={state.toolName} onChange={event => setState(current => ({ ...current, toolName: event.target.value }))}>
-            <option value="">选择工具</option>
-            {(state.tools ?? []).map(tool => <option key={tool.name} value={tool.name}>{tool.name}</option>)}
-          </select>
-          <textarea aria-label="工具参数" value={state.toolArgs} onChange={event => setState(current => ({ ...current, toolArgs: event.target.value }))} rows={4} />
-          <button type="button" onClick={() => { void runTool() }} disabled={state.loading || !state.toolName}>运行</button>
-        </div>
-        {state.toolResult && <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', border: '1px solid #d1d5db', borderRadius: 8, padding: 14 }}>{JSON.stringify(state.toolResult, null, 2)}</pre>}
-      </section>
-      <section>
-        <h2 style={{ fontSize: 18 }}>试跑</h2>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <input aria-label="资产" value={state.asset} onChange={event => setState(current => ({ ...current, asset: event.target.value }))}
-            placeholder="资产 ID、主机名或 IP" style={{ minWidth: 240 }} />
-          <input aria-label="数量" type="number" min={1} max={20} value={state.limit} onChange={event => setState(current => ({ ...current, limit: Number(event.target.value) }))}
-            style={{ width: 96 }} />
-          <button type="button" onClick={() => { void run() }} disabled={state.loading || !state.asset.trim()}>运行</button>
-        </div>
-      </section>
-      {state.result && <section>
-        <h2 style={{ fontSize: 18 }}>结果</h2>
-        <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', border: '1px solid #d1d5db', borderRadius: 8, padding: 14 }}>{JSON.stringify(state.result, null, 2)}</pre>
-      </section>}
+  return <main className="harness-mcp-page" style={{ padding: '24px clamp(16px, 3vw, 36px)', maxWidth: 1260, margin: 'auto' }}>
+    <style>{`.harness-mcp-page .mcp-manager .mcp-tabs{display:none}.harness-mcp-page .mcp-manager{--mcp-blue:#006eff;--mcp-tint:#f6f9fe}.harness-mcp-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}.harness-mcp-tabs [aria-selected=true]{background:#006eff;color:white;border-color:#006eff}.harness-mcp-flow{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.harness-mcp-flow article{flex:1;min-width:min(240px,100%);padding:18px;border:1px solid #dce6f3;border-radius:12px;background:#f6f9fe}.harness-mcp-flow small{color:#6b7890}.harness-mcp-flow code{overflow-wrap:anywhere}`}</style>
+    <header className="harness-page-heading"><div><h1>MCP 管理</h1><p>从接口接入、工具调试到组合与发布，在同一工作空间完成。</p></div></header>
+    <div className="harness-metrics" style={{ marginTop: 20 }}>
+      {[['服务器', servers.length], ['已启用', servers.filter((item: any) => item.enabled).length], ['工具分组', groups.length], ['组合工具', 1]].map(([label, count]) => <article className="harness-card" key={label}><span>{label}</span><strong>{count}</strong></article>)}
     </div>
+    <nav className="harness-mcp-tabs" aria-label="MCP 工作区">{tabs.map(tab => <button key={tab.id} type="button" aria-selected={page === tab.id} onClick={() => setPage(tab.id)}>{tab.title}</button>)}</nav>
+    <p>{tabs.find(tab => tab.id === page)?.hint}</p>
+    {state.status === 'unavailable' && <p role="alert">MCP 配置插件未装载，请检查平台启动日志。</p>}
+    <div hidden={page === 'composition'}><Manager view={page} form={{ state }} write={async (ops, revision) => {
+      const ok = await form.mutate(ops, revision)
+      return ok ? { ok: true } : { ok: false, error: { message: '配置保存失败或已变化，请刷新后重试。' } }
+    }} /></div>
+    {page === 'composition' && <section className="harness-card">
+      <h2>{compositionDefinition.title}</h2><p>已装载的两步只读组合 · {upstream ? '上游已配置，等待实际调用验证' : '请先接入所需的 OpenAPI 服务器'}</p>
+      <div className="harness-mcp-flow">{compositionDefinition.steps.map((step, index) => <article key={step.id}><small>步骤 {index + 1}</small><h3>{step.title}</h3><code>{step.operationId}</code><p>{Object.entries(step.input).map(([key, value]) => `${key} ← ${value}`).join('；')}</p></article>)}</div>
+      <p>上游服务器：<code>{compositionDefinition.upstream.connectionId}</code>。第一步失败或缺少资产 ID 时，第二步停止执行。</p>
+      <label>查询资产<input aria-label="组合查询资产" value={asset} onChange={event => setAsset(event.target.value)} placeholder="资产 ID、主机名或 IP" /></label>
+      <button type="button" style={{ marginLeft: 10 }} disabled={busy || !asset.trim() || !upstream} onClick={execute}>{busy ? '测试中…' : '测试组合工具'}</button>
+      {error && <p role="alert">{error}</p>}
+      {result && <div><p role="status">{result.ok ? '组合执行成功' : '组合执行失败'}</p>{result.error && <p role="alert">{result.error.message}</p>}
+        <div className="harness-table-scroll"><table><thead><tr><th>步骤</th><th>状态</th><th>HTTP</th><th>耗时</th></tr></thead><tbody>{(result.result?.trace ?? []).map((step: any) => <tr key={step.step}><td>{step.operationId}</td><td>{step.status}</td><td>{step.httpStatus ?? '未调用'}</td><td>{step.durationMs === undefined ? '—' : `${step.durationMs} ms`}</td></tr>)}</tbody></table></div>
+        <details><summary>业务结果</summary><pre>{JSON.stringify({ asset: result.result?.asset, alerts: result.result?.alerts }, null, 2)}</pre></details>
+        <details><summary>执行回执与来源版本</summary><pre>{JSON.stringify({ receipts: result.receipts, version: result.version }, null, 2)}</pre></details></div>}
+      <hr/><h3>调用与发布信息</h3><p>工具：<code>{COMPOSITION_TOOL_NAME}</code></p><p>MCP 入口：<code>{window.location.origin}/api/harness-platform/mcp</code></p>
+      <p>此组合随当前平台代码装载，入口受平台登录认证保护。工具分组页提供使用专用 Token 的独立分组入口。</p>
+    </section>}
   </main>
 }

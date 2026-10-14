@@ -1,0 +1,42 @@
+{
+  "checked_at": "2026-10-13T10:31:35.677Z",
+  "scope": "系统全局 DSH；首次浏览器使用的独立 HOME、登录与四页、原生设置、重启及失败启动。未调用模型或外部业务接口。",
+  "source": {
+    "node": "v24.21.0",
+    "dsh": "0.2.1-alpha.2",
+    "git_commit": "0237f2962700a94aa4b9903f34d165116d7a49c4",
+    "dirty": true,
+    "built_files": {
+      "index.js": "c1ad605c3344f4d3494a4bd7a475d177d1e42e36f9f8cc9ed489086dc70dd8b0",
+      "client.js": "3cc6867b147e146d46b5ab69bc863f2d7f9ea0fb932b712d9128d5e7fb633cce"
+    }
+  },
+  "checks": {
+    "anonymous_index_redirect_and_all_api_domains_denied": true,
+    "no_token_in_startup_output": true,
+    "login_logo_desktop_mobile_no_overflow": true,
+    "wrong_password_denied": true,
+    "login_and_cookie_flags": true,
+    "fresh_home_no_preview_or_model_onboarding": true,
+    "lan_manual_model_settings_host_flag": true
+  },
+  "rpc": [
+    {
+      "endpoint": "inventory",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "home",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "inventory",
+      "http": 200,
+      "ok": true
+    }
+  ],
+  "validation": "failed",
+  "failure": "locator.waitFor: Error: strict mode violation: getByText('API 地址', { exact: true }) resolved to 3 elements:\n    1) <span class=\"zGbnIq_fieldLabel\">API 地址</span> aka getByRole('group').getByText('API 地址', { exact: true })\n    2) <span class=\"zGbnIq_fieldLabel\">API 地址</span> aka getByLabel('第三方模型提供商').getByText('API 地址')\n    3) <span class=\"zGbnIq_fieldLabel\">API 地址</span> aka getByLabel('自定义模型 API').getByText('API 地址')\n\nCall log:\n\u001b[2m  - waiting for getByText('API 地址', { exact: true }) to be visible\u001b[22m\n"
+}

@@ -206,7 +206,7 @@ function sanitizeUrl(url: URL): string {
   return safe.href
 }
 
-function redacted(value: any): any {
+export function redacted(value: any): any {
   if (Array.isArray(value)) return value.map(redacted)
   if (!value || typeof value !== 'object') return value
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [

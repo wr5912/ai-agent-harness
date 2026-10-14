@@ -1,8 +1,13 @@
+import { redacted } from './mcp/openapi.ts'
 import { readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionRpcHandler, ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-host-webserver'
+import type * as NativeWebApp from '@deepseek-ai/dsh-web-app'
+import { applyAuthentication } from './auth.ts'
 import { inventory as agentExperimentInventory } from '../../../plugins/asset-query-cli/query.mjs'
 import { CHANNEL } from './protocol.ts'
 import type { Inventory, RunAsset } from './protocol.ts'
@@ -11,9 +16,19 @@ import { recentRuns } from './dashboard.ts'
 import { createAgentsHandler } from './agents/index.ts'
 import { createInstancesHandler } from './instances/index.ts'
 import { applyMcpGateway, createMcpHandler } from './mcp/index.ts'
+import type {} from './mcp/manager.ts'
+import { loadOpenApi as loadManagedOpenApi, execute as executeManagedOpenApi } from 'harness-mcp-manager-openapi'
+import { digestOf } from './mcp/openapi.ts'
+
+// 使用启动器核对过的全局 Runtime；开发依赖只提供类型和隔离测试环境。
+const WebApp: typeof NativeWebApp = await import(process.env.HARNESS_DSH_ENTRY
+  ? pathToFileURL(createRequire(process.env.HARNESS_DSH_ENTRY).resolve('@deepseek-ai/dsh-web-app')).href
+  : '@deepseek-ai/dsh-web-app')
 
 export const name = 'harness-platform'
-export const inject = ['connection', 'webServer']
+export const inject = ['connection', 'webServer', 'credentials', 'platformMcp']
+export const Config = WebApp.Config
+export type Config = NativeWebApp.Config
 
 const RUN_ID = /^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
@@ -102,15 +117,44 @@ export function createPlatformHandler(assetRoot: string, domains: Record<'agents
   }
 }
 
-export function apply(ctx: Context) {
+export function applyTools(ctx: Context) {
   const assetRoot = process.env.HARNESS_ASSET_ROOT
   if (!assetRoot) throw new Error('未设置 HARNESS_ASSET_ROOT')
   // 当前 Cordis 的 Service getter 在内部注册时沿提供方 Fiber 解析依赖。
   // 把已注入的载体绑定到子上下文，供原生 RPC 注册读取；父上下文不变。
   const registrationContext = ctx.extend({ webServer: ctx.webServer })
-  const mcp = createMcpHandler(assetRoot)
+  const manager = ctx.platformMcp
+  const mcp = createMcpHandler(assetRoot, manager ? {
+    servers: () => manager.servers.get(),
+    native: {
+      async load(connection, signal) {
+        const server = manager.servers.get().find(item => item.id === connection.id && item.enabled !== false)
+        if (!server?.specUrl) throw new Error('组合依赖的 OpenAPI 服务器未启用')
+        return { ...await loadManagedOpenApi({ ...server, platformSignal: signal }), connection }
+      },
+      async call(source, operationId, args, signal) {
+        signal?.throwIfAborted()
+        const operation = source.operations.get(operationId)
+        if (!operation) throw new Error(`OpenAPI 操作不存在：${operationId}`)
+        const { response, text } = await executeManagedOpenApi(source, operation, args)
+        let json
+        try { json = redacted(JSON.parse(text)) } catch { json = text }
+        return { ok: response.ok, status: response.status, json,
+          receipt: { connectionId: source.connection.id, specDigest: digestOf(source.spec), operationId,
+            method: operation.method.toUpperCase(), path: operation.path, schemaDigest: digestOf(operation.raw) } }
+      },
+    },
+  } : {})
   registrationContext.connection.rpc.handle(CHANNEL, createPlatformHandler(assetRoot, {
     agents: createAgentsHandler(assetRoot), instances: createInstancesHandler(assetRoot), mcp,
   }))
   applyMcpGateway(registrationContext, assetRoot, mcp)
+}
+
+export async function apply(ctx: Context, config: Config) {
+  const assetRoot = process.env.HARNESS_ASSET_ROOT
+  if (!assetRoot) throw new Error('未设置 HARNESS_ASSET_ROOT')
+  await applyAuthentication(ctx, assetRoot)
+  applyTools(ctx)
+  WebApp.apply(ctx, config)
 }

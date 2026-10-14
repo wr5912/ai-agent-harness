@@ -206,12 +206,19 @@ async function assertKnownForMutation(assetRoot: string, name: string, signal?: 
   if (state === 'unknown') throw new Error(`实例 ${name} 状态未知，拒绝执行生命周期操作`)
 }
 
-async function sourceForExisting(name: string): Promise<string | undefined> {
-  const manifest = await manifestFor(name)
-  return typeof manifest?.source_id === 'string' ? manifest.source_id : undefined
+async function requestForUp(request: InstanceActionRequest): Promise<InstanceActionRequest & { manifest?: any }> {
+  const manifest = request.operation === 'create' ? undefined : await manifestFor(request.name)
+  return {
+    ...request, manifest,
+    source: request.source || (manifest ? assertSource(manifest.source_id) : undefined),
+    port: request.port ?? optionalPort(manifest?.port),
+    lan_access: request.lan_access ?? optionalBoolean(manifest?.lan_access, 'lan_access'),
+    unsafe_no_auth: request.unsafe_no_auth ?? optionalBoolean(manifest?.unsafe_no_auth, 'unsafe_no_auth'),
+    skip_testing_notice: request.skip_testing_notice ?? optionalBoolean(manifest?.skip_testing_notice, 'skip_testing_notice'),
+  }
 }
 
-function upArgs(request: InstanceActionRequest, dryRun = false): string[] {
+function upArgs(request: InstanceActionRequest & { manifest?: any }, dryRun = false): string[] {
   const args = ['up', '--name', request.name, '--source', request.source || '', '--mode', 'eval']
   if (request.port) args.push('--port', String(request.port))
   if (dryRun) args.push('--dry-run')
@@ -220,6 +227,9 @@ function upArgs(request: InstanceActionRequest, dryRun = false): string[] {
   if (request.lan_access) args.push('--lan-access')
   if (request.unsafe_no_auth) args.push('--unsafe-no-auth')
   if (request.skip_testing_notice) args.push('--skip-testing-notice')
+  if (request.manifest?.trusted_host) args.push('--trusted-host', request.manifest.trusted_host)
+  if (request.manifest?.mounts?.analysis_workspace) args.push('--analysis-workspace', request.manifest.mounts.analysis_workspace)
+  if (request.manifest?.mounts?.plugin_node_modules) args.push('--plugin-node-modules', request.manifest.mounts.plugin_node_modules)
   return args
 }
 
@@ -236,10 +246,11 @@ function parseCommandOutput(stdout: string, stderr: string) {
 async function previewOne(assetRoot: string, request: InstanceActionRequest, signal?: AbortSignal) {
   const name = assertName(request.name)
   if (request.operation === 'create' || request.operation === 'start' || request.operation === 'restart') {
-    const source = request.source || await sourceForExisting(name)
+    const prepared = await requestForUp(request)
+    const source = prepared.source
     if (!source) throw new Error('创建、启动或重启需要来源')
     await ensureRealSource(assetRoot, source)
-    const result = await runDsh(assetRoot, upArgs({ ...request, name, source }, true), signal)
+    const result = await runDsh(assetRoot, upArgs({ ...prepared, name, source }, true), signal)
     return { operation: request.operation, name, plan: JSON.parse(result.stdout), retention: retention(request.operation) }
   }
   const manifest = await manifestFor(name)
@@ -290,10 +301,11 @@ async function runOne(assetRoot: string, request: InstanceActionRequest, signal?
     return await withInstanceLock([name], async () => {
       if (request.operation !== 'create') await assertKnownForMutation(assetRoot, name, signal)
       if (request.operation === 'create' || request.operation === 'start' || request.operation === 'restart') {
-        const source = request.source || await sourceForExisting(name)
+        const prepared = await requestForUp(request)
+        const source = prepared.source
         if (!source) throw new Error('创建、启动或重启需要来源')
         await ensureRealSource(assetRoot, source)
-        const result = await runDsh(assetRoot, upArgs({ ...request, name, source }), signal)
+        const result = await runDsh(assetRoot, upArgs({ ...prepared, name, source }), signal)
         return { name, operation: request.operation, ok: true, value: parseCommandOutput(result.stdout, result.stderr) }
       }
       if (request.operation === 'delete') {

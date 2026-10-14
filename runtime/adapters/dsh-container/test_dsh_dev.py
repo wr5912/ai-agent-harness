@@ -633,6 +633,42 @@ class InstanceStateTest(unittest.TestCase):
 
 
 class ImageIdentityAndPsStateTest(unittest.TestCase):
+    def test_batch_observation_groups_containers_and_volumes_with_two_queries(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            docker = root / "docker"
+            docker.write_text('#!/usr/bin/env python3\nimport json, sys\nfrom pathlib import Path\n'
+                'with Path(__file__).with_name("calls").open("a") as out: out.write(sys.argv[1] + "\\n")\n'
+                'if sys.argv[1] == "ps":\n'
+                ' for i in range(100): print(json.dumps({"Project": "project-" + str(i), "State": "running"}))\n'
+                'else:\n'
+                ' print(json.dumps({"name": "real-home", "project": "project-1", "volume": "project-1-home"}))\n'
+                ' print(json.dumps({"name": "other", "project": "project-1", "volume": "data"}))\n', encoding="utf-8")
+            docker.chmod(0o700)
+            result = subprocess.run(["node", str(ADAPTER / "instance-observation.ts")],
+                env={**os.environ, "PATH": f"{root}:{os.environ['PATH']}"}, capture_output=True, text=True, check=True)
+            observed = json.loads(result.stdout)
+            self.assertEqual(len(observed["projects"]), 100)
+            self.assertEqual(observed["homes"], {"project-1": "real-home"})
+            self.assertEqual(sorted((root / "calls").read_text().splitlines()), ["ps", "volume"])
+
+    def test_failed_batch_observation_reports_unknown_without_per_instance_retry(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for name in ("one", "two"):
+                target = root / name
+                target.mkdir()
+                (target / "instance.json").write_text(json.dumps({"name": name}), encoding="utf-8")
+            with mock.patch.object(dev, "STATE_ROOT", root), mock.patch.object(dev, "run",
+                    return_value=subprocess.CompletedProcess([], 0, stdout='{"projects":null,"homes":null}', stderr="")) as query:
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    dev.command_ps(types.SimpleNamespace(all=True))
+                self.assertEqual(query.call_count, 1)
+            entries = json.loads(output.getvalue())["instances"]
+            self.assertEqual([entry["state"] for entry in entries], ["unknown", "unknown"])
+            self.assertTrue(all(entry["home_preserved"] is None for entry in entries))
+
     def test_ps_hides_non_running_instances_by_default(self):
         states = {"failed": "failed", "running": "running", "stopped": "stopped", "unknown": "unknown"}
         with tempfile.TemporaryDirectory() as temp:
@@ -642,11 +678,12 @@ class ImageIdentityAndPsStateTest(unittest.TestCase):
                 target.mkdir()
                 (target / "instance.json").write_text("{}\n", encoding="utf-8")
 
-            def fake_entry(target, _manifest):
+            def fake_entry(target, _manifest, _observation):
                 return {"name": target.name, "state": states[target.name]}
 
             with mock.patch.object(dev, "STATE_ROOT", root), \
-                    mock.patch.object(dev, "instance_entry", side_effect=fake_entry):
+                    mock.patch.object(dev, "instance_entry", side_effect=fake_entry), \
+                    mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, stdout='{"projects":{},"homes":{}}', stderr="")):
                 default_output = io.StringIO()
                 with contextlib.redirect_stdout(default_output):
                     dev.command_ps(types.SimpleNamespace(all=False))
@@ -1080,8 +1117,7 @@ class LegacyInstanceStateTest(unittest.TestCase):
 
     def test_ps_marks_legacy_state_for_migration_and_keeps_listing(self):
         listed = subprocess.CompletedProcess([], 0, stdout=json.dumps({
-            "Name": "dsh-dev-legacy-dsh-1", "Service": "dsh", "State": "exited",
-            "Status": "Exited (0)",
+            "projects": {"dsh-dev-legacy": [{"Name": "dsh-dev-legacy-dsh-1", "Service": "dsh", "State": "exited", "Status": "Exited (0)"}]}, "homes": {},
         }), stderr="")
         stdout = io.StringIO()
         with mock.patch.object(dev, "run", return_value=listed), \
@@ -1101,7 +1137,7 @@ class LegacyInstanceStateTest(unittest.TestCase):
         stopped = subprocess.CompletedProcess([], 0, stdout="", stderr="")
         listed = subprocess.CompletedProcess([], 0, stdout="not running", stderr="")
         stdout = io.StringIO()
-        with mock.patch.object(dev, "run", side_effect=[stopped, listed]), \
+        with mock.patch.object(dev, "run", return_value=listed), \
                 contextlib.redirect_stdout(stdout):
             dev.command_ps(types.SimpleNamespace(all=True))
         instances = {item["name"]: item for item in json.loads(stdout.getvalue())["instances"]}

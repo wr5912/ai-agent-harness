@@ -1,0 +1,24 @@
+{
+  "checked_at": "2026-10-13T10:44:54.391Z",
+  "scope": "本次创建的全新 HOME；首次启动与首次浏览器登录，不调用模型或外部业务。",
+  "source": {
+    "node": "v24.21.0",
+    "dsh": "0.2.1-alpha.2",
+    "git_commit": "0237f2962700a94aa4b9903f34d165116d7a49c4",
+    "dirty": true,
+    "built_files": {
+      "index.js": "c1ad605c3344f4d3494a4bd7a475d177d1e42e36f9f8cc9ed489086dc70dd8b0",
+      "client.js": "3cc6867b147e146d46b5ab69bc863f2d7f9ea0fb932b712d9128d5e7fb633cce"
+    }
+  },
+  "checks": {
+    "home_has_no_sessions_preferences_or_credentials_before_first_boot": true,
+    "first_startup_has_no_token_url": true,
+    "first_default_account_login_reaches_platform": true,
+    "first_login_reads_existing_run_records": true,
+    "first_login_has_no_preview_or_model_onboarding": true,
+    "first_login_has_no_client_errors": true,
+    "first_login_test_port_released": true
+  },
+  "validation": "passed"
+}

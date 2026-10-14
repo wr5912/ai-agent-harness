@@ -1069,6 +1069,13 @@ def command_up(args: argparse.Namespace) -> None:
 def command_ps(args: argparse.Namespace) -> None:
     show_all = bool(getattr(args, "all", False))
     entries = []
+    try:
+        observed = run(["node", str(ADAPTER / "instance-observation.ts")], check=False, timeout=12)
+        observation = json.loads(observed.stdout) if observed.returncode == 0 else {}
+        if not isinstance(observation, dict):
+            observation = {}
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        observation = {}
     if STATE_ROOT.is_dir():
         for target in sorted(STATE_ROOT.iterdir()):
             manifest_path = target / "instance.json"
@@ -1079,7 +1086,7 @@ def command_ps(args: argparse.Namespace) -> None:
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
                 if not isinstance(manifest, dict):
                     raise ValueError("状态文件根必须是 JSON 对象")
-                entry = instance_entry(target, manifest)
+                entry = instance_entry(target, manifest, observation)
             except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as error:
                 entry = {
                     "name": target.name,
@@ -1151,13 +1158,20 @@ def normalized_instance_state(containers: list[dict] | None) -> str:
     return "stopped"
 
 
-def instance_entry(target: Path, manifest: dict) -> dict:
+def instance_entry(target: Path, manifest: dict, observation: dict | None = None) -> dict:
     """把一条实例状态渲染成 `ps` 条目；状态文件版本与当前不一致时标记需要迁移。"""
     name = str(manifest.get("name") or target.name)
     recorded_schema = manifest.get("schema_version")
     port = manifest.get("port")
-    listing = run(compose_command(target, name, "ps", "--all", "--format", "json"),
-                  check=False, env=instance_compose_env(manifest))
+    project = manifest.get("project") or project_name(name)
+    if observation is None:
+        listing = run(compose_command(target, name, "ps", "--all", "--format", "json"),
+                      check=False, env=instance_compose_env(manifest))
+    else:
+        projects = observation.get("projects")
+        listing = subprocess.CompletedProcess([], 0 if isinstance(projects, dict) else 1,
+            stdout=json.dumps(projects.get(project, [])) if isinstance(projects, dict) else "",
+            stderr="Docker 容器批量观察失败")
     if listing.returncode != 0:
         ps_state = "unknown"
         ps_detail = redact_secrets((listing.stderr or listing.stdout or "").strip())[-200:] or "docker compose ps 查询失败"
@@ -1173,7 +1187,12 @@ def instance_entry(target: Path, manifest: dict) -> dict:
          if item.get("service") == "dsh" and item.get("name")),
         None,
     )
-    resolved_volume, home_preserved = home_volume(manifest)
+    if observation is None:
+        resolved_volume, home_preserved = home_volume(manifest)
+    else:
+        homes = observation.get("homes")
+        resolved_volume = homes.get(project, f"{project}-home") if isinstance(homes, dict) else None
+        home_preserved = project in homes if isinstance(homes, dict) else None
     return {
         "name": name,
         "container_name": observed_dsh or manifest.get("container_name"),

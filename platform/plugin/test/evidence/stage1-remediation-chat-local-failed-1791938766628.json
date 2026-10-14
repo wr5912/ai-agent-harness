@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-14T00:45:33.135Z",
+  "scope": "重启后的用户当前平台；本地 Qwen；原生凭据服务；实际发送你好",
+  "input": "你好",
+  "checks": {
+    "session_cwd": "/home/cmp/work/luopeng/local-gitlab/ai-agent-harness",
+    "session_mode": "standard"
+  },
+  "limits": [
+    "仅验证管理对话问候，不替代业务 Harness Evaluation"
+  ],
+  "validation": "failed",
+  "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('menuitem', { name: 'Qwen3.8-27B', exact: true })\u001b[22m\n"
+}

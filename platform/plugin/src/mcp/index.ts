@@ -155,10 +155,22 @@ async function callMcpTool(connection: any, name: string, args: any, signal?: Ab
   return await mcpJsonRpc(connection, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name, arguments: args ?? {} } }, session, runSignal)
 }
 
-export function createMcpHandler(assetRoot: string, options: { stateFile?: string } = {}): ConnectionRpcHandler {
-  const registry = createRegistry(assetRoot, options.stateFile)
+export function createMcpHandler(assetRoot: string, options: { stateFile?: string; servers?: () => any[]; native?: McpRegistry['native'] } = {}): ConnectionRpcHandler {
+  const registry = options.servers ? createRegistry() : createRegistry(assetRoot, options.stateFile)
+  registry.native = options.native
   return async (endpoint, payload, signal) => {
     try {
+      if (options.servers) {
+        registry.openapi.clear()
+        registry.mcp.clear()
+        for (const server of options.servers().filter(item => item.enabled !== false)) {
+          if (server.specUrl) registry.openapi.set(server.id, { id: server.id, name: server.serverName || server.id, specUrl: server.specUrl })
+          else registry.mcp.set(server.id, { id: server.id, endpointUrl: server.url })
+        }
+        if (['registerOpenApi', 'registerMcp', 'deleteConnection', 'refreshSpec', 'callTool'].includes(endpoint)) {
+          return failure('use_mcp_manager', '请通过 MCP 配置管理页面操作服务器、工具与资源')
+        }
+      }
       if (endpoint === 'list') return success(listState(registry, assetRoot))
       if (endpoint === 'registerOpenApi') {
         const connection = normalizeConnection(payload)

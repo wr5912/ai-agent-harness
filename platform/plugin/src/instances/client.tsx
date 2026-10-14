@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { CHANNEL } from '../protocol.ts'
 import type { PlatformPageProps } from '../protocol.ts'
@@ -55,15 +55,20 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState('all')
   const [busy, setBusy] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [query, setQuery] = useState('')
+  const [detailLoading, setDetailLoading] = useState(false)
   const [error, setError] = useState('')
   const [preview, setPreview] = useState<unknown>(null)
   const [pending, setPending] = useState<{ operation: Operation, items: ActionRequest[] } | null>(null)
   const [receipts, setReceipts] = useState<Receipt[]>([])
+  const [actionDialog, setActionDialog] = useState<Operation | null>(null)
+  const dialog = useRef<HTMLDialogElement>(null)
   const [form, setForm] = useState({ name: '', source: '', port: '' })
   const [detail, setDetail] = useState<Detail | null>(null)
   const [logs, setLogs] = useState('')
 
-  const visible = useMemo(() => instances.filter(item => filter === 'all' || item.state === filter), [instances, filter])
+  const visible = useMemo(() => instances.filter(item => (filter === 'all' || item.state === filter) && `${item.name} ${item.source_id ?? ''}`.toLowerCase().includes(query.toLowerCase())), [instances, filter, query])
 
   async function call<T>(endpoint: string, payload: unknown): Promise<T> {
     const result = await rpc.call(CHANNEL, `instances/${endpoint}`, payload)
@@ -72,7 +77,7 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
   }
 
   async function refresh() {
-    setBusy(true)
+    setLoading(true)
     setError('')
     try {
       const data = await call<{ instances: InstanceRow[] }>('list', {})
@@ -81,13 +86,17 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setBusy(false)
+      setLoading(false)
     }
   }
 
   useEffect(() => {
     void refresh()
   }, [])
+  useEffect(() => {
+    if (actionDialog) dialog.current?.showModal()
+    else dialog.current?.close()
+  }, [actionDialog])
 
   function updateForm(next: typeof form) {
     setForm(next)
@@ -105,6 +114,8 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
   }
 
   async function prepare(operation: Operation, names: string[]) {
+    setActionDialog(operation)
+    setReceipts([])
     setBusy(true)
     setError('')
     setPreview(null)
@@ -145,7 +156,7 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
   }
 
   async function openDetail(name: string) {
-    setBusy(true)
+    setDetailLoading(true)
     setError('')
     try {
       const [nextDetail, nextLogs] = await Promise.all([
@@ -157,7 +168,7 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
     } catch (err) {
       setError((err as Error).message)
     } finally {
-      setBusy(false)
+      setDetailLoading(false)
     }
   }
 
@@ -165,6 +176,7 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
 
   return (
     <main style={styles.page}>
+      <header className="harness-page-heading"><div><h1>智能体 DSH 容器实例</h1><p>管理智能体的 DSH 容器启停；删除容器及管理登记，保留 HOME 卷与研究记录。</p></div><span>{instances.length} 个容器实例</span></header>
       <section style={styles.toolbar}>
         <div style={styles.form}>
           <input aria-label="实例名" placeholder="实例名" value={form.name}
@@ -184,7 +196,9 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
             <option value="failed">failed</option>
             <option value="unknown">unknown</option>
           </select>
-          <button type="button" onClick={refresh} disabled={busy} style={styles.button}>刷新</button>
+          <input aria-label="搜索实例" placeholder="搜索实例或来源" value={query} onChange={event => setQuery(event.target.value)} style={styles.inputWide} />
+          <button type="button" onClick={refresh} disabled={loading} style={styles.button}>{loading ? '读取中…' : '刷新'}</button>
+          <span>已选择 {selected.size} 个；勾选后可批量操作</span>
           {(['start', 'stop', 'restart', 'delete'] as Operation[]).map(operation => (
             <button key={operation} type="button" disabled={busy || selectedNames.length === 0}
               onClick={() => prepare(operation, selectedNames)} style={styles.button}>
@@ -194,7 +208,7 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
         </div>
       </section>
 
-      {error ? <div role="alert" style={styles.error}>{error}</div> : null}
+      {error && !actionDialog ? <div role="alert" style={styles.error}>{error}</div> : null}
 
       <div style={styles.tableWrap}>
         <table style={styles.table}>
@@ -204,13 +218,10 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
               <th style={styles.th}>实例</th>
               <th style={styles.th}>状态</th>
               <th style={styles.th}>来源</th>
-              <th style={styles.th}>镜像</th>
-              <th style={styles.th}>Agent</th>
+
               <th style={styles.th}>端口</th>
-              <th style={styles.th}>HOME</th>
-              <th style={styles.th}>容器</th>
-              <th style={styles.th}>观察时间</th>
-              <th style={styles.th}>详情</th>
+
+              <th style={styles.th}>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -228,13 +239,14 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
                 <td style={styles.td}>{item.name}</td>
                 <td style={stateStyle(item.state)}>{item.state || 'unknown'}</td>
                 <td style={styles.td}>{item.source_id || '-'}</td>
-                <td style={styles.td}>{item.image_tag || '-'}</td>
-                <td style={styles.td}>{item.agent_id || '-'}</td>
+
                 <td style={styles.td}>{item.port || '-'}</td>
-                <td style={styles.td}>{item.home_volume || '-'} {item.home_preserved === false ? '(缺失)' : ''}</td>
-                <td style={styles.td}>{item.container_name || '-'}</td>
-                <td style={styles.td}>{item.observed_at || '-'}</td>
-                <td style={styles.td}><button type="button" onClick={() => openDetail(item.name)} style={styles.button}>详情</button></td>
+                <td style={styles.td}><div style={styles.actions}>
+                  <button type="button" onClick={() => openDetail(item.name)} disabled={detailLoading} style={styles.button}>详情</button>
+                  {(item.state === 'running' ? ['stop', 'restart'] : item.state === 'stopped' ? ['start', 'delete'] : item.state === 'failed' ? ['start', 'stop'] : []).map(operation =>
+                    <button type="button" key={operation} disabled={busy} onClick={() => prepare(operation as Operation, [item.name])} style={styles.button}>{labels[operation as Operation]}</button>)}
+                  {item.state === 'unknown' && <span>观察失败，请刷新</span>}
+                </div></td>
               </tr>
             ))}
           </tbody>
@@ -258,25 +270,26 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
         </section>
       ) : null}
 
-      {preview && pending ? (
-        <section style={styles.panel}>
-          <strong>{labels[pending.operation]}确认</strong>
+      <dialog ref={dialog} aria-labelledby="instance-action-title" style={styles.dialog}
+        onCancel={event => { if (busy) event.preventDefault(); else setActionDialog(null) }}>
+        <h2 id="instance-action-title">{actionDialog && labels[actionDialog]}智能体 DSH 容器实例</h2>
+        {busy && <p role="status">{pending ? '正在执行，请稍候…' : '正在读取操作预览…'}</p>}
+        {error && <div role="alert" style={styles.error}>{error}</div>}
+        {preview && pending ? <>
+          <p>请确认目标及保留范围后执行。</p>
           <pre style={styles.pre}>{JSON.stringify(preview, null, 2)}</pre>
-          <button type="button" onClick={execute} disabled={busy} style={styles.primary}>执行</button>
-          <button type="button" onClick={() => { setPreview(null); setPending(null) }} style={styles.button}>取消</button>
-        </section>
-      ) : null}
-
-      {receipts.length ? (
-        <section style={styles.panel}>
-          <strong>逐项回执</strong>
+          <button type="button" onClick={execute} disabled={busy} style={styles.primary}>确认{labels[pending.operation]}</button>
+        </> : null}
+        {receipts.length ? <section aria-live="polite">
+          <strong>操作回执</strong>
           {receipts.map(item => (
             <div key={`${item.operation}-${item.name}`} style={item.ok ? styles.receiptOk : styles.receiptBad}>
               {item.name} / {labels[item.operation]} / {item.ok ? '成功' : item.error?.message || '失败'}
             </div>
           ))}
-        </section>
-      ) : null}
+        </section> : null}
+        <button type="button" disabled={busy} onClick={() => { setActionDialog(null); setPreview(null); setPending(null) }} style={styles.button}>{pending ? '取消' : '关闭'}</button>
+      </dialog>
     </main>
   )
 }
@@ -321,11 +334,12 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 6,
   },
   tableWrap: { maxWidth: '100%', overflowX: 'auto', border },
-  table: { minWidth: 1120, width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
+  table: { minWidth: 760, width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
   th: { textAlign: 'left', padding: 8, borderBottom: border, fontSize: 13 },
   td: { padding: 8, borderBottom: border, fontSize: 13, overflowWrap: 'anywhere', verticalAlign: 'top' },
   error: { marginBottom: 12, padding: 10, border, color: 'var(--dsw-alias-danger-text, inherit)', borderRadius: 6 },
   panel: { marginTop: 16, padding: 12, border, borderRadius: 6 },
+  dialog: { width: 640, maxWidth: 'calc(100vw - 40px)', maxHeight: '85vh', overflow: 'auto', padding: 24, border, borderRadius: 12, color: '#223550', background: '#fff' },
   detailGrid: { display: 'grid', gap: 8, marginTop: 10 },
   pre: { maxHeight: 260, overflow: 'auto', padding: 10, border, borderRadius: 6, color: 'inherit', background: 'transparent' },
   receiptOk: { padding: 8, color: 'var(--dsw-alias-success-text, inherit)' },

@@ -452,3 +452,17 @@ test('平台接入传入仓库根目录时组合回执仍含实际实现摘要',
   assert.match(result.value.composition.sourceDigest, /^[0-9a-f]{64}$/)
   assert.match(result.value.composition.gitCommit, /^[0-9a-f]{40}$/)
 })
+
+test('平台 MCP 读取原插件的已保存配置，不建立第二份连接登记', async () => {
+  const module = await loadMcpModule()
+  let servers = [{ id: 'original', specUrl: 'http://127.0.0.1:8080/openapi.json', enabled: true },
+    { id: 'disabled', url: 'http://127.0.0.1:8080/mcp', enabled: false }]
+  const handler = module.createMcpHandler(join(process.cwd(), '../..'), { servers: () => servers })
+  const list = () => handler('list', {}, new AbortController().signal)
+  assert.deepEqual((await list()).value.connections.map(item => item.id), ['original'])
+  for (const endpoint of ['registerOpenApi', 'registerMcp', 'deleteConnection', 'refreshSpec', 'callTool']) {
+    assert.equal((await handler(endpoint, {}, new AbortController().signal)).error.code, 'use_mcp_manager')
+  }
+  servers = [{ id: 'replacement', url: 'http://127.0.0.1:8080/mcp', enabled: true }]
+  assert.deepEqual((await list()).value.connections.map(item => item.id), ['replacement'])
+})

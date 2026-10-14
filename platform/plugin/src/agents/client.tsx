@@ -43,7 +43,12 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
   const [evidenceFile, setEvidenceFile] = useState('trace.jsonl')
   const [leftRun, setLeftRun] = useState('')
   const [rightRun, setRightRun] = useState('')
-  const [runsIndex, setRunsIndex] = useState('')
+  const [runs, setRuns] = useState<any[]>([])
+  const [runsLoading, setRunsLoading] = useState(false)
+  const [runsError, setRunsError] = useState('')
+  const [runCases, setRunCases] = useState<string[]>([])
+  const runsRequest = useRef(0)
+  const runRequest = useRef(0)
   const [decisionBody, setDecisionBody] = useState('')
   const [decisionHash, setDecisionHash] = useState('')
   const detailRequest = useRef(0)
@@ -94,7 +99,6 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
       const value = await call('detail', payload)
       if (request !== detailRequest.current) return
       setDetail(value)
-      setSelectedExperiment(value.experiment.id)
       setDecisionBody(value.decision?.content ?? '')
       setDecisionHash(value.decision?.sha256 ?? '')
       setSelectedCases((current) => current.filter(caseItem => value.evaluation.cases.some((item: any) => item.id === caseItem)))
@@ -242,42 +246,75 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
   }
 
   async function loadRuns() {
+    const request = ++runsRequest.current
     if (!selected) return
+    setRunsLoading(true)
+    setRunsError('')
     try {
       const value = await call('runs/index', { agent_id: selected })
-      setRunsIndex(text(value))
+      if (request !== runsRequest.current) return
+      setRuns((value.experiments ?? []).flatMap((experiment: any) =>
+        (experiment.runs ?? []).map((run: any) => ({ ...run, experiment_id: experiment.experiment_id ?? experiment.id }))))
     } catch (err) {
-      setRunsIndex((err as Error).message)
+      if (request === runsRequest.current) setRunsError((err as Error).message)
+    } finally {
+      if (request === runsRequest.current) setRunsLoading(false)
     }
+  }
+
+  useEffect(() => {
+    setRuns([])
+    setRunId('')
+    setCaseId('')
+    setRunCases([])
+    setEvalResult('')
+    runRequest.current++
+    void loadRuns()
+    return () => { runsRequest.current++; runRequest.current++ }
+  }, [selected])
+
+  function chooseRun(id: string) {
+    runRequest.current++
+    setRunId(id)
+    setCaseId('')
+    setRunCases([])
+    setEvalResult('')
   }
 
   async function showRun() {
     if (!runId) return
+    const request = ++runRequest.current
     try {
-      const value = await call('runs/show', { run_id: runId, case_id: caseId || undefined })
-      if (!caseId) setCaseId(value.cases?.[0]?.case_id ?? '')
+      const value = await call('runs/show', { run_id: runId })
+      if (request !== runRequest.current) return
+      const ids = (value.cases ?? []).map((item: any) => item.case_id)
+      setRunCases(ids)
+      setCaseId(current => ids.includes(current) ? current : ids[0] ?? '')
       setEvalResult(text(value))
     } catch (err) {
-      setEvalResult((err as Error).message)
+      if (request === runRequest.current) setEvalResult((err as Error).message)
     }
   }
 
   async function showEvidence() {
+    const request = ++runRequest.current
     try {
       const value = await call('runs/evidence', { run_id: runId, case_id: caseId, filename: evidenceFile })
+      if (request !== runRequest.current) return
       setEvalResult(`${value.path}${value.truncated ? '（仅显示前 64 KiB）' : ''}\n${value.content}`)
     } catch (err) {
-      setEvalResult((err as Error).message)
+      if (request === runRequest.current) setEvalResult((err as Error).message)
     }
   }
 
   async function compareRuns() {
     if (!leftRun || !rightRun) return
+    const request = ++runRequest.current
     try {
       const value = await call('runs/compare', { left: leftRun, right: rightRun, case_id: caseId || undefined })
-      setEvalResult(text(value))
+      if (request === runRequest.current) setEvalResult(text(value))
     } catch (err) {
-      setEvalResult((err as Error).message)
+      if (request === runRequest.current) setEvalResult((err as Error).message)
     }
   }
 
@@ -296,10 +333,11 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
 
   const runOptions = useMemo(() => {
     const ids = new Set<string>()
+    for (const run of runs) ids.add(run.run_id ?? run.id)
     for (const version of detail?.versions ?? []) for (const run of version.runs ?? []) ids.add(run.run_id ?? run.id)
     for (const run of detail?.verification?.runs ?? []) ids.add(run.id)
     return [...ids].filter(Boolean).sort()
-  }, [detail])
+  }, [detail, runs])
 
   return <main style={{ height: '100%', overflow: 'auto', padding: '24px clamp(16px, 3vw, 36px)', boxSizing: 'border-box' }}>
     <div style={{ maxWidth: 1180, minWidth: 0, margin: '0 auto', display: 'grid', gap: 16 }}>
@@ -320,11 +358,12 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
           </div>
         </aside>
         <section style={{ display: 'grid', minWidth: 0, gap: 16 }}>
+          {!detail && !error && <p role="status">正在读取智能体与评估…</p>}
           {detail && <section style={panel}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', alignItems: 'start' }}>
               <div style={{ minWidth: 0 }}>
                 <h2 style={{ margin: '0 0 6px', fontSize: 18, overflowWrap: 'anywhere' }}>{detail.experiment.id}</h2>
-                <select aria-label="版本" style={{ maxWidth: '100%' }} value={selectedExperiment} onChange={event => selectVersion(selected, event.target.value)}>
+                <select aria-label="版本" style={{ maxWidth: '100%' }} value={selectedExperiment || detail.experiment.id} onChange={event => selectVersion(selected, event.target.value)}>
                   {detail.versions.map((version: any) => <option key={version.id} value={version.id}>{version.id}</option>)}
                 </select>
                 <div style={{ opacity: 0.75, marginTop: 8 }}>Baseline：{detail.baseline.ref || '未知'} · Parent：{detail.baseline.parent_experiment_id || '无'}</div>
@@ -383,7 +422,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
               <button type="button" onClick={evalStart}>启动评测</button>
               <button type="button" onClick={evalStatus} disabled={!jobId}>刷新状态</button>
               <button type="button" onClick={evalCancel} disabled={!jobId}>取消</button>
-              <button type="button" onClick={loadRuns}>Run 索引</button>
+              <button type="button" onClick={loadRuns} disabled={runsLoading}>{runsLoading ? '读取 Run…' : '刷新 Run 记录'}</button>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
               {detail.evaluation.cases.map((item: any) => <label key={item.id} style={{ border: '1px solid var(--dsw-alias-border-l3, #d1d5db)', borderRadius: 6, padding: '4px 8px' }}>
@@ -392,10 +431,12 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <label style={field}>Run
-                <input value={runId} onChange={event => setRunId(event.target.value)} list="run-options" placeholder="run-..." />
+                <input value={runId} onChange={event => chooseRun(event.target.value)} list="run-options" placeholder="run-..." />
               </label>
               <label style={field}>Case
-                <input value={caseId} onChange={event => setCaseId(event.target.value)} placeholder="Case ID" />
+                <select aria-label="Run Case" value={caseId} onChange={event => setCaseId(event.target.value)} disabled={!runCases.length}>
+                  <option value="">先读取 Run</option>{runCases.map(id => <option key={id} value={id}>{id}</option>)}
+                </select>
               </label>
               <button type="button" onClick={showRun}>查看 Run/Case</button>
               <label style={field}>轨迹文件
@@ -413,7 +454,14 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
               <button type="button" onClick={compareRuns}>左右对照</button>
             </div>
             <datalist id="run-options">{runOptions.map(id => <option key={id} value={id} />)}</datalist>
-            {runsIndex && <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto' }}>{runsIndex}</pre>}
+            {runsError && <p role="alert">{runsError}</p>}
+            {!runsLoading && !runsError && runs.length === 0 && <p>此智能体尚无 Run 记录。</p>}
+            {runs.length > 0 && <div className="harness-table-scroll"><table aria-label="Run 记录"><thead><tr><th>Run</th><th>研究版本</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+              <tbody>{runs.map(run => <tr key={run.id ?? run.run_id}>
+                <td>{run.id ?? run.run_id}</td><td>{run.experiment_id}</td><td>{run.status ?? '未记录'}</td>
+                <td>{run.created_at ? new Date(run.created_at).toLocaleString() : '未记录'}</td>
+                <td><button type="button" onClick={() => chooseRun(run.id ?? run.run_id)}>选择 Run</button></td>
+              </tr>)}</tbody></table></div>}
             {evalResult && <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto' }}>{evalResult}</pre>}
           </section>}
           {detail && <section style={panel}>

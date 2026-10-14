@@ -1,0 +1,64 @@
+{
+  "at": "2026-10-13T11:51:25.933Z",
+  "checks": {
+    "no_native_sidebar": true,
+    "run_index_rows": 88,
+    "run_cases_loaded": true,
+    "run_switch_resets_case": true,
+    "mobile_overflow": false,
+    "client_errors": 0
+  },
+  "timings": {
+    "agent_detail_ms": 903,
+    "run_show_ms": 448,
+    "instance_page_ms": 895
+  },
+  "rpc": [
+    {
+      "operation": "inventory",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "inventory",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "agents/list",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "agents/runs/index",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "agents/edit/read",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "agents/runs/show",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "instances/list",
+      "http": 200,
+      "ok": true
+    }
+  ],
+  "validation": "passed"
+}

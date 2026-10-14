@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { compositionDefinition, compositionDigest } from './definition.ts'
+import { compositionDefinition } from './definition.ts'
 import { callOpenApiOperation, loadOpenApi, type OpenApiConnection } from './openapi.ts'
 
 export type ConnectionStatus = {
@@ -18,6 +18,10 @@ export type McpRegistry = {
   mcp: Map<string, any>
   status: Map<string, ConnectionStatus>
   stateFile?: string
+  native?: {
+    load(connection: OpenApiConnection, signal?: AbortSignal): Promise<any>
+    call(source: any, operationId: string, args: Record<string, any>, signal?: AbortSignal): Promise<any>
+  }
 }
 
 type PersistedState = { openapi?: OpenApiConnection[]; mcp?: any[] }
@@ -68,14 +72,21 @@ function gitDirtyOf(assetRoot: string): boolean | 'unknown' {
 }
 
 function sourceDigestOf(assetRoot: string): string {
-  const files = ['client.tsx', 'definition.ts', 'executor.ts', 'index.ts', 'openapi.ts']
+  const files = ['client.tsx', 'definition.ts', 'executor.ts', 'index.ts', 'openapi.ts', 'manager.ts']
+    .map(file => `platform/plugin/src/mcp/${file}`)
+    .concat(['platform/plugin/build.mjs', 'platform/plugin/src/index.ts',
+      ...['index.ts', 'openapi.ts'].map(file => `evolution/experiments/EXP-security-operations-expert-018-rfbf7fd53a340/candidate/dsh/managed/mcp-manager/${file}`)])
   try {
     const hash = createHash('sha256')
-    for (const file of files) hash.update(file).update('\0').update(readFileSync(join(assetRoot, 'platform', 'plugin', 'src', 'mcp', file)))
+    for (const file of files) hash.update(file).update('\0').update(readFileSync(join(assetRoot, file)))
     return hash.digest('hex')
   } catch {
     return 'unknown'
   }
+}
+
+function compositionDigest(gitCommit: string, gitDirty: boolean | 'unknown', sourceDigest: string): string {
+  return createHash('sha256').update(JSON.stringify({ gitCommit, gitDirty, sourceDigest, definition: compositionDefinition })).digest('hex')
 }
 
 export function compositionVersion(assetRoot: string) {
@@ -86,7 +97,7 @@ export function compositionVersion(assetRoot: string) {
 }
 
 function statusFor(registry: McpRegistry, id: string): ConnectionStatus {
-  const current = registry.status.get(id) ?? { registered: false, specLoaded: false, toolCallSucceeded: false }
+  const current = registry.status.get(id) ?? { registered: registry.openapi.has(id) || registry.mcp.has(id), specLoaded: false, toolCallSucceeded: false }
   registry.status.set(id, current)
   return current
 }
@@ -132,12 +143,13 @@ export async function executeComposition(registry: McpRegistry, assetRoot: strin
   const started = Date.now()
   const status = statusFor(registry, connectionId)
   const runSignal = totalSignal(signal)
-  const source = await loadOpenApi(connection, runSignal)
+  const source = await (registry.native?.load ?? loadOpenApi)(connection, runSignal)
   assertReadonlyOperations(source)
   status.specLoaded = true
 
   const [assetStep, alertsStep] = compositionDefinition.steps
-  const first = await callOpenApiOperation(source, assetStep.operationId, { asset }, runSignal)
+  const call = registry.native?.call ?? callOpenApiOperation
+  const first = await call(source, assetStep.operationId, { asset }, runSignal)
   trace.push({ step: assetStep.id, operationId: assetStep.operationId, status: first.ok ? 'succeeded' : 'failed', httpStatus: first.status, durationMs: Date.now() - started })
   if (!first.ok) {
     status.toolCallSucceeded = false
@@ -151,7 +163,7 @@ export async function executeComposition(registry: McpRegistry, assetRoot: strin
     return { ok: false, version, receipts: [first.receipt], result: { asset: bounded(first.json), alerts: [], trace }, error: { code: 'mapping_failed', message: '第一步结果缺少资产 ID' } }
   }
   const secondStart = Date.now()
-  const second = await callOpenApiOperation(source, alertsStep.operationId, { assetId, limit }, runSignal)
+  const second = await call(source, alertsStep.operationId, { assetId, limit }, runSignal)
   trace.push({ step: alertsStep.id, operationId: alertsStep.operationId, status: second.ok ? 'succeeded' : 'failed', httpStatus: second.status, durationMs: Date.now() - secondStart, mappedArguments: { assetId, limit } })
   status.toolCallSucceeded = second.ok
   const alerts = Array.isArray(second.json?.alerts) ? second.json.alerts.slice(0, limit) : Array.isArray(second.json) ? second.json.slice(0, limit) : []
