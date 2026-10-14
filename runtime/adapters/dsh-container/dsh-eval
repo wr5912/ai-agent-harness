@@ -12,6 +12,7 @@ import subprocess
 import sys
 import uuid
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 ADAPTER = Path(__file__).resolve().parent
@@ -229,7 +230,15 @@ def authentication_url(name: str) -> str:
         label="取得 DSH 认证入口", timeout=90, env=os.environ.copy(),
     )
     url = completed.stdout.strip()
-    if not url.startswith("http://127.0.0.1:") or "token=" not in url:
+    try:
+        parsed = urlsplit(url)
+        valid = (parsed.scheme == "http" and parsed.hostname == "127.0.0.1"
+                 and parsed.port is not None and 1 <= parsed.port <= 65535
+                 and parsed.username is None and parsed.password is None
+                 and parsed.path == "/" and not parsed.fragment)
+    except ValueError:
+        valid = False
+    if not valid:
         raise EvaluationError("DSH 认证入口格式无效")
     return url
 

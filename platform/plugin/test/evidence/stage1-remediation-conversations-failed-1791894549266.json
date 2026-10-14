@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-13T12:29:06.387Z",
+  "scope": "隔离平台 HOME；原生 DSH 会话界面；不调用模型",
+  "checks": {
+    "navigation": true,
+    "create_session": true,
+    "home_hides_native_sidebar": true
+  },
+  "limits": [
+    "未发送模型请求，未验证有消息会话的重命名、归档与内容检索"
+  ],
+  "validation": "failed",
+  "failure": "Expected values to be strictly equal:\n+ actual - expected\n\n+ ''\n- '会话界面验证草稿，不发送。'\n"
+}

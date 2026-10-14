@@ -1,0 +1,42 @@
+{
+  "checked_at": "2026-10-14T02:21:05.018Z",
+  "source": {
+    "commit": "e4860eb28b9ee98df588b1b8b1dd8bc3de2f33cf",
+    "dirty": true,
+    "files": {
+      "runtime/adapters/dsh-container/dsh-dev": "9800219f1394a206f418e60fb1ee27552a71e2218af37987f4eb5ccba93706f0",
+      "runtime/adapters/dsh-container/dsh-eval": "03b1d914e834852959e1391b8c79ef933fcefe72603926ccb75f245bfa55716f",
+      "runtime/adapters/dsh-container/dsh-eval-api.mjs": "9d2ba63517301b4b23022b3dfb943b8fcbfeaba0deba1035ce949076badfce05",
+      "platform/plugin/lib/index.js": "cab67eae662ee2395121c745ba339aac94e6a2902faf5414790676b8dda001bf",
+      "platform/plugin/lib/client.js": "042e8cf51606fd62ca6eca30a95a8d46e029feccda6834cc324b87c65805d8bd"
+    }
+  },
+  "scope": "独立标准 DSH 容器验证统一访问规则、旧配置升级和平台新标签页入口",
+  "checks": {
+    "cli_create_without_access_flags": {
+      "port": 3083,
+      "lan_anonymous_http": 200,
+      "no_token_url": true,
+      "foreign_host_origin_allowed": true
+    },
+    "table_new_tab": {
+      "lan_host": true,
+      "same_instance_port": true,
+      "token_absent": true,
+      "opener_null": true,
+      "parent_remains_instances": true,
+      "testing_notice_absent": true,
+      "fresh_browser_context": true
+    },
+    "test_instances_cleaned_and_user_registrations_unchanged": true
+  },
+  "limits": [
+    "使用 --allow-missing-env 做技术装载检查，不替代业务 Harness Evaluation",
+    "局域网地址在宿主机浏览器验证，未从另一台设备访问"
+  ],
+  "validation": "failed",
+  "failure": {
+    "stage": "url-failure",
+    "message": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('alert').filter({ hasText: '受控访问失败，请重试' }) to be visible\u001b[22m\n"
+  }
+}

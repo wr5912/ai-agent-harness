@@ -1,0 +1,32 @@
+{
+  "checked_at": "2026-10-14T01:32:36.803Z",
+  "source": {
+    "commit": "e4860eb28b9ee98df588b1b8b1dd8bc3de2f33cf",
+    "dirty": true,
+    "built_files": {
+      "index.js": "2b3c7f6b55490e613a6b35f26ba0b6b6eb7136db9cf247edc5b7420b5cb2c9d6",
+      "client.js": "105af9574d4d3af02e31c26fe667d72d38dce10ecd0551f0a2037a103c9ec803"
+    }
+  },
+  "scope": "真实全局 DSH 页面 → 平台 RPC → 仓库 dsh-dev → Docker Compose；3 个隔离轻量容器模拟已停止 DSH 实例的生命周期边界",
+  "fixture": {
+    "prefix": "platform-bulk-20261013-1a386d",
+    "container_count": 3,
+    "image": "alpine:3.20",
+    "network": "none",
+    "model_calls": 0
+  },
+  "checks": {
+    "preview_3_targets": true,
+    "fixture_cleanup": {
+      "removed": 4,
+      "failed": 0
+    }
+  },
+  "limits": [
+    "轻量容器用于生命周期和批量规模验证，不执行 DSH Runtime 或业务 Harness；未删除用户既有容器"
+  ],
+  "ui_failure": "删除智能体 DSH 容器实例\n操作回执：成功 0 项，失败或结果未知 3 项\nplatform-bulk-20261013-1a386d-002 / 删除 / {\"name\": \"platform-bulk-20261013-1a386d-002\", \"project\": \"dsh-dev-platform-bulk-20261013-1a386d-002\", \"registration_dir\": \"/home/cmp/.local/state/dsh-dev/platform-bulk-20261013-1a386d-002\", \"state\": \"stopped\", \"containers_before\": [{\"id\": \"120d9ae8d96b\", \"state\": \"exited\", \"status\": \"Exited (0) 3 seconds ago\", \"name\": \"platform-bulk-20261013-1a386d-002\", \"service\": \"dsh\", \"exit_code\": 0}], \"home_volume_before\": \"dsh-dev-platform-bulk-20261013-1a386d-002-home\", \"home_preserved_before\": true, \"deleted\": false, \"containers_after\": [{\"id\": \"120d9ae8d96b\", \"state\": \"exited\", \"status\": \"Exited (0) 4 seconds ago\", \"name\": \"platform-bulk-20261013-1a386d-002\", \"service\": \"dsh\", \"exit_code\": 0}]} dsh-dev failed: 实例 platform-bulk-20261013-1a386d-002 仍有容器记录，拒绝删除登记\nplatform-bulk-20261013-1a386d-000 / 删除 / {\"name\": \"platform-bulk-20261013-1a386d-000\", \"project\": \"dsh-dev-platform-bulk-20261013-1a386d-000\", \"registration_dir\": \"/home/cmp/.local/state/dsh-dev/platform-bulk-20261013-1a386d-000\", \"state\": \"stopped\", \"containers_before\": [{\"id\": \"e6ed555e5b11\", \"state\": \"exited\", \"status\": \"Exited (0) 3 seconds ago\", \"name\": \"platform-bulk-20261013-1a386d-000\", \"service\": \"dsh\", \"exit_code\": 0}], \"home_volume_before\": \"dsh-dev-platform-bulk-20261013-1a386d-000-home\", \"home_preserved_before\": true, \"deleted\": false, \"containers_after\": [{\"id\": \"e6ed555e5b11\", \"state\": \"exited\", \"status\": \"Exited (0) 4 seconds ago\", \"name\": \"platform-bulk-20261013-1a386d-000\", \"service\": \"dsh\", \"exit_code\": 0}]} dsh-dev failed: 实例 platform-bulk-20261013-1a386d-000 仍有容器记录，拒绝删除登记\nplatform-bulk-20261013-1a386d-001 / 删除 / {\"name\": \"platform-bulk-20261013-1a386d-001\", \"project\": \"dsh-dev-platform-bulk-20261013-1a386d-001\", \"registration_dir\": \"/home/cmp/.local/state/dsh-dev/platform-bulk-20261013-1a386d-001\", \"state\": \"stopped\", \"containers_before\": [{\"id\": \"e65f9b208e57\", \"state\": \"exited\", \"status\": \"Exited (0) 4 seconds ago\", \"name\": \"platform-bulk-20261013-1a386d-001\", \"service\": \"dsh\", \"exit_code\": 0}], \"home_volume_before\": \"dsh-dev-platform-bulk-20261013-1a386d-001-home\", \"home_preserved_before\": true, \"deleted\": false, \"containers_after\": [{\"id\": \"e65f9b208e57\", \"state\": \"exited\", \"status\": \"Exited (0) 4 seconds ago\", \"name\": \"platform-bulk-20261013-1a386d-001\", \"service\": \"dsh\", \"exit_code\": 0}]} dsh-dev failed: 实例 platform-bulk-20261013-1a386d-001 仍有容器记录，拒绝删除登记\n关闭",
+  "validation": "failed",
+  "failure": "locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('dialog').getByText(/正在执行：已处理 [1-9]\\d* \\/ 3 项/) to be visible\u001b[22m\n\n    at /tmp/harness-stage1-browser/bulk-three-debug.mjs:81:54"
+}

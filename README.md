@@ -10,7 +10,7 @@
 
 当前已实现 eval-only 容器实例启动器 `runtime/adapters/dsh-container/dsh-dev`、受管评测入口 `runtime/adapters/dsh-container/dsh-eval`，以及来源解析、Candidate 冻结与摘要、Run 台账和仓库校验工具。Harness 的创建、迁移、修改和优化由宿主开发会话通过 `harness-guided-workflow` 引导，源码写入后再用新的只读评测实例验证。历史上曾完成一次容器内 Headless Skill 修改闭环，证据见 [`dsh-dev-real-session-20260919.json`](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json)；该证据只记录当时已退役的开发模式，不代表当前入口仍支持容器内修改。
 
-研究平台通过系统全局 DSH 装载仓库维护的 Cordis 插件，提供只读“研究资产”首页，显示现有 Agent、Experiment、Run 和仓库来源。平台启动入口是 `platform/dsh-platform`；完整接入合同见[平台设计方案](./docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)，实际验证状态见 `PA-12`。
+研究平台通过系统全局 DSH 装载仓库维护的 Cordis 插件，提供首页、管理对话、智能体与评估、实例管理和 MCP 管理五个工具页面。平台启动入口是 `platform/dsh-platform`；完整接入合同见[平台设计方案](./docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)，实际验证状态见 `PA-12`。
 
 本项目共有多少条验证路径、当前完成到哪里、哪些适合进入自动化测试，统一见[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)。
 
@@ -19,14 +19,18 @@
 | 能力 | 状态 | 入口 |
 |---|---|---|
 | 解析 Experiment 来源，确定目标 Agent、Preset、资产路径与挂载 | 已实现 | `source_contract.py` |
-| 启动只读被测会话（`--mode eval`） | 已实现；需要 Docker 和运行时环境变量 | `dsh-dev up/ps/url/logs/down` |
+| 启动只读被测会话（`--mode eval`），删除已停止实例并保留 HOME | 已实现；需要 Docker 和运行时环境变量 | `dsh-dev up/ps/url/logs/down/delete` |
 | 重载同来源、同模式的 eval 实例配置 | 已实现 | `dsh-dev up --replace` |
 | 构建锁定 DSH 提交的本地镜像 | 已实现 | `dsh-dev image build` |
 | 按 `evaluation.md` 启动独立实例、逐 Case 新建 Session、导出轨迹并封存 Run | 已实现；默认走 DSH Runtime API，浏览器 UI 冒烟需显式选择；需要 Docker 和运行时环境变量 | `dsh-eval` |
 | 摘要、冻结、校验或恢复 Candidate 三棵资产树 | 已实现 | `mutation-receipt.py` |
 | 归档研究运行，并按 Agent 索引、查看或并列比较已封存 Run | 已实现；`compare.comparable` 只判断记录的同条件项，业务等效仍需人工复核 | `run_record.py init/record/gap/finalize/index/show/compare` |
 | 校验项目结构、Experiment、Run 与 Research Release 合同 | 已实现 | `validate_repository.py` / `validate_experiment.py` |
-| 通过全局 DSH 打开只读研究资产首页 | 已实现；装载与浏览器验证状态见 `PA-12` | `platform/dsh-platform` |
+| 首页展示真实资产数量、最近 Run 和平台 Logo | 已实现；全局 DSH 装载状态见 `PA-12` | 平台“首页” |
+| 创建 Experiment 版本、查看继承与声明、编辑 Candidate/评估/Decision，查看 Run 与已有轨迹 | 已实现；编辑先预览并检查文件摘要，评测复用 `dsh-eval` | 平台“智能体与评估” |
+| 管理平台智能体的原生 DSH 会话 | 已实现；项目仓库工作区、标准模式、单列表，原生侧栏默认收起；保留草稿与设置入口 | 平台“管理对话” |
+| 智能体 DSH 容器实例创建、启停、重启、删除及批量操作 | 已实现；展示逐项实际回执，删除仅限已停止实例 | 平台“实例管理” |
+| 管理 OpenAPI/MCP 服务、分组发布与调试，把两项只读 API 组合成一个 MCP 工具 | 复用既有 MCP 配置插件；固定“资产→关联告警”组合与外部业务验收见 `PA-12` | 平台“MCP 管理” |
 | 新 Preset 的 Web 创建、回流与选择闭环 | 尚未完成 | `PA-09` |
 | 解析并装载 `release:<id>` | 尚未实现 | `PA-11` |
 
@@ -62,14 +66,16 @@
 # 只预览来源、HOME、插件路径和监听参数
 ./platform/dsh-platform start --dry-run
 
-# 前台启动，默认地址 http://127.0.0.1:3090
+# 前台启动，默认监听本机局域网 IPv4 的 3090 端口
 ./platform/dsh-platform start
 
-# 需要其他端口时显式指定
-./platform/dsh-platform start --port 3091
+# 需要指定地址或端口时显式设置；仅本机使用可设置 --host 127.0.0.1
+./platform/dsh-platform start --host 192.168.1.10 --port 3091
 ```
 
-在启动终端完成 DSH 原生认证交接。新 HOME 的原生欢迎流程可以选择“稍后配置”，再从侧栏打开“研究资产”；资产查询不需要 LLM API Key。使用 `Ctrl+C` 停止，再次 `start` 复用平台 HOME。运行数据位置、兼容版本和失败处理见[平台接入合同](./docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。
+打开终端显示的平台地址，用默认账号 `admin`、密码 `admin123` 登录后直接进入平台首页，其他页面显示平台侧栏。账号的唯一配置是 [`platform/credentials/admin.json`](./platform/credentials/admin.json)，修改后重启生效，并使旧登录会话失效。启动地址不包含 Token；平台跳过预览版说明及模型欢迎流程。查询与编辑不需要 LLM API Key；使用管理对话前，在“设置 → 模型”保存所选模型的凭据。平台 HOME 独立，模型配置与凭据会在再次 `prepare` 和重启后保留，具体约定见[平台接入合同](./docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。业务智能体评测仍需要所选来源的运行环境。
+
+使用 `Ctrl+C` 停止，再次 `start` 复用平台 HOME 和未过期的登录会话；“退出登录”会撤销当前会话。当前入口使用 HTTP，适用于受信任局域网；共享使用前修改默认密码。运行数据位置、兼容版本和失败处理见[平台接入合同](./docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。
 
 ### 启动本地评测实例
 
@@ -189,7 +195,7 @@ Baseline 引用 → Experiment（含 Candidate）→ Evaluation → Decision
 - 现有需求、任务、判断标准和 321 条待复核输入可以作为后续研究素材；它们不是所有新 Experiment 必须复制的模板。
 - 当前没有 Research Release，`release:<id>` 解析和装载尚未实现。
 - `plugins/asset-query-cli/` 是只读本地管理 CLI 原型，不是管理平台。
-- `platform/` 已提供最小只读平台工具；研究工作台和评测执行仍使用现有入口。
+- `platform/` 提供第一阶段的五个研究工具页面，复用现有资产、来源、评测和 Run 入口；实际验证状态和剩余缺口只在 `PA-12` 维护。
 
 ## 常用检查
 

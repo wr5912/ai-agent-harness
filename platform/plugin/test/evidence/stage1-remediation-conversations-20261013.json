@@ -1,0 +1,25 @@
+{
+  "at": "2026-10-13T13:04:15.047Z",
+  "scope": "隔离平台 HOME；原生 DSH 会话界面；不调用模型",
+  "checks": {
+    "brand_heading_workspace_mode_hidden": true,
+    "sidebar_default_closed": true,
+    "single_list": true,
+    "editor_ready": true,
+    "navigation_preserves_draft": true,
+    "expand_flat_search": true,
+    "new_session": {
+      "cwd": "/home/cmp/work/luopeng/local-gitlab/ai-agent-harness",
+      "mode": "standard"
+    },
+    "return_collapses_sidebar": true,
+    "settings_available": true,
+    "viewport_900": true,
+    "viewport_390": true,
+    "client_errors": 0
+  },
+  "limits": [
+    "未发送模型请求，未验证有消息会话的重命名、归档与内容检索"
+  ],
+  "validation": "passed"
+}

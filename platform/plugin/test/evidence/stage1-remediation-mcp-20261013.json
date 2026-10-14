@@ -1,0 +1,46 @@
+{
+  "at": "2026-10-13T12:29:44.827Z",
+  "scope": "真实全局 DSH；受控 OpenAPI 外部接口边界；不代表业务 MCP 验收",
+  "checks": {
+    "native_config_saved": true,
+    "tools_and_resource_templates": true,
+    "spec_anonymous_then_auth_retry": true,
+    "native_tool_invocation": true,
+    "native_resource_read": true,
+    "group_auth_required": true,
+    "composition_success": true,
+    "composition_failure_stops_next_step": true,
+    "native_config_and_session_survive_restart": true,
+    "client_errors": 0
+  },
+  "protocol": {
+    "group": {
+      "initialized": true,
+      "tool_list": [
+        "mcp__security-readonly-api__list_alerts"
+      ],
+      "tool_call": true
+    },
+    "composition": {
+      "initialized": true,
+      "tool_list": [
+        "query_asset_related_alerts"
+      ],
+      "tool_call": true
+    },
+    "group_after_restart": {
+      "initialized": true,
+      "tool_list": [
+        "mcp__security-readonly-api__list_alerts"
+      ],
+      "tool_call": true
+    }
+  },
+  "upstream": {
+    "spec_anonymous": 11,
+    "spec_authenticated": 11,
+    "assets": 4,
+    "alerts": 5
+  },
+  "validation": "passed"
+}

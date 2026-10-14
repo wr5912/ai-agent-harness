@@ -1,0 +1,35 @@
+{
+  "validation": "interrupted",
+  "observed_at": "2026-10-13",
+  "scope": "Node 22 旧全局 DSH 的首次启动验证；不执行模型或外部业务调用",
+  "source": {
+    "dsh_version": "0.2.1-alpha.2",
+    "node_version": "v22.22.0",
+    "git_commit": "ad75a3c97678aecb4418b40a39df74d696a252d4",
+    "dirty": true,
+    "built_files": {
+      "index.js": "e386c06159ffe99a44bae4e0575de1417cd28c5092bdde890c7c625087502d64",
+      "client.js": "a22fa048e2c88b0d583b8d09ae5a081750efd20020c5e76981901770e715d086"
+    }
+  },
+  "evidence_method": "检查项依据顺序执行的断言脚本与日志重建；首次停止后的重启入口返回 1，未完成重启断言。",
+  "passed_before_interruption": [
+    "prepare",
+    "start_dry_run",
+    "start_native_dsh",
+    "anonymous_http_401",
+    "native_auth_cookie_and_clean_url",
+    "native_four_platform_pages",
+    "existing_trace_read_and_truncation",
+    "instance_creation_preview_only",
+    "mcp_initialize_initialized_tools_list",
+    "stop_releases_port"
+  ],
+  "failed_step": "restart",
+  "failure": "重启时 PATH 中没有全局 dsh；随后确认 Node 22 目录消失。用户确认切换到 Node 24.21.0 并重装 DSH。",
+  "not_verified": [
+    "restart_preserves_home_auth_and_preferences"
+  ],
+  "credential_policy": "未保存 Token、Cookie 或原生认证 URL",
+  "screenshot": "stage1-global-home-node22-20261013.png"
+}

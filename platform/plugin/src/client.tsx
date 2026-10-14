@@ -1,93 +1,147 @@
-import { useEffect, useSyncExternalStore } from 'react'
-import type { CSSProperties } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
-import type { SidebarPanelIconOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
-import { createCatalog } from './catalog.ts'
-import type { Catalog } from './catalog.ts'
-import type { Asset, RunAsset } from './protocol.ts'
+import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { IWorkspaces } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { EmptyWorkspaceOwnerProps, HeroBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import type { ConfigForm, SettingsLauncherOwnerProps, SettingsOnboardingOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
+import { createCatalog, type Catalog } from './catalog.ts'
+import type { PlatformPageProps } from './protocol.ts'
+import { HomePage, PlatformLogo, type PageId } from './home.tsx'
+import { AgentsPage } from './agents/client.tsx'
+import { InstancesPage } from './instances/client.tsx'
+import { McpPage } from './mcp/client.tsx'
+import { platformTheme } from './theme.ts'
+import { prepareConversation, startConversation } from './conversation.ts'
 
 export const name = 'harness-platform-client'
-export const inject = ['connection', 'slots', 'layout']
-const PANEL_ID = 'harness-assets' as MainPanelId
+export const inject = ['connection', 'slots', 'configForms', 'layout', 'workspaces', 'uiWorkspace', 'sessions', 'conversation']
 type ClientContext = Omit<Context, 'connection'> & { connection: ConnectionHandle }
+const pages: { id: PageId; label: string }[] = [
+  { id: 'home', label: '首页' }, { id: 'conversations', label: '管理对话' }, { id: 'agents', label: '智能体与评估' },
+  { id: 'instances', label: '实例管理' }, { id: 'mcp', label: 'MCP 管理' },
+]
 
-const sectionStyle: CSSProperties = {
-  border: '1px solid var(--dsw-alias-border-l4, #d1d5db)', borderRadius: 12,
-  padding: '18px 20px', background: 'var(--dsw-alias-bg-layer-1, transparent)',
-}
-
-function AssetList({ title, items }: { title: string; items: (Asset | RunAsset)[] }) {
-  return <section style={sectionStyle}>
-    <h2 style={{ margin: '0 0 16px', fontSize: 18 }}>{title} <span style={{ opacity: 0.6 }}>({items.length})</span></h2>
-    {items.length === 0 ? <p style={{ opacity: 0.65, margin: 0 }}>暂无{title}记录。</p> :
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {items.map(item => <li key={item.path} style={{ padding: '12px 0', borderTop: '1px solid var(--dsw-alias-border-l2, #e5e7eb)' }}>
-          <div style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{item.id}</div>
-          {'experiment_id' in item && <div style={{ fontSize: 13, marginTop: 5 }}>所属 Experiment：{item.experiment_id}</div>}
-          <code style={{ display: 'block', fontSize: 12, opacity: 0.65, marginTop: 5, overflowWrap: 'anywhere' }}>{item.path}</code>
-        </li>)}
-      </ul>}
-  </section>
-}
-
-function AssetsPage({ catalog }: { catalog: Catalog }) {
-  const state = useSyncExternalStore(catalog.subscribe, catalog.getSnapshot)
-  useEffect(() => { void catalog.refresh() }, [catalog])
-  const assets = state.inventory
-  return <main style={{ height: '100%', overflow: 'auto', padding: '32px clamp(20px, 4vw, 48px)', boxSizing: 'border-box' }}>
-    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-      <header style={{ display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 26, margin: '0 0 8px' }}>研究资产</h1>
-          <p style={{ opacity: 0.65, margin: 0 }}>查看当前仓库的 Agent、Experiment 和 Run。</p>
-        </div>
-        <button type="button" onClick={() => { void catalog.refresh() }} disabled={state.status === 'loading'}
-          style={{ border: '1px solid var(--dsw-alias-border-l4, #d1d5db)', borderRadius: 8, padding: '9px 16px', background: 'transparent', color: 'inherit', cursor: 'pointer', flexShrink: 0 }}>
-          {state.status === 'loading' ? '刷新中…' : '刷新'}
-        </button>
-      </header>
-      {state.status === 'error' && <p role="alert" style={{ color: 'var(--dsw-alias-state-error-primary, #c2410c)', padding: 16, border: '1px solid currentColor', borderRadius: 8 }}>
-        资产查询失败：{state.error}{assets && ' 下方保留上次成功查询的清单。'}
-      </p>}
-      {!assets && state.status !== 'error' && <p role="status">正在读取仓库资产…</p>}
-      {assets && <>
-        <section style={{ ...sectionStyle, marginBottom: 20 }}>
-          <div style={{ fontSize: 13, opacity: 0.65, marginBottom: 6 }}>仓库来源</div>
-          <code style={{ overflowWrap: 'anywhere' }}>{assets.root}</code>
-          <div style={{ fontSize: 13, opacity: 0.65, marginTop: 10 }}>查询时间：{new Date(assets.observed_at).toLocaleString()}</div>
-          <p style={{ margin: '14px 0 0' }}>Agent {assets.agents.length} · Experiment {assets.experiments.length} · Run {assets.runs.length}</p>
-        </section>
-        <div style={{ display: 'grid', gap: 20 }}>
-          <AssetList title="Agent" items={assets.agents} />
-          <AssetList title="Experiment" items={assets.experiments} />
-          <AssetList title="Run" items={assets.runs} />
-        </div>
-      </>}
+function PlatformPage({ catalog, rpc, mcpForm, enterConversation, startConversation }: PlatformPageProps & { catalog: Catalog; mcpForm: ConfigForm<any>; enterConversation: () => void; startConversation: (root: string, prompt: string) => Promise<void> }) {
+  const [page, setPage] = useState<PageId>('home')
+  const frame = useRef<HTMLDivElement>(null)
+  const conversation = useRef<HTMLDivElement>(null)
+  const navigate = (next: PageId) => {
+    if (next === 'conversations') enterConversation()
+    setPage(next)
+  }
+  useEffect(() => {
+    // 平台占用官方整页覆盖槽，保留底层设置服务和弹窗挂载。
+    const layer = frame.current!.closest<HTMLElement>('[data-shell-overlay]')!
+    const underneath = [...layer.parentElement!.children].filter(element => element !== layer) as HTMLElement[]
+    const previous = underneath.map(element => ({ element, hidden: element.hidden, inert: element.inert, display: element.style.display }))
+    underneath.forEach(element => { element.hidden = true; element.inert = true; element.style.display = 'none' })
+    const title = document.title
+    document.title = 'Harness工程平台'
+    return () => {
+      previous.forEach(({ element, hidden, inert, display }) => { element.hidden = hidden; element.inert = inert; element.style.display = display })
+      document.title = title
+    }
+  }, [])
+  useEffect(() => {
+    if (page !== 'conversations') return
+    // 展示同一原生会话树，避免复制会话状态或重复挂载编辑器。
+    const layer = frame.current!.closest<HTMLElement>('[data-shell-overlay]')!
+    const nativeFrame = layer.parentElement!
+    const elements = [...nativeFrame.children].filter(element => element !== layer) as HTMLElement[]
+    const previous = elements.map(element => ({ element, hidden: element.hidden, inert: element.inert, display: element.style.display }))
+    elements.forEach(element => { element.hidden = false; element.inert = false; element.style.display = '' })
+    nativeFrame.classList.add('harness-conversation-frame')
+    const position = () => {
+      const bounds = conversation.current!.getBoundingClientRect()
+      const parent = nativeFrame.getBoundingClientRect()
+      nativeFrame.style.setProperty('--harness-conversation-top', `${bounds.top - parent.top}px`)
+      nativeFrame.style.setProperty('--harness-conversation-left', `${bounds.left - parent.left}px`)
+    }
+    const observer = new ResizeObserver(position)
+    observer.observe(frame.current!)
+    observer.observe(conversation.current!)
+    position()
+    return () => {
+      observer.disconnect()
+      nativeFrame.classList.remove('harness-conversation-frame')
+      nativeFrame.style.removeProperty('--harness-conversation-top')
+      nativeFrame.style.removeProperty('--harness-conversation-left')
+      previous.forEach(({ element, hidden, inert, display }) => { element.hidden = hidden; element.inert = inert; element.style.display = display })
+    }
+  }, [page])
+  const navigation = <nav className="harness-nav" aria-label="平台导航">
+    {pages.map(item => <button key={item.id} type="button" aria-current={page === item.id ? 'page' : undefined} onClick={() => navigate(item.id)}>{item.label}</button>)}
+  </nav>
+  return <div ref={frame} className="harness-platform" data-page={page}>
+    <style>{platformTheme}</style>
+    <header className="harness-topbar"><div className="harness-brand"><PlatformLogo size={38}/><div><strong>Harness工程平台</strong><small>Harness Engineering Platform</small></div></div>
+      {navigation}
+      <div className="harness-account"><span className="harness-avatar">A</span><span>admin</span><span id="harness-settings"/><form method="post" action="/logout"><button type="submit">退出登录</button></form></div>
+    </header>
+    <div className="harness-body">
+      {page !== 'home' && <aside className="harness-sidebar">{navigation}</aside>}
+      <div className="harness-content">
+        {page !== 'home' && <div className="harness-breadcrumb">工作空间 / {pages.find(item => item.id === page)?.label}</div>}
+        {page === 'home' && <HomePage catalog={catalog} rpc={rpc} navigate={navigate} startConversation={startConversation} />}
+        {page === 'conversations' && <div ref={conversation} className="harness-conversation-viewport"/>}
+        {page === 'agents' && <AgentsPage rpc={rpc} />}
+        {page === 'instances' && <InstancesPage rpc={rpc} />}
+        {page === 'mcp' && <McpPage rpc={rpc} form={mcpForm} />}
+      </div>
     </div>
-  </main>
+  </div>
 }
 
-function AssetsIcon({ size }: SidebarPanelIconOwnerProps) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-    <rect x="3" y="3" width="7" height="7" rx="1.5" />
-    <rect x="14" y="3" width="7" height="7" rx="1.5" />
-    <rect x="3" y="14" width="7" height="7" rx="1.5" />
-    <path d="M14 17.5h7m-3.5-3.5v7" />
-  </svg>
+function ProjectWorkspace({ catalog, workspaces, selectedId, onPick }: EmptyWorkspaceOwnerProps & { catalog: Catalog; workspaces: IWorkspaces }) {
+  const { inventory } = useSyncExternalStore(catalog.subscribe, catalog.getSnapshot)
+  const root = inventory?.root
+  const [error, setError] = useState('')
+  useEffect(() => {
+    if (!root) return
+    let active = true
+    setError('')
+    workspaces.create({ path: root }).then(workspace => {
+      if (active && workspace.workspaceId !== selectedId) onPick(workspace.workspaceId)
+    }).catch(() => { if (active) setError('无法准备项目工作区，请刷新重试。') })
+    return () => { active = false }
+  }, [root, selectedId, workspaces])
+  return error ? <span role="alert">{error}</span> : null
+}
+
+function ConversationWelcome({ size }: HeroBrandMarkOwnerProps) {
+  return <span className="harness-conversation-welcome"><PlatformLogo size={size}/><span>开始管理与改进智能体</span></span>
+}
+
+function PlatformSettings({ openSettings, settingsOpen, settingsShortcut }: SettingsLauncherOwnerProps) {
+  const [target, setTarget] = useState<HTMLElement | null>(null)
+  useEffect(() => { setTarget(document.getElementById('harness-settings')) }, [])
+  return target && createPortal(<button type="button" aria-haspopup="dialog" aria-expanded={settingsOpen}
+    aria-keyshortcuts={settingsShortcut?.aria} onClick={openSettings}>设置</button>, target)
 }
 
 export function apply(ctx: ClientContext) {
+  ctx.effect(() => ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
+    name: 'settings.onboarding', id: 'welcome-notice', order: -100, priority: -1,
+  }, ({ complete }: SettingsOnboardingOwnerProps) => {
+    useEffect(() => { complete() }, [complete])
+    return null
+  })))
   const catalog = createCatalog(ctx.connection.rpc)
   ctx.on('connection/reset', () => { void catalog.refresh() })
-  ctx.slots.inject('main', () => {
-    const dispose = ctx.slots.register({ name: 'main', key: PANEL_ID, inject: () => ({ catalog }) }, AssetsPage)
-    ctx.layout.selectPanel(PANEL_ID)
-    return dispose
-  })
-  ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
-    name: 'sidebar.panellist', id: PANEL_ID, order: 0, label: '研究资产',
-  }, AssetsIcon))
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay', id: 'harness-platform', order: -100,
+    inject: () => ({ catalog, rpc: ctx.connection.rpc, mcpForm: ctx.configForms.get('mcp-session-manager'), enterConversation: () => prepareConversation(ctx.slots, ctx.layout), startConversation: (root: string, prompt: string) => startConversation(ctx, root, prompt) }),
+  }, PlatformPage))
+  ctx.slots.inject('settings.launcher', () => ctx.slots.register({ name: 'settings.launcher', priority: -1 }, PlatformSettings))
+  ctx.slots.inject('sidebar.brand.mark', () => ctx.slots.register({ name: 'sidebar.brand.mark', priority: -1 }, () => null))
+  ctx.slots.inject('sidebar.brand.name', () => ctx.slots.register({ name: 'sidebar.brand.name', priority: -1 }, () => null))
+  ctx.slots.inject('conversation.hero.brand.mark', () => ctx.slots.register({ name: 'conversation.hero.brand.mark', priority: -1 }, ConversationWelcome))
+  ctx.slots.inject('conversation.hero.workspace', () => ctx.slots.register({
+    name: 'conversation.hero.workspace', priority: -1, inject: () => ({ catalog, workspaces: ctx.workspaces }),
+  }, ProjectWorkspace))
 }

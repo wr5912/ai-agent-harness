@@ -1,0 +1,112 @@
+{
+  "checked_at": "2026-10-14T01:47:23.120Z",
+  "source": {
+    "commit": "e4860eb28b9ee98df588b1b8b1dd8bc3de2f33cf",
+    "dirty": true,
+    "client_sha256": "ea3b2078b79796f116da881cf14a750688808c5d4408550b0d0e4cfb4073f725"
+  },
+  "scope": "实际全局 DSH 客户端布局；仅创建未保存的编辑草稿，调试目录和响应为受控外部边界",
+  "checks": {
+    "sidebar_navigation_only": true,
+    "header_save_uses_native_validation_without_write": true,
+    "layout_1920": {
+      "服务器接入": {
+        "workspace_width": 1724,
+        "page_width": 1724,
+        "horizontal_overflow": false
+      },
+      "工具分组与发布": {
+        "workspace_width": 1724,
+        "page_width": 1724,
+        "horizontal_overflow": false
+      },
+      "工具与资源调试": {
+        "workspace_width": 1724,
+        "page_width": 1724,
+        "horizontal_overflow": false
+      },
+      "编排工具": {
+        "workspace_width": 1724,
+        "page_width": 1724,
+        "horizontal_overflow": false
+      }
+    },
+    "desktop_columns": {
+      "list_width": 200,
+      "editor_width": 1394
+    },
+    "layout_1440": {
+      "服务器接入": {
+        "workspace_width": 1244,
+        "page_width": 1244,
+        "horizontal_overflow": false
+      },
+      "工具分组与发布": {
+        "workspace_width": 1244,
+        "page_width": 1244,
+        "horizontal_overflow": false
+      },
+      "工具与资源调试": {
+        "workspace_width": 1244,
+        "page_width": 1244,
+        "horizontal_overflow": false
+      },
+      "编排工具": {
+        "workspace_width": 1244,
+        "page_width": 1244,
+        "horizontal_overflow": false
+      }
+    },
+    "layout_900": {
+      "服务器接入": {
+        "workspace_width": 742,
+        "page_width": 742,
+        "horizontal_overflow": false
+      },
+      "工具分组与发布": {
+        "workspace_width": 742,
+        "page_width": 742,
+        "horizontal_overflow": false
+      },
+      "工具与资源调试": {
+        "workspace_width": 742,
+        "page_width": 742,
+        "horizontal_overflow": false
+      },
+      "编排工具": {
+        "workspace_width": 742,
+        "page_width": 742,
+        "horizontal_overflow": false
+      }
+    },
+    "layout_390": {
+      "服务器接入": {
+        "workspace_width": 390,
+        "page_width": 390,
+        "horizontal_overflow": false
+      },
+      "工具分组与发布": {
+        "workspace_width": 390,
+        "page_width": 390,
+        "horizontal_overflow": false
+      },
+      "工具与资源调试": {
+        "workspace_width": 390,
+        "page_width": 390,
+        "horizontal_overflow": false
+      },
+      "编排工具": {
+        "workspace_width": 390,
+        "page_width": 390,
+        "horizontal_overflow": false
+      }
+    },
+    "drafts_survive_tabs_and_composition": true,
+    "client_errors": 0,
+    "settings_writes": 0
+  },
+  "limits": [
+    "未改写用户 MCP 配置；未调用真实业务 MCP；不替代协议验收"
+  ],
+  "validation": "passed"
+}

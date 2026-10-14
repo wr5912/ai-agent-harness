@@ -1,0 +1,44 @@
+{
+  "checked_at": "2026-10-14T01:47:21.951Z",
+  "source": {
+    "commit": "e4860eb28b9ee98df588b1b8b1dd8bc3de2f33cf",
+    "dirty": true,
+    "built_files": {
+      "index.js": "2b3c7f6b55490e613a6b35f26ba0b6b6eb7136db9cf247edc5b7420b5cb2c9d6",
+      "client.js": "ea3b2078b79796f116da881cf14a750688808c5d4408550b0d0e4cfb4073f725"
+    }
+  },
+  "scope": "真实全局 DSH 页面 → 平台 RPC → 仓库 dsh-dev → Docker Compose；165 个隔离轻量容器模拟已停止 DSH 实例的生命周期边界",
+  "fixture": {
+    "prefix": "platform-bulk-20261013-4d013a",
+    "container_count": 165,
+    "image": "alpine:3.20",
+    "network": "none",
+    "model_calls": 0
+  },
+  "checks": {
+    "preview_165_targets": true,
+    "bulk_delete": {
+      "targets": 165,
+      "successful_receipts": 165,
+      "failed_receipts": 0,
+      "home_volumes_preserved": 165,
+      "containers_removed": 165,
+      "registrations_removed": 165,
+      "peak_inflight_requests": 5,
+      "elapsed_ms": 18216,
+      "progress_visible": true
+    },
+    "running_target_rejected_and_preserved": true,
+    "user_registrations_unchanged": true,
+    "client_errors": 0,
+    "fixture_cleanup": {
+      "removed": 166,
+      "failed": 0
+    }
+  },
+  "limits": [
+    "轻量容器用于生命周期和批量规模验证，不执行 DSH Runtime 或业务 Harness；未删除用户既有容器"
+  ],
+  "validation": "passed"
+}

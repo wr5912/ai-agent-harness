@@ -1,4 +1,6 @@
-import { spawn, spawnSync } from 'node:child_process'
+import { execFile, spawn, spawnSync } from 'node:child_process'
+import { promisify } from 'node:util'
+import { load as loadYaml } from 'js-yaml'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import {
   existsSync,
@@ -129,23 +131,28 @@ function parseJsonCommand(root: string, args: string[], message = '命令执行�
   }
 }
 
+async function parseJsonCommandAsync(root: string, args: string[], message = '命令执行失败', signal?: AbortSignal) {
+  let stdout: string
+  try {
+    ({ stdout } = await promisify(execFile)('python3', args, {
+      cwd: root, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, timeout: 20_000, signal,
+    }))
+  } catch (error) {
+    const failed = error as Error & { stderr?: string }
+    throw new RpcError('command_failed', message, { reason: redact(failed.stderr || failed.message) })
+  }
+  try { return JSON.parse(stdout) as JsonMap }
+  catch { throw new RpcError('command_failed', '命令没有返回合法 JSON', { stdout: redact(stdout) }) }
+}
+
 function readYamlMap(root: string, file: string): JsonMap {
-  const code = [
-    'import json, sys',
-    'from pathlib import Path',
-    'try:',
-    '    import yaml',
-    'except ImportError as exc:',
-    '    raise SystemExit("缺少 PyYAML，无法读取 YAML") from exc',
-    'path = Path(sys.argv[1])',
-    'value = yaml.safe_load(path.read_text(encoding="utf-8"))',
-    'if value is None:',
-    '    value = {}',
-    'if not isinstance(value, dict):',
-    '    raise SystemExit("YAML 顶层必须是 object")',
-    'print(json.dumps(value, ensure_ascii=False))',
-  ].join('\n')
-  return parseJsonCommand(root, ['-c', code, file], 'YAML 解析失败')
+  try {
+    const value = loadYaml(readFileSync(file, 'utf8')) ?? {}
+    if (typeof value !== 'object' || Array.isArray(value)) throw new Error('YAML 顶层必须是 object')
+    return value as JsonMap
+  } catch {
+    throw new RpcError('asset_read_failed', 'YAML 解析失败', { path: repoRelative(root, file) })
+  }
 }
 
 function writeYamlMap(file: string, values: JsonMap) {
@@ -246,7 +253,7 @@ function casesFromEvaluation(parsed: unknown) {
   })
 }
 
-function loadEvaluation(root: string, agentId: string) {
+async function loadEvaluation(root: string, agentId: string, signal?: AbortSignal) {
   const path = repoPath(root, `agents/${agentId}/evaluation.md`)
   const content = readText(path)
   const code = [
@@ -256,7 +263,7 @@ function loadEvaluation(root: string, agentId: string) {
     'from evaluation_contract import load_evaluation',
     'print(json.dumps(load_evaluation(Path(sys.argv[1])), ensure_ascii=False))',
   ].join('\n')
-  const parsed = parseJsonCommand(root, ['-c', code, path], 'evaluation.md 合同解析失败')
+  const parsed = await parseJsonCommandAsync(root, ['-c', code, path], 'evaluation.md 合同解析失败', signal)
   return { path: `agents/${agentId}/evaluation.md`, content, sha256: sha256(content), parsed, cases: casesFromEvaluation(parsed as unknown as string) }
 }
 
@@ -308,9 +315,9 @@ function relatedRefs(root: string, experimentId: string) {
   return [...refs].sort()
 }
 
-function sourceContract(root: string, experimentId: string) {
+async function sourceContract(root: string, experimentId: string, signal?: AbortSignal) {
   try {
-    return commandJson(root, [SOURCE_CONTRACT, '--source', `experiment:${experimentId}`])
+    return await parseJsonCommandAsync(root, [SOURCE_CONTRACT, '--source', `experiment:${experimentId}`], '来源合同解析失败', signal)
   } catch (error) {
     return { status: 'unavailable', error: error instanceof RpcError ? error.code : 'asset_operation_failed' }
   }
@@ -337,25 +344,26 @@ function list(root: string) {
   })
 }
 
-function detail(root: string, payload: JsonMap) {
+async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
   const agentId = agentIdField(payload)
   const manifest = readYamlMap(root, repoPath(root, `agents/${agentId}/manifest.yaml`))
-  const rawExperimentId = optionalString(payload, 'experiment_id') ?? (typeof manifest.active_experiment === 'string' ? manifest.active_experiment : undefined)
+  const versions = listExperiments(root, agentId).sort((left, right) => right.id.localeCompare(left.id, 'en', { numeric: true }))
+  const rawExperimentId = optionalString(payload, 'experiment_id') ?? versions[0]?.id ?? (typeof manifest.active_experiment === 'string' ? manifest.active_experiment : undefined)
   const experimentId = rawExperimentId ? experimentIdValue(rawExperimentId) : undefined
   if (!experimentId) throw new RpcError('invalid_request', '未指定 experiment_id，manifest 也没有 active_experiment')
   const exp = experimentInfo(root, experimentId)
   if (exp.agent_id !== agentId) throw new RpcError('invalid_request', 'Experiment 不属于该 Agent', { agent_id: agentId, experiment_id: experimentId })
   const source = catalog(root)
-  const evaluation = loadEvaluation(root, agentId)
+  const [evaluation, contract] = await Promise.all([loadEvaluation(root, agentId, signal), sourceContract(root, experimentId, signal)])
   const decision = readText(repoPath(root, `evolution/experiments/${experimentId}/decision.md`))
   return ok({
     agent: { id: agentId, manifest, path: `agents/${agentId}` },
     experiment: exp,
-    versions: listExperiments(root, agentId).map(item => ({ id: item.id, status: item.status, baseline_ref: item.baseline_ref })),
+    versions: versions.map(item => ({ id: item.id, status: item.status, baseline_ref: item.baseline_ref })),
     baseline: { ref: exp.baseline_ref, parent_experiment_id: exp.change.parent_experiment_id ?? null, source: exp.baseline_ref ? 'change.yaml' : 'unknown' },
     fusion: declaredFusion(exp.change),
     related_references: relatedRefs(root, experimentId),
-    declared: { catalog_source: source.parsed.sources?.[experimentId] ?? null, source_contract: sourceContract(root, experimentId), source_catalog_sha256: source.hash },
+    declared: { catalog_source: source.parsed.sources?.[experimentId] ?? null, source_contract: contract, source_catalog_sha256: source.hash },
     loaded_instance: { status: 'not_queried', note: '实际实例由平台实例模块统一观察。' },
     verification: { runs: listRuns(root, experimentId), note: 'Run 证据通过 runs/index 或 runs/show 查询原始记录' },
     features: featureList(root, experimentId),
@@ -615,9 +623,9 @@ function applyEdit(root: string, payload: JsonMap) {
   return ok({ written: resolved.map(item => ({ path: item.rel, sha256: sha256(item.content) })) })
 }
 
-function cases(root: string, payload: JsonMap) {
+async function cases(root: string, payload: JsonMap, signal?: AbortSignal) {
   const agentId = agentIdField(payload)
-  const evaluation = loadEvaluation(root, agentId)
+  const evaluation = await loadEvaluation(root, agentId, signal)
   return ok({ path: evaluation.path, sha256: evaluation.sha256, cases: evaluation.cases })
 }
 
@@ -639,8 +647,8 @@ function commandJson(root: string, args: string[]) {
   return parseJsonCommand(root, args)
 }
 
-function evalPreview(root: string, payload: JsonMap) {
-  return ok({ command: ['python3', ...evalArgs(payload, true)], result: commandJson(root, evalArgs(payload, true)) as JsonMap })
+async function evalPreview(root: string, payload: JsonMap, signal?: AbortSignal) {
+  return ok({ command: ['python3', ...evalArgs(payload, true)], result: await parseJsonCommandAsync(root, evalArgs(payload, true), '评测预览失败', signal) })
 }
 
 type Job = { status: 'running' | 'completed' | 'failed' | 'cancelled'; started_at: string; updated_at: string; stdout: string; stderr: string; process?: ReturnType<typeof spawn>; result?: unknown; exit_code?: number | null; error?: string }
@@ -693,7 +701,7 @@ function cancelJob(payload: JsonMap, jobs: Map<string, Job>) {
   return ok({ status: job.status })
 }
 
-function runRecord(root: string, op: 'index' | 'show' | 'compare', payload: JsonMap) {
+async function runRecord(root: string, op: 'index' | 'show' | 'compare', payload: JsonMap, signal?: AbortSignal) {
   const args = [RUN_RECORD, '--repo', root, op]
   if (op === 'index') args.push('--agent', agentIdField(payload))
   if (op === 'show') {
@@ -709,7 +717,18 @@ function runRecord(root: string, op: 'index' | 'show' | 'compare', payload: Json
     const caseId = optionalString(payload, 'case_id')
     if (caseId) args.push('--case', caseId)
   }
-  return ok(JSON.parse(redact(JSON.stringify(commandJson(root, args)), Infinity)) as JsonMap)
+  let stdout: string
+  try {
+    ({ stdout } = await promisify(execFile)('python3', args, {
+      cwd: root, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, timeout: 20_000, signal,
+    }))
+  } catch (error) {
+    const failed = error as Error & { stderr?: string; stdout?: string }
+    throw new RpcError('run_read_failed', 'Run 查询失败', {
+      reason: redact(failed.stderr || failed.stdout || failed.message),
+    })
+  }
+  return ok(JSON.parse(redact(stdout, Infinity)) as JsonMap)
 }
 
 function assertRunFiles(root: string, runId: string) {
@@ -725,10 +744,10 @@ function assertRunFiles(root: string, runId: string) {
   }
 }
 
-function readRunEvidence(root: string, payload: JsonMap) {
+async function readRunEvidence(root: string, payload: JsonMap, signal?: AbortSignal) {
   const filename = stringField(payload, 'filename')
   const caseId = stringField(payload, 'case_id')
-  const view = runRecord(root, 'show', payload)
+  const view = await runRecord(root, 'show', payload, signal)
   if (!view.ok) return view
   const cases = view.value.cases as JsonMap[]
   const selected = cases.find(item => item.case_id === caseId)
@@ -763,20 +782,20 @@ export function createAgentsHandler(assetRoot: string): ConnectionRpcHandler {
       const body = payload === undefined ? {} : requireObject(payload)
       switch (endpoint) {
         case 'list': return list(root)
-        case 'detail': return detail(root, body)
+        case 'detail': return await detail(root, body, signal)
         case 'create': return await createExperiment(root, body)
         case 'edit/read': return readEditable(root, body)
         case 'edit/preview': return previewEdit(root, body)
         case 'edit/apply': return await applyEdit(root, body)
-        case 'cases/list': return cases(root, body)
-        case 'eval/preview': return evalPreview(root, body)
+        case 'cases/list': return await cases(root, body, signal)
+        case 'eval/preview': return await evalPreview(root, body, signal)
         case 'eval/start': return startEval(root, body, jobs)
         case 'eval/status': return jobStatus(body, jobs)
         case 'eval/cancel': return cancelJob(body, jobs)
-        case 'runs/index': return runRecord(root, 'index', body)
-        case 'runs/show': return runRecord(root, 'show', body)
-        case 'runs/evidence': return readRunEvidence(root, body)
-        case 'runs/compare': return runRecord(root, 'compare', body)
+        case 'runs/index': return await runRecord(root, 'index', body, signal)
+        case 'runs/show': return await runRecord(root, 'show', body, signal)
+        case 'runs/evidence': return await readRunEvidence(root, body, signal)
+        case 'runs/compare': return await runRecord(root, 'compare', body, signal)
         case 'decision/update': return await decisionUpdate(root, body)
         default: return failure(new RpcError('not_found', '未知的智能体操作', { endpoint }))
       }

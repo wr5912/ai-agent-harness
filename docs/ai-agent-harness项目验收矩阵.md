@@ -21,7 +21,7 @@
 | 派生 | `PA-09` | 新 Preset 创建、登记、重载与选择闭环 | 部分验证 |
 | 记录 | `PA-10` | Research Run 的创建、记录、缺口与封存 | 已验证（机器范围） |
 | 复用 | `PA-11` | Research Release 打包、解析与复现装载 | 未实现 |
-| 平台 | `PA-12` | 全局 DSH 平台启动、认证与只读资产查询 | 部分验证；当前分支待实机复验 |
+| 平台 | `PA-12` | 全局 DSH 平台启动、认证与研究工具 | 部分验证；五页与全局启动已验证 |
 
 状态含义：
 
@@ -102,9 +102,13 @@
 ### PA-05 `dsh-dev` 实例完整生命周期
 
 - **要回答**：本地实例能否从参数预览到停止完整运行，失败时是否如实报告。
-- **操作链**：`up --dry-run` → `up` → `ps` → `url` → `logs` → `up --replace` → `down`；同时检查缺参数时的可用值列表、自动实例名与端口、端口竞态、缺少环境变量、单一 stdout JSON 和停止失败。
+- **操作链**：`up --dry-run` → `up` → `ps` → `url` → `logs` → `up --replace` → `down` → `delete`（保留 HOME）；同时检查缺参数时的可用值列表、自动实例名与端口、端口竞态、缺少环境变量、单一 stdout JSON 和停止失败。
 - **当前证据**：单元测试覆盖当前 eval-only CLI 合同、新建 Experiment 时只引用全仓 DSH 锁而不生成 Candidate 锁，以及旧实例的只读运维兼容；既有实机证据见 [`dsh-dev-identity-and-lifecycle-20260919.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-identity-and-lifecycle-20260919.json)、[`dsh-review-followup-20260920.json`](../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-review-followup-20260920.json) 和 [`dsh-plugin-restart-20260922.json`](../evolution/experiments/EXP-test01-002/runs/run-a4abf894-4750-4113-8497-7fc08a3a36b5/evidence/T-AUTHORING-PLUGIN-PERSISTENCE/dsh-plugin-restart-20260922.json)，但这些实机记录早于本次模式收敛。
 - **当前试点证据与缺口**：[EXP-009 生命周期记录](../evolution/experiments/EXP-security-operations-expert-009/evaluation/evidence/dsh-dev-lifecycle-20260929.json)在同一来源上完成 `up --dry-run`、`up`、`ps`、认证 `url` 探针、`logs`、`up --replace` 和 `down`，确认容器重建、HOME 保留及停止后无运行容器；缺少必填环境变量的替换请求在重启前被拒绝。尚未实测端口竞态或停止失败等其他异常分支。Docker 自动删除曾短暂卡在 `removing`，见 [`dsh-global-lock-image-20260928T104351Z.json`](../evolution/experiments/EXP-security-operations-expert-007/evaluation/evidence/dsh-global-lock-image-20260928T104351Z.json)，后续装载和 Run 已恢复。
+- **首阶段工具证据（2026-10-13）**：`dsh-dev` 的 96 项测试通过，包含删除失败时保留登记、HOME 查询失败拒绝完成及实际参数校验。平台实例模块复用该入口，先预览后执行，同名操作串行，批量逐项返回回执。[双实例 Docker 记录](../platform/plugin/test/evidence/stage1-docker-20261013.json)证明两实例共用同一 Image ID、HOME 与端口独立、Harness 挂载只读；停止并删除一台后另一台仍运行，两个 HOME 卷均保留。测试容器与登记已清理，未操作用户实例。该探针使用 `--allow-missing-env`，不证明模型或业务 Session 成功。
+- **交互与性能整改证据（2026-10-13）**：[生命周期浏览器记录](../platform/plugin/test/evidence/stage1-remediation-lifecycle-20261013.json)仅操作独立测试容器，覆盖启动、停止、重启、删除取消与 stopped 删除，确认保留 HOME，随后清理测试登记。[171 实例只读查询记录](../platform/plugin/test/evidence/stage1-remediation-performance-20261013.json)三次耗时为 415、417、411 ms，状态均为 7 running、164 stopped；用户既有实例未操作。
+- **容器状态与批量删除根因整改（2026-10-13）**：此前无容器的登记被归为 stopped，最新 [135 条登记检查](../platform/plugin/test/evidence/stage1-instances-state-20261013.json)区分 5 running 与 130 absent，查询耗时 412 ms；默认列表只展示有容器的实例，无容器登记可单独筛选并清理。删除由 CLI 按目标核验，不再逐项扫描全部登记。[165 个真实 Docker 容器检查](../platform/plugin/test/evidence/stage1-instances-bulk-165-20261013.json)以独立 Alpine 夹具验证五项一批、逐项进度、全部删除成功及 HOME 保留，运行容器被拒绝删除；结束后仅清理测试资产，用户登记保持不变。该批量夹具不证明业务 DSH 装载。
+- **统一实例访问实机证据（2026-10-13）**：[标准 DSH 容器检查](../platform/plugin/test/evidence/stage1-instance-web-policy-20261013.json)验证 CLI 与平台新建时无需访问开关即可监听局域网、匿名访问并跳过内测声明；旧停止登记启动及平台重启应用相同规则，端口与 HOME 卷保留，两个实例共用标准 Runtime 镜像。评测 API 执行器可通过免认证入口注册工作区；旧 Token 入口的兼容由机器合同覆盖。规则唯一维护于[实例访问规则](../runtime/adapters/dsh-container/README.md#实例访问规则)。探针显式允许缺少业务环境变量，平台重启请求也仅对测试实例加入此标记；未执行业务 Case，未重启用户既有实例，测试容器、登记与专用卷已清理。
 - **自动化边界**：参数、状态转换和失败报告进入测试；Docker 进程、认证交接和真实停止状态用实机探针。
 
 ### PA-06 被测容器的真实装载与只读边界
@@ -152,6 +156,7 @@
 - **语音 Run 证据**：`U-VOICE-001` 的 [Qwen 通过 Run](../evolution/experiments/EXP-security-operations-expert-007/runs/run-fe58afad-133d-44fb-b92c-19bf74523083/report.md)和[默认 DeepSeek 失败 Run](../evolution/experiments/EXP-security-operations-expert-007/runs/run-e6a57ade-9cfe-4a47-9637-85e07ee423fe/report.md)均已记录实际浏览器观察、来源、输入和限制并封存。
 - **跨条件对照工具证据**：2026-10-07 的 Run 生命周期测试以两个不同预期模型封存共同 Case，确认新报告包含来源、冻结口径、Trial、观察、证据和模型差异；旧报告不改写。`compare` 将有共同结果标为可观察对照，将模型差异标为因果归因限制。此为机器合同验证，尚无本次中文优先和本地 Qwen 组合的新实机 Run。
 - **缺口**：已有真实 API Run、模型请求、MCP 调用和场景归因路径；仍需由研究者独立审阅归因质量，并用后续重复 Run 检验可复现性。语音浏览器 Run 仅覆盖单 Case 的两种模型路径，默认模型失败；现有记录不构成 OAuth 或生产验收。
+- **首阶段工具合同（2026-10-13）**：平台复用 `dsh-eval` 与 `run_record.py` 提供 Case 预览、评测进程启动/状态/取消、Run 索引/报告/Case/比较及已有轨迹查询。合同测试覆盖子进程状态与脱敏、固定父提交派生、编辑摘要冲突及创建失败恢复。旧 Run 未冻结 Case 定义时保留原始选择，合同是否变化显示为未知，不用今天的定义补写历史事实。轨迹按已有材料查询，只显示脱敏后的前 64 KiB，截断明确提示；本轮未新增模型评测 Run，不会用子进程退出或浏览器工具测试推定研究假设成立。
 - **自动化边界**：schema、唯一 ID、状态转换、证据引用和封存进入测试；观察是否支持假设由人审阅。
 
 ### PA-11 Research Release 打包、解析与复现装载
@@ -162,13 +167,24 @@
 - **当前证据与缺口**：静态目录合同将由仓库校验器覆盖，但当前没有 Research Release，`dsh-dev` 也未实现 `release:<id>`，因此完整路径未实现。
 - **自动化边界**：清单、摘要和解析进入测试；真实 DSH 重新装载用复现探针。该结论不包含生产部署验收。
 
-### PA-12 全局 DSH 平台启动、认证与只读资产查询
+### PA-12 全局 DSH 平台启动、认证与研究工具
 
-- **要回答**：研究者能否通过系统全局 DSH 装载仓库平台插件，从原生认证进入只读资产首页，并获得与仓库一致的 Agent、Experiment、Run 及来源信息。
-- **操作链**：`platform/dsh-platform prepare` → `start --dry-run` → `start` → 原生认证交接 → 打开“研究资产”首页 → 经真实 `inventory` RPC 核对清单与来源 → 刷新 → `Ctrl+C` 停止 → 重启并核对相同来源；命令和装载合同见[平台设计方案](platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。
-- **当前证据（2026-10-12）**：本分支合入平台实现后，启动器 [10 项测试](../platform/test_dsh_platform.py)和[插件 8 项测试](../platform/plugin/test/)通过，TypeScript 检查与构建通过，仓库合同校验通过。只读查询在当前仓库识别 **2 个 Agent、20 个 Experiment、61 个 Run**，包括带 `-r<12hex>` 后缀的 Experiment；插件测试覆盖真实 Cordis RPC 注册、查询、刷新、失败恢复和卸载。来源提交 `5c0f50a` 的文档记录了源仓库上全局 DSH、原生认证和 Chromium 页面验证；其资产数量与当前分支不同，不能作为本分支的实机验收结果。
-- **验证范围与限制**：当前环境的 `PATH` 中没有全局 `dsh`，因此本分支尚未执行 `prepare`、真实启动、认证交接、浏览器查询、停止和重启。当前已验证的是静态合同与插件行为；新 DSH 版本须重新核对兼容声明和实际装载。本路径不产生业务 Experiment Evaluation 或 Research Release 复现结论。
-- **自动化边界**：只读预览、任意工作目录定位、发现和归属、缺少产物、版本不兼容及端口冲突进入确定性测试；真实 DSH 装载、认证 RPC 和用户可见页面用实机及浏览器验证。资产查询不需要 LLM API Key，不产生业务 Experiment Evaluation 结论。
+- **要回答**：研究者能否通过系统全局 DSH 装载平台插件，经平台密码登录使用首页、管理对话、智能体与评估、实例管理和 MCP 管理，并保持已有资产与 Run 的事实源连续。
+- **操作链**：`platform/dsh-platform prepare` → `start --dry-run` → `start` → 平台密码登录 → 五页真实操作 → 停止 → 重启并核对来源与会话 → 退出并拒绝旧 Cookie；入口与合同见[平台设计方案](platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。分工与完成标准见[四目录计划](platform-design/09_首轮实施Backlog与工作切片.md#6-已选第一阶段四目录并行计划)。
+- **历史证据（2026-10-12）**：本分支当时的启动器 10 项测试、插件 8 项测试、TypeScript 构建及仓库合同校验通过。查询识别 2 个 Agent、20 个 Experiment、61 个 Run。来源提交 `5c0f50a` 记录的全局 DSH 和浏览器证据来自其他仓库状态，不能替代当前分支的实机验收。
+- **当前机器合同（2026-10-13）**：四个功能分支已在 `feat/platform-stage1-foundation` 集成；本轮插件 51 项、启动器 13 项、容器适配层 94 项测试通过；评测访问合同另通过 2 项 Python 测试及 1 项 API 执行器测试（覆盖五种认证响应），评测通道共用合同 6 项检查通过，仓库合同校验无错误或警告。插件覆盖实际 Cordis 注册、RPC 分派与取消、首页真实 Run 排序、智能体版本/编辑/失败恢复、旧 Run 限制与轨迹脱敏、实例生命周期与批量回执、MCP Session Header/有限 SSE/错误回执/只读组合。密码认证检查覆盖原生 API、三个写入域及 MCP 网关、旧 Token/Cookie 拒绝、Host/Origin 限制、会话持久化与过期、退出撤销、账号变更失效，以及配置损坏与卸载后保持拒绝访问。业务容器的免认证访问与平台密码登录分别验证。
+- **受控浏览器证据（2026-10-13）**：[14 项检查记录](../platform/plugin/test/evidence/stage1-browser-20261013.json)使用实际客户端构建产物和原生 Cordis WebServer/Connection，验证首页与标识、固定父提交派生、编辑预览与写入、旧 Run 和已有轨迹、实例预览失效、OpenAPI 调用及发布工具的两步执行；延迟响应不会覆盖新的智能体、文件或正文选择。页面载体与认证记录存储是受控夹具，未使用全局 DSH 壳。[桌面首页](../platform/plugin/test/evidence/stage1-home-desktop-20261013.png)及 375px 深色模式的[首页](../platform/plugin/test/evidence/stage1-home-mobile-20261013.png)、[智能体](../platform/plugin/test/evidence/stage1-agents-mobile-20261013.png)、[实例](../platform/plugin/test/evidence/stage1-instances-mobile-20261013.png)、[MCP](../platform/plugin/test/evidence/stage1-mcp-mobile-20261013.png)均保存；四页没有横向溢出或客户端页面错误。写入仅在临时资产克隆内发生，结束后清理。
+- **密码登录改动前的全局 DSH 历史证据（2026-10-13）**：Node `v24.21.0`、系统全局 DSH `0.2.1-alpha.2` 下，[11 项原生浏览器检查](../platform/plugin/test/evidence/stage1-global-dsh-20261013.json)通过，包含[真实首页](../platform/plugin/test/evidence/stage1-global-home-20261013.png)、已有轨迹、实例创建预览、MCP Gateway 生命周期、端口释放与重启恢复。当时未配置模型时，“稍后配置”在重启后再次提示；该行为已由本轮平台 Profile 和客户端插槽调整。保留[Node 切换中断记录](../platform/plugin/test/evidence/stage1-global-node22-interrupted-20261013.json)及[先前检查失败记录](../platform/plugin/test/evidence/stage1-global-failed-1791883367014.json)，不改写历史观察。
+- **当前密码登录实机证据（2026-10-13）**：相同 Node 与全局 DSH 版本下，[18 项独立 HOME 浏览器检查](../platform/plugin/test/evidence/stage1-platform-login-global-20261013.json)通过，包含匿名入口与接口拒绝、错误密码、登录与 Cookie 属性、桌面与 375px 移动端四页、已有轨迹、实例预览、MCP Gateway 生命周期、重启保持会话、退出后拒绝旧 Cookie，以及账号或插件加载失败时退出并释放端口。首次使用与重启均无预览版说明或模型欢迎弹窗；[手动模型配置入口](../platform/plugin/test/evidence/stage1-login-model-settings-20261013.png)仍可编辑，未保存模型或凭据。保存[桌面登录](../platform/plugin/test/evidence/stage1-login-desktop-20261013.png)、[移动端登录](../platform/plugin/test/evidence/stage1-login-mobile-20261013.png)及[首页](../platform/plugin/test/evidence/stage1-login-home-20261013.png)。[最初登录失败记录](../platform/plugin/test/evidence/stage1-platform-login-failed-1791886963154.json)保留；根因是登录页的 `no-referrer` 令浏览器表单 Origin 变成 `null`，改为 `same-origin` 后实机通过，仍拒绝外部与 `null` Origin。
+- **全新 HOME 首次使用证据（2026-10-13）**：[7 项首次登录检查](../platform/plugin/test/evidence/stage1-platform-first-login-20261013.json)另建 HOME，启动前确认无 Session、偏好或凭据存储；首次登录即可打开平台并读取已有 Run，无预览版说明、模型欢迎弹窗或客户端错误，结束后释放测试端口。此记录补充首次使用条件，不以已使用 HOME 的重启检查替代。
+- **页面整改实机证据（2026-10-13）**：[全局 DSH 页面检查](../platform/plugin/test/evidence/stage1-remediation-browser-20261013.json)核对参考图蓝白首页、离开首页后的平台导航、Run 与轨迹查询、实例列表和操作窗口。[MCP 检查](../platform/plugin/test/evidence/stage1-remediation-mcp-20261013.json)核对复用原生插件的服务/分组配置、工具调试和固定组合发布，受控接口完成实际协议调用。[管理对话检查](../platform/plugin/test/evidence/stage1-remediation-conversations-20261013.json)核对重复标题及品牌隐藏、默认收起侧栏、单列表、新 Session 的项目仓库工作区与标准模式、草稿保留、原生搜索与设置，以及桌面、900px、390px 无横向溢出。测试未发送模型请求，未操作用户既有容器。
+- **管理对话模型实机证据（2026-10-13）**：通过原生模型页面保存 DeepSeek 和本地 Qwen 提供商。[DeepSeek 问候检查](../platform/plugin/test/evidence/stage1-remediation-chat-20261013.json)在项目仓库、标准模式实际发送“你好”，约 5 秒得到可见回复；重启后的[本地 Qwen 问候检查](../platform/plugin/test/evidence/stage1-remediation-chat-local-20261013.json)使用服务实际提供的 `Qwen3.8-27B`，约 9 秒得到可见回复。两次均无客户端错误。[配置保留检查](../platform/plugin/test/evidence/stage1-remediation-model-settings-20261013.json)核对凭据引用和 `0600` 权限，并确认再次 `prepare` 与重启保留凭据和模型设置；证据不包含密钥或服务私有地址。问候成功只证明管理对话调用链，不替代业务 Harness Evaluation。
+- **首页与智能体布局复核（2026-10-13）**：[首页对话入口检查](../platform/plugin/test/evidence/stage1-home-entry-20261013.json)确认居中布局、1260px 内容和 640px 单行入口，发送后进入原生管理对话并得到可见回复，900px 与 390px 无横向溢出。[智能体检查](../platform/plugin/test/evidence/stage1-agents-tabs-final-20261013.json)确认默认选择最新版本，同时区分运行中的活动版本；基本信息、资产、编辑、评测与 Run 用标签切换，窄选择栏、草稿保留、键盘操作和四种屏宽均通过。实例表头另验证筛选后的全选与半选。
+- **MCP 页面专项复核（2026-10-13）**：[审查与整改记录](../platform/plugin/test/evidence/stage1-mcp-layout-review-20261013.md)逐项说明宽度、统计区、工具栏重复、草稿和长内容的整改。[16 个布局组合检查](../platform/plugin/test/evidence/stage1-mcp-layout-final-20261013.json)验证四标签在 1920、1440、900、390px 的布局；原生保存按钮移至页头，标签改为“编排工具”，保留原生校验和编辑草稿。客户端错误与设置写入均为零；调试接口为受控边界，未据此验收外部业务 MCP。
+- **批量操作失败恢复（2026-10-13）**：[受控网络中断检查](../platform/plugin/test/evidence/stage1-instances-bulk-transport-20261013.json)在 12 项操作中保留 8 成功、1 失败、1 结果未知和 2 未派发的区别，发生中断后不自动重试；手动刷新可继续核对实际状态。真实容器批量检查见 `PA-05`，两类证据不互相替代。
+- **实例访问入口复核（2026-10-13）**：`PA-05` 的统一访问检查同时覆盖真实表格入口：新标签页使用平台的局域网主机地址及实例登记端口，URL 不含 Token，原页面留在实例管理，新浏览器上下文没有内测声明弹窗；访问失败时关闭等待标签并显示错误，停止后禁用入口。平台客户端错误为零。局域网地址仅由宿主机浏览器访问，未用另一台设备验证网络连通性。
+- **业务与功能边界**：MCP 目前是开发者维护的固定“资产→关联告警”两步只读组合，支持发布为一个 MCP 工具；未实现通用手工流程编辑器。受控 OpenAPI 接口和协议调用只证明组合技术合同；外部业务 MCP 的真实输入、凭据和结果仍需提供后另验。评测入口已接入，但本轮没有新增模型 Run；trace 仅查询已有持久材料。Research Release 仍以 `PA-11` 的未实现状态为准。
+- **自动化边界**：参数、路径、摘要、失败恢复、状态分派和平台密码认证进入测试；局域网地址监听已在本机浏览器验证，未从另一台局域网设备访问。真实 Docker 生命周期、浏览器操作、全局 DSH 装载及模型/外部业务调用分别保留证据，不互相替代。
 
 ## 4. 为什么是 12 条
 
@@ -178,14 +194,14 @@
 | `SOURCES.md`、受控副本、项目解释 | `PA-02` |
 | 三个资产/研究校验工具 | `PA-03` |
 | `source_contract.py` 与角色挂载计划 | `PA-04` |
-| `dsh-dev up/ps/url/logs/down` | `PA-05` |
+| `dsh-dev up/ps/url/logs/down/delete` | `PA-05` |
 | 镜像构建、容器装载和边界探针 | `PA-06` |
 | `mutation-receipt.py` 与宿主开发会话 | `PA-07` |
 | `dsh-eval`、DSH Runtime API/Web UI、Session、消息与轨迹导出 | `PA-08`、`PA-10` |
 | Preset 创建、登记、重载和选择 | `PA-09` |
 | `run_record.py` 的 Run 记录、索引、查看与比较 | `PA-10` |
 | Research Release 清单、解析和复现 | `PA-11` |
-| `platform/dsh-platform`、平台 Cordis Host/客户端、原生认证与只读资产首页 | `PA-12` |
+| `platform/dsh-platform`、平台 Cordis Host/客户端、平台密码登录、五页研究工具与 MCP Gateway | `PA-12` |
 
 单元测试、负向样例、日志和证据文件用于证明某条路径，不因数量增加而成为新的一级路径。某个 Experiment 使用 1 个还是 100 个输入，也不改变项目级路径总数。
 

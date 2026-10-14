@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-13T12:21:27.858Z",
+  "scope": "真实全局 DSH；受控 OpenAPI 外部接口边界；不代表业务 MCP 验收",
+  "checks": {
+    "native_config_saved": true,
+    "tools_and_resource_templates": true,
+    "spec_anonymous_then_auth_retry": true,
+    "native_tool_invocation": true,
+    "native_resource_read": true,
+    "group_auth_required": true
+  },
+  "protocol": {},
+  "upstream": {
+    "spec_anonymous": 5,
+    "spec_authenticated": 5,
+    "assets": 1,
+    "alerts": 1
+  },
+  "validation": "failed",
+  "failure": "response.status is not a function"
+}

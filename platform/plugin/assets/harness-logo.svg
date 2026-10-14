@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img">
+  <title>Harness工程平台（Harness Engineering Platform）</title>
+  <path d="M10 52 50 31 90 52 50 76Z" fill="#8be4ff"/>
+  <path d="M10 52v21l40 23V76Z" fill="#0075ca"/>
+  <path d="M50 76v20l40-23V52Z" fill="#2ec5ff"/>
+  <path d="M22 18 50 3 81 20v23L50 60 22 43Z" fill="#0075ca"/>
+  <path d="M41 21q-7 3-7 10v12q0 7 7 5l5-2 1 7 8-12 10-5q7-3 7-10v-9q0-7-7-4Z" fill="#fff"/>
+  <ellipse cx="47" cy="32" rx="3" ry="4" fill="#0075ca"/>
+  <ellipse cx="60" cy="25" rx="3" ry="4" fill="#0075ca"/>
+  <path d="M9 34Q-2 51 8 68M92 35q11 18-1 34" fill="none" stroke="#2ec5ff" stroke-width="2"/>
+  <circle cx="7" cy="40" r="5" fill="#0075ca"/>
+  <circle cx="94" cy="64" r="5" fill="#2ec5ff"/>
+</svg>

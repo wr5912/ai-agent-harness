@@ -54,7 +54,7 @@ docker compose -f runtime/adapters/dsh-container/verification.compose.yaml confi
 
 官方 Web 默认只绑定容器内 `127.0.0.1`，基础 Compose 不发布宿主端口。需要浏览器访问时使用 `dsh-dev` 生成的本地 host-network 实例；容器启动或配置展开仍不能替代 `PA-08` 的实际 Web 交互。
 
-`--lan-access` 保留 Web Token 和 Host/Origin 校验，并让已认证的局域网浏览器使用 Host 设置。标准镜像对锁定 DSH 来源应用 `remote-host-settings.patch`；适配层的 LAN Patch 注入启用标记。模型设置与使用设置表单的插件入口均依赖这条路径；升级 Runtime 时需重新核对补丁与浏览器行为。
+业务实例的局域网监听与 Web 设置由适配层 Patch 统一启用，访问规则见下文[实例访问规则](#实例访问规则)。标准镜像对锁定 DSH 来源应用 `remote-host-settings.patch`；适配层的 LAN Patch 注入启用标记。模型设置与使用设置表单的插件入口均依赖这条路径；升级 Runtime 时需重新核对补丁与浏览器行为。
 
 仅在受控反向代理保留外部 `Host`、后端仍监听本机回环时，`dsh-dev up` 可显式加 `--trusted-host HOST[:PORT]` 让 DSH 接受该代理地址；这不提供用户认证，也不允许把启动令牌写进菜单 URL。EXP-007 门户接入的实际拓扑、验证和限制见[联调记录](../../../docs/security-operations-expert门户联调记录.md)。
 
@@ -91,6 +91,8 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-e
 `up` 会先核对镜像标签对应的构建指纹、平台和 Image ID，再执行停旧实例、写状态和启动；Compose 使用 `tag@image-id` 不可变引用。新建或替换后的主 `dsh` 容器名与实例名完全一致，Compose 项目名固定为 `dsh-dev-<实例名>`；`up --dry-run`、`up` 和 `ps` 都直接输出实例名、实际主容器名和项目名，旧实例由 `ps` 输出其现有主容器名并标记 `needs_migration`。它仍不只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的在运行（`home-init` 是一次性服务，正常结束不算失败），否则报告失败或 `dsh_running: "unknown"` 并以非零退出码结束。成功时 stdout 只输出一个 JSON 结果，其中包含 `image_id`、`image_ref` 和 `image_build_fingerprint`；进度、提示和错误输出到 stderr，失败时 stdout 保持为空。`up --replace` 的成功 JSON 在 `replaced.stop` 中包含完整停止结果。
 
 `ps`、`logs`、`down` 从实例状态文件重建 Compose 所需环境；`ps` 默认只列出运行中的实例，`ps --all` 才包含其他状态并标出 `needs_migration`。历史 `authoring` 实例仍可查询日志和停止，但新建或替换时只接受 `eval`。挂载内容变化不会自动重启进程，使用 `up --replace` 或先 `down` 再同名 `up` 重载。`down` 同时核对 Compose 退出码、实际容器状态和 HOME 卷。
+
+`stopped` 表示仍存在已停止的 DSH 容器；`absent` 表示 Docker 查询成功，但仅有本地登记、没有 DSH 容器。`down` 移除容器后保留登记和 HOME，因此随后通常为 `absent`；Docker 查询失败则为 `unknown`，不能推断为已停止。`delete` 可删除 `stopped` 或 `absent` 实例，执行前重新核对该实例的 Docker 状态，移除容器和登记并保留 HOME 卷及研究记录。
 
 两份启动器设计方案保留为历史设计记录；当前行为以本页、CLI `--help` 和测试为准。
 
@@ -141,13 +143,19 @@ API 通道退出码 `0` 表示锁定 Case 均得到 `passed`；`1` 表示运行�
 
 该注册写入本实例 DSH_HOME 数据卷并跨重启保留；换用新的实例名等于新的 HOME 卷，需要重新选择一次。`up --dry-run` 输出与真正 `up` 的 stderr 提示都会带上该路径与步骤，以 `workspace_to_register` 为准。
 
-实例配置与 `instance.json` 写在 `${XDG_STATE_HOME:-~/.local/state}/dsh-dev/<name>/`，记录来源、模式、挂载路径、环境变量**名称**、镜像身份等非秘密元数据，不含 Token。渲染保留只读根文件系统、UID/GID 1000、能力裁剪和无端口发布，只把主 `dsh` 服务切到 host 网络；默认 Web 绑定宿主回环。普通 Token 模式下，`url` 只读取**本次**进程启动后的日志并做 Token→Cookie→根页探针；标准输出不是交互终端时，必须显式加 `--non-interactive`，否则失败关闭，不把 Token 写进状态文件、普通日志或证据。
+### 实例访问规则
 
-需要局域网直连时，显式给 `up` 加 `--lan-access`。它仍使用普通 `web` Profile 和 Token 认证，仅通过独立 Patch 将 Web 服务绑定到 `0.0.0.0`；不会启用 HTTP 密码登录。锁定版 DSH 的 `--host 0.0.0.0` 会被命令行拒绝，因此不要直接传该参数。`dsh-dev url` 仍返回本机回环认证 URL；局域网浏览器须把其中的主机名换成宿主机 LAN IP，并保护 URL 中的 Token。已有同名实例切换监听模式时需显式 `up --replace`，该操作保留 HOME 卷。纯 HTTP 下 Token 与 Cookie 都会在网络上传输，应限制访问范围；跨不受信网络使用 HTTPS 反向代理，不把认证 URL 当成门户公共配置。
+所有业务智能体实例由 `dsh-dev up` 的共用预检入口统一采用以下设置，无需额外参数：Web 监听 `0.0.0.0`，允许局域网远程访问；关闭 Web/API 的 Token 与 Host/Origin 校验；跳过 Web 内测声明弹窗。命令行、平台创建/启动/重启、研究工具重启及评测创建实例均使用这个入口。`up --dry-run` 的计划与实际写入的配置使用同一规则；`--lan-access`、`--unsafe-no-auth`、`--skip-testing-notice` 保留为显式标记，不再是业务实例的可选访问模式。
+
+已有实例再次启动时自动应用新规则，不继承旧访问设置；运行中的实例需执行重启或 `up --replace` 才会重新加载，HOME 卷及记录端口保持不变。专用归因工作进程不装载业务智能体，它读取只读 Run 进行内部评审，继续使用回环监听和 Token 认证。
+
+`dsh-dev url` 核验实例可访问后返回不带 Token 的本机根地址。平台表格的“访问 DSH Web”入口在新标签页打开它，并把局域网实例的主机名替换为当前平台主机名；停止、无容器或未记录端口的实例需先启动。锁定版 DSH 的 `--host 0.0.0.0` 会被命令行拒绝，监听通过适配层 Patch 生效。免认证意味着能访问该端口的用户可操作整个共享 DSH 实例；平台登录不会隔离容器内的访问。
+
+实例配置与 `instance.json` 写在 `${XDG_STATE_HOME:-~/.local/state}/dsh-dev/<name>/`，记录来源、模式、挂载路径、环境变量**名称**、镜像身份等非秘密元数据，不含 Token。渲染保留只读根文件系统、UID/GID 1000、能力裁剪和无端口发布，只把主 `dsh` 服务切到 host 网络。尚未重启的历史 Token 实例仍可使用 `url`：只读取本次进程启动后的日志并做 Token→Cookie→根页探针；非交互标准输出必须显式加 `--non-interactive`，不把 Token 写进状态文件、普通日志或证据。API 评测执行器同时支持免认证根地址与历史 Token 握手。
 
 需要浏览器麦克风的插件在局域网使用时，页面还须由浏览器认可的 HTTPS 入口提供；局域网 IP 上的纯 HTTP 页面没有麦克风所需的安全上下文。本机 `localhost` 页面可以直接使用麦克风。
 
-受控直连试验可另加 `--unsafe-no-auth`，独立于 `--lan-access` 关闭该实例 Web/API 的 Token 与 Host/Origin 校验；`dsh-dev url` 返回不带 Token 的根地址。`--skip-testing-notice` 是独立开关，仅跳过 Web 的“内测声明”弹窗，不改变认证、监听地址或其他引导步骤；可单独用于普通 Token 模式，也可与 `--unsafe-no-auth` 组合。改变已有实例的任一开关需显式 `up --replace`，HOME 卷保留。**免认证模式允许任何能连上端口的人操作整个共享 DSH 实例，不具备门户用户隔离，不得暴露给不受信用户或公网。** EXP-007 的局域网直连验证与门户试点边界见[联调记录](../../../docs/security-operations-expert门户联调记录.md)。
+EXP-007 早期局域网直连验证与门户试点边界见[联调记录](../../../docs/security-operations-expert门户联调记录.md)，其中历史访问设置不替代上述当前启动规则。
 
 候选 Profile 以 fail-closed 方式声明三个 `streamable-http` MCP 客户端；缺少真实端点与凭据时容器会在启动阶段退出，使"装载是否成立"无法核验。为此适配层提供两个只用于受控技术装载核验的本地工具：
 

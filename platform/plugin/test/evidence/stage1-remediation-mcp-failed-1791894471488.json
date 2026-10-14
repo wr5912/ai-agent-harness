@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-13T12:27:48.177Z",
+  "scope": "真实全局 DSH；受控 OpenAPI 外部接口边界；不代表业务 MCP 验收",
+  "checks": {
+    "native_config_saved": true
+  },
+  "protocol": {},
+  "upstream": {
+    "spec_anonymous": 0,
+    "spec_authenticated": 0,
+    "assets": 0,
+    "alerts": 0
+  },
+  "validation": "failed",
+  "failure": "{\"error\":\"fetch failed\"}\n\n400 !== 200\n"
+}

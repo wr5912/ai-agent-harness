@@ -1,0 +1,9 @@
+# 默认配置处于 bundle 层，原生配置编辑器可写入 Profile 用户 Patch。
+- insert:
+    - id: mcp-session-manager
+      name: ./lib/mcp-manager.js
+      disabled: false
+      config:
+        servers: []
+        groups: []
+        sharedToken: ''

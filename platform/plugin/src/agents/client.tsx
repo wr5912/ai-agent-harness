@@ -20,11 +20,18 @@ function text(value: unknown) {
 }
 
 const field = { display: 'grid', minWidth: 0, gap: 4 } as const
+const tabs = [
+  { id: 'overview', label: '基本信息' },
+  { id: 'assets', label: '资产' },
+  { id: 'edit', label: '编辑' },
+  { id: 'evaluation', label: '评测与 Run' },
+] as const
 
 export function AgentsPage({ rpc }: PlatformPageProps) {
   const [agents, setAgents] = useState<AgentRow[]>([])
   const [selected, setSelected] = useState('')
   const [selectedExperiment, setSelectedExperiment] = useState('')
+  const [tab, setTab] = useState<(typeof tabs)[number]['id']>('overview')
   const [detail, setDetail] = useState<any>(null)
   const [error, setError] = useState('')
   const [editPath, setEditPath] = useState('')
@@ -43,7 +50,12 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
   const [evidenceFile, setEvidenceFile] = useState('trace.jsonl')
   const [leftRun, setLeftRun] = useState('')
   const [rightRun, setRightRun] = useState('')
-  const [runsIndex, setRunsIndex] = useState('')
+  const [runs, setRuns] = useState<any[]>([])
+  const [runsLoading, setRunsLoading] = useState(false)
+  const [runsError, setRunsError] = useState('')
+  const [runCases, setRunCases] = useState<string[]>([])
+  const runsRequest = useRef(0)
+  const runRequest = useRef(0)
   const [decisionBody, setDecisionBody] = useState('')
   const [decisionHash, setDecisionHash] = useState('')
   const detailRequest = useRef(0)
@@ -53,6 +65,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
   function selectVersion(agentId: string, experimentId = '') {
     if (agentId === selected && experimentId === selectedExperiment) return
     detailRequest.current++
+    if (agentId !== selected) setTab('overview')
     setSelected(agentId)
     setSelectedExperiment(experimentId)
     setDetail(null)
@@ -94,7 +107,6 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
       const value = await call('detail', payload)
       if (request !== detailRequest.current) return
       setDetail(value)
-      setSelectedExperiment(value.experiment.id)
       setDecisionBody(value.decision?.content ?? '')
       setDecisionHash(value.decision?.sha256 ?? '')
       setSelectedCases((current) => current.filter(caseItem => value.evaluation.cases.some((item: any) => item.id === caseItem)))
@@ -242,42 +254,75 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
   }
 
   async function loadRuns() {
+    const request = ++runsRequest.current
     if (!selected) return
+    setRunsLoading(true)
+    setRunsError('')
     try {
       const value = await call('runs/index', { agent_id: selected })
-      setRunsIndex(text(value))
+      if (request !== runsRequest.current) return
+      setRuns((value.experiments ?? []).flatMap((experiment: any) =>
+        (experiment.runs ?? []).map((run: any) => ({ ...run, experiment_id: experiment.experiment_id ?? experiment.id }))))
     } catch (err) {
-      setRunsIndex((err as Error).message)
+      if (request === runsRequest.current) setRunsError((err as Error).message)
+    } finally {
+      if (request === runsRequest.current) setRunsLoading(false)
     }
+  }
+
+  useEffect(() => {
+    setRuns([])
+    setRunId('')
+    setCaseId('')
+    setRunCases([])
+    setEvalResult('')
+    runRequest.current++
+    void loadRuns()
+    return () => { runsRequest.current++; runRequest.current++ }
+  }, [selected])
+
+  function chooseRun(id: string) {
+    runRequest.current++
+    setRunId(id)
+    setCaseId('')
+    setRunCases([])
+    setEvalResult('')
   }
 
   async function showRun() {
     if (!runId) return
+    const request = ++runRequest.current
     try {
-      const value = await call('runs/show', { run_id: runId, case_id: caseId || undefined })
-      if (!caseId) setCaseId(value.cases?.[0]?.case_id ?? '')
+      const value = await call('runs/show', { run_id: runId })
+      if (request !== runRequest.current) return
+      const ids = (value.cases ?? []).map((item: any) => item.case_id)
+      setRunCases(ids)
+      setCaseId(current => ids.includes(current) ? current : ids[0] ?? '')
       setEvalResult(text(value))
     } catch (err) {
-      setEvalResult((err as Error).message)
+      if (request === runRequest.current) setEvalResult((err as Error).message)
     }
   }
 
   async function showEvidence() {
+    const request = ++runRequest.current
     try {
       const value = await call('runs/evidence', { run_id: runId, case_id: caseId, filename: evidenceFile })
+      if (request !== runRequest.current) return
       setEvalResult(`${value.path}${value.truncated ? '（仅显示前 64 KiB）' : ''}\n${value.content}`)
     } catch (err) {
-      setEvalResult((err as Error).message)
+      if (request === runRequest.current) setEvalResult((err as Error).message)
     }
   }
 
   async function compareRuns() {
     if (!leftRun || !rightRun) return
+    const request = ++runRequest.current
     try {
       const value = await call('runs/compare', { left: leftRun, right: rightRun, case_id: caseId || undefined })
-      setEvalResult(text(value))
+      if (request === runRequest.current) setEvalResult(text(value))
     } catch (err) {
-      setEvalResult((err as Error).message)
+      if (request === runRequest.current) setEvalResult((err as Error).message)
     }
   }
 
@@ -296,51 +341,79 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
 
   const runOptions = useMemo(() => {
     const ids = new Set<string>()
+    for (const run of runs) ids.add(run.run_id ?? run.id)
     for (const version of detail?.versions ?? []) for (const run of version.runs ?? []) ids.add(run.run_id ?? run.id)
     for (const run of detail?.verification?.runs ?? []) ids.add(run.id)
     return [...ids].filter(Boolean).sort()
-  }, [detail])
+  }, [detail, runs])
 
-  return <main style={{ height: '100%', overflow: 'auto', padding: '24px clamp(16px, 3vw, 36px)', boxSizing: 'border-box' }}>
-    <div style={{ maxWidth: 1180, minWidth: 0, margin: '0 auto', display: 'grid', gap: 16 }}>
+  return <main className="harness-agents">
+    <div style={{ minWidth: 0, display: 'grid', gap: 16 }}>
       <header style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
         <h1 style={{ fontSize: 24, margin: 0, overflowWrap: 'anywhere' }}>智能体研究版本</h1>
         <button type="button" onClick={() => void refreshList()}>刷新</button>
       </header>
       {error && <p role="alert" style={{ color: 'var(--dsw-alias-state-error-primary, #c2410c)', margin: 0 }}>{error}</p>}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 16 }}>
-        <aside style={panel}>
+      <section className="harness-agent-layout">
+        <aside className="harness-agent-list" style={panel}>
           <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>Agent</h2>
-          <div style={{ display: 'grid', gap: 8 }}>
+          <div className="harness-agent-list-options">
             {agents.map(agent => <button key={agent.id} type="button" onClick={() => selectVersion(agent.id)}
+              aria-pressed={agent.id === selected}
               style={{ textAlign: 'left', padding: 10, borderRadius: 6, border: agent.id === selected ? '2px solid currentColor' : '1px solid var(--dsw-alias-border-l3, #d1d5db)', background: 'transparent', color: 'inherit' }}>
               <strong>{agent.id}</strong>
-              <small style={{ display: 'block', opacity: 0.7 }}>{agent.active_experiment || '无 active_experiment'}</small>
             </button>)}
           </div>
         </aside>
-        <section style={{ display: 'grid', minWidth: 0, gap: 16 }}>
+        <section className="harness-agent-detail" style={{ display: 'grid', minWidth: 0, gap: 16 }}>
+          {!detail && !error && <p role="status">正在读取智能体与评估…</p>}
           {detail && <section style={panel}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', alignItems: 'start' }}>
               <div style={{ minWidth: 0 }}>
                 <h2 style={{ margin: '0 0 6px', fontSize: 18, overflowWrap: 'anywhere' }}>{detail.experiment.id}</h2>
-                <select aria-label="版本" style={{ maxWidth: '100%' }} value={selectedExperiment} onChange={event => selectVersion(selected, event.target.value)}>
+                <select aria-label="版本" style={{ maxWidth: '100%' }} value={selectedExperiment || detail.experiment.id} onChange={event => selectVersion(selected, event.target.value)}>
                   {detail.versions.map((version: any) => <option key={version.id} value={version.id}>{version.id}</option>)}
                 </select>
-                <div style={{ opacity: 0.75, marginTop: 8 }}>Baseline：{detail.baseline.ref || '未知'} · Parent：{detail.baseline.parent_experiment_id || '无'}</div>
-                <div style={{ opacity: 0.75 }}>Fusion：{detail.fusion.status}{detail.fusion.experiments?.length ? ` ${detail.fusion.experiments.join(', ')}` : ''}</div>
-                <div style={{ opacity: 0.75 }}>相关引用：{detail.related_references?.join(', ') || '无'} · 实例装载：{detail.loaded_instance.status}</div>
               </div>
               <button type="button" onClick={() => void createExperiment()}>新建 Experiment</button>
             </div>
+          </section>}
+          {detail && <div role="tablist" aria-label="智能体详情" className="harness-agent-tabs" onKeyDown={event => {
+            const index = tabs.findIndex(item => item.id === tab)
+            const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length
+              : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length
+                : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : undefined
+            if (next === undefined) return
+            event.preventDefault()
+            setTab(tabs[next].id)
+            document.getElementById(`agent-tab-${tabs[next].id}`)?.focus()
+          }}>
+            {tabs.map(item => <button key={item.id} type="button" role="tab" id={`agent-tab-${item.id}`}
+              aria-controls={`agent-panel-${item.id}`} aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1}
+              onClick={() => setTab(item.id)}>{item.label}</button>)}
+          </div>}
+          {detail && <section role="tabpanel" id="agent-panel-overview" aria-labelledby="agent-tab-overview" hidden={tab !== 'overview'} style={panel}>
+            <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>智能体基本信息</h2>
+            <div style={{ opacity: 0.75 }}>Baseline：{detail.baseline.ref || '未知'} · Parent：{detail.baseline.parent_experiment_id || '无'}</div>
+            <div style={{ opacity: 0.75 }}>Fusion：{detail.fusion.status}{detail.fusion.experiments?.length ? ` ${detail.fusion.experiments.join(', ')}` : ''}</div>
+            <div style={{ opacity: 0.75 }}>相关引用：{detail.related_references?.join(', ') || '无'} · 实例装载：{detail.loaded_instance.status}</div>
+            <div style={{ opacity: 0.75 }}>登记版本：{selectedAgent?.active_experiment || '未登记'}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 12, marginTop: 14 }}>
-              <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto', margin: 0 }}>Features{'\n'}{text(detail.features)}</pre>
               <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto', margin: 0 }}>Declared{'\n'}{text(detail.declared)}</pre>
               <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto', margin: 0 }}>Loaded{'\n'}{text(detail.loaded_instance)}</pre>
               <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto', margin: 0 }}>Run 证据{'\n'}{text(detail.verification.runs)}</pre>
             </div>
           </section>}
-          {detail && <section style={panel}>
+          {detail && <section role="tabpanel" id="agent-panel-assets" aria-labelledby="agent-tab-assets" hidden={tab !== 'assets'} style={panel}>
+            <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>智能体资产</h2>
+            <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto' }}>Features{'\n'}{text(detail.features)}</pre>
+            <h2 style={{ fontSize: 16 }}>可编辑文件</h2>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {detail.editable_files.map((file: string) => <button key={file} type="button" style={{ textAlign: 'left', overflowWrap: 'anywhere' }}
+                onClick={() => { if (file !== editPath) selectEditFile(file); setTab('edit') }}>{file}</button>)}
+            </div>
+          </section>}
+          {detail && <section role="tabpanel" id="agent-panel-edit" aria-labelledby="agent-tab-edit" hidden={tab !== 'edit'} style={panel}>
             <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>资产编辑</h2>
             <label style={field}>编辑文件
               <select value={editPath} onChange={event => { if (event.target.value !== editPath) selectEditFile(event.target.value) }} style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8 }}>
@@ -358,7 +431,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
             {editMessage && <p>{editMessage}</p>}
             {editPreview && <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto' }}>{editPreview.diff}</pre>}
           </section>}
-          {detail && <section style={panel}>
+          {detail && <section role="tabpanel" id="agent-panel-evaluation" aria-labelledby="agent-tab-evaluation" hidden={tab !== 'evaluation'} style={panel}>
             <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>评测与 Run</h2>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
               <label style={field}>模式
@@ -383,7 +456,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
               <button type="button" onClick={evalStart}>启动评测</button>
               <button type="button" onClick={evalStatus} disabled={!jobId}>刷新状态</button>
               <button type="button" onClick={evalCancel} disabled={!jobId}>取消</button>
-              <button type="button" onClick={loadRuns}>Run 索引</button>
+              <button type="button" onClick={loadRuns} disabled={runsLoading}>{runsLoading ? '读取 Run…' : '刷新 Run 记录'}</button>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
               {detail.evaluation.cases.map((item: any) => <label key={item.id} style={{ border: '1px solid var(--dsw-alias-border-l3, #d1d5db)', borderRadius: 6, padding: '4px 8px' }}>
@@ -392,10 +465,12 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
               <label style={field}>Run
-                <input value={runId} onChange={event => setRunId(event.target.value)} list="run-options" placeholder="run-..." />
+                <input value={runId} onChange={event => chooseRun(event.target.value)} list="run-options" placeholder="run-..." />
               </label>
               <label style={field}>Case
-                <input value={caseId} onChange={event => setCaseId(event.target.value)} placeholder="Case ID" />
+                <select aria-label="Run Case" value={caseId} onChange={event => setCaseId(event.target.value)} disabled={!runCases.length}>
+                  <option value="">先读取 Run</option>{runCases.map(id => <option key={id} value={id}>{id}</option>)}
+                </select>
               </label>
               <button type="button" onClick={showRun}>查看 Run/Case</button>
               <label style={field}>轨迹文件
@@ -413,11 +488,16 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
               <button type="button" onClick={compareRuns}>左右对照</button>
             </div>
             <datalist id="run-options">{runOptions.map(id => <option key={id} value={id} />)}</datalist>
-            {runsIndex && <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto' }}>{runsIndex}</pre>}
+            {runsError && <p role="alert">{runsError}</p>}
+            {!runsLoading && !runsError && runs.length === 0 && <p>此智能体尚无 Run 记录。</p>}
+            {runs.length > 0 && <div className="harness-table-scroll"><table aria-label="Run 记录"><thead><tr><th>Run</th><th>研究版本</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+              <tbody>{runs.map(run => <tr key={run.id ?? run.run_id}>
+                <td>{run.id ?? run.run_id}</td><td>{run.experiment_id}</td><td>{run.status ?? '未记录'}</td>
+                <td>{run.created_at ? new Date(run.created_at).toLocaleString() : '未记录'}</td>
+                <td><button type="button" onClick={() => chooseRun(run.id ?? run.run_id)}>选择 Run</button></td>
+              </tr>)}</tbody></table></div>}
             {evalResult && <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto' }}>{evalResult}</pre>}
-          </section>}
-          {detail && <section style={panel}>
-            <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>Decision</h2>
+            <h2 style={{ fontSize: 16, margin: '20px 0 12px' }}>Decision</h2>
             <label style={field}>Decision 正文
               <textarea value={decisionBody} onChange={event => setDecisionBody(event.target.value)} rows={8} style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace' }} />
             </label>
