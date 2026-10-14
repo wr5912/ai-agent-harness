@@ -11,7 +11,7 @@ description: 为 DSH Harness Experiment 设计轻量比较，校验 Run 记录�
 
 1. 写出假设、Baseline 引用、Candidate 变化和本次允许得出的结论范围。
 2. 在 `agents/<agent-id>/evaluation.md` 按[研究评估合同](references/experiment-contract.md)维护业务 Case 与场景；运行时根据研究问题选择 `fast`、`full` 或显式 Case。
-3. 在一次比较运行期间保持 Harness、输入、方法和判断口径稳定。
+3. 在一次比较运行期间保持 Harness、输入、方法和判断口径稳定。需要对照结论时核对实际 Baseline Run、共同 Case、环境差异和逐 Case 证据，不以工具支持比较代替已完成比较。
 4. 每个实际执行使用新的 `run_id`，把执行状态与证据结论分开记录，并保存可核对证据。
 5. 先按场景查看未选、未执行、失败和无法判定的 Case，再核对原始回答与工具证据；将自动归因当作待验证假设，区分评估方法、环境、外部工具/数据、领域知识与 Harness 机制，写出替代解释和下一次可证伪检查。
 6. 作出 `adopt`、`continue`、`reject` 或 `inconclusive` 决定，并写明限制和下一步。
@@ -46,5 +46,5 @@ python3 runtime/adapters/dsh-container/dsh-eval \
 - 不创建 Experiment 本地 `evaluation/plan.yaml`，也不在 `evaluation.md` 维护 Experiment 选择表。
 - 一个输入可以支持早期探索，但不能据此扩大到未覆盖任务、模型或环境。
 - 自动校验只检查记录是否可解析、身份是否一致和必要字段是否存在，不判断观察是否真实或研究结论是否合理。
-- 技术装载、容器启动、HTTP `200` 和 `/health` 不等于 Harness 行为有效。
+- 技术装载、容器启动、HTTP `200` 和 `/health` 不等于 Harness 行为有效；API 语义评测与浏览器 UI 冒烟分别报告，页面定位失败不直接作为业务失败。
 - 评估材料可以在研究中演进；同一次比较中改变口径后，应重新执行受影响部分并明确说明。

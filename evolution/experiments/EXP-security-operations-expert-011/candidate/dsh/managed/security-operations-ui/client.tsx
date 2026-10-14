@@ -125,9 +125,9 @@ type ModuleLoader = {
           </header>
           <div className="soc-runtime__strip">
             <button type="button" className={`soc-runtime__card soc-runtime__card--${state}`} data-runtime-state={state}
-              onClick={openStatus} aria-label="查看安全运营智能体状态">
+              onClick={openStatus} aria-label="查看网络安全运营专家状态">
               <span className="soc-runtime__card-head"><img src={avatarUrl} width="40" height="40" alt="" />
-                <span className="soc-runtime__identity"><span><strong>安全运营智能体</strong><em>{connected ? running > 0 ? '执行中' : '已连接' : '连接中'}</em></span>
+                <span className="soc-runtime__identity"><span><strong>网络安全运营专家</strong><em>{connected ? running > 0 ? '执行中' : '已连接' : '连接中'}</em></span>
                   <small>运行 <b>{running}</b>　排队 <b>—</b></small></span></span>
               {expanded && <span className="soc-runtime__detail">DSH 当前实例的主智能体会话状态。点击查看当前会话详情。</span>}
             </button>
