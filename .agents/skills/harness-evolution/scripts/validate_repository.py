@@ -49,6 +49,7 @@ REQUIRED_ROOT_FILES = (
 REQUIRED_SKILLS = {
     "ai-correction-log": ("scripts/record_correction.py",),
     "harness-guided-workflow": (),
+    "dsh-platform-development": (),
     "legacy-asset-intake": ("scripts/inspect_source.py",),
     "harness-evolution": (
         "scripts/validate_repository.py",

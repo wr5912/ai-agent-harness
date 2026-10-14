@@ -9,6 +9,8 @@ description: 通过多轮引导帮助新手在 Research Mode 下新建、迁移�
 
 流程借鉴 GSD 的阶段式交互：先讨论上下文，再形成可执行计划，随后实施并验证；只采用这种对话节奏，不复制额外状态目录或工作流框架。
 
+任务分类、分支选择及平台开发入口以[根级分支与开发工作流](../../../AGENTS.md#分支与开发工作流)为准。下面的 Experiment 与 Evaluation 流程用于业务 Harness 语义变化；仅维护需求文档、评估说明或整理既有证据时，按实际影响验证，不因分支标识新建 Experiment。平台与通用工具实现使用 [`dsh-platform-development`](../dsh-platform-development/SKILL.md)，其中确实改变业务 Harness 语义的部分再进入本流程。
+
 ## 开始前
 
 1. 阅读根级 `AGENTS.md`、`docs/standards/SOURCES.md`、`docs/standards/PROJECT-INTERPRETATION.md` 和项目验收矩阵。
