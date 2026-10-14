@@ -1,7 +1,7 @@
 schema_version: '1.0'
 agent:
   id: security-operations-expert
-  name: 网络安全运营专家智能体
+  name: 网络安全运营专家
   language: zh-CN
   lifecycle_status: experiment
   runtime_family: dsh

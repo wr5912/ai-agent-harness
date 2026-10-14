@@ -4,7 +4,7 @@
 
 项目默认且唯一采用 **Research Mode**：研究优先，禁止过度工程化和过度安全化；遵循简洁优先（Simplicity First）和精准修改（Surgical Changes）。这里不建设生产级 Agent 平台，也不把权限、审批、治理或多阶段发布机制作为每个实验的前置条件。
 
-长期方向是研究验证、自用工具、能力逐步完善，最终演进为 AI 原生的 Harness工程平台（Harness Engineering Platform）。只有反复验证有价值的能力才逐步扩展，具体工程边界届时决定；当前约束与演进原则见 [`AGENTS.md`](./AGENTS.md)。
+长期方向是研究验证、自用工具、能力逐步完善，最终演进为 AI 原生的 Harness 工程平台（Harness Engineering Platform）。只有反复验证有价值的能力才逐步扩展，具体工程边界届时决定；当前约束与演进原则见 [`AGENTS.md`](./AGENTS.md)。
 
 未来平台设计与分阶段路线的维护入口见 [`docs/platform-design/README.md`](docs/platform-design/README.md)；其中的任务映射和界面草图属于设计输入，实际能力状态仍以项目验收矩阵为准。
 
@@ -40,8 +40,9 @@
 
 1. 阅读根级 [`AGENTS.md`](./AGENTS.md)，确认 Research Mode、四类开发对象和本次修改边界；任务分类与新分支命名遵循[分支与开发工作流](./AGENTS.md#分支与开发工作流)。
 2. 阅读[来源锁定](./docs/standards/SOURCES.md)和[项目解释](./docs/standards/PROJECT-INTERPRETATION.md)，了解受控规范在研究项目中的适用范围。
-3. 阅读[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)，确定本次涉及的 `PA-xx`。
-4. 按根级工作流选择平台开发或 Harness 引导入口，由入口调用本次任务所需技能。项目技能：
+3. 按任务查阅[AI 纠错经验总结](./docs/AI纠错经验总结.md)和[项目术语表](./docs/项目术语表.md)，对齐当前经验与对象名称。
+4. 阅读[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)，确定本次涉及的 `PA-xx`。
+5. 按根级工作流选择平台开发或 Harness 引导入口，由入口调用本次任务所需技能。项目技能：
 
    | 技能 | 使用时机 |
    |---|---|
@@ -51,7 +52,7 @@
    | `harness-evolution` | 建立或修改 Experiment、Candidate、Decision 和 Research Release |
    | `research-eval` | 设计小规模比较、校验 Run 与总结研究结论 |
    | [`dsh-platform-development`](./.agents/skills/dsh-platform-development/SKILL.md) | 实施已授权的研究平台与通用研究工具开发，验证实际接入与受影响路径 |
-   | `dsh-platform-task-list` | 梳理未来 DSH 智能体运行平台的页面开发任务清单 |
+   | `dsh-platform-task-list` | 梳理未来 Harness 工程平台的页面开发任务清单 |
    | `$continuous-dev-progress-vs-project-vision-gap-assessment` | 显式评估未来平台目标与当前进展，生成任务说明及 4K SVG |
    | `ai-correction-log` | 用户明确纠正上一轮错误时记录问题要点 |
 

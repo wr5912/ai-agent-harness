@@ -9,7 +9,7 @@
 
 本仓库是面向个人开发者的 DSH-only Harness 研究与资产管理仓库。默认且唯一的工作模式是 **Research Mode**：探索 Harness 的创建、修改、评估和持续优化，用可复现的实验判断变化是否有价值。
 
-长期方向是“研究验证 → 自用工具 → 能力逐步完善 → AI 原生的 Harness工程平台（Harness Engineering Platform）”。Harness 资产与版本管理、评测与受控改进、多算力变体和 DSH 实例管理等能力，先经可复现实验和反复使用验证价值，再逐步工具化，未来可成为平台的原生能力。阶段转换时优先复用、抽取或迁移已有实现，保持对象身份、可复现资产、评测证据和单一事实源的连续性；仓库、进程与存储边界由届时需求决定。远期愿景不改变当前 Research Mode，也不构成当前平台开发任务。
+长期方向是“研究验证 → 自用工具 → 能力逐步完善 → AI 原生的 Harness 工程平台（Harness Engineering Platform）”。Harness 资产与版本管理、评测与受控改进、多算力变体和 DSH 实例管理等能力，先经可复现实验和反复使用验证价值，再逐步工具化，未来可成为平台的原生能力。阶段转换时优先复用、抽取或迁移已有实现，保持对象身份、可复现资产、评测证据和单一事实源的连续性；仓库、进程与存储边界由届时需求决定。远期愿景不改变当前 Research Mode，也不构成当前平台开发任务。
 
 工作时遵守以下最高优先级原则：
 
@@ -116,9 +116,9 @@ Memory 位于仓库外的 `$CODEX_HOME/memories`，不得复制进仓库、Resea
 ## 文档与数据质量
 
 - README 先说明用途、当前能力和使用入口，再介绍目录与约束；不把计划写成现有能力。
-- 使用完整、直接的中文句子。术语首次出现时解释，代码、命令、协议字段和稳定 ID 保持准确。
+- 使用完整、直接的中文句子。用词以[项目术语表](docs/项目术语表.md)为准，首次出现时解释；代码、命令、协议字段和稳定 ID 保持准确。长期文档直接说明当前用途、规则、边界和证据；反思归纳进入[AI 纠错经验总结](docs/AI纠错经验总结.md)，不在设计、使用说明和技能中堆积整改叙述或旧问题辩解。
 - 表格用于比较和索引，长解释使用段落；不为短文档机械套模板。
-- 原始输入、历史记录和外部证据保留原貌，不以润色为由改写事实。
+- 原始输入、历史记录和外部证据不以润色为由改写事实。经明确授权在原位置修订来源材料时，标明本地修订版、输入版本、原摘要及可恢复的 Git 定位，同步当前摘要和直接引用；不得继续声称与原件逐字节一致。
 - 当前平台设计以 [`docs/platform-design/README.md`](docs/platform-design/README.md) 为维护入口，未来设计不改变当前 Research Mode。导入资料注明来源、版本和处置；草案与历史原件标明不生效。替换旧入口前迁移仍有效的独有内容，再清理旧文件或按需归档，并同步直接入站引用；同一设计事实只维护一个当前来源。
 - 只有存在实际机器消费者时才使用 JSONL；以人工维护为主时直接使用 Markdown。不得为同一内容同时维护 Markdown、YAML、JSONL 等投影。
 - 确需生成临时阅读视图时，视图不可编辑且不作为事实入口；生成需求消失后删除生成器与投影。
@@ -133,10 +133,12 @@ Memory 位于仓库外的 `$CODEX_HOME/memories`，不得复制进仓库、Resea
 
 ## 开始工作前
 
-1. 阅读 `docs/standards/SOURCES.md` 与 `docs/standards/PROJECT-INTERPRETATION.md`，确认 Research Mode 下哪些来源适用。
-2. 阅读项目验收矩阵，确定涉及的 `PA-xx`、已有证据和缺口。
-3. 按[分支与开发工作流](#分支与开发工作流)判断任务对象并选择技能；新建、迁移、修改或优化业务 Harness 时先使用 `harness-guided-workflow`，平台及通用研究工具开发使用 `dsh-platform-development`。
-4. 检查 Git 工作树和现有资产；不得覆盖、回退或混入他人的改动。
+1. 根据上下文判断用户要讨论、审查还是实施；反问或质疑本身不等于方向确认。已有明确实施授权时直接推进，只澄清会改变目标或完成条件的实质分歧。
+2. 按本次任务检索[AI 纠错经验总结](docs/AI纠错经验总结.md)的相关条目，涉及歧义时查[项目术语表](docs/项目术语表.md)；不要求每次通读全部历史记录。
+3. 阅读 `docs/standards/SOURCES.md` 与 `docs/standards/PROJECT-INTERPRETATION.md`，确认 Research Mode 下哪些来源适用。
+4. 阅读项目验收矩阵，确定涉及的 `PA-xx`、已有证据和缺口。
+5. 按[分支与开发工作流](#分支与开发工作流)判断任务对象并选择技能；新建、迁移、修改或优化业务 Harness 时先使用 `harness-guided-workflow`，平台及通用研究工具开发使用 `dsh-platform-development`。
+6. 检查 Git 工作树和现有资产；不得覆盖、回退或混入他人的改动。涉及运行或环境操作时，先核对工作树、目标主机、实例、进程／端口及实际来源，按本次目标区分本地、部署测试与其他环境。
 
 ## 分支与开发工作流
 
@@ -149,7 +151,7 @@ Memory 位于仓库外的 `$CODEX_HOME/memories`，不得复制进仓库、Resea
 
 AI 开发工具在创建分支前必须读取本节，根据**任务名称、任务描述与仓库上下文**选择操作类型、对象标识和主题，而不是只按文件目录、出现的关键词或工具默认分支名推断。业务智能体已知时，`AGENT` 主题包含其 Agent ID。上下文不足先检查目标资产、调用关系和已有实现，仍无法判断主要目标时再澄清。
 
-例如，智能体列表页面属于 `feat/PLATFORM-agent-list`；通用来源解析修复属于 `fix/PLATFORM-source-resolution`；安全运营智能体提示词修改属于 `feat/AGENT-security-operations-expert-prompt`；该智能体评估文档属于 `docs/AGENT-security-operations-expert-evaluation`。
+例如，智能体列表页面属于 `feat/PLATFORM-agent-list`；通用来源解析修复属于 `fix/PLATFORM-source-resolution`；网络安全运营专家提示词修改属于 `feat/AGENT-security-operations-expert-prompt`；该智能体评估文档属于 `docs/AGENT-security-operations-expert-evaluation`。
 
 同时涉及平台与业务智能体的任务按主要目标选一个对象标识，允许完成目标所必需的跨对象修改，并分别验证受影响的工具链与 Harness 行为。不强制拆分分支，不增加第三种标识。标识说明任务意图，不授予修改权限，也不形成目录禁写规则；实际任务与修改对象决定约束和验证范围。
 
@@ -158,9 +160,9 @@ AI 开发工具在创建分支前必须读取本节，根据**任务名称、任
 ## 规范来源
 
 - 本项目的当前行为以根级 `AGENTS.md` 和 `PROJECT-INTERPRETATION.md` 的 Research Mode 解释为准。
-- 两份受控 Harness 规范保留原始副本和摘要，作为目录与资产模型的设计输入；与简化后的 Research Mode 冲突时，不自动引入其生产化结构。
+- 两份受控 Harness 规范保留版本身份、原始摘要及本地修订摘要，作为目录与资产模型的设计输入；与简化后的 Research Mode 冲突时，不自动引入其生产化结构。
 - `agent-engineering-spec` 锁定提交中的任务分流、多轮澄清和外部资产复用原则可经 `harness-guided-workflow` 采用；固定 Case、R1/R2/R3、安全控制映射和生产发布门禁仍只作为未来生产化参考。
-- 受控原文不得原地修改；适用关系在 `SOURCES.md` 和 `PROJECT-INTERPRETATION.md` 中说明。
+- 受控来源的修订与恢复定位在 `SOURCES.md` 中记录，适用关系在 `PROJECT-INTERPRETATION.md` 中说明；本地术语修订不自动采用原规范中的生产流程。
 
 ## 文件与命名
 

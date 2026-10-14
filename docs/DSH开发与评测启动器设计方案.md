@@ -46,7 +46,7 @@
 | 需求、测试数据与评估标准 | `agents/<agent-id>/evaluation.md` 集中维护业务 Case 的名称、用户输入和预期 | 每个 Agent 只有一个可编辑来源；单次评测期间保持不变 |
 | 运行状态与运行记录 | 运行状态是实例 `DSH_HOME` 数据卷；持久记录是 `evolution/experiments/<id>/runs/` 与 `evaluation/evidence/` | 状态按实例生命周期管理；受管执行的 Run 事实和必要证据独立保留，不当作缓存丢弃 |
 
-开发会话里读到的业务角色指令（例如目标是安全运营专家）是第二类资产的正文，读它是为了修改它，不代表开发工具要切换成业务智能体。这一点不能只靠文字提醒：开发会话注册的工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（见 5.2 节），目标自己的 `AGENTS.md` 仍留在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。
+开发会话里读到的业务角色指令（例如目标是网络安全运营专家）是第二类资产的正文，读它是为了修改它，不代表开发工具要切换成业务智能体。这一点不能只靠文字提醒：开发会话注册的工作区是 `/work`，会话身份来自受控只读的 `/work/AGENTS.md`（见 5.2 节），目标自己的 `AGENTS.md` 仍留在 `/work/harness/workspace` 供阅读和编辑，但不会被注入为会话身份。
 
 `dsh-dev`、`source_contract.py`、核验脚本、`verification.compose.yaml`、`Dockerfile` 与 `source.lock.json` 是仓库工具或 Runtime Adapter，不因为服务于本流程就自动成为业务 Harness。它们改变实际来源或运行条件时，应在对应 Run 中如实记录。
 

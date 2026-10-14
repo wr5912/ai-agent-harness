@@ -31,8 +31,8 @@ except ImportError:  # pragma: no cover
 SCHEMA_VERSION = "1.0"
 FROZEN_SPEC_COMMIT = "aa3f27ae0b785191d0a122a6857154640073d73b"
 STANDARD_COPIES = {
-    "Harness_Repo目录结构设计说明_v1.1.md": "47e91605ebff45baf269c7f85218ce69c58ada0a6cd78c8f7d8e5524bea44705",
-    "Harness_Asset_Repository规范_v1.0.md": "9a83b79a4b48cac99f8f56e69f9b63e2d9c78bb3db5f75be6f7e4501685fd502",
+    "Harness_Repo目录结构设计说明_v1.1.md": "cdea9c8612284a81f7a9c9cbbe1989996ff1c839f5b511c8bdfb8e56a76031fa",
+    "Harness_Asset_Repository规范_v1.0.md": "d1c5681232fa385b5caefaa2dabba941493a8bbce315eda0a0eedd3aca3011a3",
 }
 REQUIRED_ROOT_FILES = (
     "README.md",
@@ -43,6 +43,8 @@ REQUIRED_ROOT_FILES = (
     ".codex/config.toml",
     "docs/ai-agent-harness项目验收矩阵.md",
     "docs/项目审查原则.md",
+    "docs/AI纠错经验总结.md",
+    "docs/项目术语表.md",
     "docs/standards/SOURCES.md",
     "docs/standards/PROJECT-INTERPRETATION.md",
 )

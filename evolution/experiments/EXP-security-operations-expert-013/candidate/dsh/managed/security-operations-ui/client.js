@@ -115,9 +115,9 @@
             className: `soc-runtime__card soc-runtime__card--${state}`,
             "data-runtime-state": state,
             onClick: openStatus,
-            "aria-label": "\u67E5\u770B\u5B89\u5168\u8FD0\u8425\u667A\u80FD\u4F53\u72B6\u6001"
+            "aria-label": "\u67E5\u770B\u7F51\u7EDC\u5B89\u5168\u8FD0\u8425\u4E13\u5BB6\u72B6\u6001"
           },
-          /* @__PURE__ */ React.createElement("span", { className: "soc-runtime__card-head" }, /* @__PURE__ */ React.createElement("img", { src: live_chatbot_default, width: "40", height: "40", alt: "" }), /* @__PURE__ */ React.createElement("span", { className: "soc-runtime__identity" }, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("strong", null, "\u5B89\u5168\u8FD0\u8425\u667A\u80FD\u4F53"), /* @__PURE__ */ React.createElement("em", null, connected ? running > 0 ? "\u6267\u884C\u4E2D" : "\u5DF2\u8FDE\u63A5" : "\u8FDE\u63A5\u4E2D")), /* @__PURE__ */ React.createElement("small", null, "\u8FD0\u884C ", /* @__PURE__ */ React.createElement("b", null, running), "\u3000\u6392\u961F ", /* @__PURE__ */ React.createElement("b", null, "\u2014")))),
+          /* @__PURE__ */ React.createElement("span", { className: "soc-runtime__card-head" }, /* @__PURE__ */ React.createElement("img", { src: live_chatbot_default, width: "40", height: "40", alt: "" }), /* @__PURE__ */ React.createElement("span", { className: "soc-runtime__identity" }, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("strong", null, "\u7F51\u7EDC\u5B89\u5168\u8FD0\u8425\u4E13\u5BB6"), /* @__PURE__ */ React.createElement("em", null, connected ? running > 0 ? "\u6267\u884C\u4E2D" : "\u5DF2\u8FDE\u63A5" : "\u8FDE\u63A5\u4E2D")), /* @__PURE__ */ React.createElement("small", null, "\u8FD0\u884C ", /* @__PURE__ */ React.createElement("b", null, running), "\u3000\u6392\u961F ", /* @__PURE__ */ React.createElement("b", null, "\u2014")))),
           expanded && /* @__PURE__ */ React.createElement("span", { className: "soc-runtime__detail" }, "DSH \u5F53\u524D\u5B9E\u4F8B\u7684\u4E3B\u667A\u80FD\u4F53\u4F1A\u8BDD\u72B6\u6001\u3002\u70B9\u51FB\u67E5\u770B\u5F53\u524D\u4F1A\u8BDD\u8BE6\u60C5\u3002")
         ), employees.map((person) => /* @__PURE__ */ React.createElement(
           "button",
