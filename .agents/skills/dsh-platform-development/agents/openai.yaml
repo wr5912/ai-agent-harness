@@ -1,0 +1,6 @@
+interface:
+  display_name: "DSH 平台开发"
+  short_description: "实施 Research Mode 平台与通用研究工具开发，验证接入和受影响路径"
+  default_prompt: "使用 $dsh-platform-development 完成这次已授权的平台或通用研究工具开发，并验证受影响的项目路径。"
+policy:
+  allow_implicit_invocation: true

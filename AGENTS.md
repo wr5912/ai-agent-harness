@@ -135,8 +135,25 @@ Memory 位于仓库外的 `$CODEX_HOME/memories`，不得复制进仓库、Resea
 
 1. 阅读 `docs/standards/SOURCES.md` 与 `docs/standards/PROJECT-INTERPRETATION.md`，确认 Research Mode 下哪些来源适用。
 2. 阅读项目验收矩阵，确定涉及的 `PA-xx`、已有证据和缺口。
-3. 新建、迁移、修改或优化 Harness 时先使用 `harness-guided-workflow`；它会按需衔接 `legacy-asset-intake`、`harness-evolution` 和 `research-eval`。
+3. 按[分支与开发工作流](#分支与开发工作流)判断任务对象并选择技能；新建、迁移、修改或优化业务 Harness 时先使用 `harness-guided-workflow`，平台及通用研究工具开发使用 `dsh-platform-development`。
 4. 检查 Git 工作树和现有资产；不得覆盖、回退或混入他人的改动。
+
+## 分支与开发工作流
+
+新建开发分支使用 `<type>/<PLATFORM|AGENT>-<topic>`：操作类型在前，对象标识大写，标识后只接一个 `-`，主题使用小写 kebab-case。操作类型为 `feat`、`fix`、`docs`、`refactor`、`test` 或 `chore`。此规则只适用于新分支，不追溯重命名既有分支；也不要求每次任务都创建分支。
+
+| 对象标识 | 按任务目标判断的范围 | 工作流入口 |
+|---|---|---|
+| `PLATFORM` | 平台页面、研究管理工具、通用 CLI、Runtime 适配器及仓库研发协作配置 | 实现使用 [`dsh-platform-development`](.agents/skills/dsh-platform-development/SKILL.md)；仅编写页面开发任务清单使用 `dsh-platform-task-list` |
+| `AGENT` | 某个业务智能体的 Harness 资产、需求、评估标准及研究结果 | 语义性 Harness 变化使用 [`harness-guided-workflow`](.agents/skills/harness-guided-workflow/SKILL.md)；仅维护文档或整理既有证据不因此新建 Experiment |
+
+AI 开发工具在创建分支前必须读取本节，根据**任务名称、任务描述与仓库上下文**选择操作类型、对象标识和主题，而不是只按文件目录、出现的关键词或工具默认分支名推断。业务智能体已知时，`AGENT` 主题包含其 Agent ID。上下文不足先检查目标资产、调用关系和已有实现，仍无法判断主要目标时再澄清。
+
+例如，智能体列表页面属于 `feat/PLATFORM-agent-list`；通用来源解析修复属于 `fix/PLATFORM-source-resolution`；安全运营智能体提示词修改属于 `feat/AGENT-security-operations-expert-prompt`；该智能体评估文档属于 `docs/AGENT-security-operations-expert-evaluation`。
+
+同时涉及平台与业务智能体的任务按主要目标选一个对象标识，允许完成目标所必需的跨对象修改，并分别验证受影响的工具链与 Harness 行为。不强制拆分分支，不增加第三种标识。标识说明任务意图，不授予修改权限，也不形成目录禁写规则；实际任务与修改对象决定约束和验证范围。
+
+创建前检查目标名称是否合法、是否已存在及工作树状态；创建后核对实际分支名符合本次任务判断，再开始修改。能读取本仓库 `AGENTS.md` 的 AI 工具应遵守本规则；工具为本次任务在读取仓库规则前自动新建的分支，需要在首次读取后核对并按本规则调整。技能加载及隐式调用仍需相应工具支持，不以文件存在声称所有工具已自动生效。
 
 ## 规范来源
 
