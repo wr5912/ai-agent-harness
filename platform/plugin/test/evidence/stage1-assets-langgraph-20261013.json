@@ -1,0 +1,32 @@
+{
+  "at": "2026-10-14T05:40:36.544Z",
+  "branch": "fix/PLATFORM-agent-assets-mcp-ui",
+  "runtime": "global DSH 0.2.1-alpha.2 / Node v24.21.0",
+  "scope": "独立平台 HOME；真实 DSH 壳与构建客户端；保存只在临时测试资产内执行真实服务端 dry",
+  "checks": {
+    "friendly_overview_and_three_tabs": true,
+    "real_candidate_tree_and_directory_details": true,
+    "assets_mobile_no_overflow": true,
+    "compiled_graph_nodes_edges_and_mapping": true,
+    "dry_and_actual_execution_distinguished": true,
+    "composition_mobile_no_overflow": true,
+    "iframe_matches_access_url_and_copy": true,
+    "new_session_skill": {
+      "cwd": "/home/cmp/work/luopeng/local-gitlab/ai-agent-harness",
+      "preset": "standard",
+      "name": "mcp-composition",
+      "path": "platform/skills/mcp-composition/SKILL.md"
+    },
+    "invalid_dry_blocks_save_and_preserves_draft": true,
+    "draft_preview_then_apply_runs_server_dry": true,
+    "conflict_blocks_overwrite_and_preserves_draft": true,
+    "evaluation_and_decision_edit_paths_and_existing_runs_preserved": true,
+    "client_errors": 0
+  },
+  "limits": [
+    "未发送模型请求或业务工具请求，未操作用户实例",
+    "嵌入说明使用受控只读实例数据，URL 与访问入口的相同 RPC 结果一致；未从另一设备或跨站 iframe 验证访问",
+    "MCP 实际两次 HTTP 调用、dry 零请求和失败停止另由受控接口自动测试验证"
+  ],
+  "validation": "passed"
+}

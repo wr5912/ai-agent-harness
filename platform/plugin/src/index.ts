@@ -1,4 +1,3 @@
-import { redacted } from './mcp/openapi.ts'
 import { readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
@@ -17,8 +16,7 @@ import { createAgentsHandler } from './agents/index.ts'
 import { createInstancesHandler } from './instances/index.ts'
 import { applyMcpGateway, createMcpHandler } from './mcp/index.ts'
 import type {} from './mcp/manager.ts'
-import { loadOpenApi as loadManagedOpenApi, execute as executeManagedOpenApi } from 'harness-mcp-manager-openapi'
-import { digestOf } from './mcp/openapi.ts'
+import { createManagedMcpHandler } from './mcp/native.ts'
 
 // 使用启动器核对过的全局 Runtime；开发依赖只提供类型和隔离测试环境。
 const WebApp: typeof NativeWebApp = await import(process.env.HARNESS_DSH_ENTRY
@@ -124,27 +122,7 @@ export function applyTools(ctx: Context) {
   // 把已注入的载体绑定到子上下文，供原生 RPC 注册读取；父上下文不变。
   const registrationContext = ctx.extend({ webServer: ctx.webServer })
   const manager = ctx.platformMcp
-  const mcp = createMcpHandler(assetRoot, manager ? {
-    servers: () => manager.servers.get(),
-    native: {
-      async load(connection, signal) {
-        const server = manager.servers.get().find(item => item.id === connection.id && item.enabled !== false)
-        if (!server?.specUrl) throw new Error('组合依赖的 OpenAPI 服务器未启用')
-        return { ...await loadManagedOpenApi({ ...server, platformSignal: signal }), connection }
-      },
-      async call(source, operationId, args, signal) {
-        signal?.throwIfAborted()
-        const operation = source.operations.get(operationId)
-        if (!operation) throw new Error(`OpenAPI 操作不存在：${operationId}`)
-        const { response, text } = await executeManagedOpenApi(source, operation, args)
-        let json
-        try { json = redacted(JSON.parse(text)) } catch { json = text }
-        return { ok: response.ok, status: response.status, json,
-          receipt: { connectionId: source.connection.id, specDigest: digestOf(source.spec), operationId,
-            method: operation.method.toUpperCase(), path: operation.path, schemaDigest: digestOf(operation.raw) } }
-      },
-    },
-  } : {})
+  const mcp = manager ? createManagedMcpHandler(assetRoot, () => manager.servers.get()) : createMcpHandler(assetRoot)
   registrationContext.connection.rpc.handle(CHANNEL, createPlatformHandler(assetRoot, {
     agents: createAgentsHandler(assetRoot), instances: createInstancesHandler(assetRoot), mcp,
   }))

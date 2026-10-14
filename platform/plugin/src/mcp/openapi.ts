@@ -215,6 +215,21 @@ export function redacted(value: any): any {
   ]))
 }
 
+export function appendQueryParameter(query: URLSearchParams, parameter: any, value: any) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    if ((parameter.style ?? 'form') !== 'form' || parameter.explode === false) throw new Error(`不支持的对象查询参数编码：${parameter.name}`)
+    for (const [key, item] of Object.entries(value)) {
+      if (item && typeof item === 'object' && !Array.isArray(item)) throw new Error(`不支持嵌套对象查询参数：${parameter.name}`)
+      if (item !== undefined && item !== null) appendQueryParameter(query, { name: key }, item)
+    }
+  } else {
+    for (const item of Array.isArray(value) ? value : [value]) {
+      if (item !== null && typeof item === 'object') throw new Error(`查询参数必须为标量：${parameter.name}`)
+      query.append(parameter.name, String(item))
+    }
+  }
+}
+
 export async function callOpenApiOperation(source: LoadedOpenApi, operationId: string, args: Record<string, any>, signal?: AbortSignal) {
   const operation = source.operations.get(operationId)
   if (!operation) throw new Error(`OpenAPI 操作不存在：${operationId}`)
@@ -227,7 +242,7 @@ export async function callOpenApiOperation(source: LoadedOpenApi, operationId: s
       continue
     }
     if (parameter.in === 'path') url.pathname = url.pathname.replace(encodeURIComponent(`{${parameter.name}}`), encodeURIComponent(String(value)))
-    if (parameter.in === 'query') url.searchParams.append(parameter.name, String(value))
+    if (parameter.in === 'query') appendQueryParameter(url.searchParams, parameter, value)
     if (parameter.in === 'header') headers[parameter.name] = String(value)
   }
   if (operation.body?.required && args.body === undefined) throw new Error('缺少参数：body')

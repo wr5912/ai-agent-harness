@@ -2,8 +2,11 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionRpcHandler, ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
 import { readFile } from 'node:fs/promises'
-import { COMPOSITION_TOOL_NAME } from './definition.ts'
-import { createRegistry, executeComposition, compositionVersion, saveRegistry, type McpRegistry } from './executor.ts'
+import { randomUUID } from 'node:crypto'
+import { join } from 'node:path'
+import { compositionInputSchema } from './definition.ts'
+import { compositionConfig, publishedCompositionService, readCompositions, selectedComposition, writeCompositions } from './compositions.ts'
+import { createRegistry, executeComposition, dryRunComposition, compositionStructure, compositionVersion, saveRegistry, type McpRegistry } from './executor.ts'
 import { callOpenApiOperation, limitedText, loadOpenApi, normalizeConnection, publicConnection, validateSpecUrl, type CredentialRef } from './openapi.ts'
 
 const SERVER_INFO = { name: 'harness-platform-mcp-composition', version: '0.1.0' }
@@ -17,7 +20,8 @@ function success<T>(value: T): ConnectionRpcResult<T> {
   return { ok: true, value }
 }
 
-function listState(registry: McpRegistry, assetRoot: string) {
+async function listState(registry: McpRegistry, assetRoot: string, compositionsFile: string) {
+  const { catalog, revision } = readCompositions(compositionsFile)
   return {
     connections: [
       ...[...registry.openapi.values()].map(connection => ({
@@ -33,7 +37,12 @@ function listState(registry: McpRegistry, assetRoot: string) {
         status: registry.status.get(connection.id) ?? { registered: true, specLoaded: 'unknown', toolCallSucceeded: 'unknown' },
       })),
     ],
-    composition: compositionVersion(assetRoot),
+    compositions: await Promise.all(catalog.compositions.map(async entry => ({ ...entry,
+      graphs: Object.fromEntries(await Promise.all((['draft', 'published'] as const).filter(key => entry[key]).map(async key => [key, await compositionStructure(entry[key])]))),
+    }))),
+    publishedService: publishedCompositionService(catalog),
+    revision,
+    implementation: compositionVersion(assetRoot),
   }
 }
 
@@ -155,8 +164,9 @@ async function callMcpTool(connection: any, name: string, args: any, signal?: Ab
   return await mcpJsonRpc(connection, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name, arguments: args ?? {} } }, session, runSignal)
 }
 
-export function createMcpHandler(assetRoot: string, options: { stateFile?: string; servers?: () => any[]; native?: McpRegistry['native'] } = {}): ConnectionRpcHandler {
+export function createMcpHandler(assetRoot: string, options: { stateFile?: string; compositionsFile?: string; servers?: () => any[]; native?: McpRegistry['native'] } = {}): ConnectionRpcHandler {
   const registry = options.servers ? createRegistry() : createRegistry(assetRoot, options.stateFile)
+  const compositionsFile = options.compositionsFile ?? join(assetRoot, 'platform/mcp-compositions.json')
   registry.native = options.native
   return async (endpoint, payload, signal) => {
     try {
@@ -171,7 +181,39 @@ export function createMcpHandler(assetRoot: string, options: { stateFile?: strin
           return failure('use_mcp_manager', '请通过 MCP 配置管理页面操作服务器、工具与资源')
         }
       }
-      if (endpoint === 'list') return success(listState(registry, assetRoot))
+      if (endpoint === 'list') return success(await listState(registry, assetRoot, compositionsFile))
+      if (['saveCompositionDraft', 'publishComposition', 'executeComposition', 'dryRunComposition', 'callPublishedComposition'].includes(endpoint)) {
+        const { catalog, revision } = readCompositions(compositionsFile)
+        const request = (payload as any) ?? {}
+        if (endpoint !== 'callPublishedComposition' && request.revision !== revision) throw new Error('编排目录已变化，请刷新后重试；当前草稿未覆盖')
+        if (endpoint === 'saveCompositionDraft') {
+          const draft = compositionConfig(request.draft)
+          const entry = request.compositionId ? catalog.compositions.find(item => item.id === request.compositionId) : undefined
+          if (request.compositionId && !entry) throw new Error('所选编排不存在')
+          if (entry) entry.draft = draft
+          else catalog.compositions.push({ id: `composition-${randomUUID()}`, draft })
+          writeCompositions(compositionsFile, catalog, revision)
+          return success(await listState(registry, assetRoot, compositionsFile))
+        }
+        if (endpoint === 'callPublishedComposition') {
+          const entry = catalog.compositions.find(item => item.published?.toolName === request.toolName)
+          if (!entry?.published) return failure('not_found', '已发布工具不存在')
+          return success(await executeComposition(registry, assetRoot, entry.published, request.input ?? {}, signal))
+        }
+        const config = selectedComposition(catalog, request)
+        if (endpoint === 'publishComposition') {
+          if (request.version !== 'draft') throw new Error('只能发布已保存的草稿')
+          const dry = await dryRunComposition(registry, config, request.input ?? {})
+          const entry = catalog.compositions.find(item => item.id === request.compositionId)!
+          entry.published = { ...config, publishedAt: new Date().toISOString() }
+          delete entry.draft
+          writeCompositions(compositionsFile, catalog, revision)
+          return success({ ...await listState(registry, assetRoot, compositionsFile), dry })
+        }
+        return success(endpoint === 'dryRunComposition'
+          ? { ...await dryRunComposition(registry, config, request.input ?? {}), version: compositionVersion(assetRoot, config) }
+          : await executeComposition(registry, assetRoot, config, request.input ?? {}, signal))
+      }
       if (endpoint === 'registerOpenApi') {
         const connection = normalizeConnection(payload)
         registry.openapi.set(connection.id, connection)
@@ -224,7 +266,6 @@ export function createMcpHandler(assetRoot: string, options: { stateFile?: strin
         registry.status.set(id, status)
         return success({ ...result, status })
       }
-      if (endpoint === 'executeComposition') return success(await executeComposition(registry, assetRoot, (payload as any) ?? {}, signal))
       return failure('not_found', '未知的 MCP 管理操作')
     } catch (error) {
       return failure('mcp_failed', error instanceof Error ? error.message : String(error))
@@ -258,22 +299,38 @@ async function handleMcpMessage(handler: ConnectionRpcHandler, assetRoot: string
     return rpcResult(message.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: SERVER_INFO })
   }
   if (message.method === 'tools/list') {
-    const version = compositionVersion(assetRoot)
-    return rpcResult(message.id, { tools: [{
-      name: COMPOSITION_TOOL_NAME,
-      description: '固定两步只读组合：查询资产后查询相关告警',
-      inputSchema: version.definition.inputSchema,
+    const listed = await handler('list', {}, signal ?? new AbortController().signal, undefined as never)
+    if (!listed.ok) return rpcError(message.id, -32603, listed.error.message)
+    return rpcResult(message.id, { tools: (listed.value as any).compositions.filter((entry: any) => entry.published).map((entry: any) => ({
+      name: entry.published.toolName,
+      description: entry.published.description || entry.published.title,
+      inputSchema: compositionInputSchema(entry.published),
       annotations: { readOnlyHint: true },
-    }] })
+    })) })
   }
   if (message.method === 'tools/call') {
-    if (message.params?.name !== COMPOSITION_TOOL_NAME) return rpcError(message.id, -32602, 'Unknown tool')
-    const result = await handler('executeComposition', message.params?.arguments ?? {}, signal ?? new AbortController().signal, undefined as never)
+    const result = await handler('callPublishedComposition', { toolName: message.params?.name, input: message.params?.arguments ?? {} }, signal ?? new AbortController().signal, undefined as never)
+    if (!result.ok && result.error.code === 'not_found') return rpcError(message.id, -32602, 'Unknown tool')
     if (!result.ok) return rpcResult(message.id, { content: [{ type: 'text', text: result.error.message }], isError: true })
     const value = result.value as { ok: boolean } & Record<string, unknown>
     return rpcResult(message.id, { content: [{ type: 'text', text: JSON.stringify(value) }], isError: !value.ok })
   }
   return rpcError(message.id, -32601, `Method not found: ${message.method}`)
+}
+
+export function createPublishedCompositionClient(assetRoot: string, handler: ConnectionRpcHandler) {
+  const request = async (method: string, params?: unknown) => {
+    const reply = await handleMcpMessage(handler, assetRoot, { id: 1, method, params }) as any
+    if (reply.error) throw new Error(reply.error.message)
+    return reply.result
+  }
+  return {
+    listTools: () => request('tools/list'),
+    callTool: (params: unknown) => request('tools/call', params),
+    listResources: async () => ({ resources: [] }),
+    listResourceTemplates: async () => ({ resourceTemplates: [] }),
+    readResource: async () => { throw new Error('组合编排服务没有资源') },
+  }
 }
 
 export function createMcpGatewayRequestHandler(assetRoot: string, handler = createMcpHandler(assetRoot)) {

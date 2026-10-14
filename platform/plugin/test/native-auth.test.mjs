@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { request as httpRequest } from 'node:http'
@@ -23,6 +23,7 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   })
   mkdirSync(join(assetRoot, 'agents/auth-agent'), { recursive: true })
   mkdirSync(join(assetRoot, 'platform/credentials'), { recursive: true })
+  copyFileSync(new URL('./fixtures/mcp-compositions.json', import.meta.url), join(assetRoot, 'platform/mcp-compositions.json'))
   writeFileSync(join(assetRoot, 'platform/credentials/admin.json'), JSON.stringify({ username: 'admin', password: 'admin123' }))
   const index = join(assetRoot, 'index.html')
   writeFileSync(index, '<html><head></head><body>index</body></html>')
@@ -61,7 +62,7 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
     body: JSON.stringify(body),
   })
   const envelope = method => ({ type: 'client-request', rpcId: 'test-request', method, payload: {} })
-  for (const method of ['agents/create', 'instances/run', 'mcp/registerOpenApi']) {
+  for (const method of ['agents/create', 'instances/run', 'mcp/registerOpenApi', 'mcp/saveCompositionDraft', 'mcp/publishComposition']) {
     assert.equal((await request(`/harness-platform/${method}`, envelope(method))).status, 401)
   }
   const gateway = '/api/harness-platform/mcp'

@@ -12,3 +12,9 @@
 - id: agent-preset-registry
   config:
     default: standard
+- id: skill-filesystem
+  disabled: false
+  config:
+    includeDefaultRoots: false
+    customSkillDirs:
+      - {{HARNESS_PLATFORM_SKILLS}}

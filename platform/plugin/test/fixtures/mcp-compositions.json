@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "compositions": [
+    {
+      "id": "security-asset-related-alerts-readonly",
+      "published": {
+        "toolName": "query_asset_related_alerts",
+        "title": "资产相关告警只读查询",
+        "description": "查询资产后查询相关告警的两步只读组合",
+        "connectionId": "security-readonly-api"
+      }
+    }
+  ]
+}

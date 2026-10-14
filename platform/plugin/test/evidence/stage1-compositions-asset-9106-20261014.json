@@ -1,0 +1,125 @@
+{
+  "at": "2026-10-14T08:36:20.543Z",
+  "target": "http://172.16.138.228:3090",
+  "branch": "fix/PLATFORM-agent-assets-mcp-ui",
+  "asset_id": 9106,
+  "restart": {
+    "old_pid": 282849,
+    "new_pid": 336208
+  },
+  "checks": {
+    "draft_saved_published_unchanged": true,
+    "saved_draft_graph_reload": true,
+    "real_sdk_result_displayed": true,
+    "version_selection_uses_own_graph": true,
+    "native_settings_preserved": true,
+    "non_session_credentials_preserved": true,
+    "account_preserved": true,
+    "all_published_versions_preserved": true,
+    "client_errors": 0
+  },
+  "limits": [
+    "仅调试资产 9106 的近 30 天首页告警分组，不拉取全部告警明细",
+    "本次保存编排草稿，保持原发布版；未验证模型自动选择或其他资产",
+    "未从另一台局域网设备访问；不改动远端服务、平台服务配置或分组"
+  ],
+  "dry": {
+    "mode": "dry",
+    "upstreamRequests": 0,
+    "checks": [
+      "输入有效",
+      "LangGraph 图已编译",
+      "依赖连接已登记"
+    ],
+    "unverified": [
+      "上游规格及工具可用性",
+      "实际参数映射与工具执行结果"
+    ]
+  },
+  "execution": {
+    "ok": true,
+    "asset": {
+      "assetId": 9106,
+      "hostname": "联试硬件服务器241",
+      "ip": "172.16.138.241",
+      "status": "active"
+    },
+    "alertSummary": {
+      "totalGroups": 22,
+      "totalAlerts": 777,
+      "truncated": false,
+      "from": "2026-09-14T08:35:07.825Z",
+      "to": "2026-10-14T08:35:07.825Z",
+      "pageNum": 1,
+      "pageSize": 5
+    },
+    "displayedGroups": 5,
+    "receipts": [
+      {
+        "connectionId": "biz-soc-master",
+        "specDigest": "057d4339c2330a4c45b386dfd40de2b2943f90858ab82942598176bf94db9215",
+        "operationId": "get_soc_asset_by_asset_id",
+        "method": "GET",
+        "path": "/soc/asset/{assetId}",
+        "schemaDigest": "212103721770bfb7ef29cf6c42129bc98ad82f02c7bc353b9969e51fd7fcd3a0"
+      },
+      {
+        "connectionId": "biz-soc-detect",
+        "specDigest": "dea947391108bcd9b96ba78686d98eee8884ca6887299da0de0ba21fd0c28067",
+        "operationId": "list_detect_alert",
+        "method": "GET",
+        "path": "/detect/alert/list",
+        "schemaDigest": "767be72ac408fee8229d00f520b4de72d8adccd580ce04e1f1275a7e6e881012"
+      }
+    ],
+    "trace": [
+      {
+        "step": "asset",
+        "title": "查询资产",
+        "connectionId": "biz-soc-master",
+        "operationId": "get_soc_asset_by_asset_id",
+        "input": {
+          "assetId": "$input.asset"
+        },
+        "output": "asset",
+        "status": "succeeded",
+        "httpStatus": 200,
+        "durationMs": 22,
+        "mappedArguments": {
+          "assetId": 9106
+        }
+      },
+      {
+        "step": "alerts",
+        "title": "查询近 30 天关联告警分组",
+        "connectionId": "biz-soc-detect",
+        "operationId": "list_detect_alert",
+        "input": {
+          "req.assetId": "$state.assetId",
+          "req.pageNum": 1,
+          "req.pageSize": "$input.limit",
+          "req.windowSeconds": 2592000
+        },
+        "output": "alerts",
+        "status": "succeeded",
+        "httpStatus": 200,
+        "durationMs": 538,
+        "mappedArguments": {
+          "req": {
+            "assetId": "9106",
+            "pageNum": 1,
+            "pageSize": 5,
+            "windowSeconds": 2592000
+          }
+        }
+      }
+    ],
+    "version": {
+      "gitCommit": "0ae67c84fb6f53a04a99f33ac25561d067684504",
+      "gitDirty": true,
+      "sourceDigest": "a011fad34733a4d25a469c9df2a35c4173f52d5c3e03af90f42298273bb0948e",
+      "digest": "91859a9925cdc86e46028851ba4862abfee53a121259a778d6e74ddef912bdda"
+    }
+  },
+  "validation": "passed"
+}

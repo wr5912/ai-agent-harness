@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-14T07:11:04.565Z",
+  "scope": "实际构建的原生 MCP 管理插件与分组协议，临时目录和受控外部 OpenAPI",
+  "checks": {
+    "authenticated_group_lifecycle_and_real_call": {
+      "discovery": "mcp__compositions__query_asset_related_alerts",
+      "business_requests": 2,
+      "alerts": 2,
+      "credential_redacted": true
+    },
+    "published_name_changes_and_group_selection": true,
+    "draft_not_exposed_and_publish_has_zero_upstream_requests": true,
+    "diagnostic_discovers_virtual_service_without_external_requests": true,
+    "raw_service_config_unchanged": true,
+    "missing_bearer_rejected_and_unselected_tool_denied": true
+  },
+  "limits": [
+    "不改动用户服务、分组或编排目录",
+    "未验证模型选择工具和真实 SOC 告警结果"
+  ],
+  "validation": "passed"
+}

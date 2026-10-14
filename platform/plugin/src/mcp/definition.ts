@@ -1,9 +1,14 @@
-export const COMPOSITION_TOOL_NAME = 'query_asset_related_alerts'
+import type { CompositionConfig } from './compositions.ts'
+
+export function compositionInputSchema(config?: CompositionConfig) {
+  const schema = compositionDefinition.inputSchema
+  return config?.flow ? { ...schema, properties: { ...schema.properties,
+    asset: { type: 'string', description: 'SOC 正整数资产 ID，例如 9106', pattern: '^[1-9]\\d*$' },
+  } } : schema
+}
 
 export const compositionDefinition = {
   schema_version: '1.0',
-  id: 'security-asset-related-alerts-readonly',
-  title: '资产相关告警只读查询',
   readonly: true,
   inputSchema: {
     type: 'object',
@@ -19,30 +24,13 @@ export const compositionDefinition = {
     properties: {
       asset: { type: 'object' },
       alerts: { type: 'array', items: { type: 'object' } },
+      alertSummary: { type: 'object', description: 'SOC 告警分组的查询范围、总分组数及总告警数；alerts 为首页分组' },
       trace: { type: 'array', items: { type: 'object' } },
     },
     required: ['asset', 'alerts', 'trace'],
   },
   upstream: {
     kind: 'openapi',
-    connectionId: 'security-readonly-api',
     operations: ['get_asset', 'list_alerts'],
   },
-  steps: [
-    {
-      id: 'asset',
-      title: '查询资产',
-      operationId: 'get_asset',
-      input: { asset: '$input.asset' },
-      output: 'asset',
-    },
-    {
-      id: 'alerts',
-      title: '查询相关告警',
-      operationId: 'list_alerts',
-      dependsOn: ['asset'],
-      input: { assetId: '$steps.asset.id', limit: '$input.limit' },
-      output: 'alerts',
-    },
-  ],
 } as const

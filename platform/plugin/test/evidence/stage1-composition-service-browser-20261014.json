@@ -1,0 +1,32 @@
+{
+  "at": "2026-10-14T07:21:19.443Z",
+  "target": "http://172.16.138.228:3090",
+  "branch": "fix/PLATFORM-agent-assets-mcp-ui",
+  "restart": {
+    "old_pid": 4096387,
+    "new_pid": 40668
+  },
+  "checks": {
+    "service_item_description_and_enabled_status": true,
+    "password_eye_reveals_and_hides_without_changing_value": true,
+    "live_published_tools_displayed_as_readonly_service": true,
+    "live_native_diagnostic_discovers_published_service": true,
+    "group_selects_published_tool_and_shows_group_url": true,
+    "publication_immediately_updates_service_and_group_without_resetting_native_draft": true,
+    "responsive_no_horizontal_overflow": [
+      1440,
+      900,
+      390
+    ],
+    "save_sends_group_references_without_persisting_derived_service": true,
+    "client_errors": 0,
+    "user_configuration_files_unchanged": true,
+    "credentials_unchanged_except_expected_browser_session": true
+  },
+  "limits": [
+    "真实编排和服务配置只读；保存与发布使用临时目录，分组保存请求截获后不写入用户配置",
+    "未验证真实 SOC 业务结果或模型调用工具",
+    "未从另一台局域网设备访问"
+  ],
+  "validation": "passed"
+}
