@@ -711,7 +711,10 @@ class ImageIdentityAndPsStateTest(unittest.TestCase):
         )
         self.assertEqual(dev.normalized_instance_state(failed), "failed")
         self.assertEqual(dev.normalized_instance_state(restarting), "unknown")
-        self.assertEqual(dev.normalized_instance_state([]), "stopped")
+        self.assertEqual(dev.normalized_instance_state([]), "absent")
+        self.assertEqual(dev.normalized_instance_state([{"service": "home-init", "state": "exited"}]), "absent")
+        self.assertEqual(dev.normalized_instance_state([{"service": "dsh", "state": "exited", "exit_code": 0}]), "stopped")
+        self.assertEqual(dev.normalized_instance_state(None), "unknown")
         self.assertIsNone(dev.compose_ps_containers("not-json"))
 
     def test_validate_image_identity_returns_immutable_reference(self):
@@ -911,7 +914,10 @@ class DeleteCommandTest(unittest.TestCase):
         volume = subprocess.CompletedProcess([], 0, stdout="dsh-dev-delete-probe-home\n", stderr="")
         code, printed, _ = self.call([empty, volume, volume])
         self.assertEqual(code, 0)
-        self.assertTrue(json.loads(printed)["deleted"])
+        report = json.loads(printed)
+        self.assertTrue(report["deleted"])
+        self.assertEqual(report["state"], "absent")
+        self.assertTrue(report["home_preserved"])
         self.assertFalse((dev.STATE_ROOT / "delete-probe").exists())
 
     def test_delete_keeps_registration_when_home_recheck_is_unknown(self):
@@ -1214,6 +1220,9 @@ class UpPortOwnershipTest(unittest.TestCase):
         self.assertEqual(plan["name"], "security-operations-expert-eval")
         self.assertEqual(plan["container_name"], "security-operations-expert-eval")
         self.assertEqual(plan["port"], 3081)
+        self.assertEqual(plan["listen_host"], "0.0.0.0")
+        for flag in ("lan_access", "unsafe_no_auth", "skip_testing_notice"):
+            self.assertTrue(plan[flag])
         preflight.assert_not_called()
         writer.assert_not_called()
         runner.assert_not_called()
@@ -1235,37 +1244,32 @@ class UpPortOwnershipTest(unittest.TestCase):
         self.assertEqual(args.port, 3090)
         probe.assert_not_called()
 
-    def test_existing_instance_rejects_lan_mode_change(self):
-        self.write_existing(lan_access=True)
-        stderr = io.StringIO()
-        with mock.patch.object(dev, "resolve", return_value=self.contract()), \
-                contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit):
-            dev.prepare_up(self.args(lan_access=False))
-        self.assertIn("LAN 访问模式不同", stderr.getvalue())
+    def test_old_business_instances_apply_uniform_access_without_replace(self):
+        for replace in (False, True):
+            for old_flags in ({}, dict(lan_access=False, unsafe_no_auth=False, skip_testing_notice=False)):
+                with self.subTest(replace=replace, old_flags=old_flags):
+                    self.write_existing(**old_flags)
+                    args = self.args(port=None, replace=replace, lan_access=False,
+                                     unsafe_no_auth=False, skip_testing_notice=False)
+                    with mock.patch.object(dev, "resolve", return_value=self.contract()):
+                        _, current = dev.prepare_up(args)
+                    self.assertIsNotNone(current)
+                    self.assertEqual(args.port, 3302)
+                    for flag in ("lan_access", "unsafe_no_auth", "skip_testing_notice"):
+                        self.assertTrue(getattr(args, flag))
+                    self.assertEqual(json.loads((current[0] / "instance.json").read_text()), current[1])
 
-    def test_explicit_replace_allows_lan_mode_change(self):
-        self.write_existing(lan_access=False)
-        with mock.patch.object(dev, "resolve", return_value=self.contract()):
-            _, current = dev.prepare_up(self.args(lan_access=True, replace=True))
-        self.assertIsNotNone(current)
-
-    def test_no_auth_mode_change_requires_replace_and_old_state_defaults_to_auth(self):
-        self.write_existing()
-        with mock.patch.object(dev, "resolve", return_value=self.contract()):
-            with self.assertRaises(SystemExit):
-                dev.prepare_up(self.args(unsafe_no_auth=True))
-            _, current = dev.prepare_up(self.args(unsafe_no_auth=True, replace=True))
-        self.assertIsNotNone(current)
-        self.assertFalse(current[1].get("unsafe_no_auth", False))
-
-    def test_notice_mode_change_requires_replace_and_old_state_defaults_to_notice(self):
-        self.write_existing()
-        with mock.patch.object(dev, "resolve", return_value=self.contract()):
-            with self.assertRaises(SystemExit):
-                dev.prepare_up(self.args(skip_testing_notice=True))
-            _, current = dev.prepare_up(self.args(skip_testing_notice=True, replace=True))
-        self.assertIsNotNone(current)
-        self.assertFalse(current[1].get("skip_testing_notice", False))
+    def test_analysis_worker_keeps_internal_access_and_rejects_public_flags(self):
+        workspace = "/tmp/analysis-run"
+        with mock.patch.object(dev, "validate_analysis_workspace", return_value=workspace), \
+                mock.patch.object(dev, "resolve", return_value=self.contract()):
+            args = self.args(name="new-analysis", analysis_workspace=workspace)
+            dev.prepare_up(args)
+            for flag in ("lan_access", "unsafe_no_auth", "skip_testing_notice"):
+                self.assertFalse(getattr(args, flag))
+            for flag in ("lan_access", "unsafe_no_auth"):
+                with self.subTest(flag=flag), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                    dev.prepare_up(self.args(analysis_workspace=workspace, **{flag: True}))
 
     def test_auto_port_race_fails_without_silent_reselection(self):
         args = self.args(name="new-probe", port=None)

@@ -1,0 +1,50 @@
+{
+  "checked_at": "2026-10-14T01:28:37.244Z",
+  "source": {
+    "commit": "e4860eb28b9ee98df588b1b8b1dd8bc3de2f33cf",
+    "dirty": true,
+    "built_files": {
+      "index.js": "2b3c7f6b55490e613a6b35f26ba0b6b6eb7136db9cf247edc5b7420b5cb2c9d6",
+      "client.js": "105af9574d4d3af02e31c26fe667d72d38dce10ecd0551f0a2037a103c9ec803"
+    }
+  },
+  "scope": "全局 DSH 实际客户端；智能体与 Run 查询使用仓库资产；实例选择额外使用三行受控列表验证筛选与半选",
+  "checks": {
+    "default_latest_version": "EXP-security-operations-expert-018-rfbf7fd53a340",
+    "layout_1920": {
+      "list_width": 190,
+      "detail_width": 1446,
+      "content_width": 1724,
+      "horizontal_overflow": false
+    },
+    "run_index_and_case_query": true,
+    "tabs_preserve_draft": true,
+    "keyboard_tab_navigation": true,
+    "explicit_older_and_agent_switch": true,
+    "layout_1440": {
+      "list_width": 190,
+      "detail_width": 966,
+      "content_width": 1244,
+      "horizontal_overflow": false
+    },
+    "layout_900": {
+      "list_width": 150,
+      "detail_width": 522,
+      "content_width": 742,
+      "horizontal_overflow": false
+    },
+    "layout_390": {
+      "list_width": 358,
+      "detail_width": 358,
+      "content_width": 390,
+      "horizontal_overflow": false
+    },
+    "real_instances_header": true,
+    "select_all_partial_clear_filter_empty_search": true,
+    "client_errors": 0
+  },
+  "limits": [
+    "未写入 Harness 资产，未新增模型 Run，未启停或删除用户容器；受控实例行仅验证前端选择行为"
+  ],
+  "validation": "passed"
+}

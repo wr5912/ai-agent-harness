@@ -810,6 +810,8 @@ def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None
         fail("归因实例只允许监听 127.0.0.1，不能启用 --lan-access")
     if args.analysis_workspace and bool(getattr(args, "unsafe_no_auth", False)):
         fail("归因实例不能启用 --unsafe-no-auth")
+    # 业务实例统一采用平台直连设置；专用归因工作进程保持内部访问边界。
+    args.lan_access = args.unsafe_no_auth = args.skip_testing_notice = not args.analysis_workspace
     validate_trusted_host(getattr(args, "trusted_host", None))
     contract = resolve(args.source, repo=REPO)
     args.name = args.name or f"{contract['agent_id']}-{PURPOSES[args.mode]}"
@@ -817,24 +819,6 @@ def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None
     if current is not None:
         _, manifest = current
         validate_existing_identity(args.name, manifest, contract, args.mode, args.analysis_workspace)
-        requested_lan = bool(getattr(args, "lan_access", False))
-        if bool(manifest.get("lan_access", False)) != requested_lan and not getattr(args, "replace", False):
-            fail(
-                f"实例 {args.name} 已存在且 LAN 访问模式不同；"
-                "请保持原模式、显式加 --replace 或改用新的实例名"
-            )
-        if bool(manifest.get("unsafe_no_auth", False)) != bool(getattr(args, "unsafe_no_auth", False)) \
-                and not getattr(args, "replace", False):
-            fail(
-                f"实例 {args.name} 已存在且 Web 认证模式不同；"
-                "请保持原模式、显式加 --replace 或改用新的实例名"
-            )
-        if bool(manifest.get("skip_testing_notice", False)) != bool(getattr(args, "skip_testing_notice", False)) \
-                and not getattr(args, "replace", False):
-            fail(
-                f"实例 {args.name} 已存在且内测声明开关不同；"
-                "请保持原模式、显式加 --replace 或改用新的实例名"
-            )
     if args.port is None:
         if current is not None:
             args.port = instance_recorded_port(current[1])
@@ -1145,10 +1129,12 @@ def compose_ps_containers(output: str) -> list[dict] | None:
 
 
 def normalized_instance_state(containers: list[dict] | None) -> str:
-    """把 Compose 观测归一为 running/stopped/failed/unknown。"""
+    """区分实际 DSH 容器状态、无容器登记和查询失败。"""
     if containers is None:
         return "unknown"
     dsh = [item for item in containers if item.get("service") == "dsh"]
+    if not dsh:
+        return "absent"
     if any(item.get("state") == "running" for item in dsh):
         return "running"
     if any(item.get("state") == "dead" or item.get("exit_code", 0) not in (None, 0) for item in dsh):
@@ -1511,7 +1497,7 @@ def delete_instance(name: str, manifest: dict) -> dict:
     state = normalized_instance_state(containers)
     report["state"] = state
     report["containers_before"] = containers
-    if state != "stopped":
+    if state not in {"stopped", "absent"}:
         report["deleted"] = False
         print(json.dumps(report, ensure_ascii=False), file=sys.stderr)
         fail(f"实例 {name} 当前状态为 {state}，只允许删除已停止实例")
@@ -1763,11 +1749,11 @@ def main() -> None:
     up.add_argument("--allow-missing-env", action="store_true",
                     help="显式允许缺少运行时环境变量，仅用于技术装载核验")
     up.add_argument("--lan-access", action="store_true",
-                    help="普通 web Profile 监听 0.0.0.0；默认仍保留 Token 认证及 Host/Origin 校验")
+                    help="业务实例已统一监听 0.0.0.0；保留此显式标记")
     up.add_argument("--unsafe-no-auth", action="store_true",
-                    help="显式关闭本实例 Web/API 的 Token 与 Host/Origin 校验；仅限受信隔离网络")
+                    help="业务实例已统一关闭 Web/API 的 Token 与 Host/Origin 校验；保留此显式标记")
     up.add_argument("--skip-testing-notice", action="store_true",
-                    help="仅跳过 Web 内测声明弹窗；不改变认证、监听地址或其他引导步骤")
+                    help="业务实例已统一跳过 Web 内测声明弹窗；保留此显式标记")
     up.add_argument("--trusted-host", metavar="HOST[:PORT]",
                     help="允许额外的浏览器请求 Host（如反向代理入口）；不改变监听地址")
     up.add_argument("--analysis-workspace", metavar="PATH",
@@ -1777,7 +1763,7 @@ def main() -> None:
     up.set_defaults(handler=command_up)
 
     ps_parser = commands.add_parser("ps", help="默认列出运行中的实例；加 --all 查看全部状态记录")
-    ps_parser.add_argument("-a", "--all", action="store_true", help="包含 stopped、failed、unknown 和损坏记录")
+    ps_parser.add_argument("-a", "--all", action="store_true", help="包含 stopped、absent（无容器登记）、failed、unknown 和损坏记录")
     ps_parser.set_defaults(handler=command_ps)
 
     url_parser = commands.add_parser("url", help="取得实例访问 URL")

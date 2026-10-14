@@ -1,0 +1,32 @@
+{
+  "checked_at": "2026-10-14T01:58:40.086Z",
+  "source": {
+    "client_sha256": "bf7c5d2acd330a634524f27c74901a10fe5ec89b830061693daf4c331d61393e",
+    "dirty": true
+  },
+  "scope": "全局 DSH 实际首页，原生新会话提交与可见回复",
+  "checks": {
+    "home_original_width": {
+      "page_width": 1260,
+      "entry_width": 640
+    },
+    "single_line_and_empty_blocked": true,
+    "send_navigates_and_native_model_replies": {
+      "elapsed_ms": 2705,
+      "reply": "首页入口验证成功"
+    },
+    "viewport_900": {
+      "horizontal_overflow": false,
+      "input_width": 543.8125
+    },
+    "viewport_390": {
+      "horizontal_overflow": false,
+      "input_width": 269.8125
+    },
+    "client_errors": 0
+  },
+  "limits": [
+    "仅验证管理对话入口，不替代业务 Harness Evaluation"
+  ],
+  "validation": "passed"
+}

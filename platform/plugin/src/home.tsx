@@ -24,13 +24,15 @@ function HeroArt({ side }: { side: string }) {
   </svg>
 }
 
-export function HomePage({ catalog, rpc, navigate }: PlatformPageProps & { catalog: Catalog; navigate: (page: PageId) => void }) {
+export function HomePage({ catalog, rpc, navigate, startConversation }: PlatformPageProps & { catalog: Catalog; navigate: (page: PageId) => void; startConversation: (root: string, prompt: string) => Promise<void> }) {
   const state = useSyncExternalStore(catalog.subscribe, catalog.getSnapshot)
   const [runs, setRuns] = useState<RecentRun[]>()
   const [dashboard, setDashboard] = useState<Dashboard>()
   const [runError, setRunError] = useState('')
   const [refresh, setRefresh] = useState(0)
-  const [entry, setEntry] = useState<PageId>('agents')
+  const [prompt, setPrompt] = useState('')
+  const [sending, setSending] = useState(false)
+  const [entryError, setEntryError] = useState('')
   useEffect(() => { void catalog.refresh() }, [catalog, refresh])
   useEffect(() => {
     let active = true
@@ -53,14 +55,20 @@ export function HomePage({ catalog, rpc, navigate }: PlatformPageProps & { catal
       <HeroArt side="left"/><HeroArt side="right"/>
       <h1>您好，今天想让平台<br/><span>帮您完成什么？</span></h1>
       <p>让智能体研究、评估和日常运行，更直观、更高效。</p>
-      <form className="harness-entry" onSubmit={event => { event.preventDefault(); navigate(entry) }}>
-        <select aria-label="选择工作入口" value={entry} onChange={event => setEntry(event.target.value as PageId)}>
-          <option value="conversations">与平台管理智能体对话，管理 DSH 会话</option>
-          <option value="agents">创建或改进智能体，查看评估与 Run 轨迹</option>
-          <option value="instances">启动、停止或重启 DSH 实例</option>
-          <option value="mcp">配置 MCP / OpenAPI，发布工具分组</option>
-        </select><button className="harness-primary" type="submit">开始工作 →</button>
+      <form className="harness-entry" onSubmit={async event => {
+        event.preventDefault()
+        if (sending || !assets || !prompt.trim()) return
+        setSending(true)
+        setEntryError('')
+        try { await startConversation(assets.root, prompt.trim()); navigate('conversations') }
+        catch (error) { setEntryError(error instanceof Error ? error.message : '无法进入管理对话，请重试。') }
+        finally { setSending(false) }
+      }}>
+        <input type="text" aria-label="与平台管理智能体对话" placeholder="输入您想让平台完成的任务…" value={prompt} disabled={sending}
+          onChange={event => setPrompt(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && event.nativeEvent.isComposing) event.preventDefault() }}/>
+        <button className="harness-primary" type="submit" disabled={sending || !assets || !prompt.trim()}>{sending ? '正在进入…' : '发送 →'}</button>
       </form>
+      {entryError && <p role="alert">{entryError}</p>}
       <div className="harness-shortcuts"><button onClick={() => navigate('agents')}>＋ 创建智能体版本</button><button onClick={() => navigate('agents')}>◷ 查看评估记录</button><button onClick={() => navigate('instances')}>▣ 管理实例</button><button onClick={() => navigate('mcp')}>◇ 配置 MCP 工具</button></div>
     </section>
     {state.status === 'error' && <p role="alert">{state.error}{assets && ' 保留上次查询结果。'}</p>}

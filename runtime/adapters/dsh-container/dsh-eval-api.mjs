@@ -80,6 +80,9 @@ async function poll(action, accept, timeoutMs, signal) {
 
 async function authenticate(authUrl) {
   const response = await fetch(authUrl, { redirect: 'manual' })
+  if (response.status === 200 && !new URL(authUrl).searchParams.has('token')) {
+    return { origin: new URL(authUrl).origin, cookie: '' }
+  }
   if (response.status !== 303) throw new Error('auth-redirect-failed')
   const setCookie = response.headers.getSetCookie?.()[0] ?? response.headers.get('set-cookie')
   const cookie = setCookie?.split(';', 1)[0]

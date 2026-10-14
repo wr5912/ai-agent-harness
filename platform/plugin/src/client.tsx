@@ -16,17 +16,17 @@ import { AgentsPage } from './agents/client.tsx'
 import { InstancesPage } from './instances/client.tsx'
 import { McpPage } from './mcp/client.tsx'
 import { platformTheme } from './theme.ts'
-import { prepareConversation } from './conversation.ts'
+import { prepareConversation, startConversation } from './conversation.ts'
 
 export const name = 'harness-platform-client'
-export const inject = ['connection', 'slots', 'configForms', 'layout', 'workspaces', 'uiWorkspace']
+export const inject = ['connection', 'slots', 'configForms', 'layout', 'workspaces', 'uiWorkspace', 'sessions', 'conversation']
 type ClientContext = Omit<Context, 'connection'> & { connection: ConnectionHandle }
 const pages: { id: PageId; label: string }[] = [
   { id: 'home', label: '首页' }, { id: 'conversations', label: '管理对话' }, { id: 'agents', label: '智能体与评估' },
   { id: 'instances', label: '实例管理' }, { id: 'mcp', label: 'MCP 管理' },
 ]
 
-function PlatformPage({ catalog, rpc, mcpForm, enterConversation }: PlatformPageProps & { catalog: Catalog; mcpForm: ConfigForm<any>; enterConversation: () => void }) {
+function PlatformPage({ catalog, rpc, mcpForm, enterConversation, startConversation }: PlatformPageProps & { catalog: Catalog; mcpForm: ConfigForm<any>; enterConversation: () => void; startConversation: (root: string, prompt: string) => Promise<void> }) {
   const [page, setPage] = useState<PageId>('home')
   const frame = useRef<HTMLDivElement>(null)
   const conversation = useRef<HTMLDivElement>(null)
@@ -84,10 +84,10 @@ function PlatformPage({ catalog, rpc, mcpForm, enterConversation }: PlatformPage
       <div className="harness-account"><span className="harness-avatar">A</span><span>admin</span><span id="harness-settings"/><form method="post" action="/logout"><button type="submit">退出登录</button></form></div>
     </header>
     <div className="harness-body">
-      {page !== 'home' && <aside className="harness-sidebar"><p>工作空间</p>{navigation}<p>研究 · 评估 · 持续改进</p></aside>}
+      {page !== 'home' && <aside className="harness-sidebar">{navigation}</aside>}
       <div className="harness-content">
         {page !== 'home' && <div className="harness-breadcrumb">工作空间 / {pages.find(item => item.id === page)?.label}</div>}
-        {page === 'home' && <HomePage catalog={catalog} rpc={rpc} navigate={navigate} />}
+        {page === 'home' && <HomePage catalog={catalog} rpc={rpc} navigate={navigate} startConversation={startConversation} />}
         {page === 'conversations' && <div ref={conversation} className="harness-conversation-viewport"/>}
         {page === 'agents' && <AgentsPage rpc={rpc} />}
         {page === 'instances' && <InstancesPage rpc={rpc} />}
@@ -135,7 +135,7 @@ export function apply(ctx: ClientContext) {
   ctx.on('connection/reset', () => { void catalog.refresh() })
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'harness-platform', order: -100,
-    inject: () => ({ catalog, rpc: ctx.connection.rpc, mcpForm: ctx.configForms.get('mcp-session-manager'), enterConversation: () => prepareConversation(ctx.slots, ctx.layout) }),
+    inject: () => ({ catalog, rpc: ctx.connection.rpc, mcpForm: ctx.configForms.get('mcp-session-manager'), enterConversation: () => prepareConversation(ctx.slots, ctx.layout), startConversation: (root: string, prompt: string) => startConversation(ctx, root, prompt) }),
   }, PlatformPage))
   ctx.slots.inject('settings.launcher', () => ctx.slots.register({ name: 'settings.launcher', priority: -1 }, PlatformSettings))
   ctx.slots.inject('sidebar.brand.mark', () => ctx.slots.register({ name: 'sidebar.brand.mark', priority: -1 }, () => null))

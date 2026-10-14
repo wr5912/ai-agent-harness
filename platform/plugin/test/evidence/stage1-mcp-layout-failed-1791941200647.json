@@ -1,0 +1,17 @@
+{
+  "checked_at": "2026-10-14T01:26:07.136Z",
+  "source": {
+    "commit": "e4860eb28b9ee98df588b1b8b1dd8bc3de2f33cf",
+    "dirty": true,
+    "client_sha256": "5c43385bb772522ed31947983270d70c8ed0b3eab83d1cb8a908972d8109520d"
+  },
+  "scope": "实际全局 DSH 客户端布局；仅创建未保存的编辑草稿，调试目录和响应为受控外部边界",
+  "checks": {
+    "header_save_uses_native_validation_without_write": true
+  },
+  "limits": [
+    "未改写用户 MCP 配置；未调用真实业务 MCP；不替代协议验收"
+  ],
+  "validation": "failed",
+  "failure": "locator.selectOption: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.harness-mcp-page').getByLabel('服务器', { exact: true })\u001b[22m\n\n    at /tmp/harness-stage1-browser/mcp-layout-live.mjs:46:49"
+}

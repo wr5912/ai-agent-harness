@@ -12,6 +12,7 @@ interface InstanceRow {
   image_tag?: string
   agent_id?: string
   port?: number
+  lan_access?: boolean
   home_volume?: string
   home_preserved?: boolean | null
   container_name?: string
@@ -53,11 +54,12 @@ const labels: Record<Operation, string> = {
 export function InstancesPage({ rpc }: PlatformPageProps) {
   const [instances, setInstances] = useState<InstanceRow[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState('existing')
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState('')
   const [detailLoading, setDetailLoading] = useState(false)
+  const [opening, setOpening] = useState<Set<string>>(new Set())
   const [error, setError] = useState('')
   const [preview, setPreview] = useState<unknown>(null)
   const [pending, setPending] = useState<{ operation: Operation, items: ActionRequest[] } | null>(null)
@@ -68,7 +70,8 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
   const [detail, setDetail] = useState<Detail | null>(null)
   const [logs, setLogs] = useState('')
 
-  const visible = useMemo(() => instances.filter(item => (filter === 'all' || item.state === filter) && `${item.name} ${item.source_id ?? ''}`.toLowerCase().includes(query.toLowerCase())), [instances, filter, query])
+  const visible = useMemo(() => instances.filter(item => (filter === 'all' || (filter === 'existing' ? item.state !== 'absent' : item.state === filter)) && `${item.name} ${item.source_id ?? ''}`.toLowerCase().includes(query.toLowerCase())), [instances, filter, query])
+  const visibleSelected = visible.filter(item => selected.has(item.name)).length
 
   async function call<T>(endpoint: string, payload: unknown): Promise<T> {
     const result = await rpc.call(CHANNEL, `instances/${endpoint}`, payload)
@@ -140,17 +143,30 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
     if (!pending) return
     setBusy(true)
     setError('')
+    setPreview(null)
+    setReceipts([])
+    let transportError = ''
     try {
-      const data = pending.items.length === 1
-        ? await call<Receipt>('run', pending.items[0])
-        : await call<{ receipts: Receipt[] }>('batch', { items: pending.items })
-      setReceipts('receipts' in data ? data.receipts : [data])
-      setPreview(null)
+      const concurrency = pending.operation === 'delete' ? 5 : 1
+      for (let offset = 0; offset < pending.items.length; offset += concurrency) {
+        const results = await Promise.allSettled(pending.items.slice(offset, offset + concurrency).map(async item => {
+          try {
+            const receipt = await call<Receipt>('run', item)
+            setReceipts(current => [...current, receipt])
+          } catch (err) {
+            setReceipts(current => [...current, { ...item, ok: false, error: { message: '回执未收到，执行结果未知；请刷新核对。' } }])
+            throw err
+          }
+        }))
+        const failed = results.find(result => result.status === 'rejected')
+        if (failed?.status === 'rejected') throw failed.reason
+      }
+    } catch (err) {
+      transportError = `连接失败，后续操作已停止。已收到的回执保留；请核对实例状态后重新选择。${(err as Error).message}`
+    } finally {
       setPending(null)
       await refresh()
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
+      if (transportError) setError(transportError)
       setBusy(false)
     }
   }
@@ -172,11 +188,38 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
     }
   }
 
+  async function openWeb(name: string) {
+    const tab = window.open('about:blank', '_blank')
+    if (!tab) {
+      setError('浏览器阻止了新标签页，请允许弹出窗口后重试。')
+      return
+    }
+    tab.opener = null
+    tab.document.title = '正在打开 DSH Web'
+    tab.document.body.textContent = '正在获取实例访问地址…'
+    setOpening(current => new Set(current).add(name))
+    setError('')
+    try {
+      const result = await call<{ url: string, lan_access: boolean }>('url', { name })
+      const url = new URL(result.url)
+      if (result.lan_access) url.hostname = window.location.hostname
+      if (!tab.closed) tab.location.replace(url.href)
+    } catch (err) {
+      tab.close()
+      setError((err as Error).message)
+    } finally {
+      setOpening(current => { const next = new Set(current); next.delete(name); return next })
+    }
+  }
+
   const selectedNames = [...selected]
+  const containerCount = instances.filter(item => ['running', 'stopped', 'failed'].includes(item.state ?? '')).length
+  const absentCount = instances.filter(item => item.state === 'absent').length
+  const unknownCount = instances.length - containerCount - absentCount
 
   return (
     <main style={styles.page}>
-      <header className="harness-page-heading"><div><h1>智能体 DSH 容器实例</h1><p>管理智能体的 DSH 容器启停；删除容器及管理登记，保留 HOME 卷与研究记录。</p></div><span>{instances.length} 个容器实例</span></header>
+      <header className="harness-page-heading"><div><h1>智能体 DSH 容器实例</h1><p>管理智能体的 DSH 容器启停；删除容器及管理登记，保留 HOME 卷与研究记录。</p></div><span>{containerCount} 个容器实例 · {absentCount} 个无容器登记{unknownCount > 0 && ` · ${unknownCount} 个状态未知`}</span></header>
       <section style={styles.toolbar}>
         <div style={styles.form}>
           <input aria-label="实例名" placeholder="实例名" value={form.name}
@@ -190,9 +233,11 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
         </div>
         <div style={styles.actions}>
           <select aria-label="状态筛选" value={filter} onChange={event => setFilter(event.target.value)} style={styles.input}>
-            <option value="all">全部状态</option>
+            <option value="existing">现有容器</option>
+            <option value="all">全部登记</option>
             <option value="running">running</option>
             <option value="stopped">stopped</option>
+            <option value="absent">无容器（仅登记）</option>
             <option value="failed">failed</option>
             <option value="unknown">unknown</option>
           </select>
@@ -214,13 +259,25 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}></th>
+              <th style={styles.th}>
+                <input type="checkbox" aria-label="全选当前列表实例" disabled={loading || visible.length === 0}
+                  checked={visible.length > 0 && visibleSelected === visible.length}
+                  ref={element => { if (element) element.indeterminate = visibleSelected > 0 && visibleSelected < visible.length }}
+                  onChange={event => setSelected(current => {
+                    const next = new Set(current)
+                    for (const item of visible) {
+                      if (event.target.checked) next.add(item.name)
+                      else next.delete(item.name)
+                    }
+                    return next
+                  })} />
+              </th>
               <th style={styles.th}>实例</th>
               <th style={styles.th}>状态</th>
               <th style={styles.th}>来源</th>
 
               <th style={styles.th}>端口</th>
-
+              <th style={styles.th}>访问入口</th>
               <th style={styles.th}>操作</th>
             </tr>
           </thead>
@@ -237,13 +294,21 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
                     })} />
                 </td>
                 <td style={styles.td}>{item.name}</td>
-                <td style={stateStyle(item.state)}>{item.state || 'unknown'}</td>
+                <td style={stateStyle(item.state)}>{item.state === 'absent' ? '无容器（仅登记）' : item.state || 'unknown'}</td>
                 <td style={styles.td}>{item.source_id || '-'}</td>
 
                 <td style={styles.td}>{item.port || '-'}</td>
+                <td style={styles.td}>
+                  <button type="button" disabled={item.state !== 'running' || !item.port || opening.has(item.name)}
+                    onClick={() => openWeb(item.name)} style={styles.button}
+                    title={item.state !== 'running' ? '实例运行后可访问' : item.lan_access ? '在新标签页打开' : '仅宿主机浏览器可访问'}>
+                    {opening.has(item.name) ? '正在打开…' : '访问 DSH Web'}
+                  </button>
+                  <div>{item.state !== 'running' ? '实例运行后可访问' : !item.port ? '未记录端口' : !item.lan_access ? '仅宿主机' : null}</div>
+                </td>
                 <td style={styles.td}><div style={styles.actions}>
                   <button type="button" onClick={() => openDetail(item.name)} disabled={detailLoading} style={styles.button}>详情</button>
-                  {(item.state === 'running' ? ['stop', 'restart'] : item.state === 'stopped' ? ['start', 'delete'] : item.state === 'failed' ? ['start', 'stop'] : []).map(operation =>
+                  {(item.state === 'running' ? ['stop', 'restart'] : item.state === 'stopped' || item.state === 'absent' ? ['start', 'delete'] : item.state === 'failed' ? ['start', 'stop'] : []).map(operation =>
                     <button type="button" key={operation} disabled={busy} onClick={() => prepare(operation as Operation, [item.name])} style={styles.button}>{labels[operation as Operation]}</button>)}
                   {item.state === 'unknown' && <span>观察失败，请刷新</span>}
                 </div></td>
@@ -273,7 +338,7 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
       <dialog ref={dialog} aria-labelledby="instance-action-title" style={styles.dialog}
         onCancel={event => { if (busy) event.preventDefault(); else setActionDialog(null) }}>
         <h2 id="instance-action-title">{actionDialog && labels[actionDialog]}智能体 DSH 容器实例</h2>
-        {busy && <p role="status">{pending ? '正在执行，请稍候…' : '正在读取操作预览…'}</p>}
+        {busy && <p role="status">{pending ? `正在执行：已处理 ${receipts.length} / ${pending.items.length} 项` : '正在读取操作预览…'}</p>}
         {error && <div role="alert" style={styles.error}>{error}</div>}
         {preview && pending ? <>
           <p>请确认目标及保留范围后执行。</p>
@@ -281,7 +346,7 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
           <button type="button" onClick={execute} disabled={busy} style={styles.primary}>确认{labels[pending.operation]}</button>
         </> : null}
         {receipts.length ? <section aria-live="polite">
-          <strong>操作回执</strong>
+          <strong>操作回执：成功 {receipts.filter(item => item.ok).length} 项，失败或结果未知 {receipts.filter(item => !item.ok).length} 项</strong>
           {receipts.map(item => (
             <div key={`${item.operation}-${item.name}`} style={item.ok ? styles.receiptOk : styles.receiptBad}>
               {item.name} / {labels[item.operation]} / {item.ok ? '成功' : item.error?.message || '失败'}

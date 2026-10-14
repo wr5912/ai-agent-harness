@@ -1,0 +1,27 @@
+{
+  "checked_at": "2026-10-14T01:38:34.613Z",
+  "source": {
+    "commit": "e4860eb28b9ee98df588b1b8b1dd8bc3de2f33cf",
+    "dirty": true,
+    "client_sha256": "315e46be39363c149878e11f6cbdb5b3712c8d418b17a91eee9e927e99483591"
+  },
+  "scope": "实际全局 DSH 客户端；实例 RPC 使用受控回执和网络中断，不执行容器操作",
+  "checks": {
+    "targets": 12,
+    "attempted": 10,
+    "undispatched": 2,
+    "successful_receipts": 8,
+    "failed_receipts": 1,
+    "unknown_receipts": 1,
+    "peak_inflight_requests": 5,
+    "progress_visible": true,
+    "partial_receipts_retained": true,
+    "no_automatic_retry": true,
+    "refresh_before_retry": true,
+    "client_errors": 0
+  },
+  "limits": [
+    "仅验证客户端分批执行和失败恢复，不能替代真实 Docker 生命周期验证"
+  ],
+  "validation": "passed"
+}

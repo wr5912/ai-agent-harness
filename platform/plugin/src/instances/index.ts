@@ -19,9 +19,6 @@ export interface InstanceActionRequest {
   source?: string
   mode?: 'eval'
   port?: number
-  lan_access?: boolean
-  unsafe_no_auth?: boolean
-  skip_testing_notice?: boolean
   allow_missing_env?: boolean
 }
 
@@ -212,9 +209,6 @@ async function requestForUp(request: InstanceActionRequest): Promise<InstanceAct
     ...request, manifest,
     source: request.source || (manifest ? assertSource(manifest.source_id) : undefined),
     port: request.port ?? optionalPort(manifest?.port),
-    lan_access: request.lan_access ?? optionalBoolean(manifest?.lan_access, 'lan_access'),
-    unsafe_no_auth: request.unsafe_no_auth ?? optionalBoolean(manifest?.unsafe_no_auth, 'unsafe_no_auth'),
-    skip_testing_notice: request.skip_testing_notice ?? optionalBoolean(manifest?.skip_testing_notice, 'skip_testing_notice'),
   }
 }
 
@@ -224,9 +218,6 @@ function upArgs(request: InstanceActionRequest & { manifest?: any }, dryRun = fa
   if (dryRun) args.push('--dry-run')
   if (request.operation === 'restart') args.push('--replace')
   if (request.allow_missing_env) args.push('--allow-missing-env')
-  if (request.lan_access) args.push('--lan-access')
-  if (request.unsafe_no_auth) args.push('--unsafe-no-auth')
-  if (request.skip_testing_notice) args.push('--skip-testing-notice')
   if (request.manifest?.trusted_host) args.push('--trusted-host', request.manifest.trusted_host)
   if (request.manifest?.mounts?.analysis_workspace) args.push('--analysis-workspace', request.manifest.mounts.analysis_workspace)
   if (request.manifest?.mounts?.plugin_node_modules) args.push('--plugin-node-modules', request.manifest.mounts.plugin_node_modules)
@@ -299,7 +290,8 @@ async function runOne(assetRoot: string, request: InstanceActionRequest, signal?
   const name = assertName(request.name)
   try {
     return await withInstanceLock([name], async () => {
-      if (request.operation !== 'create') await assertKnownForMutation(assetRoot, name, signal)
+      // delete 在 CLI 内按目标实例核验容器状态，避免逐项扫描整个实例列表。
+      if (request.operation !== 'create' && request.operation !== 'delete') await assertKnownForMutation(assetRoot, name, signal)
       if (request.operation === 'create' || request.operation === 'start' || request.operation === 'restart') {
         const prepared = await requestForUp(request)
         const source = prepared.source
@@ -307,10 +299,6 @@ async function runOne(assetRoot: string, request: InstanceActionRequest, signal?
         await ensureRealSource(assetRoot, source)
         const result = await runDsh(assetRoot, upArgs({ ...prepared, name, source }), signal)
         return { name, operation: request.operation, ok: true, value: parseCommandOutput(result.stdout, result.stderr) }
-      }
-      if (request.operation === 'delete') {
-        const state = await instanceState(assetRoot, name, signal)
-        if (state !== 'stopped') throw new Error(`删除只允许 stopped，当前为 ${state || 'missing'}`)
       }
       const command = request.operation === 'delete' ? 'delete' : 'down'
       const result = await runDsh(assetRoot, [command, name], signal)
@@ -368,9 +356,6 @@ function actionRequest(payload: unknown): InstanceActionRequest {
     operation: operation as InstanceOperation,
     name: assertName(object.name),
     port: optionalPort(object.port),
-    lan_access: optionalBoolean(object.lan_access, 'lan_access'),
-    unsafe_no_auth: optionalBoolean(object.unsafe_no_auth, 'unsafe_no_auth'),
-    skip_testing_notice: optionalBoolean(object.skip_testing_notice, 'skip_testing_notice'),
     allow_missing_env: optionalBoolean(object.allow_missing_env, 'allow_missing_env'),
   }
   if (object.source !== undefined) request.source = assertSource(object.source)
@@ -396,6 +381,19 @@ export function createInstancesHandler(assetRoot: string): ConnectionRpcHandler 
     if (signal.aborted) return failure('aborted', '实例操作已取消')
     try {
       if (endpoint === 'list') return ok(await listInstances(assetRoot, signal))
+      if (endpoint === 'url') {
+        const name = assertName(payloadObject(payload).name)
+        const manifest = await manifestFor(name)
+        if (!manifest) throw new Error(`未找到实例 ${name}`)
+        const port = optionalPort(manifest.port)
+        if (!port) throw new Error('实例未记录有效 Web 端口')
+        const result = await runDsh(assetRoot, ['url', name, '--non-interactive'], signal)
+        const url = new URL(result.stdout.trim())
+        if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || Number(url.port || 80) !== port || url.username || url.password) {
+          throw new Error('实例返回的 Web 地址与登记端口不一致')
+        }
+        return ok({ url: url.href, lan_access: manifest.lan_access === true })
+      }
       if (endpoint === 'logs') {
         const object = payloadObject(payload)
         const name = assertName(object.name)

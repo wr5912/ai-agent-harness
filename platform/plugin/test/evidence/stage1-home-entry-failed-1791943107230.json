@@ -1,0 +1,20 @@
+{
+  "checked_at": "2026-10-14T01:58:20.073Z",
+  "source": {
+    "client_sha256": "bf7c5d2acd330a634524f27c74901a10fe5ec89b830061693daf4c331d61393e",
+    "dirty": true
+  },
+  "scope": "全局 DSH 实际首页，原生新会话提交与可见回复",
+  "checks": {
+    "home_original_width": {
+      "page_width": 1260,
+      "entry_width": 640
+    },
+    "single_line_and_empty_blocked": true
+  },
+  "limits": [
+    "仅验证管理对话入口，不替代业务 Harness Evaluation"
+  ],
+  "validation": "failed",
+  "failure": "locator.waitFor: Error: strict mode violation: getByText('首页入口验证成功', { exact: true }) resolved to 2 elements:\n    1) <span class=\"wSkVaW_crumb wSkVaW_crumbCurrent\">首页入口验证成功</span> aka getByLabel('会话层级').getByText('首页入口验证成功')\n    2) <p>首页入口验证成功</p> aka getByRole('paragraph')\n\nCall log:\n\u001b[2m  - waiting for getByText('首页入口验证成功', { exact: true }) to be visible\u001b[22m\n\n    at /tmp/harness-stage1-browser/home-entry-live.mjs:25:103"
+}

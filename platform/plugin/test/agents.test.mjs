@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -150,6 +150,26 @@ test('agents detail reads manifest, selectable versions, real cases, refs and ed
     assert.ok(detail.editable_files.includes('evolution/experiments/EXP-test-agent-001/candidate/harness.yaml'))
     assert.ok(detail.editable_files.includes('evolution/experiments/EXP-test-agent-001/candidate/roles/analyst/AGENTS.md'))
     assert.equal(detail.verification.runs[0].id, 'run-11111111-1111-4111-8111-111111111111')
+  } finally {
+    await rm(fx.root, { recursive: true, force: true })
+  }
+})
+
+test('agents detail defaults to newest version while preserving explicit selection and manifest', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const manifestPath = join(fx.root, 'agents/test-agent/manifest.yaml')
+    const manifest = readFileSync(manifestPath, 'utf8')
+    cpSync(join(fx.root, 'evolution/experiments/EXP-test-agent-001/candidate'), join(fx.root, 'evolution/experiments/EXP-test-agent-010-r123456789abc/candidate'), { recursive: true })
+    write(join(fx.root, 'evolution/experiments/EXP-test-agent-010-r123456789abc/change.yaml'), 'experiment_id: EXP-test-agent-010-r123456789abc\nagent_id: test-agent\nbaseline_ref: none:first-experiment\nstatus: active\n')
+    const handler = createAgentsHandler(fx.root)
+    const latest = await rpc(handler, 'detail', { agent_id: 'test-agent' })
+    assert.equal(latest.experiment.id, 'EXP-test-agent-010-r123456789abc')
+    assert.deepEqual(latest.versions.map(version => version.id), ['EXP-test-agent-010-r123456789abc', 'EXP-test-agent-001'])
+    const older = await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: 'EXP-test-agent-001' })
+    assert.equal(older.experiment.id, 'EXP-test-agent-001')
+    assert.equal(readFileSync(manifestPath, 'utf8'), manifest)
   } finally {
     await rm(fx.root, { recursive: true, force: true })
   }
