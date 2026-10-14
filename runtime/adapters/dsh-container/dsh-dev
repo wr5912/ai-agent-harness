@@ -24,6 +24,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -35,7 +36,12 @@ STATE_ROOT = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "sta
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 RUN_ID_RE = re.compile(r"^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 TOKEN_URL_RE = re.compile(r"dsh web: (http://127\.0\.0\.1:(\d+)/\?token=[^\s()]+)")
-SECRET_RE = re.compile(r"(token=)[^\s&)\"']+")
+SECRET_RE = re.compile(
+    r"(Bearer\s+)[^\s,)\"']+|(token=)[^\s&)\"']+|"
+    r"(\"(?:api[_-]?key|token|password|secret)\"\s*:\s*\")[^\"]+(\")|"
+    r"((?:api[_-]?key|token|password|secret)\s*[:=]\s*)[^\s,)\"']+",
+    re.IGNORECASE,
+)
 IMAGE_ID_RE = re.compile(r"sha256:[0-9a-f]{64}")
 MODES = ("verification",)
 MODE_ALIASES = {"eval": "verification"}
@@ -355,7 +361,7 @@ def run(command: list[str], *, check: bool = True, capture: bool = True,
         command, text=True, capture_output=capture, check=False, env=env, timeout=timeout
     )
     if check and completed.returncode != 0:
-        detail = (completed.stderr or completed.stdout or "").strip()
+        detail = redact_secrets((completed.stderr or completed.stdout or "").strip())
         fail(f"命令失败（{command[0]}）：{detail[-400:]}")
     return completed
 
@@ -574,7 +580,13 @@ def extract_auth_url(log_text: str, port: int) -> str | None:
 
 
 def redact_secrets(text: str) -> str:
-    return SECRET_RE.sub(r"\1<redacted>", text)
+    def replace(match: re.Match) -> str:
+        for index in (1, 2, 3, 5):
+            prefix = match.group(index)
+            if prefix:
+                return prefix + "<redacted>" + (match.group(4) if index == 3 else "")
+        return "<redacted>"
+    return SECRET_RE.sub(replace, text)
 
 
 def instance_dir(name: str) -> Path:
@@ -798,6 +810,8 @@ def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None
         fail("归因实例只允许监听 127.0.0.1，不能启用 --lan-access")
     if args.analysis_workspace and bool(getattr(args, "unsafe_no_auth", False)):
         fail("归因实例不能启用 --unsafe-no-auth")
+    # 业务实例统一采用平台直连设置；专用归因工作进程保持内部访问边界。
+    args.lan_access = args.unsafe_no_auth = args.skip_testing_notice = not args.analysis_workspace
     validate_trusted_host(getattr(args, "trusted_host", None))
     contract = resolve(args.source, repo=REPO)
     args.name = args.name or f"{contract['agent_id']}-{PURPOSES[args.mode]}"
@@ -805,24 +819,6 @@ def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None
     if current is not None:
         _, manifest = current
         validate_existing_identity(args.name, manifest, contract, args.mode, args.analysis_workspace)
-        requested_lan = bool(getattr(args, "lan_access", False))
-        if bool(manifest.get("lan_access", False)) != requested_lan and not getattr(args, "replace", False):
-            fail(
-                f"实例 {args.name} 已存在且 LAN 访问模式不同；"
-                "请保持原模式、显式加 --replace 或改用新的实例名"
-            )
-        if bool(manifest.get("unsafe_no_auth", False)) != bool(getattr(args, "unsafe_no_auth", False)) \
-                and not getattr(args, "replace", False):
-            fail(
-                f"实例 {args.name} 已存在且 Web 认证模式不同；"
-                "请保持原模式、显式加 --replace 或改用新的实例名"
-            )
-        if bool(manifest.get("skip_testing_notice", False)) != bool(getattr(args, "skip_testing_notice", False)) \
-                and not getattr(args, "replace", False):
-            fail(
-                f"实例 {args.name} 已存在且内测声明开关不同；"
-                "请保持原模式、显式加 --replace 或改用新的实例名"
-            )
     if args.port is None:
         if current is not None:
             args.port = instance_recorded_port(current[1])
@@ -1057,6 +1053,13 @@ def command_up(args: argparse.Namespace) -> None:
 def command_ps(args: argparse.Namespace) -> None:
     show_all = bool(getattr(args, "all", False))
     entries = []
+    try:
+        observed = run(["node", str(ADAPTER / "instance-observation.ts")], check=False, timeout=12)
+        observation = json.loads(observed.stdout) if observed.returncode == 0 else {}
+        if not isinstance(observation, dict):
+            observation = {}
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        observation = {}
     if STATE_ROOT.is_dir():
         for target in sorted(STATE_ROOT.iterdir()):
             manifest_path = target / "instance.json"
@@ -1067,7 +1070,7 @@ def command_ps(args: argparse.Namespace) -> None:
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
                 if not isinstance(manifest, dict):
                     raise ValueError("状态文件根必须是 JSON 对象")
-                entry = instance_entry(target, manifest)
+                entry = instance_entry(target, manifest, observation)
             except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as error:
                 entry = {
                     "name": target.name,
@@ -1126,10 +1129,12 @@ def compose_ps_containers(output: str) -> list[dict] | None:
 
 
 def normalized_instance_state(containers: list[dict] | None) -> str:
-    """把 Compose 观测归一为 running/stopped/failed/unknown。"""
+    """区分实际 DSH 容器状态、无容器登记和查询失败。"""
     if containers is None:
         return "unknown"
     dsh = [item for item in containers if item.get("service") == "dsh"]
+    if not dsh:
+        return "absent"
     if any(item.get("state") == "running" for item in dsh):
         return "running"
     if any(item.get("state") == "dead" or item.get("exit_code", 0) not in (None, 0) for item in dsh):
@@ -1139,16 +1144,23 @@ def normalized_instance_state(containers: list[dict] | None) -> str:
     return "stopped"
 
 
-def instance_entry(target: Path, manifest: dict) -> dict:
+def instance_entry(target: Path, manifest: dict, observation: dict | None = None) -> dict:
     """把一条实例状态渲染成 `ps` 条目；状态文件版本与当前不一致时标记需要迁移。"""
     name = str(manifest.get("name") or target.name)
     recorded_schema = manifest.get("schema_version")
     port = manifest.get("port")
-    listing = run(compose_command(target, name, "ps", "--all", "--format", "json"),
-                  check=False, env=instance_compose_env(manifest))
+    project = manifest.get("project") or project_name(name)
+    if observation is None:
+        listing = run(compose_command(target, name, "ps", "--all", "--format", "json"),
+                      check=False, env=instance_compose_env(manifest))
+    else:
+        projects = observation.get("projects")
+        listing = subprocess.CompletedProcess([], 0 if isinstance(projects, dict) else 1,
+            stdout=json.dumps(projects.get(project, [])) if isinstance(projects, dict) else "",
+            stderr="Docker 容器批量观察失败")
     if listing.returncode != 0:
         ps_state = "unknown"
-        ps_detail = (listing.stderr or listing.stdout or "").strip()[-200:] or "docker compose ps 查询失败"
+        ps_detail = redact_secrets((listing.stderr or listing.stdout or "").strip())[-200:] or "docker compose ps 查询失败"
         state = "unknown"
         containers = None
     else:
@@ -1161,11 +1173,19 @@ def instance_entry(target: Path, manifest: dict) -> dict:
          if item.get("service") == "dsh" and item.get("name")),
         None,
     )
+    if observation is None:
+        resolved_volume, home_preserved = home_volume(manifest)
+    else:
+        homes = observation.get("homes")
+        resolved_volume = homes.get(project, f"{project}-home") if isinstance(homes, dict) else None
+        home_preserved = project in homes if isinstance(homes, dict) else None
     return {
         "name": name,
         "container_name": observed_dsh or manifest.get("container_name"),
         "project": manifest.get("project") or project_name(name),
+        "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "source_id": manifest.get("source_id"),
+        "source_kind": manifest.get("source_kind"),
         "mode": manifest.get("mode"),
         "purpose": manifest.get("purpose", PURPOSES.get(manifest.get("mode"), manifest.get("mode"))),
         "agent_id": manifest.get("agent_id"),
@@ -1181,6 +1201,14 @@ def instance_entry(target: Path, manifest: dict) -> dict:
         "needs_migration": recorded_schema != INSTANCE_SCHEMA_VERSION,
         "state": state,
         "port": port,
+        "image_tag": manifest.get("image_tag"),
+        "image_id": manifest.get("image_id"),
+        "image_build_fingerprint": manifest.get("image_build_fingerprint"),
+        "mounts": manifest.get("mounts") or {},
+        "mount_modes": manifest.get("mount_modes") or {},
+        "home_volume": resolved_volume,
+        "home_preserved": home_preserved,
+        "state_dir": str(target),
         "context_mounts": [item.get("container") for item in manifest.get("context_mounts") or []],
         "base_url": f"http://127.0.0.1:{port}/" if isinstance(port, int) else None,
         "ps_query": ps_state,
@@ -1394,9 +1422,10 @@ def home_volume(manifest: dict) -> tuple[str | None, bool | None]:
     Compose 会把项目名前缀加到卷名上，因此不能按模板里的声明名或 `<project>-home` 猜测；
     查询失败返回 (None, None)，由调用方按未知处理。
     """
-    declared = f"{manifest['project']}-home"
+    project = manifest.get("project") or project_name(str(manifest.get("name")))
+    declared = f"{project}-home"
     listing = run(["docker", "volume", "ls",
-                   "--filter", f"label=com.docker.compose.project={manifest['project']}",
+                   "--filter", f"label=com.docker.compose.project={project}",
                    "--filter", f"label=com.docker.compose.volume={declared}",
                    "--format", "{{.Name}}"], check=False)
     if listing.returncode != 0:
@@ -1417,7 +1446,7 @@ def stop_instance(name: str, manifest: dict) -> dict:
     completed = run(compose_command(target, name, "down", "--remove-orphans"),
                     check=False, env=instance_compose_env(manifest))
     if completed.returncode != 0:
-        detail = (completed.stderr or completed.stdout or "").strip()
+        detail = redact_secrets((completed.stderr or completed.stdout or "").strip())
         fail(f"停止 {name} 失败（docker compose down 退出码 {completed.returncode}），实例状态未确认：{detail[-400:]}")
     containers = project_containers(name)
     resolved_volume, preserved = home_volume(manifest)
@@ -1449,6 +1478,75 @@ def command_down(args: argparse.Namespace) -> None:
         fail(f"未找到实例 {args.name}")
     manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
     print(json.dumps(stop_instance(args.name, manifest), ensure_ascii=False))
+
+
+def delete_instance(name: str, manifest: dict) -> dict:
+    """删除已停止实例的容器与本地登记，保留 HOME 卷和研究资产。"""
+    target = instance_dir(name)
+    containers = project_containers(name)
+    report = {
+        "name": name,
+        "project": manifest.get("project"),
+        "registration_dir": str(target),
+    }
+    if containers is None:
+        report["deleted"] = "unknown"
+        report["detail"] = "docker ps 查询失败，无法确认实例是否已停止；拒绝删除登记"
+        print(json.dumps(report, ensure_ascii=False), file=sys.stderr)
+        raise SystemExit(1)
+    state = normalized_instance_state(containers)
+    report["state"] = state
+    report["containers_before"] = containers
+    if state not in {"stopped", "absent"}:
+        report["deleted"] = False
+        print(json.dumps(report, ensure_ascii=False), file=sys.stderr)
+        fail(f"实例 {name} 当前状态为 {state}，只允许删除已停止实例")
+    before_volume, before_preserved = home_volume(manifest)
+    report["home_volume_before"] = before_volume
+    report["home_preserved_before"] = before_preserved
+    if containers:
+        completed = run(compose_command(target, name, "rm", "-f", "-s"),
+                        check=False, env=instance_compose_env(manifest))
+        if completed.returncode != 0:
+            detail = redact_secrets((completed.stderr or completed.stdout or "").strip())
+            fail(f"删除 {name} 已停止容器失败（docker compose rm 退出码 {completed.returncode}）：{detail[-400:]}")
+        remaining = project_containers(name)
+        if remaining is None:
+            report["deleted"] = "unknown"
+            report["detail"] = "容器删除后无法复查；拒绝删除登记"
+            print(json.dumps(report, ensure_ascii=False), file=sys.stderr)
+            raise SystemExit(1)
+        if remaining:
+            report["deleted"] = False
+            report["containers_after"] = remaining
+            print(json.dumps(report, ensure_ascii=False), file=sys.stderr)
+            fail(f"实例 {name} 仍有容器记录，拒绝删除登记")
+    after_volume, after_preserved = home_volume(manifest)
+    report["home_volume"] = after_volume
+    report["home_preserved"] = after_preserved
+    if after_preserved is None:
+        report["deleted"] = "unknown"
+        report["detail"] = "删除后无法复查 HOME 卷；拒绝删除登记"
+        print(json.dumps(report, ensure_ascii=False), file=sys.stderr)
+        raise SystemExit(1)
+    if before_preserved is True and after_preserved is not True:
+        report["deleted"] = False
+        report["detail"] = "删除后 HOME 卷未保留；拒绝删除登记"
+        print(json.dumps(report, ensure_ascii=False), file=sys.stderr)
+        raise SystemExit(1)
+    shutil.rmtree(target)
+    report["deleted"] = True
+    report["registration_deleted"] = True
+    return report
+
+
+def command_delete(args: argparse.Namespace) -> None:
+    """删除已停止实例的容器和登记；不删除 HOME、Session、Agent/source 或历史 Run。"""
+    target = instance_dir(args.name)
+    if not (target / "instance.json").is_file():
+        fail(f"未找到实例 {args.name}")
+    manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+    print(json.dumps(delete_instance(args.name, manifest), ensure_ascii=False))
 
 
 def validate_existing_identity(name: str, manifest: dict, contract: dict, mode: str,
@@ -1651,11 +1749,11 @@ def main() -> None:
     up.add_argument("--allow-missing-env", action="store_true",
                     help="显式允许缺少运行时环境变量，仅用于技术装载核验")
     up.add_argument("--lan-access", action="store_true",
-                    help="普通 web Profile 监听 0.0.0.0；默认仍保留 Token 认证及 Host/Origin 校验")
+                    help="业务实例已统一监听 0.0.0.0；保留此显式标记")
     up.add_argument("--unsafe-no-auth", action="store_true",
-                    help="显式关闭本实例 Web/API 的 Token 与 Host/Origin 校验；仅限受信隔离网络")
+                    help="业务实例已统一关闭 Web/API 的 Token 与 Host/Origin 校验；保留此显式标记")
     up.add_argument("--skip-testing-notice", action="store_true",
-                    help="仅跳过 Web 内测声明弹窗；不改变认证、监听地址或其他引导步骤")
+                    help="业务实例已统一跳过 Web 内测声明弹窗；保留此显式标记")
     up.add_argument("--trusted-host", metavar="HOST[:PORT]",
                     help="允许额外的浏览器请求 Host（如反向代理入口）；不改变监听地址")
     up.add_argument("--analysis-workspace", metavar="PATH",
@@ -1665,7 +1763,7 @@ def main() -> None:
     up.set_defaults(handler=command_up)
 
     ps_parser = commands.add_parser("ps", help="默认列出运行中的实例；加 --all 查看全部状态记录")
-    ps_parser.add_argument("-a", "--all", action="store_true", help="包含 stopped、failed、unknown 和损坏记录")
+    ps_parser.add_argument("-a", "--all", action="store_true", help="包含 stopped、absent（无容器登记）、failed、unknown 和损坏记录")
     ps_parser.set_defaults(handler=command_ps)
 
     url_parser = commands.add_parser("url", help="取得实例访问 URL")
@@ -1682,6 +1780,10 @@ def main() -> None:
     down_parser = commands.add_parser("down", help="停止实例并保留 HOME")
     down_parser.add_argument("name")
     down_parser.set_defaults(handler=command_down)
+
+    delete_parser = commands.add_parser("delete", help="删除已停止实例的容器和登记；保留 HOME")
+    delete_parser.add_argument("name")
+    delete_parser.set_defaults(handler=command_delete)
 
     promote_parser = commands.add_parser("mcp-promote", help="将实例 Web MCP 配置定稿到 Experiment Candidate")
     promote_parser.add_argument("name")

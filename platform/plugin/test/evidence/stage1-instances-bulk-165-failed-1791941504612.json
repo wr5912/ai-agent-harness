@@ -1,0 +1,31 @@
+{
+  "checked_at": "2026-10-14T01:28:13.047Z",
+  "source": {
+    "commit": "e4860eb28b9ee98df588b1b8b1dd8bc3de2f33cf",
+    "dirty": true,
+    "built_files": {
+      "index.js": "2b3c7f6b55490e613a6b35f26ba0b6b6eb7136db9cf247edc5b7420b5cb2c9d6",
+      "client.js": "105af9574d4d3af02e31c26fe667d72d38dce10ecd0551f0a2037a103c9ec803"
+    }
+  },
+  "scope": "真实全局 DSH 页面 → 平台 RPC → 仓库 dsh-dev → Docker Compose；165 个隔离轻量容器模拟已停止 DSH 实例的生命周期边界",
+  "fixture": {
+    "prefix": "platform-bulk-20261013-458842",
+    "container_count": 165,
+    "image": "alpine:3.20",
+    "network": "none",
+    "model_calls": 0
+  },
+  "checks": {
+    "preview_165_targets": true,
+    "fixture_cleanup": {
+      "removed": 166,
+      "failed": 0
+    }
+  },
+  "limits": [
+    "轻量容器用于生命周期和批量规模验证，不执行 DSH Runtime 或业务 Harness；未删除用户既有容器"
+  ],
+  "validation": "failed",
+  "failure": "locator.waitFor: Timeout 180000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('dialog').getByText('操作回执：成功 165 项，失败或结果未知 0 项', { exact: true }) to be visible\u001b[22m\n\n    at /tmp/harness-stage1-browser/bulk-real-live.mjs:83:72"
+}

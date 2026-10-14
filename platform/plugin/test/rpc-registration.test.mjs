@@ -30,7 +30,9 @@ test('真实 Cordis 提供方 Fiber 无 webServer 注入时，插件仍经原生
       })
     },
   })
-  const loaded = root.plugin(plugin)
+  await root.plugin({ name: 'test-platform-mcp', apply(ctx) { ctx.provide('platformMcp', { servers: { get: () => [] }, groups: { get: () => [] } }) } })
+  // 此项只验证注册方 Fiber；完整登录入口由 native-auth 与真实全局 DSH 验证。
+  const loaded = root.plugin({ ...plugin, inject: ['connection', 'webServer', 'platformMcp'], apply: plugin.applyTools })
   await loaded
   assert.equal(loaded.state, 2)
   const url = `http://127.0.0.1:${root.webServer.port}/harness-platform/inventory`

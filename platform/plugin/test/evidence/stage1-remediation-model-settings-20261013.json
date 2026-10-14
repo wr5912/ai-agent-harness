@@ -1,0 +1,17 @@
+{
+  "prepare_retains_credentials": true,
+  "prepare_retains_model_settings": true,
+  "restart_retains_credentials": true,
+  "restart_retains_model_settings": true,
+  "credential_reference_names": [
+    "DEEPSEEK_API_KEY",
+    "LOCAL_LLM_API_KEY"
+  ],
+  "credential_file_mode": "0600",
+  "source": "DSH native Models page and credentials service",
+  "limits": [
+    "记录仅含检查结论和引用名，无凭据值或服务私有地址"
+  ],
+  "at": "2026-10-14T00:47:42.293102+00:00",
+  "temporary_credential_input_removed": true
+}

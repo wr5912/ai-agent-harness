@@ -1,0 +1,64 @@
+{
+  "at": "2026-10-13T11:58:00.239Z",
+  "scope": "真实全局 DSH 与真实 Docker；隔离 HOME；仅生命周期，不调用模型",
+  "checks": {
+    "native_settings_open": true,
+    "cancel_preserves_instance": true,
+    "mobile_dialog_within_viewport": true,
+    "home_preserved": true,
+    "container_and_registration_removed": true,
+    "client_errors": 0
+  },
+  "operations": [
+    {
+      "operation": "创建",
+      "ok": true,
+      "modal_ms": 82,
+      "total_ms": 3687,
+      "state": "running"
+    },
+    {
+      "operation": "删除",
+      "ok": false,
+      "modal_ms": 75,
+      "total_ms": 936,
+      "state": "running"
+    },
+    {
+      "operation": "停止",
+      "ok": true,
+      "modal_ms": 66,
+      "total_ms": 1946,
+      "state": "stopped"
+    },
+    {
+      "operation": "启动",
+      "ok": true,
+      "modal_ms": 53,
+      "total_ms": 2605,
+      "state": "running"
+    },
+    {
+      "operation": "重启",
+      "ok": true,
+      "modal_ms": 50,
+      "total_ms": 9170,
+      "state": "running"
+    },
+    {
+      "operation": "停止",
+      "ok": true,
+      "modal_ms": 80,
+      "total_ms": 8041,
+      "state": "stopped"
+    },
+    {
+      "operation": "删除",
+      "ok": true,
+      "modal_ms": 97,
+      "total_ms": 1477,
+      "state": "missing"
+    }
+  ],
+  "validation": "passed"
+}

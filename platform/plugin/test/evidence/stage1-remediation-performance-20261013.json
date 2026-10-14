@@ -1,0 +1,39 @@
+{
+  "scope": "宿主机 dsh-dev ps；只读查询用户既有实例",
+  "measurements": [
+    {
+      "milliseconds": 415,
+      "instances": 171,
+      "states": {
+        "running": 7,
+        "stopped": 164,
+        "failed": 0,
+        "unknown": 0
+      }
+    },
+    {
+      "milliseconds": 417,
+      "instances": 171,
+      "states": {
+        "running": 7,
+        "stopped": 164,
+        "failed": 0,
+        "unknown": 0
+      }
+    },
+    {
+      "milliseconds": 411,
+      "instances": 171,
+      "states": {
+        "running": 7,
+        "stopped": 164,
+        "failed": 0,
+        "unknown": 0
+      }
+    }
+  ],
+  "implementation": "批量读取 Docker 状态与挂载，避免逐实例启动 Docker 命令",
+  "limits": [
+    "只证明本机这批 171 个登记实例的查询时间；未操作用户实例"
+  ]
+}

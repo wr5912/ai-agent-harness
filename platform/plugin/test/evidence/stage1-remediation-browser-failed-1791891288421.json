@@ -1,0 +1,58 @@
+{
+  "at": "2026-10-13T11:33:40.477Z",
+  "checks": {
+    "run_index_rows": 88
+  },
+  "timings": {
+    "agent_detail_ms": 4905
+  },
+  "rpc": [
+    {
+      "operation": "inventory",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "inventory",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "home",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "agents/list",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "agents/runs/index",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "agents/edit/read",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "agents/runs/show",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "operation": "agents/detail",
+      "http": 200,
+      "ok": true
+    }
+  ],
+  "validation": "failed",
+  "failure": "locator.waitFor: Timeout 60000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByLabel('Run Case', { exact: true }).locator('option').nth(1) to be visible\u001b[22m\n\u001b[2m    113 × locator resolved to hidden <option value=\"U-POL-012\">U-POL-012</option>\u001b[22m\n"
+}

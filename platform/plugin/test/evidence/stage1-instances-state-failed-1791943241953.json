@@ -1,0 +1,35 @@
+{
+  "checked_at": "2026-10-14T01:59:57.715Z",
+  "source": {
+    "commit": "e4860eb28b9ee98df588b1b8b1dd8bc3de2f33cf",
+    "dirty": true,
+    "built_files": {
+      "index.js": "2b3c7f6b55490e613a6b35f26ba0b6b6eb7136db9cf247edc5b7420b5cb2c9d6",
+      "client.js": "bf7c5d2acd330a634524f27c74901a10fe5ec89b830061693daf4c331d61393e"
+    }
+  },
+  "before": {
+    "checked_at": "2026-10-13T18:40:33-0700",
+    "count": 135,
+    "states": {
+      "stopped": 130,
+      "running": 5
+    },
+    "stopped_without_container": 130
+  },
+  "checks": {
+    "current_cli": {
+      "count": 135,
+      "states": {
+        "absent": 130,
+        "running": 5
+      },
+      "elapsed_ms": 414
+    }
+  },
+  "limits": [
+    "保留用户原有登记和 HOME；仅删除本次创建的隔离生命周期夹具，不替代业务 Harness Evaluation"
+  ],
+  "validation": "failed",
+  "failure": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('dialog').getByRole('button', { name: '关闭', exact: true })\u001b[22m\n\n    at /tmp/harness-stage1-browser/instances-state-live.mjs:31:58"
+}

@@ -1,0 +1,313 @@
+{
+  "checked_at": "2026-10-13T08:42:55.753Z",
+  "source": {
+    "git_commit": "ad75a3c97678aecb4418b40a39df74d696a252d4",
+    "dirty": true,
+    "built_files": {
+      "index.js": "e386c06159ffe99a44bae4e0575de1417cd28c5092bdde890c7c625087502d64",
+      "client.js": "a22fa048e2c88b0d583b8d09ae5a081750efd20020c5e76981901770e715d086"
+    }
+  },
+  "scope": "真实平台客户端构建产物 + 原生 Cordis WebServer/Connection；认证记录存储与页面载体是受控夹具，不是全局 DSH 壳",
+  "checks": {
+    "home_logo_and_inventory": true,
+    "agent_selection_ignores_late_response": true,
+    "repeated_version_selection_keeps_detail": true,
+    "editor_ignores_previous_file_response": true,
+    "editing_invalidates_late_preview": true,
+    "agent_select_edit_preview_write": true,
+    "eval_preview_existing_run_read": true,
+    "existing_frozen_run_trace_read": true,
+    "agent_create_from_fixed_parent": true,
+    "instance_preview_invalidated_on_form_change": true,
+    "openapi_discovery_single_call_and_composition": true,
+    "native_authenticated_gateway_real_two_step_call": true,
+    "four_pages_mobile_dark_theme": true,
+    "no_client_page_errors": true
+  },
+  "rpc": [
+    {
+      "endpoint": "inventory",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "home",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/list",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/read",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/read",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/read",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/read",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/read",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/read",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/read",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/preview",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/preview",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/apply",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/read",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/eval/preview",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/runs/index",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/runs/show",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/runs/evidence",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/create",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/list",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/read",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "instances/list",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "instances/preview",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "mcp/list",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "mcp/registerOpenApi",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "mcp/list",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "mcp/refreshSpec",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "mcp/callTool",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "mcp/executeComposition",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "mcp",
+      "http": 200
+    },
+    {
+      "endpoint": "mcp",
+      "http": 200
+    },
+    {
+      "endpoint": "mcp",
+      "http": 200
+    },
+    {
+      "endpoint": "agents/list",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "instances/list",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/edit/read",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "agents/detail",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "inventory",
+      "http": 200,
+      "ok": true
+    },
+    {
+      "endpoint": "home",
+      "http": 200,
+      "ok": true
+    }
+  ],
+  "upstream_calls": [
+    {
+      "path": "/openapi.json",
+      "assetId": null
+    },
+    {
+      "path": "/openapi.json",
+      "assetId": null
+    },
+    {
+      "path": "/assets/host-browser",
+      "assetId": null
+    },
+    {
+      "path": "/openapi.json",
+      "assetId": null
+    },
+    {
+      "path": "/assets/host-browser",
+      "assetId": null
+    },
+    {
+      "path": "/alerts",
+      "assetId": "browser-asset-123"
+    },
+    {
+      "path": "/openapi.json",
+      "assetId": null
+    },
+    {
+      "path": "/assets/host-browser",
+      "assetId": null
+    },
+    {
+      "path": "/alerts",
+      "assetId": "browser-asset-123"
+    }
+  ],
+  "created_experiment": "EXP-test01-003-r8be2321c2b0a",
+  "mobile_overflow": {
+    "mcp": false,
+    "instances": false,
+    "agents": false,
+    "home": false
+  },
+  "validation": "passed"
+}

@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-13T12:03:56.548Z",
+  "scope": "真实全局 DSH；受控 OpenAPI 外部接口边界；不代表业务 MCP 验收",
+  "checks": {},
+  "protocol": {},
+  "upstream": {
+    "spec_anonymous": 0,
+    "spec_authenticated": 0,
+    "assets": 0,
+    "alerts": 0
+  },
+  "validation": "failed",
+  "failure": "locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('配置已保存。请新建会话验证连接与工具发现。', { exact: true }) to be visible\u001b[22m\n"
+}

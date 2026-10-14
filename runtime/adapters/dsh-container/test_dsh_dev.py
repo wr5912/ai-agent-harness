@@ -548,9 +548,19 @@ class ExtractAuthUrlTest(unittest.TestCase):
         self.assertIsNone(dev.extract_auth_url(TOKEN, 3099))
 
     def test_redaction_hides_token(self):
-        redacted = dev.redact_secrets(TOKEN)
+        redacted = dev.redact_secrets(
+            TOKEN
+            + "Authorization: Bearer bearer-secret\n"
+            + '{"apiKey":"json-secret","password":"password-secret"} TOKEN=plain-secret\n'
+        )
         self.assertNotIn("secret-token-value", redacted)
+        self.assertNotIn("bearer-secret", redacted)
+        self.assertNotIn("json-secret", redacted)
+        self.assertNotIn("password-secret", redacted)
+        self.assertNotIn("plain-secret", redacted)
         self.assertIn("token=<redacted>", redacted)
+        self.assertIn("Bearer <redacted>", redacted)
+        self.assertIn('"apiKey":"<redacted>"', redacted)
 
 
 class InstanceStateTest(unittest.TestCase):
@@ -623,6 +633,42 @@ class InstanceStateTest(unittest.TestCase):
 
 
 class ImageIdentityAndPsStateTest(unittest.TestCase):
+    def test_batch_observation_groups_containers_and_volumes_with_two_queries(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            docker = root / "docker"
+            docker.write_text('#!/usr/bin/env python3\nimport json, sys\nfrom pathlib import Path\n'
+                'with Path(__file__).with_name("calls").open("a") as out: out.write(sys.argv[1] + "\\n")\n'
+                'if sys.argv[1] == "ps":\n'
+                ' for i in range(100): print(json.dumps({"Project": "project-" + str(i), "State": "running"}))\n'
+                'else:\n'
+                ' print(json.dumps({"name": "real-home", "project": "project-1", "volume": "project-1-home"}))\n'
+                ' print(json.dumps({"name": "other", "project": "project-1", "volume": "data"}))\n', encoding="utf-8")
+            docker.chmod(0o700)
+            result = subprocess.run(["node", str(ADAPTER / "instance-observation.ts")],
+                env={**os.environ, "PATH": f"{root}:{os.environ['PATH']}"}, capture_output=True, text=True, check=True)
+            observed = json.loads(result.stdout)
+            self.assertEqual(len(observed["projects"]), 100)
+            self.assertEqual(observed["homes"], {"project-1": "real-home"})
+            self.assertEqual(sorted((root / "calls").read_text().splitlines()), ["ps", "volume"])
+
+    def test_failed_batch_observation_reports_unknown_without_per_instance_retry(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for name in ("one", "two"):
+                target = root / name
+                target.mkdir()
+                (target / "instance.json").write_text(json.dumps({"name": name}), encoding="utf-8")
+            with mock.patch.object(dev, "STATE_ROOT", root), mock.patch.object(dev, "run",
+                    return_value=subprocess.CompletedProcess([], 0, stdout='{"projects":null,"homes":null}', stderr="")) as query:
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    dev.command_ps(types.SimpleNamespace(all=True))
+                self.assertEqual(query.call_count, 1)
+            entries = json.loads(output.getvalue())["instances"]
+            self.assertEqual([entry["state"] for entry in entries], ["unknown", "unknown"])
+            self.assertTrue(all(entry["home_preserved"] is None for entry in entries))
+
     def test_ps_hides_non_running_instances_by_default(self):
         states = {"failed": "failed", "running": "running", "stopped": "stopped", "unknown": "unknown"}
         with tempfile.TemporaryDirectory() as temp:
@@ -632,11 +678,12 @@ class ImageIdentityAndPsStateTest(unittest.TestCase):
                 target.mkdir()
                 (target / "instance.json").write_text("{}\n", encoding="utf-8")
 
-            def fake_entry(target, _manifest):
+            def fake_entry(target, _manifest, _observation):
                 return {"name": target.name, "state": states[target.name]}
 
             with mock.patch.object(dev, "STATE_ROOT", root), \
-                    mock.patch.object(dev, "instance_entry", side_effect=fake_entry):
+                    mock.patch.object(dev, "instance_entry", side_effect=fake_entry), \
+                    mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, stdout='{"projects":{},"homes":{}}', stderr="")):
                 default_output = io.StringIO()
                 with contextlib.redirect_stdout(default_output):
                     dev.command_ps(types.SimpleNamespace(all=False))
@@ -664,7 +711,10 @@ class ImageIdentityAndPsStateTest(unittest.TestCase):
         )
         self.assertEqual(dev.normalized_instance_state(failed), "failed")
         self.assertEqual(dev.normalized_instance_state(restarting), "unknown")
-        self.assertEqual(dev.normalized_instance_state([]), "stopped")
+        self.assertEqual(dev.normalized_instance_state([]), "absent")
+        self.assertEqual(dev.normalized_instance_state([{"service": "home-init", "state": "exited"}]), "absent")
+        self.assertEqual(dev.normalized_instance_state([{"service": "dsh", "state": "exited", "exit_code": 0}]), "stopped")
+        self.assertEqual(dev.normalized_instance_state(None), "unknown")
         self.assertIsNone(dev.compose_ps_containers("not-json"))
 
     def test_validate_image_identity_returns_immutable_reference(self):
@@ -810,6 +860,121 @@ class DownCommandTest(unittest.TestCase):
                          "/opt/dsh-managed/security-operations-expert.patch.yml")
         self.assertEqual(environment["DSH_WORKSPACE_HOST"], "/tmp/ws")
         self.assertNotIn("DSH_MANAGED_PATCH_OVERLAY", environment)
+
+
+class DeleteCommandTest(unittest.TestCase):
+    """`delete` 只能删除已停止实例登记，不能把失败或未知状态当作可清理。"""
+
+    def setUp(self):
+        self._temp = tempfile.TemporaryDirectory()
+        dev.STATE_ROOT = Path(self._temp.name)
+        dev.write_instance("delete-probe", mode="verification", contract={
+            "source_id": "experiment:EXP-security-operations-expert-001",
+            "source_kind": "experiment",
+            "agent_id": "security-operations-expert",
+            "workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed",
+            "preset_id": "security-operations-expert",
+            "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+            "evaluation_patch": "/opt/dsh-adapter/evaluation-registry.patch.yml",
+            "required_env_names": [],
+            "image": {"local_image_tag": IMAGE_TAG},
+        }, port=3081)
+
+    def tearDown(self):
+        self._temp.cleanup()
+
+    def call(self, effects):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with mock.patch.object(dev, "run", side_effect=effects), \
+                contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            try:
+                dev.command_delete(types.SimpleNamespace(name="delete-probe"))
+            except SystemExit as stop:
+                return stop.code, stdout.getvalue(), stderr.getvalue()
+        return 0, stdout.getvalue(), stderr.getvalue()
+
+    def test_delete_removes_stopped_container_and_registration_but_keeps_home(self):
+        stopped = subprocess.CompletedProcess(
+            [], 0,
+            stdout="abc\texited\tExited (0)\tdsh-dev-delete-probe-dsh-1\tdsh\n", stderr="")
+        volume = subprocess.CompletedProcess([], 0, stdout="dsh-dev-delete-probe-home\n", stderr="")
+        removed = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        empty = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        code, printed, _ = self.call([stopped, volume, removed, empty, volume])
+        report = json.loads(printed)
+        self.assertEqual(code, 0)
+        self.assertTrue(report["deleted"])
+        self.assertTrue(report["registration_deleted"])
+        self.assertTrue(report["home_preserved_before"])
+        self.assertTrue(report["home_preserved"])
+        self.assertFalse((dev.STATE_ROOT / "delete-probe").exists())
+
+    def test_delete_removes_stopped_registration_when_container_is_already_gone(self):
+        empty = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        volume = subprocess.CompletedProcess([], 0, stdout="dsh-dev-delete-probe-home\n", stderr="")
+        code, printed, _ = self.call([empty, volume, volume])
+        self.assertEqual(code, 0)
+        report = json.loads(printed)
+        self.assertTrue(report["deleted"])
+        self.assertEqual(report["state"], "absent")
+        self.assertTrue(report["home_preserved"])
+        self.assertFalse((dev.STATE_ROOT / "delete-probe").exists())
+
+    def test_delete_keeps_registration_when_home_recheck_is_unknown(self):
+        stopped = subprocess.CompletedProcess(
+            [], 0,
+            stdout="abc\texited\tExited (0)\tdsh-dev-delete-probe-dsh-1\tdsh\n", stderr="")
+        volume = subprocess.CompletedProcess([], 0, stdout="dsh-dev-delete-probe-home\n", stderr="")
+        removed = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        empty = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        unknown_volume = subprocess.CompletedProcess([], 1, stdout="", stderr="daemon down")
+        code, printed, errors = self.call([stopped, volume, removed, empty, unknown_volume])
+        self.assertNotEqual(code, 0)
+        self.assertEqual(printed, "")
+        self.assertIn('"deleted": "unknown"', errors)
+        self.assertTrue((dev.STATE_ROOT / "delete-probe" / "instance.json").is_file())
+
+    def test_delete_keeps_registration_when_home_is_lost_after_delete(self):
+        stopped = subprocess.CompletedProcess(
+            [], 0,
+            stdout="abc\texited\tExited (0)\tdsh-dev-delete-probe-dsh-1\tdsh\n", stderr="")
+        volume = subprocess.CompletedProcess([], 0, stdout="dsh-dev-delete-probe-home\n", stderr="")
+        removed = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        empty = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        gone = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        code, printed, errors = self.call([stopped, volume, removed, empty, gone])
+        self.assertNotEqual(code, 0)
+        self.assertEqual(printed, "")
+        self.assertIn('"deleted": false', errors)
+        self.assertTrue((dev.STATE_ROOT / "delete-probe" / "instance.json").is_file())
+
+    def test_running_failed_and_unknown_states_keep_registration(self):
+        cases = [
+            subprocess.CompletedProcess(
+                [], 0, stdout="abc\trunning\tUp\tdsh-dev-delete-probe-dsh-1\tdsh\n", stderr=""),
+            subprocess.CompletedProcess(
+                [], 0, stdout="abc\texited\tExited (17)\tdsh-dev-delete-probe-dsh-1\tdsh\n", stderr=""),
+            subprocess.CompletedProcess([], 1, stdout="", stderr="daemon down"),
+        ]
+        for completed in cases:
+            with self.subTest(stdout=completed.stdout, returncode=completed.returncode):
+                if not (dev.STATE_ROOT / "delete-probe").exists():
+                    dev.write_instance("delete-probe", mode="verification", contract={
+                        "source_id": "experiment:EXP-security-operations-expert-001",
+                        "source_kind": "experiment",
+                        "agent_id": "security-operations-expert",
+                        "workspace": "/tmp/ws", "presets": "/tmp/presets", "managed": "/tmp/managed",
+                        "preset_id": "security-operations-expert",
+                        "patch": "/opt/dsh-managed/security-operations-expert.patch.yml",
+                        "evaluation_patch": "/opt/dsh-adapter/evaluation-registry.patch.yml",
+                        "required_env_names": [],
+                        "image": {"local_image_tag": IMAGE_TAG},
+                    }, port=3081)
+                code, printed, errors = self.call([completed])
+                self.assertNotEqual(code, 0)
+                self.assertEqual(printed, "")
+                self.assertTrue((dev.STATE_ROOT / "delete-probe" / "instance.json").is_file())
+                self.assertTrue("unknown" in errors or '"deleted": false' in errors)
 
 
 class UpCommandStateTest(unittest.TestCase):
@@ -958,8 +1123,7 @@ class LegacyInstanceStateTest(unittest.TestCase):
 
     def test_ps_marks_legacy_state_for_migration_and_keeps_listing(self):
         listed = subprocess.CompletedProcess([], 0, stdout=json.dumps({
-            "Name": "dsh-dev-legacy-dsh-1", "Service": "dsh", "State": "exited",
-            "Status": "Exited (0)",
+            "projects": {"dsh-dev-legacy": [{"Name": "dsh-dev-legacy-dsh-1", "Service": "dsh", "State": "exited", "Status": "Exited (0)"}]}, "homes": {},
         }), stderr="")
         stdout = io.StringIO()
         with mock.patch.object(dev, "run", return_value=listed), \
@@ -979,7 +1143,7 @@ class LegacyInstanceStateTest(unittest.TestCase):
         stopped = subprocess.CompletedProcess([], 0, stdout="", stderr="")
         listed = subprocess.CompletedProcess([], 0, stdout="not running", stderr="")
         stdout = io.StringIO()
-        with mock.patch.object(dev, "run", side_effect=[stopped, listed]), \
+        with mock.patch.object(dev, "run", return_value=listed), \
                 contextlib.redirect_stdout(stdout):
             dev.command_ps(types.SimpleNamespace(all=True))
         instances = {item["name"]: item for item in json.loads(stdout.getvalue())["instances"]}
@@ -1056,6 +1220,9 @@ class UpPortOwnershipTest(unittest.TestCase):
         self.assertEqual(plan["name"], "security-operations-expert-eval")
         self.assertEqual(plan["container_name"], "security-operations-expert-eval")
         self.assertEqual(plan["port"], 3081)
+        self.assertEqual(plan["listen_host"], "0.0.0.0")
+        for flag in ("lan_access", "unsafe_no_auth", "skip_testing_notice"):
+            self.assertTrue(plan[flag])
         preflight.assert_not_called()
         writer.assert_not_called()
         runner.assert_not_called()
@@ -1077,37 +1244,32 @@ class UpPortOwnershipTest(unittest.TestCase):
         self.assertEqual(args.port, 3090)
         probe.assert_not_called()
 
-    def test_existing_instance_rejects_lan_mode_change(self):
-        self.write_existing(lan_access=True)
-        stderr = io.StringIO()
-        with mock.patch.object(dev, "resolve", return_value=self.contract()), \
-                contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit):
-            dev.prepare_up(self.args(lan_access=False))
-        self.assertIn("LAN 访问模式不同", stderr.getvalue())
+    def test_old_business_instances_apply_uniform_access_without_replace(self):
+        for replace in (False, True):
+            for old_flags in ({}, dict(lan_access=False, unsafe_no_auth=False, skip_testing_notice=False)):
+                with self.subTest(replace=replace, old_flags=old_flags):
+                    self.write_existing(**old_flags)
+                    args = self.args(port=None, replace=replace, lan_access=False,
+                                     unsafe_no_auth=False, skip_testing_notice=False)
+                    with mock.patch.object(dev, "resolve", return_value=self.contract()):
+                        _, current = dev.prepare_up(args)
+                    self.assertIsNotNone(current)
+                    self.assertEqual(args.port, 3302)
+                    for flag in ("lan_access", "unsafe_no_auth", "skip_testing_notice"):
+                        self.assertTrue(getattr(args, flag))
+                    self.assertEqual(json.loads((current[0] / "instance.json").read_text()), current[1])
 
-    def test_explicit_replace_allows_lan_mode_change(self):
-        self.write_existing(lan_access=False)
-        with mock.patch.object(dev, "resolve", return_value=self.contract()):
-            _, current = dev.prepare_up(self.args(lan_access=True, replace=True))
-        self.assertIsNotNone(current)
-
-    def test_no_auth_mode_change_requires_replace_and_old_state_defaults_to_auth(self):
-        self.write_existing()
-        with mock.patch.object(dev, "resolve", return_value=self.contract()):
-            with self.assertRaises(SystemExit):
-                dev.prepare_up(self.args(unsafe_no_auth=True))
-            _, current = dev.prepare_up(self.args(unsafe_no_auth=True, replace=True))
-        self.assertIsNotNone(current)
-        self.assertFalse(current[1].get("unsafe_no_auth", False))
-
-    def test_notice_mode_change_requires_replace_and_old_state_defaults_to_notice(self):
-        self.write_existing()
-        with mock.patch.object(dev, "resolve", return_value=self.contract()):
-            with self.assertRaises(SystemExit):
-                dev.prepare_up(self.args(skip_testing_notice=True))
-            _, current = dev.prepare_up(self.args(skip_testing_notice=True, replace=True))
-        self.assertIsNotNone(current)
-        self.assertFalse(current[1].get("skip_testing_notice", False))
+    def test_analysis_worker_keeps_internal_access_and_rejects_public_flags(self):
+        workspace = "/tmp/analysis-run"
+        with mock.patch.object(dev, "validate_analysis_workspace", return_value=workspace), \
+                mock.patch.object(dev, "resolve", return_value=self.contract()):
+            args = self.args(name="new-analysis", analysis_workspace=workspace)
+            dev.prepare_up(args)
+            for flag in ("lan_access", "unsafe_no_auth", "skip_testing_notice"):
+                self.assertFalse(getattr(args, flag))
+            for flag in ("lan_access", "unsafe_no_auth"):
+                with self.subTest(flag=flag), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                    dev.prepare_up(self.args(analysis_workspace=workspace, **{flag: True}))
 
     def test_auto_port_race_fails_without_silent_reselection(self):
         args = self.args(name="new-probe", port=None)
