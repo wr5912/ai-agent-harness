@@ -11,10 +11,13 @@ const runB = 'run-22222222-2222-4222-8222-222222222222'
 const expA = 'EXP-alpha-001'
 const doc = { case: { id: 'C-1', title: '测试一', inputs: ['第一轮'], expected_behavior: '正确回答', scene: '场景一', tier: 'fast' }, sha256: 'case-v1', path: 'agents/alpha/evaluation.md' }
 const detail = { experiment: { id: expA }, versions: [{ id: expA }], evaluation: { path: doc.path, sha256: doc.sha256, cases: [{ id: 'C-1', title: '测试一', scene: '场景一', tier: 'fast', input_preview: '第一轮' }, { id: 'C-2', title: '测试二', scene: '场景二', tier: 'full', input_preview: '第二轮' }] }, decision: { content: '# Decision\ncontinue', sha256: 'decision-v1' } }
-function workbench({ target, handler } = {}) {
+function workbench({ target, handler, onAssistant } = {}) {
   const states = [], dependencies = [], cleanups = []
   let cursor, effects, changed, tree, failSave = false, loadedDoc = structuredClone(doc), decisionContent = detail.decision.content
-  const calls = [], navigations = [], contexts = [], confirmations = []
+  const calls = [], navigations = [], contexts = [], confirmations = [], assistants = []
+  const updateListeners = new Set()
+  let updateSnapshot = { domains: [], revision: 0 }
+  const updates = { subscribe: listener => { updateListeners.add(listener); return () => updateListeners.delete(listener) }, getSnapshot: () => updateSnapshot, invalidate: domains => { updateSnapshot = { domains, revision: updateSnapshot.revision + 1 }; [...updateListeners].forEach(listener => listener()) } }
   const confirmationAnswers = []
   const react = {
     ...require('react'),
@@ -57,7 +60,7 @@ function workbench({ target, handler } = {}) {
     if (action === 'decision/update') { decisionContent = payload.content; return { sha256: 'decision-v2' } }
     throw new Error(`未处理的 RPC ${action}`)
   }
-  const props = { active: true, target, onNavigate: value => { navigations.push(value); props.target = value; changed = true }, onContext: value => contexts.push(value), rpc: { call: async (channel, endpoint, payload) => {
+  const props = { active: true, target, updates, onAssistant: async (task, context) => { assistants.push({ task, context }); await onAssistant?.(task, context) }, onNavigate: value => { navigations.push(value); props.target = value; changed = true }, onContext: value => contexts.push(value), rpc: { call: async (channel, endpoint, payload) => {
     const action = endpoint.replace(/^agents\//, '')
     calls.push({ action, payload })
     try { return { ok: true, value: await (handler ? handler(action, payload, defaultHandler) : defaultHandler(action, payload)) } } catch (error) { const [code, ...message] = error.message.split(': '); return { ok: false, error: { code, message: message.join(': ') } } }
@@ -74,7 +77,7 @@ function workbench({ target, handler } = {}) {
   const byLabel = title => nodes().find(node => node.props?.['aria-label'] === title)
   function change(title, value) { const element = byLabel(title); assert.ok(element, `缺少控件 ${title}`); element.props.onChange({ target: { value, checked: value } }); render() }
   render()
-  return { render, settle, nodes, text, button, byLabel, change, calls, navigations, contexts, MarkdownText, beforeUnload, confirmations, confirmationAnswers, setFailSave: value => { failSave = value }, setTarget(value) { props.target = value; render() }, setActive(value) { props.active = value; render() }, getTarget() { return props.target }, cleanup() { cleanups.forEach(cleanup => cleanup?.()) } }
+  return { render, settle, nodes, text, button, byLabel, change, calls, navigations, contexts, assistants, MarkdownText, beforeUnload, confirmations, confirmationAnswers, setFailSave: value => { failSave = value }, setTarget(value) { props.target = value; render() }, setActive(value) { props.active = value; render() }, getTarget() { return props.target }, cleanup() { cleanups.forEach(cleanup => cleanup?.()) } }
 }
 
 test('评测中心默认汇总全部智能体 Run，点击即读取报告并保留挂载前缀下载', async () => {
@@ -388,4 +391,139 @@ test('任务状态迟到时用户已切到用例标签，保留当前标签与�
   assert.equal(ui.getTarget().tab, 'cases')
   assert.equal(ui.nodes().find(node => node.props?.id === 'evaluation-tab-cases').props['aria-selected'], true)
   ui.cleanup()
+})
+
+test('Run AI 抽取按钮从实际 Run 身份固定上下文并明确调用 skill，页面筛选不替换目标', async () => {
+  const ui = workbench({ target: { page: 'evaluation', tab: 'runs', agent_id: 'beta', experiment_id: 'EXP-beta-001', run_id: runA } })
+  try {
+    await ui.settle()
+    const button = ui.button('请 AI 抽取决策样本')
+    assert.equal(button.props.disabled, false)
+    await button.props.onClick(); await ui.settle()
+    assert.deepEqual(JSON.parse(JSON.stringify(ui.assistants[0].context)), { page: 'evaluation', run_id: runA, agent_id: 'alpha', experiment_id: expA, skill: 'decision-sample-extraction' })
+    assert.match(ui.assistants[0].task, /读取并使用 decision-sample-extraction Skill/)
+    assert.match(ui.assistants[0].task, /datasets\/source/); assert.match(ui.assistants[0].task, /datasets\/preview/)
+    assert.equal(ui.calls.some(item => item.action === 'datasets/preview' || item.action === 'datasets/apply'), false)
+  } finally { ui.cleanup() }
+})
+
+test('Run 尚未封存或身份尚未读取时禁用 AI 抽取，打开助手失败可见且可重试', async () => {
+  let release
+  const pending = new Promise(resolve => { release = resolve })
+  const ui = workbench({ target: { page: 'evaluation', tab: 'runs', run_id: runA }, onAssistant: async () => { throw new Error('模型暂时不可达') }, handler: async (action, payload, original) => { if (action === 'runs/show') await pending; return original(action, payload) } })
+  try {
+    await ui.settle(); assert.equal(ui.button('请 AI 抽取决策样本').props.disabled, true)
+    release(); await ui.settle(); assert.equal(ui.button('请 AI 抽取决策样本').props.disabled, false)
+    await ui.button('请 AI 抽取决策样本').props.onClick(); await ui.settle()
+    assert.match(ui.text(), /模型暂时不可达/); assert.equal(ui.button('请 AI 抽取决策样本').props.disabled, false)
+  } finally { ui.cleanup() }
+  const running = workbench({ target: { page: 'evaluation', tab: 'runs', run_id: runA }, handler: async (action, payload, original) => {
+    const value = await original(action, payload)
+    if (action === 'runs/show') value.manifest.status = 'running'
+    if (action === 'runs/files') value.sealed = false
+    return value
+  } })
+  try { await running.settle(); assert.equal(running.button('请 AI 抽取决策样本').props.disabled, true) } finally { running.cleanup() }
+})
+
+test('新增用例与 Run 转草稿入口传递准确身份，保存后定位新 Case 并立即刷新清单', async () => {
+  let createdDocument
+  const ui = workbench({ target: { page: 'evaluation', tab: 'cases', agent_id: 'alpha', experiment_id: expA }, handler: async (action, payload, original) => {
+    if (createdDocument && action === 'cases/read' && payload.case_id === createdDocument.case.id) return createdDocument
+    const value = await original(action, payload)
+    if (createdDocument && action === 'detail') return { ...value, evaluation: { ...value.evaluation, cases: [...value.evaluation.cases, { id: createdDocument.case.id, title: createdDocument.case.title, scene: createdDocument.case.scene, tier: 'fast' }] } }
+    return value
+  } })
+  try {
+    await ui.settle(); ui.button('＋ 新增用例').props.onClick(); ui.render()
+    const create = ui.nodes().find(node => node.type?.name === 'CaseCreationDialog')
+    assert.ok(create); assert.equal(create.props.agentId, 'alpha'); assert.equal(create.props.experimentId, expA); assert.equal(create.props.sourceRun, undefined)
+    const before = ui.calls.filter(item => item.action === 'detail').length
+    createdDocument = { path: doc.path, sha256: 'case-created', case: { id: 'U-NEW-001', title: '新的复现输入', inputs: ['全新输入'], expected_behavior: '核对结果', scene: '基础', tier: 'fast', fast: true } }
+    create.props.onSaved(createdDocument); create.props.onClose()
+    await ui.settle()
+    assert.equal(ui.navigations.at(-1).case_id, 'U-NEW-001'); assert.equal(ui.navigations.at(-1).tab, 'cases')
+    assert.ok(ui.calls.filter(item => item.action === 'detail').length > before)
+    assert.ok(ui.byLabel('执行 U-NEW-001'), '新增保存后即出现在后续评测执行范围选项')
+    assert.equal(ui.nodes().some(node => node.type?.name === 'CaseCreationDialog'), false)
+    ui.setTarget({ page: 'evaluation', tab: 'runs', run_id: runA }); await ui.settle()
+    ui.nodes().find(node => node.props?.id === 'evaluation-run-tab-results').props.onClick(); await ui.settle()
+    ui.button('从此 Run 创建用例草稿').props.onClick(); ui.render()
+    const fromRun = ui.nodes().find(node => node.type?.name === 'CaseCreationDialog')
+    assert.equal(fromRun.props.agentId, 'alpha'); assert.equal(fromRun.props.experimentId, expA)
+    assert.deepEqual(JSON.parse(JSON.stringify(fromRun.props.sourceRun)), { run_id: runA, case_id: 'C-1' })
+  } finally { ui.cleanup() }
+})
+
+test('新增用例草稿参与浏览器后退与深链保护，拒绝回原对象，允许后关闭对话框', async () => {
+  const origin = { page: 'evaluation', tab: 'cases', agent_id: 'alpha', experiment_id: expA }
+  const ui = workbench({ target: origin })
+  try {
+    await ui.settle(); ui.button('＋ 新增用例').props.onClick(); ui.render()
+    const create = ui.nodes().find(node => node.type?.name === 'CaseCreationDialog')
+    create.props.onDirty(true); ui.render()
+    let protectedRefresh = false
+    for (const callback of ui.beforeUnload) callback({ preventDefault() { protectedRefresh = true }, returnValue: undefined })
+    assert.equal(protectedRefresh, true)
+    ui.confirmationAnswers.push(false)
+    ui.setTarget({ page: 'evaluation', tab: 'runs', agent_id: 'alpha', experiment_id: expA, run_id: runA }); await ui.settle()
+    assert.equal(ui.getTarget().tab, 'cases'); assert.equal(ui.getTarget().run_id, undefined)
+    assert.equal(ui.nodes().find(node => node.type?.name === 'CaseCreationDialog').props.agentId, 'alpha')
+    ui.confirmationAnswers.push(false)
+    ui.setTarget({ page: 'evaluation', tab: 'cases', agent_id: 'beta', experiment_id: 'EXP-beta-001' }); await ui.settle()
+    assert.equal(ui.getTarget().agent_id, 'alpha'); assert.equal(ui.byLabel('评测研究版本').props.value, expA)
+    ui.confirmationAnswers.push(true)
+    ui.setTarget({ page: 'evaluation', tab: 'cases', agent_id: 'beta', experiment_id: 'EXP-beta-001' }); await ui.settle()
+    assert.equal(ui.getTarget().agent_id, 'beta')
+    assert.equal(ui.nodes().some(node => node.type?.name === 'CaseCreationDialog'), false)
+  } finally { ui.cleanup() }
+})
+
+test('新增用例保存忙时拒绝目标和页面切换，不重复询问或丢弃模态草稿', async () => {
+  const ui = workbench({ target: { page: 'evaluation', tab: 'cases', agent_id: 'alpha', experiment_id: expA } })
+  try {
+    await ui.settle(); ui.button('＋ 新增用例').props.onClick(); ui.render()
+    const create = ui.nodes().find(node => node.type?.name === 'CaseCreationDialog')
+    create.props.onDirty(true); create.props.onBusy(true); ui.render()
+    const confirmations = ui.confirmations.length
+    ui.setTarget({ page: 'evaluation', tab: 'cases', agent_id: 'beta', experiment_id: 'EXP-beta-001' }); await ui.settle()
+    assert.equal(ui.getTarget().agent_id, 'alpha'); assert.equal(ui.confirmations.length, confirmations)
+    assert.ok(ui.nodes().some(node => node.type?.name === 'CaseCreationDialog'))
+    ui.setTarget({ page: 'home' }); ui.setActive(false); await ui.settle()
+    assert.equal(ui.getTarget().page, 'evaluation'); assert.equal(ui.getTarget().agent_id, 'alpha')
+    assert.ok(ui.nodes().some(node => node.type?.name === 'CaseCreationDialog'))
+    create.props.onBusy(false); create.props.onDirty(false); ui.setActive(true); await ui.settle()
+  } finally { ui.cleanup() }
+})
+
+test('新增用例草稿允许离开评测页后卸载模态层，拒绝时恢复评测深链', async () => {
+  const origin = { page: 'evaluation', tab: 'cases', agent_id: 'alpha', experiment_id: expA }
+  const ui = workbench({ target: origin })
+  try {
+    await ui.settle(); ui.button('＋ 新增用例').props.onClick(); ui.render()
+    ui.nodes().find(node => node.type?.name === 'CaseCreationDialog').props.onDirty(true); ui.render()
+    ui.confirmationAnswers.push(false); ui.setTarget({ page: 'home' }); ui.setActive(false); await ui.settle()
+    assert.equal(ui.getTarget().page, 'evaluation'); assert.ok(ui.nodes().some(node => node.type?.name === 'CaseCreationDialog'))
+    ui.setActive(true); await ui.settle()
+    ui.confirmationAnswers.push(true); ui.setTarget({ page: 'home' }); ui.setActive(false); await ui.settle()
+    assert.equal(ui.getTarget().page, 'home'); assert.equal(ui.nodes().some(node => node.type?.name === 'CaseCreationDialog'), false)
+  } finally { ui.cleanup() }
+})
+
+test('取消评测保持正在取消状态，禁止重复取消并在 CLI 收尾后读取封存报告', async () => {
+  let state = 'running'
+  const ui = workbench({ target: { page: 'evaluation', tab: 'runs', agent_id: 'alpha', experiment_id: expA }, handler: async (action, payload, original) => {
+    if (action === 'eval/status') return { job_id: 'job-1', status: state, result: state === 'cancelled' ? { run_id: runA, cancelled: true, instance_stopped: true } : undefined }
+    if (action === 'eval/cancel') { state = 'cancelling'; return { status: state } }
+    return original(action, payload)
+  } })
+  try {
+    await ui.settle(); ui.button('＋ 新建评测').props.onClick(); ui.render(); ui.button('启动评测').props.onClick(); await ui.settle()
+    ui.button('取消评测').props.onClick(); await ui.settle()
+    assert.match(ui.text(), /评测任务 · 正在取消/); assert.equal(ui.button('取消评测').props.disabled, true)
+    ui.button('取消评测').props.onClick(); await ui.settle()
+    assert.equal(ui.calls.filter(item => item.action === 'eval/cancel').length, 1)
+    state = 'cancelled'; ui.button('刷新状态').props.onClick(); await ui.settle()
+    assert.match(ui.text(), /评测任务 · 已取消/); assert.ok(ui.calls.some(item => item.action === 'runs/show' && item.payload.run_id === runA))
+  } finally { ui.cleanup() }
 })

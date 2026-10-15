@@ -1,0 +1,15 @@
+{
+  "job_id": "1a397ccb-2fd4-43ea-a645-f988f34fc19a",
+  "run_id": "run-930dde7e-f7ae-4264-b5ad-29fe1288f2e9",
+  "initial_reply": "cancelling",
+  "status": "cancelled",
+  "instance_stopped": true,
+  "run_status": "cancelled",
+  "new_instances": [
+    {
+      "name": "daily-inspection-assistant-eval-138de69e",
+      "state": "absent"
+    }
+  ],
+  "checked_at": "2026-10-15T17:37:27.794Z"
+}

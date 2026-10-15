@@ -43,7 +43,97 @@ def evaluation_text(case_id: str, stage: str) -> str:
 """
 
 
+def recorded_run(module, repo: Path) -> tuple[Path, dict]:
+    experiment = fixtures.write_minimal_experiment(repo)
+    for name in ("workspace", "presets", "managed"):
+        folder = experiment / "candidate" / name
+        folder.mkdir()
+        (folder / "role.md").write_text("基本测试角色。\n", encoding="utf-8")
+    contract = {
+        "source_id": f"experiment:{experiment.name}", "source_kind": "experiment",
+        "experiment_id": experiment.name, "agent_id": "example-agent",
+        **{name: str(experiment / "candidate" / name) for name in ("workspace", "presets", "managed")},
+        "config_markers": [], "required_env_names": [], "optional_env_names": [],
+    }
+    args = argparse.Namespace(source=contract["source_id"], baseline_ref=None, case=["U-EXAMPLE-001"],
+                              selection_mode="explicit", kind="research", model=None,
+                              executor="api", review_mode="none", compare_to=None)
+    with mock.patch.object(module, "resolve", return_value=contract), contextlib.redirect_stdout(io.StringIO()) as output:
+        module.command_init(repo, args)
+    run_id = output.getvalue().strip()
+    run_dir = experiment / "runs" / run_id
+    (run_dir / "evidence").mkdir()
+    (run_dir / "evidence/observation.txt").write_text("基本测试观察。", encoding="utf-8")
+    trial = repo / "trial.json"
+    trial.write_text(json.dumps({"run_id": run_id, "trial_id": "trial-" + str(uuid.uuid4()),
+                                "input_id": "U-EXAMPLE-001", "execution_status": "completed", "verdict": "passed",
+                                "observation": "基本测试观察。", "evidence_ref": "evidence/observation.txt"}), encoding="utf-8")
+    with contextlib.redirect_stdout(io.StringIO()):
+        module.command_record(repo, argparse.Namespace(run=run_id, trial_file=str(trial)))
+    return run_dir, contract
+
+
 class FrozenRunSnapshotTests(unittest.TestCase):
+    def test_finalize_verifies_frozen_source_and_preserves_real_case_results(self) -> None:
+        for mutation in ("unchanged", "content", "directory_permission", "unresolvable"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
+                repo = Path(temporary)
+                module = load_module(fixtures.RUN_RECORD, "run_source_verification")
+                run_dir, contract = recorded_run(module, repo)
+                inputs_before = (run_dir / "inputs.lock.json").read_bytes()
+                results_before = (run_dir / "results.jsonl").read_bytes()
+                candidate = run_dir.parents[1] / "candidate"
+                if mutation == "content":
+                    (candidate / "harness.yaml").write_text('schema_version: "1.0"\nvalue: changed-during-run\n', encoding="utf-8")
+                if mutation == "directory_permission":
+                    (candidate / "managed").chmod(0o500)
+                resolve = mock.patch.object(module, "resolve", side_effect=ValueError("source missing")) \
+                    if mutation == "unresolvable" else mock.patch.object(module, "resolve", return_value=contract)
+                try:
+                    with resolve, contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as diagnostic:
+                        module.command_finalize(repo, argparse.Namespace(run=run_dir.name, status="completed"))
+                finally:
+                    (candidate / "managed").chmod(0o755)
+                manifest = module.read_flat_yaml(run_dir / "run.yaml")
+                summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+                changed = mutation != "unchanged"
+                self.assertEqual(manifest["status"], "failed" if changed else "completed")
+                self.assertEqual(summary["effective_verdict"], "inconclusive" if changed else "passed")
+                self.assertEqual(summary["machine_overall_verdict"], "passed")
+                self.assertEqual((run_dir / "inputs.lock.json").read_bytes(), inputs_before)
+                self.assertEqual((run_dir / "results.jsonl").read_bytes(), results_before)
+                verification = summary["source_verification"]
+                self.assertEqual(verification["status"], "unavailable" if mutation == "unresolvable" else "changed" if changed else "matched")
+                if changed:
+                    self.assertIn(verification["reason"], diagnostic.getvalue())
+                    self.assertIn(verification["reason"], (run_dir / "report.md").read_text(encoding="utf-8"))
+                if mutation == "directory_permission":
+                    checks = {item["component"]: item["status"] for item in verification["checks"]}
+                    self.assertEqual(checks, {"candidate": "matched", "workspace": "matched", "presets": "matched", "managed": "changed"})
+                completed, validation = fixtures.run_json(fixtures.VALIDATE_EXPERIMENT, run_dir.parents[1])
+                self.assertEqual(completed.returncode, 0, validation)
+                self.assertTrue(validation["valid"])
+                if mutation == "content":
+                    # 聚合状态不能掩盖下属清单中的摘要差异。
+                    verification["status"] = "matched"
+                    (run_dir / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+                    _, invalid = fixtures.run_json(fixtures.VALIDATE_EXPERIMENT, run_dir.parents[1])
+                    self.assertIn("RUN_SOURCE_VERIFICATION", fixtures.error_codes(invalid))
+
+    def test_cancelled_run_keeps_cancelled_status_when_source_has_changed(self) -> None:
+        module = load_module(fixtures.RUN_RECORD, "cancelled_run_source")
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            run_dir, contract = recorded_run(module, repo)
+            (run_dir.parents[1] / "candidate/harness.yaml").write_text("value: changed-during-run\n", encoding="utf-8")
+            with mock.patch.object(module, "resolve", return_value=contract), contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                module.command_finalize(repo, argparse.Namespace(run=run_dir.name, status="cancelled"))
+            self.assertEqual(module.read_flat_yaml(run_dir / "run.yaml")["status"], "cancelled")
+            summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+            self.assertEqual(summary["source_verification"]["reason"], "source-changed")
+            self.assertEqual(summary["effective_verdict"], "inconclusive")
+
     def test_init_uses_one_authoritative_read_when_evaluation_changes_during_initialization(self) -> None:
         module = load_module(fixtures.RUN_RECORD, "run_snapshot")
         with tempfile.TemporaryDirectory() as temporary:
@@ -62,8 +152,8 @@ class FrozenRunSnapshotTests(unittest.TestCase):
                 return value
 
             contract = {
-                "source_id": "experiment:EXP-example-agent-001", "source_kind": "experiment",
-                "experiment_id": "EXP-example-agent-001", "agent_id": "example-agent",
+                "source_id": f"experiment:{experiment.name}", "source_kind": "experiment",
+                "experiment_id": experiment.name, "agent_id": "example-agent",
                 "workspace": str(experiment / "candidate"), "presets": str(experiment / "candidate"),
                 "managed": str(experiment / "candidate"), "config_markers": [],
                 "required_env_names": [], "optional_env_names": [],

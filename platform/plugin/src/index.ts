@@ -11,6 +11,7 @@ import type { Inventory, RunAsset } from './protocol.ts'
 import { DOMAIN_PREFIXES } from './protocol.ts'
 import { recentRuns } from './dashboard.ts'
 import { createAgentsHandler } from './agents/index.ts'
+import { createExtractionScope, isDecisionExtraction } from './assistant/extraction-scope.ts'
 import { createRunDownloadHandler } from './agents/run-files.ts'
 import { createInstancesHandler } from './instances/index.ts'
 import { applyMcpGateway, createMcpHandler } from './mcp/index.ts'
@@ -133,7 +134,7 @@ export function applyTools(ctx: Context) {
   const wrap = (domain: 'agents' | 'instances' | 'mcp', handler: ConnectionRpcHandler): ConnectionRpcHandler => async (endpoint, payload, signal, peer) => {
     try { return await handler(endpoint, payload, signal, peer) }
     finally {
-      if (!['list', 'detail', 'url', 'logs', 'edit/read', 'cases/list', 'cases/read', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'fusion/status', 'fusion/proposal', 'features/proposal'].includes(endpoint)) notify([domain, 'catalog'])
+      if (!['list', 'detail', 'url', 'logs', 'edit/read', 'cases/list', 'cases/read', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'runs/trace', 'assets/diff', 'datasets/source', 'datasets/list', 'datasets/read', 'datasets/export', 'cases/create-context', 'cases/from-run', 'cases/create-preview', 'fusion/status', 'fusion/proposal', 'features/proposal'].includes(endpoint)) notify([domain, 'catalog'])
     }
   }
   const domains = {
@@ -143,8 +144,10 @@ export function applyTools(ctx: Context) {
   }
   const handler = createPlatformHandler(assetRoot, domains)
   const services = ctx as any
+  const extractionScope = createExtractionScope()
   const assistant = createAssistant(assetRoot, handler, {
     controller: services.sessionController,
+    scopeExtraction: agent => extractionScope.apply(agent),
     running: id => services.agents.get(id)?.status === 'running',
     record: async (session, type, value) => { const records = await runtimeModule('@deepseek-ai/dsh-session'); records.appendPluginRecord(session, type, value) },
     projections: services.sessionProjections, systemPrompt: services.systemPrompt,
@@ -152,6 +155,20 @@ export function applyTools(ctx: Context) {
   })
   domains.assistant = assistant.handler
   assistant.registerTools(services.tools)
+  ctx.on('agent/created' as any, (({ agent }: any) => {
+    const state = services.sessionProjections.stateOf(agent.session, 'harnessPlatformAssistant')
+    if (isDecisionExtraction(assetRoot, agent, state)) extractionScope.apply(agent)
+  }) as any)
+  ctx.on('agent/disposed' as any, (({ agent }: any) => extractionScope.release(agent)) as any)
+  ctx.on('system-prompt/assemble' as any, (async (_assembly: any, context: any, next: any) => {
+    const assembly = await next()
+    const agent = context.agent
+    const state = agent && services.sessionProjections.stateOf(agent.session, 'harnessPlatformAssistant')
+    if (!isDecisionExtraction(assetRoot, agent, state)) return assembly
+    extractionScope.apply(agent)
+    return { ...assembly, tools: assembly.tools.filter((tool: any) => ['skill', 'platform_agents'].includes(tool.name)) }
+  }) as any)
+  ctx.effect(() => () => extractionScope.dispose())
   ctx.effect(() => () => assistant.dispose())
   ctx.on('session/event' as any, ((session: any) => notify(['assistant'], [session.id])) as any)
   ctx.on('agent/status' as any, ((event: any) => notify(['assistant'], [event.agent.id])) as any)

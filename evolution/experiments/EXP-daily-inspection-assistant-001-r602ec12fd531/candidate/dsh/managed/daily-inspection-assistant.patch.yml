@@ -1,0 +1,15 @@
+# 注册本 Experiment 的受控 Preset。
+- id: agent-preset-registry
+  config:
+    default: daily-inspection-assistant
+
+- insert:
+    - id: preset-daily-inspection-assistant
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: daily-inspection-assistant
+        plugins:
+          - id: daily-inspection-assistant-harness
+            name: cordis:include
+            config:
+              path: /opt/dsh-presets/daily-inspection-assistant/agent.cordis.yml

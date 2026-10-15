@@ -80,6 +80,8 @@ def tree_digest(repo: Path, root: Path) -> dict:
 
 def candidate_digest(root: Path) -> str:
     """与平台版本验证相同：记录 Candidate 文件路径、权限与内容，排除运行状态和依赖。"""
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError("Candidate must be a real directory")
     excluded = {"runs", "history", "RuntimeHOME", "sessions", "cache", ".git", "node_modules", "__pycache__"}
     digest = hashlib.sha256()
 
@@ -98,6 +100,53 @@ def candidate_digest(root: Path) -> str:
 
     walk(root)
     return digest.hexdigest()
+
+
+def verify_run_source(repo: Path, manifest: dict, inputs: dict) -> dict:
+    """封存前核对初始 Candidate 及挂载清单；清单摘要也包含目录权限。"""
+    checks = []
+
+    def check(component: str, expected: str | None, read) -> None:
+        actual = None
+        error_type = None
+        try:
+            if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
+                raise ValueError("Run did not record a source digest")
+            actual = read()
+            status = "matched" if actual == expected else "changed"
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            status = "unavailable"
+            error_type = type(error).__name__
+        checks.append({"component": component, "status": status,
+                       "expected_sha256": expected, "actual_sha256": actual,
+                       **({"error_type": error_type} if error_type else {})})
+
+    candidate = repo / "evolution/experiments" / manifest["experiment_id"] / "candidate"
+    check("candidate", inputs.get("candidate_sha256"), lambda: candidate_digest(candidate))
+    trees = inputs.get("harness_trees", {})
+    contract = None
+    try:
+        contract = resolve(inputs["source_id"], repo=repo)
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+
+    def snapshot_digest(value: dict) -> str:
+        return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False,
+                                         separators=(",", ":")).encode("utf-8")).hexdigest()
+
+    def current_tree(name: str) -> str:
+        if contract is None:
+            raise ValueError("Run source can no longer be resolved")
+        return snapshot_digest(tree_digest(repo, Path(contract[name])))
+
+    for name in ("workspace", "presets", "managed"):
+        frozen = trees.get(name) if isinstance(trees, dict) else None
+        check(name, snapshot_digest(frozen) if isinstance(frozen, dict) else None,
+              lambda name=name: current_tree(name))
+    statuses = {item["status"] for item in checks}
+    status = "changed" if "changed" in statuses else "unavailable" if "unavailable" in statuses else "matched"
+    return {"status": status, "reason": "source-changed" if status == "changed" else
+            "source-unavailable" if status == "unavailable" else None, "checks": checks}
 
 
 def git_version(repo: Path) -> dict:
@@ -197,6 +246,14 @@ def write_report(
         lines.append(f"- 执行通道：`{executor}`")
     if selection_mode:
         lines.append(f"- Case 选择：`{selection_mode}`")
+    source_verification = summary.get("source_verification")
+    if source_verification:
+        lines.append(f"- 封存来源核对：`{source_verification['status']}`")
+        if source_verification["status"] != "matched":
+            changed = ", ".join(item["component"] for item in source_verification["checks"]
+                                if item["status"] != "matched")
+            lines.extend(["", f"`{source_verification['reason']}`：{changed} 与初始锁定来源不一致或无法读取。"
+                          "原始 Case 结果保留，本 Run 不能用于证明锁定来源通过；请固定来源后重新运行。"])
     lines.extend([
         "",
         "## 统计",
@@ -786,13 +843,15 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
         if covered != allowed_input_ids:
             raise ValueError("completed Run must record every selected Case")
     inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+    source_verification = verify_run_source(repo, manifest, inputs)
+    final_status = "failed" if args.status == "completed" and source_verification["status"] != "matched" else args.status
     analysis_path = run_dir / "analysis.json"
     if analysis_path.is_file():
         analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
     else:
-        analysis = analyze(run_dir, rows, inputs, status=args.status)
+        analysis = analyze(run_dir, rows, inputs, status=final_status)
     validate_analysis(analysis, run_dir, rows, inputs)
-    if args.status == "completed" and inputs.get("review_mode", "ai" if inputs.get("selection_mode") == "full" else "none") == "ai" \
+    if final_status == "completed" and inputs.get("review_mode", "ai" if inputs.get("selection_mode") == "full" else "none") == "ai" \
             and analysis.get("review_status") != "completed":
         raise ValueError("已请求 AI 复核的 Run 必须完成全部已选 Case 的证据复核后才能标记 completed")
     if not analysis_path.is_file():
@@ -800,7 +859,7 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
             json.dump(analysis, handle, ensure_ascii=False, indent=2)
             handle.write("\n")
     review = summarize_review(analysis)
-    effective = "inconclusive" if args.status != "completed" else (
+    effective = "inconclusive" if final_status != "completed" else (
         review["overall_verdict"] if review["status"] == "completed"
         else machine_overall if review["status"] == "not_requested"
         else "inconclusive"
@@ -817,13 +876,14 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
         "reviewed_case_verdict_counts": review["verdict_counts"],
         "reviewed_overall_verdict": review["overall_verdict"],
         "effective_verdict": effective,
+        "source_verification": source_verification,
     }
     gaps = load_gaps(run_dir, args.run)
     summary_path = run_dir / "summary.json"
     with summary_path.open("w", encoding="utf-8") as handle:
         json.dump(summary, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
-    manifest["status"] = args.status
+    manifest["status"] = final_status
     manifest["finished_at"] = utc_now()
     comparison_markdown = None
     if inputs.get("compare_to_run_id"):
@@ -846,6 +906,8 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
     if gaps.is_file():
         manifest["gaps_sha256"] = hashlib.sha256(gaps.read_bytes()).hexdigest()
     write_flat_yaml(run_dir / "run.yaml", manifest)
+    if source_verification["status"] != "matched":
+        print(f"{source_verification['reason']}: Run {args.run} 已按 {final_status} 封存，有效结论 inconclusive", file=sys.stderr)
     print(args.run)
 
 

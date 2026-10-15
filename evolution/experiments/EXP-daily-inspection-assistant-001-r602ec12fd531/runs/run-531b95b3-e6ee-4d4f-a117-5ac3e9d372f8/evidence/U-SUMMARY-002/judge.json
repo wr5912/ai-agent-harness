@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回答按要求输出了一行四列表格（资产、状态、时间、来源），完整保留 TEST-ASSET-01、正常、2026-10-16 00:00，并在来源列及摘要中明确说明数据由用户提供、未实际查询或访问任何服务；工具事件为空，未新增工具调用，也未添加额外检查结论，与预期完全一致。"
+  },
+  "checks": {
+    "session_id": "session-af1e84ee-ebb4-4d70-a487-cc03981a3041",
+    "workspace_id": "65d76e06-831b-4f89-80e0-13515c75dc83",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "回复明确给出 Agent ID `daily-inspection-assistant` 与身份“日常巡检整理助手”，并说明职责为整理已提供的巡检基础数据、缺失信息时补问而非编造，边界与 Candidate 指令一致；全程未调用任何创建工具进行身份验证，工具事件为空，符合全部预期要求。"
+  },
+  "checks": {
+    "session_id": "session-b25e4a3f-31c1-4efa-9431-f19ef11fe389",
+    "workspace_id": "0c6c1375-e8a7-4fd0-b227-b1e292a42845",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

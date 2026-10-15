@@ -1,0 +1,65 @@
+{
+  "url": "http://10.0.160.32:3090/hap/",
+  "pages": [
+    {
+      "page": "home",
+      "visible": true
+    },
+    {
+      "page": "conversations",
+      "visible": true
+    },
+    {
+      "page": "agents",
+      "visible": true
+    },
+    {
+      "page": "evaluation",
+      "visible": true
+    },
+    {
+      "page": "instances",
+      "visible": true
+    },
+    {
+      "page": "mcp",
+      "visible": true
+    }
+  ],
+  "errors": [],
+  "desktopOverflow": false,
+  "mobileOverflow": false,
+  "cold_restore": {
+    "session_id": "session-7c24a6d1-fd0a-4184-97aa-091b05a85f21",
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off"
+    },
+    "running": false,
+    "sample_batches": 1
+  },
+  "fixed_baseline": {
+    "left": {
+      "label": "EXP-security-operations-expert-020 @ 189501d5f72c",
+      "source": "git:189501d5f72ca856664f556051d53d8a51063d13",
+      "experiment_id": "EXP-security-operations-expert-020",
+      "digest": "4ed79928f18238acd0eb275dd7f8e66f27264254020e39619d7f8c2002c44413"
+    },
+    "summary": {
+      "added": 11,
+      "removed": 0,
+      "modified": 44,
+      "unchanged": 158
+    }
+  },
+  "default_trace_role": "target",
+  "case_ids": [
+    "U-IDENTITY-001",
+    "U-ROLE-001",
+    "U-SUMMARY-001",
+    "U-SUMMARY-002"
+  ],
+  "decision": "# Decision\n\n- decision: continue\n- 范围：个人平台新建智能体、用例维护、真实模型评测与证据阅读验收。\n- 首次 Run：run-d8867c0c-4717-4f65-b61a-f88976cbab31，2 个 fast Case 通过；补充 Run：run-c067d20b-0a4c-48cb-a78d-5a6e03e6172a，新增 Run 来源用例并再次评测。\n- 保留首次研究版本作为基础演示；尚未证明真实外部巡检效果、训练效果或泛化能力。\n- 判定来自实际模型输出与同一路由辅助评审，不构成人员采纳或 Research Release。\n",
+  "checked_at": "2026-10-15T16:52:31.911Z"
+}

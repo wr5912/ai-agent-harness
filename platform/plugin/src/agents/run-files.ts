@@ -180,7 +180,7 @@ async function coverage(location: RunLocation, files: FileEntry[], signal?: Abor
   return { scope: 'Run 目录内所有已保存普通文件', missing: [...new Set(missing)], trace_present: tracePresent, attribution_status: attributionStatus, notes }
 }
 
-async function readLocalFile(location: RunLocation, path: string, signal?: AbortSignal) {
+async function readLocalFile(location: RunLocation, path: string, signal?: AbortSignal, maxBytes?: number) {
   checkCancelled(signal)
   const local = path.startsWith(`${location.path}/`) ? path.slice(location.path.length + 1) : path
   if (!local || local.startsWith('/') || local.includes('\\') || local.split('/').some(part => part === '..' || part === '.' || !part)) {
@@ -193,9 +193,17 @@ async function readLocalFile(location: RunLocation, path: string, signal?: Abort
   await assertNoLinks(location.root, file)
   if (!stat.isFile()) throw new RunFileError('path_rejected', '只能读取 Run 内的普通文件')
   if (local.endsWith('.llm-api-key')) throw new RunFileError('path_rejected', '凭据文件不作为 Run 证据导出')
+  if (maxBytes !== undefined && stat.size > maxBytes) throw new RunFileError('file_too_large', '证据文件超过本次读取上限', { path: `${location.path}/${local}`, size: stat.size, max_bytes: maxBytes })
   const data = await readFile(file, { signal })
   checkCancelled(signal)
   return { data, path: `${location.path}/${local}`, local }
+}
+
+/** 供确定性证据解析器使用；调用方必须在返回浏览器或模型前脱敏。 */
+export async function readRunEvidenceFile(root: string, runId: string, path: string, signal?: AbortSignal, maxBytes = 32 * 1024 * 1024) {
+  const location = await locateRun(root, runId, signal)
+  const file = await readLocalFile(location, path, signal, maxBytes)
+  return { ...file, source_sha256: sha256(file.data) }
 }
 
 export async function readRunReport(root: string, runId: string, signal?: AbortSignal) {

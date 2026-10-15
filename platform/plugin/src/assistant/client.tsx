@@ -188,7 +188,7 @@ const labels: Record<string, string> = {
 }
 const internalFields = new Set(['preview_id', 'proposal_id', 'assistant_session_id', 'catalog_hash', 'plan_ready', 'requires_confirmation', 'evaluation_sha256', 'candidate_sha256', 'source_sha256'])
 const technicalFields = new Set(['command', 'argv', 'cwd', 'stdout', 'stderr', 'logs', 'trace'])
-const actionLabels: Record<string, string> = { saveConfiguration: '保存 MCP 配置', callPublishedComposition: '执行固定版本工具组合', 'fusion/confirm': '新建融合版本', 'features/apply': '保存版本特性', 'edit/apply': '保存资产修改', 'eval/start': '执行评测', 'eval/cancel': '取消评测', run: '实例操作', batch: '批量实例操作' }
+const actionLabels: Record<string, string> = { saveConfiguration: '保存 MCP 配置', callPublishedComposition: '执行固定版本工具组合', 'fusion/confirm': '新建融合版本', 'features/apply': '保存版本特性', 'datasets/apply': '保存待复核决策样本', 'cases/create': '新增测试用例', new: '新建智能体', 'edit/apply': '保存资产修改', 'eval/start': '执行评测', 'eval/cancel': '取消评测', run: '实例操作', batch: '批量实例操作' }
 
 function unwrap(value: unknown): unknown {
   if (value && typeof value === 'object' && 'ok' in value && 'value' in value && value.ok === true) return value.value
@@ -204,6 +204,12 @@ function Details({ value }: { value: unknown }) {
 }
 
 function BusinessPreview({ value }: { value: unknown }) {
+  const dataset = unwrap(value) as any
+  if (dataset?.status === 'suggested' && Array.isArray(dataset.records)) return <div>
+    <p>从 Run <strong>{dataset.run_id}</strong> 提取了 {dataset.count} 条待复核候选。确认保存后，在 Run 的“决策样本”中逐条复核。</p>
+    {dataset.records.map((record: any) => <article key={record._meta.id}><strong>{record.questions.decision.instructions}</strong><p>建议标签：{String(record.questions.decision.label)}</p><p>{record._meta.label_basis}</p><details><summary>输入、候选与证据</summary><Details value={record}/></details></article>)}
+    {dataset.skipped?.length > 0 && <details><summary>跳过原因</summary><Details value={dataset.skipped}/></details>}
+  </div>
   const data = unwrap(value) as {
     action?: string; input?: { revision?: number; ops?: { op: string; path: (string | number)[]; value?: unknown }[] }
     agent_id?: string; parent_experiment_id?: string; parent_ref?: string; research_question?: string

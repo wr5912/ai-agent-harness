@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 from fnmatch import fnmatchcase
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import uuid
@@ -23,7 +25,7 @@ for import_root in (ADAPTER, EVALUATION_SCRIPTS):
         sys.path.insert(0, str(import_root))
 
 from evaluation_contract import execution_for, load_evaluation
-from scenario_analysis import analyze, review_full
+from scenario_analysis import ProcessCleanupError, analyze, review_full, run_cancellable_process
 from source_contract import resolve, strict_json
 
 
@@ -41,6 +43,43 @@ class EvaluationError(RuntimeError):
     pass
 
 
+_cancel_requested = False
+_defer_cancellation = 0
+
+
+def request_cancellation(_signum, _frame) -> None:
+    global _cancel_requested
+    if _cancel_requested:
+        return
+    _cancel_requested = True
+    if not _defer_cancellation:
+        raise KeyboardInterrupt
+
+
+@contextmanager
+def defer_cancellation():
+    """Run 初始化与封存不可被打断；初始化后在受清理保护的区块响应取消。"""
+    global _defer_cancellation
+    _defer_cancellation += 1
+    try:
+        yield
+    finally:
+        _defer_cancellation -= 1
+
+
+@contextmanager
+def allow_cancellation():
+    """仅在拥有 Run 的异常处理区块内立即响应取消。"""
+    global _defer_cancellation
+    _defer_cancellation -= 1
+    try:
+        if _cancel_requested:
+            raise KeyboardInterrupt
+        yield
+    finally:
+        _defer_cancellation += 1
+
+
 def progress(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
 
@@ -52,16 +91,8 @@ def run_process(
     input_text: str | None = None,
     env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        command,
-        cwd=REPO,
-        text=True,
-        input=input_text,
-        capture_output=True,
-        check=False,
-        timeout=timeout,
-        env=env,
-    )
+    return run_cancellable_process(command, cwd=REPO, input_text=input_text,
+                                   timeout=timeout, env=env)
 
 
 def checked_process(
@@ -404,6 +435,7 @@ def result_payload(
     instance_stopped: bool = True,
     verdict: str | None = None,
     executor: str | None = None,
+    cancelled: bool = False,
 ) -> dict:
     counts = {"total": total, "passed": 0, "failed": 0, "inconclusive": total}
     summary_ref = None
@@ -439,6 +471,7 @@ def result_payload(
         "summary": summary_ref,
         "report": report_ref,
         "instance_stopped": instance_stopped,
+        "cancelled": cancelled,
     }
 
 
@@ -475,83 +508,102 @@ def execute(args: argparse.Namespace) -> int:
         emit_result(contract["experiment_id"], len(cases), executor=args.executor)
         return 2
 
+    # 从创建 Run 到收尾返回始终持有取消所有权，只有实际执行阶段允许中断。
+    with defer_cancellation():
+        return execute_owned_run(args, contract, cases, selection_mode, review_mode)
+
+
+def execute_owned_run(args: argparse.Namespace, contract: dict, cases: list[dict],
+                      selection_mode: str, review_mode: str) -> int:
     progress("创建并锁定 Research Run")
     try:
         run_id = initialize_run(args.source, cases, args.executor, selection_mode, review_mode,
                                 args.model, args.compare_to)
+        run_dir = Path(contract["experiment_root"]) / "runs" / run_id
+        # 初始化后的冻结输入是执行与评审共同使用的事实源。
+        locked_inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+        cases = locked_inputs["evaluation_cases"]
+        progress(f"Research Run: {run_id}")
+        recorded: set[str] = set()
+        instance_name = f"{contract['agent_id']}-eval-{uuid.uuid4().hex[:8]}"
+        up_attempted = False
+        fatal_reason = None
+        interrupted = False
+        cleanup_failed = False
+        runtime_rows: dict[str, dict] = {}
+        stop_reason = None
     except EvaluationError as error:
         progress(f"创建 Run 失败：{error}")
         emit_result(contract["experiment_id"], len(cases), executor=args.executor)
         return 2
-    run_dir = Path(contract["experiment_root"]) / "runs" / run_id
-    # 初始化后的冻结输入是执行与评审共同使用的事实源。
-    locked_inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
-    cases = locked_inputs["evaluation_cases"]
-    progress(f"Research Run: {run_id}")
-    recorded: set[str] = set()
-    instance_name = f"{contract['agent_id']}-eval-{uuid.uuid4().hex[:8]}"
-    up_attempted = False
-    fatal_reason = None
-    interrupted = False
-    runtime_rows: dict[str, dict] = {}
-    stop_reason = None
     try:
-        progress("启动独立 DSH 评测实例")
-        up_attempted = True
-        image_identity = start_instance(args.source, instance_name)
-        if image_identity["image_build_fingerprint"] != contract["image"]["build_fingerprint"]:
-            raise EvaluationError("DSH 实际镜像身份与本次来源合同不一致")
-        write_json(run_dir / "evidence" / "dsh-image.json", {
-            "schema_version": "1.0",
-            "source_id": contract["source_id"],
-            "local_image_tag": image_identity["image_tag"],
-            "local_image_id": image_identity["image_id"],
-            "image_ref": image_identity["image_ref"],
-            "image_build_fingerprint": image_identity["image_build_fingerprint"],
-            "platform": image_identity["platform"],
-            "scope": "actual DSH evaluation runtime image identity; no semantic verdict",
-        })
-        auth_url = authentication_url(instance_name)
-        runtime_rows, stop_reason = normalize_runtime_rows(
-            run_driver(
-                args.executor, auth_url, cases, contract,
-                run_dir / "evidence", args.timeout_seconds, image_identity["image_ref"],
-            ),
-            cases,
-            args.executor,
-        )
-        stop_index = None
-        if stop_reason is not None:
-            stopped_case = next(reversed(runtime_rows))
-            stop_index = next(index for index, case in enumerate(cases) if case["case_id"] == stopped_case)
-            progress(f"{args.executor} 执行器停止：{stop_reason}")
-        for index, case in enumerate(cases):
-            value = write_unfinished_evidence(run_dir, case, stop_reason, "skipped") \
-                if stop_index is not None and index > stop_index else runtime_rows[case["case_id"]]
-            record_trial(run_id, case["case_id"], value)
-            recorded.add(case["case_id"])
-        inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
-        rows = [json.loads(line) for line in (run_dir / "results.jsonl").read_text(encoding="utf-8").splitlines()]
-        if review_mode == "ai":
-            progress("启动独立 DSH 分析实例，逐场景复核全部 Case 证据")
-            analysis = review_full(run_dir, rows, inputs, timeout_seconds=args.timeout_seconds)
-        else:
-            analysis = analyze(run_dir, rows, inputs, status="completed")
-        write_json(run_dir / "analysis.json", analysis)
-        if review_mode == "ai" and analysis["review_status"] != "completed":
-            raise EvaluationError(analysis["review_reason"])
+        with allow_cancellation():
+            progress("启动独立 DSH 评测实例")
+            up_attempted = True
+            image_identity = start_instance(args.source, instance_name)
+            if image_identity["image_build_fingerprint"] != contract["image"]["build_fingerprint"]:
+                raise EvaluationError("DSH 实际镜像身份与本次来源合同不一致")
+            write_json(run_dir / "evidence" / "dsh-image.json", {
+                "schema_version": "1.0",
+                "source_id": contract["source_id"],
+                "local_image_tag": image_identity["image_tag"],
+                "local_image_id": image_identity["image_id"],
+                "image_ref": image_identity["image_ref"],
+                "image_build_fingerprint": image_identity["image_build_fingerprint"],
+                "platform": image_identity["platform"],
+                "scope": "actual DSH evaluation runtime image identity; no semantic verdict",
+            })
+            auth_url = authentication_url(instance_name)
+            runtime_rows, stop_reason = normalize_runtime_rows(
+                run_driver(
+                    args.executor, auth_url, cases, contract,
+                    run_dir / "evidence", args.timeout_seconds, image_identity["image_ref"],
+                ),
+                cases,
+                args.executor,
+            )
+            stop_index = None
+            if stop_reason is not None:
+                stopped_case = next(reversed(runtime_rows))
+                stop_index = next(index for index, case in enumerate(cases) if case["case_id"] == stopped_case)
+                progress(f"{args.executor} 执行器停止：{stop_reason}")
+            for index, case in enumerate(cases):
+                value = write_unfinished_evidence(run_dir, case, stop_reason, "skipped") \
+                    if stop_index is not None and index > stop_index else runtime_rows[case["case_id"]]
+                with defer_cancellation():
+                    record_trial(run_id, case["case_id"], value)
+                    recorded.add(case["case_id"])
+                if _cancel_requested:
+                    raise KeyboardInterrupt
+            inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+            rows = [json.loads(line) for line in (run_dir / "results.jsonl").read_text(encoding="utf-8").splitlines()]
+            if review_mode == "ai":
+                progress("启动独立 DSH 分析实例，逐场景复核全部 Case 证据")
+                analysis = review_full(run_dir, rows, inputs, timeout_seconds=args.timeout_seconds)
+            else:
+                analysis = analyze(run_dir, rows, inputs, status="completed")
+            write_json(run_dir / "analysis.json", analysis)
+            if review_mode == "ai" and analysis["review_status"] != "completed":
+                raise EvaluationError(analysis["review_reason"])
     except KeyboardInterrupt:
         interrupted = True
         fatal_reason = "evaluation-interrupted"
     except EvaluationError as error:
         fatal_reason = str(error)
+    except ProcessCleanupError as error:
+        cleanup_failed = True
+        interrupted = _cancel_requested
+        fatal_reason = str(error)
     except Exception as error:
         fatal_reason = f"evaluation-runtime-{type(error).__name__}"
     finally:
-        stopped = stop_instance(instance_name) if up_attempted else True
+        stopped = (stop_instance(instance_name) if up_attempted else True) and not cleanup_failed
         if not stopped and fatal_reason is None:
             fatal_reason = "instance-stop-unconfirmed"
 
+    if _cancel_requested and fatal_reason is None:
+        interrupted = True
+        fatal_reason = "evaluation-interrupted"
     if fatal_reason:
         progress(f"评测未完整执行：{fatal_reason}")
         unfinished_status = "skipped" if interrupted else "error"
@@ -561,7 +613,7 @@ def execute(args: argparse.Namespace) -> int:
                     run_id, case["case_id"],
                     write_unfinished_evidence(run_dir, case, fatal_reason, unfinished_status),
                 )
-        finalize_run(run_id, "cancelled" if interrupted else "failed")
+        finalize_run(run_id, "cancelled" if interrupted and stopped else "failed")
         summary_path = run_dir / "summary.json"
         try:
             validate_after_run(contract)
@@ -571,6 +623,7 @@ def execute(args: argparse.Namespace) -> int:
             contract["experiment_id"], len(cases), run_id=run_id,
             summary_path=summary_path, instance_stopped=stopped, verdict="inconclusive",
             executor=args.executor,
+            cancelled=interrupted,
         )
         return 2
 
@@ -598,6 +651,7 @@ def execute(args: argparse.Namespace) -> int:
 
 
 def main() -> None:
+    global _cancel_requested
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, help="experiment:<id> 或已登记 Experiment ID")
     parser.add_argument("--mode", choices=("fast", "full"), default="fast", help="评测档位；默认 fast")
@@ -614,14 +668,24 @@ def main() -> None:
     args = parser.parse_args()
     if args.timeout_seconds < 10:
         parser.error("--timeout-seconds 不能小于 10")
+    _cancel_requested = False
+    previous_handlers = {name: signal.signal(name, request_cancellation)
+                         for name in (signal.SIGINT, signal.SIGTERM)}
     try:
         raise SystemExit(execute(args))
+    except KeyboardInterrupt:
+        # 尚未进入拥有 Run/实例的执行区块，此时没有待清理的业务实例。
+        emit_result(args.source.removeprefix("experiment:"), 0, executor=args.executor, cancelled=True)
+        raise SystemExit(2)
     except (EvaluationError, ValueError) as error:
         progress(f"dsh-eval failed: {error}")
         source = args.source.removeprefix("experiment:")
         experiment_id = source if source.startswith("EXP-") else None
         emit_result(experiment_id, 0, executor=args.executor)
         raise SystemExit(2)
+    finally:
+        for name, handler in previous_handlers.items():
+            signal.signal(name, handler)
 
 
 if __name__ == "__main__":

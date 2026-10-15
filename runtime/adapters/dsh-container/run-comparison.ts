@@ -5,9 +5,10 @@ import { posix } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
 type Trial = { execution_status: string; verdict: string; observation: string };
+type ActualRoute = { provider?: string | null; model?: string | null; reasoningEffort?: string | null };
 type Case = {
   case_id: string; frozen: unknown; trials: Trial[]; output: unknown;
-  actual_routes: Array<{ model?: string } | null> | null;
+  actual_routes: Array<ActualRoute | null> | null;
   registered_tools?: Array<string[] | null> | null;
   tool_calls?: Array<{ name: string | null; status: string; error_code?: string | null }>;
   review: { reviewed_verdict?: string; reason?: string } | null;
@@ -30,7 +31,11 @@ const cell = (item: unknown) => value(item).replaceAll('|', '\\|').replaceAll('\
 const link = (path: string, label: string) => `[${label}](${posix.relative(right.run_path, path)})`;
 const trialVerdicts = (item: Case) => item.trials.map(row => `${row.execution_status}/${row.verdict}`).join('、') || '未记录';
 const observation = (item: Case) => item.review?.reason || item.trials.map(row => row.observation).join('；') || '未记录';
-const models = (item: Case) => item.actual_routes?.map(route => route?.model).filter(Boolean) || [];
+const routeFields = ['provider', 'model', 'reasoningEffort'] as const;
+const routes = (item: Case) => item.actual_routes?.map(route =>
+  routeFields.map(field => route?.[field] ?? null)) ?? null;
+const routeLabels = (item: Case) => item.actual_routes?.map(route =>
+  `${value(route?.provider)} / ${value(route?.model)} / reasoningEffort=${value(route?.reasoningEffort)}`) || [];
 
 for (const field of ['executor', 'model'] as const) {
   const a = left.source[field], b = right.source[field];
@@ -67,9 +72,15 @@ const cases = shared.map(case_id => {
     if (!item.load_observation?.preset_matches || !item.load_observation?.workspace_matches)
       limit(`${case_id}: ${side} 缺少正确装载观察`);
   }
-  const aModels = models(a), bModels = models(b);
-  if (!aModels.length || !bModels.length) limit(`${case_id}: 缺少实际模型记录`);
-  else if (!isDeepStrictEqual(aModels, bModels)) limit(`${case_id}: 实际模型不同`);
+  for (const [side, item] of [['left', a], ['right', b]] as const) {
+    if (!item.actual_routes?.length) limit(`${case_id}: ${side} 缺少实际模型路由记录`);
+    item.actual_routes?.forEach((route, index) => {
+      const missing = routeFields.filter(field => typeof route?.[field] !== 'string' || !route[field]?.trim());
+      if (missing.length) limit(`${case_id}: ${side} 第 ${index + 1} 轮实际模型路由未记录 ${missing.join(' / ')}`);
+    });
+  }
+  if (!isDeepStrictEqual(routes(a), routes(b)))
+    limit(`${case_id}: 实际模型路由不同（provider / model / reasoningEffort）`);
   if (!a.trials.length || !b.trials.length) limit(`${case_id}: 缺少 Trial 结果`);
   for (const [side, item] of [['left', a], ['right', b]] as const) {
     if (item.tool_calls?.some(call => call.status !== 'ok')) limit(`${case_id}: ${side} 工具调用失败或结果未知`);
@@ -98,13 +109,13 @@ const causal_comparable = comparable && limits.length === 0;
 const sourceFacts = (run: View) => {
   const trees = Object.entries(run.source.candidate_trees || {})
     .map(([name, tree]: [string, any]) => `${name}: ${value(tree.tree_sha256)}`).join('<br>') || '未记录';
-  const actualModels = [...new Set(run.cases.flatMap(models))].join('、') || '未记录';
+  const actualModels = [...new Set(run.cases.flatMap(routeLabels))].join('、') || '未记录';
   return {
     'Run': link(`${run.run_path}/report.md`, run.run_id),
     'Git': `${cell(run.source.git_version?.commit)}；dirty=${cell(run.source.git_version?.dirty)}`,
     'Candidate': trees,
     '执行器 / 预期模型': `${cell(run.source.executor)} / ${cell(run.source.model)}`,
-    '实际模型': cell(actualModels),
+    '实际模型路由': cell(actualModels),
     '实际镜像': `${cell(run.image?.image_build_fingerprint)}；${cell(run.image?.local_image_id)}`,
     '插件配置 / 依赖变量': `${cell(run.source.candidate_trees?.managed?.tree_sha256)}；${cell(JSON.stringify(run.source.dependency_env || {}))}`,
     '硬件 / 资源消耗': '未记录',

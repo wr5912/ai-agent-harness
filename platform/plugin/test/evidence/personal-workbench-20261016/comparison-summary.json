@@ -1,0 +1,25 @@
+{
+  "left": "run-d8867c0c-4717-4f65-b61a-f88976cbab31",
+  "right": "run-c067d20b-0a4c-48cb-a78d-5a6e03e6172a",
+  "comparable": true,
+  "causal_comparable": false,
+  "limits": [
+    "model: 未记录",
+    "left: Git 来源不干净或未记录",
+    "right: Git 来源不干净或未记录",
+    "选择的 Case 集合不同"
+  ],
+  "cases": [
+    {
+      "id": "U-IDENTITY-001",
+      "frozen_contract_same": true
+    },
+    {
+      "id": "U-SUMMARY-001",
+      "frozen_contract_same": true
+    }
+  ],
+  "right_only": [
+    "U-SUMMARY-002"
+  ]
+}

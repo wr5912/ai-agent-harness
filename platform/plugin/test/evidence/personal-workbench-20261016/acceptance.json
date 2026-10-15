@@ -1,0 +1,56 @@
+{
+  "base_commit": "f0aeca73166d3902ff5d727d43dfce6b86ef8c7e",
+  "branch": "feat/PLATFORM-personal-workbench-datasets",
+  "dirty": true,
+  "tests": {
+    "total": 248,
+    "passed": 248,
+    "failed": 0,
+    "command": "PATH=<Node24>:/usr/bin:/bin pnpm test"
+  },
+  "repository_validation": {
+    "schema_version": "1.0",
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "scope": "仅校验项目与 Harness 资产合同；不代表 Experiment 结果或生产验收"
+  },
+  "experiment_validation": {
+    "schema_version": "1.0",
+    "experiment_id": "EXP-daily-inspection-assistant-001-r602ec12fd531",
+    "valid": true,
+    "errors": [],
+    "warnings": []
+  },
+  "datasets": [
+    {
+      "id": "decision-dataset-814d4b82-0ae3-4b47-8694-16c2c561d7a8",
+      "records": 2,
+      "source_sha256_matches": true,
+      "final_label_statuses": [
+        "suggested",
+        "suggested"
+      ]
+    },
+    {
+      "id": "decision-dataset-d60b1393-2fd7-4be4-bca3-d125c63e325e",
+      "records": 1,
+      "source_sha256_matches": true,
+      "final_label_statuses": [
+        "suggested"
+      ]
+    }
+  ],
+  "limits": [
+    "当前真实轨迹上下文为 reconstructed",
+    "自动UI复核验收结束后样本恢复待人员复核",
+    "两轮示例Run使用同一路由辅助语义判定",
+    "未选full用例、外部真实巡检、训练效果与完整远景功能未验收"
+  ],
+  "mock_service_modified": false,
+  "independent_review": {
+    "scope": "本轮平台功能及直接调用链",
+    "remaining_must_fix": 0,
+    "final_targeted_checks_passed": 25
+  }
+}

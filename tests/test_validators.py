@@ -1864,7 +1864,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             {"total": 2, "passed": 0, "failed": 0, "inconclusive": 2},
         )
 
-    def test_sigint_seals_cancelled_run_and_stops_instance(self) -> None:
+    def assert_signal_seals_cancelled_run(self, cancellation_signal: int) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             repository, env, command_log = self.runtime_fixture(root, mode="hang")
@@ -1885,7 +1885,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             while not ready.is_file() and process.poll() is None and time.monotonic() < deadline:
                 time.sleep(0.05)
             self.assertTrue(ready.is_file(), "浏览器替身未进入运行阶段")
-            process.send_signal(signal.SIGINT)
+            process.send_signal(cancellation_signal)
             stdout, stderr = process.communicate(timeout=30)
             payload = json.loads(stdout)
             run_dir = (repository / payload["summary"]).parent
@@ -1896,6 +1896,14 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertEqual(result["execution_status"], "skipped")
         self.assertIn('status: "cancelled"', manifest)
         self.assertEqual(commands, ["up", "url", "down"])
+        self.assertTrue(payload["cancelled"])
+        self.assertTrue(payload["instance_stopped"])
+
+    def test_sigint_seals_cancelled_run_and_stops_instance(self) -> None:
+        self.assert_signal_seals_cancelled_run(signal.SIGINT)
+
+    def test_sigterm_seals_cancelled_run_and_stops_instance(self) -> None:
+        self.assert_signal_seals_cancelled_run(signal.SIGTERM)
 
 
 class EvaluationSourceTests(unittest.TestCase):

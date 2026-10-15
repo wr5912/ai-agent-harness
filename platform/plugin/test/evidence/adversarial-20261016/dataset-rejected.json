@@ -1,0 +1,16 @@
+[
+  {
+    "dataset_id": "decision-dataset-d60b1393-2fd7-4be4-bca3-d125c63e325e",
+    "record_id": "decision-56dab7aab90cdb528a63f13f4d978d60",
+    "cutoff": 23,
+    "status": "rejected",
+    "reason": "题目引用当前cutoff之后才取得的事实"
+  },
+  {
+    "dataset_id": "decision-dataset-814d4b82-0ae3-4b47-8694-16c2c561d7a8",
+    "record_id": "decision-f601843e6cfb688ca25cec93c04cdab3",
+    "cutoff": 41,
+    "status": "rejected",
+    "reason": "当前为结果查询，题目却回忆已完成的模板选择"
+  }
+]

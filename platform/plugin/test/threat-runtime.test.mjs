@@ -306,15 +306,22 @@ test('跨阶段仍共享原30分钟预算，过期不调用模型并进入fail�
 })
 
 test('同一Run跨runtime并发infer由文件锁拒绝，完成后只重放结果', async () => {
-  let entered, release
+  let entered, release, first, entryTimer
+  const controller = new AbortController()
   const modelEntered = new Promise(resolve => { entered = resolve })
   const modelGate = new Promise(resolve => { release = resolve })
   const fx = await setup({ modelEntered: entered, modelGate })
   try {
     const collected = await fx.runtime.execute('collect', bindings, { incident_id: 'INC-20261015-000001' }, active())
+    assert.equal(collected.status, 'evidence_ready', JSON.stringify(collected))
     const input = { run_id: collected.run_id }
-    const first = fx.runtime.execute('infer', bindings, input, active())
-    await modelEntered
+    first = fx.runtime.execute('infer', bindings, input, controller.signal)
+    await Promise.race([
+      modelEntered,
+      first.then(result => assert.fail(`infer 在进入测试模型前结束：status=${result.status}, phase_status=${result.phase_status}`)),
+      new Promise((_, reject) => { entryTimer = setTimeout(() => reject(new Error('infer 在10秒内未进入测试模型')), 10_000) }),
+    ])
+    clearTimeout(entryTimer)
     const other = (await runtimeModule()).createThreatRuntime(repository, fx.services, { stateRoot: fx.stateRoot, python })
     await assert.rejects(() => other.execute('infer', bindings, input, active()), /threat_run_busy/)
     assert.equal((await other.inspect(collected.run_id)).trace.at(-1).status, 'running')
@@ -322,7 +329,13 @@ test('同一Run跨runtime并发infer由文件锁拒绝，完成后只重放结�
     assert.equal((await first).status, 'completed')
     assert.equal((await other.execute('infer', bindings, input, active())).replayed, true)
     assert.equal(fx.services.modelCalls, 1)
-  } finally { release(); await fx.cleanup() }
+  } finally {
+    clearTimeout(entryTimer)
+    release()
+    controller.abort()
+    await first?.catch(() => {})
+    await fx.cleanup()
+  }
 })
 
 test('模型只在首次infer解析冻结，collect模型字段不影响阶段配置', async () => {

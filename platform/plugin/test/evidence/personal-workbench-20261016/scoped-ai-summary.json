@@ -1,0 +1,122 @@
+{
+  "run_id": "run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017",
+  "session_id": "session-7c24a6d1-fd0a-4184-97aa-091b05a85f21",
+  "headers": [
+    {
+      "file": "session.v4.jsonl",
+      "model": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "reasoningEffort": "off",
+        "maxTokens": 256000
+      },
+      "tools": [
+        "platform_agents",
+        "skill"
+      ]
+    }
+  ],
+  "calls": [
+    {
+      "file": "session.v4.jsonl",
+      "name": "skill",
+      "skill": "decision-sample-extraction"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "platform_agents",
+      "action": "context"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "platform_agents",
+      "action": "datasets/preview"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "platform_agents",
+      "action": "datasets/preview"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "platform_agents",
+      "action": "datasets/list"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "platform_agents",
+      "action": "datasets/read"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "skill",
+      "skill": "research-eval"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "skill",
+      "skill": "dsh-platform-development"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "name": "platform_agents",
+      "action": "datasets/preview"
+    }
+  ],
+  "unexpected": [],
+  "saved": {
+    "dataset_id": "decision-dataset-814d4b82-0ae3-4b47-8694-16c2c561d7a8",
+    "count": 2,
+    "extractor": {
+      "session_id": "session-7c24a6d1-fd0a-4184-97aa-091b05a85f21",
+      "model": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "reasoningEffort": "off"
+      },
+      "skill": "decision-sample-extraction",
+      "skill_sha256": "16be18fae0fb152f3aea380f2d5655372048119bd4724cb6a6bc01b51dcdd6f7",
+      "format": "kev@85ccf56a0afb952323c621055b02876e8498d60c"
+    }
+  }
+}

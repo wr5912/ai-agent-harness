@@ -1,0 +1,15 @@
+{
+  "dataset_id": "decision-dataset-d60b1393-2fd7-4be4-bca3-d125c63e325e",
+  "records": 1,
+  "model": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "off"
+  },
+  "final_status": [
+    "suggested"
+  ],
+  "candidate_download": "decision-dataset-d60b1393-2fd7-4be4-bca3-d125c63e325e-candidates.jsonl",
+  "training_download": "decision-dataset-d60b1393-2fd7-4be4-bca3-d125c63e325e-reviewed-training.jsonl",
+  "training_review_is_automated_acceptance": true
+}

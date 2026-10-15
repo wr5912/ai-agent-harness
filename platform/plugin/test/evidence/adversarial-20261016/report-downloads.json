@@ -1,0 +1,20 @@
+[
+  {
+    "case_id": "U-INS-007",
+    "url": "http://127.0.0.1:53007/reports/report_4f937a7d2bc3493e85d8b52be5d4228d.html",
+    "status": 200,
+    "run_id": "inspection_3ce139c9c5e245638d34c5b369999c92",
+    "body_contains_run_id": true,
+    "contains_basic_mock": false,
+    "bytes": 559
+  },
+  {
+    "case_id": "U-THREAT-FAST-BASIC",
+    "url": "http://127.0.0.1:53007/reports/report_755a8610d9a54785b76cb8d6f4d47492.html",
+    "status": 200,
+    "run_id": "run-597392ba-e2d3-4f92-b6dd-2acc9617b379",
+    "body_contains_run_id": true,
+    "contains_basic_mock": false,
+    "bytes": 539
+  }
+]

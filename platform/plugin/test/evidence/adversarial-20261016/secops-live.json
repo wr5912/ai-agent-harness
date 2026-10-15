@@ -1,0 +1,331 @@
+{
+  "base": "http://127.0.0.1:3084/assistant/",
+  "experiment_id": "EXP-security-operations-expert-021-rdd331f9f2e30",
+  "results": [
+    {
+      "case_id": "U-INS-002",
+      "session_id": "session-8eccd3c6-2283-41c2-a7a6-bfaf82d43a42",
+      "inputs": [
+        "请列出当前可用的巡检项，只查询目录，不要执行巡检。"
+      ],
+      "turns": [
+        {
+          "assistant_text": "**结论**：目录中当前有 **1 个**可执行巡检项模板，本次仅查询目录，**未发起任何巡检**。\n\n| 字段 | 值 |\n|---|---|\n| 巡检名称 | 基础资产健康巡检 |\n| taskId | `mock-health-inspection` |\n| definitionVersion | 1 |\n| 巡检范围 | 当前全部测试资产（描述：检查当前资产清单中的全部测试资产） |\n| 巡检项 | 资产在线状态（`availability`）、采集连接状态（`collection`） |\n| 状态 | PUBLISHED，enabled = true |\n\n**说明与未知项**\n- 目录只包含已发布、已绑定启用任务且版本一致的模板，本次返回 total = 1，无其他条目。\n- 服务回执 message 为“基础模拟数据”，即上述目录来自模拟数据源。\n- “当前全部测试资产”的范围语义来自模板描述本身，实际覆盖的资产数量需在发起后由返回的 `scopeLabel` 与设备数量核对。\n\n**建议（尚未执行）**\n- 如需执行，可告知我使用该模板发起一次巡检；届时需确认范围（默认沿用任务范围，即当前全部测试资产）并提供稳定的 `requestId`，我会返回 `runId` 供后续按同一 `runId` 查询结果。\n- 如需周期巡检，需你明确巡检项、范围和周期，我再创建 DSH 提醒；提醒创建不等于巡检已执行。",
+          "route": {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off",
+            "maxTokens": 256000
+          },
+          "tool_names": [
+            "analyze_pending_threat_incidents",
+            "analyze_threat_incident",
+            "delegate_fault_analysis",
+            "delegate_response_planning",
+            "delegate_threat_analysis",
+            "edit",
+            "glob",
+            "grep",
+            "list_mcp_resource_templates",
+            "list_mcp_resources",
+            "mcp__emergency-action__cancel_emergency_action",
+            "mcp__emergency-action__get_emergency_action",
+            "mcp__emergency-action__get_emergency_action_result",
+            "mcp__emergency-action__list_emergency_actions",
+            "mcp__emergency-action__prepare_emergency_action",
+            "mcp__emergency-action__revise_emergency_action",
+            "mcp__inspection__get_inspection_result",
+            "mcp__inspection__list_executable_inspections",
+            "mcp__inspection__start_inspection",
+            "mcp__policy-configuration__choose_ambiguous_policy_endpoints",
+            "mcp__policy-configuration__get_policy_configuration_result",
+            "mcp__policy-configuration__get_policy_configuration_status",
+            "mcp__policy-configuration__prepare_policy_configuration",
+            "mcp__policy-configuration__resolve_policy_endpoints",
+            "mcp__policy-configuration__select_policy_configuration_candidate",
+            "mcp__sec-ops__get_event_by_id",
+            "mcp__sec-ops__get_graph_compliance_violations",
+            "mcp__sec-ops__get_graph_coverage",
+            "mcp__sec-ops__get_graph_flow_host_pair_ports",
+            "mcp__sec-ops__get_graph_node_detail",
+            "mcp__sec-ops__get_graph_path_query",
+            "mcp__sec-ops__get_graph_resolve_ip_host",
+            "mcp__sec-ops__get_ingest_devices_by_asset_by_asset_id",
+            "mcp__sec-ops__get_reachability_cross_signal",
+            "mcp__sec-ops__get_reachability_path_by_ip",
+            "mcp__sec-ops__get_soc_asset_biz_systems",
+            "mcp__sec-ops__get_soc_asset_by_asset_id",
+            "mcp__sec-ops__get_soc_asset_vulnerabilities",
+            "mcp__sec-ops__list_soc_asset",
+            "mcp__sec-ops__search_graph_assets",
+            "read",
+            "read_image",
+            "read_mcp_resource",
+            "schedule_create",
+            "schedule_delete",
+            "schedule_list",
+            "schedule_update",
+            "skill",
+            "write"
+          ],
+          "turn_reason": "completed",
+          "turn": 1,
+          "input_message_id": "5c0b1a91-d00f-4c3c-932f-464491df68ec"
+        }
+      ],
+      "calls": [
+        {
+          "name": "skill",
+          "arguments": "{\"name\": \"security-inspection\"}"
+        },
+        {
+          "name": "mcp__inspection__list_executable_inspections",
+          "arguments": "{}"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "case_id": "U-INS-007",
+      "session_id": "session-5f516469-6ad5-4f32-8a3b-ee9767a130a8",
+      "inputs": [
+        "执行一次常规巡检；如果暂未完成，请告诉我运行标识。",
+        "请继续查询刚才的巡检结果。"
+      ],
+      "turns": [
+        {
+          "assistant_text": "巡检已完成，报告就绪。\n\n## 结论\n\n**例行巡检正常。** 本次巡检使用目录中唯一匹配的已发布模板「基础资产健康巡检」（`mock-health-inspection` v1），范围为「当前全部测试资产」，共覆盖 3 个测试资产、3 个采集设备。\n\n| 巡检项 | 状态 | 数量 |\n|---|---|---|\n| 资产在线状态 | NORMAL | 3 |\n| 采集连接状态 | NORMAL | 3 |\n\n`conclusionStatus` 为 `NORMAL`，服务摘要为“例行检查正常，测试资产与采集连接均在线”，报告正文：测试资产在线，采集连接正常（仅提供基础模拟数据）。返回 `assetCount` 与 `deviceCount` 均为 3，与模板范围标签一致。\n\n## 运行标识\n\n- **runId**：`inspection_3ce139c9c5e245638d34c5b369999c92`\n- requestId：`routine-inspection-20261015-1724`\n- 状态：`COMPLETED`，`reportReady = true`\n- 报告下载地址（服务原样返回）：http://127.0.0.1:53007/reports/report_4f937a7d2bc3493e85d8b52be5d4228d.html\n\n## 说明与未执行项\n\n- 本次结果来自基础模拟数据（`simulated: true`、`reportKind: basic_mock`、`originalContentStored: false`），并非真实生产环境的巡检证据。\n- 巡检项仅覆盖资产在线状态与采集连接状态，不包含漏洞、合规、策略等其他维度；「正常」只针对这两项，不代表资产整体无风险。\n- 我只执行了这一次巡检；未创建周期任务，未做任何处置动作。如需周期性巡检，请明确给出巡检项、范围和周期（周期巡检需你明确授权后才会创建 DSH 提醒，届时提醒本身也不等于已执行巡检）。",
+          "route": {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off",
+            "maxTokens": 256000
+          },
+          "tool_names": [
+            "analyze_pending_threat_incidents",
+            "analyze_threat_incident",
+            "delegate_fault_analysis",
+            "delegate_response_planning",
+            "delegate_threat_analysis",
+            "edit",
+            "glob",
+            "grep",
+            "list_mcp_resource_templates",
+            "list_mcp_resources",
+            "mcp__emergency-action__cancel_emergency_action",
+            "mcp__emergency-action__get_emergency_action",
+            "mcp__emergency-action__get_emergency_action_result",
+            "mcp__emergency-action__list_emergency_actions",
+            "mcp__emergency-action__prepare_emergency_action",
+            "mcp__emergency-action__revise_emergency_action",
+            "mcp__inspection__get_inspection_result",
+            "mcp__inspection__list_executable_inspections",
+            "mcp__inspection__start_inspection",
+            "mcp__policy-configuration__choose_ambiguous_policy_endpoints",
+            "mcp__policy-configuration__get_policy_configuration_result",
+            "mcp__policy-configuration__get_policy_configuration_status",
+            "mcp__policy-configuration__prepare_policy_configuration",
+            "mcp__policy-configuration__resolve_policy_endpoints",
+            "mcp__policy-configuration__select_policy_configuration_candidate",
+            "mcp__sec-ops__get_event_by_id",
+            "mcp__sec-ops__get_graph_compliance_violations",
+            "mcp__sec-ops__get_graph_coverage",
+            "mcp__sec-ops__get_graph_flow_host_pair_ports",
+            "mcp__sec-ops__get_graph_node_detail",
+            "mcp__sec-ops__get_graph_path_query",
+            "mcp__sec-ops__get_graph_resolve_ip_host",
+            "mcp__sec-ops__get_ingest_devices_by_asset_by_asset_id",
+            "mcp__sec-ops__get_reachability_cross_signal",
+            "mcp__sec-ops__get_reachability_path_by_ip",
+            "mcp__sec-ops__get_soc_asset_biz_systems",
+            "mcp__sec-ops__get_soc_asset_by_asset_id",
+            "mcp__sec-ops__get_soc_asset_vulnerabilities",
+            "mcp__sec-ops__list_soc_asset",
+            "mcp__sec-ops__search_graph_assets",
+            "read",
+            "read_image",
+            "read_mcp_resource",
+            "schedule_create",
+            "schedule_delete",
+            "schedule_list",
+            "schedule_update",
+            "skill",
+            "write"
+          ],
+          "turn_reason": "completed",
+          "turn": 1,
+          "input_message_id": "6771aeee-8fc2-40a9-aa2b-b5cf463de78e"
+        },
+        {
+          "assistant_text": "按原 `runId` 续查完成，结果与上一轮一致，无新增变化。\n\n## 当前状态\n\n- **runId**：`inspection_3ce139c9c5e245638d34c5b369999c92`（沿用首次发起时的标识，未重新发起巡检）\n- requestId：`routine-inspection-20261015-1724`\n- 状态：`COMPLETED`，`reportReady = true`\n- `conclusionStatus`：`NORMAL`\n- 范围：当前全部测试资产（`scopeLabel`），资产 3、采集设备 3\n\n| 巡检项 | 状态 | 数量 |\n|---|---|---|\n| 资产在线状态 | NORMAL | 3 |\n| 采集连接状态 | NORMAL | 3 |\n\n服务摘要：例行检查正常，测试资产与采集连接均在线。报告正文：测试资产在线，采集连接正常（仅提供基础模拟数据）。\n\n报告下载地址（服务原样返回的绝对地址）：\nhttp://127.0.0.1:53007/reports/report_4f937a7d2bc3493e85d8b52be5d4228d.html\n\n## 说明\n\n- 该运行已终结，续查不会再产生新内容；本次查询结果与上轮完全相同。\n- 结果仍为**基础模拟数据**（`simulated: true`、`reportKind: basic_mock`、`originalContentStored: false`），不是真实生产环境证据。\n- 巡检项仅覆盖资产在线与采集连接两项，“正常”不代表资产整体无其他风险。\n- 本轮只做了结果查询，未重新发起巡检，也未执行任何处置动作。",
+          "route": {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off",
+            "maxTokens": 256000
+          },
+          "tool_names": [
+            "analyze_pending_threat_incidents",
+            "analyze_threat_incident",
+            "delegate_fault_analysis",
+            "delegate_response_planning",
+            "delegate_threat_analysis",
+            "edit",
+            "glob",
+            "grep",
+            "list_mcp_resource_templates",
+            "list_mcp_resources",
+            "mcp__emergency-action__cancel_emergency_action",
+            "mcp__emergency-action__get_emergency_action",
+            "mcp__emergency-action__get_emergency_action_result",
+            "mcp__emergency-action__list_emergency_actions",
+            "mcp__emergency-action__prepare_emergency_action",
+            "mcp__emergency-action__revise_emergency_action",
+            "mcp__inspection__get_inspection_result",
+            "mcp__inspection__list_executable_inspections",
+            "mcp__inspection__start_inspection",
+            "mcp__policy-configuration__choose_ambiguous_policy_endpoints",
+            "mcp__policy-configuration__get_policy_configuration_result",
+            "mcp__policy-configuration__get_policy_configuration_status",
+            "mcp__policy-configuration__prepare_policy_configuration",
+            "mcp__policy-configuration__resolve_policy_endpoints",
+            "mcp__policy-configuration__select_policy_configuration_candidate",
+            "mcp__sec-ops__get_event_by_id",
+            "mcp__sec-ops__get_graph_compliance_violations",
+            "mcp__sec-ops__get_graph_coverage",
+            "mcp__sec-ops__get_graph_flow_host_pair_ports",
+            "mcp__sec-ops__get_graph_node_detail",
+            "mcp__sec-ops__get_graph_path_query",
+            "mcp__sec-ops__get_graph_resolve_ip_host",
+            "mcp__sec-ops__get_ingest_devices_by_asset_by_asset_id",
+            "mcp__sec-ops__get_reachability_cross_signal",
+            "mcp__sec-ops__get_reachability_path_by_ip",
+            "mcp__sec-ops__get_soc_asset_biz_systems",
+            "mcp__sec-ops__get_soc_asset_by_asset_id",
+            "mcp__sec-ops__get_soc_asset_vulnerabilities",
+            "mcp__sec-ops__list_soc_asset",
+            "mcp__sec-ops__search_graph_assets",
+            "read",
+            "read_image",
+            "read_mcp_resource",
+            "schedule_create",
+            "schedule_delete",
+            "schedule_list",
+            "schedule_update",
+            "skill",
+            "write"
+          ],
+          "turn_reason": "completed",
+          "turn": 2,
+          "input_message_id": "e46b4cfc-d0c3-41c0-a21c-4b43d9891fae"
+        }
+      ],
+      "calls": [
+        {
+          "name": "skill",
+          "arguments": "{\"name\": \"security-inspection\"}"
+        },
+        {
+          "name": "mcp__inspection__list_executable_inspections",
+          "arguments": "{}"
+        },
+        {
+          "name": "mcp__inspection__start_inspection",
+          "arguments": "{\"taskId\": \"mock-health-inspection\", \"definitionVersion\": 1, \"requestId\": \"routine-inspection-20261015-1724\"}"
+        },
+        {
+          "name": "mcp__inspection__get_inspection_result",
+          "arguments": "{\"runId\": \"inspection_3ce139c9c5e245638d34c5b369999c92\"}"
+        },
+        {
+          "name": "mcp__inspection__get_inspection_result",
+          "arguments": "{\"runId\": \"inspection_3ce139c9c5e245638d34c5b369999c92\"}"
+        },
+        {
+          "name": "mcp__inspection__get_inspection_result",
+          "arguments": "{\"runId\": \"inspection_3ce139c9c5e245638d34c5b369999c92\"}"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "case_id": "U-THREAT-MISSING",
+      "session_id": "session-52f115f4-d4f7-4206-9262-a9d47b52a253",
+      "inputs": [
+        "请研判威胁事件。"
+      ],
+      "turns": [
+        {
+          "assistant_text": "The request \"研判威胁事件\" has no event ID, which the skill requires.\n\n**缺少事件 ID，无法开始研判。**\n\n请提供需要研判的威胁事件 ID，格式为 `INC-YYYYMMDD-NNNNNN`（例如 `INC-20261015-000001`）。\n\n补充说明：\n- 该路由只针对明确的单个事件 ID 执行固定取证与研判流程；没有有效 ID 时我不能自行查找、猜测或用其他查询代替。\n- 若你有多个 ID，可以一次全部给出，我会逐一分派（每个 ID 一次，不做改写）。\n- 若你手上还没有具体 ID，请说明你实际想做的事（例如资产可达性排查、巡检能力查询、恢复规划等），我再按对应路由处理。\n\n尚未执行任何研判调用。",
+          "route": {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off",
+            "maxTokens": 256000
+          },
+          "tool_names": [
+            "analyze_pending_threat_incidents",
+            "analyze_threat_incident",
+            "delegate_fault_analysis",
+            "delegate_response_planning",
+            "delegate_threat_analysis",
+            "edit",
+            "glob",
+            "grep",
+            "list_mcp_resource_templates",
+            "list_mcp_resources",
+            "mcp__emergency-action__cancel_emergency_action",
+            "mcp__emergency-action__get_emergency_action",
+            "mcp__emergency-action__get_emergency_action_result",
+            "mcp__emergency-action__list_emergency_actions",
+            "mcp__emergency-action__prepare_emergency_action",
+            "mcp__emergency-action__revise_emergency_action",
+            "mcp__inspection__get_inspection_result",
+            "mcp__inspection__list_executable_inspections",
+            "mcp__inspection__start_inspection",
+            "mcp__policy-configuration__choose_ambiguous_policy_endpoints",
+            "mcp__policy-configuration__get_policy_configuration_result",
+            "mcp__policy-configuration__get_policy_configuration_status",
+            "mcp__policy-configuration__prepare_policy_configuration",
+            "mcp__policy-configuration__resolve_policy_endpoints",
+            "mcp__policy-configuration__select_policy_configuration_candidate",
+            "mcp__sec-ops__get_event_by_id",
+            "mcp__sec-ops__get_graph_compliance_violations",
+            "mcp__sec-ops__get_graph_coverage",
+            "mcp__sec-ops__get_graph_flow_host_pair_ports",
+            "mcp__sec-ops__get_graph_node_detail",
+            "mcp__sec-ops__get_graph_path_query",
+            "mcp__sec-ops__get_graph_resolve_ip_host",
+            "mcp__sec-ops__get_ingest_devices_by_asset_by_asset_id",
+            "mcp__sec-ops__get_reachability_cross_signal",
+            "mcp__sec-ops__get_reachability_path_by_ip",
+            "mcp__sec-ops__get_soc_asset_biz_systems",
+            "mcp__sec-ops__get_soc_asset_by_asset_id",
+            "mcp__sec-ops__get_soc_asset_vulnerabilities",
+            "mcp__sec-ops__list_soc_asset",
+            "mcp__sec-ops__search_graph_assets",
+            "read",
+            "read_image",
+            "read_mcp_resource",
+            "schedule_create",
+            "schedule_delete",
+            "schedule_list",
+            "schedule_update",
+            "skill",
+            "write"
+          ],
+          "turn_reason": "completed",
+          "turn": 1,
+          "input_message_id": "08ab5f38-15ce-4c06-9980-a2b88e64df84"
+        }
+      ],
+      "calls": [
+        {
+          "name": "skill",
+          "arguments": "{\"name\": \"threat-analysis\"}"
+        }
+      ],
+      "errors": []
+    }
+  ]
+}

@@ -3,6 +3,8 @@ import { CHANNEL } from '../protocol.ts'
 import type { PlatformNavigation, PlatformPageProps } from '../protocol.ts'
 import type { PlatformUpdates } from '../realtime/client.ts'
 import { instanceWebUrl } from '../instances/url.ts'
+import { AssetDiffPanel } from './asset-diff-client.tsx'
+import { CreateAgentDialog } from './create-agent-client.tsx'
 
 type RpcResult = { ok: true; value: any } | { ok: false; error: { code: string; message: string; details?: any } }
 type AgentRow = { id: string; name?: string; manifest?: Record<string, any>; active_experiment?: string | null; version_count?: number; latest_experiment_status?: string | null; instance_state?: string }
@@ -75,6 +77,8 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
   const [launchPort, setLaunchPort] = useState('')
   const [launchMessage, setLaunchMessage] = useState('')
   const [launchBusy, setLaunchBusy] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [diffOpen, setDiffOpen] = useState(false)
   const detailRequest = useRef(0)
   const selectionRequest = useRef(0)
   const versionPreviewRequest = useRef(0)
@@ -119,6 +123,7 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
     setVersionProposal(null)
     setFeatureProposal(null)
     setLaunch(null)
+    setDiffOpen(false)
     setLaunchBusy(false)
     selectEditFile('')
     if (notify && experimentId) navigateSelection(agentId, experimentId, nextTab)
@@ -437,7 +442,7 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
     <div style={{ minWidth: 0, display: 'grid', gap: 16 }}>
       <header className="agent-page-heading">
         <div><h1>智能体管理</h1><p>管理研究版本与 Harness 资产，查看能力证据和运行情况。</p></div>
-        <button type="button" onClick={() => { void refreshList(); void refreshDetail() }}>刷新</button>
+        <div className="agent-actions"><button type="button" onClick={() => setCreateOpen(true)}>新建智能体</button><button type="button" onClick={() => { void refreshList(); void refreshDetail() }}>刷新</button></div>
       </header>
       {error && <p role="alert" className="agent-error">{error}</p>}
       <section className="harness-agent-layout">
@@ -535,7 +540,8 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
             {versionRuns.length ? <div className="harness-table-scroll"><table aria-label="所选版本 Run"><thead><tr><th>Run</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>{versionRuns.map((run: any) => <tr key={run.id ?? run.run_id}><td>{run.id ?? run.run_id}</td><td>{run.status || '未记录'}</td><td>{run.created_at ? new Date(run.created_at).toLocaleString() : '未记录'}</td><td><button type="button" disabled={!onNavigate} onClick={() => openEvaluation('runs', run.id ?? run.run_id)}>查看报告</button></td></tr>)}</tbody></table></div> : <p className="agent-empty">所选版本暂无 Run 记录。</p>}
           </section>}
           {detail && <section role="tabpanel" id="agent-panel-assets" aria-labelledby="agent-tab-assets" hidden={tab !== 'assets'} style={panel}>
-            <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>智能体资产</h2>
+            <div className="agent-section-heading"><h2 style={{ fontSize: 16, margin: '0 0 12px' }}>智能体资产</h2><button type="button" onClick={() => setDiffOpen(value => !value)}>{diffOpen ? '收起资产差异' : '查看资产差异'}</button></div>
+            {diffOpen && <AssetDiffPanel key={detail.experiment.id} rpc={rpc} experimentId={detail.experiment.id} versions={detail.versions} baseline={detail.baseline} onClose={() => setDiffOpen(false)} />}
             <div className="harness-asset-layout">
               <nav aria-label="智能体资产目录"><AssetTree nodes={detail.assets ?? []} selected={editPath} onSelect={path => { if (path !== editPath && discardAssetDraft()) selectEditFile(path) }} /></nav>
               <article><h3>资产详情</h3><p>{editPath || '请选择资产'}</p>{/(^|\/)evaluation(?:\.md|\/|$)/.test(editPath) && <p><button type="button" disabled={!onNavigate} onClick={() => openEvaluation('cases')}>到评测中心管理用例</button></p>}{/(^|\/)decision\.md$/.test(editPath) && <p><button type="button" disabled={!onNavigate} onClick={() => openEvaluation('compare')}>到评测中心比较结果与记录决策</button></p>}
@@ -568,6 +574,7 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
           </dialog>
         </section>
       </section>
+      {createOpen && <CreateAgentDialog rpc={rpc} active={active} onClose={() => setCreateOpen(false)} onCreated={() => { void refreshList() }} onSelect={receipt => { if (selectVersion(receipt.agent_id, receipt.experiment_id)) setCreateOpen(false) }} />}
     </div>
   </main>
 }

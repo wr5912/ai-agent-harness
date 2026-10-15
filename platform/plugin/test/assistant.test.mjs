@@ -305,3 +305,53 @@ test('URL 用户信息及查询凭据在写提案前拒绝，查询、上下文�
   // 恢复内存夹具，便于正常释放原生投影。
   f.services.controller.resolveAgent = async sessionId => ({ agent: { session: f.sessions.get(sessionId).session } })
 })
+
+test('决策抽取预览使用当前真实请求模型和固定 Run，AI 不能自行把标签标为人员复核', async t => {
+  const f = fixture(t)
+  const runId = 'run-11111111-1111-4111-8111-111111111111'
+  const id = (await f.rpc('session', { task: '抽取决策样本', context: { run_id: runId } })).value.session_id
+  const route = { provider: 'deepseek-official', model: 'deepseek-flash', reasoningEffort: 'off' }
+  f.sessions.get(id).session.append('request/header', { header: { config: { ...route, apiKey: 'fixture-private-model-key' } }, reason: 'initial' })
+  await f.reload()
+  const input = Object.freeze({ run_id: runId, path: 'evidence/U-BASIC-001/trace.jsonl', source_sha256: 'a'.repeat(64), samples: [], assistant_session_id: 'model-supplied-owner', assistant_model: { model: 'model-supplied-route' } })
+  await f.execute(id, 'agents', 'datasets/preview', input)
+  const call = f.calls.find(item => item.endpoint === 'agents/datasets/preview')
+  assert.deepEqual(call.input.assistant_model, route)
+  assert.equal(call.input.assistant_session_id, id)
+  assert.equal(input.assistant_session_id, 'model-supplied-owner', '不得修改被冻结的模型工具入参')
+  assert.ok(!JSON.stringify(call.input).includes('fixture-private-model-key'))
+  assert.equal(f.tools.get('platform_agents').parameters.properties.action.enum.includes('datasets/update'), false)
+  await assert.rejects(f.execute(id, 'agents', 'datasets/update', { label_status: 'reviewed' }), /未知的领域操作/)
+  await f.rpc('context', { session_id: id, context: { run_id: 'run-22222222-2222-4222-8222-222222222222' } })
+  await assert.rejects(f.execute(id, 'agents', 'datasets/preview', { ...input, run_id: 'run-22222222-2222-4222-8222-222222222222' }), /固定任务上下文/)
+  assert.equal(f.calls.filter(item => item.endpoint === 'agents/datasets/preview').length, 1)
+})
+
+test('AI 决策样本预览经原生确认后仅携原 owner 保存一次，取消提案不写数据集', async t => {
+  const f = fixture(t, (endpoint, input) => endpoint === 'agents/datasets/preview' ? { ok: true, value: { preview_id: `preview-${input.assistant_session_id}`, count: 1, status: 'suggested', records: [{ _meta: { label_status: 'suggested' } }] } } : undefined)
+  const runId = 'run-11111111-1111-4111-8111-111111111111'
+  const id = (await f.rpc('session', { task: '抽取样本', context: { run_id: runId } })).value.session_id
+  const operation = f.execute(id, 'agents', 'datasets/preview', { run_id: runId, samples: [] })
+  const proposed = await f.proposal(id)
+  assert.equal(proposed.action, 'datasets/apply')
+  assert.equal(proposed.owner_session_id, id)
+  assert.equal(proposed.input.assistant_session_id, id)
+  assert.equal(proposed.preview.records[0]._meta.label_status, 'suggested')
+  assert.equal(f.calls.filter(item => item.endpoint === 'agents/datasets/apply').length, 0)
+  const other = (await f.rpc('session', {})).value.session_id
+  assert.equal((await f.rpc('confirm', { session_id: other, proposal_id: proposed.id })).ok, false)
+  await f.rpc('confirm', { session_id: id, proposal_id: proposed.id })
+  assert.equal((await operation).state, 'completed')
+  await f.rpc('confirm', { session_id: id, proposal_id: proposed.id })
+  const saved = f.calls.filter(item => item.endpoint === 'agents/datasets/apply')
+  assert.equal(saved.length, 1)
+  assert.equal(saved[0].input.assistant_session_id, id)
+  assert.equal(saved[0].input.preview_id, proposed.input.preview_id)
+  const cancelId = (await f.rpc('session', { task: '抽取但取消', context: { run_id: runId } })).value.session_id
+  const cancelled = f.execute(cancelId, 'agents', 'datasets/preview', { run_id: runId, samples: [] })
+  const cancelProposal = await f.proposal(cancelId)
+  await f.rpc('cancel', { session_id: cancelId })
+  assert.equal((await cancelled).state, 'cancelled')
+  await f.rpc('confirm', { session_id: cancelId, proposal_id: cancelProposal.id })
+  assert.equal(f.calls.filter(item => item.endpoint === 'agents/datasets/apply').length, 1)
+})

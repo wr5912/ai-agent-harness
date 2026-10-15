@@ -103,6 +103,35 @@ def valid_id_list(values: object, *, nonempty: bool = False) -> bool:
         and len(values) == len(set(values))
 
 
+def valid_source_verification(value: object) -> bool:
+    if not isinstance(value, dict) or set(value) != {"status", "reason", "checks"}:
+        return False
+    checks = value["checks"]
+    if not isinstance(checks, list) or len(checks) != 4 \
+            or any(not isinstance(item, dict) or not isinstance(item.get("component"), str) for item in checks) \
+            or {item["component"] for item in checks} != {"candidate", "workspace", "presets", "managed"}:
+        return False
+    for item in checks:
+        expected, actual, status = item.get("expected_sha256"), item.get("actual_sha256"), item.get("status")
+        if expected is not None and not (isinstance(expected, str) and re.fullmatch(r"[0-9a-f]{64}", expected)):
+            return False
+        hashes = all(isinstance(digest, str) and bool(re.fullmatch(r"[0-9a-f]{64}", digest))
+                     for digest in (expected, actual))
+        if status == "matched" and hashes and expected == actual \
+                or status == "changed" and hashes and expected != actual:
+            if set(item) != {"component", "status", "expected_sha256", "actual_sha256"}:
+                return False
+        elif status == "unavailable" and actual is None and isinstance(item.get("error_type"), str):
+            if set(item) != {"component", "status", "expected_sha256", "actual_sha256", "error_type"}:
+                return False
+        else:
+            return False
+    statuses = {item["status"] for item in checks}
+    status = "changed" if "changed" in statuses else "unavailable" if "unavailable" in statuses else "matched"
+    reason = "source-changed" if status == "changed" else "source-unavailable" if status == "unavailable" else None
+    return value["status"] == status and value["reason"] == reason
+
+
 def material_evidence(run_dir: Path, value: object) -> bool:
     if not isinstance(value, str) or not value.strip():
         return False
@@ -386,6 +415,12 @@ def validate_run(
                     "reviewed_overall_verdict": review["overall_verdict"],
                     "effective_verdict": effective,
                 }
+                if "source_verification" in summary:
+                    verification = summary["source_verification"]
+                    if not valid_source_verification(verification) \
+                            or status == "completed" and verification.get("status") != "matched":
+                        errors.append(issue("RUN_SOURCE_VERIFICATION", "来源核对记录无效或未匹配来源却标记 completed", summary_path))
+                    expected_summary["source_verification"] = verification
             if summary != expected_summary:
                 errors.append(issue("RUN_SUMMARY_CONTENT", "summary.json 与逐项结果不一致", summary_path))
     if status in {"completed", "failed", "cancelled"}:

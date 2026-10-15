@@ -1,0 +1,22 @@
+{
+  "dataset_id": "decision-dataset-924b5b90-2e16-4008-93ac-ca771641bcfb",
+  "records": [
+    {
+      "id": "decision-7cbe681728a1923a5383d620e0379bcf",
+      "cutoff": 23,
+      "status": "suggested",
+      "decision_time_reviewed": false
+    },
+    {
+      "id": "decision-19726c7d70f9c64f14b570686faeb558",
+      "cutoff": 34,
+      "status": "suggested",
+      "decision_time_reviewed": false
+    }
+  ],
+  "unchecked_review_disabled": true,
+  "edit_resets_check": true,
+  "download_count": 1,
+  "final_status": "suggested",
+  "scope": "自动界面合同验收后恢复待人员复核，不当作人工真值"
+}

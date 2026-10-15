@@ -1,0 +1,362 @@
+{
+  "observed_at": "2026-10-15T17:20:48.336Z",
+  "instance": "secops-fusion-021",
+  "operation": "MCP管理插件同一原生settings/mutate API；仅变更四个servers.url",
+  "namespace": "mcp-session-manager",
+  "revision_before": 0,
+  "revision_after": 1,
+  "changes": [
+    {
+      "id": "policy-configuration",
+      "from": "http://127.0.0.1:53002/mcp/policy-configuration/",
+      "to": "http://127.0.0.1:53007/mcp/policy-configuration/"
+    },
+    {
+      "id": "emergency-action",
+      "from": "http://127.0.0.1:53002/mcp/emergency-action/",
+      "to": "http://127.0.0.1:53007/mcp/emergency-action/"
+    },
+    {
+      "id": "sec-ops",
+      "from": "http://127.0.0.1:53002/mcp/sec-ops/",
+      "to": "http://127.0.0.1:53007/mcp/sec-ops/"
+    },
+    {
+      "id": "inspection",
+      "from": "http://127.0.0.1:53005/mcp/inspection/",
+      "to": "http://127.0.0.1:53007/mcp/inspection/"
+    }
+  ],
+  "unrelated_config_unchanged": true,
+  "groups_unchanged": true,
+  "shared_token_unchanged": true,
+  "kept_servers": [
+    {
+      "id": "ai-soc-correlate",
+      "url": "http://127.0.0.1:53008/mcp/ai-soc-correlate/"
+    },
+    {
+      "id": "ai-soc-detect",
+      "url": "http://127.0.0.1:53008/mcp/ai-soc-detect/"
+    },
+    {
+      "id": "ai-soc-event",
+      "url": "http://127.0.0.1:53008/mcp/ai-soc-event/"
+    },
+    {
+      "id": "ai-soc-master",
+      "url": "http://127.0.0.1:53008/mcp/ai-soc-master/"
+    },
+    {
+      "id": "ai-soc-ingest",
+      "url": "http://127.0.0.1:53008/mcp/ai-soc-ingest/"
+    },
+    {
+      "id": "ai-soc-graph",
+      "url": "http://127.0.0.1:53008/mcp/ai-soc-graph/"
+    },
+    {
+      "id": "report-write",
+      "url": "http://127.0.0.1:53008/mcp/report-write/"
+    }
+  ],
+  "mock": {
+    "origin": "http://127.0.0.1:53007",
+    "source_commit": "50575526b05b303d39ccc3cd0bfa95fba3234128",
+    "tmux": "secops-fusion-mock-53007",
+    "log": "/tmp/secops-fusion-mock-53007.log",
+    "pid": 1059797,
+    "stop_command": "tmux kill-session -t secops-fusion-mock-53007"
+  },
+  "discovery": [
+    {
+      "id": "policy-configuration",
+      "ok": true,
+      "tool_names": [
+        "resolve_policy_endpoints",
+        "choose_ambiguous_policy_endpoints",
+        "prepare_policy_configuration",
+        "get_policy_configuration_status",
+        "select_policy_configuration_candidate",
+        "get_policy_configuration_result",
+        "confirm_policy_configuration"
+      ],
+      "resources": [],
+      "resource_templates": []
+    },
+    {
+      "id": "emergency-action",
+      "ok": true,
+      "tool_names": [
+        "prepare_emergency_action",
+        "revise_emergency_action",
+        "get_emergency_action",
+        "list_emergency_actions",
+        "get_emergency_action_result",
+        "cancel_emergency_action"
+      ],
+      "resources": [],
+      "resource_templates": []
+    },
+    {
+      "id": "sec-ops",
+      "ok": true,
+      "tool_names": [
+        "search_graph_assets",
+        "get_graph_resolve_ip_host",
+        "get_soc_asset_by_asset_id",
+        "list_soc_asset",
+        "get_soc_asset_biz_systems",
+        "get_soc_asset_vulnerabilities",
+        "get_ingest_devices_by_asset_by_asset_id",
+        "get_graph_node_detail",
+        "get_graph_path_query",
+        "get_reachability_path_by_ip",
+        "get_graph_flow_host_pair_ports",
+        "get_reachability_cross_signal",
+        "get_graph_compliance_violations",
+        "get_graph_coverage",
+        "get_event_by_id"
+      ],
+      "resources": [],
+      "resource_templates": []
+    },
+    {
+      "id": "inspection",
+      "ok": true,
+      "tool_names": [
+        "list_executable_inspections",
+        "start_inspection",
+        "get_inspection_result"
+      ],
+      "resources": [],
+      "resource_templates": []
+    },
+    {
+      "id": "ai-soc-correlate",
+      "ok": true,
+      "tool_names": [
+        "get_correlate_incident_judge_pending",
+        "create_incident_judgement_claim",
+        "update_incident_judgement_result",
+        "create_correlate_incident_judgement_fail",
+        "get_correlate_threat_intel",
+        "get_correlate_intel_check"
+      ],
+      "resources": [],
+      "resource_templates": [
+        {
+          "name": "get_correlate_incident_by_incident_id",
+          "uriTemplate": "mock-soc://ai-soc-correlate/get_correlate_incident_by_incident_id/{incidentId}"
+        },
+        {
+          "name": "get_correlate_reasoning_rules_by_rule_id",
+          "uriTemplate": "mock-soc://ai-soc-correlate/get_correlate_reasoning_rules_by_rule_id/{ruleId}"
+        }
+      ]
+    },
+    {
+      "id": "ai-soc-detect",
+      "ok": true,
+      "tool_names": [],
+      "resources": [
+        {
+          "name": "list_detect_whitelist",
+          "uri": "mock-soc://ai-soc-detect/list_detect_whitelist"
+        }
+      ],
+      "resource_templates": [
+        {
+          "name": "get_detect_alert_by_alert_id",
+          "uriTemplate": "mock-soc://ai-soc-detect/get_detect_alert_by_alert_id/{alertId}"
+        }
+      ]
+    },
+    {
+      "id": "ai-soc-event",
+      "ok": true,
+      "tool_names": [
+        "search_event"
+      ],
+      "resources": [],
+      "resource_templates": []
+    },
+    {
+      "id": "ai-soc-master",
+      "ok": true,
+      "tool_names": [],
+      "resources": [],
+      "resource_templates": [
+        {
+          "name": "get_soc_asset_by_asset_id",
+          "uriTemplate": "mock-soc://ai-soc-master/get_soc_asset_by_asset_id/{assetId}"
+        },
+        {
+          "name": "get_soc_asset_importance",
+          "uriTemplate": "mock-soc://ai-soc-master/get_soc_asset_importance/{assetId}"
+        },
+        {
+          "name": "get_soc_asset_biz_systems",
+          "uriTemplate": "mock-soc://ai-soc-master/get_soc_asset_biz_systems/{assetId}"
+        }
+      ]
+    },
+    {
+      "id": "ai-soc-ingest",
+      "ok": true,
+      "tool_names": [],
+      "resources": [],
+      "resource_templates": [
+        {
+          "name": "get_ingest_devices_by_asset_by_asset_id",
+          "uriTemplate": "mock-soc://ai-soc-ingest/get_ingest_devices_by_asset_by_asset_id/{assetId}"
+        }
+      ]
+    },
+    {
+      "id": "ai-soc-graph",
+      "ok": true,
+      "tool_names": [
+        "get_graph_lm_login_sequence",
+        "get_graph_flow_host_pair_ports"
+      ],
+      "resources": [],
+      "resource_templates": [
+        {
+          "name": "get_graph_enrich_topology_by_asset_id",
+          "uriTemplate": "mock-soc://ai-soc-graph/get_graph_enrich_topology_by_asset_id/{assetId}"
+        },
+        {
+          "name": "get_graph_identity_asset_accounts",
+          "uriTemplate": "mock-soc://ai-soc-graph/get_graph_identity_asset_accounts/{assetId}"
+        }
+      ]
+    },
+    {
+      "id": "report-write",
+      "ok": true,
+      "tool_names": [
+        "save_persistence_result"
+      ],
+      "resources": [],
+      "resource_templates": []
+    }
+  ],
+  "discovered_at": "2026-10-15T17:21:19.494Z",
+  "basic_calls": [
+    {
+      "id": "policy-configuration",
+      "ok": true,
+      "code": 404,
+      "isError": true,
+      "mode": "expected_not_found_no_side_effect",
+      "content_items": 1
+    },
+    {
+      "id": "emergency-action",
+      "ok": true,
+      "code": "200",
+      "isError": false,
+      "mode": "basic_readonly",
+      "content_items": 1
+    },
+    {
+      "id": "sec-ops",
+      "ok": true,
+      "code": 200,
+      "isError": false,
+      "mode": "basic_readonly",
+      "content_items": 1
+    },
+    {
+      "id": "inspection",
+      "ok": true,
+      "code": 200,
+      "isError": false,
+      "mode": "basic_readonly",
+      "content_items": 1
+    },
+    {
+      "id": "ai-soc-correlate",
+      "ok": true,
+      "code": 200,
+      "isError": false,
+      "mode": "basic_readonly",
+      "content_items": 1
+    },
+    {
+      "id": "ai-soc-detect",
+      "ok": true,
+      "code": 200,
+      "isError": false,
+      "mode": "basic_readonly",
+      "content_items": 1
+    },
+    {
+      "id": "ai-soc-event",
+      "ok": true,
+      "code": 200,
+      "isError": false,
+      "mode": "basic_readonly",
+      "content_items": 1
+    },
+    {
+      "id": "ai-soc-master",
+      "ok": true,
+      "code": 200,
+      "isError": false,
+      "mode": "basic_readonly",
+      "content_items": 1
+    },
+    {
+      "id": "ai-soc-ingest",
+      "ok": true,
+      "code": 200,
+      "isError": false,
+      "mode": "basic_readonly",
+      "content_items": 1
+    },
+    {
+      "id": "ai-soc-graph",
+      "ok": true,
+      "code": 200,
+      "isError": false,
+      "mode": "basic_readonly",
+      "content_items": 1
+    }
+  ],
+  "groups": [
+    {
+      "id": "inspection-readonly",
+      "ok": true,
+      "tool_count": 2,
+      "resource_count": 0,
+      "template_count": 0,
+      "read_tool": "mcp__inspection__list_executable_inspections"
+    },
+    {
+      "id": "threat-analysis-runtime",
+      "ok": true,
+      "tool_count": 10,
+      "resource_count": 1,
+      "template_count": 9,
+      "read_tool": "mcp__ai-soc-correlate__get_correlate_incident_judge_pending"
+    }
+  ],
+  "limitations": [
+    "policy仅只读不存在操作的404负向合同；未准备/确认策略",
+    "report-write已发现Schema；其唯一工具需写报告，本步骤没有调用，留给完整业务验收",
+    "本步骤没有创建或修改智能体Session，未测试模型选用工具或业务结论"
+  ],
+  "verified_at": "2026-10-15T17:22:50.486Z",
+  "initial_probe_corrections": [
+    {
+      "id": "emergency-action",
+      "reason": "探针首次只接受数字200，当前合同为字符串200；回执无错误，修正探针按现有合同判断"
+    },
+    {
+      "id": "ai-soc-event",
+      "reason": "探针首次未按Schema传body，被服务拒绝；重试使用body.size=1，未修改服务"
+    }
+  ]
+}

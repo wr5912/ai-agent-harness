@@ -1,0 +1,6 @@
+schema_version: '1.0'
+experiment_id: EXP-daily-inspection-assistant-001-r602ec12fd531
+agent_id: daily-inspection-assistant
+baseline_ref: none:first-experiment
+status: active
+research_question: 日常巡检整理助手能否由标准 DSH Runtime 装载，并按提供的职责响应用户请求

@@ -1,0 +1,91 @@
+{
+  "base": "http://127.0.0.1:3084/assistant/",
+  "experiment_id": "EXP-security-operations-expert-021-rdd331f9f2e30",
+  "results": [
+    {
+      "case_id": "U-THREAT-FAST-BASIC",
+      "session_id": "session-21d31b86-a353-4e4b-aba3-dcaec914339d",
+      "inputs": [
+        "请研判威胁事件 INC-20261015-000001。"
+      ],
+      "turns": [
+        {
+          "assistant_text": "### 威胁事件研判摘要\n\n**结论：** 误报\n\n**快速研判：** 是\n\n**事件 ID：** INC\\-20261015\\-000001\n\n#### 名单命中依据\n\n| 名单来源 | 命中实体 | 引用条数 | 查询时间 |\n| --- | --- | --- | --- |\n| 告警白名单 | 9106 | 5 | 2026\\-10\\-15T17:38:59\\.497845\\+00:00 |\n\n引用条数按每条命中分别统计，不代表独立告警数。该结论由名单规则生成，未进行完整行为研判。\n\n#### 保存与下载\n\n**摘要存储：** 已保存\n\n**报告存储：** 已保存\n\n**报告下载：** [下载 HTML 报告](<http://127.0.0.1:53007/reports/report_755a8610d9a54785b76cb8d6f4d47492.html>)\n\n**运行 ID：** run\\-597392ba\\-e2d3\\-4f92\\-b6dd\\-2acc9617b379\n",
+          "route": {
+            "provider": "threat-analysis-delivery",
+            "model": "fixed-summary"
+          },
+          "tool_names": [
+            "analyze_pending_threat_incidents",
+            "analyze_threat_incident",
+            "delegate_fault_analysis",
+            "delegate_response_planning",
+            "delegate_threat_analysis",
+            "edit",
+            "glob",
+            "grep",
+            "list_mcp_resource_templates",
+            "list_mcp_resources",
+            "mcp__emergency-action__cancel_emergency_action",
+            "mcp__emergency-action__get_emergency_action",
+            "mcp__emergency-action__get_emergency_action_result",
+            "mcp__emergency-action__list_emergency_actions",
+            "mcp__emergency-action__prepare_emergency_action",
+            "mcp__emergency-action__revise_emergency_action",
+            "mcp__inspection__get_inspection_result",
+            "mcp__inspection__list_executable_inspections",
+            "mcp__inspection__start_inspection",
+            "mcp__policy-configuration__choose_ambiguous_policy_endpoints",
+            "mcp__policy-configuration__get_policy_configuration_result",
+            "mcp__policy-configuration__get_policy_configuration_status",
+            "mcp__policy-configuration__prepare_policy_configuration",
+            "mcp__policy-configuration__resolve_policy_endpoints",
+            "mcp__policy-configuration__select_policy_configuration_candidate",
+            "mcp__sec-ops__get_event_by_id",
+            "mcp__sec-ops__get_graph_compliance_violations",
+            "mcp__sec-ops__get_graph_coverage",
+            "mcp__sec-ops__get_graph_flow_host_pair_ports",
+            "mcp__sec-ops__get_graph_node_detail",
+            "mcp__sec-ops__get_graph_path_query",
+            "mcp__sec-ops__get_graph_resolve_ip_host",
+            "mcp__sec-ops__get_ingest_devices_by_asset_by_asset_id",
+            "mcp__sec-ops__get_reachability_cross_signal",
+            "mcp__sec-ops__get_reachability_path_by_ip",
+            "mcp__sec-ops__get_soc_asset_biz_systems",
+            "mcp__sec-ops__get_soc_asset_by_asset_id",
+            "mcp__sec-ops__get_soc_asset_vulnerabilities",
+            "mcp__sec-ops__list_soc_asset",
+            "mcp__sec-ops__search_graph_assets",
+            "read",
+            "read_image",
+            "read_mcp_resource",
+            "schedule_create",
+            "schedule_delete",
+            "schedule_list",
+            "schedule_update",
+            "skill",
+            "write"
+          ],
+          "turn_reason": "completed",
+          "turn": 1,
+          "input_message_id": "2fc8c18f-6ab4-4fe0-a554-d7724f84b3b9"
+        }
+      ],
+      "calls": [
+        {
+          "name": "skill",
+          "arguments": "{\"name\": \"threat-analysis\"}"
+        },
+        {
+          "name": "delegate_threat_analysis",
+          "arguments": "{\"description\": \"研判威胁事件\", \"prompt\": \"请对以下 SOC 威胁事件执行固定取证与研判流程，事件 ID：INC-20261015-000001。\\n\\n要求：\\n1. 调用 analyze_threat_incident，incident_id 必须原样使用 \\\"INC-20261015-000001\\\"，不得改写、补全或替换。\\n2. 该工具会自动完成 SOC 认领、真实 MCP 取证、名单快速分类或五源融合、冻结输入模型推理、结果校验、摘要与报告生成、SOC 回写与报告存储。\\n3. 返回时保留真实的契约状态、结论、证据来源、报告存储与下载信息；失败或部分失败时保留真实状态，不编造结论、不声称保存成功。\\n4. 不要携带任何人工标签或预设结论。\"}"
+        },
+        {
+          "name": "analyze_threat_incident",
+          "arguments": "{\"incident_id\": \"INC-20261015-000001\"}"
+        }
+      ],
+      "errors": []
+    }
+  ]
+}

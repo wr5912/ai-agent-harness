@@ -1,0 +1,26 @@
+schema_version: '1.0'
+agent:
+  id: daily-inspection-assistant
+  name: 日常巡检整理助手
+  language: zh-CN
+  lifecycle_status: experiment
+  runtime_family: dsh
+  load_mode: container-only
+experiment:
+  id: EXP-daily-inspection-assistant-001-r602ec12fd531
+  baseline_ref: none:first-experiment
+  status: active
+loadable_assets:
+  workspace: dsh/workspace
+  preset_root: dsh/presets
+  managed_root: dsh/managed
+  preset_id: daily-inspection-assistant
+  profile_patch: dsh/managed/daily-inspection-assistant.patch.yml
+runtime_contract:
+  workspace_container_path: /work/harness/workspace
+  preset_container_path: /opt/dsh-presets
+  managed_container_path: /opt/dsh-managed
+  dsh_home_container_path: /var/lib/dsh
+  verification_candidate_mode: ro
+credential_environment_keys:
+  - DEEPSEEK_API_KEY

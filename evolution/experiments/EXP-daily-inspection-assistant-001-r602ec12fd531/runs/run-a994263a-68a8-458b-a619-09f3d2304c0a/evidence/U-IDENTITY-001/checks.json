@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "case_id": "U-IDENTITY-001",
+  "transport": "api",
+  "expected_behavior": "回复明确包含 Agent ID `daily-inspection-assistant`，身份为日常巡检整理助手，职责符合 Candidate 指令；不使用创建工具的流程验证身份。",
+  "session_id": "session-f4e0a4e8-363c-4182-ac64-00b526a842ce",
+  "workspace_id": "76f57a1f-81d7-4448-afe5-17a490a79ce4",
+  "session_preset": "daily-inspection-assistant",
+  "session_workspace": "/work/harness/workspace",
+  "preset_matches": true,
+  "workspace_matches": true,
+  "trace_format": "dsh-session-export-envelope-v1",
+  "completed": true,
+  "judge": {
+    "session_id": "session-c31d420d-8301-40b0-b7c8-1e6cf2463c85",
+    "workspace_id": "76f57a1f-81d7-4448-afe5-17a490a79ce4",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

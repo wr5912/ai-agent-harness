@@ -1,0 +1,23 @@
+{
+  "session_id": "session-cd5226e0-ed7a-490c-afea-ec37ba78f70d",
+  "dataset_id": "decision-dataset-e5721e9d-0192-4efe-b02c-6f74eba208fb",
+  "records": [
+    {
+      "id": "decision-15e8c63ff364d9e08b44943087ff249f",
+      "cutoff": 29,
+      "action": "mcp__inspection__list_executable_inspections",
+      "status": "rejected"
+    },
+    {
+      "id": "decision-f5e6444b579af7cb98ebff813157d714",
+      "cutoff": 23,
+      "action": "skill",
+      "status": "suggested"
+    }
+  ],
+  "blocked_tool_attempt": {
+    "name": "read",
+    "result": "决策样本任务仅允许读取指定技能和通过平台取数",
+    "executed": false
+  }
+}

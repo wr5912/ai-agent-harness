@@ -1,0 +1,52 @@
+{
+  "schema_version": "2.0",
+  "run_id": "run-d8867c0c-4717-4f65-b61a-f88976cbab31",
+  "review_status": "not_requested",
+  "review_reason": "本次 Run 未请求证据复核。",
+  "reviewed_case_count": 0,
+  "scenes": [
+    {
+      "scene": "未分组",
+      "case_ids": [
+        "U-IDENTITY-001",
+        "U-ROLE-001"
+      ],
+      "selected_case_ids": [
+        "U-IDENTITY-001"
+      ],
+      "machine_counts": {
+        "passed": 1,
+        "failed": 0,
+        "inconclusive": 0,
+        "not_executed": 0
+      },
+      "review_status": "not_requested",
+      "review_reason": "本次 Run 未请求证据复核。",
+      "case_reviews": [],
+      "findings": [],
+      "analysis_session": null,
+      "diagnostic": null
+    },
+    {
+      "scene": "基础巡检摘要",
+      "case_ids": [
+        "U-SUMMARY-001"
+      ],
+      "selected_case_ids": [
+        "U-SUMMARY-001"
+      ],
+      "machine_counts": {
+        "passed": 1,
+        "failed": 0,
+        "inconclusive": 0,
+        "not_executed": 0
+      },
+      "review_status": "not_requested",
+      "review_reason": "本次 Run 未请求证据复核。",
+      "case_reviews": [],
+      "findings": [],
+      "analysis_session": null,
+      "diagnostic": null
+    }
+  ]
+}

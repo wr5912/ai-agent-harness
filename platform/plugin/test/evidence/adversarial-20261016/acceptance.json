@@ -1,0 +1,111 @@
+{
+  "base_commit": "f0aeca73166d3902ff5d727d43dfce6b86ef8c7e",
+  "branch": "feat/PLATFORM-personal-workbench-datasets",
+  "dirty_during_acceptance": true,
+  "tests": {
+    "plugin": 256,
+    "container_adapter_python": 153,
+    "repository_python": 88,
+    "runtime_web_js": 17,
+    "model_comparison_js": 6
+  },
+  "datasets": [
+    {
+      "dataset_id": "decision-dataset-814d4b82-0ae3-4b47-8694-16c2c561d7a8",
+      "source_and_line_hashes_valid": true,
+      "records": [
+        {
+          "id": "decision-79c68aa355342a8b6e60501dc0913ed4",
+          "cutoff": 23,
+          "action": "skill",
+          "status": "suggested",
+          "decision_time_reviewed": false
+        },
+        {
+          "id": "decision-f601843e6cfb688ca25cec93c04cdab3",
+          "cutoff": 41,
+          "action": "mcp__inspection__get_inspection_result",
+          "status": "rejected",
+          "decision_time_reviewed": false
+        }
+      ]
+    },
+    {
+      "dataset_id": "decision-dataset-924b5b90-2e16-4008-93ac-ca771641bcfb",
+      "source_and_line_hashes_valid": true,
+      "records": [
+        {
+          "id": "decision-7cbe681728a1923a5383d620e0379bcf",
+          "cutoff": 23,
+          "action": "skill",
+          "status": "suggested",
+          "decision_time_reviewed": false
+        },
+        {
+          "id": "decision-19726c7d70f9c64f14b570686faeb558",
+          "cutoff": 34,
+          "action": "respond",
+          "status": "suggested",
+          "decision_time_reviewed": false
+        }
+      ]
+    },
+    {
+      "dataset_id": "decision-dataset-d60b1393-2fd7-4be4-bca3-d125c63e325e",
+      "source_and_line_hashes_valid": true,
+      "records": [
+        {
+          "id": "decision-56dab7aab90cdb528a63f13f4d978d60",
+          "cutoff": 23,
+          "action": "skill",
+          "status": "rejected",
+          "decision_time_reviewed": false
+        }
+      ]
+    },
+    {
+      "dataset_id": "decision-dataset-e5721e9d-0192-4efe-b02c-6f74eba208fb",
+      "source_and_line_hashes_valid": true,
+      "records": [
+        {
+          "id": "decision-15e8c63ff364d9e08b44943087ff249f",
+          "cutoff": 29,
+          "action": "mcp__inspection__list_executable_inspections",
+          "status": "rejected",
+          "decision_time_reviewed": false
+        },
+        {
+          "id": "decision-f5e6444b579af7cb98ebff813157d714",
+          "cutoff": 23,
+          "action": "skill",
+          "status": "suggested",
+          "decision_time_reviewed": false
+        }
+      ]
+    }
+  ],
+  "runtime": {
+    "platform_port": 3090,
+    "platform_tmux": "ai-agent-harness-platform-3090",
+    "agent_port": 3084,
+    "source": "EXP-security-operations-expert-021-rdd331f9f2e30",
+    "new_mock_port": 53007,
+    "mock_tmux": "secops-fusion-mock-53007",
+    "mock_source": "5057552",
+    "external_source_modified": false,
+    "security_operations_harness_modified": false
+  },
+  "limits": [
+    "人工复核声明不证明题目语义或标签正确",
+    "当前真实样本上下文reconstructed",
+    "本机Mock报告下载不代表远程浏览器可达",
+    "封存核对不能发现中途变更后恢复",
+    "首步可见schema包含硬Guard拒绝工具",
+    "未做训练或真实SOC生产验收"
+  ],
+  "independent_review": {
+    "remaining_must_fix": 0,
+    "final_dataset_targeted_tests": 23,
+    "scope": "本轮三条关键调用链及交叉审查；未覆盖范围见审查文档"
+  }
+}

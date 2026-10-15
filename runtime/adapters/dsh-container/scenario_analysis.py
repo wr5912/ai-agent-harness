@@ -7,7 +7,9 @@ import json
 import os
 import posixpath
 import re
+import signal
 import subprocess
+from contextlib import contextmanager
 import uuid
 from collections import defaultdict
 from pathlib import Path
@@ -368,11 +370,75 @@ def _review_prompt(scene: dict, cases: list[dict], evidence_sources: list[str],
     }, ensure_ascii=False, separators=(",", ":"))
 
 
+class ProcessCleanupError(RuntimeError):
+    """临时驱动或分析实例未确认停止，不能报告成功取消。"""
+
+
+@contextmanager
+def delay_signal_handlers():
+    """完成资源登记或清理后再响应信号，清理失败保留原始异常。"""
+    pending = []
+    handlers = {name: signal.getsignal(name) for name in (signal.SIGINT, signal.SIGTERM)
+                if callable(signal.getsignal(name))}
+    completed = False
+    try:
+        for name in handlers:
+            signal.signal(name, lambda signum, frame: pending.append((signum, frame)))
+        yield
+        completed = True
+    finally:
+        for name, handler in handlers.items():
+            signal.signal(name, handler)
+        if completed:
+            for name, frame in pending:
+                handlers[name](name, frame)
+
+
+def run_cancellable_process(command: list[str], *, timeout: int, input_text: str | None = None,
+                            env: dict[str, str] | None = None, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    """评测和复核共用：取消时先终止子进程组，再确认临时驱动容器已移除。"""
+    driver_name = f"dsh-eval-driver-{uuid.uuid4().hex}" if command[:2] == ["docker", "run"] else None
+    actual = command[:2] + ["--name", driver_name] + command[2:] if driver_name else command
+    process = None
+    try:
+        try:
+            # 创建子进程并登记句柄期间只记信号，避免进程已创建而父进程尚无句柄时中断。
+            with delay_signal_handlers():
+                process = subprocess.Popen(actual, cwd=cwd, text=True, stdin=subprocess.PIPE,
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
+                                           start_new_session=True)
+            stdout, stderr = process.communicate(input_text, timeout=timeout)
+        except (KeyboardInterrupt, subprocess.TimeoutExpired):
+            if process is not None:
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                try:
+                    process.communicate(timeout=5)
+                except subprocess.TimeoutExpired:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    process.communicate(timeout=5)
+            raise
+        return subprocess.CompletedProcess(actual, process.returncode, stdout, stderr)
+    finally:
+        if driver_name:
+            try:
+                with delay_signal_handlers():
+                    removed = subprocess.run(["docker", "rm", "-f", driver_name], text=True,
+                                             capture_output=True, check=False, timeout=30)
+                    if removed.returncode and "No such container" not in removed.stderr:
+                        raise ProcessCleanupError("driver-container-stop-unconfirmed")
+            except (OSError, subprocess.TimeoutExpired) as error:
+                raise ProcessCleanupError("driver-container-stop-unconfirmed") from error
+
+
 def _run(command: list[str], *, stage: str, input_text: str | None = None, timeout: int) -> str:
     try:
-        completed = subprocess.run(
-            command, input=input_text, text=True, capture_output=True, check=False, timeout=timeout,
-        )
+        completed = run_cancellable_process(command, input_text=input_text, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired) as error:
         raise RuntimeError(f"{stage}-{type(error).__name__.lower()}") from error
     if completed.returncode:
@@ -777,6 +843,8 @@ def review_full(run_dir: Path, rows: list[dict], inputs: dict, *, timeout_second
                 "evidence_ref": str(response_path.relative_to(run_dir)),
             }
     except (OSError, KeyError, TypeError, ValueError, RuntimeError, json.JSONDecodeError) as error:
+        if isinstance(error, ProcessCleanupError):
+            raise
         reason = str(error) if str(error) else type(error).__name__
         path = evidence_root / "diagnostic.json"
         path.write_text(json.dumps({"stage": "driver", "reason": reason}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -784,13 +852,15 @@ def review_full(run_dir: Path, rows: list[dict], inputs: dict, *, timeout_second
     finally:
         if up_attempted:
             try:
-                _run([dev, "down", name], stage="instance-stop", timeout=180)
+                with delay_signal_handlers():
+                    _run([dev, "down", name], stage="instance-stop", timeout=180)
             except RuntimeError as error:
                 reason = str(error)
                 path = evidence_root / "stop-diagnostic.json"
                 path.write_text(json.dumps({"stage": "instance-stop", "reason": reason}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
                 if analysis["review_reason"] == "full 证据复核正在执行。":
                     _diagnostic(analysis, "instance-stop", reason, str(path.relative_to(run_dir)))
+                raise ProcessCleanupError("analysis-instance-stop-unconfirmed") from error
 
     completed = [scene for scene in analysis["scenes"] if scene["review_status"] == "completed"]
     analysis["reviewed_case_count"] = sum(len(scene["case_reviews"]) for scene in completed)

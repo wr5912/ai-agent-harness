@@ -22,6 +22,11 @@ import { dirname, extname, join, relative, resolve, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { ConnectionRpcHandler, ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
 import { RunFileError, readRunReport, listRunFiles, previewRunFile } from './run-files.ts'
+import { readRunTrace } from '../evaluation/trace.ts'
+import { createDecisionDatasetHandler } from '../evaluation/datasets.ts'
+import { caseSourceReferences, createCaseManagementHandler, type RunCaseSource } from '../evaluation/cases.ts'
+import { readAssetDiff } from './asset-diff.ts'
+import { createAgent } from './create-agent.ts'
 
 type JsonMap = Record<string, unknown>
 type SourceCatalog = { schema_version?: string; sources?: Record<string, JsonMap> }
@@ -1145,6 +1150,7 @@ async function updateCase(root: string, payload: JsonMap, signal?: AbortSignal) 
   const newline = oldBlock.includes('\r\n') ? '\r\n' : '\n'
   const tail = oldBlock.match(/(?:\r?\n)*$/)?.[0] || newline
   const body = [`#### ${caseId} ${title}`, '', ...(payload.fast ? ['**评估档位：** `fast`', ''] : []),
+    ...caseSourceReferences(oldBlock).flatMap(reference => [reference, '']),
     ...inputs.flatMap((input, turn) => [`**用户输入${inputs.length > 1 ? ` ${turn + 1}` : ''}**`, '',
       ...input.split('\n').map(line => `> ${line}`), '']), '**预期**', '', ...expectedBehavior.split('\n')].join(newline)
   const content = evaluation.content.slice(0, start) + body + tail + evaluation.content.slice(end)
@@ -1183,7 +1189,7 @@ async function evalPreview(root: string, payload: JsonMap, signal?: AbortSignal)
   return ok({ command: ['python3', ...evalArgs(payload, true)], result: await parseJsonCommandAsync(root, evalArgs(payload, true), '评测预览失败', signal) })
 }
 
-type Job = { status: 'running' | 'completed' | 'failed' | 'cancelled'; started_at: string; updated_at: string; stdout: string; stderr: string; process?: ReturnType<typeof spawn>; result?: unknown; run_id?: string; exit_code?: number | null; error?: string }
+type Job = { status: 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled'; started_at: string; updated_at: string; stdout: string; stderr: string; process?: ReturnType<typeof spawn>; result?: unknown; run_id?: string; exit_code?: number | null; error?: string }
 
 function appendLog(current: string, chunk: unknown) {
   return (current + String(chunk)).slice(-LOG_LIMIT)
@@ -1216,8 +1222,10 @@ function startEval(root: string, payload: JsonMap, jobs: Map<string, Job>, onCha
     if (job.status === 'failed' && job.error) return
     job.exit_code = code
     job.updated_at = new Date().toISOString()
-    job.status = code === 0 ? 'completed' : job.status === 'cancelled' ? 'cancelled' : 'failed'
     try { job.result = JSON.parse(redact(job.stdout)) } catch { job.result = null }
+    const receipt = job.result as { cancelled?: boolean; instance_stopped?: boolean } | null
+    job.status = receipt?.cancelled === true ? receipt.instance_stopped === true ? 'cancelled' : 'failed' : code === 0 ? 'completed' : 'failed'
+    if (receipt?.cancelled === true && receipt.instance_stopped !== true) job.error = '取消后的实例停止尚未确认，请核对 Run 与实例状态。'
     delete job.process
     onChange?.()
   })
@@ -1233,8 +1241,8 @@ function jobStatus(payload: JsonMap, jobs: Map<string, Job>) {
 function cancelJob(payload: JsonMap, jobs: Map<string, Job>) {
   const job = jobs.get(stringField(payload, 'job_id'))
   if (!job) throw new RpcError('not_found', '评测任务不存在')
-  if (job.process) {
-    job.status = 'cancelled'
+  if (job.process && job.status !== 'cancelling') {
+    job.status = 'cancelling'
     job.updated_at = new Date().toISOString()
     job.process.kill('SIGTERM')
   }
@@ -1317,14 +1325,30 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void): C
   const root = rootOf(assetRoot)
   const jobs = new Map<string, Job>()
   const previews = new Map<string, VersionPreview>()
-  return async (endpoint, payload, signal) => {
+  const datasets = createDecisionDatasetHandler(root)
+  const caseManagement = createCaseManagementHandler(root, {
+    applyEvaluation: async (id, content, hash, signal) => {
+      const result = await applyEdit(root, { experiment_id: id, edits: [{ path: 'evaluation.md', content, expected_sha256: hash }] }, signal)
+      if (!result.ok) throw new RpcError(result.error.code, result.error.message)
+      return result
+    },
+    readRun: async (runId, signal) => {
+      const result = await runRecord(root, 'show', { run_id: runId }, signal)
+      if (!result.ok) throw new RpcError(result.error.code, result.error.message)
+      return result.value as unknown as RunCaseSource
+    },
+  })
+  return async (endpoint, payload, signal, peer) => {
     if (signal.aborted) return failure(new RpcError('aborted', '智能体操作已取消'))
     try {
       const body = payload === undefined ? {} : requireObject(payload)
+      if (endpoint.startsWith('datasets/')) return ok(await datasets(endpoint, body, signal))
       switch (endpoint) {
         case 'list': return list(root)
         case 'detail': return await detail(root, body, signal)
         case 'create': return await createExperiment(root, body)
+        case 'new': return await createAgent(root, body, signal)
+        case 'assets/diff': return await readAssetDiff(root, body, signal)
         case 'features/preview': return featurePreview(root, body, previews)
         case 'features/proposal': return latestProposal(body, previews, 'features')
         case 'features/apply': return featureApply(root, body, previews)
@@ -1340,6 +1364,10 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void): C
         case 'cases/list': return await cases(root, body, signal)
         case 'cases/read': return await readCase(root, body, signal)
         case 'cases/update': return await updateCase(root, body, signal)
+        case 'cases/create-context':
+        case 'cases/from-run':
+        case 'cases/create-preview':
+        case 'cases/create': return await caseManagement(endpoint, body, signal, peer)
         case 'eval/preview': return await evalPreview(root, body, signal)
         case 'eval/start': return startEval(root, body, jobs, onChange)
         case 'eval/status': return jobStatus(body, jobs)
@@ -1351,6 +1379,7 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void): C
         case 'runs/files': return ok(await listRunFiles(root, stringField(body, 'run_id'), signal))
         case 'runs/read-file': return ok(await previewRunFile(root, stringField(body, 'run_id'), stringField(body, 'path'), signal))
         case 'runs/compare': return await runRecord(root, 'compare', body, signal)
+        case 'runs/trace': return ok(await readRunTrace(root, body as any, signal))
         case 'decision/update': return await decisionUpdate(root, body, signal)
         default: return failure(new RpcError('not_found', '未知的智能体操作', { endpoint }))
       }

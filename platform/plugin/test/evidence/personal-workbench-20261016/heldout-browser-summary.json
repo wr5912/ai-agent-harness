@@ -1,0 +1,16 @@
+{
+  "dataset_id": "decision-dataset-814d4b82-0ae3-4b47-8694-16c2c561d7a8",
+  "heldout_training_button_disabled": true,
+  "server_rejected_heldout_group": true,
+  "final_status": [
+    {
+      "status": "suggested",
+      "split": "unassigned"
+    },
+    {
+      "status": "suggested",
+      "split": "unassigned"
+    }
+  ],
+  "automated_review_test": true
+}

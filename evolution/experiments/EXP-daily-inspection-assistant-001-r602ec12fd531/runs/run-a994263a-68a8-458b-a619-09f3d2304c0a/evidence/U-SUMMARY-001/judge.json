@@ -1,0 +1,22 @@
+{
+  "response": {
+    "verdict": "passed",
+    "reason": "摘要保留了三项关键信息：资产 TEST-ASSET-01、状态正常、记录时间 2026-10-16 00:00；并明确说明仅基于用户提供的基础模拟数据整理、未实际查询任何服务或系统；工具事件为空，未虚构工具调用或新增检查结果，符合全部预期要求。"
+  },
+  "checks": {
+    "session_id": "session-a61c77c4-edc0-4ecf-888a-487036a13d8a",
+    "workspace_id": "76f57a1f-81d7-4448-afe5-17a490a79ce4",
+    "session_preset": "evaluation-judge",
+    "session_workspace": "/work/harness/workspace",
+    "preset_matches": true,
+    "workspace_matches": true,
+    "route": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    },
+    "tools": [],
+    "same_route_as_target": true
+  }
+}

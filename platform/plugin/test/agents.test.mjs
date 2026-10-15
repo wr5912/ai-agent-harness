@@ -717,6 +717,21 @@ test('eval preview, case list, run index and decision update use existing backen
   }
 })
 
+test('从 Run 转入的用例经过普通编辑仍保留来源引用，注释不进入输入与预期', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const path = join(fx.root, 'agents/test-agent/evaluation.md')
+    const provenance = '<!-- source_run_id: run-11111111-1111-4111-8111-111111111111; source_case_id: U-ORIGINAL-001 -->'
+    write(path, readFileSync(path, 'utf8').replace('**用户输入**', provenance + '\n\n**用户输入**'))
+    const handler = createAgentsHandler(fx.root)
+    const document = await rpc(handler, 'cases/read', { experiment_id: 'EXP-test-agent-001', case_id: 'U-CASE-001' })
+    const saved = await rpc(handler, 'cases/update', { experiment_id: 'EXP-test-agent-001', case_id: 'U-CASE-001', title: '编辑后名称', inputs: ['ping'], expected_behavior: '返回 pong。', fast: true, expected_sha256: document.sha256 })
+    assert.ok(readFileSync(path, 'utf8').includes(provenance), '普通用例编辑不应静默删除运行来源')
+    assert.deepEqual(saved.case.inputs, ['ping']); assert.equal(saved.case.expected_behavior, '返回 pong。')
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
 test('eval job status parses redacted stdout result', async () => {
   const { createAgentsHandler } = await loadServer()
   const fx = fixture()
@@ -734,6 +749,42 @@ test('eval job status parses redacted stdout result', async () => {
   } finally {
     await rm(fx.root, { recursive: true, force: true })
   }
+})
+
+for (const stopped of [true, false]) test(`取消评测等待 CLI 收尾；实例停止${stopped ? '已确认才显示 cancelled' : '未确认显示 failed'}`, async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    write(join(fx.root, 'runtime/adapters/dsh-container/dsh-eval'), [
+      'import signal,time,json,sys',
+      'def cancelled(*_args):',
+      '    time.sleep(.15)',
+      `    print(json.dumps({"cancelled":True,"instance_stopped":${stopped ? 'True' : 'False'},"run_id":"run-11111111-1111-4111-8111-111111111111"}),flush=True)`,
+      '    raise SystemExit(2)',
+      'signal.signal(signal.SIGTERM,cancelled)',
+      'print("cancellation-ready",file=sys.stderr,flush=True)',
+      'time.sleep(30)',
+    ].join('\n'))
+    const handler = createAgentsHandler(fx.root)
+    const started = await rpc(handler, 'eval/start', { source: 'experiment:EXP-test-agent-001' })
+    for (let attempt = 0; attempt < 40; attempt++) {
+      if ((await rpc(handler, 'eval/status', { job_id: started.job_id })).stderr.includes('cancellation-ready')) break
+      await new Promise(resolve => setTimeout(resolve, 25))
+    }
+    const cancelling = await rpc(handler, 'eval/cancel', { job_id: started.job_id })
+    assert.equal(cancelling.status, 'cancelling')
+    assert.equal((await rpc(handler, 'eval/status', { job_id: started.job_id })).status, 'cancelling')
+    assert.equal((await rpc(handler, 'eval/cancel', { job_id: started.job_id })).status, 'cancelling')
+    let status
+    for (let attempt = 0; attempt < 40; attempt++) {
+      status = await rpc(handler, 'eval/status', { job_id: started.job_id })
+      if (!['running', 'cancelling'].includes(status.status)) break
+      await new Promise(resolve => setTimeout(resolve, 25))
+    }
+    assert.equal(status.status, stopped ? 'cancelled' : 'failed')
+    assert.equal(status.result.instance_stopped, stopped)
+    if (!stopped) assert.match(status.error, /停止尚未确认/)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
 })
 
 for (const legacy of [false, true]) test(`Run evidence reads ${legacy ? 'legacy selection with unknown contract' : 'frozen case'}, redacts and never rewrites records`, async () => {

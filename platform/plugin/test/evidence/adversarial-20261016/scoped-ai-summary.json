@@ -1,0 +1,214 @@
+{
+  "run_id": "run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017",
+  "session_id": "session-1a463c79-8a35-4655-8da6-5334150807f0",
+  "headers": [
+    {
+      "file": "session.v4.jsonl",
+      "model": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "reasoningEffort": "off",
+        "maxTokens": 256000
+      },
+      "tools": [
+        "platform_agents",
+        "skill"
+      ]
+    }
+  ],
+  "calls": [
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_tStmkok7nI3Wmm8tIN358262",
+      "name": "skill",
+      "skill": "decision-sample-extraction"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_ylUNyujO23ReTmTKwouH6533",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_Q3GOPOFZdqvF3D1Ev0jt7587",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_01_Ew5BaI6P5LHr5SkOZU448672",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_02_X67h4zBQNE9LkYyv2zSk4225",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_Tf1BbgamNcyugQikJC5s0108",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_01_J1KgQZ861q7A5C5eLF0z5131",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_ZUDyukm8mq2CShdGpbgi7104",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_01_hs7L1Ofeir4LKU2dCptM7720",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_9OI6lZGyderZIYFmNLqs5984",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_01_XozB0l4C3GH5VbArdGpK4746",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_93XbxffcTTujRBiWFESk1121",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_01_HRqc7b0SaUBiVSOEKKu99156",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_bIBSzj8U3WZnKxZ1w1aX7432",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_01_iqBb8Zpson4ilGTECwIc8250",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_28VgqnWx6GV5a0ydHQrD2815",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_01_V3JfHYHX8joBbhss7eHp6059",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_XlUkRaeGuavZmCxtD2nJ9113",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_6onwNt6rsAKPwp2oh9Vd8276",
+      "name": "platform_agents",
+      "action": "datasets/preview"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_hYEP8sikPAQC2ouYz5Fs6297",
+      "name": "platform_agents",
+      "action": "datasets/preview"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_LM6AGQOduS1cmOz8bpnD2787",
+      "name": "platform_agents",
+      "action": "datasets/preview"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_zKOpFZApcXI1wk39Jg9d6483",
+      "name": "platform_agents",
+      "action": "datasets/list"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_01_2EsczcE6F1hfHvU3ngZI3415",
+      "name": "platform_agents",
+      "action": "datasets/source"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_boVpMCr8pZPzRoYtYHjZ3474",
+      "name": "platform_agents",
+      "action": "datasets/read"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_01_5NTCUtTbtMKLqULUqkFo9439",
+      "name": "platform_agents",
+      "action": "datasets/read"
+    },
+    {
+      "file": "session.v4.jsonl",
+      "call_id": "call_00_8ogsI3FnxrJ70QMPRmyO1195",
+      "name": "platform_agents",
+      "action": "datasets/preview"
+    }
+  ],
+  "attemptedOutside": [],
+  "blocked_tool_calls": [
+    {
+      "call_id": "call_00_boVpMCr8pZPzRoYtYHjZ3474",
+      "error": [
+        {
+          "type": "text",
+          "text": "Error: 决策样本任务仅允许读取限定 Run 和提交候选预览"
+        }
+      ]
+    },
+    {
+      "call_id": "call_01_5NTCUtTbtMKLqULUqkFo9439",
+      "error": [
+        {
+          "type": "text",
+          "text": "Error: 决策样本任务仅允许读取限定 Run 和提交候选预览"
+        }
+      ]
+    }
+  ],
+  "unexpected": [],
+  "saved": {
+    "dataset_id": "decision-dataset-924b5b90-2e16-4008-93ac-ca771641bcfb",
+    "count": 2,
+    "extractor": {
+      "session_id": "session-1a463c79-8a35-4655-8da6-5334150807f0",
+      "model": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "reasoningEffort": "off"
+      },
+      "skill": "decision-sample-extraction",
+      "skill_sha256": "e3d66b7cfb996adca1680cb63f214e9d5e85761b236250039833d3aaf2d4638b",
+      "format": "kev@85ccf56a0afb952323c621055b02876e8498d60c"
+    }
+  }
+}
