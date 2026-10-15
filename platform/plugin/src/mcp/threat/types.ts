@@ -9,7 +9,8 @@ export type ThreatResult = Record<string, any> & {
   artifacts: ThreatArtifact[]; trace: ThreatTrace[]
 }
 export interface ThreatServices {
-  invoke(connectionId: string, toolName: string, args: Record<string, any>, signal: AbortSignal): Promise<any>
+  connectionFingerprint(connectionId: string): string | Promise<string>
+  invoke(connectionId: string, toolName: string, args: Record<string, any>, signal: AbortSignal, expectedFingerprint?: string): Promise<any>
   inferFrozen(payload: Record<string, any>, route: ThreatModelRoute | undefined, signal: AbortSignal): Promise<any>
   resolveModel?(route?: ThreatModelRoute): ThreatModelRoute | Promise<ThreatModelRoute>
 }

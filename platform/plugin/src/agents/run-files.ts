@@ -5,7 +5,7 @@ import { load as loadYaml } from 'js-yaml'
 import { zip, type AsyncZippable } from 'fflate'
 
 const RUN_ID = /^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
-const EXP_ID = /^EXP-[a-z0-9-]+-\d{3}(?:-[a-z0-9-]+)?$/
+const EXP_ID = /^EXP-[a-z0-9]+(?:-[a-z0-9]+)*-\d{3}(?:-r[0-9a-f]{12})?$/
 const PREVIEW_LIMIT = 64 * 1024
 const FINAL_STATUSES = new Set(['completed', 'failed', 'cancelled'])
 type JsonMap = Record<string, unknown>

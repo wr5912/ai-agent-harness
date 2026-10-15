@@ -4,6 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { build } from 'esbuild'
+import { runInNewContext } from 'node:vm'
 
 const output = await mkdtemp(join(tmpdir(), 'harness-assistant-client-'))
 const file = join(output, 'assistant.mjs')
@@ -240,4 +241,31 @@ test('retain同步失败后解除选择锁，原生恢复错误可见且后续�
   assert.equal(f.assistant.getSnapshot().error, '')
   assert.deepEqual(f.opened, [])
   f.assistant.dispose()
+})
+
+test('组合确认卡片显示实际冻结版本与工具身份', async () => {
+  const compiled = await build({ entryPoints: ['src/assistant/client.tsx'], write: false, bundle: true, platform: 'node', format: 'cjs', external: ['react', 'react/jsx-runtime'] })
+  const versionId = '1'.repeat(64)
+  const proposal = { id: 'proposal-fixed', state: 'awaiting_confirmation', domain: 'mcp', action: 'callPublishedComposition',
+    preview: { action: 'callPublishedComposition', compositionId: 'composition-fixed', versionId, toolName: 'basic_status', title: '基础状态' } }
+  const assistant = { subscribe: () => () => {}, getSnapshot: () => ({ sessionId: 'session-fixed', status: { proposals: [proposal] } }) }
+  const jsx = (type, props) => ({ type, props })
+  const module = { exports: {} }
+  runInNewContext(compiled.outputFiles[0].text, { module, exports: module.exports, require(name) {
+    if (name === 'react') return { useState: initial => [initial, () => {}], useSyncExternalStore: (_subscribe, snapshot) => snapshot() }
+    if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx }
+    throw new Error(`unexpected import: ${name}`)
+  } })
+  const render = node => {
+    if (node == null || typeof node === 'boolean') return ''
+    if (typeof node !== 'object') return String(node)
+    if (Array.isArray(node)) return node.map(render).join(' ')
+    if (typeof node.type === 'function') return render(node.type(node.props))
+    return render(node.props?.children)
+  }
+  const text = render(module.exports.AssistantOperations({ assistant, rpc: { call() { assert.fail('渲染不能执行操作') } }, sessionId: 'session-fixed' }))
+  assert.match(text, /固定发布版本/)
+  assert.ok(text.includes(versionId))
+  assert.ok(text.includes('composition-fixed') && text.includes('basic_status'))
+  assert.match(text, /确认并执行/)
 })

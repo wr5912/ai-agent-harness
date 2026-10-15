@@ -76,8 +76,8 @@ def evaluation_case_ids(repository: Path) -> list[str]:
     return module.load_evaluation(repository / "agents" / AGENT_ID / "evaluation.md")["case_ids"]
 
 
-def write_minimal_experiment(root: Path, *, status: str = "active", outcome: str | None = None) -> Path:
-    experiment_id = "EXP-example-agent-001"
+def write_minimal_experiment(root: Path, *, status: str = "active", outcome: str | None = None,
+                             experiment_id: str = "EXP-example-agent-001-r0123456789ab") -> Path:
     experiment = root / "evolution/experiments" / experiment_id
     (experiment / "candidate").mkdir(parents=True)
     evaluation = root / "agents/example-agent/evaluation.md"
@@ -99,7 +99,7 @@ def write_minimal_experiment(root: Path, *, status: str = "active", outcome: str
     )
     lines = [
         'schema_version: "1.0"',
-        "experiment_id: EXP-example-agent-001",
+        f"experiment_id: {experiment_id}",
         "agent_id: example-agent",
         "baseline_ref: none:first-experiment",
         f"status: {status}",
@@ -399,6 +399,25 @@ class RepositoryValidatorTests(unittest.TestCase):
 
 
 class ResearchEvalTests(unittest.TestCase):
+    def test_new_unsuffixed_experiment_is_rejected_even_after_git_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = Path(temp)
+            experiment = write_minimal_experiment(repository, experiment_id="EXP-example-agent-001")
+            subprocess.run(["git", "init", "-q", str(repository)], check=True, capture_output=True)
+            subprocess.run(["git", "-C", str(repository), "add", "."], check=True, capture_output=True)
+            subprocess.run(["git", "-C", str(repository), "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
+                            "commit", "-qm", "fixture"], check=True, capture_output=True)
+            completed, payload = run_json(VALIDATE_EXPERIMENT, experiment)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertEqual(error_codes(payload), {"EXPERIMENT_NAME"})
+        self.assertIn("固定历史身份", payload["errors"][0]["message"])
+
+    def test_historical_unsuffixed_experiment_keeps_original_identity(self) -> None:
+        for identity in ("EXP-security-operations-expert-013", "EXP-security-operations-expert-020"):
+            with self.subTest(identity=identity):
+                completed, payload = run_json(VALIDATE_EXPERIMENT, ROOT / "evolution/experiments" / identity)
+                self.assertEqual(completed.returncode, 0, json.dumps(payload, ensure_ascii=False))
+
     def test_nested_version_features_and_fixed_fusion_sources(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             experiment = write_minimal_experiment(Path(temp))
@@ -445,7 +464,7 @@ class ResearchEvalTests(unittest.TestCase):
                     [
                         'schema_version: "2.0"',
                         f"run_id: {run_id}",
-                        "experiment_id: EXP-example-agent-001",
+                        "experiment_id: EXP-example-agent-001-r0123456789ab",
                         "agent_id: example-agent",
                         "kind: research",
                         "status: running",
@@ -507,7 +526,7 @@ class ResearchEvalTests(unittest.TestCase):
                     [
                         'schema_version: "2.0"',
                         f"run_id: {run_id}",
-                        "experiment_id: EXP-example-agent-001",
+                        "experiment_id: EXP-example-agent-001-r0123456789ab",
                         "agent_id: example-agent",
                         "kind: research",
                         "status: running",

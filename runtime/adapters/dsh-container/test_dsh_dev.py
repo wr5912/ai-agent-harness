@@ -1003,6 +1003,141 @@ class DeleteCommandTest(unittest.TestCase):
                 self.assertTrue("unknown" in errors or '"deleted": false' in errors)
 
 
+class RuntimeEnvironmentRetentionTest(unittest.TestCase):
+    """同来源重建保留运行配置；仅隔离 Docker 边界，不启动或检查真实容器。"""
+
+    @staticmethod
+    def args(**values):
+        return types.SimpleNamespace(**dict({
+            "name": "environment-probe", "mode": "verification", "analysis_workspace": None,
+            "replace": True, "port": 3312, "allow_missing_env": False, "dry_run": False,
+            "lan_access": True, "unsafe_no_auth": True, "skip_testing_notice": True,
+        }, **values))
+
+    @staticmethod
+    def contract():
+        return dict(dev.resolve(), required_env_names=["DEEPSEEK_API_KEY"],
+                    optional_env_names=["AI_PLATFORM_URL", "THREAT_ANALYSIS_MCP_TOKEN"])
+
+    @staticmethod
+    def current(contract, path=Path("/unused")):
+        return path, {"source_id": contract["source_id"], "mode": "verification", "mounts": {}}
+
+    @staticmethod
+    def inspected_environment():
+        return ["DEEPSEEK_API_KEY=previous-model-fixture", "AI_PLATFORM_URL=http://127.0.0.1:53001",
+                "THREAT_ANALYSIS_MCP_TOKEN=previous-group-fixture", "UNDECLARED_VALUE=unrelated-fixture"]
+
+    def test_same_source_recovers_stopped_container_declared_names_only_and_keeps_explicit_values(self):
+        contract = self.contract()
+        replies = [subprocess.CompletedProcess([], 0, "fixture-container\n", ""),
+                   subprocess.CompletedProcess([], 0, json.dumps(self.inspected_environment()), "")]
+        with mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "explicit-model-fixture"}, clear=True), \
+                mock.patch.object(dev, "run", side_effect=replies) as runner:
+            inherited = dev.existing_runtime_environment(self.args(), contract, self.current(contract))
+            self.assertEqual(inherited, {"AI_PLATFORM_URL": "http://127.0.0.1:53001",
+                                         "THREAT_ANALYSIS_MCP_TOKEN": "previous-group-fixture"})
+            self.assertIn("-a", runner.call_args_list[0].args[0])
+            self.assertIn(f"label=com.docker.compose.project={dev.project_name('environment-probe')}",
+                          runner.call_args_list[0].args[0])
+            self.assertEqual(os.environ["DEEPSEEK_API_KEY"], "explicit-model-fixture")
+            self.assertNotIn("UNDECLARED_VALUE", os.environ)
+
+    def test_explicit_empty_values_are_not_silently_restored(self):
+        contract = self.contract()
+        with mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "", "AI_PLATFORM_URL": "", "THREAT_ANALYSIS_MCP_TOKEN": ""}, clear=True), \
+                mock.patch.object(dev, "run") as runner, contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(dev.existing_runtime_environment(self.args(), contract, self.current(contract)), {})
+            with self.assertRaises(SystemExit):
+                dev.check_environment(contract)
+            runner.assert_not_called()
+
+    def test_new_instance_and_different_source_never_borrow_existing_values(self):
+        contract = self.contract()
+        with mock.patch.dict(os.environ, {}, clear=True), mock.patch.object(dev, "run") as runner, \
+                contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(dev.existing_runtime_environment(self.args(), contract, None), {})
+            other = dict(contract, source_id="experiment:EXP-another-agent-001-r0123456789ab")
+            with self.assertRaises(SystemExit):
+                dev.existing_runtime_environment(self.args(), other, self.current(contract))
+            runner.assert_not_called()
+
+    def test_unavailable_or_ambiguous_container_fails_without_printing_values(self):
+        contract = self.contract()
+        cases = [
+            [subprocess.CompletedProcess([], 1, "", "fixture-sensitive-detail")],
+            [subprocess.CompletedProcess([], 0, "container-a\ncontainer-b\n", "")],
+            [subprocess.CompletedProcess([], 0, "container-a\n", ""),
+             subprocess.CompletedProcess([], 0, "fixture-sensitive-detail", "")],
+        ]
+        for replies in cases:
+            stderr = io.StringIO()
+            with self.subTest(replies=len(replies)), mock.patch.dict(os.environ, {}, clear=True), \
+                    mock.patch.object(dev, "run", side_effect=replies), contextlib.redirect_stderr(stderr):
+                with self.assertRaises(SystemExit):
+                    dev.existing_runtime_environment(self.args(), contract, self.current(contract))
+            self.assertNotIn("fixture-sensitive-detail", stderr.getvalue())
+
+    def test_replace_restores_before_preflight_and_only_keeps_names_in_state(self):
+        contract = self.contract()
+        image = {"image_tag": IMAGE_TAG, "image_id": "sha256:" + "1" * 64,
+                 "image_ref": IMAGE_TAG + "@sha256:" + "1" * 64,
+                 "image_build_fingerprint": "sha256:" + "2" * 64, "platform": "linux/amd64"}
+        order, passed_environments = [], []
+
+        def run(command, **options):
+            if command[:3] == ["docker", "ps", "-a"]:
+                return subprocess.CompletedProcess(command, 0, "fixture-container\n", "")
+            if command[:2] == ["docker", "inspect"]:
+                return subprocess.CompletedProcess(command, 0, json.dumps(self.inspected_environment()), "")
+            passed_environments.append(options["env"])
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        def preflight(*_args):
+            order.append("preflight")
+            self.assertEqual(os.environ["DEEPSEEK_API_KEY"], "explicit-model-fixture")
+            self.assertEqual(os.environ["THREAT_ANALYSIS_MCP_TOKEN"], "previous-group-fixture")
+            self.assertNotIn("UNDECLARED_VALUE", os.environ)
+
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(dev, "STATE_ROOT", Path(directory)), \
+                mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "explicit-model-fixture"}, clear=True), \
+                mock.patch.object(dev, "prepare_up", return_value=(contract, self.current(contract))), \
+                mock.patch.object(dev, "validate_image_identity", return_value=image), \
+                mock.patch.object(dev, "preflight_new_instance", side_effect=preflight), \
+                mock.patch.object(dev, "migrate_existing_instance", side_effect=lambda *_: order.append("stop")), \
+                mock.patch.object(dev, "port_in_use", return_value=False), \
+                mock.patch.object(dev, "run", side_effect=run), \
+                mock.patch.object(dev, "wait_for_service", return_value=[{"name": "environment-probe", "service": "dsh", "state": "running"}]), \
+                contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            dev.command_up(self.args())
+            self.assertEqual(order, ["preflight", "stop"])
+            self.assertEqual(len(passed_environments), 2)
+            self.assertTrue(all(value["DEEPSEEK_API_KEY"] == "explicit-model-fixture" and
+                                value["THREAT_ANALYSIS_MCP_TOKEN"] == "previous-group-fixture"
+                                for value in passed_environments))
+            persisted = "\n".join(path.read_text() for path in (Path(directory) / "environment-probe").iterdir())
+            self.assertIn("THREAT_ANALYSIS_MCP_TOKEN", persisted)
+            for marker in ["previous-model-fixture", "explicit-model-fixture", "previous-group-fixture", "unrelated-fixture"]:
+                self.assertNotIn(marker, persisted + stdout.getvalue() + stderr.getvalue())
+            self.assertNotIn("THREAT_ANALYSIS_MCP_TOKEN", os.environ)
+            self.assertEqual(os.environ["DEEPSEEK_API_KEY"], "explicit-model-fixture")
+
+    def test_environment_inspection_failure_does_not_reach_stop_or_state_write(self):
+        contract = self.contract()
+        with mock.patch.dict(os.environ, {}, clear=True), \
+                mock.patch.object(dev, "prepare_up", return_value=(contract, self.current(contract))), \
+                mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 1, "", "")), \
+                mock.patch.object(dev, "preflight_new_instance") as preflight, \
+                mock.patch.object(dev, "migrate_existing_instance") as stop, \
+                mock.patch.object(dev, "write_instance") as write, contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                dev.command_up(self.args())
+            preflight.assert_not_called()
+            stop.assert_not_called()
+            write.assert_not_called()
+
+
 class UpCommandStateTest(unittest.TestCase):
     """`up` 必须核对服务真的在运行，而不是只看 `docker compose up -d` 的退出码。"""
 

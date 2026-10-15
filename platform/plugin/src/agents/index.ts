@@ -27,7 +27,7 @@ type JsonMap = Record<string, unknown>
 type SourceCatalog = { schema_version?: string; sources?: Record<string, JsonMap> }
 type RpcValue = JsonMap | JsonMap[] | string | number | boolean | null
 
-const EXP_ID = /^EXP-([a-z0-9-]+)-(\d{3})(?:-[a-z0-9-]+)?$/
+const EXP_ID = /^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-(\d{3})(?:-r[0-9a-f]{12})?$/
 const RUN_ID = /^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const AGENT_ID = /^[a-z0-9][a-z0-9-]*$/
 const SOURCE_CATALOG = 'runtime/adapters/dsh-container/sources.json'

@@ -44,6 +44,8 @@
 
 ## 3. 逐条路径
 
+2026-10-15 的[项目对抗审查与实机验收](项目对抗审查与实机验收_2026-10-15.md)补充了 `PA-03/04/05/06/08/10/12`：新建随机后缀来源并保留历史身份，融合归档与当前能力；标准镜像干净生产依赖装载；平台真实 UI 重启保留同来源环境、HOME 和配置；六页、管理对话冷启动、不可变组合确认、凭据拒绝、报告及完整产物下载。新 EXP021 的基础 Mock 业务与实际模型摘要见其 [Evaluation](../evolution/experiments/EXP-security-operations-expert-021-rdd331f9f2e30/evaluation/observations.md)。真实 TTS 不可达、完整研判输出校验失败、Mock 报告不保存原文、原 Case 输入未原样执行均保留为限制；这些证据不提升全项目路径为完全验证，不构成 Research Release 或生产验收。
+
 2026-09-30 的 [EXP-010 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-010/evaluation/observations.md)补充了 `PA-04/05/06` 的 Candidate 来源、标准镜像、插件实际路由和评测实例启停证据；`PA-07` 观察到插件修复前后新 Session 的行为变化，尚无来源回退；`PA-08` 完成 7 个巡检 Case 的真实 API Turn，未完成浏览器巡检或真实 MCP 业务链；`PA-10` 封存两次完整 Run 并用 `run_record.py compare` 查证。外部巡检 MCP 拒绝连接，研究效果仍为 `inconclusive`，上述路径状态不因此提升。
 
 2026-10-08 的 [EXP-011 Evaluation 观察](../evolution/experiments/EXP-security-operations-expert-011/evaluation/observations.md)补充了 `PA-05/06/08/10` 的独立镜像构建、真实 DSH Web 装载、桌面与窄屏浏览器交互、模型回复和浏览器 Run 证据；所选入口的结果和限制以该观察为准，不改变本矩阵的全项目路径状态。

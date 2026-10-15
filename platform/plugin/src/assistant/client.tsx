@@ -184,10 +184,11 @@ const labels: Record<string, string> = {
   success: '成功', failed: '失败', ok: '成功', message: '说明', result: '回执', receipts: '逐项回执',
   description: '说明', input: '修改内容', ops: '配置修改', op: '修改方式', path: '配置位置', value: '内容',
   revision: '配置版本', before: '原有特性', source_refs: '特性来源', evidence_refs: '验证依据', change: '本版变化',
+  compositionId: '工具组合', versionId: '固定发布版本', toolName: '工具名称',
 }
 const internalFields = new Set(['preview_id', 'proposal_id', 'assistant_session_id', 'catalog_hash', 'plan_ready', 'requires_confirmation', 'evaluation_sha256', 'candidate_sha256', 'source_sha256'])
 const technicalFields = new Set(['command', 'argv', 'cwd', 'stdout', 'stderr', 'logs', 'trace'])
-const actionLabels: Record<string, string> = { saveConfiguration: '保存 MCP 配置', 'fusion/confirm': '新建融合版本', 'features/apply': '保存版本特性', 'edit/apply': '保存资产修改', 'eval/start': '执行评测', 'eval/cancel': '取消评测', run: '实例操作', batch: '批量实例操作' }
+const actionLabels: Record<string, string> = { saveConfiguration: '保存 MCP 配置', callPublishedComposition: '执行固定版本工具组合', 'fusion/confirm': '新建融合版本', 'features/apply': '保存版本特性', 'edit/apply': '保存资产修改', 'eval/start': '执行评测', 'eval/cancel': '取消评测', run: '实例操作', batch: '批量实例操作' }
 
 function unwrap(value: unknown): unknown {
   if (value && typeof value === 'object' && 'ok' in value && 'value' in value && value.ok === true) return value.value

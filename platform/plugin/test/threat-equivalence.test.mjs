@@ -49,6 +49,7 @@ function servicesFor(scenario) {
   let writes = 0
   return {
     calls, modelRequests,
+    connectionFingerprint: connectionId => `fixture-target:${connectionId}`,
     resolveModel: route => route ?? bindings.model,
     async invoke(connection, tool, args, signal) {
       signal.throwIfAborted()

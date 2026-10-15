@@ -6,6 +6,7 @@ import { pluginRecordOf } from '@deepseek-ai/dsh-session'
 import type { ProjectionDefinition, SessionProjectionRegistry } from '@deepseek-ai/dsh-session-projection'
 import type { SystemPrompt } from '@deepseek-ai/dsh-system-prompt'
 import { z } from 'zod'
+import { COMPOSITION_SERVICE_ID } from '../mcp/compositions.ts'
 
 type MapValue = Record<string, any>
 type Domain = 'agents' | 'instances' | 'mcp'
@@ -77,7 +78,19 @@ export function redactAssistant(value: any): any {
   if (Array.isArray(value)) return value.map(redactAssistant)
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key,
     /password|authorization|cookie|token$|api.?key|secret|credential(?!_configured|_ref)/i.test(key) ? '[已隐藏]' : redactAssistant(item)]))
-  if (typeof value === 'string') return value.replace(/\b(Bearer\s+)[^\s"']+/gi, '$1[已隐藏]').replace(/\bsk-[A-Za-z0-9_-]{12,}\b/g, '[已隐藏]')
+  if (typeof value === 'string') return value.replace(/^(?:https?|wss?):\/\//i.test(value)
+    ? /^[\s\S]*$/ : /\b(?:https?|wss?):\/\/[^\s<>"'`]+/gi, raw => {
+    try {
+      const url = new URL(raw)
+      let changed = Boolean(url.username || url.password)
+      url.username = ''; url.password = ''
+      for (const key of [...url.searchParams.keys()]) if (/password|authorization|cookie|token|api.?key|secret|credential|signature/i.test(key)) {
+        url.searchParams.set(key, '[已隐藏]')
+        changed = true
+      }
+      return changed ? url.href : raw
+    } catch { return raw }
+  }).replace(/\b(Bearer\s+)[^\s"']+/gi, '$1[已隐藏]').replace(/\bsk-[A-Za-z0-9_-]{12,}\b/g, '[已隐藏]')
   return value
 }
 function wireValue(value: any) { return JSON.parse(JSON.stringify(redactAssistant(value))) }
@@ -90,7 +103,12 @@ function object(value: unknown): MapValue {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('请求必须是对象')
   return value as MapValue
 }
-function result(ok: boolean, value: any) { return ok ? { ok: true, value } : { ok: false, error: { code: 'assistant_operation_failed', message: value instanceof Error ? value.message : String(value), details: {} } } }
+function result(ok: boolean, value: any) { return ok ? { ok: true, value: redactAssistant(value) } : { ok: false, error: { code: 'assistant_operation_failed', message: redactAssistant(value instanceof Error ? value.message : String(value)), details: {} } } }
+
+function assertNoCredentials(domain: Domain, action: string, input: MapValue) {
+  const secretPath = domain === 'mcp' && action === 'saveConfiguration' && Array.isArray(input.ops) && input.ops.some((op: any) => Array.isArray(op.path) && op.path.some((part: any) => /password|token|api.?key|authorization|secret/i.test(String(part))))
+  if (secretPath || JSON.stringify(input) !== JSON.stringify(redactAssistant(input))) throw new Error('凭据请通过原生配置页面维护，助手操作仅使用已配置引用')
+}
 
 export function createAssistant(root: string, platform: ConnectionRpcHandler, services: AssistantServices) {
   const busy = new Set<string>()
@@ -101,7 +119,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     text: ({ agent }: any) => {
       if (!agent || resolve(agent.session.header.cwd ?? '') !== resolve(root)) return ''
       const state = services.projections.stateOf(agent.session, projectionKey)
-      return state?.active ? `${assistantPolicy}\n固定任务上下文：${JSON.stringify(state.task_context)}\n最新页面上下文：${JSON.stringify(state.context)}` : ''
+      return state?.active ? `${assistantPolicy}\n固定任务上下文：${JSON.stringify(redactAssistant(state.task_context))}\n最新页面上下文：${JSON.stringify(redactAssistant(state.context))}` : ''
     },
   })
   async function inspect(id: string, signal?: AbortSignal) {
@@ -117,7 +135,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
   }
   async function record(id: string, value: MapValue) {
     const { session } = await inspect(id)
-    await services.record(session, recordType, JSON.parse(JSON.stringify(value)))
+    await services.record(session, recordType, wireValue(value))
     services.notify(['assistant'], [id])
   }
   function finish(id: string, proposal: MapValue, settlement: MapValue) {
@@ -141,18 +159,34 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     finally { waiting.resolve(wireValue({ ...settlement, kind: 'platform-operation', domain: proposal.domain, action: proposal.action, proposal_id: proposal.id })) }
   }
   async function dispatch(domain: Domain, action: string, input: MapValue, signal: AbortSignal, peer?: any) {
-    if (domain === 'mcp' && services.mcp && (['configuration', 'saveConfiguration', 'test', 'resources', 'resourceTemplates', 'readResource', 'callTool'].includes(action) || action.startsWith('sources/'))) {
-      return services.mcp!(action, input, signal)
+    try {
+      if (domain === 'mcp' && services.mcp && (['configuration', 'saveConfiguration', 'test', 'resources', 'resourceTemplates', 'readResource', 'callTool'].includes(action) || action.startsWith('sources/'))) {
+        return await services.mcp!(action, input, signal)
+      }
+      return await platform(`${domain}/${action}`, input, signal, peer)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      const safe = redactAssistant(message)
+      if (safe !== message) throw new Error(safe)
+      throw error
     }
-    return platform(`${domain}/${action}`, input, signal, peer)
   }
   async function propose(id: string, domain: Domain, action: string, input: MapValue, signal: AbortSignal, prepared?: any) {
-    const secretPath = domain === 'mcp' && action === 'saveConfiguration' && Array.isArray(input.ops) && input.ops.some((op: any) => Array.isArray(op.path) && op.path.some((part: any) => /password|token|api.?key|authorization|secret/i.test(String(part))))
-    if (secretPath || JSON.stringify(input) !== JSON.stringify(redactAssistant(input))) throw new Error('凭据请通过原生配置页面维护，助手操作仅使用已配置引用')
+    assertNoCredentials(domain, action, input)
     let preview: any = prepared ?? { action, input: redactAssistant(input) }
+    if (domain === 'mcp' && (action === 'callPublishedComposition' || action === 'callTool' && input.serverId === COMPOSITION_SERVICE_ID)) {
+      const listed = await dispatch('mcp', 'list', {}, signal)
+      if (!listed.ok) return wireValue(listed)
+      const entry = listed.value.compositions.find((item: any) => item.published?.toolName === input.toolName)
+      if (!entry?.publishedVersionId) throw new Error('已发布工具不存在，请重新读取工具目录')
+      const businessInput = action === 'callTool' ? input.arguments ?? {} : input.input ?? {}
+      action = 'callPublishedComposition'
+      input = { toolName: entry.published.toolName, compositionId: entry.id, versionId: entry.publishedVersionId, input: businessInput }
+      preview = { action, title: entry.published.title, description: entry.published.description, ...input }
+    }
     if (domain === 'instances' && ['run', 'batch'].includes(action)) {
       preview = await dispatch(domain, action === 'run' ? 'preview' : 'batch-preview', input, signal)
-      if (!preview.ok) return preview
+      if (!preview.ok) return wireValue(preview)
     }
     signal.throwIfAborted()
     const proposal = { kind: 'proposal', id: randomUUID(), owner_session_id: id, domain, action, input, preview, state: 'awaiting_confirmation' }
@@ -188,6 +222,9 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     if (!proposal) throw new Error('提案不存在，请重新生成预览')
     if (proposal.owner_session_id !== id) throw new Error('提案只能由发起它的原会话确认')
     if (proposal.state !== 'awaiting_confirmation') return proposal
+    assertNoCredentials(proposal.domain, proposal.action, proposal.input)
+    if (proposal.domain === 'mcp' && (proposal.action === 'callPublishedComposition' || proposal.action === 'callTool' && proposal.input.serverId === COMPOSITION_SERVICE_ID)
+      && (!proposal.input.compositionId || !proposal.input.versionId)) throw new Error('旧提案缺少固定组合版本，请重新生成预览')
     if (busy.has(proposalId)) throw new Error('该操作正在执行，请等待回执')
     const waiting = pending.get(proposalId)
     const operationSignal = waiting?.signal ?? signal
@@ -252,7 +289,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
       async execute(args: any, exec: any) {
         const id = String(exec.agent.id)
         const { state } = await inspect(id, exec.signal)
-        if (args.action === 'context') return { ok: true, value: { context: state.context, task_context: state.task_context } }
+        if (args.action === 'context') return wireValue({ ok: true, value: { context: state.context, task_context: state.task_context } })
         if (!actions[domain].includes(args.action)) throw new Error('未知的领域操作')
         const input = { ...object(args.input) }
         if (domain === 'agents' && ['features/preview', 'fusion/preview'].includes(args.action)) input.assistant_session_id = id

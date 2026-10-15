@@ -87,6 +87,28 @@ test('模板仅创建五个草稿，父发布要求具体子版本，图来自�
   assert.equal(entry.published.steps[1].inputMap.run_id, '$steps.collect.run_id')
 })
 
+test('固定发布版本调用执行原版本，缺少版本或名称不匹配不调用上游', async () => {
+  const f = await setup()
+  let listed = await publishChildren(f)
+  const original = listed.compositions.find(entry => entry.id === 'threat-collect')
+  listed = (await f.rpc('saveCompositionDraft', { compositionId: original.id, revision: listed.revision,
+    draft: { ...original.published, title: '后来发布的采集阶段' } })).value
+  listed = (await f.rpc('publishComposition', { compositionId: original.id, version: 'draft', revision: listed.revision, input: { incident_id: incident } })).value
+  const current = listed.compositions.find(entry => entry.id === original.id)
+  assert.notEqual(current.publishedVersionId, original.publishedVersionId)
+  const request = { toolName: original.published.toolName, compositionId: original.id, versionId: original.publishedVersionId, input: { incident_id: incident } }
+  const frozen = await f.rpc('callPublishedComposition', request)
+  assert.equal(frozen.ok, true, JSON.stringify(frozen))
+  assert.equal(frozen.value.version.versionId, original.publishedVersionId)
+  const latest = await f.rpc('callPublishedComposition', { toolName: request.toolName, input: request.input })
+  assert.equal(latest.value.version.versionId, current.publishedVersionId)
+  assert.equal(f.calls.length, 2)
+  for (const invalid of [{ ...request, versionId: undefined }, { ...request, versionId: '0'.repeat(64) }, { ...request, toolName: 'other_tool' }]) {
+    assert.equal((await f.rpc('callPublishedComposition', invalid)).ok, false)
+  }
+  assert.equal(f.calls.length, 2, '无效固定引用不能退回执行当前版本')
+})
+
 test('快判跳过完整模型阶段，回写失败仍保存报告；共享同一运行', async () => {
   const f = await setup({ collect: result => ({ ...result, route: 'fast_classification', status: 'completed' }), writeback: result => ({ ...result, phase_status: 'failed', storage: { summary: { status: 'failed' } } }) })
   await publishParent(f)

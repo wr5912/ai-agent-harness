@@ -17,6 +17,7 @@ export interface InstanceActionRequest {
   operation: InstanceOperation
   name: string
   source?: string
+  expected_source_id?: string
   mode?: 'eval'
   port?: number
   allow_missing_env?: boolean
@@ -290,6 +291,10 @@ async function runOne(assetRoot: string, request: InstanceActionRequest, signal?
   const name = assertName(request.name)
   try {
     return await withInstanceLock([name], async () => {
+      if (request.expected_source_id !== undefined) {
+        const current = await manifestFor(name)
+        if (current?.source_id !== request.expected_source_id) throw new Error('实例来源已变化，请刷新后重新预览；本次未执行。')
+      }
       // delete 在 CLI 内按目标实例核验容器状态，避免逐项扫描整个实例列表。
       if (request.operation !== 'create' && request.operation !== 'delete') await assertKnownForMutation(assetRoot, name, signal)
       if (request.operation === 'create' || request.operation === 'start' || request.operation === 'restart') {
@@ -359,6 +364,7 @@ function actionRequest(payload: unknown): InstanceActionRequest {
     allow_missing_env: optionalBoolean(object.allow_missing_env, 'allow_missing_env'),
   }
   if (object.source !== undefined) request.source = assertSource(object.source)
+  if (object.expected_source_id !== undefined) request.expected_source_id = assertSource(object.expected_source_id)
   if (object.mode !== undefined) {
     if (object.mode !== 'eval') throw new Error('mode 只能是 eval')
     request.mode = 'eval'

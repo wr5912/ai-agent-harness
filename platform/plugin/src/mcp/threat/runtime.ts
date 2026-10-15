@@ -11,6 +11,7 @@ const RUN_ID = /^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9
 const STAGES: ThreatStage[] = ['collect', 'infer', 'writeback', 'report']
 type Context = {
   bindings: ThreatBindings; source: { commit: string; digest: string }; analysis_deadline: number
+  connections: { soc: string; report: string }
   result: Record<string, any> & { run_id: string; incident_id: string; status: string }; phases: Partial<Record<ThreatStage, ThreatPhaseStatus>>
   trace: ThreatTrace[]; phase_status: ThreatPhaseStatus; inference_attempted?: boolean
 }
@@ -34,6 +35,13 @@ function contentType(file: string) {
 export function createThreatRuntime(assetRoot: string, services: ThreatServices, opts: ThreatRuntimeOptions = {}): ThreatRuntime {
   const stateRoot = resolve(opts.stateRoot ?? defaultThreatStateRoot(assetRoot))
   const source = () => loadThreatSource(assetRoot, stateRoot)
+  async function connectionFingerprints(bindings: ThreatBindings) {
+    return { soc: await services.connectionFingerprint(bindings.socConnectionId), report: await services.connectionFingerprint(bindings.reportConnectionId) }
+  }
+  async function assertConnections(context: Context) {
+    const current = await connectionFingerprints(context.bindings)
+    if (!context.connections || current.soc !== context.connections.soc || current.report !== context.connections.report) throw new Error('threat_connection_conflict')
+  }
   function runDirectory(id: string) {
     if (!RUN_ID.test(id)) throw new Error('invalid_threat_run_id')
     return join(stateRoot, 'runs', id)
@@ -78,7 +86,7 @@ export function createThreatRuntime(assetRoot: string, services: ThreatServices,
         if (typeof input.incident_id !== 'string' || !/^INC-\d{8}-\d{6}$/.test(input.incident_id)) throw new Error('invalid_threat_incident_id')
         id = `run-${randomUUID()}`
         await mkdir(runDirectory(id), { recursive: true, mode: 0o700 })
-        context = { bindings: { socConnectionId: bindings.socConnectionId, reportConnectionId: bindings.reportConnectionId }, source: { commit: immutable.commit, digest: immutable.digest }, analysis_deadline: Date.now() / 1000 + 30 * 60,
+        context = { bindings: { socConnectionId: bindings.socConnectionId, reportConnectionId: bindings.reportConnectionId }, connections: await connectionFingerprints(bindings), source: { commit: immutable.commit, digest: immutable.digest }, analysis_deadline: Date.now() / 1000 + 30 * 60,
           result: { schema_version: '1.0', run_id: id, incident_id: input.incident_id, model: null, llm_invoked: false, status: 'claim_failed' }, phases: {}, trace: [], phase_status: 'unknown' }
         await atomic(join(runDirectory(id), 'context.json'), context)
       } else context = await load(id)
@@ -92,6 +100,7 @@ export function createThreatRuntime(assetRoot: string, services: ThreatServices,
         if (stage === 'infer' && context.inference_attempted && bindings.model && context.bindings.model &&
           Object.entries(bindings.model).some(([key, value]) => value !== context.bindings.model![key as keyof typeof bindings.model])) throw new Error('threat_model_conflict')
         if (context.phases[stage]) return { ...await view(id, context, context.phases[stage]), replayed: true }
+        await assertConnections(context)
         if (stage !== 'collect' && !context.phases.collect) throw new Error('threat_collect_required')
         if (stage === 'writeback' && context.result.status === 'evidence_ready') throw new Error('threat_inference_required')
         if (stage === 'report' && !context.phases.writeback) throw new Error('threat_writeback_required')
@@ -107,6 +116,7 @@ export function createThreatRuntime(assetRoot: string, services: ThreatServices,
         context.phase_status = 'unknown'
         await atomic(contextFile, context)
         let bridge: Awaited<ReturnType<typeof createThreatBridge>> | undefined
+        let connectionConflict = false
         const entry = join(output, '.phase.py')
         try {
           if (stage === 'infer') {
@@ -115,7 +125,17 @@ export function createThreatRuntime(assetRoot: string, services: ThreatServices,
             context.bindings.model = bindingsOf({ ...context.bindings, model }).model
             await atomic(contextFile, context)
           }
-          bridge = await createThreatBridge(immutable.catalog, context.bindings, services, signal)
+          const scopedServices: ThreatServices = { ...services, async invoke(connectionId, toolName, args, callSignal) {
+            const expected = connectionId === context.bindings.socConnectionId ? context.connections.soc : context.connections.report
+            try {
+              if (await services.connectionFingerprint(connectionId) !== expected) throw new Error('threat_connection_conflict')
+              return await services.invoke(connectionId, toolName, args, callSignal, expected)
+            } catch (error: any) {
+              if (error.message === 'threat_connection_conflict') connectionConflict = true
+              throw error
+            }
+          } }
+          bridge = await createThreatBridge(immutable.catalog, context.bindings, scopedServices, signal)
           const currentBridge = bridge
           await writeFile(entry, threatPython, { mode: 0o600 })
           const payload = { stage, source: immutable.root, output, run: context.result, analysis_deadline: context.analysis_deadline,
@@ -150,7 +170,12 @@ export function createThreatRuntime(assetRoot: string, services: ThreatServices,
         trace.finished_at = new Date().toISOString()
         if (context.phase_status === 'unknown') trace.error_type = context.result.error_type
         context.phases[stage] = context.phase_status
+        if (connectionConflict) {
+          context.phase_status = 'failed'; context.phases[stage] = 'failed'; trace.status = 'failed'
+          context.result.error_type = trace.error_type = 'threat_connection_conflict'
+        }
         await atomic(contextFile, context)
+        if (connectionConflict) throw new Error('threat_connection_conflict')
         return view(id, context)
       } finally { await rm(lock, { recursive: true, force: true }) }
     },

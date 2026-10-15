@@ -222,3 +222,86 @@ test('已确认融合只自主编辑同 Session 目标 Candidate，评测口径�
   await assert.rejects(f.execute(id, 'mcp', 'saveConfiguration', { revision: 1, ops: [{ op: 'set', path: ['servers', '0', 'apiKey'], value: 'fixture-secret' }] }), /凭据/)
   assert.ok(!JSON.stringify(f.sessions.get(id).events).includes('fixture-secret'))
 })
+
+for (const action of ['callPublishedComposition', 'callTool']) test(`${action} 提案冻结实际发布版本，后续发布不改变确认目标`, async t => {
+  const originalVersion = '1'.repeat(64), nextVersion = '2'.repeat(64)
+  const entry = { id: 'composition-fixed', publishedVersionId: originalVersion, published: { toolName: 'basic_status', title: '原版基础状态', description: '固定基础模拟数据' } }
+  const f = fixture(t, (endpoint, input) => endpoint === 'mcp/list'
+    ? { ok: true, value: { compositions: [entry] } }
+    : endpoint === 'mcp/callPublishedComposition' ? { ok: true, value: { executed_version: input.versionId } } : undefined)
+  const id = (await f.rpc('session', {})).value.session_id
+  const input = action === 'callTool' ? { serverId: 'platform-compositions', toolName: 'basic_status', arguments: { asset: 'test' } }
+    : { toolName: 'basic_status', input: { asset: 'test' }, compositionId: 'model-supplied', versionId: nextVersion }
+  const before = structuredClone(input)
+  const operation = f.execute(id, 'mcp', action, Object.freeze(input))
+  const card = await f.proposal(id)
+  assert.equal(card.action, 'callPublishedComposition')
+  assert.equal(card.preview.title, '原版基础状态')
+  assert.equal(card.preview.versionId, originalVersion)
+  assert.equal(card.input.compositionId, entry.id)
+  assert.deepEqual(input, before)
+  entry.publishedVersionId = nextVersion
+  entry.published = { ...entry.published, title: '后来发布的版本' }
+  const confirmed = await f.rpc('confirm', { session_id: id, proposal_id: card.id })
+  assert.equal(confirmed.value.result.value.executed_version, originalVersion)
+  assert.equal((await operation).state, 'completed')
+  await f.rpc('confirm', { session_id: id, proposal_id: card.id })
+  assert.deepEqual(f.calls.filter(call => call.endpoint === 'mcp/callPublishedComposition').map(call => call.input), [{
+    toolName: 'basic_status', compositionId: entry.id, versionId: originalVersion, input: { asset: 'test' }, confirmed: true,
+  }])
+})
+
+test('冷恢复的旧组合卡片缺少固定版本时拒绝执行', async t => {
+  const f = fixture(t), id = (await f.rpc('session', {})).value.session_id
+  for (const action of ['callPublishedComposition', 'callTool']) {
+    appendPluginRecord(f.sessions.get(id).session, 'plugin:harness-platform/assistant', {
+      kind: 'proposal', id: action, owner_session_id: id, domain: 'mcp', action,
+      input: { serverId: 'platform-compositions', toolName: 'basic_status', input: {} }, state: 'awaiting_confirmation',
+    })
+    const response = await f.rpc('confirm', { session_id: id, proposal_id: action })
+    assert.equal(response.ok, false)
+    assert.match(response.error.message, /固定组合版本/)
+  }
+  assert.deepEqual(f.calls, [])
+})
+
+test('URL 用户信息及查询凭据在写提案前拒绝，查询、上下文和错误展示均脱敏', async t => {
+  const credentials = [
+    'https://demo-user:dummy-password@fixture.invalid/spec',
+    'https://fixture.invalid/spec?token=dummy-token',
+    'https://fixture.invalid/spec?api_key=dummy-api-key',
+    'wss://fixture.invalid/mcp?access_token=dummy-access-token',
+    "https://fixture.invalid/spec?token=dummy-quoted'token",
+  ]
+  const f = fixture(t, () => ({ ok: true, value: { url: credentials[0], message: `请求失败：${credentials[1]}`, nested: [{ endpoint: credentials[2] }] } }))
+  const id = (await f.rpc('session', {})).value.session_id
+  for (const url of credentials) await assert.rejects(f.execute(id, 'mcp', 'saveConfiguration', {
+    revision: 1, ops: [{ op: 'set', path: ['servers', '0', 'specUrl'], value: url }],
+  }), /凭据请通过原生配置页面维护/)
+  assert.equal((await f.status(id)).proposals.length, 0)
+  assert.equal(f.calls.length, 0)
+  await f.rpc('context', { session_id: id, context: { url: credentials[0] } })
+  const read = await f.execute(id, 'mcp', 'list')
+  assert.ok(!JSON.stringify(read).includes('dummy-'))
+  assert.ok(!JSON.stringify(f.sessions.get(id).events).includes('dummy-'))
+  assert.ok(!(await f.assemble(id)).includes('dummy-'))
+  const ordinary = 'https://EXAMPLE.invalid:443/spec?q=basic&page=2#view'
+  assert.equal(redactAssistant(ordinary), ordinary, '普通 URL 原样保留，不因规范化误判凭据')
+  const throwing = fixture(t, () => { throw new Error(`上游连接失败：${credentials[1]}`) })
+  const throwingId = (await throwing.rpc('session', {})).value.session_id
+  await assert.rejects(throwing.execute(throwingId, 'mcp', 'list'), error => !error.message.includes('dummy-') && !error.stack.includes('dummy-'))
+  const previewFailure = fixture(t, () => ({ ok: false, error: { message: `预览连接失败：${credentials[1]}` } }))
+  const previewId = (await previewFailure.rpc('session', {})).value.session_id
+  assert.ok(!JSON.stringify(await previewFailure.execute(previewId, 'instances', 'run', { name: 'fixture', operation: 'stop' })).includes('dummy-'))
+  appendPluginRecord(f.sessions.get(id).session, 'plugin:harness-platform/assistant', {
+    kind: 'proposal', id: 'legacy-credential', owner_session_id: id, domain: 'mcp', action: 'saveConfiguration',
+    input: { revision: 1, ops: [{ op: 'set', path: ['servers', '0', 'specUrl'], value: credentials[0] }] }, state: 'awaiting_confirmation',
+  })
+  assert.ok(!JSON.stringify(await f.status(id)).includes('dummy-'))
+  assert.equal((await f.rpc('confirm', { session_id: id, proposal_id: 'legacy-credential' })).ok, false)
+  f.services.controller.resolveAgent = async () => { throw new Error(`连接失败：${credentials[1]}`) }
+  const failure = await f.rpc('status', { session_id: id })
+  assert.ok(!JSON.stringify(failure).includes('dummy-'))
+  // 恢复内存夹具，便于正常释放原生投影。
+  f.services.controller.resolveAgent = async sessionId => ({ agent: { session: f.sessions.get(sessionId).session } })
+})

@@ -19,7 +19,7 @@ ADAPTER = Path(__file__).resolve().parents[4] / "runtime/adapters/dsh-container"
 if str(ADAPTER) not in sys.path:
     sys.path.insert(0, str(ADAPTER))
 from scenario_analysis import summarize_review, validate_analysis
-from source_contract import EXPERIMENT as EXPERIMENT_RE
+from source_contract import EXPERIMENT as EXPERIMENT_RE, LEGACY_EXPERIMENT_IDS, NEW_EXPERIMENT
 
 try:
     import yaml
@@ -431,6 +431,8 @@ def validate(experiment: Path) -> tuple[dict, int]:
     if not experiment.is_dir() or experiment.is_symlink() or not match:
         payload = {"schema_version": "1.0", "valid": False, "errors": [issue("EXPERIMENT_PATH", "输入必须是 EXP-<agent-id>-NNN-r<12位十六进制> 或旧编号实体目录", experiment)], "warnings": []}
         return payload, 2
+    if not NEW_EXPERIMENT.fullmatch(experiment.name) and experiment.name not in LEGACY_EXPERIMENT_IDS:
+        errors.append(issue("EXPERIMENT_NAME", "新 Experiment 必须使用 EXP-<agent-id>-NNN-r<12位小写十六进制>；无后缀名称仅兼容固定历史身份", experiment))
     agent_id = match.group(1)
     repository = experiment.parents[2]
     evaluation_path = repository / "agents" / agent_id / "evaluation.md"

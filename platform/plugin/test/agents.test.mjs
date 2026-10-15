@@ -136,6 +136,27 @@ async function waitForJob(handler, jobId) {
   throw new Error('job did not finish')
 }
 
+test('experiment readers accept historical IDs and twelve hex suffixes, rejecting other suffixes', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    assert.equal((await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: 'EXP-test-agent-001' })).experiment.id, 'EXP-test-agent-001')
+    for (const suffix of ['random', 'r0123456789a', 'r0123456789abc', 'r0123456789AB']) {
+      const id = `EXP-test-agent-002-${suffix}`
+      write(join(fx.root, `evolution/experiments/${id}/change.yaml`), `experiment_id: ${id}\nagent_id: test-agent\n`)
+      await assert.rejects(() => rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: id }), /invalid_request:/)
+    }
+    const valid = 'EXP-test-agent-002-r0123456789ab'
+    write(join(fx.root, `evolution/experiments/${valid}/change.yaml`), `experiment_id: ${valid}\nagent_id: test-agent\n`)
+    const detail = await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: valid })
+    assert.equal(detail.experiment.id, valid)
+    assert.deepEqual(detail.versions.map(item => item.id).sort(), ['EXP-test-agent-001', valid])
+  } finally {
+    await rm(fx.root, { recursive: true, force: true })
+  }
+})
+
 test('agents detail reads manifest, selectable versions, real cases, refs and editable files', async () => {
   const { createAgentsHandler } = await loadServer()
   const fx = fixture()

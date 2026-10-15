@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { compositionInputSchema, compositionReadonly } from './definition.ts'
-import { compositionConfig, publishCompositionVersion, publishedCompositionService, readCompositions, selectedComposition, writeCompositions } from './compositions.ts'
+import { compositionConfig, publishCompositionVersion, publishedCompositionService, readCompositions, selectedComposition, versionConfig, writeCompositions } from './compositions.ts'
 import { seedThreatCompositions } from './templates.ts'
 import { createRegistry, executeComposition, dryRunComposition, compositionStructure, compositionVersion, saveRegistry, type McpRegistry } from './executor.ts'
 import { callOpenApiOperation, limitedText, loadOpenApi, normalizeConnection, publicConnection, validateSpecUrl, type CredentialRef } from './openapi.ts'
@@ -215,6 +215,12 @@ export function createMcpHandler(assetRoot: string, options: { stateFile?: strin
           return success(await listState(registry, assetRoot, compositionsFile))
         }
         if (endpoint === 'callPublishedComposition') {
+          if (request.compositionId !== undefined || request.versionId !== undefined) {
+            if (typeof request.compositionId !== 'string' || typeof request.versionId !== 'string' || !request.versionId) return failure('invalid_request', '执行固定组合需要完整的组合 ID 和版本 ID')
+            const frozen = versionConfig(catalog, request.compositionId, request.versionId)
+            if (frozen.toolName !== request.toolName) return failure('conflict', '固定组合版本与工具名称不一致，请重新生成预览')
+            return success(await executeComposition(registry, assetRoot, frozen, request.input ?? {}, signal, catalog))
+          }
           const entry = catalog.compositions.find(item => item.published?.toolName === request.toolName)
           if (!entry?.published) return failure('not_found', '已发布工具不存在')
           return success(await executeComposition(registry, assetRoot, entry.published, request.input ?? {}, signal, catalog))

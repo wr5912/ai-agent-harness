@@ -429,6 +429,45 @@ def runtime_env_names(contract: dict, analysis_workspace: str | None = None) -> 
     return required + [name for name in contract.get("optional_env_names", []) if os.environ.get(name)]
 
 
+def existing_runtime_environment(args: argparse.Namespace, contract: dict,
+                                 current: tuple[Path, dict] | None) -> dict[str, str]:
+    """同一来源重启时，仅从本实例容器恢复调用环境未显式提供的声明变量。"""
+    if current is None:
+        return {}
+    validate_existing_identity(args.name, current[1], contract, args.mode, args.analysis_workspace)
+    names = required_env_names(contract, args.analysis_workspace)
+    if args.analysis_workspace is None:
+        names += list(contract.get("optional_env_names") or [])
+    missing = set(names) - os.environ.keys()
+    if not missing:
+        return {}
+    listing = run(
+        ["docker", "ps", "-a", "--filter", f"label=com.docker.compose.project={project_name(args.name)}",
+         "--filter", "label=com.docker.compose.service=dsh", "--format", "{{.ID}}"],
+        check=False,
+    )
+    if listing.returncode != 0:
+        fail("无法读取本实例容器的运行环境，原实例未停止")
+    containers = [line.strip() for line in (listing.stdout or "").splitlines() if line.strip()]
+    if not containers:
+        return {}
+    if len(containers) != 1:
+        fail("本实例存在多个 dsh 容器，无法确定运行环境，原实例未停止")
+    inspected = run(["docker", "inspect", "--format", "{{json .Config.Env}}", containers[0]], check=False)
+    try:
+        values = json.loads(inspected.stdout) if inspected.returncode == 0 else None
+        if not isinstance(values, list) or any(not isinstance(value, str) for value in values):
+            raise ValueError()
+    except (TypeError, ValueError):
+        fail("无法解析本实例容器的运行环境，原实例未停止")
+    inherited = {}
+    for value in values:
+        name, separator, content = value.partition("=")
+        if separator and name in missing:
+            inherited[name] = content
+    return inherited
+
+
 def check_environment(contract: dict, analysis_workspace: str | None = None) -> None:
     missing = [name for name in required_env_names(contract, analysis_workspace) if not os.environ.get(name)]
     if missing:
@@ -1001,6 +1040,17 @@ def validate_image_identity(contract: dict, current: tuple[Path, dict] | None = 
 
 def command_up(args: argparse.Namespace) -> None:
     contract, current = prepare_up(args)
+    inherited = existing_runtime_environment(args, contract, current)
+    os.environ.update(inherited)
+    try:
+        _command_up(args, contract, current)
+    finally:
+        for name in inherited:
+            os.environ.pop(name, None)
+
+
+def _command_up(args: argparse.Namespace, contract: dict,
+                current: tuple[Path, dict] | None) -> None:
     if getattr(args, "dry_run", False):
         print(json.dumps(build_plan(args, contract), ensure_ascii=False, indent=2, sort_keys=True))
         return

@@ -25,6 +25,21 @@ function fixture(status = 'completed') {
 const hash = data => createHash('sha256').update(data).digest('hex')
 const request = (query, signal) => new Request(`http://platform.invalid/api/harness-platform/runs/download?run_id=${runId}&${query}`, { signal })
 
+test('Run 来源目录保留历史格式并仅接受十二位随机后缀', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'run-files-names-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  for (const suffix of ['random', 'r0123456789a', 'r0123456789abc', 'r0123456789AB']) {
+    write(join(root, `evolution/experiments/EXP-test-agent-002-${suffix}/runs/${runId}/report.md`), '不应被识别。')
+  }
+  await assert.rejects(() => api.readRunReport(root, runId), error => error.code === 'not_found')
+  const valid = `evolution/experiments/EXP-test-agent-002-r0123456789ab/runs/${runId}`
+  write(join(root, valid, 'report.md'), '固定随机后缀报告。')
+  assert.deepEqual(await api.readRunReport(root, runId), { path: `${valid}/report.md`, content: '固定随机后缀报告。', present: true })
+  // 同一 Run 出现在旧编号来源时仍应报告真实冲突，不忽略历史记录。
+  write(join(root, relativeRun, 'report.md'), '历史报告。')
+  await assert.rejects(() => api.readRunReport(root, runId), error => error.code === 'conflict')
+})
+
 test('报告缺失保持可读，动态列出实际归因文件，未封存拒绝完整包', async t => {
   const { root, run } = fixture('running')
   t.after(() => rm(root, { recursive: true, force: true }))

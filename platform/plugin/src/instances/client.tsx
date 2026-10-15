@@ -28,6 +28,7 @@ interface ActionRequest {
   operation: Operation
   name: string
   source?: string
+  expected_source_id?: string
   port?: number
 }
 
@@ -83,8 +84,6 @@ export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: P
   const listRequest = useRef(0)
   const detailRequest = useRef(0)
   const detailName = useRef<string | undefined>(undefined)
-  const busyRef = useRef(busy)
-  busyRef.current = busy
   const embedCode = embedUrl ? `<iframe\n  src="${embedUrl.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}"\n  title="DSH 智能体"\n  style="width: 100%; height: 700px; border: 0;"\n  allow="clipboard-write"\n></iframe>` : ''
 
   const visible = useMemo(() => instances.filter(item => (!sourceFilter || item.source_id === sourceFilter) && (filter === 'all' || (filter === 'existing' ? item.state !== 'absent' : item.state === filter)) && `${item.name} ${item.source_id ?? ''}`.toLowerCase().includes(query.toLowerCase())), [instances, filter, query, sourceFilter])
@@ -130,7 +129,6 @@ export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: P
     const domains = updates.getSnapshot().domains
     if (domains.includes('instances')) void refresh(true)
     else if (domains.includes('agents') && detailName.current) void openDetail(detailName.current, true)
-    if (domains.includes('instances') && !busyRef.current) { setPreview(null); setPending(null) }
   }), [updates])
   useEffect(() => {
     onContext?.({ page: 'instances', instance_name: detail?.instance.name, selected_instances: [...selected] })
@@ -170,7 +168,15 @@ export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: P
         ? await call('preview', items[0])
         : await call('batch-preview', { items })
       setPreview(data)
-      setPending({ operation, items })
+      const previews = items.length === 1 ? [data] : (data as any).previews.map((item: any) => item.value)
+      const frozen = items.map(item => {
+        if (operation === 'create') return item
+        const preview = previews.find((value: any) => value?.name === item.name) as any
+        const source = preview?.plan?.source_id ?? preview?.source_id
+        if (typeof source !== 'string' || !source) throw new Error('预览缺少实例来源，请刷新后重新预览。')
+        return { ...item, expected_source_id: source }
+      })
+      setPending({ operation, items: frozen })
     } catch (err) {
       setError((err as Error).message)
     } finally {

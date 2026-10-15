@@ -49,6 +49,7 @@ function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversa
   const previousRunning = useRef(false)
   const frame = useRef<HTMLDivElement>(null)
   const conversation = useRef<HTMLDivElement>(null)
+  const nativeLayoutActive = useRef(false)
   const collapseOnEntry = useRef(true)
   const activePage = useRef(page)
   activePage.current = page
@@ -80,8 +81,9 @@ function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversa
     await assistant.create(task, context)
   }
   useEffect(() => { assistant.updateContext(contexts.current[page] ?? { page }) }, [assistant, page])
-  useEffect(() => {
+  useLayoutEffect(() => {
     // 原生布局由管理对话接管，其余页面只保留平台外壳和浮窗。
+    nativeLayoutActive.current = true
     const layer = frame.current!.closest<HTMLElement>('[data-shell-overlay]')!
     const underneath = [...layer.parentElement!.children].filter(element => element !== layer) as HTMLElement[]
     const previous = underneath.map(element => ({ element, hidden: element.hidden, inert: element.inert, display: element.style.display }))
@@ -89,6 +91,7 @@ function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversa
     const title = document.title
     document.title = 'Harness工程平台'
     return () => {
+      nativeLayoutActive.current = false
       previous.forEach(({ element, hidden, inert, display }) => { element.hidden = hidden; element.inert = inert; element.style.display = display })
       document.title = title
     }
@@ -129,7 +132,7 @@ function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversa
       nativeFrame.classList.remove('harness-conversation-frame')
       nativeFrame.style.removeProperty('--harness-conversation-top')
       nativeFrame.style.removeProperty('--harness-conversation-left')
-      previous.forEach(({ element, hidden, inert, display }) => { element.hidden = hidden; element.inert = inert; element.style.display = display })
+      if (nativeLayoutActive.current) previous.forEach(({ element, hidden, inert, display }) => { element.hidden = hidden; element.inert = inert; element.style.display = display })
     }
   }, [full, enterConversation])
   const navigation = <nav className="harness-nav" aria-label="平台导航">

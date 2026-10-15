@@ -109,6 +109,41 @@ test('相同连接切换specUrl后重新发现，普通HTTP body不额外增加a
   assert.deepEqual(args, { status: 'NORMAL' })
 })
 
+test('连接身份只固定目标，凭据轮换仍可调用，地址或协议改变在实际调用前拒绝', async () => {
+  const server = { id: 'soc', url: 'http://fixture.invalid/mcp', headers: [{ name: 'Authorization', value: 'fixture-token-v1' }], enabled: true }
+  const calls = []
+  const services = createNativeThreatServices(repository, async request => { calls.push(request); return { status: 200, value: {} } }, {}, () => defaultRoute, () => [server])
+  const expected = services.connectionFingerprint('soc')
+  assert.match(expected, /^[a-f0-9]{64}$/)
+  server.headers[0].value = 'fixture-token-v2'
+  server.apiKey = 'fixture-api-key-v2'
+  server.loginPassword = 'fixture-password-v2'
+  assert.equal(services.connectionFingerprint('soc'), expected)
+  await services.invoke('soc', 'basic_status', {}, active(), expected)
+  server.url = 'http://other-fixture.invalid/mcp'
+  await assert.rejects(() => services.invoke('soc', 'basic_status', {}, active(), expected), /threat_connection_conflict/)
+  assert.equal(calls.length, 1)
+  server.url = ''; server.specUrl = 'http://fixture.invalid/mcp'
+  await assert.rejects(() => services.invoke('soc', 'basic_status', {}, active(), expected), /threat_connection_conflict/)
+  assert.equal(calls.length, 1)
+  server.specUrl = 'http://fixture.invalid/openapi?api_key=fixture-key-v1&version=1'
+  const withQuery = services.connectionFingerprint('soc')
+  server.specUrl = 'http://fixture.invalid/openapi?api_key=fixture-key-v2&version=1'
+  assert.equal(services.connectionFingerprint('soc'), withQuery)
+})
+
+test('OpenAPI发现期间切换同ID目标在callTool前拒绝，不把发现旧规格用于新目标', async () => {
+  const server = { id: 'soc', specUrl: 'http://fixture.invalid/openapi/v1' }, calls = []
+  const services = createNativeThreatServices(repository, async request => {
+    calls.push(request)
+    server.specUrl = 'http://fixture.invalid/openapi/v2'
+    return { status: 200, value: { tools: [{ name: 'basic_status', inputSchema: { properties: {} } }] } }
+  }, {}, () => defaultRoute, () => [server])
+  const expected = services.connectionFingerprint('soc')
+  await assert.rejects(() => services.invoke('soc', 'basic_status', {}, active(), expected), /threat_connection_conflict/)
+  assert.deepEqual(calls.map(request => request.action), ['test'])
+})
+
 test('OpenAPI未暴露操作或规格发现失败时拒绝调用，不泄露规格诊断内容', async () => {
   for (const reply of [{ status: 200, value: { tools: [] } }, { status: 502, value: { error: 'fixture-private-spec-detail' } }]) {
     const calls = []

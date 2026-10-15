@@ -111,6 +111,27 @@ test('instances list keeps real observed state and detail run/session links', as
   }
 })
 
+test('确认实例操作沿用预览来源，来源被替换时在任何CLI调用前拒绝', async t => {
+  const { module, cleanup } = await loadModule()
+  const fx = fixture()
+  const previous = process.env.XDG_STATE_HOME
+  process.env.XDG_STATE_HOME = fx.state
+  t.after(() => { fx.cleanup(); cleanup(); if (previous === undefined) delete process.env.XDG_STATE_HOME; else process.env.XDG_STATE_HOME = previous })
+  const handler = module.createInstancesHandler(fx.root)
+  const signal = new AbortController().signal
+  const same = await handler('run', { operation: 'stop', name: 'running-one', expected_source_id: 'experiment:EXP-real-001' }, signal)
+  assert.equal(same.ok, true)
+  assert.equal(same.value.ok, true)
+  const callsFile = join(fx.root, 'runtime/adapters/dsh-container/dsh-dev.calls')
+  const before = readFileSync(callsFile, 'utf8')
+  const manifest = join(fx.state, 'dsh-dev/running-one/instance.json')
+  writeFileSync(manifest, JSON.stringify({ name: 'running-one', source_id: 'experiment:EXP-another-001', port: 3181 }))
+  const changed = await handler('run', { operation: 'restart', name: 'running-one', expected_source_id: 'experiment:EXP-real-001' }, signal)
+  assert.equal(changed.value.ok, false)
+  assert.match(changed.value.error.message, /实例来源已变化/)
+  assert.equal(readFileSync(callsFile, 'utf8'), before, '拒绝后不得停止或重新创建其他来源的实例')
+})
+
 test('Web 入口按需读取 CLI 当前链接，保留认证并拒绝非实例地址', async t => {
   const { module, cleanup } = await loadModule()
   const fx = fixture()

@@ -14,6 +14,21 @@ import source_contract
 
 
 class SourceContractTest(unittest.TestCase):
+    def test_new_experiment_names_and_frozen_legacy_identities_are_distinct(self):
+        expected_legacy = {
+            *(f"EXP-security-operations-expert-{number:03d}" for number in range(1, 13)),
+            "EXP-test01-001", "EXP-test01-002",
+            "EXP-security-operations-expert-013", "EXP-security-operations-expert-020",
+        }
+        self.assertEqual(source_contract.LEGACY_EXPERIMENT_IDS, expected_legacy)
+        self.assertEqual(len(source_contract.LEGACY_EXPERIMENT_IDS), 16)
+        self.assertIsNotNone(source_contract.NEW_EXPERIMENT.fullmatch("EXP-example-agent-021-r0123456789ab"))
+        for identity in (*expected_legacy, "EXP-example-agent-001", "EXP-security-operations-expert-021"):
+            with self.subTest(identity=identity):
+                self.assertIsNone(source_contract.NEW_EXPERIMENT.fullmatch(identity))
+                # 历史 Git 来源仍可解析格式；这不授予新建或仓库校验例外。
+                self.assertIsNotNone(source_contract.EXPERIMENT.fullmatch(identity))
+
     def test_experiment_ids_accept_legacy_and_twelve_hex_suffix(self):
         self.assertEqual(
             source_contract.EXPERIMENT.fullmatch("EXP-security-operations-expert-013-r26ecd1295ab4").group(1),

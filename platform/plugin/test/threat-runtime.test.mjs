@@ -41,11 +41,14 @@ function fixtureServices(options = {}) {
   let modelCalls = 0, resultCalls = 0, modelResolves = 0
   return {
     calls, get modelCalls() { return modelCalls }, get modelResolves() { return modelResolves },
+    connectionFingerprint(connectionId) { return options.fingerprints?.[connectionId] ?? `fixture-target:${connectionId}` },
     resolveModel(route) { modelResolves++; return route ?? bindings.model },
-    async invoke(connection, tool, args, signal) {
+    async invoke(connection, tool, args, signal, expectedFingerprint) {
+      assert.equal(expectedFingerprint, this.connectionFingerprint(connection))
       calls.push({ connection, tool, args: structuredClone(args) })
       if (tool.endsWith('create_incident_judgement_claim')) {
         if (options.claimConflict) return { status: 'error', status_code: 409, result: { code: 409, data: null } }
+        options.afterClaim?.()
         return envelope({ judgementId: 'judge-basic' })
       }
       if (tool.endsWith('get_correlate_incident_by_incident_id')) {
@@ -166,6 +169,71 @@ test('认领冲突不取证、不补写失败、不生成报告；绑定与Run�
     assert.equal(fx.services.calls.length, 1)
     await assert.rejects(() => fx.runtime.execute('infer', { ...bindings, socConnectionId: 'other' }, { run_id: result.run_id }, active()), /binding_conflict/)
     await assert.rejects(() => fx.runtime.inspect('../outside'), /invalid_threat_run/)
+  } finally { await fx.cleanup() }
+})
+
+test('Run冻结目标身份：同ID换目标、旧Run缺身份均在回写前拒绝；恢复原目标可继续且重放无副作用', async () => {
+  const fingerprints = { [bindings.socConnectionId]: 'soc-target-v1', [bindings.reportConnectionId]: 'report-target-v1' }
+  const fx = await setup({ fast: true, fingerprints })
+  try {
+    const collected = await fx.runtime.execute('collect', bindings, { incident_id: 'INC-20261015-000001' }, active())
+    const input = { run_id: collected.run_id }, before = fx.services.calls.length
+    fingerprints[bindings.socConnectionId] = 'soc-target-v2'
+    await assert.rejects(() => fx.runtime.execute('writeback', bindings, input, active()), /threat_connection_conflict/)
+    assert.equal(fx.services.calls.length, before)
+    fingerprints[bindings.socConnectionId] = 'soc-target-v1'
+    fingerprints[bindings.reportConnectionId] = 'report-target-v2'
+    await assert.rejects(() => fx.runtime.execute('writeback', bindings, input, active()), /threat_connection_conflict/)
+    assert.equal(fx.services.calls.length, before)
+    fingerprints[bindings.reportConnectionId] = 'report-target-v1'
+    const contextFile = join(fx.stateRoot, 'runs', collected.run_id, 'context.json')
+    const frozen = JSON.parse(await readFile(contextFile, 'utf8'))
+    const legacy = { ...frozen }; delete legacy.connections
+    await writeFile(contextFile, JSON.stringify(legacy))
+    await assert.rejects(() => fx.runtime.execute('writeback', bindings, input, active()), /threat_connection_conflict/)
+    assert.equal(fx.services.calls.length, before)
+    await writeFile(contextFile, JSON.stringify(frozen))
+    await fx.runtime.execute('writeback', bindings, input, active())
+    const written = fx.services.calls.length
+    assert.equal((await fx.runtime.execute('writeback', bindings, input, active())).replayed, true)
+    assert.equal(fx.services.calls.length, written)
+    const completedContext = JSON.parse(await readFile(contextFile, 'utf8'))
+    const completedLegacy = { ...completedContext }; delete completedLegacy.connections
+    await writeFile(contextFile, JSON.stringify(completedLegacy))
+    fingerprints[bindings.socConnectionId] = 'soc-target-v2'
+    assert.equal((await fx.runtime.execute('writeback', bindings, input, active())).replayed, true)
+    assert.equal((await fx.runtime.inspect(collected.run_id)).run_id, collected.run_id)
+    assert.match((await fx.runtime.artifact(collected.run_id, 'report.html')).body, /威胁事件快速研判报告/)
+    await assert.rejects(() => fx.runtime.execute('report', bindings, input, active()), /threat_connection_conflict/)
+    assert.equal(fx.services.calls.length, written)
+    fingerprints[bindings.socConnectionId] = 'soc-target-v1'
+    await writeFile(contextFile, JSON.stringify(completedContext))
+    const cancelled = new AbortController(); cancelled.abort()
+    const reported = await fx.runtime.execute('report', bindings, input, cancelled.signal)
+    assert.equal(reported.phase_status, 'unknown')
+    const cancelledCount = fx.services.calls.length
+    assert.equal((await fx.runtime.execute('report', bindings, input, active())).replayed, true)
+    assert.equal(fx.services.calls.length, cancelledCount)
+  } finally { await fx.cleanup() }
+})
+
+test('阶段执行中改目标在下一次取证前拒绝，恢复目标后唯一fail回写仍可完成', async () => {
+  const fingerprints = { [bindings.socConnectionId]: 'soc-target-v1', [bindings.reportConnectionId]: 'report-target-v1' }
+  const fx = await setup({ fingerprints, afterClaim() { fingerprints[bindings.socConnectionId] = 'soc-target-v2' } })
+  try {
+    await assert.rejects(() => fx.runtime.execute('collect', bindings, { incident_id: 'INC-20261015-000001' }, active()), /threat_connection_conflict/)
+    assert.equal(fx.services.calls.length, 1)
+    const [runId] = await readdir(join(fx.stateRoot, 'runs'))
+    const failed = await fx.runtime.inspect(runId)
+    assert.equal(failed.judgement_id, 'judge-basic')
+    assert.equal(failed.phase_status, 'failed')
+    assert.equal(failed.error_type, 'threat_connection_conflict')
+    fingerprints[bindings.socConnectionId] = 'soc-target-v1'
+    await fx.runtime.execute('writeback', bindings, { run_id: runId }, active())
+    const writes = fx.services.calls.filter(row => row.tool.endsWith('create_correlate_incident_judgement_fail'))
+    assert.equal(writes.length, 1)
+    await fx.runtime.execute('writeback', bindings, { run_id: runId }, active())
+    assert.equal(fx.services.calls.filter(row => row.tool.endsWith('create_correlate_incident_judgement_fail')).length, 1)
   } finally { await fx.cleanup() }
 })
 
