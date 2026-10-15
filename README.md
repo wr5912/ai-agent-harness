@@ -1,64 +1,26 @@
 # ai-agent-harness
 
-本项目是面向个人开发者的 DSH-only Harness 研究与资产管理仓库。它用于创建、修改、比较和持续优化 Harness，并用 Git、Experiment、Run 与可选 Research Release 保存可复现的研究结果。
+ai-agent-harness 是正在持续建设的、基于 DSH 的 Harness 工程平台，提供智能体资产、评测、实例和工具管理能力，并将经过验证的技术研究成果持续融入平台。
 
-项目默认且唯一采用 **Research Mode**：研究优先，禁止过度工程化和过度安全化；遵循简洁优先（Simplicity First）和精准修改（Surgical Changes）。这里不建设生产级 Agent 平台，也不把权限、审批、治理或多阶段发布机制作为每个实验的前置条件。
+项目面向个人开发者，以平台建设和实际使用需求为主线。平台通过系统全局 DSH 装载 Cordis 插件，复用已有 CLI、Harness 资产和运行记录；业务智能体由独立的 DSH 容器实例执行。项目定位、开发边界和协作原则以 [`AGENTS.md`](./AGENTS.md) 为准。
 
-长期方向是研究验证、自用工具、能力逐步完善，最终演进为 AI 原生的 Harness 工程平台（Harness Engineering Platform）。只有反复验证有价值的能力才逐步扩展，具体工程边界届时决定；当前约束与演进原则见 [`AGENTS.md`](./AGENTS.md)。
+## 当前能力
 
-未来平台设计与分阶段路线的维护入口见 [`docs/platform-design/README.md`](docs/platform-design/README.md)；其中的任务映射和界面草图属于设计输入，实际能力状态仍以项目验收矩阵为准。
+| 页面 | 可以完成的操作 |
+|---|---|
+| 首页 | 查看真实资产数量、最近 Run 和实例观察，进入各管理页面 |
+| 管理对话 | 在当前项目工作区使用原生 DSH 会话，保留会话、草稿与模型设置入口 |
+| 智能体与评估 | 创建 Experiment 版本、查看来源与继承；通过基本信息、资产、评测三个标签查看详情；在资产树中选择文件、弹窗编辑，保存前执行 dry 校验并检查原文件摘要；执行评测并查询已有 Run、报告和轨迹 |
+| 实例管理 | 创建、启停、重启、删除及批量操作 DSH 容器实例，查看逐项回执；获取 Web 访问入口和 iframe 嵌入说明 |
+| MCP 管理 | 管理 OpenAPI/MCP 服务、工具与资源分组及调试；维护轻量 LangGraph 两步只读组合的草稿和发布版，查看流程、执行 dry 或实际测试，将已发布组合服务加入分组 |
 
-当前已实现 eval-only 容器实例启动器 `runtime/adapters/dsh-container/dsh-dev`、受管评测入口 `runtime/adapters/dsh-container/dsh-eval`，以及来源解析、Candidate 冻结与摘要、Run 台账和仓库校验工具。Harness 的创建、迁移、修改和优化由宿主开发会话通过 `harness-guided-workflow` 引导，源码写入后再用新的只读评测实例验证。历史上曾完成一次容器内 Headless Skill 修改闭环，证据见 [`dsh-dev-real-session-20260919.json`](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json)；该证据只记录当时已退役的开发模式，不代表当前入口仍支持容器内修改。
+平台直接使用既有工具链：`dsh-dev` 管理实例，`dsh-eval` 执行评测，`run_record.py` 索引、查看和比较封存 Run，来源解析和校验器检查资产合同。编辑写回原有 Candidate、评估与 Decision，编排配置写回唯一工具目录。
 
-研究平台通过系统全局 DSH 装载仓库维护的 Cordis 插件，提供首页、管理对话、智能体与评估、实例管理和 MCP 管理五个工具页面。平台启动入口是 `platform/dsh-platform`；完整接入合同见[平台设计方案](./docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)，实际验证状态见 `PA-12`。
+完整能力状态、验证证据和缺口统一见[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)。当前 Preset 的 Web 创建、回流与选择闭环尚未完成（PA-09）；`release:<id>` 来源解析和实际装载尚未实现（PA-11）。MCP 组合的业务可用性还取决于上游接口和授权，dry 或工具发现成功不能替代真实业务验证。
 
-本项目共有多少条验证路径、当前完成到哪里、哪些适合进入自动化测试，统一见[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)。
+## 快速启动
 
-## 现在能做什么
-
-| 能力 | 状态 | 入口 |
-|---|---|---|
-| 解析 Experiment 来源，确定目标 Agent、Preset、资产路径与挂载 | 已实现 | `source_contract.py` |
-| 启动只读被测会话（`--mode eval`），删除已停止实例并保留 HOME | 已实现；需要 Docker 和运行时环境变量 | `dsh-dev up/ps/url/logs/down/delete` |
-| 重载同来源、同模式的 eval 实例配置 | 已实现 | `dsh-dev up --replace` |
-| 构建锁定 DSH 提交的本地镜像 | 已实现 | `dsh-dev image build` |
-| 按 `evaluation.md` 启动独立实例、逐 Case 新建 Session、导出轨迹并封存 Run | 已实现；默认走 DSH Runtime API，浏览器 UI 冒烟需显式选择；需要 Docker 和运行时环境变量 | `dsh-eval` |
-| 摘要、冻结、校验或恢复 Candidate 三棵资产树 | 已实现 | `mutation-receipt.py` |
-| 归档研究运行，并按 Agent 索引、查看或并列比较已封存 Run | 已实现；`compare.comparable` 只判断记录的同条件项，业务等效仍需人工复核 | `run_record.py init/record/gap/finalize/index/show/compare` |
-| 校验项目结构、Experiment、Run 与 Research Release 合同 | 已实现 | `validate_repository.py` / `validate_experiment.py` |
-| 首页展示真实资产数量、最近 Run 和平台 Logo | 已实现；全局 DSH 装载状态见 `PA-12` | 平台“首页” |
-| 创建 Experiment 版本、查看继承与声明、编辑 Candidate/评估/Decision，查看 Run 与已有轨迹 | 已实现；编辑先预览并检查文件摘要，评测复用 `dsh-eval` | 平台“智能体与评估” |
-| 管理平台智能体的原生 DSH 会话 | 已实现；项目仓库工作区、标准模式、单列表，原生侧栏默认收起；保留草稿与设置入口 | 平台“管理对话” |
-| 智能体 DSH 容器实例创建、启停、重启、删除及批量操作 | 已实现；展示逐项实际回执，删除仅限已停止实例 | 平台“实例管理” |
-| 管理 OpenAPI/MCP 服务、分组发布与调试，把两项只读 API 组合成一个 MCP 工具 | 复用既有 MCP 配置插件；固定“资产→关联告警”组合与外部业务验收见 `PA-12` | 平台“MCP 管理” |
-| 新 Preset 的 Web 创建、回流与选择闭环 | 尚未完成 | `PA-09` |
-| 解析并装载 `release:<id>` | 尚未实现 | `PA-11` |
-
-当前来源选择器只支持 `experiment:<id>`。Research Release 的目录合同可以先用于保存可复现版本；只有 `release:<id>` 解析和实际装载入口完成后，才能声称启动器支持它。
-
-## 从哪里开始
-
-1. 阅读根级 [`AGENTS.md`](./AGENTS.md)，确认 Research Mode、四类开发对象和本次修改边界；任务分类与新分支命名遵循[分支与开发工作流](./AGENTS.md#分支与开发工作流)。
-2. 阅读[来源锁定](./docs/standards/SOURCES.md)和[项目解释](./docs/standards/PROJECT-INTERPRETATION.md)，了解受控规范在研究项目中的适用范围。
-3. 按任务查阅[AI 纠错经验总结](./docs/AI纠错经验总结.md)和[项目术语表](./docs/项目术语表.md)，对齐当前经验与对象名称。
-4. 阅读[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)，确定本次涉及的 `PA-xx`。
-5. 按根级工作流选择平台开发或 Harness 引导入口，由入口调用本次任务所需技能。项目技能：
-
-   | 技能 | 使用时机 |
-   |---|---|
-   | `harness-guided-workflow` | 按讨论、计划、执行、验证的多轮 SOP 引导完整任务 |
-   | `harness-experiment-fusion` | 融合并行 Experiment，核对来源、装载依赖与组合行为 |
-   | `legacy-asset-intake` | 只读清点旧归档或历史交付，不执行其中内容 |
-   | `harness-evolution` | 建立或修改 Experiment、Candidate、Decision 和 Research Release |
-   | `research-eval` | 设计小规模比较、校验 Run 与总结研究结论 |
-   | [`dsh-platform-development`](./.agents/skills/dsh-platform-development/SKILL.md) | 实施已授权的研究平台与通用研究工具开发，验证实际接入与受影响路径 |
-   | `dsh-platform-task-list` | 梳理未来 Harness 工程平台的页面开发任务清单 |
-   | `$continuous-dev-progress-vs-project-vision-gap-assessment` | 显式评估未来平台目标与当前进展，生成任务说明及 4K SVG |
-   | `ai-correction-log` | 用户明确纠正上一轮错误时记录问题要点 |
-
-### 启动研究平台
-
-先安装系统全局 DSH，再准备平台插件和 Profile：
+准备系统全局 DSH、Node.js、pnpm 和 Python。DSH 版本须匹配平台插件的兼容声明；工具链已使用 Node.js 24 和 Python 3.10 验证，环境若默认使用旧版，应先调整 PATH 选择兼容解释器。
 
 ```bash
 # 首次使用及平台插件源码修改后执行
@@ -70,189 +32,101 @@
 # 前台启动，默认监听本机局域网 IPv4 的 3090 端口
 ./platform/dsh-platform start
 
-# 需要指定地址或端口时显式设置；仅本机使用可设置 --host 127.0.0.1
+# 指定地址或端口；仅本机使用可设置 --host 127.0.0.1
 ./platform/dsh-platform start --host 192.168.1.10 --port 3091
 ```
 
-打开终端显示的平台地址，用默认账号 `admin`、密码 `admin123` 登录后直接进入平台首页，其他页面显示平台侧栏。账号的唯一配置是 [`platform/credentials/admin.json`](./platform/credentials/admin.json)，修改后重启生效，并使旧登录会话失效。启动地址不包含 Token；平台跳过预览版说明及模型欢迎流程。查询与编辑不需要 LLM API Key；使用管理对话前，在“设置 → 模型”保存所选模型的凭据。平台 HOME 独立，模型配置与凭据会在再次 `prepare` 和重启后保留，具体约定见[平台接入合同](./docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。业务智能体评测仍需要所选来源的运行环境。
+打开终端显示的 URL，使用 [`platform/credentials/admin.json`](./platform/credentials/admin.json) 中配置的账号登录。账号在该文件维护，修改后重启生效，旧登录会话失效。查询与编辑不需要 LLM API Key；使用管理对话前，在“设置 → 模型”配置所选模型。
 
-使用 `Ctrl+C` 停止，再次 `start` 复用平台 HOME 和未过期的登录会话；“退出登录”会撤销当前会话。当前入口使用 HTTP，适用于受信任局域网；共享使用前修改默认密码。运行数据位置、兼容版本和失败处理见[平台接入合同](./docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。
+平台使用仓库外独立 HOME 保存 Session、设置及凭据，再次 `prepare` 和重启会保留用户设置。使用 `Ctrl+C` 停止，再次 `start` 复用同一 HOME；“退出登录”撤销当前会话。版本兼容、认证和装载的完整合同见[当前平台接入合同](./docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。
 
-### 启动本地评测实例
-
-下面先预览实际参数，再启动只读被测实例：
-
-```bash
-# 只解析来源并预览参数；不写状态、不调用 Docker
-python3 runtime/adapters/dsh-container/dsh-dev up \
-  --source experiment:EXP-security-operations-expert-001 \
-  --mode eval --dry-run
-
-# 首次使用或镜像内容变化后构建锁定镜像
-python3 runtime/adapters/dsh-container/dsh-dev image build
-
-# 被测实例只读装载 Candidate
-python3 runtime/adapters/dsh-container/dsh-dev up \
-  --source experiment:EXP-security-operations-expert-001 \
-  --mode eval
-
-# 获取本次进程的认证 URL；非交互终端显式增加 --non-interactive
-python3 runtime/adapters/dsh-container/dsh-dev url security-operations-expert-eval
-
-python3 runtime/adapters/dsh-container/dsh-dev ps
-python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-eval
-```
-
-修改 Preset、managed 配置或适配层脚本后，已有进程不会自动重载：
+业务实例还需要 Docker、标准 DSH Runtime 镜像及所选来源声明的运行环境。将示例中的 `<experiment-id>` 替换为已有 Experiment ID，先预览来源，再按需启动或评测：
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-dev up \
-  --source experiment:EXP-security-operations-expert-001 \
-  --mode eval --replace
+  --source experiment:<experiment-id> --mode eval --dry-run
+
+python3 runtime/adapters/dsh-container/dsh-eval \
+  --source experiment:<experiment-id> --mode fast --dry-run
 ```
 
-运行边界：
+当前启动器的来源选择器支持 `experiment:<id>`；`--mode eval` 表示实例只读装载被测 Harness，`dsh-eval --mode fast/full` 表示评测范围，两者不同。实例生命周期、镜像构建、工作区注册、环境变量和访问规则的唯一使用说明见[容器适配器 README](./runtime/adapters/dsh-container/README.md)。业务实例的访问设置与平台密码登录分别维护。
 
-- `--source` 和 `--mode` 必须显式给出；缺失或只写旗标不写值时，命令会列出当前可用的 Experiment 和唯一模式 `eval`。
-- `--name` 默认为 `<agent-id>-eval`。新实例未指定 `--port` 时从 `3081` 起选择第一个未监听且未被有效实例记录占用的端口；已有同名实例则复用其记录端口。
-- `up --dry-run` 不要求运行时环境变量，不写状态、不调用 Docker；自动端口只是当下建议，真正启动前会重新检查。
-- `up` 默认要求来源声明的运行时环境变量已经注入；仅做无凭据技术装载时可显式使用 `--allow-missing-env`。
-- `up` 成功时 stdout 只输出一个 JSON 结果；进度、提示和错误写入 stderr，失败时不在 stdout 留下部分成功结果。
-- 实例状态位于仓库外的 `$XDG_STATE_HOME/dsh-dev/<name>/`。Token 不落盘、不进入仓库、不写入研究证据。
-- 容器使用 host 网络但只绑定 `127.0.0.1`。
-- 首次打开 Web 需手工注册 `up --dry-run` 输出中 `workspace_to_register` 给出的 `/work/harness/workspace`。
-- 同名实例不能静默改端口；需要重载时使用 `--replace` 或先 `down` 再同名 `up`。
-- 旧 `authoring` 实例状态仍可用 `ps`、`logs` 和 `down` 查询或停止，但不能据此新建或替换开发实例。
+## 开发与研究方式
 
-## 评测会话
-
-| 内容 | `--mode eval` 被测会话 |
-|---|---|
-| 本次会话身份 | 来源声明的目标 Preset |
-| 待研究目标 | 同本次会话身份 |
-| 注册工作区 | `/work/harness/workspace` |
-| Candidate 三棵资产树 | 只读 |
-| `/work/reference` | 不挂载 |
-
-被测会话不挂载需求、评估标准或其他参考材料，避免把判分内容误当成目标能力；Harness 源码修改在宿主开发会话中完成，不由被测容器自修改。
-
-## 主要目录
-
-目录设计服务于三个目标：**找到当前事实、复现实验、避免把运行状态混入源码**。目录表示维护关系，不代表物理服务、权限层或生产阶段；只有出现真实内容时才创建，不预建空目录。
+项目的工作方式和修改边界由[根级规则](./AGENTS.md#项目定位与工作方式)维护。平台开发围绕实际需求交付可用能力；遇到技术或效果不确定的问题时，做必要研究或 POC，再将验证有效的结果纳入实现。技术研究的依据按需保存在既有任务或设计记录中，不另建阶段台账。
 
 ```text
-AGENTS.md                                # 项目协作规则与 Research Mode
-.codex/config.toml                       # Codex 开发配置，不是业务 Harness
-.agents/skills/                          # 维护本仓库的项目技能
-docs/
-  ai-agent-harness项目验收矩阵.md       # 项目验证路径、证据、状态和缺口
-  standards/                             # 受控来源、副本摘要与项目解释
-agents/<agent-id>/
-  manifest.yaml                          # Agent 研究入口和当前 Experiment
-  evaluation.md                          # 业务 Case 的输入与预期的单一事实源
-evolution/
-  experiments/EXP-<agent-id>-NNN-r<12位随机十六进制>/
-    change.yaml                          # 基线引用、状态与结果
-    hypothesis.md                        # 为什么改、怎样判断
-    candidate/                           # 本实验的可修改 Harness 工作树
-    evaluation/                          # 按需保存工具、证据与研究总结；不保存评测计划副本
-    runs/run-<UUIDv4>/                   # 一次执行的独立事实记录
-    decision.md                          # adopt/continue/reject/inconclusive 及理由
-  history/imports/<agent-id>-YYYY-MM-DD/ # 外部来源原貌、清洗材料与处置记录
-platform/
-  profile/                               # 全局 DSH 平台组合的可编辑来源
-  dsh-platform                           # 准备、预览和前台启动入口
-  plugin/                                 # 平台 TypeScript Host 和客户端源码
-plugins/
-  asset-query-cli/                       # 只读资产查询原型与发现逻辑
-runtime/adapters/dsh-container/           # DSH 容器只读装载与评测适配层
-releases/<agent-id>-v<semver>/            # 可选、不可变的 Research Release
-tests/                                    # 稳定且可重复的机器合同测试
-AI纠错记录/                               # 按天追加的 AI 纠错记录
+实际问题 → 必要研究或 POC → 最小实现 → 实际验证 → 能力沉淀
 ```
 
-`evolution/history/imports/` 只保存来源追溯和迁移审计。需要改变当前 Harness、研究目标或比较材料时，修改现行资产并进入新的 Experiment，不回写历史批次来改变当前行为。
-
-每个 Agent 的当前业务测试只在 [`evaluation.md`](agents/security-operations-expert/evaluation.md) 维护；每个 Case 把名称、用户输入和预期结果放在一起。运行时用 `--case` 显式选择；Run 自动锁定所选 Case 的完整快照和摘要，这些不可编辑记录不是第二份维护源。
-
-本项目不维护 `evolution/baselines/` 和 `agents/<agent-id>/current/`。Baseline 使用 `git:<commit>`、`release:<id>` 或 `none:first-experiment` 引用；Git 和不可变 Research Release 已足以恢复版本，额外镜像会制造重复事实源。
-
-## 研究演进
+已有可靠实现路径的功能直接开发和验证。新建、迁移或改变业务 Harness 语义时，继续采用 Research Mode 的研究方法：
 
 ```text
 Baseline 引用 → Experiment（含 Candidate）→ Evaluation → Decision
                                                         └→ 可选 Research Release
 ```
 
-- Experiment 至少回答：为什么修改、修改了什么、怎样比较、观察到了什么、是否回归、有哪些限制、下一步是什么。
-- Evaluation 规模由假设决定。一个高价值输入也可以启动探索；扩大结论时再增加覆盖，不设固定 50 Case 或 R1/R2/R3 门槛。
-- Decision 可以是 `adopt`、`continue`、`reject` 或 `inconclusive`。失败和证据不足都是合法结果。
-- Research Release 用于保存值得复用的自包含研究版本；它不表示生产可用、上线批准或完成生产安全治理。
+Baseline 用固定 Git 提交、Research Release 或 `none:first-experiment` 引用；Candidate 保存待比较资产；Run 固定实际来源、输入和证据；Decision 说明结果、回归、限制与下一步。评估规模按问题决定，允许 `adopt`、`continue`、`reject`、`inconclusive`。Research Release 是可复现的研究版本，不表示平台发布或生产验收。
 
-## 当前进度
+平台实现按项目路径验证，不为普通页面、工具或启动器修改建立业务 Experiment。新增自研功能使用 TypeScript，界面使用 TSX；现有 Python 按受影响的功能切片维护，不做全仓语言重写。开发前按[分支与开发工作流](./AGENTS.md#分支与开发工作流)确定对象和修改范围，查阅[AI 纠错经验总结](./docs/AI纠错经验总结.md)与[项目术语表](./docs/项目术语表.md)。
 
-- 仓库治理版本见 [`VERSION.md`](./VERSION.md)。它不是 Harness Release，也不是 Git Tag。
-- `security-operations-expert` 已迁入 `EXP-security-operations-expert-001`。历史来源、失败与待复核材料被保留，但不再要求先补齐生产交付门禁才能继续做小规模研究。
-- 现有需求、任务、判断标准和 321 条待复核输入可以作为后续研究素材；它们不是所有新 Experiment 必须复制的模板。
-- 当前没有 Research Release，`release:<id>` 解析和装载尚未实现。
-- `plugins/asset-query-cli/` 是只读本地管理 CLI 原型，不是管理平台。
-- `platform/` 提供第一阶段的五个研究工具页面，复用现有资产、来源、评测和 Run 入口；实际验证状态和剩余缺口只在 `PA-12` 维护。
+| 工作 | 技能入口 |
+|---|---|
+| 平台功能、通用工具与 Runtime 适配 | [`dsh-platform-development`](./.agents/skills/dsh-platform-development/SKILL.md) |
+| 平台页面任务梳理 | [`dsh-platform-task-list`](./.agents/skills/dsh-platform-task-list/SKILL.md) |
+| Harness 创建、迁移、修改与优化 | [`harness-guided-workflow`](./.agents/skills/harness-guided-workflow/SKILL.md) |
+| 并行能力融合 | [`harness-experiment-fusion`](./.agents/skills/harness-experiment-fusion/SKILL.md) |
+| 旧资产只读清点 | [`legacy-asset-intake`](./.agents/skills/legacy-asset-intake/SKILL.md) |
+| Harness 实验与评估 | [`harness-evolution`](./.agents/skills/harness-evolution/SKILL.md)、[`research-eval`](./.agents/skills/research-eval/SKILL.md) |
+| 显式盘点目标与实际进展 | [`continuous-dev-progress-vs-project-vision-gap-assessment`](./.agents/skills/continuous-dev-progress-vs-project-vision-gap-assessment/SKILL.md) |
+| 用户明确纠错的追加记录 | [`ai-correction-log`](./.agents/skills/ai-correction-log/SKILL.md) |
 
-## 常用检查
+## 主要目录
+
+```text
+AGENTS.md                                # 项目定位、协作规则与修改边界
+.agents/skills/                          # 维护本仓库的开发技能
+.codex/                                  # Codex 开发配置，不是业务 Harness
+platform/                                # 平台启动入口、Profile、插件和运行时技能
+agents/<agent-id>/                       # 智能体入口与唯一 evaluation.md
+  manifest.yaml
+  evaluation.md
+evolution/experiments/<experiment-id>/   # 业务 Harness 的研究资产和记录
+  change.yaml                            # 来源、基线引用与状态
+  hypothesis.md                          # 研究问题与比较方法
+  candidate/                             # 可编辑 Harness 工作树
+  evaluation/                            # 按需保存观察与证据
+  runs/run-<UUIDv4>/                     # 不可改写的实际运行记录
+  decision.md                            # 研究结论与下一步
+evolution/history/imports/               # 历史导入来源与处置记录
+runtime/adapters/dsh-container/           # DSH 容器装载、评测与来源解析
+plugins/asset-query-cli/                 # 资产查询原型与复用的发现逻辑
+releases/<agent-id>-v<semver>/            # 可选 Research Release
+docs/                                    # 设计、规范适用解释和验收证据入口
+tests/                                   # 可重复的合同测试
+AI纠错记录/                               # 按天追加的开发纠错记录
+```
+
+每个 Agent 的业务 Case 只在其 `evaluation.md` 维护；Run 中的冻结输入是历史事实，不是第二份可编辑 Case。Git 和 Research Release 保存可恢复版本，不维护 `evolution/baselines/` 或 `agents/<agent-id>/current/`。Session、缓存、附件和整个 Runtime HOME 不作为 Harness 资产回流。
+
+## 验证与文档入口
 
 ```bash
 python3 -m pip install -r .agents/skills/harness-evolution/scripts/requirements.txt
-python3 .agents/skills/legacy-asset-intake/scripts/inspect_source.py <archive-or-directory>
 python3 .agents/skills/harness-evolution/scripts/validate_repository.py .
 python3 .agents/skills/research-eval/scripts/validate_experiment.py \
   evolution/experiments/<experiment-id>
 ```
 
-脚本输出 JSON。退出码 `0` 只说明各自覆盖的确定性合同通过，`1` 表示发现问题，`2` 表示输入或读取错误；它们不替代对研究结果的人工判断。
+校验器输出 JSON：退出码 `0` 表示所覆盖的确定性合同通过，`1` 表示发现问题，`2` 表示输入或读取错误。项目与工具链验证、Experiment Evaluation、Research Release 复现各自需要对应证据，不能互相替代，也不等于生产部署验收。评测执行器、封存 Run 和比较输出的具体语义见[容器适配器说明](./runtime/adapters/dsh-container/README.md)。
 
-受管评测会自动完成 Run 创建、执行、证据导出、场景诊断、封存和实例停止。默认 `--mode fast` 运行标记的 Case，`--mode full` 运行全部 Case，`--case` 可覆盖档位；三者均不改变 `dsh-dev --mode eval` 的容器运行模式。默认通过 DSH Runtime Session API 执行业务 Case；显式选择的浏览器通道只核对页面进入、新会话身份、消息发送及回答显示。浏览器冒烟完成时命令返回 `0`，Run 的业务 `verdict` 仍为 `inconclusive`；业务结论以 API Run 和原始回执为准，浏览器通道不执行 AI 评审。先用 `--dry-run` 核对选择与环境变量名称：
-
-```bash
-python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:<experiment-id> --mode fast --dry-run
-python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:<experiment-id> --mode full
-python3 runtime/adapters/dsh-container/dsh-eval \
-  --source experiment:<experiment-id> --executor browser --case <case-id>
-```
-
-只需手工记录观察时，直接使用底层 Run 台账：
-
-```bash
-python3 runtime/adapters/dsh-container/run_record.py --repo . init \
-  --source experiment:<experiment-id> --case <case-id> --kind research
-python3 runtime/adapters/dsh-container/run_record.py --repo . record \
-  --run <run-uuid> trial.json
-python3 runtime/adapters/dsh-container/run_record.py --repo . finalize \
-  --run <run-uuid> --status completed
-
-# 根据 Agent 找到 Run，再查看冻结 Case 与证据，或并列比较两个 Run
-python3 runtime/adapters/dsh-container/run_record.py --repo . index --agent <agent-id>
-python3 runtime/adapters/dsh-container/run_record.py --repo . show \
-  --run <run-uuid> --case <case-id>
-python3 runtime/adapters/dsh-container/run_record.py --repo . compare \
-  --left <baseline-run-uuid> --right <candidate-run-uuid> --case <case-id>
-```
-
-`compare.comparable=false` 时先看 `limits`，并列输出只供人工查证，不能据此声称同条件等效；`comparable=true` 也不替代业务效果复核。
-
-## 规范来源与验收边界
-
-两份受控 Harness 规范仍作为目录和资产模型的设计输入；[`agent-engineering-spec` 锁定提交](https://github.com/wr5912/agent-engineering-spec/commit/aa3f27ae0b785191d0a122a6857154640073d73b) 中的任务路由、多轮引导和外部资产复用原则已通过 `harness-guided-workflow` 采用，生产审批、发布门禁等内容仍只作未来参考。当前适用关系见 [`SOURCES.md`](./docs/standards/SOURCES.md) 和 [`PROJECT-INTERPRETATION.md`](./docs/standards/PROJECT-INTERPRETATION.md)。
-
-本仓库明确区分三层结论：
-
-| 层级 | 回答的问题 |
+| 文档 | 用途 |
 |---|---|
-| 项目与工具链验证 | 仓库规则、CLI、来源解析和 DSH 接入是否按设计工作 |
-| Experiment Evaluation | 某项 Harness 变化在声明输入和环境下表现如何 |
-| Research Release 复现 | 某个不可变研究版本能否按清单恢复并重新装载 |
+| [项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md) | 当前实现、验证证据与缺口的唯一维护位置 |
+| [平台设计入口](./docs/platform-design/README.md) | 当前平台合同、能力路线与待实现设计 |
+| [来源锁定](./docs/standards/SOURCES.md)、[项目解释](./docs/standards/PROJECT-INTERPRETATION.md) | 受控规范的版本、来源及适用范围 |
+| [项目审查原则](./docs/项目审查原则.md) | 项目与 Harness 的审查范围和方法 |
+| [VERSION.md](./VERSION.md) | 仓库治理版本，区别于 Harness Release 与 Git Tag |
 
-静态校验、脚本退出码 `0`、容器启动、端口监听、HTTP `200` 或 `/health` 只能证明对应局部状态。若未来需要生产部署验收，应另行定义生产工程的权限、安全、运维和发布合同，不把它们提前塞入当前研究流程。
-
-仓库变更记录见 [`CHANGELOG.md`](./CHANGELOG.md)。
+受控规范作为设计输入，按当前任务采用，不自动引入生产审批、固定 Case 数或发布门禁。历史实验、封存 Run、原始导入和既有摘要保留其原有身份与事实；历史容器内修改记录见 [dsh-dev-real-session-20260919.json](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json)，不代表当前实例支持容器内修改。

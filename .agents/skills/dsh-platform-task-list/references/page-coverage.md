@@ -1,6 +1,6 @@
 # 页面覆盖与关键边界
 
-本参考用于梳理**基于 DSH 的未来 Harness 工程平台**。使用前先核对目标仓库、DSH 锁定版本和用户最新要求；页面名称与数量可以随产品范围调整，不把某份历史清单的 112 项任务或本机路径当作固定合同。
+本参考用于梳理**基于 DSH 的 Harness 工程平台当前建设与后续能力**。使用前先核对目标仓库、DSH 锁定版本和用户最新要求；页面名称与数量可以随产品范围调整，不把某份历史清单的 112 项任务或本机路径当作固定合同。
 
 在当前 `ai-agent-harness` 仓库，优先从 `AGENTS.md`、`docs/standards/SOURCES.md`、`docs/standards/PROJECT-INTERPRETATION.md`、`docs/ai-agent-harness项目验收矩阵.md`、`runtime/adapters/dsh-container/source.lock.json`、`docs/platform-design/README.md` 和 `docs/智能体多形态Harness资产模型设计方案.md` 取证；现有任务清单通过文件搜索定位，不假设旧文件名仍在。换仓库时重新寻找对应来源。
 

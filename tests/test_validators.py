@@ -202,11 +202,35 @@ class SourceInspectorTests(unittest.TestCase):
 
 
 class RepositoryValidatorTests(unittest.TestCase):
-    def test_current_repository_passes_research_contract(self) -> None:
+    def test_current_repository_passes_project_contract(self) -> None:
         completed, payload = run_json(VALIDATE_REPOSITORY, ROOT)
         self.assertEqual(completed.returncode, 0, json.dumps(payload, ensure_ascii=False, indent=2))
         self.assertTrue(payload["valid"])
         self.assertIn("不代表 Experiment 结果", payload["scope"])
+
+    def test_project_contract_does_not_require_research_slogans(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = copy_repository(Path(temp))
+            agents = repository / "AGENTS.md"
+            agents.write_text(
+                agents.read_text(encoding="utf-8").replace("Research Mode", "Harness 研究流程").replace("研究优先", "需求驱动"),
+                encoding="utf-8",
+            )
+            completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+        self.assertEqual(completed.returncode, 0, payload)
+        self.assertTrue(payload["valid"])
+
+    def test_project_contract_still_requires_core_principles(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository = copy_repository(Path(temp))
+            agents = repository / "AGENTS.md"
+            original = agents.read_text(encoding="utf-8")
+            for phrase in ("LLM API Key 禁止提交或推送", "禁止过度工程化和过度安全化"):
+                with self.subTest(phrase=phrase):
+                    agents.write_text(original.replace(phrase, ""), encoding="utf-8")
+                    completed, payload = run_json(VALIDATE_REPOSITORY, repository)
+                    self.assertNotEqual(completed.returncode, 0)
+                    self.assertIn("RESEARCH_MODE", error_codes(payload))
 
     def test_project_skill_metadata_and_references_are_required(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
