@@ -6,16 +6,11 @@
       "published": {
         "toolName": "query_asset_related_alerts",
         "title": "资产相关告警只读查询",
-        "description": "查询资产后查询相关告警的两步只读组合",
-        "connectionId": "security-readonly-api"
-      },
-      "draft": {
-        "toolName": "query_asset_related_alerts",
-        "title": "资产相关告警只读查询",
         "description": "按资产 ID 查询资产详情，再查询近 30 天关联告警分组；返回首页分组、总分组数及总告警数，仅执行只读 GET。",
-        "connectionId": "biz-soc-master",
+        "connectionId": "mock-soc-readonly",
         "flow": "soc-asset-alerts",
-        "alertsConnectionId": "biz-soc-detect"
+        "alertsConnectionId": "mock-soc-readonly",
+        "publishedAt": "2026-10-15T08:46:43.198Z"
       }
     }
   ]
