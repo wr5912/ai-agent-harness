@@ -570,6 +570,10 @@ def render_compose(template: str, *, mode: str, name: str, project: str, port: i
             command_tail,
             command_tail + f"      - --host\n      - 127.0.0.1\n      - --port\n      - \"{port}\"\n",
         )
+    text = text.replace(
+        command_tail,
+        "      - --patch\n      - /opt/dsh-adapter/runtime-model.patch.yml\n" + command_tail,
+    )
     if trusted_host:
         port_line = f'      - "{port}"\n'
         if text.count(port_line) != 1:

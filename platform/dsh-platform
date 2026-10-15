@@ -12,7 +12,6 @@ import socket
 import subprocess
 import sys
 
-
 REPO = Path(__file__).resolve().parent.parent
 PLUGIN = REPO / "platform" / "plugin"
 PROFILE_NAME = "harness-platform"
@@ -36,7 +35,22 @@ def platform_home():
 
 
 def runtime_environment(home):
-    return {**os.environ, "DSH_HOME": str(home), "HARNESS_ASSET_ROOT": str(REPO)}
+    environment = dict(os.environ)
+    credentials = REPO / "platform" / "credentials" / "models.llm-api-key"
+    if credentials.exists():
+        try:
+            values = json.loads(credentials.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raise PlatformError("无法读取本地模型凭据 JSON 文件。") from None
+        if not isinstance(values, dict):
+            raise PlatformError("本地模型凭据必须是 JSON 字段映射。")
+        for name in ("DEEPSEEK_API_KEY", "LOCAL_LLM_BASE_URL", "LOCAL_LLM_API_KEY"):
+            if name not in values or name in environment:
+                continue
+            if not isinstance(values[name], str) or not values[name].strip():
+                raise PlatformError(f"本地模型凭据字段 {name} 必须是非空字符串。")
+            environment[name] = values[name]
+    return {**environment, "DSH_HOME": str(home), "HARNESS_ASSET_ROOT": str(REPO)}
 
 
 def global_dsh(home):

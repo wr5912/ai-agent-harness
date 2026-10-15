@@ -34,6 +34,8 @@ Candidate 的 Managed Patch 如加载带独立 Node 依赖的插件，先在该�
 
 `locked-user.patch.yml` 只读覆盖 HOME 级用户 Patch；Web Profile 的 `cordis.patch.yml` 留在实例 HOME 卷中，由 DSH Web 保存当前实例的设置（新版 DSH 的设置写入要求对该文件原子替换）。真正 **0 字节**的 `locked-global.AGENTS.md` 和只含注释的 `locked-bootstrap.env` 分别只读覆盖全局 Agent instructions 与 Boot 环境文件。模型/MCP Endpoint 和凭据只能由调用环境或 Runtime 受控凭据提供，不能由 Candidate 工作区改变。复用实例时须把 Web Profile 设置视为运行状态，而非 Candidate 资产；评估前核对其摘要或使用新实例。
 
+实例统一模型默认值由 [`runtime-model.patch.yml`](runtime-model.patch.yml) 的末尾运行覆盖维护，业务 Harness 中的旧默认值不会覆盖它。新增该覆盖前创建的实例需同名重建以加载启动参数，并保持原端口、HOME 和运行环境；无需重建镜像或回写 Candidate。API Key 继续通过调用环境或受控凭据服务提供，不写入此 Patch。
+
 Web Profile manifest 与本地 module 路径由受控文件和空的 deny-layer 锁定，避免从可写 HOME 装载私有 Plugin。EXP-007 选择自己的 `candidate/dsh/managed/web-profile.package.json`，将 `@deepseek-ai/dsh-experimental-schedule-bundle` 加入 Profile；其他来源仍使用默认 Web Profile。旧版 DSH 使用共享 fallback 卷中的安装链接；新版 DSH 使用原生模块解析，两种路径均须解析到镜像内 `/opt/dsh/`。旧 HOME 中被 deny-layer 隐藏的本地模块不会自动删除。
 
 启动 `web` Profile 并叠加来源声明的 Managed Patch。锁定官方 Loader 在本 Node 镜像的无 internal-loader 路径会从 `/opt/dsh/vendor/loader` 相对查找 bare package，因此仅主 `dsh` 服务使用精确向量 `node --expose-internals /opt/dsh/apps/cli/lib/bin.js`；`home-init` 与装载探针保持普通 `node`。隔离、无 Candidate Managed Patch 的官方 base+web 技术预检可运行至少 15 秒；这不表示 Candidate 业务启动、MCP 或模型连接通过。

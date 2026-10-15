@@ -1,4 +1,13 @@
 # 默认配置处于 bundle 层，原生配置编辑器可写入 Profile 用户 Patch。
+- id: agent-default-model
+  config:
+    provider: deepseek-official
+    model: deepseek-flash
+    reasoningEffort: 'off'
+- id: llm-deepseek
+  config:
+    thinking: disabled
+    reasoningEffort: 'off'
 - insert:
     - id: mcp-session-manager
       name: ./lib/mcp-manager.js

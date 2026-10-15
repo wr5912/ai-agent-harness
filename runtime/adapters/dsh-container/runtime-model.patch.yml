@@ -1,0 +1,10 @@
+# 实例运行策略覆盖来源声明的默认模型；不修改 Candidate 或历史 Run。
+- id: agent-default-model
+  config:
+    provider: deepseek-official
+    model: deepseek-flash
+    reasoningEffort: 'off'
+- id: llm-deepseek
+  config:
+    thinking: disabled
+    reasoningEffort: 'off'
