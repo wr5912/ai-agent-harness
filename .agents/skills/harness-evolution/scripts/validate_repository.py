@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""校验 ai-agent-harness 的 Research Mode 仓库合同。"""
+"""校验 ai-agent-harness 的项目与 Harness 资产合同。"""
 
 from __future__ import annotations
 
@@ -194,8 +194,6 @@ def validate_governance(root: Path, errors: list[dict[str, str]]) -> None:
         errors.append(issue("GOVERNANCE_READ", str(exc)))
         return
     required_phrases = (
-        "Research Mode",
-        "研究优先",
         "禁止过度工程化和过度安全化",
         "简洁优先（Simplicity First）",
         "精准修改（Surgical Changes）",
@@ -270,7 +268,7 @@ def validate_skills(root: Path, errors: list[dict[str, str]]) -> None:
         return
     present = {path.name for path in skills_root.iterdir() if path.is_dir()}
     for retired in sorted(RETIRED_SKILLS & present):
-        errors.append(issue("RETIRED_SKILL", "Research Mode 不再维护此生产化技能", skills_root / retired))
+        errors.append(issue("RETIRED_SKILL", "项目不维护已退役的生产化技能", skills_root / retired))
     for name, resources in REQUIRED_SKILLS.items():
         skill = skills_root / name
         if not skill.is_dir() or skill.is_symlink():
@@ -350,7 +348,7 @@ def validate_agents(root: Path, errors: list[dict[str, str]]) -> None:
             continue
         current = agent / "current"
         if current.exists() or current.is_symlink():
-            errors.append(issue("CURRENT_FORBIDDEN", "Research Mode 不维护 agents/<id>/current", relative(current, root)))
+            errors.append(issue("CURRENT_FORBIDDEN", "项目不维护 agents/<id>/current", relative(current, root)))
         manifest_path = agent / "manifest.yaml"
         try:
             manifest = load_yaml(manifest_path)
@@ -525,7 +523,7 @@ def validate_releases(root: Path, errors: list[dict[str, str]]) -> None:
 def validate_retired_topology(root: Path, errors: list[dict[str, str]]) -> None:
     baseline = root / "evolution/baselines"
     if baseline.exists() or baseline.is_symlink():
-        errors.append(issue("BASELINES_FORBIDDEN", "Research Mode 不维护 evolution/baselines", relative(baseline, root)))
+        errors.append(issue("BASELINES_FORBIDDEN", "项目不维护 evolution/baselines", relative(baseline, root)))
 
 
 def validate_asset_nodes(root: Path, errors: list[dict[str, str]]) -> None:
@@ -573,7 +571,7 @@ def run(root: Path) -> tuple[dict[str, Any], int]:
         "valid": not errors,
         "errors": errors,
         "warnings": warnings,
-        "scope": "仅校验 Research Mode 仓库合同；不代表 Experiment 结果或生产验收",
+        "scope": "仅校验项目与 Harness 资产合同；不代表 Experiment 结果或生产验收",
     }
     return payload, 0 if not errors else 1
 

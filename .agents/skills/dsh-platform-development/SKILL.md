@@ -1,11 +1,11 @@
 ---
 name: dsh-platform-development
-description: 在 Research Mode 下实施已授权的 DSH 研究平台、通用 CLI 和 Runtime 适配器开发，复用现有接入并验证受影响路径。业务 Harness 语义变化转入 harness-guided-workflow；仅编写页面开发任务清单使用 dsh-platform-task-list。
+description: 实施已授权的 DSH Harness 工程平台、通用 CLI 和 Runtime 适配器开发，按需研究技术并将有效成果融入功能，复用现有接入并验证受影响路径。业务 Harness 语义变化转入 harness-guided-workflow；仅编写页面开发任务清单使用 dsh-platform-task-list。
 ---
 
 # DSH 平台开发
 
-任务分类与分支选择遵循[根级分支与开发工作流](../../../AGENTS.md#分支与开发工作流)。本技能用于落实当前研究需求中的平台和通用工具实现，远期平台设计本身不构成实施授权。
+任务分类与分支选择遵循[根级分支与开发工作流](../../../AGENTS.md#分支与开发工作流)。本技能用于按实际需求建设平台和通用工具；已有可靠路径时直接实现，技术或效果不确定时先做必要研究或 POC，并在受影响路径验证后纳入功能。设计输入本身不构成具体任务的实施授权。
 
 ## 确定范围
 
@@ -18,9 +18,9 @@ description: 在 Research Mode 下实施已授权的 DSH 研究平台、通用 C
 
 优先复用 DSH 和本仓库已有能力。按根级工程语言取向维护源码与构建制品，检查同一变化直接影响的调用方、配置与消费者。
 
-全局研究平台的启动入口、Profile 与插件集中在 `platform/`；容器内业务 Agent 的 Harness 仍由对应 Experiment 的 Candidate 装载。修改平台接入时核对这两条来源链，避免把开发身份、平台 Profile 和业务 Preset 混用。
+全局 DSH 平台的启动入口、Profile 与插件集中在 `platform/`；容器内业务 Agent 的 Harness 仍由对应 Experiment 的 Candidate 装载。修改平台接入时核对这两条来源链，避免把开发身份、平台 Profile 和业务 Preset 混用。
 
-平台页面、启动器和通用查询工具按项目路径验证。若同时改变业务 Harness 语义，对该部分使用 [`harness-guided-workflow`](../harness-guided-workflow/SKILL.md)，分别保留工具验证与研究比较的结论。仅编写未来页面开发任务清单时改用 [`dsh-platform-task-list`](../dsh-platform-task-list/SKILL.md)。
+平台页面、启动器和通用工具按项目路径验证，不为普通平台修改建立业务 Experiment；技术研究依据按需保存在既有任务或设计记录中。若同时改变业务 Harness 语义，对该部分使用 [`harness-guided-workflow`](../harness-guided-workflow/SKILL.md)，分别保留功能验证与研究比较的结论。仅编写页面开发任务清单时改用 [`dsh-platform-task-list`](../dsh-platform-task-list/SKILL.md)。
 
 ## 验证与交付
 
