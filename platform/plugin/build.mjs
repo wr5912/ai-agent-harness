@@ -66,7 +66,7 @@ export const managerSources = {
         contents = `import * as React from 'react'; import { createPortal } from 'react-dom'; import { PasswordInput, PublishedService } from ${JSON.stringify(resolve('src/mcp/components.tsx'))}; const { useEffect, useState, useRef } = React;\n${adapted}\nexport { Manager };`
       } else if (path.endsWith('openapi')) {
         const original = await readFile(resolve(managerSource, 'openapi.ts'), 'utf8')
-        contents = `import { appendQueryParameter } from ${JSON.stringify(resolve('src/mcp/openapi.ts'))};\nfunction platformTimeout(server: any) { const timeout = AbortSignal.timeout(20_000); return server.platformSignal ? AbortSignal.any([server.platformSignal, timeout]) : timeout }\n${original.replaceAll('AbortSignal.timeout(20_000)', 'platformTimeout(server)').replace('const { response, credential } = await authorizedFetch(source.server', 'const server = source.server\n  const { response, credential } = await authorizedFetch(source.server').replace("if (parameter.in === 'query') for (const entry of Array.isArray(value) ? value : [value]) url.searchParams.append(parameter.name, String(entry))", "if (parameter.in === 'query') appendQueryParameter(url.searchParams, parameter, value)")}\nexport { execute };`
+        contents = `import { appendQueryParameter } from ${JSON.stringify(resolve('src/mcp/openapi.ts'))};\nfunction platformTimeout(server: any) { const timeout = AbortSignal.timeout(server.platformTimeoutMs ?? 20_000); return server.platformSignal ? AbortSignal.any([server.platformSignal, timeout]) : timeout }\n${original.replaceAll('AbortSignal.timeout(20_000)', 'platformTimeout(server)').replace('const { response, credential } = await authorizedFetch(source.server', 'const server = source.server\n  const { response, credential } = await authorizedFetch(source.server').replace("if (parameter.in === 'query') for (const entry of Array.isArray(value) ? value : [value]) url.searchParams.append(parameter.name, String(entry))", "if (parameter.in === 'query') appendQueryParameter(url.searchParams, parameter, value)")}\nexport { execute };`
       } else {
         contents = (await readFile(resolve(managerSource, 'index.ts'), 'utf8'))
           .replace("createRequire('/opt/dsh/packages/mcp/mcp-client/package.json')", "resolveRuntimeRequire('@deepseek-ai/schemastery')")
@@ -75,18 +75,26 @@ export const managerSources = {
           .replace("from './openapi.mjs'", "from './openapi.ts'")
           .replace('if (server.specUrl) {', 'if (server.platformComposition) {\n      if (!config.platformClient) throw new Error("已发布编排服务未装载")\n      server.platformClient = config.platformClient\n      continue\n    }\n    if (server.specUrl) {')
           .replace('const url = resolvedUrl(server)\n', 'if (server.platformComposition) return run(server.platformClient)\n  const url = resolvedUrl(server)\n')
+          .replace('requestInit: { headers:', 'requestInit: { signal: server.platformSignal, headers:')
+          .replace('await client.connect(transport)', 'await client.connect(transport, { signal: server.platformSignal })')
+          .replace("mcp.server.setRequestHandler('tools/call', async (request: any) => {", "mcp.server.setRequestHandler('tools/call', async (request: any, extra: any) => {")
+          .replace('const owner = toolOwner(target, request.params.name)', 'const selectedOwner = toolOwner(target, request.params.name)\n      const owner = selectedOwner && { ...selectedOwner, server: { ...selectedOwner.server, platformSignal: extra?.mcpReq?.signal ?? extra?.signal } }')
+          .replace('client.callTool({ ...request.params, name: owner.rawName })', 'client.callTool({ ...request.params, name: owner.rawName }, platformCallOptions(owner.server))')
+          .replace("transport: 'streamable-http',\n              serverName:", "transport: 'streamable-http',\n              ...(server.platformComposition ? { toolCallTimeoutMs: 36 * 60_000 } : {}),\n              serverName:")
           .replace('Boolean(server.specUrl || resolvedUrl(server))', 'Boolean(server.platformComposition || server.specUrl || resolvedUrl(server))')
           .replace('!(server.specUrl || resolvedUrl(server))', '!(server.platformComposition || server.specUrl || resolvedUrl(server))')
+          .replace('source.tools.map(({ name, description }: any) => ({ name, description }))', 'source.tools.map(({ name, description, inputSchema }: any) => ({ name, description, inputSchema }))')
           .replace("if (request.action === 'test') {", `if (request.action === 'callTool') {
         if (typeof request.toolName !== 'string' || !request.arguments || typeof request.arguments !== 'object' || Array.isArray(request.arguments)) return send(res, 400, { error: '工具名称或参数无效' })
         const result = server.specUrl
           ? await callOpenApiTool(await loadOpenApi(server), request.toolName, request.arguments)
-          : await withClient(server, client => client.callTool({ name: request.toolName, arguments: request.arguments }))
+          : await withClient(server, client => client.callTool({ name: request.toolName, arguments: request.arguments }, platformCallOptions(server)))
         return send(res, 200, result)
       }
       if (request.action === 'test') {`)
       }
       if (!path.endsWith('client') && !path.endsWith('openapi')) {
+        contents = `function platformCallOptions(server: any) { return { signal: server.platformSignal, timeout: server.platformComposition ? 36 * 60_000 : (server.platformTimeoutMs ?? 60_000) } }\n${contents}`
         // 从同一个原生 HTTP 处理函数提取业务 dispatch，供 AI 工具复用。
         const adminStart = contents.indexOf("  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/api/mcp-manager'")
         const dispatchStart = contents.indexOf('      const server = current.servers.find', adminStart)
@@ -96,7 +104,8 @@ export const managerSources = {
         const dispatcher = `  const platformDispatch = async (request: any, signal?: AbortSignal) => {
           signal?.throwIfAborted()
           const current = snapshot(config)
-          current.servers = current.servers.map((server: any) => ({ ...server, platformSignal: signal }))
+          const timeoutMs = Number.isSafeInteger(request.timeoutMs) && request.timeoutMs > 0 && request.timeoutMs <= 36 * 60_000 ? request.timeoutMs : undefined
+          current.servers = current.servers.map((server: any) => ({ ...server, platformSignal: signal, platformTimeoutMs: timeoutMs }))
           const reply = (status: number, value: any) => ({ status, value })
           try { ${dispatchBody} } catch (error) { return reply(400, { error: error instanceof Error ? error.message : String(error) }) }
         }

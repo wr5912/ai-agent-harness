@@ -4,8 +4,9 @@ import type { ConnectionRpcHandler, ConnectionRpcResult } from '@deepseek-ai/dsh
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
-import { compositionInputSchema } from './definition.ts'
-import { compositionConfig, publishedCompositionService, readCompositions, selectedComposition, writeCompositions } from './compositions.ts'
+import { compositionInputSchema, compositionReadonly } from './definition.ts'
+import { compositionConfig, publishCompositionVersion, publishedCompositionService, readCompositions, selectedComposition, writeCompositions } from './compositions.ts'
+import { seedThreatCompositions } from './templates.ts'
 import { createRegistry, executeComposition, dryRunComposition, compositionStructure, compositionVersion, saveRegistry, type McpRegistry } from './executor.ts'
 import { callOpenApiOperation, limitedText, loadOpenApi, normalizeConnection, publicConnection, validateSpecUrl, type CredentialRef } from './openapi.ts'
 
@@ -38,7 +39,7 @@ async function listState(registry: McpRegistry, assetRoot: string, compositionsF
       })),
     ],
     compositions: await Promise.all(catalog.compositions.map(async entry => ({ ...entry,
-      graphs: Object.fromEntries(await Promise.all((['draft', 'published'] as const).filter(key => entry[key]).map(async key => [key, await compositionStructure(entry[key])]))),
+      graphs: Object.fromEntries(await Promise.all((['draft', 'published'] as const).filter(key => entry[key]).map(async key => [key, await compositionStructure(entry[key], catalog)]))),
     }))),
     publishedService: publishedCompositionService(catalog),
     revision,
@@ -164,10 +165,11 @@ async function callMcpTool(connection: any, name: string, args: any, signal?: Ab
   return await mcpJsonRpc(connection, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name, arguments: args ?? {} } }, session, runSignal)
 }
 
-export function createMcpHandler(assetRoot: string, options: { stateFile?: string; compositionsFile?: string; servers?: () => any[]; native?: McpRegistry['native'] } = {}): ConnectionRpcHandler {
+export function createMcpHandler(assetRoot: string, options: { stateFile?: string; compositionsFile?: string; servers?: () => any[]; native?: McpRegistry['native']; threat?: McpRegistry['threat'] } = {}): ConnectionRpcHandler {
   const registry = options.servers ? createRegistry() : createRegistry(assetRoot, options.stateFile)
   const compositionsFile = options.compositionsFile ?? join(assetRoot, 'platform/mcp-compositions.json')
   registry.native = options.native
+  registry.threat = options.threat
   return async (endpoint, payload, signal) => {
     try {
       if (options.servers) {
@@ -182,6 +184,23 @@ export function createMcpHandler(assetRoot: string, options: { stateFile?: strin
         }
       }
       if (endpoint === 'list') return success(await listState(registry, assetRoot, compositionsFile))
+      if (endpoint === 'compositionRun' || endpoint === 'compositionArtifact') {
+        if (!registry.threat) throw new Error('威胁分析运行器尚未装载')
+        const request = payload as any
+        if (typeof request?.run_id !== 'string') throw new Error('请选择运行 ID')
+        if (endpoint === 'compositionRun') return success(await registry.threat.inspect(request.run_id))
+        if (typeof request.artifactId !== 'string') throw new Error('请选择运行产物')
+        return success(await registry.threat.artifact(request.run_id, request.artifactId))
+      }
+      if (endpoint === 'seedThreatCompositions') {
+        const { catalog, revision } = readCompositions(compositionsFile)
+        const request = (payload as any) ?? {}
+        if (request.revision !== revision) throw new Error('编排目录已变化，请刷新后重试；当前草稿未覆盖')
+        const validated = compositionConfig({ kind: 'threat-stage', stage: 'collect', toolName: 'threat_collect', title: '取证与快判', description: '', bindings: request.bindings })
+        seedThreatCompositions(catalog, validated.bindings!)
+        writeCompositions(compositionsFile, catalog, revision)
+        return success(await listState(registry, assetRoot, compositionsFile))
+      }
       if (['saveCompositionDraft', 'publishComposition', 'executeComposition', 'dryRunComposition', 'callPublishedComposition'].includes(endpoint)) {
         const { catalog, revision } = readCompositions(compositionsFile)
         const request = (payload as any) ?? {}
@@ -198,21 +217,20 @@ export function createMcpHandler(assetRoot: string, options: { stateFile?: strin
         if (endpoint === 'callPublishedComposition') {
           const entry = catalog.compositions.find(item => item.published?.toolName === request.toolName)
           if (!entry?.published) return failure('not_found', '已发布工具不存在')
-          return success(await executeComposition(registry, assetRoot, entry.published, request.input ?? {}, signal))
+          return success(await executeComposition(registry, assetRoot, entry.published, request.input ?? {}, signal, catalog))
         }
         const config = selectedComposition(catalog, request)
         if (endpoint === 'publishComposition') {
           if (request.version !== 'draft') throw new Error('只能发布已保存的草稿')
-          const dry = await dryRunComposition(registry, config, request.input ?? {})
+          const dry = await dryRunComposition(registry, config, request.input ?? {}, catalog)
           const entry = catalog.compositions.find(item => item.id === request.compositionId)!
-          entry.published = { ...config, publishedAt: new Date().toISOString() }
-          delete entry.draft
+          publishCompositionVersion(entry, config)
           writeCompositions(compositionsFile, catalog, revision)
           return success({ ...await listState(registry, assetRoot, compositionsFile), dry })
         }
         return success(endpoint === 'dryRunComposition'
-          ? { ...await dryRunComposition(registry, config, request.input ?? {}), version: compositionVersion(assetRoot, config) }
-          : await executeComposition(registry, assetRoot, config, request.input ?? {}, signal))
+          ? { ...await dryRunComposition(registry, config, request.input ?? {}, catalog), version: compositionVersion(assetRoot, config) }
+          : await executeComposition(registry, assetRoot, config, request.input ?? {}, signal, catalog))
       }
       if (endpoint === 'registerOpenApi') {
         const connection = normalizeConnection(payload)
@@ -305,7 +323,7 @@ async function handleMcpMessage(handler: ConnectionRpcHandler, assetRoot: string
       name: entry.published.toolName,
       description: entry.published.description || entry.published.title,
       inputSchema: compositionInputSchema(entry.published),
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: compositionReadonly(entry.published) },
     })) })
   }
   if (message.method === 'tools/call') {
@@ -319,14 +337,14 @@ async function handleMcpMessage(handler: ConnectionRpcHandler, assetRoot: string
 }
 
 export function createPublishedCompositionClient(assetRoot: string, handler: ConnectionRpcHandler) {
-  const request = async (method: string, params?: unknown) => {
-    const reply = await handleMcpMessage(handler, assetRoot, { id: 1, method, params }) as any
+  const request = async (method: string, params?: unknown, signal?: AbortSignal) => {
+    const reply = await handleMcpMessage(handler, assetRoot, { id: 1, method, params }, signal) as any
     if (reply.error) throw new Error(reply.error.message)
     return reply.result
   }
   return {
-    listTools: () => request('tools/list'),
-    callTool: (params: unknown) => request('tools/call', params),
+    listTools: (options?: { signal?: AbortSignal }) => request('tools/list', undefined, options?.signal),
+    callTool: (params: unknown, options?: { signal?: AbortSignal }) => request('tools/call', params, options?.signal),
     listResources: async () => ({ resources: [] }),
     listResourceTemplates: async () => ({ resourceTemplates: [] }),
     readResource: async () => { throw new Error('组合编排服务没有资源') },

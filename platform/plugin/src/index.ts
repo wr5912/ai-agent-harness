@@ -125,7 +125,7 @@ export function applyTools(ctx: Context) {
   // 把已注入的载体绑定到子上下文，供原生 RPC 注册读取；父上下文不变。
   const registrationContext = ctx.extend({ webServer: ctx.webServer })
   const manager = ctx.platformMcp
-  const mcp = manager ? createManagedMcpHandler(assetRoot, () => manager.servers.get()) : createMcpHandler(assetRoot)
+  const mcp = manager?.compositionHandler ?? (manager ? createManagedMcpHandler(assetRoot, () => manager.servers.get()) : createMcpHandler(assetRoot))
   const events = createPlatformEvents(assetRoot)
   events.register(registrationContext)
   registrationContext.connection.fetch.register({ path: '/api/harness-platform/runs/download', methods: ['GET'], requestBody: 'buffered', fetch: createRunDownloadHandler(assetRoot) })

@@ -4,8 +4,10 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph'
-import { compositionDefinition, compositionInputSchema } from './definition.ts'
-import type { CompositionConfig } from './compositions.ts'
+import { compositionDefinition, compositionInputSchema, compositionOutputSchema, INCIDENT_ID_PATTERN, RUN_ID_PATTERN } from './definition.ts'
+import { compositionVersionId, readCompositions, type Catalog, type CompositionConfig } from './compositions.ts'
+import type { ThreatRuntime } from './threat/types.ts'
+import { executeNested, nestedStructure, validateNested } from './nested.ts'
 import { callOpenApiOperation, loadOpenApi, type OpenApiConnection } from './openapi.ts'
 
 export type ConnectionStatus = {
@@ -20,6 +22,7 @@ export type McpRegistry = {
   mcp: Map<string, any>
   status: Map<string, ConnectionStatus>
   stateFile?: string
+  threat?: ThreatRuntime
   native?: {
     load(connection: OpenApiConnection, signal?: AbortSignal): Promise<any>
     call(source: any, operationId: string, args: Record<string, any>, signal?: AbortSignal): Promise<any>
@@ -74,9 +77,10 @@ function gitDirtyOf(assetRoot: string): boolean | 'unknown' {
 }
 
 function sourceDigestOf(assetRoot: string): string {
-  const files = ['client.tsx', 'definition.ts', 'compositions.ts', 'executor.ts', 'index.ts', 'openapi.ts', 'manager.ts', 'native.ts']
+  const files = ['client.tsx', 'definition.ts', 'compositions.ts', 'executor.ts', 'index.ts', 'openapi.ts', 'manager.ts', 'native.ts', 'nested.ts', 'templates.ts', 'threat-services.ts', 'threat-editor.tsx']
     .map(file => `platform/plugin/src/mcp/${file}`)
     .concat(['platform/plugin/build.mjs', 'platform/plugin/package.json', 'platform/plugin/pnpm-lock.yaml', 'platform/plugin/src/index.ts',
+      ...['index.ts', 'runtime.ts', 'types.ts', 'bridge.ts', 'python.ts', 'source.ts'].map(file => `platform/plugin/src/mcp/threat/${file}`),
       ...['index.ts', 'openapi.ts'].map(file => `evolution/experiments/EXP-security-operations-expert-018-rfbf7fd53a340/candidate/dsh/managed/mcp-manager/${file}`)])
   try {
     const hash = createHash('sha256')
@@ -91,10 +95,10 @@ export function compositionVersion(assetRoot: string, config?: CompositionConfig
   const gitCommit = gitCommitOf(assetRoot)
   const gitDirty = gitDirtyOf(assetRoot)
   const sourceDigest = sourceDigestOf(assetRoot)
-  const definition = { ...compositionDefinition, ...config, inputSchema: compositionInputSchema(config),
-    upstream: { kind: 'openapi', steps: compositionSteps(config) } }
+  const definition = { ...compositionDefinition, ...config, readonly: !config?.kind, inputSchema: compositionInputSchema(config), outputSchema: compositionOutputSchema(config),
+    upstream: config?.kind ? { kind: config.kind, ...(config.kind === 'composite' ? { steps: config.steps } : { stage: config.stage, bindings: config.bindings }) } : { kind: 'openapi', steps: compositionSteps(config) } }
   const digest = createHash('sha256').update(JSON.stringify({ gitCommit, gitDirty, sourceDigest, definition })).digest('hex')
-  return { gitCommit, gitDirty, sourceDigest, digest, definition }
+  return { gitCommit, gitDirty, sourceDigest, digest, definition, ...(config?.kind ? { versionId: compositionVersionId(config) } : {}) }
 }
 
 function statusFor(registry: McpRegistry, id: string): ConnectionStatus {
@@ -120,7 +124,12 @@ function inputLimit(value: unknown): number {
   return value
 }
 
-function compositionInput(input: Record<string, any>, config?: CompositionConfig) {
+function compositionInput(input: Record<string, any>, config?: CompositionConfig): Record<string, any> {
+  if (config?.kind) {
+    const key = config.kind === 'composite' || config.stage === 'collect' ? 'incident_id' : 'run_id'
+    if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(name => name !== key) || typeof input[key] !== 'string' || !new RegExp(key === 'incident_id' ? INCIDENT_ID_PATTERN : RUN_ID_PATTERN).test(input[key])) throw new Error(`${key} 格式无效，且不能传入其他字段`)
+    return { [key]: input[key] }
+  }
   if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !['asset', 'limit'].includes(key))) throw new Error('组合输入仅接受 asset 和 limit')
   const asset = inputString(input.asset, 'asset')
   if (config?.flow && (!/^[1-9]\d*$/.test(asset) || !Number.isSafeInteger(Number(asset)))) throw new Error('SOC 查询须填写有效的正整数资产 ID')
@@ -191,13 +200,40 @@ function compositionGraph(config: CompositionConfig | undefined, call: (step: Re
     .compile({ checkpointer: false })
 }
 
-export async function compositionStructure(config?: CompositionConfig) {
+export async function compositionStructure(config?: CompositionConfig, catalog?: Catalog) {
+  if (config?.kind === 'composite') return nestedStructure(config, catalog ?? { schema_version: '1.0', compositions: [] })
+  if (config?.kind === 'threat-stage') {
+    const graph = await threatStageGraph(config, async () => { throw new Error('结构查询不可执行节点') }).getGraphAsync()
+    return { nodes: Object.values(graph.nodes).map(node => ({ id: node.id, ...node.metadata })), edges: graph.edges }
+  }
   const graph = await compositionGraph(config, async () => { throw new Error('结构查询不可执行节点') }).getGraphAsync()
   return { nodes: Object.values(graph.nodes).map(node => ({ id: node.id, ...node.metadata })), edges: graph.edges }
 }
 
-export async function dryRunComposition(registry: McpRegistry, config: CompositionConfig, input: Record<string, any>) {
+const ThreatStageState = Annotation.Root({ input: Annotation<Record<string, any>>(), result: Annotation<any>() })
+function threatStageGraph(config: CompositionConfig, call: (input: Record<string, any>) => Promise<any>) {
+  const stage = config.stage!
+  return new StateGraph(ThreatStageState).addNode(stage, async state => ({ result: await call(state.input) }), {
+    metadata: { step: stage, title: config.title, operationId: stage, input: stage === 'collect' ? { incident_id: '$input.incident_id' } : { run_id: '$input.run_id' }, output: 'run' },
+  }).addEdge(START, stage).addEdge(stage, END).compile({ checkpointer: false })
+}
+
+export async function dryRunComposition(registry: McpRegistry, config: CompositionConfig, input: Record<string, any>, catalog?: Catalog) {
   const validated = compositionInput(input, config)
+  if (config.kind) {
+    const resolved = catalog ?? { schema_version: '1.0' as const, compositions: [] }
+    validateNested(config, resolved)
+    const check = (child: CompositionConfig) => {
+      if (child.kind === 'composite') {
+        for (const step of child.steps ?? []) check(resolved.compositions.find(entry => entry.id === step.compositionId)!.versions!.find(version => version.versionId === step.versionId)!.config)
+      } else if (child.kind === 'threat-stage') {
+        for (const id of [child.bindings!.socConnectionId, child.bindings!.reportConnectionId]) if (!registry.openapi.has(id) && !registry.mcp.has(id)) throw new Error(`未注册组合依赖连接：${id}`)
+      } else for (const step of compositionSteps(child)) if (!registry.openapi.has(step.connectionId!)) throw new Error(`未注册组合依赖连接：${step.connectionId}`)
+    }
+    check(config)
+    return { ok: true, mode: 'dry', input: validated, graph: await compositionStructure(config, resolved), upstreamRequests: 0,
+      checks: ['输入有效', '子组合版本与参数映射有效', '依赖连接已登记', 'LangGraph 图已编译'], unverified: ['SOC 认领与业务接口', '模型实际调用', '回写与报告保存'] }
+  }
   for (const step of compositionSteps(config)) {
     if (!step.connectionId || !registry.openapi.has(step.connectionId)) throw new Error(`未注册组合依赖连接：${step.connectionId ?? '未选择'}`)
   }
@@ -217,9 +253,25 @@ function assertReadonlyOperation(source: Awaited<ReturnType<typeof loadOpenApi>>
   if (operation.method !== 'get') throw new Error(`只读组合拒绝非 GET 操作：${operationId}`)
 }
 
-export async function executeComposition(registry: McpRegistry, assetRoot: string, config: CompositionConfig, input: Record<string, any>, signal?: AbortSignal) {
+export async function executeComposition(registry: McpRegistry, assetRoot: string, config: CompositionConfig, input: Record<string, any>, signal?: AbortSignal, catalog?: Catalog, nested = false): Promise<any> {
   const version = compositionVersion(assetRoot, config)
   const validated = compositionInput(input, config)
+  if (config.kind) {
+    const runSignal = nested && signal ? signal : signal ? AbortSignal.any([signal, AbortSignal.timeout(36 * 60_000)]) : AbortSignal.timeout(36 * 60_000)
+    if (config.kind === 'threat-stage') {
+      if (!registry.threat) throw new Error('威胁分析运行器尚未装载')
+      const cleanup = nested && (config.stage === 'writeback' || config.stage === 'report')
+      const state = await threatStageGraph(config, args => registry.threat!.execute(config.stage!, config.bindings!, args, cleanup ? AbortSignal.timeout(120_000) : runSignal)).invoke({ input: validated })
+      const ok = ['completed', 'skipped'].includes(state.result.phase_status) && state.result.status !== 'claim_failed'
+      return { ok, version, receipts: [], result: state.result,
+        ...(!ok ? { error: { code: state.result.status === 'claim_failed' ? 'claim_failed' : 'threat_stage_failed',
+          message: state.result.status === 'claim_failed' ? 'SOC 事件认领失败' : state.result.phase_status === 'unknown' ? '威胁分析阶段状态尚未确认' : '威胁分析阶段执行失败' } } : {}) }
+    }
+    runSignal.throwIfAborted()
+    const resolved = catalog ?? readCompositions(join(assetRoot, 'platform/mcp-compositions.json')).catalog
+    const result = await executeNested(config, resolved, validated, (child, args) => executeComposition(registry, assetRoot, child, args, runSignal, resolved, true))
+    return { ...result, version }
+  }
   const runSignal = totalSignal(signal)
   const sources = new Map<string, any>()
   for (const step of compositionSteps(config)) {
@@ -236,7 +288,7 @@ export async function executeComposition(registry: McpRegistry, assetRoot: strin
     statusFor(registry, step.connectionId!).toolCallSucceeded = value.ok && (!config.flow || value.json?.code === 200)
     return value
   })
-    .invoke({ input: validated, alerts: [], receipts: [], trace: [] }, { signal: runSignal })
+    .invoke({ input: validated as { asset: string; limit: number }, alerts: [], receipts: [], trace: [] }, { signal: runSignal })
   return {
     ok: !result.error,
     version,

@@ -11,7 +11,263 @@
         "flow": "soc-asset-alerts",
         "alertsConnectionId": "mock-soc-readonly",
         "publishedAt": "2026-10-15T08:46:43.198Z"
-      }
+      },
+      "publishedVersionId": "fd2c27b47da1e6e5a717fc68dec5fbf0ec39e6aab9bf5861878b38066c480554",
+      "versions": [
+        {
+          "versionId": "fd2c27b47da1e6e5a717fc68dec5fbf0ec39e6aab9bf5861878b38066c480554",
+          "publishedAt": "2026-10-15T08:46:43.198Z",
+          "config": {
+            "toolName": "query_asset_related_alerts",
+            "title": "资产相关告警只读查询",
+            "description": "按资产 ID 查询资产详情，再查询近 30 天关联告警分组；返回首页分组、总分组数及总告警数，仅执行只读 GET。",
+            "connectionId": "mock-soc-readonly",
+            "flow": "soc-asset-alerts",
+            "alertsConnectionId": "mock-soc-readonly"
+          }
+        }
+      ]
+    },
+    {
+      "id": "threat-collect",
+      "versions": [
+        {
+          "versionId": "baafbe2c7426010e22baffe74534a6455d45dc80b7928160cf9bad0a528662c6",
+          "publishedAt": "2026-10-15T11:25:23.817Z",
+          "config": {
+            "toolName": "threat_collect",
+            "title": "威胁分析：取证与快判",
+            "description": "认领一次事件，采集证据并执行名单快判，冻结完整研判输入。",
+            "connectionId": "platform-compositions",
+            "kind": "threat-stage",
+            "stage": "collect",
+            "bindings": {
+              "socConnectionId": "mock-threat-soc",
+              "reportConnectionId": "mock-threat-report"
+            }
+          }
+        }
+      ],
+      "published": {
+        "toolName": "threat_collect",
+        "title": "威胁分析：取证与快判",
+        "description": "认领一次事件，采集证据并执行名单快判，冻结完整研判输入。",
+        "connectionId": "platform-compositions",
+        "kind": "threat-stage",
+        "stage": "collect",
+        "bindings": {
+          "socConnectionId": "mock-threat-soc",
+          "reportConnectionId": "mock-threat-report"
+        },
+        "publishedAt": "2026-10-15T11:25:23.817Z"
+      },
+      "publishedVersionId": "baafbe2c7426010e22baffe74534a6455d45dc80b7928160cf9bad0a528662c6"
+    },
+    {
+      "id": "threat-infer",
+      "versions": [
+        {
+          "versionId": "4f42d66aea9b8bf6fe5c0a9715cb825c8960768c1c7120dc4528d35c789231c1",
+          "publishedAt": "2026-10-15T11:25:27.996Z",
+          "config": {
+            "toolName": "threat_infer",
+            "title": "威胁分析：完整研判",
+            "description": "复用冻结证据执行一次模型研判，并保留原契约校验结果。",
+            "connectionId": "platform-compositions",
+            "kind": "threat-stage",
+            "stage": "infer",
+            "bindings": {
+              "socConnectionId": "mock-threat-soc",
+              "reportConnectionId": "mock-threat-report"
+            }
+          }
+        }
+      ],
+      "published": {
+        "toolName": "threat_infer",
+        "title": "威胁分析：完整研判",
+        "description": "复用冻结证据执行一次模型研判，并保留原契约校验结果。",
+        "connectionId": "platform-compositions",
+        "kind": "threat-stage",
+        "stage": "infer",
+        "bindings": {
+          "socConnectionId": "mock-threat-soc",
+          "reportConnectionId": "mock-threat-report"
+        },
+        "publishedAt": "2026-10-15T11:25:27.996Z"
+      },
+      "publishedVersionId": "4f42d66aea9b8bf6fe5c0a9715cb825c8960768c1c7120dc4528d35c789231c1"
+    },
+    {
+      "id": "threat-writeback",
+      "versions": [
+        {
+          "versionId": "0468c4f56cd294df0df364fa0414bb2faba792ef13298ed8db83c5d6bf56cfef",
+          "publishedAt": "2026-10-15T11:25:32.494Z",
+          "config": {
+            "toolName": "threat_writeback",
+            "title": "威胁分析：结果回写",
+            "description": "生成报告 HTML，并将同一运行的完成或失败结果回写 SOC。",
+            "connectionId": "platform-compositions",
+            "kind": "threat-stage",
+            "stage": "writeback",
+            "bindings": {
+              "socConnectionId": "mock-threat-soc",
+              "reportConnectionId": "mock-threat-report"
+            }
+          }
+        }
+      ],
+      "published": {
+        "toolName": "threat_writeback",
+        "title": "威胁分析：结果回写",
+        "description": "生成报告 HTML，并将同一运行的完成或失败结果回写 SOC。",
+        "connectionId": "platform-compositions",
+        "kind": "threat-stage",
+        "stage": "writeback",
+        "bindings": {
+          "socConnectionId": "mock-threat-soc",
+          "reportConnectionId": "mock-threat-report"
+        },
+        "publishedAt": "2026-10-15T11:25:32.494Z"
+      },
+      "publishedVersionId": "0468c4f56cd294df0df364fa0414bb2faba792ef13298ed8db83c5d6bf56cfef"
+    },
+    {
+      "id": "threat-report",
+      "versions": [
+        {
+          "versionId": "550b156eede733dfbce0d2520c79eeefd925a2b43778deb0db236a5464afaf50",
+          "publishedAt": "2026-10-15T11:25:37.054Z",
+          "config": {
+            "toolName": "threat_report",
+            "title": "威胁分析：报告保存与交付",
+            "description": "保存已生成的报告，返回实际下载地址及固定交付摘要。",
+            "connectionId": "platform-compositions",
+            "kind": "threat-stage",
+            "stage": "report",
+            "bindings": {
+              "socConnectionId": "mock-threat-soc",
+              "reportConnectionId": "mock-threat-report"
+            }
+          }
+        }
+      ],
+      "published": {
+        "toolName": "threat_report",
+        "title": "威胁分析：报告保存与交付",
+        "description": "保存已生成的报告，返回实际下载地址及固定交付摘要。",
+        "connectionId": "platform-compositions",
+        "kind": "threat-stage",
+        "stage": "report",
+        "bindings": {
+          "socConnectionId": "mock-threat-soc",
+          "reportConnectionId": "mock-threat-report"
+        },
+        "publishedAt": "2026-10-15T11:25:37.054Z"
+      },
+      "publishedVersionId": "550b156eede733dfbce0d2520c79eeefd925a2b43778deb0db236a5464afaf50"
+    },
+    {
+      "id": "threat-analysis",
+      "versions": [
+        {
+          "versionId": "5e0ac92231637e7f77fce9b3421270e8307f5a271f55c0638bc4549f50be24ee",
+          "publishedAt": "2026-10-15T11:25:44.010Z",
+          "config": {
+            "toolName": "analyze_threat_incident",
+            "title": "威胁分析：组合流程",
+            "description": "按事件 ID 执行取证快判、必要的完整研判、结果回写和报告交付。",
+            "connectionId": "platform-compositions",
+            "kind": "composite",
+            "steps": [
+              {
+                "id": "collect",
+                "compositionId": "threat-collect",
+                "versionId": "baafbe2c7426010e22baffe74534a6455d45dc80b7928160cf9bad0a528662c6",
+                "inputMap": {
+                  "incident_id": "$input.incident_id"
+                },
+                "when": "always"
+              },
+              {
+                "id": "infer",
+                "compositionId": "threat-infer",
+                "versionId": "4f42d66aea9b8bf6fe5c0a9715cb825c8960768c1c7120dc4528d35c789231c1",
+                "inputMap": {
+                  "run_id": "$steps.collect.run_id"
+                },
+                "when": "five_source"
+              },
+              {
+                "id": "writeback",
+                "compositionId": "threat-writeback",
+                "versionId": "0468c4f56cd294df0df364fa0414bb2faba792ef13298ed8db83c5d6bf56cfef",
+                "inputMap": {
+                  "run_id": "$steps.collect.run_id"
+                },
+                "when": "claimed"
+              },
+              {
+                "id": "report",
+                "compositionId": "threat-report",
+                "versionId": "550b156eede733dfbce0d2520c79eeefd925a2b43778deb0db236a5464afaf50",
+                "inputMap": {
+                  "run_id": "$steps.collect.run_id"
+                },
+                "when": "completed"
+              }
+            ]
+          }
+        }
+      ],
+      "published": {
+        "toolName": "analyze_threat_incident",
+        "title": "威胁分析：组合流程",
+        "description": "按事件 ID 执行取证快判、必要的完整研判、结果回写和报告交付。",
+        "connectionId": "platform-compositions",
+        "kind": "composite",
+        "steps": [
+          {
+            "id": "collect",
+            "compositionId": "threat-collect",
+            "versionId": "baafbe2c7426010e22baffe74534a6455d45dc80b7928160cf9bad0a528662c6",
+            "inputMap": {
+              "incident_id": "$input.incident_id"
+            },
+            "when": "always"
+          },
+          {
+            "id": "infer",
+            "compositionId": "threat-infer",
+            "versionId": "4f42d66aea9b8bf6fe5c0a9715cb825c8960768c1c7120dc4528d35c789231c1",
+            "inputMap": {
+              "run_id": "$steps.collect.run_id"
+            },
+            "when": "five_source"
+          },
+          {
+            "id": "writeback",
+            "compositionId": "threat-writeback",
+            "versionId": "0468c4f56cd294df0df364fa0414bb2faba792ef13298ed8db83c5d6bf56cfef",
+            "inputMap": {
+              "run_id": "$steps.collect.run_id"
+            },
+            "when": "claimed"
+          },
+          {
+            "id": "report",
+            "compositionId": "threat-report",
+            "versionId": "550b156eede733dfbce0d2520c79eeefd925a2b43778deb0db236a5464afaf50",
+            "inputMap": {
+              "run_id": "$steps.collect.run_id"
+            },
+            "when": "completed"
+          }
+        ],
+        "publishedAt": "2026-10-15T11:25:44.010Z"
+      },
+      "publishedVersionId": "5e0ac92231637e7f77fce9b3421270e8307f5a271f55c0638bc4549f50be24ee"
     }
   ]
 }
