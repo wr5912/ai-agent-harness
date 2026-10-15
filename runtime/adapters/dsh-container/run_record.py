@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import uuid
+import yaml
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -77,6 +78,28 @@ def tree_digest(repo: Path, root: Path) -> dict:
     return snapshot(root, allowed_roots={root})
 
 
+def candidate_digest(root: Path) -> str:
+    """与平台版本验证相同：记录 Candidate 文件路径、权限与内容，排除运行状态和依赖。"""
+    excluded = {"runs", "history", "RuntimeHOME", "sessions", "cache", ".git", "node_modules", "__pycache__"}
+    digest = hashlib.sha256()
+
+    def walk(folder: Path) -> None:
+        for entry in sorted(folder.iterdir(), key=lambda path: path.name):
+            if entry.name in excluded or entry.name.endswith(".llm-api-key"):
+                continue
+            if entry.is_symlink():
+                raise ValueError("Candidate must not contain symlinks")
+            if entry.is_dir():
+                walk(entry)
+            elif entry.is_file():
+                record = [entry.relative_to(root).as_posix(), 0o755 if entry.stat().st_mode & 0o111 else 0o644,
+                          hashlib.sha256(entry.read_bytes()).hexdigest()]
+                digest.update(json.dumps(record, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+
+    walk(root)
+    return digest.hexdigest()
+
+
 def git_version(repo: Path) -> dict:
     def git(*args: str) -> tuple[int, str]:
         completed = subprocess.run(
@@ -109,6 +132,14 @@ def read_flat_yaml(path: Path) -> dict[str, str]:
                     raise ValueError(f"invalid string value in {path.name}: {key}")
             values[key] = raw
     return values
+
+
+def read_change_yaml(path: Path) -> dict:
+    """change.yaml 可以包含继承来源和特性等嵌套数据。Run 清单仍使用原有标量合同。"""
+    value = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError(f"{path.name} must contain a YAML mapping")
+    return value
 
 
 def write_flat_yaml(path: Path, values: dict[str, str]) -> None:
@@ -487,7 +518,7 @@ def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
         "manifest": manifest,
         "source": {**{key: inputs.get(key) for key in (
             "source_id", "baseline_ref", "git_version", "evaluation_sha256",
-            "executor", "model", "created_at", "compare_to_run_id",
+            "executor", "model", "created_at", "compare_to_run_id", "candidate_sha256",
             "review_mode", "configured_capabilities", "dependency_env",
         )}, "candidate_trees": {key: {"tree_sha256": value.get("tree_sha256"),
                                         "file_count": value.get("file_count")}
@@ -543,7 +574,7 @@ def command_index(repo: Path, args: argparse.Namespace) -> None:
         match = EXPERIMENT_RE.fullmatch(root.name)
         if not root.is_dir() or root.is_symlink() or not match or match.group(1) != args.agent:
             continue
-        change = read_flat_yaml(root / "change.yaml")
+        change = read_change_yaml(root / "change.yaml")
         runs = []
         for path in sorted((root / "runs").glob("run-*/run.yaml")):
             if path.is_symlink() or path.parent.is_symlink():
@@ -577,7 +608,7 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
     experiment = repo / "evolution/experiments" / experiment_id
     if not experiment.is_dir() or experiment.is_symlink():
         raise ValueError(f"unknown experiment: {experiment_id}")
-    change = read_flat_yaml(experiment / "change.yaml")
+    change = read_change_yaml(experiment / "change.yaml")
     baseline_ref = args.baseline_ref or change.get("baseline_ref", "")
     if not valid_baseline_ref(baseline_ref):
         raise ValueError("baseline_ref must be git:<commit>, release:<id> or none:first-experiment")
@@ -605,6 +636,7 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
             "source_id": contract["source_id"],
             "source_kind": contract["source_kind"],
             "baseline_ref": baseline_ref,
+            "candidate_sha256": candidate_digest(experiment / "candidate"),
             "created_at": utc_now(),
             "harness_trees": {
                 "workspace": tree_digest(repo, Path(contract["workspace"])),

@@ -175,6 +175,55 @@ test('agents detail defaults to newest version while preserving explicit selecti
   }
 })
 
+test('融合确认拒绝预览后变化的 Candidate，避免沿用过期覆盖关系', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const preview = await rpc(handler, 'fusion/preview', {
+      agent_id: 'test-agent', parent_experiment_id: 'EXP-test-agent-001', parent_ref: `git:${fx.commit}`,
+      research_question: '在固定父版上验证基础能力',
+      plan: { sources: [], features: [], conflicts: [], checks: [
+        { id: 'actual-load', kind: 'load' },
+        { id: 'basic-capability', kind: 'capability', case_ids: ['U-CASE-001'] },
+      ] },
+    })
+    assert.deepEqual(preview.inventory.covered, ['EXP-test-agent-001'])
+    write(join(fx.root, 'evolution/experiments/EXP-test-agent-001/candidate/dsh/workspace/input.txt'), 'changed after preview\n')
+    await assert.rejects(() => rpc(handler, 'fusion/confirm', { preview_id: preview.preview_id, confirmed: true }), /conflict:/)
+    assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(fx.root, 'runtime/adapters/dsh-container/sources.json'), 'utf8')).sources), ['EXP-test-agent-001'])
+  } finally {
+    await rm(fx.root, { recursive: true, force: true })
+  }
+})
+
+test('未变化的融合预览可创建版本，但缺少真实验证不能完成', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const preview = await rpc(handler, 'fusion/preview', {
+      agent_id: 'test-agent', parent_experiment_id: 'EXP-test-agent-001', parent_ref: `git:${fx.commit}`,
+      research_question: '建立基础能力的待验证版本',
+      plan: { sources: [], features: [], conflicts: [], checks: [
+        { id: 'actual-load', kind: 'load' },
+        { id: 'basic-capability', kind: 'capability', case_ids: ['U-CASE-001'] },
+      ] },
+    })
+    const created = await rpc(handler, 'fusion/confirm', { preview_id: preview.preview_id, confirmed: true })
+    assert.equal(created.creation_status, 'integrating')
+    const status = await rpc(handler, 'fusion/status', { experiment_id: created.experiment_id })
+    assert.equal(status.creation.status, 'integrating')
+    assert.deepEqual(status.creation.receipts, [])
+    await assert.rejects(() => rpc(handler, 'fusion/finalize', {
+      experiment_id: created.experiment_id, expected_candidate_sha256: status.candidate_sha256,
+    }), /verification_incomplete:/)
+    await assert.rejects(() => rpc(handler, 'fusion/confirm', { preview_id: preview.preview_id, confirmed: true }), /preview_expired:/)
+  } finally {
+    await rm(fx.root, { recursive: true, force: true })
+  }
+})
+
 test('create validation failure restores catalog and removes dangling source', async () => {
   const { createAgentsHandler } = await loadServer()
   const fx = fixture()

@@ -3,6 +3,7 @@ import type { Catalog } from './catalog.ts'
 import type { PlatformPageProps } from './protocol.ts'
 import type { RecentRun } from './dashboard.ts'
 import { CHANNEL } from './protocol.ts'
+import type { PlatformUpdates } from './realtime/client.ts'
 import { PlatformLogo } from './logo.tsx'
 export { PlatformLogo } from './logo.tsx'
 
@@ -24,8 +25,9 @@ function HeroArt({ side }: { side: string }) {
   </svg>
 }
 
-export function HomePage({ catalog, rpc, navigate, startConversation }: PlatformPageProps & { catalog: Catalog; navigate: (page: PageId) => void; startConversation: (root: string, prompt: string) => Promise<void> }) {
+export function HomePage({ catalog, rpc, updates, navigate, startConversation }: PlatformPageProps & { catalog: Catalog; updates: PlatformUpdates; navigate: (page: PageId) => void; startConversation: (root: string, prompt: string) => Promise<void> }) {
   const state = useSyncExternalStore(catalog.subscribe, catalog.getSnapshot)
+  const revision = useSyncExternalStore(updates.subscribe, updates.getSnapshot).revision
   const [runs, setRuns] = useState<RecentRun[]>()
   const [dashboard, setDashboard] = useState<Dashboard>()
   const [runError, setRunError] = useState('')
@@ -47,7 +49,7 @@ export function HomePage({ catalog, rpc, navigate, startConversation }: Platform
       else setRunError(result.error.message)
     }).catch(() => { if (active) setRunError('无法连接 Run 查询，请刷新重试。') })
     return () => { active = false }
-  }, [rpc, refresh])
+  }, [rpc, refresh, revision])
   const assets = state.inventory
   const running = dashboard?.instances.ok ? dashboard.instances.value.instances.filter(item => item.state === 'running').length : undefined
   return <main className="harness-home">

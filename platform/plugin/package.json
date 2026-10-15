@@ -24,7 +24,8 @@
         "@deepseek-ai/dsh-client-ui-sidebar",
         "@deepseek-ai/dsh-api-workspace-controller",
         "@deepseek-ai/dsh-client-ui-workspace",
-        "@deepseek-ai/dsh-client-ui-conversation"
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-tool"
       ]
     }
   },
@@ -46,7 +47,12 @@
     "react": "^18.2.0",
     "@deepseek-ai/dsh-api-workspace-controller": "0.2.1-alpha.2",
     "@deepseek-ai/dsh-client-ui-workspace": "0.2.1-alpha.2",
-    "@deepseek-ai/dsh-client-ui-conversation": "0.2.1-alpha.2"
+    "@deepseek-ai/dsh-client-ui-conversation": "0.2.1-alpha.2",
+    "@deepseek-ai/dsh-client-ui-tool": "0.2.1-alpha.2",
+    "@deepseek-ai/dsh-api-session-controller": "0.2.1-alpha.2",
+    "@deepseek-ai/dsh-session": "0.2.1-alpha.2",
+    "@deepseek-ai/dsh-session-projection": "0.2.1-alpha.2",
+    "@deepseek-ai/dsh-system-prompt": "0.2.1-alpha.2"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "~4.0.5-alpha.1",
@@ -69,7 +75,12 @@
     "@types/react-dom": "~18.3.7",
     "esbuild": "^0.25.0",
     "react": "^18.2.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "@deepseek-ai/dsh-client-ui-tool": "0.2.1-alpha.2",
+    "@deepseek-ai/dsh-api-session-controller": "0.2.1-alpha.2",
+    "@deepseek-ai/dsh-session": "0.2.1-alpha.2",
+    "@deepseek-ai/dsh-session-projection": "0.2.1-alpha.2",
+    "@deepseek-ai/dsh-system-prompt": "0.2.1-alpha.2"
   },
   "dependencies": {
     "@langchain/core": "1.1.48",
@@ -79,6 +90,6 @@
     "@modelcontextprotocol/server": "2.0.0",
     "js-yaml": "4.3.2",
     "react-dom": "18.3.1",
-    "zod": "4.2.0"
+    "zod": "4.4.3"
   }
 }

@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
-import type { IWorkspaces } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { EmptyWorkspaceOwnerProps, HeroBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { HeroBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
-import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import type { SidebarBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { ConfigForm, SettingsLauncherOwnerProps, SettingsOnboardingOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { createCatalog, type Catalog } from './catalog.ts'
 import type { PlatformPageProps } from './protocol.ts'
@@ -16,26 +15,60 @@ import { AgentsPage } from './agents/client.tsx'
 import { InstancesPage } from './instances/client.tsx'
 import { McpPage } from './mcp/client.tsx'
 import { platformTheme } from './theme.ts'
-import { prepareConversation, startConversation } from './conversation.ts'
+import { prepareConversation } from './conversation.ts'
+import { AssistantConversation, AssistantOperations, PlatformOperationCard, createAssistant, type Assistant, type AssistantContext } from './assistant/client.tsx'
+import { createPlatformUpdates, type PlatformUpdates } from './realtime/client.ts'
 
 export const name = 'harness-platform-client'
-export const inject = ['connection', 'slots', 'configForms', 'layout', 'workspaces', 'uiWorkspace', 'sessions', 'conversation']
+export const inject = ['connection', 'slots', 'configForms', 'layout', 'workspaces', 'uiWorkspace', 'uiSession', 'sessions', 'conversation']
 type ClientContext = Omit<Context, 'connection'> & { connection: ConnectionHandle }
 const pages: { id: PageId; label: string }[] = [
   { id: 'home', label: '首页' }, { id: 'conversations', label: '管理对话' }, { id: 'agents', label: '智能体与评估' },
   { id: 'instances', label: '实例管理' }, { id: 'mcp', label: 'MCP 管理' },
 ]
 
-function PlatformPage({ catalog, rpc, mcpForm, enterConversation, startConversation }: PlatformPageProps & { catalog: Catalog; mcpForm: ConfigForm<any>; enterConversation: () => void; startConversation: (root: string, prompt: string) => Promise<void> }) {
+type PlatformProps = PlatformPageProps & PropsRuntime<'shell.overlay'> & PropsRenderSlots<'harness.assistant.conversation'> & {
+  catalog: Catalog
+  assistant: Assistant
+  updates: PlatformUpdates
+  mcpForm: ConfigForm<any>
+  enterConversation: () => void
+  showNativeConversation: (visible: boolean, afterHidden?: () => void) => void
+}
+
+function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversation, showNativeConversation, SessionProvider, renderSlot, useSessionStatus }: PlatformProps) {
   const [page, setPage] = useState<PageId>('home')
+  const [open, setOpen] = useState(false)
+  const [nativeMode, setNativeMode] = useState(false)
+  const [unread, setUnread] = useState(false)
+  const previousPage = useRef<PageId>('agents')
+  const previousRunning = useRef(false)
   const frame = useRef<HTMLDivElement>(null)
   const conversation = useRef<HTMLDivElement>(null)
+  const activePage = useRef(page)
+  activePage.current = page
+  const contexts = useRef<Record<string, AssistantContext>>({})
+  const assistantState = useSyncExternalStore(assistant.subscribe, assistant.getSnapshot)
+  const assets = useSyncExternalStore(catalog.subscribe, catalog.getSnapshot).inventory
+  useEffect(() => { assistant.restore() }, [assistant, assets?.root])
+  const status = useSessionStatus(value => assistantState.sessionId ? value.get(assistantState.sessionId) : undefined)
   const navigate = (next: PageId) => {
-    if (next === 'conversations') enterConversation()
+    if (next === 'conversations') { enterConversation(); assistant.reveal() }
+    else if (next !== 'home') previousPage.current = next
     setPage(next)
   }
+  const onContext = useCallback((context: AssistantContext) => {
+    const contextPage = String(context.page ?? activePage.current)
+    contexts.current[contextPage] = context
+    if (contextPage === activePage.current) assistant.updateContext(context)
+  }, [assistant])
+  const onAssistant = async (task: string, context: AssistantContext) => {
+    setOpen(true)
+    await assistant.create(task, context)
+  }
+  useEffect(() => { assistant.updateContext(contexts.current[page] ?? { page }) }, [assistant, page])
   useEffect(() => {
-    // 平台占用官方整页覆盖槽，保留底层设置服务和弹窗挂载。
+    // 原生布局由管理对话接管，其余页面只保留平台外壳和浮窗。
     const layer = frame.current!.closest<HTMLElement>('[data-shell-overlay]')!
     const underneath = [...layer.parentElement!.children].filter(element => element !== layer) as HTMLElement[]
     const previous = underneath.map(element => ({ element, hidden: element.hidden, inert: element.inert, display: element.style.display }))
@@ -47,9 +80,16 @@ function PlatformPage({ catalog, rpc, mcpForm, enterConversation, startConversat
       document.title = title
     }
   }, [])
-  useEffect(() => {
-    if (page !== 'conversations') return
-    // 展示同一原生会话树，避免复制会话状态或重复挂载编辑器。
+  const full = page === 'conversations'
+  useLayoutEffect(() => {
+    // 整页和浮窗互斥，原生 Session 与输入服务持续保存同一份草稿。
+    // 等原生槽确认完成旧编辑器清理后再绑定浮窗，避免覆盖共享输入根节点。
+    if (full) { setNativeMode(true); showNativeConversation(true) }
+    else showNativeConversation(false, () => { setNativeMode(false) })
+    return () => { showNativeConversation(false) }
+  }, [full, showNativeConversation])
+  useLayoutEffect(() => {
+    if (!full) return
     const layer = frame.current!.closest<HTMLElement>('[data-shell-overlay]')!
     const nativeFrame = layer.parentElement!
     const elements = [...nativeFrame.children].filter(element => element !== layer) as HTMLElement[]
@@ -73,10 +113,19 @@ function PlatformPage({ catalog, rpc, mcpForm, enterConversation, startConversat
       nativeFrame.style.removeProperty('--harness-conversation-left')
       previous.forEach(({ element, hidden, inert, display }) => { element.hidden = hidden; element.inert = inert; element.style.display = display })
     }
-  }, [page])
+  }, [full])
   const navigation = <nav className="harness-nav" aria-label="平台导航">
     {pages.map(item => <button key={item.id} type="button" aria-current={page === item.id ? 'page' : undefined} onClick={() => navigate(item.id)}>{item.label}</button>)}
   </nav>
+  const visible = page !== 'home' && (open || full)
+  const floating = visible && !full && !nativeMode
+  useEffect(() => {
+    if (visible) setUnread(false)
+    else if (previousRunning.current && status?.running === false) setUnread(true)
+    previousRunning.current = status?.running ?? false
+  }, [visible, status?.running, assistantState.sessionId])
+  const waiting = assistantState.status?.proposals?.some(item => item.state === 'awaiting_confirmation')
+  const statusLabel = waiting ? '待确认' : status?.pendingInteraction ? '待回复' : status?.running ? '运行中' : unread || status?.completionUnread ? '有新结果' : 'AI 助手'
   return <div ref={frame} className="harness-platform" data-page={page}>
     <style>{platformTheme}</style>
     <header className="harness-topbar"><div className="harness-brand"><PlatformLogo size={38}/><div><strong>Harness工程平台</strong><small>Harness Engineering Platform</small></div></div>
@@ -87,34 +136,50 @@ function PlatformPage({ catalog, rpc, mcpForm, enterConversation, startConversat
       {page !== 'home' && <aside className="harness-sidebar">{navigation}</aside>}
       <div className="harness-content">
         {page !== 'home' && <div className="harness-breadcrumb">工作空间 / {pages.find(item => item.id === page)?.label}</div>}
-        {page === 'home' && <HomePage catalog={catalog} rpc={rpc} navigate={navigate} startConversation={startConversation} />}
-        {page === 'conversations' && <div ref={conversation} className="harness-conversation-viewport"/>}
-        {page === 'agents' && <AgentsPage rpc={rpc} />}
-        {page === 'instances' && <InstancesPage rpc={rpc} />}
-        {page === 'mcp' && <McpPage rpc={rpc} form={mcpForm} />}
+        <div hidden={page !== 'home'}><HomePage catalog={catalog} rpc={rpc} updates={updates} navigate={navigate} startConversation={async (_root, prompt) => { await assistant.create(prompt, { page: 'home' }) }} /></div>
+        <div hidden={page !== 'agents'}><AgentsPage rpc={rpc} updates={updates} onAssistant={onAssistant} onContext={onContext} /></div>
+        <div hidden={page !== 'instances'}><InstancesPage rpc={rpc} updates={updates} onContext={onContext} /></div>
+        <div hidden={page !== 'mcp'}><McpPage rpc={rpc} form={mcpForm} updates={updates} onContext={onContext} /></div>
+        <div ref={conversation} className="harness-conversation-viewport" hidden={!full}/>
+        <section className="harness-assistant harness-assistant-floating" hidden={!floating} aria-label="平台 AI 助手">
+          <header className="harness-assistant-heading"><div><strong>平台 AI 助手</strong><small role="status">{assistantState.busy ? '正在准备会话…' : statusLabel}</small></div><div>
+            <button title="新建独立任务会话" disabled={assistantState.busy} onClick={() => { void assistant.create().catch(() => {}) }}>新任务</button>
+            <button title="在管理对话中展开" onClick={() => navigate('conversations')}>展开</button>
+            <button title="收起助手" onClick={() => { setOpen(false) }}>收起</button>
+          </div></header>
+          {assistantState.sessionId && assistantState.platformContext === false && <p className="harness-assistant-scope">当前为其他工作区会话。平台操作请使用“新任务”。</p>}
+          {assistantState.error && <p className="harness-assistant-error" role="alert">{assistantState.error}</p>}
+          <div className="harness-assistant-workspace">
+            <div className="harness-assistant-chat">
+              {floating && assistantState.reference ? <SessionProvider session={assistantState.reference} empty={() => <p role="status">正在连接会话…</p>}>{renderSlot('harness.assistant.conversation', {})}</SessionProvider> : <div className="harness-assistant-empty"><PlatformLogo size={48}/><h2>开始新的平台任务</h2><p>管理智能体版本、评测、实例和 MCP。</p><button className="harness-primary" disabled={assistantState.busy} onClick={() => { void assistant.create().catch(() => {}) }}>新建任务会话</button></div>}
+            </div>
+          </div>
+        </section>
       </div>
     </div>
+    {page !== 'home' && <button type="button" className="harness-assistant-toggle" aria-expanded={visible} aria-label={visible ? '收起 AI 助手' : `打开 AI 助手${statusLabel === 'AI 助手' ? '' : `，${statusLabel}`}`} title={statusLabel === 'AI 助手' ? '平台 AI 助手' : `AI 助手 · ${statusLabel}`} data-status={waiting || status?.pendingInteraction ? 'waiting' : status?.running ? 'running' : unread || status?.completionUnread ? 'unread' : undefined} onClick={() => { if (full) { setOpen(true); navigate(previousPage.current) } else setOpen(value => !value) }}><AssistantIcon/></button>}
   </div>
 }
 
-function ProjectWorkspace({ catalog, workspaces, selectedId, onPick }: EmptyWorkspaceOwnerProps & { catalog: Catalog; workspaces: IWorkspaces }) {
-  const { inventory } = useSyncExternalStore(catalog.subscribe, catalog.getSnapshot)
-  const root = inventory?.root
-  const [error, setError] = useState('')
-  useEffect(() => {
-    if (!root) return
-    let active = true
-    setError('')
-    workspaces.create({ path: root }).then(workspace => {
-      if (active && workspace.workspaceId !== selectedId) onPick(workspace.workspaceId)
-    }).catch(() => { if (active) setError('无法准备项目工作区，请刷新重试。') })
-    return () => { active = false }
-  }, [root, selectedId, workspaces])
-  return error ? <span role="alert">{error}</span> : null
+function AssistantIcon() {
+  return <svg className="harness-assistant-icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+    <path d="M7 15.5 24 6 41 15.5 24 25Z" fill="#8be4ff"/>
+    <path d="M7 15.5v18L24 43V25Z" fill="#0075ca"/>
+    <path d="M24 25v18l17-9.5v-18Z" fill="#2ec5ff"/>
+    <path d="M18 20h13a6 6 0 0 1 6 6v6a6 6 0 0 1-6 6h-5l-6 5v-5h-2a6 6 0 0 1-6-6v-6a6 6 0 0 1 6-6Z" fill="#fff"/>
+    <path d="M20 27v3m10-3v3" fill="none" stroke="#0075ca" strokeWidth="3" strokeLinecap="round"/>
+    <path d="m36 3 1.8 5.2L43 10l-5.2 1.8L36 17l-1.8-5.2L29 10l5.2-1.8Z" fill="#0075ca" stroke="#fff" strokeWidth="2.5" strokeLinejoin="round" paintOrder="stroke"/>
+  </svg>
 }
 
 function ConversationWelcome({ size }: HeroBrandMarkOwnerProps) {
   return <span className="harness-conversation-welcome"><PlatformLogo size={size}/><span>开始管理与改进智能体</span></span>
+}
+
+function NativeConversationHidden({ onReady }: { onReady: () => void }) {
+  // layout effect 发生在旧原生 Composer 的 layout 清理之后，作为浮窗的交接点。
+  useLayoutEffect(onReady, [onReady])
+  return null
 }
 
 function PlatformSettings({ openSettings, settingsOpen, settingsShortcut }: SettingsLauncherOwnerProps) {
@@ -131,17 +196,44 @@ export function apply(ctx: ClientContext) {
     useEffect(() => { complete() }, [complete])
     return null
   })))
-  const catalog = createCatalog(ctx.connection.rpc)
-  ctx.on('connection/reset', () => { void catalog.refresh() })
+  const updates = createPlatformUpdates(ctx.connection)
+  ctx.effect(() => updates.start())
+  const catalog = createCatalog(ctx.connection.rpc, updates)
+  ctx.effect(() => () => catalog.dispose())
+  const assistant = createAssistant(ctx, ctx.connection.rpc, () => catalog.getSnapshot().inventory?.root)
+  ctx.effect(() => () => assistant.dispose())
+  ctx.effect(() => updates.subscribe(() => { void assistant.refresh() }))
+  ctx.on('connection/reset', () => { void catalog.refresh(); void assistant.reconnect() })
+  let nativeReady = false
+  let nativeVisible = false
+  let nativeHidden = false
+  let afterNativeHidden: (() => void) | undefined
+  let suppressNative: (() => void) | undefined
+  const showNativeConversation = (visible: boolean, afterHidden?: () => void) => {
+    nativeVisible = visible
+    afterNativeHidden = afterHidden
+    if (visible) { nativeHidden = false; suppressNative?.(); suppressNative = undefined }
+    else if (nativeReady && !suppressNative) suppressNative = ctx.slots.register({
+      name: 'main.conversation', priority: -100,
+      inject: () => ({ onReady: () => { if (!nativeVisible) { nativeHidden = true; afterNativeHidden?.() } } }),
+    }, NativeConversationHidden)
+    if (!visible && nativeHidden) afterNativeHidden?.()
+  }
+  ctx.slots.inject('main.conversation', () => {
+    nativeReady = true
+    showNativeConversation(nativeVisible)
+    return () => { nativeReady = false; nativeHidden = false; afterNativeHidden = undefined; suppressNative?.(); suppressNative = undefined }
+  })
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'harness-platform', order: -100,
-    inject: () => ({ catalog, rpc: ctx.connection.rpc, mcpForm: ctx.configForms.get('mcp-session-manager'), enterConversation: () => prepareConversation(ctx.slots, ctx.layout), startConversation: (root: string, prompt: string) => startConversation(ctx, root, prompt) }),
+    children: { 'harness.assistant.conversation': { kind: 'single', scope: 'session-maybe' } },
+    inject: () => ({ catalog, assistant, updates, rpc: ctx.connection.rpc, mcpForm: ctx.configForms.get('mcp-session-manager'), enterConversation: () => prepareConversation(ctx.layout), showNativeConversation }),
   }, PlatformPage))
+  ctx.slots.inject('harness.assistant.conversation', () => ctx.slots.register({ name: 'harness.assistant.conversation' }, AssistantConversation))
+  ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'harness-operation-confirmation', inject: () => ({ rpc: ctx.connection.rpc, assistant }) }, AssistantOperations))
+  for (const key of ['platform_agents', 'platform_instances', 'platform_mcp']) ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({ name: 'tool.call.toolview', key, inject: () => ({ rpc: ctx.connection.rpc, assistant }) }, PlatformOperationCard))
   ctx.slots.inject('settings.launcher', () => ctx.slots.register({ name: 'settings.launcher', priority: -1 }, PlatformSettings))
-  ctx.slots.inject('sidebar.brand.mark', () => ctx.slots.register({ name: 'sidebar.brand.mark', priority: -1 }, () => null))
-  ctx.slots.inject('sidebar.brand.name', () => ctx.slots.register({ name: 'sidebar.brand.name', priority: -1 }, () => null))
+  ctx.slots.inject('sidebar.brand.mark', () => ctx.slots.register({ name: 'sidebar.brand.mark', priority: -1 }, ({ size }: SidebarBrandMarkOwnerProps) => <PlatformLogo size={size}/>))
+  ctx.slots.inject('sidebar.brand.name', () => ctx.slots.register({ name: 'sidebar.brand.name', priority: -1 }, () => <span>管理对话</span>))
   ctx.slots.inject('conversation.hero.brand.mark', () => ctx.slots.register({ name: 'conversation.hero.brand.mark', priority: -1 }, ConversationWelcome))
-  ctx.slots.inject('conversation.hero.workspace', () => ctx.slots.register({
-    name: 'conversation.hero.workspace', priority: -1, inject: () => ({ catalog, workspaces: ctx.workspaces }),
-  }, ProjectWorkspace))
 }

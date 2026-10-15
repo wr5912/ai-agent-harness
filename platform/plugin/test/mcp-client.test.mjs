@@ -19,6 +19,11 @@ function editor() {
         changed = true
       }]
     },
+    useRef(initial) {
+      const index = cursor++
+      if (!(index in states)) states[index] = { current: initial }
+      return states[index]
+    },
     useEffect(effect, deps) {
       const index = cursor++
       if (!dependencies[index] || deps.some((value, at) => value !== dependencies[index][at])) {
@@ -46,7 +51,11 @@ function editor() {
     publishedService: { id: 'platform-compositions', platformComposition: true, enabled: true,
       description: '工具组合编排（已发布）', publishedTools: [{ name: 'query_asset_related_alerts' }],
       tools: { mode: 'all', names: ['query_asset_related_alerts'] } },
-    write: async (ops, revision) => { writes.push({ ops, revision }); return { ok: true } },
+    write: async (ops, revision) => {
+      writes.push({ ops, revision })
+      return revision === props.form.state.revision ? { ok: true }
+        : { ok: false, error: { message: '配置版本冲突' } }
+    },
   }
   let tree
   function render() {
@@ -71,7 +80,11 @@ function editor() {
     .find(node => node.type === 'input')
   render()
   return { render, nodes, text, button, input, writes, server, groups,
-    refreshValue: (value = props.form.state.value) => { props.form.state.value = structuredClone(value); render() },
+    refreshValue: (value = props.form.state.value, revision = props.form.state.revision) => {
+      props.form.state.value = structuredClone(value)
+      props.form.state.revision = revision
+      render()
+    },
     setView: value => { props.view = value; render() }, getView: () => props.view }
 }
 
@@ -118,10 +131,31 @@ test('列表中的其他服务不完整时定位该服务和具体字段，且�
   assert.equal(ui.writes.length, 0)
   assert.match(ui.text(ui.render()), /第 2 项服务：ID 须为 1–32/)
   ui.refreshValue({ servers: [{ ...ui.server, description: '外部更新' }], groups: ui.groups, sharedToken: '' })
+  assert.equal(ui.nodes().filter(node => node.props?.className === 'mcp-list-item').length, 3)
+  assert.match(ui.text(ui.render()), /配置已在其他位置更新，当前草稿已保留/)
+  assert.equal(ui.input('ID').props.value, ' unfinished ')
+  assert.equal(ui.writes.length, 0)
+})
+
+test('无修改时同步外部配置，未保存草稿保留输入和原版本并明确拒绝过期保存', async () => {
+  const ui = editor()
+  ui.refreshValue({ servers: [{ ...ui.server, description: '外部更新' }], groups: ui.groups, sharedToken: '' }, 'r2')
   assert.equal(ui.nodes().filter(node => node.props?.className === 'mcp-list-item').length, 2)
   ui.nodes().find(node => node.type === 'button' && ui.text(node).startsWith('biz-soc-framework')).props.onClick()
   ui.render()
   assert.equal(ui.input('描述（可选）').props.value, '外部更新')
+  ui.input('描述（可选）').props.onChange({ target: { value: '本地草稿' } })
+  ui.render()
+  ui.refreshValue({ servers: [{ ...ui.server, description: '其他编辑者更新' }], groups: ui.groups, sharedToken: '' }, 'r3')
+  assert.equal(ui.input('描述（可选）').props.value, '本地草稿')
+  assert.match(ui.text(ui.render()), /配置已在其他位置更新，当前草稿已保留/)
+  await ui.button('保存更改').props.onClick()
+  ui.render()
+  assert.equal(ui.writes.length, 1)
+  assert.equal(ui.writes[0].revision, 'r2')
+  assert.equal(ui.writes[0].ops.find(op => op.path[0] === 'servers').value[0].description, '本地草稿')
+  assert.equal(ui.input('描述（可选）').props.value, '本地草稿')
+  assert.match(ui.text(ui.render()), /配置版本冲突/)
 })
 
 test('MCP 分组入口使用当前站点基址', () => {

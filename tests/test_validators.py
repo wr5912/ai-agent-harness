@@ -69,6 +69,13 @@ def case_contract_digest(path: Path, case_ids: list[str]) -> str:
     return module.evaluation_digest(path, case_ids)
 
 
+def evaluation_case_ids(repository: Path) -> list[str]:
+    spec = importlib.util.spec_from_file_location("evaluation_case_ids", EVALUATION_CONTRACT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.load_evaluation(repository / "agents" / AGENT_ID / "evaluation.md")["case_ids"]
+
+
 def write_minimal_experiment(root: Path, *, status: str = "active", outcome: str | None = None) -> Path:
     experiment_id = "EXP-example-agent-001"
     experiment = root / "evolution/experiments" / experiment_id
@@ -615,6 +622,8 @@ class RunRecordTests(unittest.TestCase):
             experiment = repo / f"evolution/experiments/{EXPERIMENT_ID}"
             experiment.mkdir(parents=True)
             (experiment / "change.yaml").write_text("baseline_ref: none:first-experiment\n", encoding="utf-8")
+            (experiment / "candidate").mkdir()
+            (experiment / "candidate/basic.txt").write_text("最小 Candidate\n", encoding="utf-8")
             subprocess.run(["git", "init", "-q", str(repo)], check=True)
             subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
             subprocess.run(["git", "-C", str(repo), "-c", "user.name=Test", "-c",
@@ -1369,6 +1378,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             repository, env, command_log = self.runtime_fixture(root)
+            expected_case_count = len(evaluation_case_ids(repository))
             previous_run = "run-a739c37c-d72b-425f-9a65-ff064616c580"
             previous_report = repository / f"evolution/experiments/EXP-security-operations-expert-008/runs/{previous_run}/report.md"
             old_report = previous_report.read_bytes()
@@ -1408,7 +1418,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertIn("通过", report)
         self.assertIn("## 场景覆盖与归因", report)
         self.assertIn("### 缺口与归因", report)
-        self.assertEqual(sum(len(scene["case_ids"]) for scene in analysis["scenes"]), 54)
+        self.assertEqual(sum(len(scene["case_ids"]) for scene in analysis["scenes"]), expected_case_count)
         self.assertEqual(sum(len(scene["selected_case_ids"]) for scene in analysis["scenes"]), 1)
         self.assertEqual(analysis["review_status"], "not_requested")
         self.assertEqual(
@@ -1520,6 +1530,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
     def test_full_review_covers_every_case_and_can_correct_machine_verdict(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repository, env, command_log = self.runtime_fixture(Path(temp))
+            expected_case_count = len(evaluation_case_ids(repository))
             env["TEST_ANALYSIS_MODE"] = "correct-first"
             completed, payload = self.run_eval(repository, env, mode="full")
             run_dir = (repository / payload["summary"]).parent
@@ -1531,15 +1542,15 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertEqual(completed.returncode, 1, completed.stderr)
         self.assertEqual(payload["review_status"], "completed")
         self.assertEqual(payload["cases"], {
-            "total": 54, "passed": 54, "failed": 0, "inconclusive": 0,
+            "total": expected_case_count, "passed": expected_case_count, "failed": 0, "inconclusive": 0,
         })
         self.assertEqual(payload["reviewed_cases"], {
-            "total": 54, "passed": 53, "failed": 1, "inconclusive": 0,
+            "total": expected_case_count, "passed": expected_case_count - 1, "failed": 1, "inconclusive": 0,
         })
         self.assertEqual(summary["machine_overall_verdict"], "passed")
         self.assertEqual(summary["reviewed_overall_verdict"], "failed")
         self.assertEqual(summary["effective_verdict"], "failed")
-        self.assertEqual(analysis["reviewed_case_count"], 54)
+        self.assertEqual(analysis["reviewed_case_count"], expected_case_count)
         self.assertTrue(all(scene["review_status"] == "completed" for scene in selected_scenes))
         self.assertEqual(
             len({scene["analysis_session"]["session_id"] for scene in selected_scenes}),
@@ -1580,6 +1591,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
     def test_full_review_repairs_invalid_output_in_same_session(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repository, env, _ = self.runtime_fixture(Path(temp))
+            expected_case_count = len(evaluation_case_ids(repository))
             env["TEST_ANALYSIS_MODE"] = "repair-output"
             completed, payload = self.run_eval(repository, env, mode="full")
             run_dir = (repository / payload["summary"]).parent
@@ -1595,7 +1607,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(analysis["review_status"], "completed")
-        self.assertEqual(analysis["reviewed_case_count"], 54)
+        self.assertEqual(analysis["reviewed_case_count"], expected_case_count)
         self.assertEqual(len(attempts), sum(bool(scene["selected_case_ids"]) for scene in analysis["scenes"]))
         self.assertTrue(all(first == repaired for first, repaired in sessions))
 
@@ -1672,6 +1684,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
     def test_fast_full_and_explicit_case_selection(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repository = copy_repository(Path(temp))
+            expected_case_ids = evaluation_case_ids(repository)
             command = [
                 "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
                 "--source", "experiment:EXP-security-operations-expert-006",
@@ -1702,7 +1715,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         ])
         self.assertEqual(json.loads(fast.stdout)["selection_mode"], "fast")
         self.assertEqual(full.returncode, 0, full.stderr)
-        self.assertEqual(len(json.loads(full.stdout)["case_ids"]), 54)
+        self.assertEqual(json.loads(full.stdout)["case_ids"], expected_case_ids)
         self.assertEqual(json.loads(full.stdout)["selection_mode"], "full")
         self.assertEqual(explicit.returncode, 0, explicit.stderr)
         self.assertEqual(json.loads(explicit.stdout)["case_ids"], ["U-INS-002"])
@@ -1863,7 +1876,7 @@ class EvaluationSourceTests(unittest.TestCase):
             + ["U-FLT-MENTION"] + [f"U-FLT-{index:03d}" for index in range(1, 11)]
             + [f"U-QA-{index:03d}" for index in range(1, 15)]
             + ["U-THREAT-MENTION", "U-THREAT-FAST", "U-THREAT-FULL", "U-THREAT-WHITELIST", "U-THREAT-MISSING", "U-THREAT-FOLLOWUP"]
-            + ["U-VOICE-001", "U-VOICE-002", "U-VOICE-003"]
+            + ["U-VOICE-001", "U-VOICE-002", "U-VOICE-003", "U-VOICE-004"]
         )
         self.assertFalse((agent / "definition.md").exists())
         self.assertEqual(loaded["case_ids"], expected_ids)

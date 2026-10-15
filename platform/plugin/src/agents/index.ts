@@ -1,6 +1,6 @@
 import { execFile, spawn, spawnSync } from 'node:child_process'
 import { promisify } from 'node:util'
-import { DEFAULT_SCHEMA, Type, load as loadYaml } from 'js-yaml'
+import { DEFAULT_SCHEMA, Type, load as loadYaml, dump as dumpYaml } from 'js-yaml'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import {
   existsSync,
@@ -162,8 +162,7 @@ function readYamlMap(root: string, file: string): JsonMap {
 }
 
 function writeYamlMap(file: string, values: JsonMap) {
-  const lines = Object.entries(values).map(([key, value]) => `${key}: ${typeof value === 'string' ? JSON.stringify(value) : value ?? ''}`)
-  writeFileSync(file, `${lines.join('\n')}\n`)
+  atomicWrite(file, dumpYaml(values, { forceQuotes: true, quotingType: '"', lineWidth: -1, noRefs: true }))
 }
 
 function redact(text: string, limit = 4000): string {
@@ -276,7 +275,8 @@ async function loadEvaluation(root: string, agentId: string, signal?: AbortSigna
 function declaredFusion(change: JsonMap) {
   const values = [change.fusion_sources, change.inherited_experiments, change.fused_experiments]
     .find(value => Array.isArray(value)) as unknown[] | undefined
-  const experiments = (values ?? []).filter(value => typeof value === 'string' && EXP_ID.test(value)) as string[]
+  const experiments = (values ?? []).map(value => typeof value === 'string' ? value : value && typeof value === 'object' ? (value as JsonMap).experiment_id : undefined)
+    .filter((value): value is string => typeof value === 'string' && EXP_ID.test(value))
   return experiments.length ? { status: 'declared', experiments: [...new Set(experiments)].sort() } : { status: 'unknown', experiments: [] }
 }
 
@@ -320,6 +320,416 @@ function list(root: string) {
   })
 }
 
+export interface AgentFeature {
+  id: string
+  title: string
+  description: string
+  source_refs: string[]
+  evidence_refs: string[]
+  change?: string
+}
+
+export interface FusionPlan {
+  sources: { experiment_id: string; ref: string; decision: 'inherit' | 'omit'; reason: string }[]
+  features: AgentFeature[]
+  conflicts: { description: string; resolution: string }[]
+  checks: { id: string; kind: 'build' | 'load' | 'capability'; command?: string[]; cwd?: string; case_ids?: string[] }[]
+  evaluation_case_ids: string[]
+  evaluation_sha256: string
+}
+
+type VersionPreview = { kind: 'features' | 'fusion'; snapshot: string; payload: JsonMap; value: JsonMap }
+
+function gitHead(root: string) {
+  const result = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' })
+  return result.status === 0 ? result.stdout.trim() : null
+}
+
+function relocateSourcePath(value: unknown, parent: string, target: string) {
+  return typeof value === 'string' ? value.replace(`evolution/experiments/${parent}/candidate`, `evolution/experiments/${target}/candidate`) : undefined
+}
+
+function changePath(root: string, id: string) { return repoPath(root, `evolution/experiments/${id}/change.yaml`) }
+
+function featureList(value: unknown): AgentFeature[] {
+  if (!Array.isArray(value)) throw new RpcError('invalid_request', 'features 必须是数组')
+  const ids = new Set<string>()
+  return value.map(item => {
+    const row = requireObject(item)
+    const id = stringField(row, 'id')
+    if (ids.has(id)) throw new RpcError('invalid_request', '特性 id 不能重复')
+    ids.add(id)
+    const refs = (name: string) => {
+      if (row[name] === undefined) return []
+      if (!Array.isArray(row[name]) || row[name].some(ref => typeof ref !== 'string' || !ref.trim())) throw new RpcError('invalid_request', `${name} 必须是非空字符串数组`)
+      return [...new Set(row[name] as string[])]
+    }
+    return { id, title: stringField(row, 'title'), description: stringField(row, 'description'), source_refs: refs('source_refs'), evidence_refs: refs('evidence_refs'), ...(optionalString(row, 'change') ? { change: optionalString(row, 'change') } : {}) }
+  })
+}
+
+function featureView(root: string, change: JsonMap) {
+  const values = Array.isArray(change.features) ? featureList(change.features) : []
+  return values.map(feature => ({ ...feature, evidence: feature.evidence_refs.map(ref => ({ ref, present: !ref.includes('://') && !ref.startsWith('/') && !ref.split('/').includes('..') && existsSync(join(root, ref.split('#')[0]!)) })), verification: feature.evidence_refs.length ? '有证据引用，需按范围复核' : '尚未验证' }))
+}
+
+function candidateDigest(root: string, experimentId: string) {
+  const base = repoPath(root, `evolution/experiments/${experimentId}/candidate`)
+  const hash = createHash('sha256')
+  const walk = (folder: string) => {
+    for (const name of readdirSync(folder).sort()) {
+      if (EXCLUDED_ASSETS.has(name) || name.endsWith('.llm-api-key')) continue
+      const file = join(folder, name)
+      const stat = lstatSync(file)
+      if (stat.isSymbolicLink()) throw new RpcError('path_rejected', 'Candidate 中的符号链接不能作为融合验证来源')
+      if (stat.isDirectory()) walk(file)
+      // Git 只保存可执行位；与固定提交比较时不把工作树 umask 当作资产变化。
+      else if (stat.isFile()) hash.update(JSON.stringify([relative(base, file), stat.mode & 0o111 ? 0o755 : 0o644, sha256(readFileSync(file))]))
+    }
+  }
+  walk(base)
+  return hash.digest('hex')
+}
+
+function runEvidenceDigest(root: string, experimentId: string, runId: string) {
+  if (!RUN_ID.test(runId)) throw new RpcError('invalid_request', 'Run ID 无效')
+  const base = repoPath(root, `evolution/experiments/${experimentId}/runs/${runId}`)
+  const hash = createHash('sha256')
+  const walk = (folder: string) => {
+    assertNoSymlinkPath(root, folder)
+    for (const entry of readdirSync(folder).sort()) {
+      const file = join(folder, entry)
+      const stat = lstatSync(file)
+      if (stat.isSymbolicLink()) throw new RpcError('path_rejected', 'Run 证据不得包含符号链接')
+      if (stat.isDirectory()) walk(file)
+      else if (stat.isFile()) hash.update(JSON.stringify([relative(base, file), sha256(readFileSync(file))]))
+    }
+  }
+  walk(base)
+  return hash.digest('hex')
+}
+
+function featureSnapshot(root: string, id: string) { return sha256(`${readText(changePath(root, id))}\n${candidateDigest(root, id)}`) }
+
+function evaluationDigest(root: string, agentId: string, caseIds: string[]): string {
+  const python = ['import json,sys', 'from pathlib import Path', `sys.path.insert(0, ${JSON.stringify(join(root, dirname(EVALUATION_CONTRACT)))})`, 'from evaluation_contract import evaluation_digest', 'print(json.dumps({"digest":evaluation_digest(Path(sys.argv[1]),json.loads(sys.argv[2]))}))'].join('\n')
+  return String(parseJsonCommand(root, ['-c', python, `agents/${agentId}/evaluation.md`, JSON.stringify(caseIds)], '无法锁定约定评测口径').digest)
+}
+
+function creationView(root: string, id: string, change: JsonMap) {
+  const creation = change.creation as JsonMap | undefined
+  if (!creation || creation.status !== 'completed') return creation ?? null
+  const plan = creation.plan as unknown as FusionPlan
+  let evaluationChanged = true
+  try { evaluationChanged = !plan?.evaluation_case_ids?.length || evaluationDigest(root, String(change.agent_id), plan.evaluation_case_ids) !== plan.evaluation_sha256 } catch { /* 删除或破坏已选口径时同样需要重新确认。 */ }
+  const changed = creation.candidate_sha256 !== candidateDigest(root, id) || creation.source_sha256 !== sha256(JSON.stringify(catalog(root).parsed.sources?.[id] ?? null)) || evaluationChanged
+  return changed ? { ...creation, status: 'integrating', stale: true, note: '资产或来源在完成验证后发生变化，需重新验证。' } : creation
+}
+
+function featurePreview(root: string, body: JsonMap, previews: Map<string, VersionPreview>) {
+  const id = experimentIdField(body)
+  experimentInfo(root, id)
+  const features = featureList(body.features)
+  const previewId = randomUUID()
+  const value = { preview_id: previewId, experiment_id: id, features, before: featureView(root, experimentInfo(root, id).change), requires_confirmation: true, assistant_session_id: optionalString(body, 'assistant_session_id') ?? null }
+  previews.set(previewId, { kind: 'features', snapshot: featureSnapshot(root, id), payload: { experiment_id: id }, value })
+  return ok(value)
+}
+
+function confirmedPreview(body: JsonMap, previews: Map<string, VersionPreview>, kind: VersionPreview['kind']) {
+  const id = stringField(body, 'preview_id')
+  const preview = previews.get(id)
+  if (body.confirmed !== true) throw new RpcError('confirmation_required', '请先确认展示的方案')
+  if (!preview || preview.kind !== kind) throw new RpcError('preview_expired', '预览已失效，请重新生成')
+  return { id, preview }
+}
+
+function latestProposal(body: JsonMap, previews: Map<string, VersionPreview>, kind: VersionPreview['kind']) {
+  const values = [...previews.values()].filter(preview => preview.kind === kind)
+  const value = values.reverse().find(preview => kind === 'features'
+    ? preview.value.experiment_id === stringField(body, 'experiment_id')
+    : preview.value.agent_id === agentIdField(body) && (!body.parent_experiment_id || preview.value.parent_experiment_id === body.parent_experiment_id))
+  return ok({ proposal: value?.value ?? null })
+}
+
+function featureApply(root: string, body: JsonMap, previews: Map<string, VersionPreview>) {
+  const { id, preview } = confirmedPreview(body, previews, 'features')
+  const experimentId = String(preview.payload.experiment_id)
+  if (featureSnapshot(root, experimentId) !== preview.snapshot) throw new RpcError('conflict', '资产或特性已变化，请重新整理和确认')
+  const change = readYamlMap(root, changePath(root, experimentId))
+  writeYamlMap(changePath(root, experimentId), { ...change, features: preview.value.features })
+  previews.delete(id)
+  return ok({ experiment_id: experimentId, features: featureView(root, { ...change, features: preview.value.features }) })
+}
+
+function gitCandidateDigest(root: string, id: string, ref: string): string | null {
+  const base = `evolution/experiments/${id}/candidate/`
+  const listed = spawnSync('git', ['ls-tree', '-rz', '--full-tree', ref.slice(4), '--', base.slice(0, -1)], { cwd: root, encoding: 'buffer', maxBuffer: 10 * 1024 * 1024 })
+  if (listed.status !== 0) return null
+  const records = listed.stdout.toString('utf8').split('\0').filter(Boolean).map(row => {
+    const match = /^(\d+) blob ([0-9a-f]+)\t(.+)$/.exec(row)
+    return match ? { mode: Number.parseInt(match[1]!, 8) & 0o777, object: match[2]!, path: match[3]!.slice(base.length), symlink: match[1] === '120000' } : null
+  }).filter((row): row is NonNullable<typeof row> => row !== null)
+    .filter(row => !row.path.split('/').some(part => EXCLUDED_ASSETS.has(part) || part.endsWith('.llm-api-key')))
+  if (!records.length || records.some(row => row.symlink)) return null
+  // 与工作树扫描一致：按目录项排序后深度遍历，而非整条路径的字符串顺序。
+  records.sort((left, right) => {
+    const a = left.path.split('/'), b = right.path.split('/')
+    for (let index = 0; index < Math.min(a.length, b.length); index++) if (a[index] !== b[index]) return a[index]! < b[index]! ? -1 : 1
+    return a.length - b.length
+  })
+  const blobs = spawnSync('git', ['cat-file', '--batch'], { cwd: root, input: records.map(row => row.object).join('\n') + '\n', maxBuffer: 100 * 1024 * 1024 })
+  if (blobs.status !== 0) return null
+  const hash = createHash('sha256')
+  let offset = 0
+  for (const row of records) {
+    const end = blobs.stdout.indexOf(10, offset)
+    const header = blobs.stdout.subarray(offset, end).toString('ascii').split(' ')
+    const size = Number(header[2])
+    if (end < 0 || header[1] !== 'blob' || !Number.isSafeInteger(size) || size < 0) return null
+    const data = blobs.stdout.subarray(end + 1, end + 1 + size)
+    if (data.length !== size) return null
+    hash.update(JSON.stringify([row.path, row.mode, sha256(data)]))
+    offset = end + size + 2
+  }
+  return hash.digest('hex')
+}
+
+function fusionInventory(root: string, agentId: string, parentId: string, parentRef: string) {
+  const versions = listExperiments(root, agentId)
+  const byId = new Map(versions.map(version => [version.id, version]))
+  type FixedVersion = { id: string; ref: string; change: JsonMap; digest: string; sourceHash: string }
+  const fixed = new Map<string, FixedVersion | null>()
+  const snapshot = (id: string, ref: string): FixedVersion | null => {
+    const key = `${ref}:${id}`
+    if (fixed.has(key)) return fixed.get(key)!
+    fixed.set(key, null)
+    if (!/^git:[0-9a-f]{40}$/i.test(ref) || !EXP_ID.test(id)) return null
+    const show = (path: string) => spawnSync('git', ['show', `${ref.slice(4)}:${path}`], { cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
+    try {
+      const shown = show(`evolution/experiments/${id}/change.yaml`)
+      const sources = show(SOURCE_CATALOG)
+      if (shown.status !== 0 || sources.status !== 0) return null
+      const change = requireObject(loadYaml(shown.stdout))
+      const source = (JSON.parse(sources.stdout) as SourceCatalog).sources?.[id]
+      const digest = gitCandidateDigest(root, id, ref)
+      if (change.agent_id !== agentId || change.experiment_id !== id || source?.agent_id !== agentId || !digest) return null
+      const value = { id, ref, change, digest, sourceHash: sha256(JSON.stringify(source)) }
+      fixed.set(key, value)
+      return value
+    } catch { return null }
+  }
+  const usable = (version: FixedVersion) => {
+    const creation = version.change.creation as JsonMap | undefined
+    return !creation || creation.status === 'completed' && creation.candidate_sha256 === version.digest && creation.source_sha256 === version.sourceHash
+  }
+  const closure = (version: FixedVersion | null, seen = new Map<string, FixedVersion>()): Map<string, FixedVersion> => {
+    if (!version) return seen
+    const key = `${version.ref}:${version.id}`
+    if (seen.has(key)) return seen
+    seen.set(key, version)
+    if (!usable(version)) return seen
+    const change = version.change
+    const sources = Array.isArray(change.fusion_sources) ? change.fusion_sources : []
+    const edges: { id: string; ref: string }[] = []
+    if (typeof change.parent_experiment_id === 'string' && typeof change.baseline_ref === 'string') edges.push({ id: change.parent_experiment_id, ref: change.baseline_ref })
+    for (const source of sources) if (source && typeof source === 'object' && typeof (source as JsonMap).experiment_id === 'string' && typeof (source as JsonMap).ref === 'string') edges.push({ id: String((source as JsonMap).experiment_id), ref: String((source as JsonMap).ref) })
+    for (const edge of edges) closure(snapshot(edge.id, edge.ref), seen)
+    return seen
+  }
+  const currentDigests = new Map(versions.map(version => [version.id, existsSync(join(root, version.path, 'candidate')) ? candidateDigest(root, version.id) : null]))
+  const matchesCurrent = (version: FixedVersion) => usable(version) && currentDigests.get(version.id) === version.digest
+  const parent = snapshot(parentId, parentRef)
+  const covered = new Set([...closure(parent).values()].filter(matchesCurrent).map(version => version.id))
+  const head = gitHead(root)
+  const currentFixed = new Map<string, boolean>()
+  const currentClosures = new Map(versions.map(version => {
+    const committed = head ? snapshot(version.id, `git:${head}`) : null
+    const creation = version.change.creation as JsonMap | undefined
+    const currentReady = !creation || creationView(root, version.id, version.change)?.status === 'completed'
+    const ready = Boolean(committed && matchesCurrent(committed) && currentReady)
+    currentFixed.set(version.id, ready)
+    const inherited = ready ? [...closure(committed).values()].filter(matchesCurrent).map(item => item.id) : []
+    return [version.id, new Set(inherited)] as const
+  }))
+  const rows = versions.filter(version => !covered.has(version.id)).map(version => {
+    const change = version.change
+    const end = change.variant_kind === 'end' || change.kind === 'end' || change.variant === 'end'
+    const refs = Array.isArray(change.equivalence_evidence_refs) ? change.equivalence_evidence_refs : []
+    let fixedEndParent = false
+    if (end && typeof change.baseline_ref === 'string' && typeof change.parent_experiment_id === 'string' && byId.has(change.parent_experiment_id)) {
+      fixedEndParent = Boolean(snapshot(change.parent_experiment_id, change.baseline_ref))
+    }
+    const resourceRefs = Array.isArray(change.resource_evidence_refs) ? change.resource_evidence_refs : []
+    const hasEvidence = (values: unknown[]) => values.length > 0 && values.every(ref => typeof ref === 'string' && !ref.startsWith('/') && !ref.split('/').includes('..') && existsSync(join(root, ref)) && lstatSync(join(root, ref)).isFile() && readText(join(root, ref)).trim())
+    const endVerified = end && fixedEndParent && currentFixed.get(version.id) && change.end_confirmed === true && hasEvidence(refs) && hasEvidence(resourceRefs)
+    const decision = change.outcome ?? change.decision
+    const excluded = endVerified || decision === 'reject'
+    const uncertain = !excluded && (end || decision !== 'adopt' || !currentFixed.get(version.id))
+    return { experiment_id: version.id, baseline_ref: version.baseline_ref, status: excluded ? 'excluded' : uncertain ? 'needs_review' : 'recommended', reason: endVerified ? '已固定父版且用户已确认效果等效及资源差异的 end 版本' : decision === 'reject' ? '研究 Decision 已否决' : end ? 'end 声明缺少完整等效或资源差异确认，需判断' : version.id === parentId ? '当前版本与所选固定父版不同或尚未完成验证，需确认其变化' : uncertain ? '仍在探索、工作树已变化或继承关系未确认，需判断' : '主父版未覆盖的并行能力', features: featureView(root, change) }
+  })
+  const candidates = rows.filter(row => row.status !== 'excluded')
+  const frontier = candidates.filter(row => !candidates.some(other => other.experiment_id !== row.experiment_id && currentClosures.get(other.experiment_id)?.has(row.experiment_id) && !currentClosures.get(row.experiment_id)?.has(other.experiment_id)))
+  return { covered: [...covered].sort(), sources: [...frontier, ...rows.filter(row => row.status === 'excluded')], superseded: candidates.filter(row => !frontier.includes(row)).map(row => row.experiment_id) }
+}
+
+function normalizePlan(root: string, body: JsonMap, inventory: ReturnType<typeof fusionInventory>, agentId: string): FusionPlan {
+  const value = requireObject(body)
+  if (!Array.isArray(value.sources) || !Array.isArray(value.conflicts) || !Array.isArray(value.checks)) throw new RpcError('invalid_request', '融合方案需要 sources、features、conflicts 和 checks')
+  const sources = value.sources.map(item => {
+    const row = requireObject(item)
+    const experimentId = experimentIdField(row)
+    if (row.decision !== 'inherit' && row.decision !== 'omit') throw new RpcError('invalid_request', '来源必须明确 inherit 或 omit')
+    const ref = optionalString(row, 'ref') ?? ''
+    if (row.decision === 'inherit') validateGitParent(root, agentId, ref, experimentId)
+    return { experiment_id: experimentId, ref, decision: row.decision as 'inherit' | 'omit', reason: stringField(row, 'reason') }
+  })
+  if (new Set(sources.map(source => source.experiment_id)).size !== sources.length) throw new RpcError('invalid_request', '融合来源不能重复')
+  for (const row of inventory.sources.filter(item => item.status !== 'excluded')) {
+    if (!sources.some(source => source.experiment_id === row.experiment_id)) throw new RpcError('invalid_request', '方案必须确认所有未覆盖来源的取舍', { experiment_id: row.experiment_id })
+  }
+  const checks = value.checks.map(item => {
+    const row = requireObject(item)
+    const id = stringField(row, 'id')
+    if (!['build', 'load', 'capability'].includes(String(row.kind))) throw new RpcError('invalid_request', '验证 kind 无效')
+    const kind = row.kind as 'build' | 'load' | 'capability'
+    if (kind === 'build' && (!Array.isArray(row.command) || !row.command.length || row.command.some(arg => typeof arg !== 'string' || !arg))) throw new RpcError('invalid_request', 'build 需要经用户确认的命令数组')
+    if (kind === 'capability' && (!Array.isArray(row.case_ids) || !row.case_ids.length || row.case_ids.some(id => typeof id !== 'string' || !id))) throw new RpcError('invalid_request', '能力验证需要实际评测 Case ID')
+    const cwd = optionalString(row, 'cwd') ?? '.'
+    if (cwd.startsWith('/') || cwd.split('/').includes('..')) throw new RpcError('path_rejected', '构建目录必须位于新 Candidate 内')
+    return { id, kind, ...(kind === 'build' ? { command: row.command as string[], cwd } : {}), ...(kind === 'capability' ? { case_ids: row.case_ids as string[] } : {}) }
+  })
+  if (new Set(checks.map(check => check.id)).size !== checks.length || !checks.some(check => check.kind === 'load') || !checks.some(check => check.kind === 'capability')) throw new RpcError('invalid_request', '融合方案需要不重复的验证 ID、实际装载及能力验证')
+  const caseIds = [...new Set(checks.flatMap(check => check.case_ids ?? []))]
+  return { sources, features: featureList(value.features), conflicts: value.conflicts.map(item => { const row = requireObject(item); return { description: stringField(row, 'description'), resolution: stringField(row, 'resolution') } }), checks, evaluation_case_ids: caseIds, evaluation_sha256: evaluationDigest(root, agentId, caseIds) }
+}
+
+function fusionSnapshot(root: string, agentId: string) {
+  const versions = listExperiments(root, agentId).map(version => ({ ...version,
+    candidate_sha256: existsSync(join(root, version.path, 'candidate')) ? candidateDigest(root, version.id) : null,
+  }))
+  return sha256(JSON.stringify({ head: gitHead(root), catalog: catalog(root).hash, versions }))
+}
+
+function fusionPreview(root: string, body: JsonMap, previews: Map<string, VersionPreview>) {
+  const agentId = agentIdField(body)
+  const parentId = experimentIdField(body, 'parent_experiment_id')
+  const parentRef = stringField(body, 'parent_ref')
+  validateGitParent(root, agentId, parentRef, parentId)
+  const question = stringField(body, 'research_question')
+  const inventory = fusionInventory(root, agentId, parentId, parentRef)
+  const plan = body.plan ? normalizePlan(root, requireObject(body.plan), inventory, agentId) : null
+  const value = { preview_id: plan ? randomUUID() : null, agent_id: agentId, parent_experiment_id: parentId, parent_ref: parentRef, research_question: question, inventory, plan, plan_ready: Boolean(plan), requires_confirmation: true, assistant_session_id: optionalString(body, 'assistant_session_id') ?? null }
+  if (plan) previews.set(value.preview_id!, { kind: 'fusion', payload: body, snapshot: fusionSnapshot(root, agentId), value })
+  return ok(value)
+}
+
+async function fusionConfirm(root: string, body: JsonMap, previews: Map<string, VersionPreview>) {
+  const { id, preview } = confirmedPreview(body, previews, 'fusion')
+  const agentId = agentIdField(preview.payload)
+  if (fusionSnapshot(root, agentId) !== preview.snapshot) throw new RpcError('conflict', '版本或来源已经变化，请重新预览')
+  const plan = preview.value.plan as unknown as FusionPlan
+  if (evaluationDigest(root, agentId, plan.evaluation_case_ids) !== plan.evaluation_sha256) throw new RpcError('conflict', '约定评测口径已变化，请重新确认方案')
+  // 在 await 创建之前消费预览，重复点击不会生成两个版本。
+  previews.delete(id)
+  const created = await createExperiment(root, preview.payload)
+  if (!created.ok) return created
+  const experimentId = String(created.value.experiment_id)
+  const change = readYamlMap(root, changePath(root, experimentId))
+  writeYamlMap(changePath(root, experimentId), { ...change, features: plan.features, fusion_sources: plan.sources.filter(source => source.decision === 'inherit').map(source => ({ experiment_id: source.experiment_id, ref: source.ref })), creation: { status: 'integrating', confirmed_at: new Date().toISOString(), research_question: preview.value.research_question, assistant_session_id: preview.value.assistant_session_id, plan, receipts: [] } })
+  return ok({ ...created.value, creation_status: 'integrating', note: '已建立待融合工作树；来源声明不表示能力已经完成集成。' })
+}
+
+function fusionStatus(root: string, body: JsonMap) {
+  const id = experimentIdField(body)
+  const exp = experimentInfo(root, id)
+  return ok({ experiment_id: id, candidate_sha256: candidateDigest(root, id), creation: creationView(root, id, exp.change), features: featureView(root, exp.change) })
+}
+
+async function fusionVerify(root: string, body: JsonMap, signal?: AbortSignal) {
+  const id = experimentIdField(body)
+  const exp = experimentInfo(root, id)
+  const creation = requireObject(exp.change.creation)
+  const plan = creation.plan as unknown as FusionPlan
+  if (evaluationDigest(root, exp.agent_id, plan.evaluation_case_ids) !== plan.evaluation_sha256) throw new RpcError('evaluation_conflict', '约定评测口径已变化，请重新确认方案并运行受影响比较')
+  const check = plan.checks.find(check => check.id === stringField(body, 'check_id'))
+  if (!check) throw new RpcError('invalid_request', '验证项不在已确认方案中')
+  const before = candidateDigest(root, id)
+  const sourceBefore = sha256(JSON.stringify(catalog(root).parsed.sources?.[id] ?? null))
+  if (before !== stringField(body, 'expected_candidate_sha256')) throw new RpcError('conflict', 'Candidate 已变化，请重新读取')
+  let evidence: JsonMap
+  if (check.kind === 'build') {
+    const candidate = repoPath(root, `evolution/experiments/${id}/candidate`)
+    const cwd = resolve(candidate, check.cwd ?? '.')
+    if (cwd !== candidate && !cwd.startsWith(`${candidate}${sep}`)) throw new RpcError('path_rejected', '构建目录必须在 Candidate 内')
+    assertNoSymlinkPath(root, cwd)
+    const args = check.command!.map(arg => arg.replaceAll('{experiment_id}', id).replaceAll('{source_id}', `experiment:${id}`).replaceAll('{candidate_root}', candidate))
+    try {
+      const result = await promisify(execFile)(args[0]!, args.slice(1), { cwd, timeout: 120_000, maxBuffer: 1024 * 1024, signal })
+      evidence = { command: args, stdout: redact(result.stdout), stderr: redact(result.stderr) }
+    } catch (error) { throw new RpcError('verification_failed', '构建验证失败，版本保持未完成', { reason: redact((error as Error).message) }) }
+  } else {
+    const runId = stringField(body, 'run_id')
+    if (!RUN_ID.test(runId)) throw new RpcError('invalid_request', 'Run ID 无效')
+    const viewed = await runRecord(root, 'show', { run_id: runId }, signal)
+    if (!viewed.ok) return viewed
+    const run = viewed.value as JsonMap
+    const manifest = requireObject(run.manifest)
+    const source = requireObject(run.source)
+    const cases = run.cases as JsonMap[]
+    if (manifest.experiment_id !== id || manifest.status !== 'completed' || source.source_id !== `experiment:${id}`) throw new RpcError('verification_failed', '必须使用当前目标的已封存 Run')
+    if (source.candidate_sha256 !== before) throw new RpcError('verification_failed', 'Run 未锁定当前完整 Candidate，需重新运行验证')
+    if (source.evaluation_sha256 !== evaluationDigest(root, exp.agent_id, cases.map(row => String(row.case_id)))) throw new RpcError('verification_failed', 'Run 的已选评测口径与当前定义不同，需重新运行受影响比较')
+    for (const name of ['results', 'summary', 'analysis', 'report']) {
+      const file = repoPath(root, `${String(run.run_path)}/${name}.${name === 'results' ? 'jsonl' : name === 'report' ? 'md' : 'json'}`)
+      if (typeof manifest[`${name}_sha256`] !== 'string' || !existsSync(file) || sha256(readFileSync(file)) !== manifest[`${name}_sha256`]) throw new RpcError('verification_failed', 'Run 封存摘要缺失或记录已变化', { artifact: name })
+    }
+    const python = ['import json,sys', 'from pathlib import Path', `sys.path.insert(0, ${JSON.stringify(join(root, 'runtime/adapters/dsh-container'))})`, 'from run_record import tree_digest', 'from source_contract import resolve', 'r=Path.cwd()', 'c=resolve(sys.argv[1],repo=r)', 'print(json.dumps({k:tree_digest(r,Path(c[k]))["tree_sha256"] for k in ("workspace","presets","managed")}))'].join('\n')
+    const currentTrees = await parseJsonCommandAsync(root, ['-c', python, `experiment:${id}`], '无法核对 Run 来源', signal)
+    const lockedTrees = requireObject(source.candidate_trees)
+    if (Object.entries(currentTrees).some(([name, digest]) => requireObject(lockedTrees[name]).tree_sha256 !== digest)) throw new RpcError('verification_failed', 'Run 未指向当前 Candidate 三棵资产树')
+    if (check.kind === 'load') {
+      const image = requireObject(run.image)
+      if (image.source_id !== `experiment:${id}` || !image.local_image_id || !cases.some(row => { const observed = row.load_observation as JsonMap | null; const raw = row.raw_evidence as JsonMap | undefined; return observed?.session_id && observed.preset_matches === true && observed.workspace_matches === true && (raw?.['trace.jsonl'] as JsonMap)?.present === true })) throw new RpcError('verification_failed', 'Run 缺少实际镜像、Session 和装载匹配证据')
+    } else {
+      const summary = requireObject(run.summary)
+      if ((summary.effective_verdict ?? summary.overall_verdict) !== 'passed' || check.case_ids!.some(caseId => !cases.some(row => row.case_id === caseId && Array.isArray(row.trials) && row.trials.length > 0 && row.trials.every(trial => (trial as JsonMap).verdict === 'passed') && (row.evidence as JsonMap[]).every(ref => ref.present === true)))) throw new RpcError('verification_failed', '约定能力没有已通过且证据完整的 Run')
+    }
+    evidence = { run_id: runId, run_path: run.run_path, run_sha256: runEvidenceDigest(root, id, runId), case_ids: check.case_ids ?? [] }
+  }
+  const after = candidateDigest(root, id)
+  if (check.kind !== 'build' && after !== before) throw new RpcError('conflict', '验证期间 Candidate 已变化')
+  const fresh = experimentInfo(root, id).change
+  const latest = requireObject(fresh.creation)
+  if (JSON.stringify(latest.plan) !== JSON.stringify(creation.plan) || sha256(JSON.stringify(catalog(root).parsed.sources?.[id] ?? null)) !== sourceBefore || evaluationDigest(root, exp.agent_id, plan.evaluation_case_ids) !== plan.evaluation_sha256) throw new RpcError('conflict', '验证期间确认方案、来源配置或已选评测口径已变化')
+  const receipt = { check_id: check.id, kind: check.kind, candidate_sha256: after, source_sha256: sha256(JSON.stringify(catalog(root).parsed.sources?.[id] ?? null)), evaluation_sha256: plan.evaluation_sha256, verified_at: new Date().toISOString(), evidence }
+  const receipts = (Array.isArray(latest.receipts) ? latest.receipts as JsonMap[] : []).filter(item => item.check_id !== check.id)
+  writeYamlMap(changePath(root, id), { ...fresh, creation: { ...latest, receipts: [...receipts, receipt] } })
+  return ok({ experiment_id: id, receipt, candidate_sha256: after })
+}
+
+function fusionFinalize(root: string, body: JsonMap) {
+  const id = experimentIdField(body)
+  const exp = experimentInfo(root, id)
+  const creation = requireObject(exp.change.creation)
+  const plan = creation.plan as unknown as FusionPlan
+  if (evaluationDigest(root, exp.agent_id, plan.evaluation_case_ids) !== plan.evaluation_sha256) throw new RpcError('evaluation_conflict', '约定评测口径已变化，旧 Run 不能证明新口径通过')
+  const digest = candidateDigest(root, id)
+  if (digest !== stringField(body, 'expected_candidate_sha256')) throw new RpcError('conflict', 'Candidate 已变化')
+  const receipts = Array.isArray(creation.receipts) ? creation.receipts as JsonMap[] : []
+  const sourceHash = sha256(JSON.stringify(catalog(root).parsed.sources?.[id] ?? null))
+  const missing = plan.checks.filter(check => !receipts.some(receipt => {
+    if (receipt.check_id !== check.id || receipt.candidate_sha256 !== digest || receipt.source_sha256 !== sourceHash || receipt.evaluation_sha256 !== plan.evaluation_sha256) return false
+    const evidence = receipt.evidence as JsonMap | undefined
+    return !evidence?.run_id || evidence.run_sha256 === runEvidenceDigest(root, id, String(evidence.run_id))
+  }))
+  if (missing.length) throw new RpcError('verification_incomplete', '构建、实际装载或约定能力尚未完成验证', { missing_checks: missing.map(check => check.id) })
+  commandJson(root, [VALIDATE_EXPERIMENT, `evolution/experiments/${id}`])
+  commandJson(root, [SOURCE_CONTRACT, '--source', `experiment:${id}`])
+  writeYamlMap(changePath(root, id), { ...exp.change, creation: { ...creation, status: 'completed', completed_at: new Date().toISOString(), candidate_sha256: digest, source_sha256: sourceHash } })
+  return ok({ experiment_id: id, creation_status: 'completed', candidate_sha256: digest })
+}
+
 async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
   const agentId = agentIdField(payload)
   const manifest = readYamlMap(root, repoPath(root, `agents/${agentId}/manifest.yaml`))
@@ -347,10 +757,14 @@ async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
     editable_files: editableFiles(assets),
     evaluation: { path: evaluation.path, sha256: evaluation.sha256, cases: evaluation.cases },
     decision: { path: `evolution/experiments/${experimentId}/decision.md`, sha256: sha256(decision), content: decision },
+    features: featureView(root, exp.change),
+    creation: creationView(root, experimentId, exp.change),
+    repo_commit: gitHead(root),
   })
 }
 
 function validateGitParent(root: string, agentId: string, parentRef: string, parentExperiment: string) {
+  if (!/^git:[0-9a-f]{40}$/i.test(parentRef)) throw new RpcError('invalid_request', '父版本必须是 git:<40位提交>')
   const commit = parentRef.slice('git:'.length)
   if (!/^[0-9a-f]{40}$/i.test(commit)) throw new RpcError('invalid_request', 'git 父版本必须是固定 40 位提交')
   const check = spawnSync('git', ['cat-file', '-e', `${commit}^{commit}`], { cwd: root, encoding: 'utf8' })
@@ -413,9 +827,10 @@ async function createExperiment(root: string, payload: JsonMap) {
       agent_id: agentId,
       baseline_ref: parentRef,
       parent_experiment_id: parentExperiment,
+      parent_ref: parentRef,
       status: 'active',
     })
-    writeFileSync(join(experimentRoot, 'hypothesis.md'), `# ${experimentId}\n\n父版本：${parentRef}\n\n父 Experiment：${parentExperiment}\n\n研究问题：${researchQuestion}\n`)
+    writeFileSync(join(experimentRoot, 'hypothesis.md'), `# ${experimentId}\n\n固定父版与继承来源见 [change.yaml](change.yaml)。\n\n研究问题：${researchQuestion}\n`)
     mkdirSync(join(experimentRoot, 'evaluation'), { recursive: true })
     writeFileSync(join(experimentRoot, 'evaluation/observations.md'), `# Evaluation Observations\n\n尚未执行评测。\n`)
     writeFileSync(join(experimentRoot, 'decision.md'), `# Decision\n\n状态：inconclusive\n\n尚未完成评测，不声明采纳。\n`)
@@ -424,7 +839,8 @@ async function createExperiment(root: string, payload: JsonMap) {
     nextCatalog.sources[experimentId] = {
       ...parentSource,
       agent_id: agentId,
-      candidate_root: `evolution/experiments/${experimentId}/candidate/dsh`,
+      candidate_root: relocateSourcePath(parentSource.candidate_root, parentExperiment, experimentId) ?? `evolution/experiments/${experimentId}/candidate/dsh`,
+      ...(parentSource.profile_manifest ? { profile_manifest: relocateSourcePath(parentSource.profile_manifest, parentExperiment, experimentId) } : {}),
     }
     wroteCatalogHash = writeCatalog(root, nextCatalog, optionalString(payload, 'catalog_sha256') ?? currentCatalog.hash)
     const validation = commandJson(root, [VALIDATE_EXPERIMENT, `evolution/experiments/${experimentId}`])
@@ -701,7 +1117,7 @@ function appendLog(current: string, chunk: unknown) {
   return (current + String(chunk)).slice(-LOG_LIMIT)
 }
 
-function startEval(root: string, payload: JsonMap, jobs: Map<string, Job>) {
+function startEval(root: string, payload: JsonMap, jobs: Map<string, Job>, onChange?: () => void) {
   const jobId = randomUUID()
   const args = evalArgs(payload, false)
   const proc = spawn('python3', args, { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -709,13 +1125,14 @@ function startEval(root: string, payload: JsonMap, jobs: Map<string, Job>) {
   jobs.set(jobId, job)
   proc.stdout.setEncoding('utf8')
   proc.stderr.setEncoding('utf8')
-  proc.stdout.on('data', chunk => { job.stdout = appendLog(job.stdout, chunk); job.updated_at = new Date().toISOString() })
-  proc.stderr.on('data', chunk => { job.stderr = appendLog(job.stderr, chunk); job.updated_at = new Date().toISOString() })
+  proc.stdout.on('data', chunk => { job.stdout = appendLog(job.stdout, chunk); job.updated_at = new Date().toISOString(); onChange?.() })
+  proc.stderr.on('data', chunk => { job.stderr = appendLog(job.stderr, chunk); job.updated_at = new Date().toISOString(); onChange?.() })
   proc.on('error', error => {
     job.status = 'failed'
     job.error = redact(error.message)
     job.updated_at = new Date().toISOString()
     delete job.process
+    onChange?.()
   })
   proc.on('close', code => {
     if (job.status === 'failed' && job.error) return
@@ -724,6 +1141,7 @@ function startEval(root: string, payload: JsonMap, jobs: Map<string, Job>) {
     job.status = code === 0 ? 'completed' : job.status === 'cancelled' ? 'cancelled' : 'failed'
     try { job.result = JSON.parse(redact(job.stdout)) } catch { job.result = null }
     delete job.process
+    onChange?.()
   })
   return ok({ job_id: jobId, status: job.status, started_at: job.started_at })
 }
@@ -817,9 +1235,10 @@ async function decisionUpdate(root: string, payload: JsonMap, signal?: AbortSign
   return ok({ path: written?.path ?? '', sha256: written?.sha256 ?? '' })
 }
 
-export function createAgentsHandler(assetRoot: string): ConnectionRpcHandler {
+export function createAgentsHandler(assetRoot: string, onChange?: () => void): ConnectionRpcHandler {
   const root = rootOf(assetRoot)
   const jobs = new Map<string, Job>()
+  const previews = new Map<string, VersionPreview>()
   return async (endpoint, payload, signal) => {
     if (signal.aborted) return failure(new RpcError('aborted', '智能体操作已取消'))
     try {
@@ -828,12 +1247,21 @@ export function createAgentsHandler(assetRoot: string): ConnectionRpcHandler {
         case 'list': return list(root)
         case 'detail': return await detail(root, body, signal)
         case 'create': return await createExperiment(root, body)
+        case 'features/preview': return featurePreview(root, body, previews)
+        case 'features/proposal': return latestProposal(body, previews, 'features')
+        case 'features/apply': return featureApply(root, body, previews)
+        case 'fusion/preview': return fusionPreview(root, body, previews)
+        case 'fusion/proposal': return latestProposal(body, previews, 'fusion')
+        case 'fusion/confirm': return await fusionConfirm(root, body, previews)
+        case 'fusion/status': return fusionStatus(root, body)
+        case 'fusion/verify': return await fusionVerify(root, body, signal)
+        case 'fusion/finalize': return fusionFinalize(root, body)
         case 'edit/read': return readEditable(root, body)
         case 'edit/preview': return await previewEdit(root, body, signal)
         case 'edit/apply': return await applyEdit(root, body, signal)
         case 'cases/list': return await cases(root, body, signal)
         case 'eval/preview': return await evalPreview(root, body, signal)
-        case 'eval/start': return startEval(root, body, jobs)
+        case 'eval/start': return startEval(root, body, jobs, onChange)
         case 'eval/status': return jobStatus(body, jobs)
         case 'eval/cancel': return cancelJob(body, jobs)
         case 'runs/index': return await runRecord(root, 'index', body, signal)

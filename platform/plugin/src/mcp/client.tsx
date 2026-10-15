@@ -3,6 +3,9 @@ import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { Manager } from 'harness-mcp-manager-client'
 import { CHANNEL, type PlatformPageProps } from '../protocol.ts'
 import type { CompositionConfig, CompositionEntry } from './compositions.ts'
+import type { PlatformUpdates } from '../realtime/client.ts'
+
+type LivePageProps = { updates?: PlatformUpdates; onContext?(context: Record<string, unknown>): void }
 
 const tabs = [
   { id: 'servers', title: '服务列表' },
@@ -11,7 +14,7 @@ const tabs = [
   { id: 'composition', title: '工具组合编排' },
 ] as const
 
-export function McpPage({ rpc, form }: PlatformPageProps & { form: ConfigForm<any> }) {
+export function McpPage({ rpc, form, updates, onContext }: PlatformPageProps & LivePageProps & { form: ConfigForm<any> }) {
   const subscribe = useMemo(() => form.subscribe.bind(form), [form])
   const snapshot = useMemo(() => form.getSnapshot.bind(form), [form])
   const state = useSyncExternalStore(subscribe, snapshot)
@@ -19,6 +22,11 @@ export function McpPage({ rpc, form }: PlatformPageProps & { form: ConfigForm<an
   const [toolbarTarget, setToolbarTarget] = useState<HTMLDivElement | null>(null)
   const [publishedService, setPublishedService] = useState<any>(null)
   const [serviceError, setServiceError] = useState('')
+  const [revision, setRevision] = useState(0)
+  useEffect(() => updates?.subscribe(() => {
+    if (updates.getSnapshot().domains.includes('mcp')) setRevision(value => value + 1)
+  }), [updates])
+  useEffect(() => { onContext?.({ page: 'mcp', tab: page }) }, [page, onContext])
   useEffect(() => {
     if (state.status !== 'ready') return
     let active = true
@@ -28,7 +36,7 @@ export function McpPage({ rpc, form }: PlatformPageProps & { form: ConfigForm<an
       else setServiceError(response.error.message)
     }).catch(() => { if (active) setServiceError('无法读取已发布组合服务，请刷新重试。') })
     return () => { active = false }
-  }, [state.revision, state.status])
+  }, [state.revision, state.status, revision])
   return <main className="harness-mcp-page">
     <header className="harness-page-heading"><h1>MCP 管理</h1><div className="harness-mcp-actions" ref={setToolbarTarget} /></header>
     <nav className="harness-mcp-tabs" aria-label="MCP 工作区">{tabs.map(tab => <button key={tab.id} type="button" aria-current={page === tab.id ? 'page' : undefined} onClick={() => setPage(tab.id)}>{tab.title}</button>)}</nav>
@@ -36,13 +44,14 @@ export function McpPage({ rpc, form }: PlatformPageProps & { form: ConfigForm<an
     {serviceError && <p role="alert">{serviceError}</p>}
     <div hidden={page === 'composition'}><Manager view={page} onValidationError={() => setPage('servers')} publishedService={publishedService} toolbarTarget={page === 'composition' ? null : toolbarTarget} form={{ state }} write={async (ops, revision) => {
       const ok = await form.mutate(ops, revision)
+      if (ok) updates?.invalidate(['mcp'])
       return ok ? { ok: true } : { ok: false, error: { message: '配置保存失败或已变化，请刷新后重试。' } }
     }} /></div>
-    <div hidden={page !== 'composition'}>{page === 'composition' && <CompositionPage rpc={rpc} configuration={state} onCatalogChange={value => { setPublishedService(value.publishedService ?? null); setServiceError('') }} />}</div>
+    <div hidden={page !== 'composition'}><CompositionPage rpc={rpc} configuration={state} updates={updates} active={page === 'composition'} onContext={onContext} onCatalogChange={value => { setPublishedService(value.publishedService ?? null); setServiceError('') }} /></div>
   </main>
 }
 
-function CompositionPage({ rpc, configuration, onCatalogChange }: PlatformPageProps & { configuration: unknown; onCatalogChange(value: any): void }) {
+function CompositionPage({ rpc, configuration, onCatalogChange, updates, onContext, active }: PlatformPageProps & LivePageProps & { configuration: unknown; active: boolean; onCatalogChange(value: any): void }) {
   const [data, setData] = useState<any>(null)
   const [selection, setSelection] = useState<{ id: string; version: 'draft' | 'published' } | null>(null)
   const [editor, setEditor] = useState<{ id?: string; revision: string; value: CompositionConfig } | null>(null)
@@ -52,6 +61,14 @@ function CompositionPage({ rpc, configuration, onCatalogChange }: PlatformPagePr
   const [busy, setBusy] = useState(false)
   const [selectedNode, setSelectedNode] = useState('getAsset')
   const requestId = useRef(0)
+  const actionId = useRef(0)
+  const [revision, setRevision] = useState(0)
+  useEffect(() => updates?.subscribe(() => {
+    if (updates.getSnapshot().domains.includes('mcp')) setRevision(value => value + 1)
+  }), [updates])
+  useEffect(() => {
+    if (active) onContext?.({ page: 'mcp', tab: 'composition', composition_id: selection?.id, version: selection?.version })
+  }, [active, selection, onContext])
   const entries: CompositionEntry[] = data?.compositions ?? []
   const entry = entries.find(item => item.id === selection?.id)
   const config = selection && entry?.[selection.version]
@@ -66,7 +83,7 @@ function CompositionPage({ rpc, configuration, onCatalogChange }: PlatformPagePr
     setData(value)
     onCatalogChange(value)
     setSelection(current => {
-      if (current && value.compositions.some((item: CompositionEntry) => item.id === current.id && item[current.version])) return current
+      if (current) return current
       const first = value.compositions[0]
       return first ? { id: first.id, version: first.draft ? 'draft' : 'published' } : null
     })
@@ -79,27 +96,30 @@ function CompositionPage({ rpc, configuration, onCatalogChange }: PlatformPagePr
       else setError(response.error.message)
     }).catch(() => { if (id === requestId.current) setError('无法读取编排目录。') })
     return () => { requestId.current++ }
-  }, [configuration])
+  }, [configuration, revision])
 
   function select(item: CompositionEntry, version: 'draft' | 'published') {
     setSelection({ id: item.id, version }); setResult(null); setError('')
   }
   async function action(endpoint: string, payload: any) {
-    const id = ++requestId.current
+    const id = ++actionId.current
     setBusy(true); setResult(null); setError('')
     try {
       const response = await rpc.call(CHANNEL, `mcp/${endpoint}`, payload)
-      if (id !== requestId.current) return
+      if (id !== actionId.current) return
       if (!response.ok) { setError(response.error.message); return }
       const value = response.value as any
       if (endpoint === 'list') accept(value)
       else if (endpoint === 'saveCompositionDraft') {
+        requestId.current++
         const saved = editor?.id ? value.compositions.find((item: CompositionEntry) => item.id === editor.id) : value.compositions.at(-1)
         accept(value); setSelection({ id: saved.id, version: 'draft' }); setEditor(null)
       } else if (endpoint === 'publishComposition') {
+        requestId.current++
         accept(value); setSelection({ id: payload.compositionId, version: 'published' }); setResult(value.dry)
       } else setResult(value)
-    } catch { if (id === requestId.current) setError('操作失败，请检查连接并重试。') }
+      if (endpoint === 'saveCompositionDraft' || endpoint === 'publishComposition') updates?.invalidate(['mcp'])
+    } catch { if (id === actionId.current) setError('操作失败，请检查连接并重试。') }
     finally { setBusy(false) }
   }
   const selectedPayload = { compositionId: entry?.id, version: selection?.version, revision: data?.revision, input: { asset, limit: 5 } }
@@ -125,7 +145,8 @@ function CompositionPage({ rpc, configuration, onCatalogChange }: PlatformPagePr
     <section className="harness-card harness-composition-detail" aria-label="组合编排详情">
       {error && <p role="alert">{error}</p>}
       {busy && <p role="status">正在处理…</p>}
-      {!config && !editor ? <p>{data ? '选择一个编排查看，或新建编排。' : '正在读取编排目录…'}</p> : <>
+      {editor && data && editor.revision !== data.revision && <p role="alert">编排目录已在其他位置更新，当前草稿已保留。请先复制需要保留的内容，取消编辑后重新读取；旧版本草稿不会覆盖新数据。</p>}
+      {!config && !editor ? <p>{data ? selection ? `所选编排 ${selection.id} 的${selection.version === 'draft' ? '草稿' : '已发布版本'}已不存在，请重新选择。` : '选择一个编排查看，或新建编排。' : '正在读取编排目录…'}</p> : <>
         <h2>{editor ? (editor.id ? '编辑草稿' : '新建编排') : config?.title}</h2>
         {editor ? <form onSubmit={event => { event.preventDefault(); void action('saveCompositionDraft', { compositionId: editor.id, revision: editor.revision, draft: editor.value }) }} className="harness-composition-editor">
           <p>复用当前 LangGraph 两步只读流程：查询资产 → 查询相关告警。保存草稿后进行 dry 测试和发布。</p>

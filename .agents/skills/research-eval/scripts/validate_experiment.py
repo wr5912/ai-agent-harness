@@ -474,6 +474,38 @@ def validate(experiment: Path) -> tuple[dict, int]:
         errors.append(issue("EXPERIMENT_OUTCOME", "完成的 Experiment 必须声明 outcome", change_path))
     if status == "active" and outcome not in (None, ""):
         warnings.append(issue("ACTIVE_OUTCOME", "active Experiment 通常不应提前固定 outcome", change_path))
+    # 平台的版本特性、融合来源与创建状态共用 change.yaml，旧 Experiment 无需补字段。
+    features = change.get("features", [])
+    if not isinstance(features, list):
+        errors.append(issue("FEATURES", "features 必须是数组", change_path))
+    else:
+        feature_ids = set()
+        for feature in features:
+            if not isinstance(feature, dict) or any(not isinstance(feature.get(key), str) or not feature[key].strip()
+                                                    for key in ("id", "title", "description")):
+                errors.append(issue("FEATURES", "特性必须有 id、title 和 description", change_path))
+                continue
+            if feature["id"] in feature_ids:
+                errors.append(issue("FEATURES", "特性 id 不得重复", change_path))
+            feature_ids.add(feature["id"])
+            for key in ("source_refs", "evidence_refs"):
+                refs = feature.get(key, [])
+                if not isinstance(refs, list) or any(not isinstance(ref, str) or not ref.strip() for ref in refs):
+                    errors.append(issue("FEATURES", f"{key} 必须是字符串数组", change_path))
+    fusion_sources = change.get("fusion_sources", [])
+    if not isinstance(fusion_sources, list):
+        errors.append(issue("FUSION_SOURCES", "fusion_sources 必须是数组", change_path))
+    else:
+        for source in fusion_sources:
+            identifier = source if isinstance(source, str) else source.get("experiment_id") if isinstance(source, dict) else None
+            if not isinstance(identifier, str) or not EXPERIMENT_RE.fullmatch(identifier):
+                errors.append(issue("FUSION_SOURCES", "融合来源需要有效 Experiment ID", change_path))
+            if isinstance(source, dict) and not re.fullmatch(r"git:[0-9a-fA-F]{40}", str(source.get("ref", ""))):
+                errors.append(issue("FUSION_SOURCES", "结构化融合来源必须固定 Git 提交", change_path))
+    creation = change.get("creation")
+    if creation is not None and (not isinstance(creation, dict) or creation.get("status") not in {"integrating", "completed"}
+                                 or not isinstance(creation.get("plan"), dict) or not isinstance(creation.get("receipts"), list)):
+        errors.append(issue("VERSION_CREATION", "版本创建需要有效状态、确认方案及验证回执", change_path))
     if not has_text(experiment / "hypothesis.md"):
         errors.append(issue("HYPOTHESIS", "hypothesis.md 缺少实质内容", experiment / "hypothesis.md"))
     if not material_files(experiment / "candidate"):

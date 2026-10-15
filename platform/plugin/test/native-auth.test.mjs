@@ -8,6 +8,8 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import * as Connection from '@deepseek-ai/dsh-client-connection'
 import WebServer from '../../../runtime/adapters/dsh-web/lib/platform-webserver.mjs'
 import * as WebApp from '@deepseek-ai/dsh-web-app'
+import { SessionProjectionRegistry } from '@deepseek-ai/dsh-session-projection'
+import { SystemPrompt } from '@deepseek-ai/dsh-system-prompt'
 import * as plugin from '../lib/index.js'
 
 test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie 被拒绝且退出可撤销会话', async t => {
@@ -44,6 +46,15 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   await root.plugin(WebServer, { host: '127.0.0.1', port: 0 })
   await root.plugin(Connection)
   await root.plugin({ name: 'test-platform-mcp', apply(ctx) { ctx.provide('platformMcp', { servers: { get: () => [] }, groups: { get: () => [] } }) } })
+  // 不执行 Session/模型；支撑新依赖，认证与原生投影注册仍运行真实实现。
+  await root.plugin({ name: 'test-assistant-services', apply(ctx) {
+    new SessionProjectionRegistry(ctx)
+    new SystemPrompt(ctx, {})
+    ctx.provide('sessionController', {})
+    ctx.provide('settingsController', {})
+    ctx.provide('agents', { get: () => undefined })
+    ctx.provide('tools', { register() {} })
+  } })
   const origin = `http://127.0.0.1:${root.webServer.port}`
   const base = origin + '/hap'
   // 在新认证安装前取得旧原生会话，证明迁移不会继续接受它。
@@ -66,6 +77,7 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   for (const method of ['agents/create', 'instances/run', 'mcp/registerOpenApi', 'mcp/saveCompositionDraft', 'mcp/publishComposition']) {
     assert.equal((await request(`/harness-platform/${method}`, envelope(method))).status, 401)
   }
+  assert.equal((await fetch(base + '/api/harness-platform/events')).status, 401)
   const gateway = '/api/harness-platform/mcp'
   const initialize = { jsonrpc: '2.0', id: 1, method: 'initialize', params: {
     protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'native-test', version: '1' },
@@ -129,6 +141,13 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   assert.equal((await fetch(base + '/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status, 401)
   const inventory = await request('/harness-platform/inventory', envelope('inventory'), cookie)
   assert.equal((await inventory.json()).result.value.root, assetRoot)
+  const events = await fetch(base + '/api/harness-platform/events', { headers: { cookie } })
+  assert.equal(events.status, 200)
+  assert.match(events.headers.get('content-type'), /^text\/event-stream/)
+  const reader = events.body.getReader()
+  const initial = new TextDecoder().decode((await reader.read()).value)
+  assert.deepEqual(JSON.parse(initial.match(/^data: (.*)$/m)[1]).domains, ['catalog', 'agents', 'instances', 'mcp', 'assistant'])
+  await reader.cancel()
   const init = await request(gateway, initialize, cookie)
   assert.equal(init.status, 200)
   assert.equal((await init.json()).result.protocolVersion, '2025-06-18')

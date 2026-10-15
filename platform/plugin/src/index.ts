@@ -16,12 +16,15 @@ import { applyMcpGateway, createMcpHandler } from './mcp/index.ts'
 import type {} from './mcp/manager.ts'
 import { createManagedMcpHandler } from './mcp/native.ts'
 import { runtimeModule } from '../../../runtime/adapters/dsh-web/src/resolve-runtime.ts'
+import { createAssistant } from './assistant/index.ts'
+import { assistantMcp } from './assistant/mcp.ts'
+import { createPlatformEvents } from './realtime/index.ts'
 
 // 使用启动器核对过的全局 Runtime；开发依赖只提供类型和隔离测试环境。
 const WebApp: typeof NativeWebApp = await runtimeModule('@deepseek-ai/dsh-web-app')
 
 export const name = 'harness-platform'
-export const inject = ['connection', 'webServer', 'credentials', 'platformMcp']
+export const inject = ['connection', 'webServer', 'credentials', 'platformMcp', 'sessionController', 'settingsController', 'tools', 'agents', 'sessionProjections', 'systemPrompt']
 export const Config = WebApp.Config
 export type Config = NativeWebApp.Config
 
@@ -75,7 +78,7 @@ export function createInventoryHandler(assetRoot: string): ConnectionRpcHandler 
   }
 }
 
-export function createPlatformHandler(assetRoot: string, domains: Record<'agents' | 'instances' | 'mcp', ConnectionRpcHandler>): ConnectionRpcHandler {
+export function createPlatformHandler(assetRoot: string, domains: Record<'agents' | 'instances' | 'mcp', ConnectionRpcHandler> & { assistant?: ConnectionRpcHandler }): ConnectionRpcHandler {
   const readInventory = createInventoryHandler(assetRoot)
   return async (endpoint, payload, signal, peer) => {
     if (signal.aborted) return failure('aborted', '请求已取消')
@@ -98,7 +101,9 @@ export function createPlatformHandler(assetRoot: string, domains: Record<'agents
     }
     const prefix = DOMAIN_PREFIXES.find(value => endpoint.startsWith(value))
     if (!prefix) return failure('not_found', '未知的平台操作')
-    const result = await domains[prefix.slice(0, -1) as keyof typeof domains](endpoint.slice(prefix.length), payload, signal, peer)
+    const domain = domains[prefix.slice(0, -1) as keyof typeof domains]
+    if (!domain) return failure('not_found', '平台功能尚未装载')
+    const result = await domain(endpoint.slice(prefix.length), payload, signal, peer)
     if (endpoint === 'agents/detail' && result.ok) {
       const instances = await domains.instances('list', {}, signal, peer)
       const value = result.value as { experiment: { id: string }; loaded_instance: unknown }
@@ -120,11 +125,39 @@ export function applyTools(ctx: Context) {
   const registrationContext = ctx.extend({ webServer: ctx.webServer })
   const manager = ctx.platformMcp
   const mcp = manager ? createManagedMcpHandler(assetRoot, () => manager.servers.get()) : createMcpHandler(assetRoot)
-  registrationContext.connection.rpc.handle(CHANNEL, createPlatformHandler(assetRoot, {
-    agents: createAgentsHandler(assetRoot), instances: createInstancesHandler(assetRoot), mcp,
-  }))
+  const events = createPlatformEvents(assetRoot)
+  events.register(registrationContext)
+  const notify = (domains: string[], ids?: string[]) => events.notify(domains as any, ids)
+  const wrap = (domain: 'agents' | 'instances' | 'mcp', handler: ConnectionRpcHandler): ConnectionRpcHandler => async (endpoint, payload, signal, peer) => {
+    try { return await handler(endpoint, payload, signal, peer) }
+    finally {
+      if (!['list', 'detail', 'url', 'logs', 'edit/read', 'cases/list', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/compare', 'fusion/status', 'fusion/proposal', 'features/proposal'].includes(endpoint)) notify([domain, 'catalog'])
+    }
+  }
+  const domains = {
+    agents: wrap('agents', createAgentsHandler(assetRoot, () => notify(['agents', 'catalog']))),
+    instances: wrap('instances', createInstancesHandler(assetRoot)), mcp: wrap('mcp', mcp),
+    assistant: undefined as ConnectionRpcHandler | undefined,
+  }
+  const handler = createPlatformHandler(assetRoot, domains)
+  const services = ctx as any
+  const assistant = createAssistant(assetRoot, handler, {
+    controller: services.sessionController,
+    running: id => services.agents.get(id)?.status === 'running',
+    record: async (session, type, value) => { const records = await runtimeModule('@deepseek-ai/dsh-session'); records.appendPluginRecord(session, type, value) },
+    projections: services.sessionProjections, systemPrompt: services.systemPrompt,
+    notify, mcp: manager ? assistantMcp(services.settingsController, manager) : undefined,
+  })
+  domains.assistant = assistant.handler
+  assistant.registerTools(services.tools)
+  ctx.effect(() => () => assistant.dispose())
+  ctx.on('session/event' as any, ((session: any) => notify(['assistant'], [session.id])) as any)
+  ctx.on('agent/status' as any, ((event: any) => notify(['assistant'], [event.agent.id])) as any)
+  ctx.on('settings/document-updated' as any, (() => notify(['mcp', 'catalog'])) as any)
+  registrationContext.connection.rpc.handle(CHANNEL, handler)
   applyMcpGateway(registrationContext, assetRoot, mcp)
 }
+
 
 export async function apply(ctx: Context, config: Config) {
   const assetRoot = process.env.HARNESS_ASSET_ROOT

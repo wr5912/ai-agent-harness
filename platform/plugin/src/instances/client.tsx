@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { CHANNEL } from '../protocol.ts'
 import type { PlatformPageProps } from '../protocol.ts'
+import type { PlatformUpdates } from '../realtime/client.ts'
+import { instanceWebUrl } from './url.ts'
 
 type Operation = 'create' | 'start' | 'stop' | 'restart' | 'delete'
 
@@ -51,7 +53,7 @@ const labels: Record<Operation, string> = {
   delete: '删除',
 }
 
-export function InstancesPage({ rpc }: PlatformPageProps) {
+export function InstancesPage({ rpc, updates, onContext }: PlatformPageProps & { updates?: PlatformUpdates; onContext?(context: Record<string, unknown>): void }) {
   const [instances, setInstances] = useState<InstanceRow[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState('existing')
@@ -68,10 +70,17 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const [form, setForm] = useState({ name: '', source: '', port: '' })
   const [detail, setDetail] = useState<Detail | null>(null)
+  const [detailNotice, setDetailNotice] = useState('')
+  const [refreshError, setRefreshError] = useState('')
   const [logs, setLogs] = useState('')
   const [embedUrl, setEmbedUrl] = useState('')
   const [embedMessage, setEmbedMessage] = useState('')
   const embedRequest = useRef(0)
+  const listRequest = useRef(0)
+  const detailRequest = useRef(0)
+  const detailName = useRef<string | undefined>(undefined)
+  const busyRef = useRef(busy)
+  busyRef.current = busy
   const embedCode = embedUrl ? `<iframe\n  src="${embedUrl.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}"\n  title="DSH 智能体"\n  style="width: 100%; height: 700px; border: 0;"\n  allow="clipboard-write"\n></iframe>` : ''
 
   const visible = useMemo(() => instances.filter(item => (filter === 'all' || (filter === 'existing' ? item.state !== 'absent' : item.state === filter)) && `${item.name} ${item.source_id ?? ''}`.toLowerCase().includes(query.toLowerCase())), [instances, filter, query])
@@ -83,23 +92,45 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
     return result.value as T
   }
 
-  async function refresh() {
+  async function refresh(background = false) {
+    const request = ++listRequest.current
     setLoading(true)
-    setError('')
+    if (!background) setError('')
     try {
       const data = await call<{ instances: InstanceRow[] }>('list', {})
+      if (request !== listRequest.current) return
       setInstances(data.instances)
-      setSelected(current => new Set([...current].filter(name => data.instances.some(item => item.name === name))))
+      setRefreshError('')
+      if (detailName.current) {
+        if (data.instances.some(item => item.name === detailName.current)) void openDetail(detailName.current, true)
+        else {
+          detailRequest.current++
+          setDetailLoading(false)
+          setDetail(current => current ? { ...current, instance: { ...current.instance, state: 'unknown' } } : current)
+          setDetailNotice(`所选实例 ${detailName.current} 的登记已不存在，请重新选择。`)
+          setLogs('')
+        }
+      }
     } catch (err) {
-      setError((err as Error).message)
+      if (request === listRequest.current) setRefreshError((err as Error).message)
     } finally {
-      setLoading(false)
+      if (request === listRequest.current) setLoading(false)
     }
   }
 
   useEffect(() => {
     void refresh()
+    return () => { listRequest.current++; detailRequest.current++ }
   }, [])
+  useEffect(() => updates?.subscribe(() => {
+    const domains = updates.getSnapshot().domains
+    if (domains.includes('instances')) void refresh(true)
+    else if (domains.includes('agents') && detailName.current) void openDetail(detailName.current, true)
+    if (domains.includes('instances') && !busyRef.current) { setPreview(null); setPending(null) }
+  }), [updates])
+  useEffect(() => {
+    onContext?.({ page: 'instances', instance_name: detail?.instance.name, selected_instances: [...selected] })
+  }, [detail?.instance.name, selected, onContext])
   useEffect(() => {
     if (actionDialog) dialog.current?.showModal()
     else dialog.current?.close()
@@ -175,31 +206,38 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
     }
   }
 
-  async function openDetail(name: string) {
-    embedRequest.current++
-    setEmbedUrl('')
-    setEmbedMessage('')
+  async function openDetail(name: string, background = false) {
+    const request = ++detailRequest.current
+    detailName.current = name
+    if (!background) {
+      embedRequest.current++
+      setEmbedUrl('')
+      setEmbedMessage('')
+    }
     setDetailLoading(true)
-    setError('')
+    if (!background) setError('')
     try {
       const [nextDetail, nextLogs] = await Promise.all([
         call<Detail>('detail', { name }),
         call<{ logs: string }>('logs', { name, tail: 200 }),
       ])
+      if (request !== detailRequest.current || name !== detailName.current) return
       setDetail(nextDetail)
+      setDetailNotice('')
       setLogs(nextLogs.logs)
     } catch (err) {
-      setError((err as Error).message)
+      if (request === detailRequest.current) {
+        setDetailNotice((err as Error).message)
+        if (!background) setError((err as Error).message)
+      }
     } finally {
-      setDetailLoading(false)
+      if (request === detailRequest.current) setDetailLoading(false)
     }
   }
 
   async function webUrl(name: string) {
     const result = await call<{ url: string, lan_access: boolean }>('url', { name })
-    const url = new URL(result.url)
-    if (result.lan_access) url.hostname = window.location.hostname
-    return url.href
+    return instanceWebUrl(result, window.location.hostname)
   }
 
   async function generateEmbed(name: string) {
@@ -253,6 +291,7 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
   }
 
   const selectedNames = [...selected]
+  const missingSelections = selectedNames.filter(name => !instances.some(item => item.name === name))
   const containerCount = instances.filter(item => ['running', 'stopped', 'failed'].includes(item.state ?? '')).length
   const absentCount = instances.filter(item => item.state === 'absent').length
   const unknownCount = instances.length - containerCount - absentCount
@@ -282,10 +321,11 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
             <option value="unknown">unknown</option>
           </select>
           <input aria-label="搜索实例" placeholder="搜索实例或来源" value={query} onChange={event => setQuery(event.target.value)} style={styles.inputWide} />
-          <button type="button" onClick={refresh} disabled={loading} style={styles.button}>{loading ? '读取中…' : '刷新'}</button>
+          <button type="button" onClick={() => void refresh()} disabled={loading} style={styles.button}>{loading ? '读取中…' : '刷新'}</button>
           <span>已选择 {selected.size} 个；勾选后可批量操作</span>
+          {missingSelections.length > 0 && <span role="status">{missingSelections.length} 个所选登记已不存在。<button type="button" onClick={() => setSelected(current => new Set([...current].filter(name => !missingSelections.includes(name))))}>清除失效选择</button></span>}
           {(['start', 'stop', 'restart', 'delete'] as Operation[]).map(operation => (
-            <button key={operation} type="button" disabled={busy || selectedNames.length === 0}
+            <button key={operation} type="button" disabled={busy || selectedNames.length === 0 || missingSelections.length > 0}
               onClick={() => prepare(operation, selectedNames)} style={styles.button}>
               {labels[operation]}
             </button>
@@ -294,6 +334,7 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
       </section>
 
       {error && !actionDialog ? <div role="alert" style={styles.error}>{error}</div> : null}
+      {refreshError && <div role="alert" style={styles.error}>{refreshError}</div>}
 
       <div style={styles.tableWrap}>
         <table style={styles.table}>
@@ -361,6 +402,7 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
       {detail ? (
         <section style={styles.panel}>
           <strong>{detail.instance.name} 详情</strong>
+          {detailNotice && <p role="alert">{detailNotice}</p>}
           <details style={{ marginTop: 12 }}><summary>将智能体嵌入网站（iframe）</summary>
             <p>iframe 可以在网页内展示该实例的 DSH Web。先启动实例，再生成使用实际访问地址的嵌入代码。</p>
             <button type="button" disabled={detail.instance.state !== 'running' || !detail.instance.port} onClick={() => void generateEmbed(detail.instance.name)}>生成 iframe 代码</button>

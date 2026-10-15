@@ -6,6 +6,8 @@ import test from 'node:test'
 import { Context } from '@deepseek-ai/cordis'
 import { HostConnectionService } from '@deepseek-ai/dsh-client-connection'
 import WebServer from '@deepseek-ai/dsh-host-webserver'
+import { SessionProjectionRegistry } from '@deepseek-ai/dsh-session-projection'
+import { SystemPrompt } from '@deepseek-ai/dsh-system-prompt'
 import * as plugin from '../lib/index.js'
 
 test('真实 Cordis 提供方 Fiber 无 webServer 注入时，插件仍经原生 RPC 载体注册且可卸载', async t => {
@@ -31,8 +33,17 @@ test('真实 Cordis 提供方 Fiber 无 webServer 注入时，插件仍经原生
     },
   })
   await root.plugin({ name: 'test-platform-mcp', apply(ctx) { ctx.provide('platformMcp', { servers: { get: () => [] }, groups: { get: () => [] } }) } })
+  // 本项不发起 Session 或模型请求；提供平台新依赖，投影与提示词仍使用原生服务。
+  await root.plugin({ name: 'test-assistant-services', apply(ctx) {
+    new SessionProjectionRegistry(ctx)
+    new SystemPrompt(ctx, {})
+    ctx.provide('sessionController', {})
+    ctx.provide('settingsController', {})
+    ctx.provide('agents', { get: () => undefined })
+    ctx.provide('tools', { register() {} })
+  } })
   // 此项只验证注册方 Fiber；完整登录入口由 native-auth 与真实全局 DSH 验证。
-  const loaded = root.plugin({ ...plugin, inject: ['connection', 'webServer', 'platformMcp'], apply: plugin.applyTools })
+  const loaded = root.plugin({ ...plugin, inject: plugin.inject.filter(name => name !== 'credentials'), apply: plugin.applyTools })
   await loaded
   assert.equal(loaded.state, 2)
   const url = `http://127.0.0.1:${root.webServer.port}/harness-platform/inventory`

@@ -1,6 +1,7 @@
 import type { ClientConnectionRpc } from '@deepseek-ai/dsh-client-connection/client'
 import { CHANNEL } from './protocol.ts'
 import type { Inventory } from './protocol.ts'
+import type { PlatformUpdates } from './realtime/client.ts'
 
 export type CatalogSnapshot = {
   status: 'idle' | 'loading' | 'ready' | 'error'
@@ -8,7 +9,7 @@ export type CatalogSnapshot = {
   error?: string
 }
 
-export function createCatalog(rpc: ClientConnectionRpc) {
+export function createCatalog(rpc: ClientConnectionRpc, updates?: PlatformUpdates) {
   let snapshot: CatalogSnapshot = { status: 'idle' }
   let request = 0
   const listeners = new Set<() => void>()
@@ -16,7 +17,7 @@ export function createCatalog(rpc: ClientConnectionRpc) {
     snapshot = next
     for (const listener of listeners) listener()
   }
-  return {
+  const catalog = {
     getSnapshot: () => snapshot,
     subscribe(listener: () => void) {
       listeners.add(listener)
@@ -35,6 +36,10 @@ export function createCatalog(rpc: ClientConnectionRpc) {
       }
     },
   }
+  const dispose = updates?.subscribe(() => {
+    if (updates.getSnapshot().domains.some(domain => domain === 'catalog' || domain === 'agents')) void catalog.refresh()
+  })
+  return { ...catalog, dispose: () => { dispose?.(); request++; listeners.clear() } }
 }
 
 export type Catalog = ReturnType<typeof createCatalog>

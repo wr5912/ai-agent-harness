@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CHANNEL } from '../protocol.ts'
 import type { PlatformPageProps } from '../protocol.ts'
+import type { PlatformUpdates } from '../realtime/client.ts'
+import { instanceWebUrl } from '../instances/url.ts'
 
 type RpcResult = { ok: true; value: any } | { ok: false; error: { code: string; message: string; details?: any } }
 type AgentRow = { id: string; active_experiment?: string | null }
@@ -39,7 +41,7 @@ const tabs = [
   { id: 'evaluation', label: '评测' },
 ] as const
 
-export function AgentsPage({ rpc }: PlatformPageProps) {
+export function AgentsPage({ rpc, updates, onContext, onAssistant }: PlatformPageProps & { updates?: PlatformUpdates; onContext?(context: Record<string, unknown>): void; onAssistant?(task: string, context: Record<string, unknown>): Promise<void> }) {
   const [agents, setAgents] = useState<AgentRow[]>([])
   const [selected, setSelected] = useState('')
   const [selectedExperiment, setSelectedExperiment] = useState('')
@@ -74,17 +76,44 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
   const runRequest = useRef(0)
   const [decisionBody, setDecisionBody] = useState('')
   const [decisionHash, setDecisionHash] = useState('')
+  const decisionDraft = useRef({ body: '', hash: '', dirty: false })
+  const [decisionConflict, setDecisionConflict] = useState(false)
+  const [versionOpen, setVersionOpen] = useState(false)
+  const [versionGoal, setVersionGoal] = useState('')
+  const [versionParent, setVersionParent] = useState('')
+  const [versionInventory, setVersionInventory] = useState<any>(null)
+  const [versionProposal, setVersionProposal] = useState<any>(null)
+  const [featureProposal, setFeatureProposal] = useState<any>(null)
+  const [launch, setLaunch] = useState<any>(null)
+  const [launchName, setLaunchName] = useState('')
+  const [launchPort, setLaunchPort] = useState('')
+  const [launchMessage, setLaunchMessage] = useState('')
+  const [launchBusy, setLaunchBusy] = useState(false)
   const detailRequest = useRef(0)
+  const selectionRequest = useRef(0)
+  const versionPreviewRequest = useRef(0)
+  const launchRequest = useRef(0)
   const editRequest = useRef(0)
   const selectedAgent = useMemo(() => agents.find(agent => agent.id === selected), [agents, selected])
 
   function selectVersion(agentId: string, experimentId = '') {
     if (agentId === selected && experimentId === selectedExperiment) return
     detailRequest.current++
+    selectionRequest.current++
+    versionPreviewRequest.current++
+    launchRequest.current++
     if (agentId !== selected) setTab('overview')
     setSelected(agentId)
     setSelectedExperiment(experimentId)
     setDetail(null)
+    decisionDraft.current = { body: '', hash: '', dirty: false }
+    setDecisionConflict(false)
+    setVersionOpen(false)
+    setVersionInventory(null)
+    setVersionProposal(null)
+    setFeatureProposal(null)
+    setLaunch(null)
+    setLaunchBusy(false)
     selectEditFile('')
   }
 
@@ -125,12 +154,16 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
       const value = await call('detail', payload)
       if (request !== detailRequest.current) return
       setDetail(value)
-      setDecisionBody(value.decision?.content ?? '')
-      setDecisionHash(value.decision?.sha256 ?? '')
+      if (!experimentId) setSelectedExperiment(current => current || value.experiment.id)
+      if (!decisionDraft.current.dirty) {
+        setDecisionBody(value.decision?.content ?? '')
+        setDecisionHash(value.decision?.sha256 ?? '')
+        decisionDraft.current = { body: value.decision?.content ?? '', hash: value.decision?.sha256 ?? '', dirty: false }
+        setDecisionConflict(false)
+      } else if (decisionDraft.current.hash !== value.decision?.sha256) setDecisionConflict(true)
       setSelectedCases((current) => current.filter(caseItem => value.evaluation.cases.some((item: any) => item.id === caseItem)))
       const containsPath = (nodes: AssetNode[]): boolean => nodes.some(node => node.path === editPath || (node.children && containsPath(node.children)))
-      if (!containsPath(value.assets ?? [])) selectEditFile(value.assets?.[0]?.path ?? '')
-      setEditMessage('')
+      if (!containsPath(value.assets ?? []) && !editOpen) selectEditFile(value.assets?.[0]?.path ?? '')
     } catch (err) {
       if (request === detailRequest.current) setError((err as Error).message)
     }
@@ -158,35 +191,145 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
 
   useEffect(() => { void refreshList() }, [])
   useEffect(() => { void refreshDetail(selected, selectedExperiment) }, [selected, selectedExperiment])
+  useEffect(() => { onContext?.({ page: 'agents', agent_id: selected || undefined, experiment_id: detail?.experiment?.id, tab }) }, [selected, detail?.experiment?.id, tab, onContext])
+  useEffect(() => updates?.subscribe(() => {
+    const snapshot = updates.getSnapshot()
+    if (!snapshot.domains.some(domain => ['agents', 'instances', 'catalog'].includes(domain))) return
+    void refreshList()
+    void refreshDetail(selected, selectedExperiment)
+    if (selected) void call('fusion/proposal', { agent_id: selected }).then(value => setVersionProposal(value.proposal)).catch(() => undefined)
+    if (detail?.experiment?.id) void call('features/proposal', { experiment_id: detail.experiment.id }).then(value => setFeatureProposal(value.proposal)).catch(() => undefined)
+    if (editOpen && detail?.experiment?.id && editPath && editHash) void call('edit/read', { experiment_id: detail.experiment.id, path: editPath }).then(value => { if (value.sha256 !== editHash) setEditMessage('文件已被其他任务修改，编辑草稿已保留；保存前请核对最新内容。') }).catch(() => undefined)
+    if (tab === 'evaluation') void loadRuns()
+    if (jobId) void evalStatus()
+  }), [updates, selected, selectedExperiment, detail?.experiment?.id, tab, editOpen, editPath, editHash, jobId])
   useEffect(() => { void loadEditFile(editPath) }, [detail?.experiment?.id, editPath])
   useEffect(() => {
     if (editOpen) editDialog.current?.showModal()
     else editDialog.current?.close()
   }, [editOpen])
 
-  async function createExperiment() {
-    if (!selectedAgent?.active_experiment || !detail) return
-    const parent = window.prompt('父版本 git:<40位commit> 或 release:<id>')
-    if (!parent) return
-    const researchQuestion = window.prompt('真实用户研究问题')
-    if (!researchQuestion) return
-    const request = detailRequest.current
+  async function previewVersion() {
+    if (!detail || !versionGoal.trim()) return
+    const selection = selectionRequest.current
+    const request = ++versionPreviewRequest.current
     try {
-      const value = await call('create', {
+      const value = await call('fusion/preview', {
         agent_id: selected,
-        parent_ref: parent,
+        parent_ref: versionParent,
         parent_experiment_id: detail.experiment.id,
-        catalog_sha256: detail.declared?.source_catalog_sha256,
-        research_question: researchQuestion,
+        research_question: versionGoal,
       })
-      if (request !== detailRequest.current) return
+      if (selection !== selectionRequest.current || request !== versionPreviewRequest.current) return
+      setVersionInventory(value)
+      setVersionProposal(null)
+    } catch (err) { if (selection === selectionRequest.current && request === versionPreviewRequest.current) setError((err as Error).message) }
+  }
+
+  async function askVersionPlan() {
+    if (!versionInventory || !onAssistant) return
+    await onAssistant(`为当前智能体创建新版本。改进目标：${versionGoal.trim()}`, { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id, fusion_request: versionInventory })
+  }
+
+  async function confirmVersion() {
+    if (!versionProposal) return
+    const selection = selectionRequest.current
+    try {
+      const { value } = await confirmBusinessProposal('fusion/confirm', versionProposal)
       await refreshList()
-      if (request !== detailRequest.current) return
-      selectVersion(selected, value.experiment_id)
-      setEditMessage(`已创建 ${value.experiment_id}`)
-    } catch (err) {
-      if (request === detailRequest.current) setError((err as Error).message)
+      if (selection === selectionRequest.current) selectVersion(selected, value.experiment_id)
+    } catch (err) { setError((err as Error).message) }
+  }
+
+  async function confirmFeatures() {
+    if (!featureProposal) return
+    const selection = selectionRequest.current
+    try {
+      await confirmBusinessProposal('features/apply', featureProposal)
+      if (selection !== selectionRequest.current) return
+      setFeatureProposal(null)
+      await refreshDetail()
+    } catch (err) { setError((err as Error).message) }
+  }
+
+  async function confirmBusinessProposal(action: string, proposal: any): Promise<{ value: any; resumed: boolean }> {
+    if (proposal.assistant_session_id) {
+      const status = await rpc.call(CHANNEL, 'assistant/status', { session_id: proposal.assistant_session_id }) as RpcResult
+      if (!status.ok) throw new Error(status.error.message)
+      const pending = status.value.proposals.find((item: any) => item.domain === 'agents' && item.action === action && item.input?.preview_id === proposal.preview_id)
+      if (pending) {
+        const response = await rpc.call(CHANNEL, 'assistant/confirm', { session_id: proposal.assistant_session_id, proposal_id: pending.id }) as RpcResult
+        if (!response.ok) throw new Error(response.error.message)
+        const receipt = response.value.result
+        if (response.value.state !== 'completed' || !receipt?.ok) throw new Error(receipt?.error?.message || '尚未收到完整执行回执，请在同一会话核对状态。')
+        return { value: receipt.value, resumed: response.value.continuation === 'resumed' }
+      }
     }
+    return { value: await call(action, { preview_id: proposal.preview_id, confirmed: true }), resumed: false }
+  }
+
+  async function instanceCall(endpoint: string, payload: Record<string, unknown> = {}) {
+    const result = await rpc.call(CHANNEL, `instances/${endpoint}`, payload) as RpcResult
+    if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+    return result.value
+  }
+
+  function changeLaunch(value: any) { launchRequest.current++; setLaunchBusy(false); setLaunch(value) }
+  function resetVersionPreview() { versionPreviewRequest.current++; setVersionInventory(null); setVersionProposal(null) }
+
+  async function launchVersion() {
+    if (!detail) return
+    const selection = selectionRequest.current
+    const request = ++launchRequest.current
+    setLaunchBusy(true)
+    setLaunchMessage('')
+    try {
+      const value = await instanceCall('list')
+      if (selection !== selectionRequest.current || request !== launchRequest.current) return
+      const instances = value.instances.filter((item: any) => item.source_id === `experiment:${detail.experiment.id}`)
+      setLaunch({ experiment_id: detail.experiment.id, instances, selected: instances[0]?.name ?? '', preview: null, url: null })
+      setLaunchName(`${selected}-${detail.experiment.id.match(/-(\d{3})(?:-|$)/)?.[1] ?? 'new'}-${Date.now().toString().slice(-5)}`)
+      setLaunchPort('')
+    } catch (err) { if (selection === selectionRequest.current && request === launchRequest.current) setLaunchMessage((err as Error).message) }
+    finally { if (selection === selectionRequest.current && request === launchRequest.current) setLaunchBusy(false) }
+  }
+
+  async function previewLaunch() {
+    if (!launch) return
+    const selection = selectionRequest.current
+    const requestId = ++launchRequest.current
+    setLaunchBusy(true)
+    try {
+      const item = launch.instances.find((item: any) => item.name === launch.selected)
+      if (item?.state === 'running') {
+        const value = await instanceCall('url', { name: item.name })
+        if (selection !== selectionRequest.current || requestId !== launchRequest.current) return
+        setLaunch({ ...launch, url: instanceWebUrl(value, window.location.hostname) })
+      } else {
+        const request = { operation: item ? 'start' : 'create', name: item?.name ?? launchName, source: `experiment:${launch.experiment_id}`, ...(launchPort ? { port: Number(launchPort) } : {}) }
+        const preview = await instanceCall('preview', request)
+        if (selection !== selectionRequest.current || requestId !== launchRequest.current) return
+        setLaunch({ ...launch, request, preview, url: null })
+      }
+    } catch (err) { if (selection === selectionRequest.current && requestId === launchRequest.current) setLaunchMessage((err as Error).message) }
+    finally { if (selection === selectionRequest.current && requestId === launchRequest.current) setLaunchBusy(false) }
+  }
+
+  async function confirmLaunch() {
+    if (!launch?.request) return
+    const selection = selectionRequest.current
+    const request = ++launchRequest.current
+    setLaunchBusy(true)
+    try {
+      const receipt = await instanceCall('run', launch.request)
+      if (!receipt.ok) throw new Error(receipt.error?.message || '启动失败')
+      const value = await instanceCall('url', { name: launch.request.name })
+      if (selection !== selectionRequest.current || request !== launchRequest.current) return
+      setLaunch({ ...launch, preview: null, url: instanceWebUrl(value, window.location.hostname) })
+      setLaunchMessage('实例已启动，可打开智能体对话。')
+      await refreshDetail()
+    } catch (err) { if (selection === selectionRequest.current && request === launchRequest.current) setLaunchMessage((err as Error).message) }
+    finally { if (selection === selectionRequest.current && request === launchRequest.current) setLaunchBusy(false) }
   }
 
   async function doPreview() {
@@ -364,6 +507,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
       const value = await call('decision/update', { experiment_id: detail.experiment.id, content: decisionBody, expected_sha256: decisionHash })
       if (request !== detailRequest.current) return
       setDecisionHash(value.sha256)
+      decisionDraft.current = { body: decisionDraft.current.body, hash: value.sha256, dirty: decisionDraft.current.body !== decisionBody }
       await refreshDetail()
     } catch (err) {
       if (request === detailRequest.current) setError((err as Error).message)
@@ -382,7 +526,7 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
     <div style={{ minWidth: 0, display: 'grid', gap: 16 }}>
       <header style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
         <h1 style={{ fontSize: 24, margin: 0, overflowWrap: 'anywhere' }}>智能体研究版本</h1>
-        <button type="button" onClick={() => void refreshList()}>刷新</button>
+        <div style={{ display: 'flex', gap: 8 }}><button type="button" disabled={!detail} onClick={() => { setVersionOpen(true); setVersionParent(detail.repo_commit ? `git:${detail.repo_commit}` : ''); resetVersionPreview() }}>新建版本</button><button type="button" onClick={() => void refreshList()}>刷新</button></div>
       </header>
       {error && <p role="alert" style={{ color: 'var(--dsw-alias-state-error-primary, #c2410c)', margin: 0 }}>{error}</p>}
       <section className="harness-agent-layout">
@@ -406,9 +550,35 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
                   {detail.versions.map((version: any) => <option key={version.id} value={version.id}>{version.id}</option>)}
                 </select>
               </div>
-              <button type="button" onClick={() => void createExperiment()}>新建 Experiment</button>
+              <button type="button" disabled={launchBusy} onClick={() => void launchVersion()}>启动智能体</button>
             </div>
+            {detail.creation && <p role="status">{detail.creation.status === 'completed' ? '新版本创建成功' : '融合中：等待资产集成与约定验证'}{detail.creation.status !== 'completed' && <button type="button" disabled={!onAssistant} onClick={() => void onAssistant?.('继续完成当前版本的融合。', { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id, session_id: detail.creation.assistant_session_id })}>继续融合</button>}</p>}
           </section>}
+          {versionOpen && detail && <section style={panel} aria-label="新建智能体版本">
+            <h2>新建 {selected} 版本</h2>
+            <label style={field}>改进目标<textarea value={versionGoal} onChange={event => { setVersionGoal(event.target.value); resetVersionPreview() }} rows={3} /></label>
+            <label style={field}>主父版固定 Git 引用<input value={versionParent} onChange={event => { setVersionParent(event.target.value); resetVersionPreview() }} /></label>
+            <p>当前主父版：{detail.experiment.id}。先核对未继承的并行能力及取舍，确认后再建立新版本。</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button type="button" disabled={!versionGoal.trim()} onClick={() => void previewVersion()}>盘点继承来源</button><button type="button" onClick={() => { versionPreviewRequest.current++; setVersionOpen(false) }}>关闭</button></div>
+            {versionInventory && <><h3>主父版尚未覆盖的来源</h3>{versionInventory.inventory.sources.length ? <ul>{versionInventory.inventory.sources.map((source: any) => <li key={source.experiment_id}><strong>{source.experiment_id}</strong> · {source.status === 'recommended' ? '建议继承' : source.status === 'excluded' ? '默认排除' : '待判断'}<p>{source.reason}</p></li>)}</ul> : <p>没有发现尚未覆盖的并行来源。</p>}
+              <button type="button" disabled={!onAssistant} onClick={() => void askVersionPlan()}>请 AI 整理融合方案</button></>}
+            {versionProposal && versionProposal.parent_experiment_id === detail.experiment.id && versionProposal.parent_ref === versionParent && versionProposal.research_question === versionGoal && <>
+              <h3>待确认方案</h3><p>{versionProposal.research_question}</p>
+              <h4>继承来源与取舍</h4><ul>{versionProposal.plan.sources.map((source: any) => <li key={source.experiment_id}>{source.experiment_id}：{source.decision === 'inherit' ? '继承' : '舍弃'} · {source.reason}<p>{source.ref}</p></li>)}</ul>
+              <h4>新版本特性</h4><ul>{versionProposal.plan.features.map((feature: any) => <li key={feature.id}><strong>{feature.title}</strong><p>{feature.description}</p><p>{feature.change || '保留来源能力'} · {feature.source_refs.join('、') || '来源待说明'}</p></li>)}</ul>
+              <h4>冲突处理</h4>{versionProposal.plan.conflicts.length ? <ul>{versionProposal.plan.conflicts.map((conflict: any, index: number) => <li key={index}>{conflict.description}：{conflict.resolution}</li>)}</ul> : <p>方案未发现需要业务取舍的冲突。</p>}
+              <h4>验证范围</h4><ul>{versionProposal.plan.checks.map((check: any) => <li key={check.id}>{check.id}：{check.kind === 'build' ? `构建 ${check.command.join(' ')}` : check.kind === 'load' ? '实际 DSH Session 装载证据' : `能力评测 ${check.case_ids.join('、')}`}</li>)}</ul>
+              <button type="button" onClick={() => void confirmVersion()}>确认方案并创建版本</button>
+            </>}
+          </section>}
+          {launch && <section style={panel} aria-label="启动选中版本"><h2>启动 {launch.experiment_id}</h2>
+            {launch.instances.length > 0 && <label style={field}>实例<select value={launch.selected} onChange={event => { changeLaunch({ ...launch, selected: event.target.value, preview: null, url: null }); setLaunchMessage('') }}>{launch.instances.map((item: any) => <option key={item.name} value={item.name}>{item.name} · {item.state}</option>)}<option value="">新建实例</option></select></label>}
+            {!launch.selected && <><label style={field}>实例名称<input value={launchName} onChange={event => { setLaunchName(event.target.value); changeLaunch({ ...launch, preview: null }) }} /></label><label style={field}>端口（可留空自动分配）<input inputMode="numeric" value={launchPort} onChange={event => { setLaunchPort(event.target.value); changeLaunch({ ...launch, preview: null }) }} /></label></>}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}><button type="button" disabled={launchBusy} onClick={() => void previewLaunch()}>{launch.instances.find((item: any) => item.name === launch.selected)?.state === 'running' ? '获取对话入口' : '预览启动'}</button><button type="button" onClick={() => changeLaunch(null)}>关闭</button></div>
+            {launch.preview && <><pre className="harness-asset-content">{text(launch.preview)}</pre><button type="button" disabled={launchBusy} onClick={() => void confirmLaunch()}>确认启动</button></>}
+            {launch.url && <p><a href={launch.url} target="_blank" rel="noreferrer">打开智能体对话</a></p>}
+          </section>}
+          {launchMessage && <p role="status">{launchMessage}</p>}
           {detail && <div role="tablist" aria-label="智能体详情" className="harness-agent-tabs" onKeyDown={event => {
             const index = tabs.findIndex(item => item.id === tab)
             const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length
@@ -425,6 +595,11 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
           </div>}
           {detail && <section role="tabpanel" id="agent-panel-overview" aria-labelledby="agent-tab-overview" hidden={tab !== 'overview'} style={panel}>
             <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>智能体基本信息</h2>
+            <p>{detail.agent.manifest.description || detail.experiment.change.research_question || '用途尚未整理。'}</p>
+            <h3>当前版本特性</h3>
+            {detail.features?.length ? <ul>{detail.features.map((feature: any) => <li key={feature.id}><strong>{feature.title}</strong><p>{feature.description}</p>{feature.change && <p>本版本变化：{feature.change}</p>}<p>来源：{feature.source_refs.join('、') || '未记录'} · {feature.verification}</p>{feature.evidence.length > 0 && <ul>{feature.evidence.map((evidence: any) => <li key={evidence.ref}>{evidence.ref} · {evidence.present ? '引用存在' : '未找到证据'}</li>)}</ul>}</li>)}</ul> : <p>此版本尚未整理特性，可由 AI 根据当前资产和证据整理后确认保存。</p>}
+            <button type="button" disabled={!onAssistant} onClick={() => void onAssistant?.('整理当前版本的用途与特性。', { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id })}>请 AI 整理特性</button>
+            {featureProposal && featureProposal.experiment_id === detail.experiment.id && <section aria-label="确认智能体特性"><h3>待确认特性</h3><ul>{featureProposal.features.map((feature: any) => <li key={feature.id}><strong>{feature.title}</strong><p>{feature.description}</p><p>{feature.source_refs.join('、') || '未记录来源'} · {feature.evidence_refs.length ? feature.evidence_refs.join('、') : '尚无验证证据'}</p></li>)}</ul><button type="button" onClick={() => void confirmFeatures()}>确认并保存特性</button></section>}
             <div style={{ opacity: 0.75 }}>Baseline：{detail.baseline.ref || '未知'} · Parent：{detail.baseline.parent_experiment_id || '无'}</div>
             <div style={{ opacity: 0.75 }}>Fusion：{detail.fusion.status}{detail.fusion.experiments?.length ? ` ${detail.fusion.experiments.join(', ')}` : ''}</div>
             <div style={{ opacity: 0.75 }}>相关引用：{detail.related_references?.join(', ') || '无'} · 实例装载：{detail.loaded_instance.status}</div>
@@ -551,8 +726,9 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
             {evalResult && <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto' }}>{evalResult}</pre>}
             <h2 style={{ fontSize: 16, margin: '20px 0 12px' }}>Decision</h2>
             <label style={field}>Decision 正文
-              <textarea value={decisionBody} onChange={event => setDecisionBody(event.target.value)} rows={8} style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace' }} />
+              <textarea value={decisionBody} onChange={event => { setDecisionBody(event.target.value); decisionDraft.current = { body: event.target.value, hash: decisionHash, dirty: true } }} rows={8} style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace' }} />
             </label>
+            {decisionConflict && <p role="alert">Decision 已被其他任务修改，当前草稿已保留。请核对最新内容后再保存。</p>}
             <div style={{ marginTop: 8 }}>
               <button type="button" onClick={saveDecision}>保存 Decision</button>
             </div>

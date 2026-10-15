@@ -23,7 +23,23 @@ export const managerSources = {
         if (toolbarStart < start || toolbarEnd <= toolbarStart) throw new Error('MCP 管理工具栏装载合同已变化')
         const client = original.slice(start, toolbarStart) + `{toolbarTarget && createPortal(<button className="harness-primary" type="button" onClick={save} disabled={busy || !state.writable || !isDirty}>保存更改</button>, toolbarTarget)}\n` + original.slice(toolbarEnd, end)
         const toolEditor = `<section className="mcp-section"><h3>调用工具</h3><div className="mcp-fields"><label className="mcp-field">工具<select value={toolName} onChange={event => setToolName(event.target.value)}><option value="">请选择工具</option>{(catalog.data.tools ?? []).map(tool => <option key={tool.name} value={tool.name}>{tool.name}</option>)}</select></label><label className="mcp-field mcp-wide">调用参数 JSON{input(argumentsText, setArgumentsText)}</label></div><div className="mcp-actions">{button('测试工具', () => callTool('callTool'), busy || !toolName)}</div></section>`
+        const draftEffect = `setDraft({ servers: structuredClone(state.value.servers ?? []),
+          groups: structuredClone(state.value.groups ?? []), sharedToken: state.value.sharedToken ?? '', revision: state.revision })`
+        const preservedDraft = `setDraft(previous => {
+          const incoming = { servers: structuredClone(state.value.servers ?? []), groups: structuredClone(state.value.groups ?? []), sharedToken: state.value.sharedToken ?? '' }
+          const serialized = JSON.stringify(incoming)
+          const previousData = previous && JSON.stringify({ servers: previous.servers, groups: previous.groups, sharedToken: previous.sharedToken })
+          if (previous && draftBase.current !== previousData && serialized !== previousData) {
+            setStatus('配置已在其他位置更新，当前草稿已保留；保存将核对原版本。')
+            return previous
+          }
+          draftBase.current = serialized
+          return { ...incoming, revision: state.revision }
+        })`
+        if (!client.includes(draftEffect)) throw new Error('MCP 草稿同步合同已变化')
         const adapted = client
+          .replace('const [draft, setDraft] = useState(null)', 'const [draft, setDraft] = useState(null); const draftBase = useRef(null)')
+          .replace(draftEffect, preservedDraft)
           .replace('function Manager({ view, form, write })', 'function Manager({ view, form, write, toolbarTarget, publishedService, onValidationError })')
           .replace("const [page, setPage] = useState('servers')", "const [page, setPage] = useState('servers'); useEffect(() => { if (['servers', 'groups', 'connection'].includes(view)) setPage(view) }, [view])")
           .replace('[state?.value, state?.revision, state?.status]', '[JSON.stringify(state?.value), state?.revision, state?.status]')
@@ -47,7 +63,7 @@ export const managerSources = {
           .replace('<h2>MCP 服务器</h2>', '<h2>服务列表</h2>')
           .replace('<input value={value ?? \'\'} onChange={event => change(event.target.value)} {...props} />', "props.type === 'password' && !props.readOnly ? <PasswordInput value={value ?? ''} onChange={event => change(event.target.value)} {...props} /> : <input value={value ?? ''} onChange={event => change(event.target.value)} {...props} />")
           .replace('<section className="mcp-section"><h3>读取 Resource</h3>', `${toolEditor}<section className="mcp-section"><h3>读取 Resource</h3>`)
-        contents = `import * as React from 'react'; import { createPortal } from 'react-dom'; import { PasswordInput, PublishedService } from ${JSON.stringify(resolve('src/mcp/components.tsx'))}; const { useEffect, useState } = React;\n${adapted}\nexport { Manager };`
+        contents = `import * as React from 'react'; import { createPortal } from 'react-dom'; import { PasswordInput, PublishedService } from ${JSON.stringify(resolve('src/mcp/components.tsx'))}; const { useEffect, useState, useRef } = React;\n${adapted}\nexport { Manager };`
       } else if (path.endsWith('openapi')) {
         const original = await readFile(resolve(managerSource, 'openapi.ts'), 'utf8')
         contents = `import { appendQueryParameter } from ${JSON.stringify(resolve('src/mcp/openapi.ts'))};\nfunction platformTimeout(server: any) { const timeout = AbortSignal.timeout(20_000); return server.platformSignal ? AbortSignal.any([server.platformSignal, timeout]) : timeout }\n${original.replaceAll('AbortSignal.timeout(20_000)', 'platformTimeout(server)').replace('const { response, credential } = await authorizedFetch(source.server', 'const server = source.server\n  const { response, credential } = await authorizedFetch(source.server').replace("if (parameter.in === 'query') for (const entry of Array.isArray(value) ? value : [value]) url.searchParams.append(parameter.name, String(entry))", "if (parameter.in === 'query') appendQueryParameter(url.searchParams, parameter, value)")}\nexport { execute };`
@@ -71,6 +87,23 @@ export const managerSources = {
       if (request.action === 'test') {`)
       }
       if (!path.endsWith('client') && !path.endsWith('openapi')) {
+        // 从同一个原生 HTTP 处理函数提取业务 dispatch，供 AI 工具复用。
+        const adminStart = contents.indexOf("  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/api/mcp-manager'")
+        const dispatchStart = contents.indexOf('      const server = current.servers.find', adminStart)
+        const dispatchEnd = contents.indexOf('    } catch (error)', dispatchStart)
+        if (adminStart < 0 || dispatchStart < 0 || dispatchEnd < 0) throw new Error('MCP 管理 dispatch 合同已变化')
+        const dispatchBody = contents.slice(dispatchStart, dispatchEnd).replaceAll('send(res, ', 'reply(')
+        const dispatcher = `  const platformDispatch = async (request: any, signal?: AbortSignal) => {
+          signal?.throwIfAborted()
+          const current = snapshot(config)
+          current.servers = current.servers.map((server: any) => ({ ...server, platformSignal: signal }))
+          const reply = (status: number, value: any) => ({ status, value })
+          try { ${dispatchBody} } catch (error) { return reply(400, { error: error instanceof Error ? error.message : String(error) }) }
+        }
+        config.platformDispatch?.(platformDispatch)
+`
+        contents = contents.slice(0, dispatchStart) + `      const outcome = await platformDispatch(request)\n      return send(res, outcome.status, outcome.value)\n` + contents.slice(dispatchEnd)
+        contents = contents.slice(0, adminStart) + dispatcher + contents.slice(adminStart)
         contents = `import { runtimeRequire as resolveRuntimeRequire } from ${JSON.stringify(resolve('../../runtime/adapters/dsh-web/src/resolve-runtime.ts'))};\n${contents}`
       }
       return { contents, loader: path.endsWith('client') ? 'tsx' : 'ts', resolveDir: managerSource }
