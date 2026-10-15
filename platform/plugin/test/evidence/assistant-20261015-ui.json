@@ -1,0 +1,31 @@
+{
+  "scope": "PA-12 / 独立3092平台 / 当前checkout / 原生DSH和Chromium；无模型调用",
+  "checks": [
+    "首页未渲染助手悬浮按钮",
+    "新建空任务绑定项目工作区，原生Composer可输入；桌面浮窗480×640",
+    "收起和管理对话展开保留同Session及草稿；可见状态仅一Composer",
+    "各业务页常驻助手入口；首页再次进入仍无悬浮按钮",
+    "390px页面无文档横向溢出，助手窗口在视口内",
+    "900px页面无文档横向溢出，助手窗口在视口内",
+    "1440px页面无文档横向溢出，助手窗口在视口内",
+    "整页刷新自动恢复同一原生项目Session，不创建新任务；首页仍无浮钮"
+  ],
+  "consoleErrors": [],
+  "pageErrors": [],
+  "inputFields": [
+    {
+      "tag": "DIV",
+      "role": "textbox",
+      "editable": "true",
+      "placeholder": null
+    },
+    {
+      "tag": "INPUT",
+      "role": null,
+      "editable": null,
+      "disabled": false,
+      "placeholder": null
+    }
+  ],
+  "ok": true
+}

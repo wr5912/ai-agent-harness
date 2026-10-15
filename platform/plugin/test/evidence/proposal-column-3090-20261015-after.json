@@ -1,0 +1,124 @@
+{
+  "at": "2026-10-15T09:58:05.729Z",
+  "scope": "PA-12 / 实际3090 / 仅读取现有待确认会话，检查确认区与原生聊天列对齐；不点击业务确认，不发模型请求",
+  "checks": [
+    "1857px实际会话中确认区与消息列的宽度和位置",
+    "原生侧栏展开/收起后确认区随内容列更新",
+    "480px助手浮窗复用同Session，确认区与嵌入聊天列对齐且可滚动到确认按钮",
+    "390px管理页确认区与消息列对齐，无横向溢出，确认按钮可达",
+    "390px窄屏浮窗保持相同对齐和单一原生编辑器"
+  ],
+  "measurements": [
+    {
+      "mode": "full",
+      "viewport": 1857,
+      "proposal": {
+        "x": 591,
+        "width": 920,
+        "right": 1511
+      },
+      "chat": {
+        "x": 591,
+        "width": 920,
+        "right": 1511
+      },
+      "pageWidth": 1857,
+      "composers": 1,
+      "scrollable": true,
+      "confirmButtons": 1
+    },
+    {
+      "mode": "full",
+      "viewport": 1857,
+      "proposal": {
+        "x": 721.078125,
+        "width": 883.828125,
+        "right": 1604.90625
+      },
+      "chat": {
+        "x": 721.078125,
+        "width": 883.828125,
+        "right": 1604.90625
+      },
+      "pageWidth": 1857,
+      "composers": 1,
+      "scrollable": true,
+      "confirmButtons": 1
+    },
+    {
+      "mode": "floating",
+      "viewport": 1857,
+      "proposal": {
+        "x": 1394,
+        "width": 391,
+        "right": 1785
+      },
+      "chat": {
+        "x": 1394,
+        "width": 391,
+        "right": 1785
+      },
+      "pageWidth": 1857,
+      "composers": 1,
+      "scrollable": true,
+      "confirmButtons": 1
+    },
+    {
+      "mode": "full",
+      "viewport": 390,
+      "proposal": {
+        "x": 88,
+        "width": 263,
+        "right": 351
+      },
+      "chat": {
+        "x": 88,
+        "width": 263,
+        "right": 351
+      },
+      "pageWidth": 390,
+      "composers": 1,
+      "scrollable": true,
+      "confirmButtons": 1
+    },
+    {
+      "mode": "floating",
+      "viewport": 390,
+      "proposal": {
+        "x": 49,
+        "width": 285,
+        "right": 334
+      },
+      "chat": {
+        "x": 49,
+        "width": 285,
+        "right": 334
+      },
+      "pageWidth": 390,
+      "composers": 1,
+      "scrollable": true,
+      "confirmButtons": 1
+    }
+  ],
+  "pageErrors": [],
+  "session_id": "session-fee543c2-e75f-4f9d-ae38-9bbfdc99c643",
+  "ok": true,
+  "verification": {
+    "typescript_build": "passed in source and deployment repositories",
+    "targeted_node_tests": {
+      "passed": 12,
+      "failed": 0
+    },
+    "scope_review": "本次布局改动及原生侧栏/消息列合同，未扩大为全仓审查"
+  },
+  "runtime": {
+    "url": "http://10.0.160.32:3090/hap/",
+    "source_root": "/home/admin/work/ai-agent-harness",
+    "head": "6e80f2c92b7983cbe8fc7957685d36338080b134",
+    "pid": 261176,
+    "home": "/home/admin/.local/state/ai-agent-harness/platform/dsh-home",
+    "log": "/home/admin/.local/state/ai-agent-harness/platform/deployments/20261015-164814/platform-3090.log",
+    "stop_command": "tmux send-keys -t ai-agent-harness-platform-3090 C-c",
+    "deployment_manifest": "/home/admin/.local/state/ai-agent-harness/platform/deployments/20261015-164814/proposal-column-20261015-175704/manifest.json"
+  }
+}

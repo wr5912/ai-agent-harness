@@ -1,0 +1,30 @@
+{
+  "scope": "PA-12，独立3092临时HOME，浏览器真实探针摘录；未调用模型",
+  "observations": [
+    {
+      "problem": "新建空任务失败",
+      "observed": "session.create accepts workspaceId or cwd, not both",
+      "cause": "Host同时传入workspaceId与cwd",
+      "fix": "按workspace_id是否存在选择一个来源参数"
+    },
+    {
+      "problem": "SSE反复HTTP 400且响应体为空",
+      "observed": "同认证环境普通助手RPC成功而events失败",
+      "cause": "GET路由采用streaming请求体策略，WHATWG Request拒绝GET body",
+      "fix": "将请求体策略改为buffered；响应继续使用SSE流"
+    },
+    {
+      "problem": "待确认工具卡默认不可见",
+      "observed": "真实tool/result包含方案与确认按钮，但原生整轮与工具批次双重折叠",
+      "cause": "业务确认仅注册在原生工具轨迹视图",
+      "fix": "通过原生conversation.input.dock直接展示同一后端提案和确认，保留历史工具回执视图"
+    },
+    {
+      "problem": "切换未就绪会话时出现原生Sidebar引用释放警告",
+      "observed": "Sidebar Session opening failed: Session reference is released；未出现页面异常",
+      "cause": "原生Sidebar会记录尚未就绪便释放的引用，旧平台选择路径未等待就绪便导航",
+      "fix": "平台先等待自有reference.ready，再校验generation并调用原生openSession；最终实机consoleErrors为空"
+    }
+  ],
+  "temporary_probe_note": "已将重复临时输出归并为该摘录，不保留Session标识、认证信息和全量浏览器错误日志；最终验收另见assistant-20261015-ui.json。"
+}

@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-15T09:22:34.546Z",
+  "scope": "实际3090；首页真实你好、默认模型、原生会话与上下文隐藏；无业务写入",
+  "checks": [],
+  "pageErrors": [],
+  "ok": false,
+  "failure": "locator.waitFor: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.harness-platform[data-page=conversations]') to be visible\u001b[22m\n\n    at /tmp/harness-3090-final.mjs:19:67"
+}

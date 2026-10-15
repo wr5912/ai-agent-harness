@@ -399,6 +399,22 @@ class RepositoryValidatorTests(unittest.TestCase):
 
 
 class ResearchEvalTests(unittest.TestCase):
+    def test_nested_version_features_and_fixed_fusion_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            experiment = write_minimal_experiment(Path(temp))
+            change = experiment / "change.yaml"
+            change.write_text(change.read_text(encoding="utf-8") + "\nfeatures:\n"
+                              "  - id: route\n    title: 路由\n    description: 保留路由能力\n"
+                              "    source_refs: [EXP-test-agent-001]\n    evidence_refs: []\n"
+                              "fusion_sources:\n  - experiment_id: EXP-test-agent-002\n"
+                              f"    ref: git:{'a' * 40}\n", encoding="utf-8")
+            completed, payload = run_json(VALIDATE_EXPERIMENT, experiment)
+            self.assertEqual(completed.returncode, 0, json.dumps(payload, ensure_ascii=False))
+            change.write_text(change.read_text(encoding="utf-8").replace(f"git:{'a' * 40}", "git:latest"), encoding="utf-8")
+            completed, payload = run_json(VALIDATE_EXPERIMENT, experiment)
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("FUSION_SOURCES", error_codes(payload))
+
     def test_current_experiment_passes(self) -> None:
         experiment = ROOT / "evolution/experiments" / EXPERIMENT_ID
         completed, payload = run_json(VALIDATE_EXPERIMENT, experiment)

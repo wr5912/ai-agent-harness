@@ -1,0 +1,84 @@
+{
+  "at": "2026-10-15T09:26:17.166Z",
+  "scope": "PA-12/PA-05 平台及当前业务实例默认模型的实际运行验证；不属于业务Experiment Evaluation",
+  "platform": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "off",
+    "actual_hello_completed": true,
+    "home_preserved": true,
+    "asset_root_preserved": true
+  },
+  "instance": {
+    "deployment": {
+      "at": "2026-10-15T09:03:28.427596+00:00",
+      "container": "security-operations-expert-eval",
+      "image_unchanged": true,
+      "mounts_unchanged": true,
+      "model_env_matches_user_file": true,
+      "runtime_patch_present": true,
+      "home_preserved": true,
+      "business_assets_modified": false
+    },
+    "model_call": {
+      "at": "2026-10-15T09:06:30.450Z",
+      "scope": "现有业务实例默认模型实际调用；技术连接验证",
+      "session_id": "session-0b5c4451-406c-4093-9691-e00038138929",
+      "user_message_exact": true,
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "turn_reason": "completed",
+      "tool_call_count": 0,
+      "ok": true
+    }
+  },
+  "credentials": {
+    "source": "platform/credentials/models.llm-api-key",
+    "git_ignored": true,
+    "mode": "0600",
+    "runtime_environment_matches": true
+  },
+  "limits": [
+    "原生Session既有显式模型选择保留；本次验证使用新会话默认值。",
+    "业务实例末尾运行Patch固定默认字段，原生设置页不能持久覆盖这些字段；Session仍可显式选择模型。",
+    "只验证模型连接和UI合同，未运行真实业务融合或业务评测。"
+  ],
+  "source": {
+    "development_commit": "c6af2a4b9ec535e2f8b79e858424224a06f4a9ee",
+    "runtime_commit": "737f9a1d7564d2630194ea9b9c7d57c02a60b931",
+    "dirty": true,
+    "deployed_file_sha256": {
+      ".agents/skills/research-eval/scripts/validate_experiment.py": "d2350195cd5d985c783ba2f4575b950516a35a8bf14ad6276717f85fe0fb4c19",
+      "platform/dsh-platform": "e7d9282398455e3e6378df8bc82fb51c55fa9039418f6431395578363ee57b1c",
+      "platform/plugin/build.mjs": "1792ba47c0444d8d9b84f3193e139bd7ed8c716564a895564525fa08cf1e17af",
+      "platform/plugin/cordis.patch.yml": "dd86c0eb36f49d2ed9300f84c8d527506a5cf2e261b6bb0fdbc62bb7a2eab69e",
+      "platform/plugin/lib/client.js": "9cd7b57f8c5ba37d953540d8491f6d2e1d1773340005f3ef5d4dbac1ea2f19d2",
+      "platform/plugin/lib/index.js": "48bd3b8da21d629092250cf43875c68c50b241624f10eea1ece1653b2c8cb64f",
+      "platform/plugin/lib/mcp-manager.js": "b35cc66462c778fa8e837988f1f0d27e9855844e8ced2952df748ddb56422458",
+      "platform/plugin/package.json": "e353833ce8242529a7b006aedbbc473dbc2fa729701ac1f8eeb4663c98002cc6",
+      "platform/plugin/pnpm-lock.yaml": "c795a167b766cd6ccb5b1534496fbbccc1b83a47b1ac65e28fb0a0dd8f11af0b",
+      "platform/plugin/src/agents/client.tsx": "a790b51d2905614af994e26e3d5a3d9935e5e51d0f33ad4dd57840eef3ac4039",
+      "platform/plugin/src/agents/index.ts": "e0e61fc3d54507319238031c534aa5909b6c8ebf40634313fbb62368855ddad7",
+      "platform/plugin/src/agents/yaml.d.ts": "e72900a174681bf9bbd921090b74868137a37785bc3764efc17f9af03e0fc67d",
+      "platform/plugin/src/assistant/client.tsx": "41ab843141953c1f26f7cea6ba2b35dcbf5691d7e3983e057581634451fa2305",
+      "platform/plugin/src/assistant/index.ts": "2703dec800704fb54b06d6b37a2bafd61fc894ea71d40192abb74b49e4d76d1f",
+      "platform/plugin/src/assistant/mcp.ts": "729654a2e5f90b6feeb8ed92bb379ab4085240bd57f962f50d7f4e9b5b80b5e1",
+      "platform/plugin/src/catalog.ts": "c07bba63c077213872a8132e473ea663d6fbddcdb3ee8dffe4af3970de73cd8a",
+      "platform/plugin/src/client.tsx": "0ba105e0881d7b276cec56b71e25d7ef0cb901fc9060d45198404849eba26636",
+      "platform/plugin/src/conversation.ts": "9ccc31748467909cc130667ebcbce36f66a56498de695cf1133b8ae55dddf0da",
+      "platform/plugin/src/home.tsx": "7048cf7122e92fa2fdefd042fa21f14d2499e6334622ee3dd3206e5bfa4b56f4",
+      "platform/plugin/src/index.ts": "cc74ee667eaf3939f3f57074bdb3804ea23b6fa35873ac8af83ae24e1b33fd56",
+      "platform/plugin/src/instances/client.tsx": "34b6ea52c950a61016d91ca0f31f973410135e60fcc84ba1bf26a67995cb531e",
+      "platform/plugin/src/mcp/client.tsx": "a727ec293a37d36716aac9563ac75f86aa897b1808e6e6084f9ac0fc25fef6cc",
+      "platform/plugin/src/mcp/manager.ts": "a69850d655cf574d229d7913cc6f2dbc2adb05e6706df744b6d39f6b88c55041",
+      "platform/plugin/src/protocol.ts": "40f6ce33b9b12dfff3f54e4d5dd7c1dcce20323723e08265379b0bf2132bc098",
+      "platform/plugin/src/realtime/client.ts": "4f94b33a612e1f6f37a2ede6aa84ba44c122a3da0370b6ec95a5f3f7ab676852",
+      "platform/plugin/src/realtime/index.ts": "d62f5e773cb39b43cfea7aeff898018418e2dbb487cd55f4c312888caef132b8",
+      "platform/plugin/src/theme.ts": "708988121ac7e32b7787cebf9c269165483d08eea1f56ecbd5d6c9a339d454a8",
+      "runtime/adapters/dsh-container/dsh-dev": "f6ce07a633517d6562eb1beaa5415f885a70dbd35734603597e51882cc28bc82",
+      "runtime/adapters/dsh-container/run_record.py": "07617c1bb8c41aef0ce2f1823233d8beec2e0345c11b032b7c572cb6a4adc564",
+      "runtime/adapters/dsh-container/runtime-model.patch.yml": "af6d49c46c04db2df589b4953200993f730ffb8a753a6d6d2827a8ddfc20afe4"
+    }
+  }
+}

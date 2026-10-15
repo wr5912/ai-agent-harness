@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-15T09:57:38.201Z",
+  "scope": "PA-12 / 实际3090 / 仅读取现有待确认会话，检查确认区与原生聊天列对齐；不点击业务确认，不发模型请求",
+  "checks": [],
+  "measurements": [],
+  "pageErrors": [],
+  "ok": false,
+  "failure": "page.goto: net::ERR_EMPTY_RESPONSE at <url>\nCall log:\n\u001b[2m  - navigating to \"<url>\", waiting until \"load\"\u001b[22m\n\n    at /tmp/harness-proposals-layout-3090.mjs:14:13"
+}

@@ -1,0 +1,68 @@
+{
+  "at": "2026-10-15T11:12:04.492Z",
+  "scope": "PA-12 / 实际3090；首页真实发送两次你好，核对新任务进入时侧栏收起；不执行平台业务确认",
+  "checks": [
+    "宽屏新浏览器从首页真实发送你好，自动进入后原生侧栏收起",
+    "删除自建文字按钮，复用原生图标按钮、动态标签与原生点击行为；非悬停时只显示展开折叠图标",
+    "原生按钮可展开，普通跨页往返保留展开选择",
+    "此前手动展开后回首页再发送，新任务进入时仍默认收起",
+    "原生展开与收起按钮双向可用，不反向误切换",
+    "390px默认折叠、原生按钮可操作，品牌行布局和其他指定区域继续隐藏，无横向溢出",
+    "直接加载管理对话深链接时原生侧栏按钮可见且默认折叠"
+  ],
+  "pageErrors": [],
+  "states": [
+    {
+      "label": "fresh_home",
+      "collapsed": true,
+      "session_id": "session-c282d42e-eadb-4e3c-9cf7-996360dd9c6f"
+    },
+    {
+      "label": "home_after_manual_expand",
+      "collapsed": true,
+      "session_id": "session-7aa779ad-0f3b-41ac-a71e-de77f951463d"
+    }
+  ],
+  "native_control": {
+    "initial_label": "打开侧边栏",
+    "shortcut": null,
+    "class": "hHd-Xa_iconButton hHd-Xa_toggle",
+    "icons_without_hover": {
+      "panel": "block",
+      "brand": "none"
+    }
+  },
+  "mobile": {
+    "logoRowBox": false,
+    "brand": false,
+    "panelList": false,
+    "heroWorkspaceRow": false,
+    "scrollWidth": 390,
+    "viewport": 390
+  },
+  "ok": true,
+  "verification": {
+    "source_and_deployment_build": "passed",
+    "targeted_tests": {
+      "passed": 14,
+      "failed": 0
+    },
+    "browser_checks": 7,
+    "scope": "侧栏原生控件复用、首次进入与首页新任务默认状态；未进行全仓审查或业务Evaluation"
+  },
+  "runtime": {
+    "url": "http://10.0.160.32:3090/hap/",
+    "pid": 384301,
+    "source_root": "/home/admin/work/ai-agent-harness",
+    "head": "cae8a8c4417aa6f970cf3cd8f7cc925ff36d9a29",
+    "home": "/home/admin/.local/state/ai-agent-harness/platform/dsh-home",
+    "log": "/tmp/threat-composition-20261015-7d76x6i0/platform.log",
+    "stop_command": "tmux send-keys -t ai-agent-harness-platform-3090 C-c",
+    "sources": {
+      "platform/plugin/src/client.tsx": "083251e2b934846610d36fa94af46ed4412fd5d90ad3e4800cbc678752870c32",
+      "platform/plugin/src/conversation.ts": "72006e393ef7a02c26ca58db10445f148d03df0c3342519c4ad6683535d48600",
+      "platform/plugin/src/theme.ts": "868d447317c54f2c0fbe8b92785b90364370b30e6d596e8055b1195456b609f4"
+    },
+    "client_sha256": "a0653efa3e6fcda06d55659b327c38b25915b8fb104b583b2c423e72960367dc"
+  }
+}

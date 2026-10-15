@@ -164,6 +164,23 @@ class HarnessInitTest(unittest.TestCase):
 
 
 class RenderComposeTest(unittest.TestCase):
+    def test_runtime_model_policy_follows_candidate_and_optional_patches(self):
+        template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
+        for analysis_workspace in (False, True):
+            with self.subTest(analysis_workspace=analysis_workspace):
+                rendered = dev.render_compose(
+                    template, mode="verification", name="probe", project="dsh-dev-probe", port=3081,
+                    analysis_workspace=analysis_workspace, lan_access=not analysis_workspace,
+                    unsafe_no_auth=not analysis_workspace, skip_testing_notice=True,
+                )
+                policy = "      - /opt/dsh-adapter/runtime-model.patch.yml\n"
+                self.assertEqual(rendered.count(policy), 1)
+                self.assertIn(policy + "      - --no-open\n", rendered)
+                self.assertLess(rendered.index(dev.SKIP_TESTING_NOTICE_PATCH), rendered.index(policy))
+                if not analysis_workspace:
+                    self.assertLess(rendered.index("${DSH_MANAGED_PATCH"), rendered.index(policy))
+                    self.assertLess(rendered.index(dev.LAN_LISTEN_PATCH), rendered.index(policy))
+
     def test_verification_template_gets_host_network_and_port(self):
         template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
         rendered = dev.render_compose(

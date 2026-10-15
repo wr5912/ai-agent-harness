@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-15T09:24:49.066Z",
+  "scope": "实际3090；首页真实你好、默认模型、原生会话与上下文隐藏；无业务写入",
+  "checks": [
+    "首页真实你好只产生一条原文用户消息，deepseek-flash/off真实回复完成",
+    "默认聊天界面隐藏内部上下文，原生编辑器仅一个"
+  ],
+  "pageErrors": [],
+  "session_id": "session-4b57f9fb-cd62-40f8-927a-beb6f536f0f3",
+  "model": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "off"
+  },
+  "real_user_messages": [
+    "你好"
+  ],
+  "native_controls": {
+    "new_session": false,
+    "workspace": true,
+    "search": true,
+    "collapse": true
+  },
+  "ok": false,
+  "failure": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(report.native_controls.new_session)\n\n    at file:///tmp/harness-3090-final.mjs:35:197"
+}

@@ -1,0 +1,226 @@
+{
+  "observed_at": "2026-10-15T08:37:18.779332+00:00",
+  "scope": "PA-12；当前checkout插件、全局DSH 0.2.1-alpha.2、独立3093平台与独立XDG状态；只在LLM HTTP边界使用受控OpenAI兼容接口。原生Agent、工具注册/执行、Session事件、Settings持久化和GUI确认均为真实路径。",
+  "limitations": [
+    "受控模型按固定脚本发出工具调用，不证明真实模型的语义判断或融合能力。",
+    "未执行真实业务工具、变更业务Harness、创建/启停容器实例或修改3092/3090服务。"
+  ],
+  "session_id": "session-63220238-d9e3-4299-b1aa-4e06af6124ae",
+  "source": {
+    "git_commit": "c6af2a4b9ec535e2f8b79e858424224a06f4a9ee",
+    "dirty_worktree": true,
+    "platform_host_artifact_sha256_at_readback": "aabe722e705342f5bca3bb8b29eb18007cf818e6bd4ffdce58889e2165ca4cc7"
+  },
+  "service": {
+    "platform_port": 3093,
+    "model_stub_port": 3094,
+    "base_path": "/hap/",
+    "platform_home_isolated": true,
+    "instance_state_isolated": true,
+    "stopped_after_verification": true,
+    "isolated_home_retained": true
+  },
+  "checks": {
+    "platform_tools_in_real_llm_request": true,
+    "native_agent_executed_all_five_calls": true,
+    "native_results_keep_structured_operation_metadata": true,
+    "write_is_a_native_tool_proposal": true,
+    "confirmed_write_has_completed_native_settlement": true,
+    "isolated_profile_description_read_back": true,
+    "isolated_test_service_remains_disabled": true,
+    "native_agent_running_and_finished_observed": true,
+    "standard_session_discovers_fusion_and_research_skills": true,
+    "completed_proposal_restored_after_host_restart": true,
+    "cold_restore_does_not_issue_new_model_request": true
+  },
+  "model_requests": [
+    {
+      "step": 0,
+      "model": "fixture-tools",
+      "stream": true,
+      "requested_tool": "platform_agents",
+      "requested_action": "context",
+      "requested_tool_available": true,
+      "tool_reply_count": 0
+    },
+    {
+      "step": 1,
+      "model": "fixture-tools",
+      "stream": true,
+      "requested_tool": "platform_agents",
+      "requested_action": "list",
+      "requested_tool_available": true,
+      "tool_reply_count": 1
+    },
+    {
+      "step": 2,
+      "model": "fixture-tools",
+      "stream": true,
+      "requested_tool": "platform_instances",
+      "requested_action": "list",
+      "requested_tool_available": true,
+      "tool_reply_count": 2
+    },
+    {
+      "step": 3,
+      "model": "fixture-tools",
+      "stream": true,
+      "requested_tool": "platform_mcp",
+      "requested_action": "configuration",
+      "requested_tool_available": true,
+      "tool_reply_count": 3
+    },
+    {
+      "step": 4,
+      "model": "fixture-tools",
+      "stream": true,
+      "requested_tool": "platform_mcp",
+      "requested_action": "saveConfiguration",
+      "requested_tool_available": true,
+      "tool_reply_count": 4
+    },
+    {
+      "step": 5,
+      "model": "fixture-tools",
+      "stream": true,
+      "requested_tool": null,
+      "requested_action": null,
+      "requested_tool_available": true,
+      "tool_reply_count": 5
+    }
+  ],
+  "native_tool_results": [
+    {
+      "tool": "platform_agents",
+      "action": "context",
+      "call_id": "acceptance-0",
+      "native_event_sequence": 20,
+      "native_message_is_error": false,
+      "metadata_kind": null,
+      "operation_state": null,
+      "receipt_ok": true,
+      "proposal_id": null
+    },
+    {
+      "tool": "platform_agents",
+      "action": "list",
+      "call_id": "acceptance-1",
+      "native_event_sequence": 25,
+      "native_message_is_error": false,
+      "metadata_kind": "platform-operation",
+      "operation_state": "completed",
+      "receipt_ok": true,
+      "proposal_id": null
+    },
+    {
+      "tool": "platform_instances",
+      "action": "list",
+      "call_id": "acceptance-2",
+      "native_event_sequence": 30,
+      "native_message_is_error": false,
+      "metadata_kind": "platform-operation",
+      "operation_state": "completed",
+      "receipt_ok": true,
+      "proposal_id": null
+    },
+    {
+      "tool": "platform_mcp",
+      "action": "configuration",
+      "call_id": "acceptance-3",
+      "native_event_sequence": 35,
+      "native_message_is_error": false,
+      "metadata_kind": "platform-operation",
+      "operation_state": "completed",
+      "receipt_ok": true,
+      "proposal_id": null
+    },
+    {
+      "tool": "platform_mcp",
+      "action": "saveConfiguration",
+      "call_id": "acceptance-4",
+      "native_event_sequence": 41,
+      "native_message_is_error": false,
+      "metadata_kind": "platform-operation",
+      "operation_state": "awaiting_confirmation",
+      "receipt_ok": null,
+      "proposal_id": "a501f9f2-00dd-418d-8a34-c34187521ae5"
+    }
+  ],
+  "native_running_probe": {
+    "session_id": "session-22d29107-45ef-4f82-97d8-5be85278c903",
+    "running_seen": true,
+    "stopped_seen": true,
+    "no_proposals": true,
+    "model_delay_ms": 2000
+  },
+  "cold_recovery": {
+    "original_host_pid": 32777,
+    "confirmation_host_pid": 53163,
+    "restored_host_pid": 61431,
+    "same_isolated_home": true,
+    "same_session_id": true,
+    "same_completed_proposal_id": "a501f9f2-00dd-418d-8a34-c34187521ae5"
+  },
+  "standard_session_skills": [
+    "ai-correction-log",
+    "continuous-dev-progress-vs-project-vision-gap-assessment",
+    "dsh-platform-development",
+    "dsh-platform-task-list",
+    "harness-evolution",
+    "harness-experiment-fusion",
+    "harness-guided-workflow",
+    "legacy-asset-intake",
+    "mcp-composition",
+    "research-eval"
+  ],
+  "native_proposals": [
+    {
+      "id": "a501f9f2-00dd-418d-8a34-c34187521ae5",
+      "domain": "mcp",
+      "action": "saveConfiguration",
+      "initial_state": "awaiting_confirmation",
+      "settlement_states": [
+        "running",
+        "completed"
+      ],
+      "latest_receipt_ok": true,
+      "mutation_paths": [
+        [
+          "servers",
+          "0",
+          "description"
+        ]
+      ]
+    }
+  ],
+  "native_persistence": {
+    "format": "session.v4.jsonl.zstd",
+    "sha256": "5767986380a6d4e8593bf155b3e498d219ae4e1a524072a2da4e09b8e791bc8c",
+    "event_count": 66,
+    "event_types": {
+      "session": 1,
+      "permission/preset": 1,
+      "sandbox/mode": 1,
+      "approval/policy": 1,
+      "plugin:harness-platform/assistant": 12,
+      "agent/inbox/spliced": 4,
+      "turn/start": 2,
+      "step/start": 6,
+      "system/message": 1,
+      "user/message": 7,
+      "request/header": 2,
+      "request/context": 1,
+      "session/title": 1,
+      "assistant/message": 6,
+      "tool/call": 5,
+      "tool/result": 5,
+      "step/end": 6,
+      "turn/end": 2,
+      "session/end-seed": 2
+    },
+    "last_turn_reason": {
+      "kind": "completed"
+    }
+  },
+  "status": "passed"
+}

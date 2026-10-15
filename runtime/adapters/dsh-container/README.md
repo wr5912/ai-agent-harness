@@ -34,7 +34,7 @@ Candidate 的 Managed Patch 如加载带独立 Node 依赖的插件，先在该�
 
 `locked-user.patch.yml` 只读覆盖 HOME 级用户 Patch；Web Profile 的 `cordis.patch.yml` 留在实例 HOME 卷中，由 DSH Web 保存当前实例的设置（新版 DSH 的设置写入要求对该文件原子替换）。真正 **0 字节**的 `locked-global.AGENTS.md` 和只含注释的 `locked-bootstrap.env` 分别只读覆盖全局 Agent instructions 与 Boot 环境文件。模型/MCP Endpoint 和凭据只能由调用环境或 Runtime 受控凭据提供，不能由 Candidate 工作区改变。复用实例时须把 Web Profile 设置视为运行状态，而非 Candidate 资产；评估前核对其摘要或使用新实例。
 
-实例统一模型默认值由 [`runtime-model.patch.yml`](runtime-model.patch.yml) 的末尾运行覆盖维护，业务 Harness 中的旧默认值不会覆盖它。新增该覆盖前创建的实例需同名重建以加载启动参数，并保持原端口、HOME 和运行环境；无需重建镜像或回写 Candidate。API Key 继续通过调用环境或受控凭据服务提供，不写入此 Patch。
+`dsh-dev` 在来源 Managed Patch 和访问设置之后装载 [`runtime-model.patch.yml`](runtime-model.patch.yml)，将实例当前运行默认统一为 `deepseek-official/deepseek-flash`、推理强度 `off`、DeepSeek `thinking: disabled`。这会覆盖 Candidate 中的旧默认模型声明，不改写 Candidate、已有 Session 或历史 Run；已有 Session 的显式模型选择仍保留，核对默认时使用新 Session。该 Patch 是当前运行策略的唯一业务实例维护位置，调整后同名重建实例生效；新增覆盖前创建的实例同样需要重建，并保持原端口、HOME 和运行环境，无需重建镜像。原生会话仍可显式选择其他可用模型，但固定启动 Patch 会阻止“设置 → 模型”把被覆盖的默认模型或 Provider 字段保存到实例 Profile；MCP 等未覆盖设置仍可保存。API Key 继续通过调用环境或受控凭据服务提供，不写入此 Patch。
 
 Web Profile manifest 与本地 module 路径由受控文件和空的 deny-layer 锁定，避免从可写 HOME 装载私有 Plugin。EXP-007 选择自己的 `candidate/dsh/managed/web-profile.package.json`，将 `@deepseek-ai/dsh-experimental-schedule-bundle` 加入 Profile；其他来源仍使用默认 Web Profile。旧版 DSH 使用共享 fallback 卷中的安装链接；新版 DSH 使用原生模块解析，两种路径均须解析到镜像内 `/opt/dsh/`。旧 HOME 中被 deny-layer 隐藏的本地模块不会自动删除。
 

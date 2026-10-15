@@ -19,6 +19,19 @@ test('进入管理对话只切回原生会话面板，保留侧栏与工作区�
   }
 })
 
+test('首页新任务按原生实际状态收起，不反向展开已折叠的侧栏', () => {
+  for (const sidebarCollapsed of [true, false]) {
+    let toggles = 0
+    const layout = {
+      panelInfo: { getSnapshot: () => ({ activePanelId: null }) },
+      selectPanel: () => assert.fail('当前已经是会话面板'),
+      toggleSidebar: () => toggles++,
+    }
+    prepareConversation(layout, sidebarCollapsed)
+    assert.equal(toggles, sidebarCollapsed ? 0 : 1)
+  }
+})
+
 test('助手写操作等待用户确认，原生记录恢复状态且失败回执不标记成功', async t => {
   const root = new Context()
   let projections

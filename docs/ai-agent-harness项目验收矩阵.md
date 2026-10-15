@@ -21,7 +21,7 @@
 | 派生 | `PA-09` | 新 Preset 创建、登记、重载与选择闭环 | 部分验证 |
 | 记录 | `PA-10` | Research Run 的创建、记录、缺口与封存 | 已验证（机器范围） |
 | 复用 | `PA-11` | Research Release 打包、解析与复现装载 | 未实现 |
-| 平台 | `PA-12` | 全局 DSH 平台启动、认证与研究工具 | 部分验证；五页与全局启动已验证 |
+| 平台 | `PA-12` | 全局 DSH 平台启动、认证与研究工具 | 部分验证；六页与全局启动已验证 |
 
 状态含义：
 
@@ -181,8 +181,8 @@
 
 ### PA-12 全局 DSH 平台启动、认证与研究工具
 
-- **要回答**：研究者能否通过系统全局 DSH 装载平台插件，经平台密码登录使用首页、管理对话、智能体与评估、实例管理和 MCP 管理，并保持已有资产与 Run 的事实源连续。
-- **操作链**：`platform/dsh-platform prepare` → `start --dry-run` → `start` → 平台密码登录 → 五页真实操作 → 停止 → 重启并核对来源与会话 → 退出并拒绝旧 Cookie；入口与合同见[平台设计方案](platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。分工与完成标准见[四目录计划](platform-design/09_首轮实施Backlog与工作切片.md#6-已选第一阶段四目录并行计划)。
+- **要回答**：研究者能否通过系统全局 DSH 装载平台插件，经平台密码登录使用首页、管理对话、智能体管理、评测中心、实例管理和 MCP 管理，并保持已有资产与 Run 的事实源连续。
+- **操作链**：`platform/dsh-platform prepare` → `start --dry-run` → `start` → 平台密码登录 → 六页真实操作 → 停止 → 重启并核对来源与会话 → 退出并拒绝旧 Cookie；入口与合同见[平台设计方案](platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。分工与完成标准见[四目录计划](platform-design/09_首轮实施Backlog与工作切片.md#6-已选第一阶段四目录并行计划)。
 - **历史证据（2026-10-12）**：本分支当时的启动器 10 项测试、插件 8 项测试、TypeScript 构建及仓库合同校验通过。查询识别 2 个 Agent、20 个 Experiment、61 个 Run。来源提交 `5c0f50a` 记录的全局 DSH 和浏览器证据来自其他仓库状态，不能替代当前分支的实机验收。
 - **当前机器合同（2026-10-13）**：四个功能分支已在 `feat/platform-stage1-foundation` 集成；本轮插件 51 项、启动器 13 项、容器适配层 94 项测试通过；评测访问合同另通过 2 项 Python 测试及 1 项 API 执行器测试（覆盖五种认证响应），评测通道共用合同 6 项检查通过，仓库合同校验无错误或警告。插件覆盖实际 Cordis 注册、RPC 分派与取消、首页真实 Run 排序、智能体版本/编辑/失败恢复、旧 Run 限制与轨迹脱敏、实例生命周期与批量回执、MCP Session Header/有限 SSE/错误回执/只读组合。密码认证检查覆盖原生 API、三个写入域及 MCP 网关、旧 Token/Cookie 拒绝、Host/Origin 限制、会话持久化与过期、退出撤销、账号变更失效，以及配置损坏与卸载后保持拒绝访问。业务容器的免认证访问与平台密码登录分别验证。
 - **受控浏览器证据（2026-10-13）**：[14 项检查记录](../platform/plugin/test/evidence/stage1-browser-20261013.json)使用实际客户端构建产物和原生 Cordis WebServer/Connection，验证首页与标识、固定父提交派生、编辑预览与写入、旧 Run 和已有轨迹、实例预览失效、OpenAPI 调用及发布工具的两步执行；延迟响应不会覆盖新的智能体、文件或正文选择。页面载体与认证记录存储是受控夹具，未使用全局 DSH 壳。[桌面首页](../platform/plugin/test/evidence/stage1-home-desktop-20261013.png)及 375px 深色模式的[首页](../platform/plugin/test/evidence/stage1-home-mobile-20261013.png)、[智能体](../platform/plugin/test/evidence/stage1-agents-mobile-20261013.png)、[实例](../platform/plugin/test/evidence/stage1-instances-mobile-20261013.png)、[MCP](../platform/plugin/test/evidence/stage1-mcp-mobile-20261013.png)均保存；四页没有横向溢出或客户端页面错误。写入仅在临时资产克隆内发生，结束后清理。
@@ -213,9 +213,27 @@
 
 - **双站点基址与实际平台生效（2026-10-15）**：基址唯一配置在 [`sites.json`](../runtime/adapters/dsh-web/sites.json)，共用 TypeScript WebServer 适配器通过原生注册接口挂载，未引入反向代理或修改系统全局 DSH。共享适配器 8 项、平台插件 64 项、平台启动器 14 项、容器 CLI/评测访问 101 项及来源合同 20 项测试通过；MCP 受控协议测试覆盖分组和 Agent 内部 loopback 的新基址。项目合同校验无错误或警告。[隔离平台浏览器检查](../platform/plugin/test/evidence/web-base-platform-20261015.json)完成登录、退出、四页、真实 RPC、双向 WebSocket 和窄屏布局；[实际 3090 平台检查](../platform/plugin/test/evidence/web-base-platform-live-20261015.json)确认 `/hap/` 已重启生效，原 HOME、账号、编排及用户配置保持原样，旧协议入口不可用。现有平台没有已保存的 MCP 分组，链接仅用未保存草稿验证；未发送模型消息、调用真实 SOC 服务或验证另一设备连通性。业务容器的观察及限制见 `PA-05`，不提升其他研究结论或 Release 状态。
 
+- **AI 助手与版本融合机器合同（2026-10-15）**：`feat/PLATFORM-ai-assistant` 基于 `c6af2a4` 实施。插件 84 项测试、启动器 14 项、来源合同 20 项及 RunRecord/DshEval/ResearchEval 40 项相关 Python 测试通过，TypeScript 检查、构建和仓库合同校验通过。新增助手领域工具共用 GUI 业务实例，提案确认与回执保存于原生 Session；新版本确认来源、特性、冲突及所选 Case 口径后建立 Candidate，只有完整资产摘要、固定来源及真实封存 Run 验证匹配才完成。继承盘点读取固定提交中的关系，未完成、过时证据及后来修改的来源不抑制并行能力；`end` 仅在明确确认及固定来源、等效和资源证据引用齐全时排除。旧 Run 可读，但缺少新完整 Candidate 摘要的记录不充当新融合完成证明。Python 首轮暴露测试夹具复制活动分析缓存的竞争，排除该忽略缓存后定向复跑通过；既有记录未改写。
+- **AI 助手原生实机（2026-10-15）**：系统全局 DSH `0.2.1-alpha.2`、Node `v24.19.0`、本工作树构建及独立 HOME 下，[8 项浏览器检查](../platform/plugin/test/evidence/assistant-20261015-ui.json)验证首页无悬浮按钮、其他页入口、项目会话、单一原生编辑器、草稿保留、刷新恢复及 390/900/1440px 布局；[桌面](../platform/plugin/test/evidence/assistant-20261015-desktop.png)和[窄屏](../platform/plugin/test/evidence/assistant-20261015-mobile.png)保存实际画面。[真实工具与模型边界检查](../platform/plugin/test/evidence/assistant-tools-20261015.json)仅替换外部模型接口，原生 Agent 实际发现并调用三类平台工具，保存提案，经[可见卡片确认](../platform/plugin/test/evidence/assistant-20261015-card.json)修改临时 Profile 的非秘密描述，回读配置及持久回执；运行状态与标准 Session 的融合、研究技能目录均核实。[并发草稿检查](../platform/plugin/test/evidence/platform-realtime-drafts-20261015.json)使用真实 React 页面及受控 RPC/Settings 边界，覆盖草稿、过时响应、对象删除和进行中回执。保留[首次接入失败](../platform/plugin/test/evidence/assistant-20261015-ui-failures.json)：修正原生会话创建互斥参数、GET Fetch 请求体合同和未就绪引用后重跑通过。实际文件监听额度不足时降级一秒状态观察；未改宿主限制。此项隔离验证期间未切换原有 3090 平台、用户实例和业务资产；随后部署见下条。未运行真实业务融合或真实模型效果比较，不提升 Experiment 或 Research Release 状态。
+
+
+- **3090 生效与原生会话机制（2026-10-15）**：本次实现已定向部署到原平台运行目录，保持原资产根、HOME、账号、既有会话和最新 `EXP-security-operations-expert-020`。插件 90 项测试、启动器 17 项及容器适配器 100 项测试通过，类型检查、构建和仓库合同校验通过。[原生界面 10 项检查](../platform/plugin/test/evidence/assistant-native-20261015.json)覆盖工作区、会话菜单、搜索、分组、折叠、归档临时会话和跨工作区隔离；连续 12 轮浮窗与整页切换保留同 Session 和草稿，编辑器峰值为 1。[实际 3090 检查](../platform/plugin/test/evidence/assistant-3090-final-20261015.json)从首页真实发送“你好”，核对用户消息仅原文、内部上下文默认隐藏、原生控件、独立助手图标、版本入口及实时通道，页面异常为零。[原生确认续接](../platform/plugin/test/evidence/assistant-context-native-20261015.json)仅替换外部模型 HTTP 接口，证明同一打开的 turn 在确认前等待原工具、确认后返回真实工具结果并自然继续；日志只有一条真实用户输入，重复确认不重复业务写入。会话投影与系统提示的当前合同及冷恢复限制见 [03](platform-design/03_存储架构与数据契约.md#当前助手与版本数据)。总回归首轮使用了 shell 默认 Python 3.8，且认证夹具未提供新增原生服务；切换实际运行使用的 Python 3.10 并补齐夹具后 90 项全部通过。保留[首轮浏览器记录](../platform/plugin/test/evidence/assistant-3090-final-first-20261015.json)与[第二轮记录](../platform/plugin/test/evidence/assistant-3090-final-second-20261015.json)：分别未等待首页就绪、未对齐原生“新建会话”标签，修正探针后通过。没有修改业务 Candidate 或历史 Run，没有运行真实业务融合。
+- **平台与业务实例默认模型（2026-10-15）**：[实际配置与调用证据](../platform/plugin/test/evidence/model-defaults-20261015.json)确认 3090 平台及现有业务实例的新会话均使用 `deepseek-official/deepseek-flash`、推理强度 `off`，真实调用完成。平台启动器从本地忽略的 `models.llm-api-key` 注入模型变量；业务实例复用同一镜像、挂载和 HOME 重建以更新运行环境，Candidate 与历史 Run 不变。平台默认可由原生设置覆盖；业务实例末尾运行 Patch 固定这些默认字段，Session 仍可显式选择模型。原有 Session 的显式选择保留。本项只证明默认模型和连接，不构成业务 Evaluation。
+
+
+- **首页会话创建登记（2026-10-15）**：针对实际首页的 `sessions.retain: unknown session`，改用 DSH 客户端原生 `sessions.create` 即时登记和 `sessions.using` 就绪检查，再向同一会话投递真实任务；已有任务按原身份接续。绑定异常也会释放选择状态。新增回归覆盖列表通知尚未到达、绑定失败不投递任务以及同步绑定异常后继续恢复；客户端 10 项、插件最终 93 项测试和构建全部通过。[修复后实际 3090 检查](../platform/plugin/test/evidence/assistant-registration-3090-20261015.json)确认报错时的原会话保留，首页再次发送“你好”成功、用户消息保持原文、模型为 `deepseek-flash/off`，原生会话控件和实时通道保留，页面异常为零。运行目录两处前端源码/制品已同步并复用原 HOME 重启；未重发或删除用户报错时的消息。
+
+
+- **管理对话精简布局（2026-10-15）**：[实际 3090 检查](../platform/plugin/test/evidence/conversation-compact-3090-20261015.json)确认品牌行、全局面板列表和欢迎区工作空间行保持隐藏，1440px 与 390px 初次加载默认折叠原生会话侧栏；面包屑旁的按钮调用原生切换，展开后会话列表、工作区、搜索和分组菜单可用，页面往返保留用户选择。宽度、折叠及产物定向检查 3 项通过，类型检查和构建通过。
+- **确认卡片与聊天列对齐（2026-10-15）**：`conversation.input.dock` 按原生合同占整行，平台确认区通过两层容器复用原生聊天列的宽度变量与左右留白。[修复前测量](../platform/plugin/test/evidence/proposal-column-3090-20261015-before.json)中，1857px 页面确认区宽 1598px，聊天列宽 920px；[部署后实测](../platform/plugin/test/evidence/proposal-column-3090-20261015-after.json)两者均为 `x=591、width=920`。侧栏展开、480px 助手浮窗、390px 管理页与窄屏浮窗均准确对齐，无横向溢出，单一原生编辑器与长内容滚动保持，确认按钮可达；没有点击业务确认或调用模型。保存[桌面](../platform/plugin/test/evidence/proposal-column-3090-20261015-after-desktop.png)、[浮窗](../platform/plugin/test/evidence/proposal-column-3090-20261015-after-floating.png)和[手机](../platform/plugin/test/evidence/proposal-column-3090-20261015-after-mobile.png)实际画面。源工作树与实际运行目录均完成类型检查和构建，12 项定向检查通过。保留[重启后过早访问的首次探针](../platform/plugin/test/evidence/proposal-column-3090-20261015-startup-attempt.json)；等待认证入口可达后实测通过。原运行目录较新的实例访问和融合校验改动保留，仅同步本次相关源码并从当前源码构建，继续使用原 HOME 与业务资产。
+
 - **智能体管理与独立评测中心（2026-10-15）**：平台新增评测中心，智能体管理使用概览、Harness 资产、能力状态、运行情况四个标签，保留原有 AI 助手、融合版本、特性确认和实例启动。评测中心以测试用例、评测运行、结果比较组织；共享用例可按项保存，Run 报告、动态轨迹清单及报告/单文件/ZIP 下载使用同一原生认证。插件 103 项、仓库及 Run 校验器 65 项、启动器 14 项、评测驱动共 10 项及冻结竞态回归 2 项通过，仓库合同校验无错误或警告。[合并后隔离浏览器记录](../platform/plugin/test/evidence/evaluation-integrated-preview-20261015.json)验证真实全局 DSH 登录、保存与恢复用例、精确深链与前进后退、助手与会话侧栏，以及 1440/900/390px 无横向溢出；客户端错误为零。实际下载上述新 Run 的 21 项 ZIP，最大单文件 180337 字节，逐文件长度与导出清单一致。隔离浏览器没有发送模型消息；模型运行及归因限制见 `PA-10`。
 
 - **3090 实际平台复验（2026-10-15）**：[实际浏览器记录](../platform/plugin/test/evidence/evaluation-live-3090-20261015.json)确认六个导航入口、默认地址补全不造成后退陷阱、研究版本与 Run 深链、报告和完整 ZIP、动态轨迹文件、前进后退、原生会话侧栏和 AI 浮窗；1440/900/390px 无横向溢出，客户端错误为零。源工作树仍是 `/home/admin/work/ai-agent-harness`，原 HOME、账号、模型凭据、工具目录及用户 Profile 均保留；[机器检查与运行状态](../platform/plugin/test/evidence/evaluation-validation-20261015.json)记录进程、日志和停止方式。用例写入在隔离工作树验证后恢复原文，实际 3090 复验只读；未创建新业务版本、启停用户既有实例或修改外部服务。
+
+- **原生侧栏按钮与首页新任务（2026-10-15）**：拉取最新 `cae8a8c` 后保留本地有效改动，移除自建面包屑按钮，保留 DSH 原生按钮及点击行为，仅展示原生展开折叠图标，品牌区域保持精简。[修复前复现](../platform/plugin/test/evidence/native-toggle-home-3090-20261015-before.json)确认此前手动展开后，从首页创建新任务会继承展开状态；会话进入处理现在按原生 frame 的实际折叠状态落实首次进入和首页新任务的收起意图，已折叠时不反向切换，普通跨页保留用户选择。[实际 3090 的 7 项检查](../platform/plugin/test/evidence/native-toggle-home-3090-20261015-after.json)覆盖两次真实首页“你好”、原生图标、双向折叠、跨页选择、390px 与管理对话深链接，页面异常为零。保存[桌面](../platform/plugin/test/evidence/native-toggle-home-3090-20261015-after-desktop.png)和[手机](../platform/plugin/test/evidence/native-toggle-home-3090-20261015-after-mobile.png)实际画面。两处工作树构建及 14 项定向检查通过。[首次探针](../platform/plugin/test/evidence/native-toggle-home-3090-20261015-attempt01.json)因错误假定原生按钮一定配置快捷键而中断；原生未配置该快捷键，移除该假定后通过。保留本地未提交改动及拉取前备份，没有执行待确认的业务操作。
+
+- **本轮提交前回归（2026-10-15）**：基于最新 `cae8a8c`，插件类型检查、构建及 130 项 Node 检查、启动器 17 项、容器适配器 100 项和仓库验证器 66 项检查全部通过，共 313 项。凭据测试夹具已与启动器的 JSON 合同一致；验证器的子进程同样通过显式 PATH 使用 Python 3.10，避免 shell 默认 Python 3.8 误报。提交范围的文档本地链接、JSON/JSONL 解析、差异空白与实际凭据排除检查通过。上述范围不替代业务 Experiment Evaluation 或 Research Release 复现。
 
 ## 4. 为什么是 12 条
 
@@ -232,7 +250,7 @@
 | Preset 创建、登记、重载和选择 | `PA-09` |
 | `run_record.py` 的 Run 记录、索引、查看与比较 | `PA-10` |
 | Research Release 清单、解析和复现 | `PA-11` |
-| `platform/dsh-platform`、平台 Cordis Host/客户端、平台密码登录、五页研究工具与 MCP Gateway | `PA-12` |
+| `platform/dsh-platform`、平台 Cordis Host/客户端、平台密码登录、六页研究工具与 MCP Gateway | `PA-12` |
 
 单元测试、负向样例、日志和证据文件用于证明某条路径，不因数量增加而成为新的一级路径。某个 Experiment 使用 1 个还是 100 个输入，也不改变项目级路径总数。
 

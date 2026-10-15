@@ -1,0 +1,84 @@
+{
+  "observed_at": "2026-10-15T09:18:00.588168+00:00",
+  "scope": "PA-12；全局DSH原生Session、Agent loop、Tool和Settings，独立3093平台/HOME与3094受控LLM HTTP边界；不触碰3090或业务资产。",
+  "checks": {
+    "real_user_message_count_is_one": true,
+    "real_user_prompt_is_unchanged": true,
+    "policy_is_in_system_message": true,
+    "context_is_in_system_message": true,
+    "tool_pending_until_confirmation": true,
+    "same_open_turn_across_confirmation": true,
+    "native_tool_result_keeps_operation_metadata": true,
+    "native_loop_continued_after_actual_tool_result": true,
+    "one_business_mutation_despite_duplicate_confirmation": true,
+    "native_turn_finished_successfully": true
+  },
+  "status": "passed",
+  "source": {
+    "git_commit": "c6af2a4b9ec535e2f8b79e858424224a06f4a9ee",
+    "dirty_worktree": true,
+    "loaded_host_artifact_sha256": "2029cb5dcdea6e16f5c9fdf4420d939660b6ddefdd7f6822f5c22b4d22d182ab"
+  },
+  "session_id": "session-28e25dc0-b57c-4f02-aa42-f159ece17f7b",
+  "proposal_id": "286cf79f-b62a-472e-bdb2-cf64fe074f27",
+  "native_user_message_sources": {
+    "user": 1,
+    "agent-instructions": 1,
+    "runtime-context": 1,
+    "skill-catalog": 1,
+    "time-context": 1
+  },
+  "native_order": {
+    "write_tool_call": 39,
+    "proposal": 40,
+    "running": 41,
+    "completed": 42,
+    "same_tool_result": 43
+  },
+  "native_event_count": 50,
+  "native_tool_call_count": 5,
+  "native_tool_result_count": 5,
+  "model_requests": [
+    {
+      "step": 0,
+      "requested_tool": "platform_agents",
+      "requested_action": "context",
+      "tool_reply_count": 0
+    },
+    {
+      "step": 1,
+      "requested_tool": "platform_agents",
+      "requested_action": "list",
+      "tool_reply_count": 1
+    },
+    {
+      "step": 2,
+      "requested_tool": "platform_instances",
+      "requested_action": "list",
+      "tool_reply_count": 2
+    },
+    {
+      "step": 3,
+      "requested_tool": "platform_mcp",
+      "requested_action": "configuration",
+      "tool_reply_count": 3
+    },
+    {
+      "step": 4,
+      "requested_tool": "platform_mcp",
+      "requested_action": "saveConfiguration",
+      "tool_reply_count": 4
+    },
+    {
+      "step": 5,
+      "requested_tool": null,
+      "requested_action": null,
+      "tool_reply_count": 5
+    }
+  ],
+  "limits": [
+    "模型接口按固定脚本发出工具调用，只证明原生工具等待确认与续接合同，不证明模型语义判断或业务融合能力。",
+    "独立Profile仅修改一个禁用测试服务的description；未调用真实业务接口。",
+    "原生框架自身的agent-instructions/runtime-context/skill-catalog/time-context快照与用户消息分别计数。"
+  ]
+}

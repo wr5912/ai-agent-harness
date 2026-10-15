@@ -1,0 +1,24 @@
+{
+  "at": "2026-10-15T10:41:47.520Z",
+  "scope": "PA-12 / 实际3090；首页真实发送两次你好，核对新任务进入时侧栏收起；不执行平台业务确认",
+  "checks": [
+    "宽屏新浏览器从首页真实发送你好，自动进入后原生侧栏收起",
+    "原生按钮可展开，普通跨页往返保留展开选择",
+    "复现：首页第二个新任务继承了此前展开状态"
+  ],
+  "pageErrors": [],
+  "states": [
+    {
+      "label": "fresh_home",
+      "collapsed": true,
+      "session_id": "session-bdacd612-ff65-44ff-bd40-328c6de05766"
+    },
+    {
+      "label": "home_after_manual_expand",
+      "collapsed": false,
+      "session_id": "session-c29fadbb-a464-4e89-96aa-df74dec35507"
+    }
+  ],
+  "reproduced": true,
+  "ok": true
+}

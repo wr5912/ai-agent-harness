@@ -11,6 +11,8 @@ import sys
 import tempfile
 import time
 import unittest
+import runpy
+from unittest import mock
 
 
 PLATFORM = Path(__file__).resolve().parent
@@ -142,6 +144,48 @@ if sys.argv[1:] == ["run", "build"]:
         self.prepare()
         self.assertEqual(session.read_text(), "retained")
         self.assertFalse(Path(self.env["DSH_HOME"]).exists())
+
+    def test_model_credentials_only_enter_runtime_environment_with_explicit_values_first(self):
+        credentials = self.repo / "platform/credentials/models.llm-api-key"
+        credentials.parent.mkdir(exist_ok=True)
+        content = json.dumps({
+            "DEEPSEEK_API_KEY": "fixture-file-key",
+            "LOCAL_LLM_BASE_URL": "http://127.0.0.1:8000",
+            "LOCAL_LLM_API_KEY": "fixture-local-key",
+            "UNRELATED_VALUE": "must-not-enter-environment",
+        })
+        credentials.write_text(content)
+        namespace = runpy.run_path(str(self.launcher))
+        with mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "fixture-explicit-key"}, clear=True):
+            environment = namespace["runtime_environment"](self.home)
+            self.assertEqual(dict(os.environ), {"DEEPSEEK_API_KEY": "fixture-explicit-key"})
+        self.assertEqual(environment["DEEPSEEK_API_KEY"], "fixture-explicit-key")
+        self.assertEqual(environment["LOCAL_LLM_BASE_URL"], "http://127.0.0.1:8000")
+        self.assertEqual(environment["LOCAL_LLM_API_KEY"], "fixture-local-key")
+        self.assertNotIn("UNRELATED_VALUE", environment)
+        self.assertEqual(environment["HARNESS_ASSET_ROOT"], str(self.repo))
+        self.assertEqual(credentials.read_text(), content)
+
+    def test_absent_model_credentials_preserve_launch_environment(self):
+        namespace = runpy.run_path(str(self.launcher))
+        with mock.patch.dict(os.environ, {"LOCAL_LLM_API_KEY": "fixture-explicit"}, clear=True):
+            environment = namespace["runtime_environment"](self.home)
+        self.assertEqual(environment, {
+            "LOCAL_LLM_API_KEY": "fixture-explicit",
+            "DSH_HOME": str(self.home), "HARNESS_ASSET_ROOT": str(self.repo),
+        })
+
+    def test_invalid_model_credentials_never_disclose_contents(self):
+        credentials = self.repo / "platform/credentials/models.llm-api-key"
+        credentials.parent.mkdir(exist_ok=True)
+        namespace = runpy.run_path(str(self.launcher))
+        for content in ('{"DEEPSEEK_API_KEY": "fixture-sensitive"', '["fixture-sensitive"]', '{"DEEPSEEK_API_KEY": 123}'):
+            with self.subTest(content=content):
+                credentials.write_text(content)
+                with mock.patch.dict(os.environ, {}, clear=True), self.assertRaises(namespace["PlatformError"]) as error:
+                    namespace["runtime_environment"](self.home)
+                self.assertNotIn("fixture-sensitive", str(error.exception))
+                self.assertNotIn("123", str(error.exception))
 
     def test_dry_run_is_read_only_and_reports_runtime_contract(self):
         self.prepare()

@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
 import { build } from 'esbuild'
+import { load as loadYaml } from 'js-yaml'
 
 const repo = new URL('../../../', import.meta.url).pathname
 const plugin = new URL('../', import.meta.url).pathname
@@ -153,6 +154,198 @@ test('agents detail reads manifest, selectable versions, real cases, refs and ed
   } finally {
     await rm(fx.root, { recursive: true, force: true })
   }
+})
+
+const sampleFeatures = [{ id: 'route', title: '意图路由', description: '按需求路由到对应能力。', source_refs: ['EXP-test-agent-001'], evidence_refs: [], change: '保留既有路由' }]
+
+function versionRequest(commit, extra = {}) {
+  return { agent_id: 'test-agent', parent_experiment_id: 'EXP-test-agent-001', parent_ref: `git:${commit}`, research_question: '在保留既有能力时验证新增行为', ...extra }
+}
+
+function fusionPlan(sources = []) {
+  return { sources, features: sampleFeatures, conflicts: [], checks: [{ id: 'actual-load', kind: 'load' }, { id: 'route-behavior', kind: 'capability', case_ids: ['U-CASE-001'] }] }
+}
+
+function addVersion(root, id, fields) {
+  const base = join(root, `evolution/experiments/${id}`)
+  cpSync(join(root, 'evolution/experiments/EXP-test-agent-001/candidate'), join(base, 'candidate'), { recursive: true })
+  write(join(base, 'change.yaml'), `schema_version: '1.0'\nexperiment_id: ${id}\nagent_id: test-agent\n${fields.includes('baseline_ref:') ? '' : 'baseline_ref: none:first-experiment\n'}${fields}`)
+  write(join(base, 'hypothesis.md'), '# 比较\n\n验证并行来源的能力。\n')
+  write(join(base, 'evaluation/observations.md'), '# 观察\n\n独立测试夹具。\n')
+  write(join(base, 'decision.md'), '# Decision\n\n状态：adopt\n')
+  const sourceFile = join(root, 'runtime/adapters/dsh-container/sources.json')
+  const sources = JSON.parse(readFileSync(sourceFile, 'utf8'))
+  sources.sources[id] = { ...sources.sources['EXP-test-agent-001'], candidate_root: `evolution/experiments/${id}/candidate/dsh` }
+  write(sourceFile, JSON.stringify(sources))
+}
+
+function commitFixture(root, message) {
+  run(root, 'git', ['add', '.'])
+  run(root, 'git', ['commit', '-m', message])
+  return run(root, 'git', ['rev-parse', 'HEAD'])
+}
+
+test('特性确认使用嵌套 YAML 唯一来源，Run index 与新 Run 仍能读取，过时草稿不覆盖资产', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const preview = await rpc(handler, 'features/preview', { experiment_id: 'EXP-test-agent-001', features: sampleFeatures })
+    await assert.rejects(() => rpc(handler, 'features/apply', { preview_id: preview.preview_id }), /confirmation_required/)
+    await rpc(handler, 'features/apply', { preview_id: preview.preview_id, confirmed: true })
+    const change = loadYaml(readFileSync(join(fx.root, 'evolution/experiments/EXP-test-agent-001/change.yaml'), 'utf8'))
+    assert.deepEqual(change.fusion_sources, ['EXP-test-agent-000'])
+    assert.deepEqual(change.features, sampleFeatures)
+    assert.equal((await rpc(handler, 'detail', { agent_id: 'test-agent' })).features[0].verification, '尚未验证')
+    assert.equal((await rpc(handler, 'runs/index', { agent_id: 'test-agent' })).experiments[0].experiment_id, 'EXP-test-agent-001')
+    const runId = run(fx.root, 'python3', ['runtime/adapters/dsh-container/run_record.py', 'init', '--source', 'experiment:EXP-test-agent-001', '--case', 'U-CASE-001', '--review-mode', 'none'])
+    assert.match(runId, /^run-/)
+    const stale = await rpc(handler, 'features/preview', { experiment_id: 'EXP-test-agent-001', features: [] })
+    write(join(fx.root, 'evolution/experiments/EXP-test-agent-001/candidate/harness.yaml'), 'name: changed\n')
+    await assert.rejects(() => rpc(handler, 'features/apply', { preview_id: stale.preview_id, confirmed: true }), /conflict/)
+    assert.deepEqual(loadYaml(readFileSync(join(fx.root, 'evolution/experiments/EXP-test-agent-001/change.yaml'), 'utf8')).features, sampleFeatures)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('融合盘点使用固定来源图，end 必须用户确认等效和资源证据，去掉可恢复的重复祖先', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    addVersion(fx.root, 'EXP-test-agent-002', 'status: completed\noutcome: adopt\n')
+    const secondCommit = commitFixture(fx.root, 'parallel capability')
+    const changes = {
+      'EXP-test-agent-003': `status: completed\noutcome: adopt\nparent_experiment_id: EXP-test-agent-002\nbaseline_ref: git:${secondCommit}\n`,
+      'EXP-test-agent-004': `status: completed\noutcome: reject\n`,
+      'EXP-test-agent-005': `status: completed\noutcome: adopt\nvariant_kind: end\nparent_experiment_id: EXP-test-agent-001\nbaseline_ref: git:${fx.commit}\nequivalence_evidence_refs:\n  - agents/test-agent/evaluation.md\n`,
+      'EXP-test-agent-006': `status: active\nvariant_kind: end\n`,
+      'EXP-test-agent-007': `status: completed\noutcome: adopt\nvariant_kind: end\nparent_experiment_id: EXP-test-agent-001\nbaseline_ref: git:${fx.commit}\nend_confirmed: true\nequivalence_evidence_refs:\n  - evolution/experiments/EXP-test-agent-007/evaluation/equivalence.md\nresource_evidence_refs:\n  - evolution/experiments/EXP-test-agent-007/evaluation/resources.md\n`,
+    }
+    for (const [id, fields] of Object.entries(changes)) addVersion(fx.root, id, fields)
+    write(join(fx.root, 'evolution/experiments/EXP-test-agent-007/evaluation/equivalence.md'), '用户确认：本次比较范围内效果等效。\n')
+    write(join(fx.root, 'evolution/experiments/EXP-test-agent-007/evaluation/resources.md'), '用户确认：已核对模型及资源差异。\n')
+    commitFixture(fx.root, 'recoverable derived versions')
+    const value = await rpc(createAgentsHandler(fx.root), 'fusion/preview', versionRequest(fx.commit))
+    assert.deepEqual(value.inventory.superseded, ['EXP-test-agent-002'])
+    assert.equal(value.inventory.sources.find(row => row.experiment_id.endsWith('003')).status, 'recommended')
+    assert.equal(value.inventory.sources.find(row => row.experiment_id.endsWith('004')).status, 'excluded')
+    assert.equal(value.inventory.sources.find(row => row.experiment_id.endsWith('005')).status, 'needs_review')
+    assert.equal(value.inventory.sources.find(row => row.experiment_id.endsWith('006')).status, 'needs_review')
+    assert.equal(value.inventory.sources.find(row => row.experiment_id.endsWith('007')).status, 'excluded')
+    assert.equal(value.inventory.sources.some(row => row.experiment_id.endsWith('099')), false)
+    assert.equal(value.plan_ready, false)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('固定父版不会读取后来工作树的融合声明，过时完成标记和发生变化的来源不能抑制并行能力', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    addVersion(fx.root, 'EXP-test-agent-002', 'status: completed\noutcome: adopt\n')
+    write(join(fx.root, 'evolution/experiments/EXP-test-agent-002/candidate/dsh/workspace/parallel.txt'), 'parallel capability\n')
+    const sourceCommit = commitFixture(fx.root, 'source before fusion')
+    const parentChange = join(fx.root, 'evolution/experiments/EXP-test-agent-001/change.yaml')
+    write(parentChange, `schema_version: '1.0'\nexperiment_id: EXP-test-agent-001\nagent_id: test-agent\nbaseline_ref: none:first-experiment\nstatus: active\nfusion_sources:\n  - experiment_id: EXP-test-agent-002\n    ref: git:${sourceCommit}\ncreation:\n  status: completed\n  candidate_sha256: stale\n  source_sha256: stale\n  plan: {}\n  receipts: []\n`)
+    const handler = createAgentsHandler(fx.root)
+    const before = await rpc(handler, 'fusion/preview', versionRequest(fx.commit))
+    assert.deepEqual(before.inventory.covered, ['EXP-test-agent-001'])
+    assert.ok(before.inventory.sources.some(row => row.experiment_id === 'EXP-test-agent-002'))
+    const staleCommit = commitFixture(fx.root, 'stale completion cannot establish inheritance')
+    const stale = await rpc(handler, 'fusion/preview', versionRequest(staleCommit))
+    assert.equal(stale.inventory.covered.includes('EXP-test-agent-002'), false)
+    write(parentChange, `schema_version: '1.0'\nexperiment_id: EXP-test-agent-001\nagent_id: test-agent\nbaseline_ref: none:first-experiment\nstatus: active\nfusion_sources:\n  - experiment_id: EXP-test-agent-002\n    ref: git:${sourceCommit}\n`)
+    write(join(fx.root, 'evolution/experiments/EXP-test-agent-001/candidate/dsh/workspace/parallel.txt'), 'parallel capability\n')
+    const fusedCommit = commitFixture(fx.root, 'fixed declaration with included assets')
+    const covered = await rpc(handler, 'fusion/preview', versionRequest(fusedCommit))
+    assert.ok(covered.inventory.covered.includes('EXP-test-agent-002'))
+    write(join(fx.root, 'evolution/experiments/EXP-test-agent-002/candidate/dsh/workspace/new.txt'), 'later capability\n')
+    const changed = await rpc(handler, 'fusion/preview', versionRequest(fusedCommit))
+    assert.equal(changed.inventory.covered.includes('EXP-test-agent-002'), false)
+    assert.equal(changed.inventory.sources.find(row => row.experiment_id === 'EXP-test-agent-002').status, 'needs_review')
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('确认前不创建，固定来源路径随 Candidate 重定位，重复确认不重建且保留融合状态与原会话', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const sourceFile = join(fx.root, 'runtime/adapters/dsh-container/sources.json')
+    const sources = JSON.parse(readFileSync(sourceFile, 'utf8'))
+    sources.sources['EXP-test-agent-001'].profile_manifest = 'evolution/experiments/EXP-test-agent-001/candidate/dsh/managed/web-profile.package.json'
+    write(sourceFile, JSON.stringify(sources))
+    write(join(fx.root, sources.sources['EXP-test-agent-001'].profile_manifest), '{"name":"fixture-profile"}\n')
+    run(fx.root, 'git', ['add', '.'])
+    run(fx.root, 'git', ['commit', '-m', 'profile'])
+    const commit = run(fx.root, 'git', ['rev-parse', 'HEAD'])
+    const handler = createAgentsHandler(fx.root)
+    const preview = await rpc(handler, 'fusion/preview', versionRequest(commit, { plan: fusionPlan(), assistant_session_id: 'session-fixture' }))
+    assert.equal((await rpc(handler, 'list')).experiments.length, 1)
+    assert.equal((await rpc(handler, 'fusion/proposal', { agent_id: 'test-agent' })).proposal.assistant_session_id, 'session-fixture')
+    const created = await rpc(handler, 'fusion/confirm', { preview_id: preview.preview_id, confirmed: true })
+    assert.equal(created.creation_status, 'integrating')
+    const source = JSON.parse(readFileSync(sourceFile, 'utf8')).sources[created.experiment_id]
+    assert.equal(source.profile_manifest, `evolution/experiments/${created.experiment_id}/candidate/dsh/managed/web-profile.package.json`)
+    const status = await rpc(handler, 'fusion/status', { experiment_id: created.experiment_id })
+    assert.equal(status.creation.assistant_session_id, 'session-fixture')
+    assert.deepEqual(status.creation.plan.features, sampleFeatures)
+    await assert.rejects(() => rpc(handler, 'fusion/confirm', { preview_id: preview.preview_id, confirmed: true }), /preview_expired/)
+    await assert.rejects(() => rpc(handler, 'fusion/finalize', { experiment_id: created.experiment_id, expected_candidate_sha256: status.candidate_sha256 }), /verification_incomplete/)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('融合方案锁定已选 Case 口径，确认前改变预期必须重新预览', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const preview = await rpc(handler, 'fusion/preview', versionRequest(fx.commit, { plan: fusionPlan() }))
+    const evaluation = join(fx.root, 'agents/test-agent/evaluation.md')
+    write(evaluation, readFileSync(evaluation, 'utf8').replace('返回 pong。', '返回新标准。'))
+    await assert.rejects(() => rpc(handler, 'fusion/confirm', { preview_id: preview.preview_id, confirmed: true }), /conflict/)
+    assert.equal((await rpc(handler, 'list')).experiments.length, 1)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('融合必须有封存 Run 的目标来源、资产 hash 与实际 Session 证据，模型声明不构成完成', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const preview = await rpc(handler, 'fusion/preview', versionRequest(fx.commit, { plan: fusionPlan() }))
+    const created = await rpc(handler, 'fusion/confirm', { preview_id: preview.preview_id, confirmed: true })
+    const id = created.experiment_id
+    const status = await rpc(handler, 'fusion/status', { experiment_id: id })
+    const expected = { experiment_id: id, expected_candidate_sha256: status.candidate_sha256 }
+    const runArgs = ['runtime/adapters/dsh-container/run_record.py']
+    const runId = run(fx.root, 'python3', [...runArgs, 'init', '--source', `experiment:${id}`, '--case', 'U-CASE-001', '--review-mode', 'none'])
+    const base = join(fx.root, `evolution/experiments/${id}/runs/${runId}`)
+    await assert.rejects(() => rpc(handler, 'fusion/verify', { ...expected, check_id: 'actual-load', run_id: runId, loaded: true }), /verification_failed/)
+    write(join(base, 'evidence/U-CASE-001/response.json'), '{"assistant_texts":["pong"]}')
+    write(join(base, 'evidence/U-CASE-001/trace.jsonl'), '{"event":{"type":"session/created","createdAt":1}}\n')
+    write(join(base, 'evidence/U-CASE-001/checks.json'), '{"session_id":"fixture-session","preset_matches":true,"workspace_matches":true}')
+    write(join(base, 'evidence/dsh-image.json'), JSON.stringify({ source_id: `experiment:${id}`, local_image_id: `sha256:${'1'.repeat(64)}` }))
+    write(join(fx.root, 'trial.json'), JSON.stringify({ run_id: runId, trial_id: 'trial-1', input_id: 'U-CASE-001', execution_status: 'completed', verdict: 'passed', observation: '独立夹具模拟外部 Runtime 的 pong 回执', evidence_ref: 'evidence/U-CASE-001/response.json' }))
+    run(fx.root, 'python3', [...runArgs, 'record', '--run', runId, 'trial.json'])
+    run(fx.root, 'python3', [...runArgs, 'finalize', '--run', runId, '--status', 'completed'])
+    await rpc(handler, 'fusion/verify', { ...expected, check_id: 'actual-load', run_id: runId })
+    await rpc(handler, 'fusion/verify', { ...expected, check_id: 'route-behavior', run_id: runId })
+    const finished = await rpc(handler, 'fusion/finalize', expected)
+    assert.equal(finished.creation_status, 'completed')
+    const evaluation = join(fx.root, 'agents/test-agent/evaluation.md')
+    const originalEvaluation = readFileSync(evaluation, 'utf8')
+    write(evaluation, originalEvaluation.replace('返回 pong。', '返回新标准。'))
+    await assert.rejects(() => rpc(handler, 'fusion/verify', { ...expected, check_id: 'route-behavior', run_id: runId }), /evaluation_conflict/)
+    await assert.rejects(() => rpc(handler, 'fusion/finalize', expected), /evaluation_conflict/)
+    assert.equal((await rpc(handler, 'fusion/status', { experiment_id: id })).creation.status, 'integrating')
+    // 未选 Case 的变化不应使本次约定能力的证据作废。
+    write(evaluation, originalEvaluation + '\n#### U-CASE-002 未选能力\n\n**用户输入**\n> new input\n\n**预期**\n新的独立标准。\n')
+    await rpc(handler, 'fusion/verify', { ...expected, check_id: 'route-behavior', run_id: runId })
+    assert.equal((await rpc(handler, 'fusion/finalize', expected)).creation_status, 'completed')
+    // 封存证据变化后，旧验证回执不能再次证明完成。
+    write(join(base, 'evidence/U-CASE-001/response.json'), '{"assistant_texts":["changed"]}')
+    await assert.rejects(() => rpc(handler, 'fusion/finalize', expected), /verification_incomplete/)
+    write(join(fx.root, `evolution/experiments/${id}/candidate/dsh/workspace/input.txt`), 'changed')
+    await assert.rejects(() => rpc(handler, 'fusion/verify', { ...expected, check_id: 'actual-load', run_id: runId }), /conflict/)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
 })
 
 test('agents detail defaults to newest version while preserving explicit selection and manifest', async () => {

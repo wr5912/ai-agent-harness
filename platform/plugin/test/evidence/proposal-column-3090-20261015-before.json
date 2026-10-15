@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-15T09:56:27.809Z",
+  "scope": "PA-12 / 实际3090 / 仅读取现有待确认会话，检查确认区与原生聊天列对齐；不点击业务确认，不发模型请求",
+  "checks": [
+    "1857px实际会话中确认区与消息列的宽度和位置"
+  ],
+  "measurements": [
+    {
+      "mode": "full",
+      "viewport": 1857,
+      "proposal": {
+        "x": 252,
+        "width": 1598,
+        "right": 1850
+      },
+      "chat": {
+        "x": 591,
+        "width": 920,
+        "right": 1511
+      },
+      "pageWidth": 1857,
+      "composers": 1,
+      "scrollable": true,
+      "confirmButtons": 1
+    }
+  ],
+  "pageErrors": [],
+  "session_id": "session-fee543c2-e75f-4f9d-ae38-9bbfdc99c643",
+  "ok": true
+}

@@ -17,7 +17,7 @@ import { navigationHash, readNavigation } from './navigation.ts'
 import { InstancesPage } from './instances/client.tsx'
 import { McpPage } from './mcp/client.tsx'
 import { platformTheme } from './theme.ts'
-import { initializeConversationLayout, prepareConversation } from './conversation.ts'
+import { prepareConversation } from './conversation.ts'
 import { AssistantConversation, AssistantOperations, PlatformOperationCard, createAssistant, type Assistant, type AssistantContext } from './assistant/client.tsx'
 import { createPlatformUpdates, type PlatformUpdates } from './realtime/client.ts'
 
@@ -35,12 +35,11 @@ type PlatformProps = PlatformPageProps & PropsRuntime<'shell.overlay'> & PropsRe
   assistant: Assistant
   updates: PlatformUpdates
   mcpForm: ConfigForm<any>
-  enterConversation: () => void
-  toggleConversationSidebar: () => void
+  enterConversation: (sidebarCollapsed?: boolean) => void
   showNativeConversation: (visible: boolean, afterHidden?: () => void) => void
 }
 
-function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversation, toggleConversationSidebar, showNativeConversation, SessionProvider, renderSlot, useSessionStatus }: PlatformProps) {
+function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversation, showNativeConversation, SessionProvider, renderSlot, useSessionStatus }: PlatformProps) {
   const [target, setTarget] = useState<PlatformNavigation>(() => readNavigation(window.location.hash))
   const page = target.page
   const [open, setOpen] = useState(false)
@@ -50,6 +49,7 @@ function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversa
   const previousRunning = useRef(false)
   const frame = useRef<HTMLDivElement>(null)
   const conversation = useRef<HTMLDivElement>(null)
+  const collapseOnEntry = useRef(true)
   const activePage = useRef(page)
   activePage.current = page
   const contexts = useRef<Record<string, AssistantContext>>({})
@@ -105,6 +105,11 @@ function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversa
     if (!full) return
     const layer = frame.current!.closest<HTMLElement>('[data-shell-overlay]')!
     const nativeFrame = layer.parentElement!
+    if (collapseOnEntry.current) {
+      collapseOnEntry.current = false
+      // DSH 在 frame 上输出实际折叠状态，无需读取内部 store 或另存侧栏状态。
+      enterConversation(nativeFrame.hasAttribute('data-sidebar-collapsed'))
+    }
     const elements = [...nativeFrame.children].filter(element => element !== layer) as HTMLElement[]
     const previous = elements.map(element => ({ element, hidden: element.hidden, inert: element.inert, display: element.style.display }))
     elements.forEach(element => { element.hidden = false; element.inert = false; element.style.display = '' })
@@ -126,7 +131,7 @@ function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversa
       nativeFrame.style.removeProperty('--harness-conversation-left')
       previous.forEach(({ element, hidden, inert, display }) => { element.hidden = hidden; element.inert = inert; element.style.display = display })
     }
-  }, [full])
+  }, [full, enterConversation])
   const navigation = <nav className="harness-nav" aria-label="平台导航">
     {pages.map(item => <button key={item.id} type="button" aria-current={page === item.id ? 'page' : undefined} onClick={() => navigate(item.id)}>{item.label}</button>)}
   </nav>
@@ -148,8 +153,8 @@ function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversa
     <div className="harness-body">
       {page !== 'home' && <aside className="harness-sidebar">{navigation}</aside>}
       <div className="harness-content">
-        {page !== 'home' && <div className="harness-breadcrumb">{full && <button type="button" className="harness-conversation-sidebar-toggle" aria-label="切换会话侧栏" title="展开或收起会话侧栏" onClick={toggleConversationSidebar}><svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M7 3v14" stroke="currentColor" strokeWidth="1.5"/></svg>会话侧栏</button>}<span>工作空间 / {pages.find(item => item.id === page)?.label}</span></div>}
-        <div hidden={page !== 'home'}><HomePage catalog={catalog} rpc={rpc} updates={updates} navigate={navigate} startConversation={async (_root, prompt) => { await assistant.create(prompt, { page: 'home' }) }} /></div>
+        {page !== 'home' && <div className="harness-breadcrumb">工作空间 / {pages.find(item => item.id === page)?.label}</div>}
+        <div hidden={page !== 'home'}><HomePage catalog={catalog} rpc={rpc} updates={updates} navigate={navigate} startConversation={async (_root, prompt) => { await assistant.create(prompt, { page: 'home' }); collapseOnEntry.current = true }} /></div>
         <div hidden={page !== 'agents'}><AgentsPage rpc={rpc} updates={updates} onAssistant={onAssistant} onContext={onContext} target={target} onNavigate={navigate} active={page === 'agents'} /></div>
         <div hidden={page !== 'evaluation'}><EvaluationPage rpc={rpc} updates={updates} onContext={onContext} target={target} onNavigate={navigate} active={page === 'evaluation'} /></div>
         <div hidden={page !== 'instances'}><InstancesPage rpc={rpc} updates={updates} onContext={onContext} target={target} onNavigate={navigate} /></div>
@@ -204,7 +209,6 @@ function PlatformSettings({ openSettings, settingsOpen, settingsShortcut }: Sett
 }
 
 export function apply(ctx: ClientContext) {
-  initializeConversationLayout(ctx.layout, window.innerWidth)
   ctx.effect(() => ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
     name: 'settings.onboarding', id: 'welcome-notice', order: -100, priority: -1,
   }, ({ complete }: SettingsOnboardingOwnerProps) => {
@@ -242,7 +246,7 @@ export function apply(ctx: ClientContext) {
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'harness-platform', order: -100,
     children: { 'harness.assistant.conversation': { kind: 'single', scope: 'session-maybe' } },
-    inject: () => ({ catalog, assistant, updates, rpc: ctx.connection.rpc, mcpForm: ctx.configForms.get('mcp-session-manager'), enterConversation: () => prepareConversation(ctx.layout), toggleConversationSidebar: () => ctx.layout.toggleSidebar(), showNativeConversation }),
+    inject: () => ({ catalog, assistant, updates, rpc: ctx.connection.rpc, mcpForm: ctx.configForms.get('mcp-session-manager'), enterConversation: (sidebarCollapsed?: boolean) => prepareConversation(ctx.layout, sidebarCollapsed), showNativeConversation }),
   }, PlatformPage))
   ctx.slots.inject('harness.assistant.conversation', () => ctx.slots.register({ name: 'harness.assistant.conversation' }, AssistantConversation))
   ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'harness-operation-confirmation', inject: () => ({ rpc: ctx.connection.rpc, assistant }) }, AssistantOperations))

@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-15T11:09:46.891Z",
+  "scope": "PA-12 / 实际3090；首页真实发送两次你好，核对新任务进入时侧栏收起；不执行平台业务确认",
+  "checks": [
+    "宽屏新浏览器从首页真实发送你好，自动进入后原生侧栏收起"
+  ],
+  "pageErrors": [],
+  "states": [
+    {
+      "label": "fresh_home",
+      "collapsed": true,
+      "session_id": "session-3848176a-d146-4d8e-b5a7-415df8a62146"
+    }
+  ],
+  "native_control": {
+    "initial_label": "打开侧边栏",
+    "shortcut": null,
+    "class": "hHd-Xa_iconButton hHd-Xa_toggle"
+  },
+  "ok": false,
+  "failure": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(report.native_control.shortcut)\n\n    at file:///tmp/harness-native-toggle-home-3090.mjs:16:353"
+}
