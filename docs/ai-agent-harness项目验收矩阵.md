@@ -72,6 +72,10 @@
 
 2026-10-12 的 [EXP-018 API 重复比较与实例观察](../evolution/experiments/EXP-security-operations-expert-018-rfbf7fd53a340/evaluation/observations.md)补充 `PA-04/05/06/07/08/10`：固定 EXP-017 来源后两次 Baseline、独立 Candidate 修订与重复 Run、同标准镜像的两个隔离实例身份及只读装载、活动/空闲/停止未知/重启恢复 Session 的 API 记录。失败 Run 和评审分歧保留，巡检 `PARTIAL` 不作为完整业务通过；本次只覆盖修改后新装载，不证明来源回退。证据定位步骤减少尚未证明人工效率收益，跨实例页面、`232:18120`、当前分支全局平台 `PA-12` 与 Research Release 均未由此验收，全项目路径状态不提升。
 
+2026-10-15 首次 Mock 接入验证覆盖 `PA-05/06/08/12`：独立实例原样装载 EXP-019，MCP 管理界面完成模拟 API/MCP 配置、回读与发现，新 Session 完成文本业务和报告下载，周期任务完成到期与清理。接口清单、原始 Session、浏览器及限制集中保存在 `mock_service` 项目的 `docs/security-operations-expert接入.md`，本仓库不复制证据。默认本地模型不可达，成功 Session 使用既有官方模型；仅隔离 HOME 禁用开发 HMR 以解决本机监听资源不足，当次业务 Harness 与原实例未改动。该结果仅证明模拟环境接入，不提升真实上游、研究效果或 Research Release 状态。
+
+同日按用户要求将平台现有 `security-operations-expert-eval` 接入 Mock：优先在实例 MCP 插件保存连接与业务分组，仅对不读取插件配置的固定后端补充运行环境；同名、同端口、同 HOME 和标准镜像重建，Harness 资产不改动。真实 Session 完成巡检、故障查询、策略及应急确认；SOC 和报告后端另做原客户端可达检查，未在该实例重新执行完整研判。旧 `security-operations-expert-mock` 的容器和登记已删除，HOME 保留。最终分组、浏览器、后端和删除证据仍集中在上述 Mock 接入说明，平台重建需重新注入环境的边界亦在那里维护。
+
 ### PA-01 项目定位、AI 协作入口与项目 Memory
 
 - **要回答**：新的 AI 开发会话能否区分平台按需求建设与业务 Harness 研究流程，读到中文优先、简洁优先、单一事实源、根因整改、精准修改和四项安全底线；创建分支前是否按任务名称、描述和上下文选择对象与工作流；收到 review 请求时能否定位项目审查原则并覆盖开发工具与目标智能体 Harness；Memory 是否只作为辅助上下文。
