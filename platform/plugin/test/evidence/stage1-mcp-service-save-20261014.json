@@ -1,0 +1,37 @@
+{
+  "at": "2026-10-14T08:12:29.201Z",
+  "branch": "fix/PLATFORM-agent-assets-mcp-ui",
+  "target": "http://172.16.138.228:3090",
+  "checks": {
+    "intended_service_configuration_read_back": true,
+    "normal_save_payload_excludes_generated_service_and_keeps_credential": true,
+    "incomplete_other_service_is_selected_and_field_error_identified": true,
+    "validation_navigation_stays_in_sync": true,
+    "invalid_id_is_explicit_and_no_write_occurs": true,
+    "client_errors": 0,
+    "controlled_drafts_not_persisted": true,
+    "credentials_unchanged_except_browser_session": true,
+    "account_and_composition_files_unchanged": true
+  },
+  "limits": [
+    "报告中的原始报错在新加载的页面中未复现；已实际保存并刷新回读用户提供的服务配置",
+    "错误草稿与其他编辑使用浏览器本地状态，截获保存请求后不写入配置",
+    "未调用真实 SOC 业务工具，未从另一台设备检查用户的旧页面状态",
+    "检查期间服务配置新增其他服务；受控回归以最新配置为基准，未改写这些服务"
+  ],
+  "real_save": {
+    "verified_earlier_this_session": true,
+    "service_id": "biz-soc-framework",
+    "description_read_back": "18080",
+    "credential_unchanged": true,
+    "generated_service_present": true
+  },
+  "observations": {
+    "native_settings_changed_since_checkpoint": false
+  },
+  "restart": {
+    "old_pid": 40668,
+    "new_pid": 282849
+  },
+  "validation": "passed"
+}

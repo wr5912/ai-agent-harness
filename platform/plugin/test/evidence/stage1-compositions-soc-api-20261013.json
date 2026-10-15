@@ -1,0 +1,36 @@
+{
+  "checked_at": "2026-10-14T06:34:24.246412+00:00",
+  "scope": "只读检查真实 soc-api 的匿名 OpenAPI 规范，未调用登录、资产或其他业务接口",
+  "connection": "soc-api",
+  "openapi": "3.1.0",
+  "spec_sha256": "3d79174e9093d9df04bb377475b432146bff83ac117d3fa897a55d66e7b75fa8",
+  "path_count": 106,
+  "operation_count": 129,
+  "required_operations": {
+    "get_asset": false,
+    "list_alerts": false
+  },
+  "alert_operation_matches": [],
+  "available_asset_operations": [
+    {
+      "method": "GET",
+      "path": "/soc/asset/list",
+      "operationId": "list_soc_asset",
+      "input": "keyword 查询资产 ID、主机名或 IP；pageNum/pageSize 分页",
+      "response_schema": "TableDataInfoMapStringObject"
+    },
+    {
+      "method": "GET",
+      "path": "/soc/asset/{assetId}",
+      "operationId": "get_soc_asset_by_asset_id",
+      "input": "assetId 是 int64 路径参数",
+      "response_schema": "AjaxResult"
+    }
+  ],
+  "result": "blocked_missing_alert_api",
+  "limits": [
+    "已登记 soc-api 的草稿保留；现有 get_asset → list_alerts SDK 尚未完成真实接口适配",
+    "dry 检查不请求规范和上游业务，不能证明工具存在或参数映射正确",
+    "需要告警接口定义后再完成资产到告警的映射和受影响验证"
+  ]
+}

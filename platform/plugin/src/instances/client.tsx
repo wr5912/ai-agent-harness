@@ -69,6 +69,10 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
   const [form, setForm] = useState({ name: '', source: '', port: '' })
   const [detail, setDetail] = useState<Detail | null>(null)
   const [logs, setLogs] = useState('')
+  const [embedUrl, setEmbedUrl] = useState('')
+  const [embedMessage, setEmbedMessage] = useState('')
+  const embedRequest = useRef(0)
+  const embedCode = embedUrl ? `<iframe\n  src="${embedUrl.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}"\n  title="DSH 智能体"\n  style="width: 100%; height: 700px; border: 0;"\n  allow="clipboard-write"\n></iframe>` : ''
 
   const visible = useMemo(() => instances.filter(item => (filter === 'all' || (filter === 'existing' ? item.state !== 'absent' : item.state === filter)) && `${item.name} ${item.source_id ?? ''}`.toLowerCase().includes(query.toLowerCase())), [instances, filter, query])
   const visibleSelected = visible.filter(item => selected.has(item.name)).length
@@ -172,6 +176,9 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
   }
 
   async function openDetail(name: string) {
+    embedRequest.current++
+    setEmbedUrl('')
+    setEmbedMessage('')
     setDetailLoading(true)
     setError('')
     try {
@@ -188,6 +195,41 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
     }
   }
 
+  async function webUrl(name: string) {
+    const result = await call<{ url: string, lan_access: boolean }>('url', { name })
+    const url = new URL(result.url)
+    if (result.lan_access) url.hostname = window.location.hostname
+    return url.href
+  }
+
+  async function generateEmbed(name: string) {
+    const request = ++embedRequest.current
+    setEmbedUrl('')
+    setEmbedMessage('正在读取实例地址…')
+    try {
+      const url = await webUrl(name)
+      if (request !== embedRequest.current) return
+      setEmbedUrl(url)
+      setEmbedMessage('将以下代码粘贴到网站的 HTML 中。')
+    } catch (err) {
+      if (request === embedRequest.current) setEmbedMessage((err as Error).message)
+    }
+  }
+
+  async function copyEmbed() {
+    try {
+      if (navigator.clipboard) await navigator.clipboard.writeText(embedCode)
+      else {
+        const input = document.createElement('textarea')
+        input.value = embedCode
+        document.body.appendChild(input)
+        input.select()
+        try { if (!document.execCommand('copy')) throw new Error('copy failed') } finally { input.remove() }
+      }
+      setEmbedMessage('嵌入代码已复制。')
+    } catch { setEmbedMessage('浏览器未允许复制，请手动复制下面的代码。') }
+  }
+
   async function openWeb(name: string) {
     const tab = window.open('about:blank', '_blank')
     if (!tab) {
@@ -200,10 +242,8 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
     setOpening(current => new Set(current).add(name))
     setError('')
     try {
-      const result = await call<{ url: string, lan_access: boolean }>('url', { name })
-      const url = new URL(result.url)
-      if (result.lan_access) url.hostname = window.location.hostname
-      if (!tab.closed) tab.location.replace(url.href)
+      const url = await webUrl(name)
+      if (!tab.closed) tab.location.replace(url)
     } catch (err) {
       tab.close()
       setError((err as Error).message)
@@ -321,6 +361,18 @@ export function InstancesPage({ rpc }: PlatformPageProps) {
       {detail ? (
         <section style={styles.panel}>
           <strong>{detail.instance.name} 详情</strong>
+          <details style={{ marginTop: 12 }}><summary>将智能体嵌入网站（iframe）</summary>
+            <p>iframe 可以在网页内展示该实例的 DSH Web。先启动实例，再生成使用实际访问地址的嵌入代码。</p>
+            <button type="button" disabled={detail.instance.state !== 'running' || !detail.instance.port} onClick={() => void generateEmbed(detail.instance.name)}>生成 iframe 代码</button>
+            {embedMessage && <p role="status">{embedMessage}</p>}
+            {embedCode && <><pre style={styles.pre}>{embedCode}</pre><button type="button" onClick={() => void copyEmbed()}>复制嵌入代码</button></>}
+            <ul>
+              <li>访问者必须能连接到实例地址；127.0.0.1 仅指访问者自己的电脑。供其他电脑访问时，使用局域网可达的地址。</li>
+              <li>嵌入沿用实例自身的认证设置，需要登录时不会自动传递平台密码或登录状态。跨站 iframe 可能因 SameSite=Strict 或浏览器第三方 Cookie 限制而无法登录，此时使用同站点反向代理或直接打开 DSH Web。</li>
+              <li>HTTPS 网站嵌入 HTTP 实例会被浏览器拦截，需为实例配置可达的 HTTPS 入口。网站自身的 CSP 也必须允许该 iframe 来源。</li>
+            </ul>
+            <p><a href="https://docs.dify.ai/zh/cloud/use-dify/publish/webapp/embedding-in-websites#iframe-%E5%B5%8C%E5%85%A5" target="_blank" rel="noreferrer">参考 Dify 的 iframe 嵌入说明</a></p>
+          </details>
           <div style={styles.detailGrid}>
             <div>HOME：{String(detail.session_scope.home_volume || '-')} / {String(detail.session_scope.preserved)}</div>
             <div>Session：{detail.session_scope.note}</div>

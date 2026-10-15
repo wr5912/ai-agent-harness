@@ -3,7 +3,9 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { compositionDefinition } from './definition.ts'
+import { Annotation, END, START, StateGraph } from '@langchain/langgraph'
+import { compositionDefinition, compositionInputSchema } from './definition.ts'
+import type { CompositionConfig } from './compositions.ts'
 import { callOpenApiOperation, loadOpenApi, type OpenApiConnection } from './openapi.ts'
 
 export type ConnectionStatus = {
@@ -72,9 +74,9 @@ function gitDirtyOf(assetRoot: string): boolean | 'unknown' {
 }
 
 function sourceDigestOf(assetRoot: string): string {
-  const files = ['client.tsx', 'definition.ts', 'executor.ts', 'index.ts', 'openapi.ts', 'manager.ts']
+  const files = ['client.tsx', 'definition.ts', 'compositions.ts', 'executor.ts', 'index.ts', 'openapi.ts', 'manager.ts', 'native.ts']
     .map(file => `platform/plugin/src/mcp/${file}`)
-    .concat(['platform/plugin/build.mjs', 'platform/plugin/src/index.ts',
+    .concat(['platform/plugin/build.mjs', 'platform/plugin/package.json', 'platform/plugin/pnpm-lock.yaml', 'platform/plugin/src/index.ts',
       ...['index.ts', 'openapi.ts'].map(file => `evolution/experiments/EXP-security-operations-expert-018-rfbf7fd53a340/candidate/dsh/managed/mcp-manager/${file}`)])
   try {
     const hash = createHash('sha256')
@@ -85,15 +87,14 @@ function sourceDigestOf(assetRoot: string): string {
   }
 }
 
-function compositionDigest(gitCommit: string, gitDirty: boolean | 'unknown', sourceDigest: string): string {
-  return createHash('sha256').update(JSON.stringify({ gitCommit, gitDirty, sourceDigest, definition: compositionDefinition })).digest('hex')
-}
-
-export function compositionVersion(assetRoot: string) {
+export function compositionVersion(assetRoot: string, config?: CompositionConfig) {
   const gitCommit = gitCommitOf(assetRoot)
   const gitDirty = gitDirtyOf(assetRoot)
   const sourceDigest = sourceDigestOf(assetRoot)
-  return { gitCommit, gitDirty, sourceDigest, digest: compositionDigest(gitCommit, gitDirty, sourceDigest), definition: compositionDefinition }
+  const definition = { ...compositionDefinition, ...config, inputSchema: compositionInputSchema(config),
+    upstream: { kind: 'openapi', steps: compositionSteps(config) } }
+  const digest = createHash('sha256').update(JSON.stringify({ gitCommit, gitDirty, sourceDigest, definition })).digest('hex')
+  return { gitCommit, gitDirty, sourceDigest, digest, definition }
 }
 
 function statusFor(registry: McpRegistry, id: string): ConnectionStatus {
@@ -119,59 +120,128 @@ function inputLimit(value: unknown): number {
   return value
 }
 
+function compositionInput(input: Record<string, any>, config?: CompositionConfig) {
+  if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !['asset', 'limit'].includes(key))) throw new Error('组合输入仅接受 asset 和 limit')
+  const asset = inputString(input.asset, 'asset')
+  if (config?.flow && (!/^[1-9]\d*$/.test(asset) || !Number.isSafeInteger(Number(asset)))) throw new Error('SOC 查询须填写有效的正整数资产 ID')
+  return { asset, limit: inputLimit(input.limit) }
+}
+
+function compositionSteps(config?: CompositionConfig) {
+  const soc = config?.flow === 'soc-asset-alerts'
+  return [
+    { step: 'asset', title: '查询资产', connectionId: config?.connectionId,
+      operationId: soc ? 'get_soc_asset_by_asset_id' : 'get_asset',
+      input: soc ? { assetId: '$input.asset' } : { asset: '$input.asset' }, output: 'asset' },
+    { step: 'alerts', title: soc ? '查询近 30 天关联告警分组' : '查询相关告警', connectionId: soc ? config?.alertsConnectionId : config?.connectionId,
+      operationId: soc ? 'list_detect_alert' : 'list_alerts',
+      input: soc ? { 'req.assetId': '$state.assetId', 'req.pageNum': 1, 'req.pageSize': '$input.limit', 'req.windowSeconds': 2592000 }
+        : { assetId: '$state.assetId', limit: '$input.limit' }, output: 'alerts' },
+  ]
+}
+
+const CompositionState = Annotation.Root({
+  input: Annotation<{ asset: string; limit: number }>(),
+  asset: Annotation<any>(),
+  assetId: Annotation<string | number>(),
+  alerts: Annotation<any[]>(),
+  alertSummary: Annotation<any>(),
+  receipts: Annotation<any[]>(),
+  trace: Annotation<any[]>(),
+  error: Annotation<{ code: string; message: string } | undefined>(),
+})
+
+function compositionGraph(config: CompositionConfig | undefined, call: (step: ReturnType<typeof compositionSteps>[number], args: Record<string, any>) => Promise<any>) {
+  const [assetStep, alertsStep] = compositionSteps(config)
+  const soc = config?.flow === 'soc-asset-alerts'
+  return new StateGraph(CompositionState)
+    .addNode('getAsset', async state => {
+      const started = Date.now()
+      const args = soc ? { assetId: Number(state.input.asset) } : { asset: state.input.asset }
+      const first = await call(assetStep, args)
+      const asset = soc ? first.json?.data : first.json
+      const assetId = soc ? asset?.assetId : asset?.id ?? asset?.asset?.id
+      const error = !first.ok ? { code: 'step_failed', message: `查询资产失败：HTTP ${first.status}` }
+        : soc && first.json?.code !== 200 ? { code: 'business_failed', message: `查询资产业务失败：code ${first.json?.code ?? '缺失'}` }
+        : soc ? (!Number.isSafeInteger(assetId) || assetId !== Number(state.input.asset) ? { code: 'mapping_failed', message: '第一步结果缺少或不匹配所查询的资产 ID' } : undefined)
+        : typeof assetId !== 'string' || !assetId ? { code: 'mapping_failed', message: '第一步结果缺少资产 ID' } : undefined
+      const trace: any[] = [{ ...assetStep, status: error ? 'failed' : 'succeeded', httpStatus: first.status, durationMs: Date.now() - started, mappedArguments: args }]
+      if (error) trace.push({ ...alertsStep, status: 'skipped', reason: error.message })
+      return { asset: bounded(asset), assetId, receipts: [first.receipt], trace, error }
+    }, { metadata: assetStep })
+    .addNode('listAlerts', async state => {
+      const started = Date.now()
+      const args = soc ? { req: { assetId: String(state.assetId), pageNum: 1, pageSize: state.input.limit, windowSeconds: 2592000 } }
+        : { assetId: state.assetId, limit: state.input.limit }
+      const second = await call(alertsStep, args)
+      const items = soc ? second.json?.data?.groups : second.json?.alerts ?? second.json
+      const error = !second.ok ? { code: 'step_failed', message: `查询告警失败：HTTP ${second.status}` }
+        : soc && second.json?.code !== 200 ? { code: 'business_failed', message: `查询告警业务失败：code ${second.json?.code ?? '缺失'}` }
+        : !Array.isArray(items) ? { code: 'mapping_failed', message: '第二步结果缺少告警列表' } : undefined
+      const alerts = error ? [] : items.slice(0, state.input.limit)
+      const alertSummary = soc && !error ? Object.fromEntries(['totalGroups', 'totalAlerts', 'truncated', 'from', 'to', 'pageNum', 'pageSize'].map(key => [key, second.json.data[key]])) : undefined
+      return {
+        alerts, alertSummary, receipts: [...state.receipts, second.receipt],
+        trace: [...state.trace, { ...alertsStep, status: error ? 'failed' : 'succeeded', httpStatus: second.status, durationMs: Date.now() - started, mappedArguments: args }], error,
+      }
+    }, { metadata: alertsStep })
+    .addEdge(START, 'getAsset')
+    .addConditionalEdges('getAsset', state => state.error ? END : 'listAlerts', [END, 'listAlerts'])
+    .addEdge('listAlerts', END)
+    .compile({ checkpointer: false })
+}
+
+export async function compositionStructure(config?: CompositionConfig) {
+  const graph = await compositionGraph(config, async () => { throw new Error('结构查询不可执行节点') }).getGraphAsync()
+  return { nodes: Object.values(graph.nodes).map(node => ({ id: node.id, ...node.metadata })), edges: graph.edges }
+}
+
+export async function dryRunComposition(registry: McpRegistry, config: CompositionConfig, input: Record<string, any>) {
+  const validated = compositionInput(input, config)
+  for (const step of compositionSteps(config)) {
+    if (!step.connectionId || !registry.openapi.has(step.connectionId)) throw new Error(`未注册组合依赖连接：${step.connectionId ?? '未选择'}`)
+  }
+  return { ok: true, mode: 'dry', input: validated, graph: await compositionStructure(config), upstreamRequests: 0,
+    checks: ['输入有效', 'LangGraph 图已编译', '依赖连接已登记'],
+    unverified: ['上游规格及工具可用性', '实际参数映射与工具执行结果'] }
+}
+
 function totalSignal(signal?: AbortSignal) {
   const timeout = AbortSignal.timeout(20_000)
   return signal ? AbortSignal.any([signal, timeout]) : timeout
 }
 
-function assertReadonlyOperations(source: Awaited<ReturnType<typeof loadOpenApi>>) {
-  for (const operationId of compositionDefinition.upstream.operations) {
-    const operation = source.operations.get(operationId)
-    if (!operation) throw new Error(`组合依赖操作不存在：${operationId}`)
-    if (operation.method !== 'get') throw new Error(`只读组合拒绝非 GET 操作：${operationId}`)
-  }
+function assertReadonlyOperation(source: Awaited<ReturnType<typeof loadOpenApi>>, operationId: string) {
+  const operation = source.operations.get(operationId)
+  if (!operation) throw new Error(`组合依赖操作不存在：${operationId}`)
+  if (operation.method !== 'get') throw new Error(`只读组合拒绝非 GET 操作：${operationId}`)
 }
 
-export async function executeComposition(registry: McpRegistry, assetRoot: string, input: Record<string, any>, signal?: AbortSignal) {
-  const version = compositionVersion(assetRoot)
-  const connectionId = compositionDefinition.upstream.connectionId
-  const connection = registry.openapi.get(connectionId)
-  if (!connection) throw new Error(`未注册组合依赖连接：${connectionId}`)
-  const asset = inputString(input.asset, 'asset')
-  const limit = inputLimit(input.limit)
-  const trace: any[] = []
-  const started = Date.now()
-  const status = statusFor(registry, connectionId)
+export async function executeComposition(registry: McpRegistry, assetRoot: string, config: CompositionConfig, input: Record<string, any>, signal?: AbortSignal) {
+  const version = compositionVersion(assetRoot, config)
+  const validated = compositionInput(input, config)
   const runSignal = totalSignal(signal)
-  const source = await (registry.native?.load ?? loadOpenApi)(connection, runSignal)
-  assertReadonlyOperations(source)
-  status.specLoaded = true
+  const sources = new Map<string, any>()
+  for (const step of compositionSteps(config)) {
+    const connection = registry.openapi.get(step.connectionId ?? '')
+    if (!connection) throw new Error(`未注册组合依赖连接：${step.connectionId ?? '未选择'}`)
+    if (!sources.has(connection.id)) sources.set(connection.id, await (registry.native?.load ?? loadOpenApi)(connection, runSignal))
+    assertReadonlyOperation(sources.get(connection.id), step.operationId)
+    statusFor(registry, connection.id).specLoaded = true
+  }
 
-  const [assetStep, alertsStep] = compositionDefinition.steps
   const call = registry.native?.call ?? callOpenApiOperation
-  const first = await call(source, assetStep.operationId, { asset }, runSignal)
-  trace.push({ step: assetStep.id, operationId: assetStep.operationId, status: first.ok ? 'succeeded' : 'failed', httpStatus: first.status, durationMs: Date.now() - started })
-  if (!first.ok) {
-    status.toolCallSucceeded = false
-    trace.push({ step: alertsStep.id, operationId: alertsStep.operationId, status: 'skipped', reason: '前置步骤失败' })
-    return { ok: false, version, receipts: [first.receipt], result: { asset: bounded(first.json), alerts: [], trace }, error: { code: 'step_failed', message: `查询资产失败：HTTP ${first.status}` } }
-  }
-  const assetId = first.json?.id ?? first.json?.asset?.id
-  if (typeof assetId !== 'string' || !assetId) {
-    status.toolCallSucceeded = false
-    trace.push({ step: alertsStep.id, operationId: alertsStep.operationId, status: 'skipped', reason: '缺少第一步输出 asset id' })
-    return { ok: false, version, receipts: [first.receipt], result: { asset: bounded(first.json), alerts: [], trace }, error: { code: 'mapping_failed', message: '第一步结果缺少资产 ID' } }
-  }
-  const secondStart = Date.now()
-  const second = await call(source, alertsStep.operationId, { assetId, limit }, runSignal)
-  trace.push({ step: alertsStep.id, operationId: alertsStep.operationId, status: second.ok ? 'succeeded' : 'failed', httpStatus: second.status, durationMs: Date.now() - secondStart, mappedArguments: { assetId, limit } })
-  status.toolCallSucceeded = second.ok
-  const alerts = Array.isArray(second.json?.alerts) ? second.json.alerts.slice(0, limit) : Array.isArray(second.json) ? second.json.slice(0, limit) : []
+  const result = await compositionGraph(config, async (step, args) => {
+    const value = await call(sources.get(step.connectionId!), step.operationId, args, runSignal)
+    statusFor(registry, step.connectionId!).toolCallSucceeded = value.ok && (!config.flow || value.json?.code === 200)
+    return value
+  })
+    .invoke({ input: validated, alerts: [], receipts: [], trace: [] }, { signal: runSignal })
   return {
-    ok: second.ok,
+    ok: !result.error,
     version,
-    receipts: [first.receipt, second.receipt],
-    result: { asset: bounded(first.json), alerts, trace },
-    ...(second.ok ? {} : { error: { code: 'step_failed', message: `查询告警失败：HTTP ${second.status}` } }),
+    receipts: result.receipts,
+    result: { asset: result.asset, alerts: result.alerts, trace: result.trace, ...(result.alertSummary ? { alertSummary: result.alertSummary } : {}) },
+    ...(result.error ? { error: result.error } : {}),
   }
 }

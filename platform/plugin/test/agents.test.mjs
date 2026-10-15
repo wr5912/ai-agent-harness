@@ -345,10 +345,68 @@ test('edit reads existing content, uses preview hash, rejects unsafe writes and 
       '',
     ].join('\n') }] })
     assert.equal(evalPreview.edits[0].changed, true)
+    assert.equal(evalPreview.dry_run.mode, 'dry')
+    assert.deepEqual(evalPreview.dry_run.case_ids, ['U-CASE-002'])
+    assert.match(readFileSync(join(fx.root, 'agents/test-agent/evaluation.md'), 'utf8'), /U-CASE-001/)
     assert.equal(readFileSync(join(fx.root, 'evolution/experiments/EXP-test-agent-001/runs/run-11111111-1111-4111-8111-111111111111/run.json'), 'utf8'), beforeRun)
   } finally {
     await rm(fx.root, { recursive: true, force: true })
   }
+})
+
+test('资产树展示真实嵌套目录，二进制只读，排除运行目录、密钥和链接', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  const base = 'evolution/experiments/EXP-test-agent-001/candidate'
+  try {
+    write(join(fx.root, base, 'dsh/workspace/.dsh/skills/nested/SKILL.md'), '# Nested\n')
+    write(join(fx.root, base, 'image.bin'), Buffer.from([0, 255, 1]))
+    write(join(fx.root, base, 'large.txt'), 'x'.repeat(1024 * 1024 + 1))
+    write(join(fx.root, base, 'nested/local.llm-api-key'), 'fixture-secret')
+    symlinkSync(join(fx.root, 'agents'), join(fx.root, base, 'link'))
+    const handler = createAgentsHandler(fx.root)
+    const detail = await rpc(handler, 'detail', { agent_id: 'test-agent' })
+    assert.equal(detail.assets[0].kind, 'directory')
+    const paths = JSON.stringify(detail.assets)
+    assert.match(paths, /workspace\/\.dsh\/skills\/nested\/SKILL.md/)
+    for (const excluded of ['RuntimeHOME', 'history', 'local.llm-api-key', `${base}/link`]) assert.equal(paths.includes(excluded), false)
+    const dir = await rpc(handler, 'edit/read', { experiment_id: 'EXP-test-agent-001', path: base })
+    assert.equal(dir.editable, false)
+    for (const file of ['image.bin', 'large.txt']) {
+      const read = await rpc(handler, 'edit/read', { experiment_id: 'EXP-test-agent-001', path: `${base}/${file}` })
+      assert.equal(read.editable, false)
+      assert.equal(read.content, undefined)
+      await assert.rejects(() => rpc(handler, 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits: [{ path: `${base}/${file}`, content: 'replacement', expected_sha256: 'bad' }] }), /只读/)
+    }
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('直接保存也执行草稿 dry；格式或来源失败不写入，缺失环境仅提示，!!js 不执行', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const experiment_id = 'EXP-test-agent-001'
+    const path = 'candidate/harness.yaml'
+    const original = await rpc(handler, 'edit/read', { experiment_id, path })
+    const apply = content => rpc(handler, 'edit/apply', { experiment_id, edits: [{ path, content, expected_sha256: original.sha256 }] })
+    await assert.rejects(() => apply('name: [invalid\n'), /草稿格式无效/)
+    const catalogPath = join(fx.root, 'runtime/adapters/dsh-container/sources.json')
+    const catalog = JSON.parse(readFileSync(catalogPath, 'utf8'))
+    catalog.sources[experiment_id].preset = 'missing/preset.yml'
+    write(catalogPath, JSON.stringify(catalog))
+    await assert.rejects(() => apply('name: valid\n'), /草稿 dry 校验失败/)
+    assert.equal((await rpc(handler, 'edit/read', { experiment_id, path })).content, original.content)
+    catalog.sources[experiment_id].preset = 'test-agent/preset.yml'
+    catalog.sources[experiment_id].required_env_names = ['HARNESS_DRAFT_TEST_MISSING_ENV']
+    write(catalogPath, JSON.stringify(catalog))
+    const content = 'name: valid\nconfig: !!js |\n  (() => { throw new Error("must not execute") })()\n'
+    const saved = await apply(content)
+    assert.equal(saved.dry_run.mode, 'dry')
+    assert.deepEqual(saved.dry_run.missing_env_names, ['HARNESS_DRAFT_TEST_MISSING_ENV'])
+    assert.equal((await rpc(handler, 'edit/read', { experiment_id, path })).content, content)
+    assert.equal(readFileSync(join(fx.root, 'evolution/experiments', experiment_id, 'runs/run-11111111-1111-4111-8111-111111111111/run.json'), 'utf8'), '{"status":"failed"}\n')
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
 })
 
 test('edit apply rejects traversal, duplicate paths and concurrent same-hash writes', async () => {

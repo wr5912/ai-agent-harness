@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer } from 'node:http'
@@ -7,16 +7,18 @@ import { createHash } from 'node:crypto'
 import test from 'node:test'
 import { build } from 'esbuild'
 
-async function loadMcpModule() {
+async function loadMcpModule(native = false) {
   const outdir = await mkdtemp(join(tmpdir(), 'mcp-module-'))
   const outfile = join(outdir, 'index.mjs')
+  await symlink(join(process.cwd(), 'node_modules'), join(outdir, 'node_modules'), 'dir')
   await build({
-    entryPoints: ['src/mcp/index.ts'],
+    entryPoints: [native ? 'src/mcp/native.ts' : 'src/mcp/index.ts'],
     outfile,
     bundle: true,
     platform: 'node',
     format: 'esm',
     packages: 'external',
+    plugins: native ? [(await import('../build.mjs')).managerSources] : [],
   })
   return import(outfile)
 }
@@ -72,6 +74,7 @@ async function withFixture(fn) {
     if (url.pathname.startsWith('/assets/')) {
       const asset = decodeURIComponent(url.pathname.slice('/assets/'.length))
       if (asset === 'bad') return res.writeHead(404, { 'content-type': 'application/json' }).end(JSON.stringify({ error: 'missing' }))
+      if (asset === 'missing-id') return res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ name: asset }))
       return res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ id: 'asset-123', name: asset, echo: 'secret-token' }))
     }
     if (url.pathname === '/alerts') {
@@ -108,7 +111,9 @@ async function setup(module, baseUrl) {
   const temp = await mkdtemp(join(tmpdir(), 'mcp-test-'))
   const credentialPath = join(temp, 'token.txt')
   await writeFile(credentialPath, 'secret-token\n', 'utf8')
-  const handler = module.createMcpHandler(process.cwd(), { stateFile: join(temp, 'state.json') })
+  const compositionsFile = join(temp, 'compositions.json')
+  await writeFile(compositionsFile, await readFile(new URL('./fixtures/mcp-compositions.json', import.meta.url)))
+  const handler = module.createMcpHandler(join(process.cwd(), '../..'), { stateFile: join(temp, 'state.json'), compositionsFile })
   const rpc = (endpoint, payload) => handler(endpoint, payload, new AbortController().signal, undefined)
   const registered = await rpc('registerOpenApi', {
     id: 'security-readonly-api',
@@ -117,14 +122,21 @@ async function setup(module, baseUrl) {
     credentialRef: { kind: 'file', path: credentialPath },
   })
   assert.equal(registered.ok, true)
-  return { handler, rpc }
+  return { handler, rpc, temp, compositionsFile }
+}
+
+async function compositionRequest(rpc, endpoint, input, selection) {
+  const listed = await rpc('list', {})
+  assert.equal(listed.ok, true)
+  const request = selection ?? { compositionId: listed.value.compositions[0].id, version: 'published' }
+  return rpc(endpoint, { ...request, revision: listed.value.revision, input }, new AbortController().signal)
 }
 
 test('MCP 组合执行两次真实 HTTP 调用并映射参数', async () => {
   const module = await loadMcpModule()
   await withFixture(async ({ baseUrl, calls }) => {
     const { rpc } = await setup(module, baseUrl)
-    const result = await rpc('executeComposition', { asset: 'host-a', limit: 2 })
+    const result = await compositionRequest(rpc, 'executeComposition', { asset: 'host-a', limit: 2 })
     assert.equal(result.ok, true)
     assert.equal(result.value.ok, true)
     assert.equal(result.value.result.alerts.length, 2)
@@ -139,9 +151,44 @@ test('前置失败时停止第二步', async () => {
   const module = await loadMcpModule()
   await withFixture(async ({ baseUrl, calls }) => {
     const { rpc } = await setup(module, baseUrl)
-    const result = await rpc('executeComposition', { asset: 'bad', limit: 2 })
+    const result = await compositionRequest(rpc, 'executeComposition', { asset: 'bad', limit: 2 })
     assert.equal(result.ok, true)
     assert.equal(result.value.ok, false)
+    assert.equal(result.value.result.trace[1].status, 'skipped')
+    assert.equal(calls.some(call => call.path === '/alerts'), false)
+  })
+})
+
+test('编译图作为结构来源；dry 校验不读取规格或调用上游', async () => {
+  const module = await loadMcpModule()
+  await withFixture(async ({ baseUrl, calls }) => {
+    const { rpc } = await setup(module, baseUrl)
+    const listed = await rpc('list', {})
+    const graph = listed.value.compositions[0].graphs.published
+    assert.deepEqual(graph.nodes.filter(node => node.operationId).map(node => node.operationId), ['get_asset', 'list_alerts'])
+    assert.equal(graph.nodes.find(node => node.id === 'listAlerts').input.assetId, '$state.assetId')
+    assert.ok(graph.edges.some(edge => edge.source === 'getAsset' && edge.target === 'listAlerts' && edge.conditional))
+    const dry = await compositionRequest(rpc, 'dryRunComposition', { asset: ' host-a ', limit: 2 })
+    assert.equal(dry.ok, true)
+    assert.equal(dry.value.mode, 'dry')
+    assert.equal(dry.value.input.asset, 'host-a')
+    assert.equal(dry.value.upstreamRequests, 0)
+    assert.equal((await compositionRequest(rpc, 'dryRunComposition', { asset: 'host-a', limit: 21 })).ok, false)
+    assert.equal((await compositionRequest(rpc, 'dryRunComposition', { asset: 'host-a', extra: true })).ok, false)
+    assert.deepEqual(calls, [])
+    await rpc('deleteConnection', { connectionId: 'security-readonly-api' })
+    assert.equal((await compositionRequest(rpc, 'dryRunComposition', { asset: 'host-a' })).ok, false)
+  })
+})
+
+test('LangGraph 缺少映射 ID 时结束图并保留第一步回执', async () => {
+  const module = await loadMcpModule()
+  await withFixture(async ({ baseUrl, calls }) => {
+    const { rpc } = await setup(module, baseUrl)
+    const result = await compositionRequest(rpc, 'executeComposition', { asset: 'missing-id' })
+    assert.equal(result.value.ok, false)
+    assert.equal(result.value.error.code, 'mapping_failed')
+    assert.equal(result.value.receipts.length, 1)
     assert.equal(result.value.result.trace[1].status, 'skipped')
     assert.equal(calls.some(call => call.path === '/alerts'), false)
   })
@@ -171,7 +218,7 @@ test('Gateway 生命周期发现和调用使用同一执行入口与 digest', as
       })
       assert.equal(gatewayCall.status, 200)
       const gatewayValue = JSON.parse(gatewayCall.body.result.content[0].text)
-      const guiValue = await rpc('executeComposition', { asset: 'host-a', limit: 2 })
+      const guiValue = await compositionRequest(rpc, 'executeComposition', { asset: 'host-a', limit: 2 })
       assert.equal(gatewayValue.ok, true)
       assert.equal(gatewayValue.version.digest, guiValue.value.version.digest)
     } finally {
@@ -196,9 +243,9 @@ test('只读组合拒绝同名 POST 操作', async () => {
     res.writeHead(500).end('should not call')
   }, async baseUrl => {
     const temp = await mkdtemp(join(tmpdir(), 'mcp-readonly-'))
-    const rpc = module.createMcpHandler(process.cwd(), { stateFile: join(temp, 'state.json') })
+    const rpc = module.createMcpHandler(join(process.cwd(), '../..'), { stateFile: join(temp, 'state.json'), compositionsFile: join(process.cwd(), 'test/fixtures/mcp-compositions.json') })
     assert.equal((await rpc('registerOpenApi', { id: 'security-readonly-api', specUrl: `${baseUrl}/openapi.json` })).ok, true)
-    const result = await rpc('executeComposition', { asset: 'host-a' }, new AbortController().signal)
+    const result = await compositionRequest(rpc, 'executeComposition', { asset: 'host-a' })
     assert.equal(result.ok, false)
     assert.match(result.error.message, /非 GET/)
   })
@@ -381,7 +428,7 @@ test('凭据不进入规范 URL、错误或运行结果', async () => {
   assert.equal(rejected.ok, false)
   await withFixture(async ({ baseUrl }) => {
     const { rpc: authed } = await setup(module, baseUrl)
-    const result = await authed('executeComposition', { asset: 'host-a', limit: 1 })
+    const result = await compositionRequest(authed, 'executeComposition', { asset: 'host-a', limit: 1 })
     assert.equal(JSON.stringify(result).includes('secret-token'), false)
   })
 })
@@ -446,18 +493,18 @@ test('同 ID 重新登记会排除另一种连接类型，默认状态写入 XDG
 test('平台接入传入仓库根目录时组合回执仍含实际实现摘要', async () => {
   const module = await loadMcpModule()
   const temp = await mkdtemp(join(tmpdir(), 'mcp-root-digest-'))
-  const handler = module.createMcpHandler(join(process.cwd(), '../..'), { stateFile: join(temp, 'state.json') })
+  const handler = module.createMcpHandler(join(process.cwd(), '../..'), { stateFile: join(temp, 'state.json'), compositionsFile: join(process.cwd(), 'test/fixtures/mcp-compositions.json') })
   const result = await handler('list', {})
   assert.equal(result.ok, true)
-  assert.match(result.value.composition.sourceDigest, /^[0-9a-f]{64}$/)
-  assert.match(result.value.composition.gitCommit, /^[0-9a-f]{40}$/)
+  assert.match(result.value.implementation.sourceDigest, /^[0-9a-f]{64}$/)
+  assert.match(result.value.implementation.gitCommit, /^[0-9a-f]{40}$/)
 })
 
 test('平台 MCP 读取原插件的已保存配置，不建立第二份连接登记', async () => {
   const module = await loadMcpModule()
   let servers = [{ id: 'original', specUrl: 'http://127.0.0.1:8080/openapi.json', enabled: true },
     { id: 'disabled', url: 'http://127.0.0.1:8080/mcp', enabled: false }]
-  const handler = module.createMcpHandler(join(process.cwd(), '../..'), { servers: () => servers })
+  const handler = module.createMcpHandler(join(process.cwd(), '../..'), { servers: () => servers, compositionsFile: join(process.cwd(), 'test/fixtures/mcp-compositions.json') })
   const list = () => handler('list', {}, new AbortController().signal)
   assert.deepEqual((await list()).value.connections.map(item => item.id), ['original'])
   for (const endpoint of ['registerOpenApi', 'registerMcp', 'deleteConnection', 'refreshSpec', 'callTool']) {
@@ -465,4 +512,248 @@ test('平台 MCP 读取原插件的已保存配置，不建立第二份连接登
   }
   servers = [{ id: 'replacement', url: 'http://127.0.0.1:8080/mcp', enabled: true }]
   assert.deepEqual((await list()).value.connections.map(item => item.id), ['replacement'])
+})
+
+test('编排草稿持久化，旧发布版保持可调用，dry 发布后 Gateway 切换版本', async () => {
+  const module = await loadMcpModule()
+  await withFixture(async ({ baseUrl, calls }) => {
+    const { rpc, handler, compositionsFile, temp } = await setup(module, baseUrl)
+    const original = (await rpc('list', {})).value
+    const entry = original.compositions[0]
+    const draft = { ...entry.published, toolName: 'query_asset_alerts_v2', title: '新版资产告警' }
+    const saved = await rpc('saveCompositionDraft', { compositionId: entry.id, revision: original.revision, draft })
+    assert.equal(saved.ok, true)
+    assert.deepEqual(saved.value.compositions[0].published, entry.published)
+    assert.equal(saved.value.compositions[0].draft.toolName, draft.toolName)
+    assert.notEqual(saved.value.revision, original.revision)
+    const reload = module.createMcpHandler(join(process.cwd(), '../..'), { compositionsFile, stateFile: join(temp, 'state.json') })
+    assert.deepEqual((await reload('list', {})).value.compositions, saved.value.compositions)
+    const gateway = module.createMcpGatewayFetchHandler(process.cwd(), handler)
+    const request = async (method, params) => (await gateway(new Request('http://fixture.local', { method: 'POST', body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) }))).json()
+    assert.deepEqual((await request('tools/list')).result.tools.map(item => item.name), ['query_asset_related_alerts'])
+    assert.equal((await request('tools/call', { name: draft.toolName, arguments: { asset: 'host-a' } })).error.code, -32602)
+    const dry = await compositionRequest(rpc, 'dryRunComposition', { asset: 'host-a' }, { compositionId: entry.id, version: 'draft' })
+    assert.equal(dry.value.version.definition.toolName, draft.toolName)
+    assert.equal(dry.value.upstreamRequests, 0)
+    assert.deepEqual(calls, [])
+    const old = await request('tools/call', { name: entry.published.toolName, arguments: { asset: 'host-a' } })
+    assert.equal(JSON.parse(old.result.content[0].text).version.definition.toolName, entry.published.toolName)
+    calls.length = 0
+    const published = await rpc('publishComposition', { compositionId: entry.id, version: 'draft', revision: saved.value.revision, input: { asset: 'host-a' } })
+    assert.equal(published.ok, true)
+    assert.equal(published.value.dry.upstreamRequests, 0)
+    assert.deepEqual(calls, [])
+    assert.equal(published.value.compositions[0].draft, undefined)
+    assert.equal(published.value.compositions[0].published.toolName, draft.toolName)
+    assert.ok(published.value.compositions[0].published.publishedAt)
+    assert.deepEqual((await request('tools/list')).result.tools.map(item => item.name), [draft.toolName])
+    assert.equal((await request('tools/call', { name: entry.published.toolName, arguments: { asset: 'host-a' } })).error.code, -32602)
+    const current = await request('tools/call', { name: draft.toolName, arguments: { asset: 'host-a' } })
+    assert.equal(JSON.parse(current.result.content[0].text).version.definition.toolName, draft.toolName)
+    assert.deepEqual((await reload('list', {})).value.compositions, published.value.compositions)
+  })
+})
+
+test('已发布编排服务与 Gateway 共用工具和执行路径，草稿发布后即时切换', async () => {
+  const module = await loadMcpModule()
+  await withFixture(async ({ baseUrl, calls }) => {
+    const { rpc, handler } = await setup(module, baseUrl)
+    const client = module.createPublishedCompositionClient(join(process.cwd(), '../..'), handler)
+    const original = (await rpc('list', {})).value
+    assert.equal(original.publishedService.id, 'platform-compositions')
+    assert.deepEqual(original.publishedService.tools.names, ['query_asset_related_alerts'])
+    assert.deepEqual((await client.listTools()).tools.map(tool => tool.name), original.publishedService.tools.names)
+    assert.deepEqual(await client.listResources(), { resources: [] })
+    const entry = original.compositions[0]
+    const draft = { ...entry.published, toolName: 'published_service_v2' }
+    const saved = await rpc('saveCompositionDraft', { compositionId: entry.id, revision: original.revision, draft })
+    assert.deepEqual(saved.value.publishedService.tools.names, ['query_asset_related_alerts'])
+    await assert.rejects(client.callTool({ name: draft.toolName, arguments: { asset: 'host-a' } }), /Unknown tool/)
+    const result = await client.callTool({ name: entry.published.toolName, arguments: { asset: 'host-a', limit: 2 } })
+    assert.equal(result.isError, false)
+    assert.equal(JSON.parse(result.content[0].text).result.alerts.length, 2)
+    assert.equal(calls.filter(call => call.path.startsWith('/assets/')).length, 1)
+    assert.equal(calls.filter(call => call.path === '/alerts').length, 1)
+    calls.length = 0
+    const published = await rpc('publishComposition', { compositionId: entry.id, version: 'draft', revision: saved.value.revision, input: { asset: 'host-a' } })
+    assert.equal(published.ok, true)
+    assert.deepEqual(published.value.publishedService.tools.names, [draft.toolName])
+    assert.deepEqual((await client.listTools()).tools.map(tool => tool.name), [draft.toolName])
+    await assert.rejects(client.callTool({ name: entry.published.toolName, arguments: { asset: 'host-a' } }), /Unknown tool/)
+    assert.deepEqual(calls, [])
+  })
+})
+
+test('多个编排独立选择，未发布草稿不进入发现列表且使用自己的连接', async () => {
+  const module = await loadMcpModule()
+  await withFixture(async ({ baseUrl, calls }) => {
+    const { rpc, handler, temp } = await setup(module, baseUrl)
+    const original = (await rpc('list', {})).value
+    const missingDraft = { ...original.compositions[0].published, toolName: 'another_query', title: '另一编排', connectionId: 'another-api' }
+    const created = await rpc('saveCompositionDraft', { revision: original.revision, draft: missingDraft })
+    assert.equal(created.ok, true)
+    assert.equal(created.value.compositions.length, 2)
+    const entry = created.value.compositions[1]
+    const selection = { compositionId: entry.id, version: 'draft' }
+    assert.equal((await compositionRequest(rpc, 'dryRunComposition', { asset: 'host-a' }, selection)).ok, false)
+    const before = JSON.stringify((await rpc('list', {})).value.compositions)
+    assert.equal((await rpc('publishComposition', { ...selection, revision: created.value.revision, input: { asset: 'host-a' } })).ok, false)
+    assert.equal(JSON.stringify((await rpc('list', {})).value.compositions), before)
+    assert.deepEqual(calls, [])
+    const gateway = module.createMcpGatewayFetchHandler(process.cwd(), handler)
+    const discovered = async () => (await (await gateway(new Request('http://fixture.local', { method: 'POST', body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) }))).json()).result.tools.map(item => item.name)
+    assert.deepEqual(await discovered(), ['query_asset_related_alerts'])
+    await rpc('registerOpenApi', { id: 'another-api', specUrl: `${baseUrl}/openapi.json`, credentialRef: { kind: 'file', path: join(temp, 'token.txt') } })
+    assert.equal((await compositionRequest(rpc, 'dryRunComposition', { asset: 'host-a' }, selection)).ok, true)
+    const executed = await compositionRequest(rpc, 'executeComposition', { asset: 'host-a' }, selection)
+    assert.equal(executed.value.version.definition.connectionId, 'another-api')
+    assert.equal(executed.ok, true)
+    assert.equal(executed.value.ok, true)
+    assert.ok(executed.value.receipts.every(receipt => receipt.connectionId === 'another-api'))
+    const callCount = calls.length
+    const published = await rpc('publishComposition', { ...selection, revision: created.value.revision, input: { asset: 'host-a' } })
+    assert.equal(published.ok, true)
+    assert.equal(calls.length, callCount)
+    assert.deepEqual(await discovered(), ['query_asset_related_alerts', 'another_query'])
+  })
+})
+
+test('目录冲突、重复工具名及非法配置不覆盖草稿和已发布内容', async () => {
+  const module = await loadMcpModule()
+  await withFixture(async ({ baseUrl }) => {
+    const { rpc, compositionsFile } = await setup(module, baseUrl)
+    const initial = (await rpc('list', {})).value
+    const entry = initial.compositions[0]
+    const draft = { ...entry.published, title: '正在编辑' }
+    const saved = await rpc('saveCompositionDraft', { compositionId: entry.id, revision: initial.revision, draft })
+    assert.equal(saved.ok, true)
+    const before = await readFile(compositionsFile, 'utf8')
+    for (const endpoint of ['saveCompositionDraft', 'publishComposition', 'dryRunComposition', 'executeComposition']) {
+      const stale = await rpc(endpoint, { compositionId: entry.id, version: 'draft', revision: initial.revision, draft, input: { asset: 'host-a' } })
+      assert.equal(stale.ok, false)
+      assert.match(stale.error.message, /已变化/)
+    }
+    for (const invalid of [{ ...draft, toolName: 'bad name' }, { ...draft, title: '' }, { ...draft, connectionId: '' }, { ...draft, description: 4 }]) {
+      assert.equal((await rpc('saveCompositionDraft', { revision: saved.value.revision, draft: invalid })).ok, false)
+    }
+    assert.equal((await rpc('saveCompositionDraft', { revision: saved.value.revision, draft })).ok, false)
+    assert.equal((await rpc('dryRunComposition', { compositionId: entry.id, version: 'missing', revision: saved.value.revision, input: { asset: 'host-a' } })).ok, false)
+    assert.equal((await rpc('publishComposition', { compositionId: entry.id, version: 'published', revision: saved.value.revision, input: { asset: 'host-a' } })).ok, false)
+    assert.equal(await readFile(compositionsFile, 'utf8'), before)
+    const publishing = rpc('publishComposition', { compositionId: entry.id, version: 'draft', revision: saved.value.revision, input: { asset: 'host-a' } })
+    const concurrent = await rpc('saveCompositionDraft', { compositionId: entry.id, revision: saved.value.revision, draft: { ...draft, title: '并发新草稿' } })
+    assert.equal(concurrent.ok, true)
+    assert.equal((await publishing).ok, false)
+    const after = (await rpc('list', {})).value.compositions[0]
+    assert.equal(after.draft.title, '并发新草稿')
+    assert.deepEqual(after.published, entry.published)
+  })
+})
+
+test('空目录可新建草稿，损坏目录拒绝保存，未登记依赖发布失败保留草稿', async () => {
+  const module = await loadMcpModule()
+  const root = await mkdtemp(join(tmpdir(), 'composition-empty-'))
+  const compositionsFile = join(root, 'platform/mcp-compositions.json')
+  const rpc = module.createMcpHandler(root, { stateFile: join(root, 'connections.json') })
+  const initial = (await rpc('list', {})).value
+  assert.deepEqual(initial.compositions, [])
+  const draft = { toolName: 'first_query', title: '第一个编排', description: '', connectionId: 'missing-api' }
+  const saved = await rpc('saveCompositionDraft', { revision: initial.revision, draft })
+  assert.equal(saved.ok, true)
+  const entry = saved.value.compositions[0]
+  const before = await readFile(compositionsFile, 'utf8')
+  assert.equal((await rpc('publishComposition', { compositionId: entry.id, version: 'draft', revision: saved.value.revision, input: { asset: 'host-a' } })).ok, false)
+  assert.equal(await readFile(compositionsFile, 'utf8'), before)
+  await writeFile(compositionsFile, '{broken')
+  assert.equal((await rpc('saveCompositionDraft', { revision: saved.value.revision, draft })).ok, false)
+  assert.equal(await readFile(compositionsFile, 'utf8'), '{broken')
+})
+
+test('SOC 双服务编排在独立与原生适配器中正确编码、校验业务结果并保留已发布版本', async () => {
+  for (const native of [false, true]) {
+    const module = await loadMcpModule(native)
+    const temp = await mkdtemp(join(tmpdir(), 'soc-composition-'))
+    const calls = []
+    let baseUrl, alertsMethod = 'get'
+    const spec = kind => ({ openapi: '3.0.0', info: { title: kind, version: '1' }, servers: [{ url: baseUrl }], paths: kind === 'master' ? {
+      '/soc/asset/{assetId}': { get: { operationId: 'get_soc_asset_by_asset_id', parameters: [{ name: 'assetId', in: 'path', required: true, schema: { type: 'integer' } }] } },
+    } : {
+      '/detect/alert/list': { [alertsMethod]: { operationId: 'list_detect_alert', parameters: [{ name: 'req', in: 'query', required: true, schema: { type: 'object', properties: { assetId: { type: 'string' }, pageNum: { type: 'integer' }, pageSize: { type: 'integer' }, windowSeconds: { type: 'integer' } } } }] } },
+    } })
+    const server = createServer((req, res) => {
+      const url = new URL(req.url, 'http://fixture.local')
+      calls.push({ path: url.pathname, query: Object.fromEntries(url.searchParams), method: req.method })
+      const reply = (data, status = 200) => res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(data))
+      if (url.pathname === '/master-spec') return reply(spec('master'))
+      if (url.pathname === '/detect-spec') return reply(spec('detect'))
+      if (req.headers['x-api-key'] !== 'fixture-soc-key') return reply({ code: 403 }, 403)
+      if (url.pathname.startsWith('/soc/asset/')) {
+        const assetId = Number(url.pathname.split('/').at(-1))
+        return reply(assetId === 9107 ? { code: 500 } : { code: 200, data: assetId === 9108 ? {} : { assetId: assetId === 9109 ? 1 : assetId, hostname: '联试资产', credential: 'fixture-soc-key' } })
+      }
+      if (url.pathname === '/detect/alert/list') {
+        const id = url.searchParams.get('assetId')
+        if (id === '9110') return reply({ code: 500 })
+        if (id === '9111') return reply({ code: 200, data: {} })
+        if (id === '9113') return reply({ code: 503 }, 503)
+        return reply({ code: 200, data: { groups: id === '9112' ? [] : Array.from({ length: 3 }, (_, n) => ({ groupKey: `group-${n}`, affectedAssetId: id })), totalGroups: id === '9112' ? 0 : 22, totalAlerts: id === '9112' ? 0 : 777, pageNum: 1, pageSize: Number(url.searchParams.get('pageSize')), from: '2026-09-14T00:00:00Z', to: '2026-10-14T00:00:00Z', truncated: false } })
+      }
+      reply({ code: 404 }, 404)
+    })
+    baseUrl = `http://127.0.0.1:${await listen(server)}`
+    try {
+      const published = { toolName: 'query_asset_related_alerts', title: '资产相关告警只读查询', description: '', connectionId: 'old-api' }
+      const draft = { ...published, flow: 'soc-asset-alerts', connectionId: 'master', alertsConnectionId: 'detect' }
+      const compositionsFile = join(temp, native ? 'platform/mcp-compositions.json' : 'compositions.json')
+      await mkdir(join(temp, 'platform'), { recursive: true })
+      await writeFile(compositionsFile, JSON.stringify({ schema_version: '1.0', compositions: [{ id: 'asset-alerts', published, draft }] }))
+      const servers = ['master', 'detect'].map(id => ({ id, enabled: true, specUrl: `${baseUrl}/${id}-spec`, authType: 'credential', authHeader: 'X-API-Key', apiKey: 'fixture-soc-key' }))
+      const rpc = native ? module.createManagedMcpHandler(temp, () => servers) : module.createMcpHandler(temp, { stateFile: join(temp, 'state.json'), compositionsFile })
+      if (!native) {
+        const path = join(temp, 'credential.txt')
+        await writeFile(path, 'fixture-soc-key')
+        for (const server of servers) assert.equal((await rpc('registerOpenApi', { ...server, credentialRef: { kind: 'file', path } })).ok, true)
+      }
+      const listed = (await rpc('list', {})).value
+      const graph = listed.compositions[0].graphs.draft
+      assert.deepEqual(graph.nodes.filter(node => node.operationId).map(node => [node.connectionId, node.operationId]), [['master', 'get_soc_asset_by_asset_id'], ['detect', 'list_detect_alert']])
+      assert.equal(listed.compositions[0].graphs.published.nodes.find(node => node.id === 'getAsset').operationId, 'get_asset')
+      const query = (endpoint, asset, limit = 2) => rpc(endpoint, { compositionId: 'asset-alerts', version: 'draft', revision: listed.revision, input: { asset, limit } })
+      const dry = await query('dryRunComposition', '9106')
+      assert.equal(dry.ok, true)
+      assert.equal(dry.value.upstreamRequests, 0)
+      for (const asset of ['host-a', '0', '9106.5', '9007199254740992']) assert.equal((await query('dryRunComposition', asset)).ok, false)
+      assert.deepEqual(calls, [])
+      const executed = await query('executeComposition', '9106')
+      assert.equal(executed.ok, true)
+      assert.equal(executed.value.ok, true)
+      assert.equal(executed.value.result.asset.assetId, 9106)
+      assert.equal(executed.value.result.alerts.length, 2)
+      assert.ok(executed.value.result.alerts.every(group => group.affectedAssetId === '9106'))
+      assert.equal(executed.value.result.alertSummary.totalAlerts, 777)
+      assert.deepEqual(calls.find(call => call.path === '/detect/alert/list').query, { assetId: '9106', pageNum: '1', pageSize: '2', windowSeconds: '2592000' })
+      assert.deepEqual(executed.value.receipts.map(receipt => [receipt.connectionId, receipt.method]), [['master', 'GET'], ['detect', 'GET']])
+      assert.ok(!JSON.stringify(executed).includes('fixture-soc-key'))
+      for (const [asset, code, firstFailed] of [['9107', 'business_failed', true], ['9108', 'mapping_failed', true], ['9109', 'mapping_failed', true], ['9110', 'business_failed', false], ['9111', 'mapping_failed', false], ['9113', 'step_failed', false]]) {
+        calls.length = 0
+        const failure = (await query('executeComposition', asset)).value
+        assert.equal(failure.ok, false, asset)
+        assert.equal(failure.error.code, code, asset)
+        assert.equal(failure.result.trace[1].status, firstFailed ? 'skipped' : 'failed')
+        assert.equal(calls.some(call => call.path === '/detect/alert/list'), !firstFailed)
+      }
+      const empty = (await query('executeComposition', '9112')).value
+      assert.equal(empty.ok, true)
+      assert.deepEqual(empty.result.alerts, [])
+      assert.equal(empty.result.alertSummary.totalAlerts, 0)
+      calls.length = 0
+      alertsMethod = 'post'
+      assert.equal((await query('executeComposition', '9106')).ok, false)
+      assert.ok(calls.every(call => call.path.endsWith('-spec')))
+      assert.deepEqual((await rpc('list', {})).value.compositions[0].published, published)
+      assert.equal((await rpc('saveCompositionDraft', { compositionId: 'asset-alerts', revision: listed.revision, draft: { ...draft, alertsConnectionId: '' } })).ok, false)
+    } finally {
+      await new Promise(resolve => server.close(resolve))
+    }
+  }
 })

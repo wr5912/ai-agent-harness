@@ -80,6 +80,8 @@ def rendered_profile():
         runtime_name = PLATFORM_PATCH if name == "cordis.patch.yml" else name
         result[runtime_name] = source.replace(
             "{{HARNESS_PLATFORM_PLUGIN}}", json.dumps(str(PLUGIN / "lib" / "index.js"))
+        ).replace(
+            "{{HARNESS_PLATFORM_SKILLS}}", json.dumps(str(REPO / "platform" / "skills"))
         )
     return result
 

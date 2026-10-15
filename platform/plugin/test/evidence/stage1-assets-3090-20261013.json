@@ -1,0 +1,40 @@
+{
+  "at": "2026-10-14T05:55:57.741Z",
+  "target": "http://172.16.138.228:3090",
+  "scope": "当前用户平台 HOME，登录真实 3090；只读界面与 dry 预览；新 Session 验证 Skill",
+  "restart": {
+    "old_pid": 3595773,
+    "new_pid": 4037520
+  },
+  "checks": {
+    "existing_credentials_login": true,
+    "overview_and_three_tabs": true,
+    "assets_tree_and_directory_detail": true,
+    "real_asset_dry_preview_without_write": {
+      "mode": "dry",
+      "checks": [
+        "草稿格式",
+        "来源合同",
+        "评测计划"
+      ],
+      "case_count": 54
+    },
+    "mcp_labels_and_compiled_graph": true,
+    "composition_dry": "未登记示例依赖，上游请求 0 次；未修改连接配置",
+    "mobile_no_horizontal_overflow": true,
+    "instance_embedding_help": "当前没有可查看详情的实例，未创建实例",
+    "new_session_skill": {
+      "cwd": "/home/cmp/work/luopeng/local-gitlab/ai-agent-harness",
+      "preset": "standard",
+      "name": "mcp-composition",
+      "path": "platform/skills/mcp-composition/SKILL.md"
+    },
+    "client_errors": 0,
+    "login_and_model_settings_preserved": true
+  },
+  "limits": [
+    "未发送模型请求、执行上游业务工具、保存 Harness 资产或操作实例生命周期",
+    "未从另一台设备或外部网站验证 iframe 加载"
+  ],
+  "validation": "passed"
+}

@@ -4,7 +4,20 @@ import type { PlatformPageProps } from '../protocol.ts'
 
 type RpcResult = { ok: true; value: any } | { ok: false; error: { code: string; message: string; details?: any } }
 type AgentRow = { id: string; active_experiment?: string | null }
-type PreviewState = { path: string; body: string; before: string; diff: string }
+type PreviewState = { path: string; body: string; before: string; diff: string; dry: any }
+type AssetNode = { name: string; path: string; kind: string; children?: AssetNode[] }
+
+function AssetTree({ nodes, selected, onSelect }: { nodes: AssetNode[]; selected: string; onSelect(path: string): void }) {
+  return <ul className="harness-asset-tree">{nodes.map(node => <li key={node.path}>
+    {node.children ? <details open={node.name === 'candidate'}><summary><button type="button" aria-pressed={selected === node.path} onClick={() => onSelect(node.path)}>{node.name}/</button></summary>
+      <AssetTree nodes={node.children} selected={selected} onSelect={onSelect} /></details>
+      : <button type="button" aria-pressed={selected === node.path} onClick={() => onSelect(node.path)}>{node.name}</button>}
+  </li>)}</ul>
+}
+
+function Fields({ items }: { items: [string, unknown][] }) {
+  return <dl className="harness-fields">{items.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{Array.isArray(value) ? value.join('、') || '无' : typeof value === 'string' || typeof value === 'number' ? value : '未知'}</dd></div>)}</dl>
+}
 
 const panel = {
   minWidth: 0,
@@ -23,8 +36,7 @@ const field = { display: 'grid', minWidth: 0, gap: 4 } as const
 const tabs = [
   { id: 'overview', label: '基本信息' },
   { id: 'assets', label: '资产' },
-  { id: 'edit', label: '编辑' },
-  { id: 'evaluation', label: '评测与 Run' },
+  { id: 'evaluation', label: '评测' },
 ] as const
 
 export function AgentsPage({ rpc }: PlatformPageProps) {
@@ -39,6 +51,10 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
   const [editHash, setEditHash] = useState('')
   const [editPreview, setEditPreview] = useState<PreviewState | null>(null)
   const [editMessage, setEditMessage] = useState('')
+  const [assetInfo, setAssetInfo] = useState<any>(null)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editBusy, setEditBusy] = useState(false)
+  const editDialog = useRef<HTMLDialogElement>(null)
   const [mode, setMode] = useState('fast')
   const [executor, setExecutor] = useState('api')
   const [review, setReview] = useState('none')
@@ -79,6 +95,8 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
     setEditHash('')
     setEditPreview(null)
     setEditMessage('')
+    setAssetInfo(null)
+    setEditOpen(false)
   }
 
   async function call(operation: string, payload: Record<string, unknown> = {}) {
@@ -110,7 +128,8 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
       setDecisionBody(value.decision?.content ?? '')
       setDecisionHash(value.decision?.sha256 ?? '')
       setSelectedCases((current) => current.filter(caseItem => value.evaluation.cases.some((item: any) => item.id === caseItem)))
-      if (!editPath || !value.editable_files.includes(editPath)) selectEditFile(value.editable_files[0] ?? '')
+      const containsPath = (nodes: AssetNode[]): boolean => nodes.some(node => node.path === editPath || (node.children && containsPath(node.children)))
+      if (!containsPath(value.assets ?? [])) selectEditFile(value.assets?.[0]?.path ?? '')
       setEditMessage('')
     } catch (err) {
       if (request === detailRequest.current) setError((err as Error).message)
@@ -118,25 +137,32 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
   }
 
   async function loadEditFile(path = editPath) {
-    if (!detail || !path) return
+    if (!detail || !path) return false
     const request = ++editRequest.current
     setError('')
     try {
       const value = await call('edit/read', { experiment_id: detail.experiment.id, path })
-      if (request !== editRequest.current) return
+      if (request !== editRequest.current) return false
       setEditPath(value.path)
-      setEditBody(value.content)
-      setEditHash(value.sha256)
+      setAssetInfo(value)
+      setEditBody(value.content ?? '')
+      setEditHash(value.sha256 ?? '')
       setEditPreview(null)
       setEditMessage('')
+      return true
     } catch (err) {
       if (request === editRequest.current) setError((err as Error).message)
+      return false
     }
   }
 
   useEffect(() => { void refreshList() }, [])
   useEffect(() => { void refreshDetail(selected, selectedExperiment) }, [selected, selectedExperiment])
   useEffect(() => { void loadEditFile(editPath) }, [detail?.experiment?.id, editPath])
+  useEffect(() => {
+    if (editOpen) editDialog.current?.showModal()
+    else editDialog.current?.close()
+  }, [editOpen])
 
   async function createExperiment() {
     if (!selectedAgent?.active_experiment || !detail) return
@@ -166,6 +192,8 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
   async function doPreview() {
     if (!detail || !editPath || !editHash) return
     const request = editRequest.current
+    setEditBusy(true)
+    setEditMessage('')
     try {
       const value = await call('edit/preview', {
         experiment_id: detail.experiment.id,
@@ -173,33 +201,36 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
       })
       if (request !== editRequest.current) return
       const row = value.edits?.[0]
-      setEditPreview({ path: row.path, body: editBody, before: row.before_sha256, diff: row.diff || '无变化' })
-      setEditMessage('')
+      setEditPreview({ path: row.path, body: editBody, before: row.before_sha256, diff: row.diff || '无变化', dry: value.dry_run })
+      setEditMessage('dry 校验通过，原文件尚未修改。')
     } catch (err) {
-      if (request === editRequest.current) setError((err as Error).message)
-    }
+      if (request === editRequest.current) { setEditPreview(null); setEditMessage((err as Error).message) }
+    } finally { setEditBusy(false) }
   }
 
   async function doApply() {
-    if (!detail || !editPreview) return
-    if (editPreview.body !== editBody || editPreview.path !== editPath) {
-      setError('正文已变更，请重新预览后写入')
-      return
-    }
+    if (!detail || !editHash) return
     const request = detailRequest.current
+    const edit = editRequest.current
+    setEditBusy(true)
+    setEditMessage('正在进行 dry 校验…')
     try {
       const value = await call('edit/apply', {
         experiment_id: detail.experiment.id,
-        edits: [{ path: editPath, content: editBody, expected_sha256: editPreview.before }],
+        edits: [{ path: editPath, content: editBody, expected_sha256: editHash }],
       })
-      if (request !== detailRequest.current) return
-      setEditMessage(`已写入 ${value.written?.[0]?.path}`)
+      if (request !== detailRequest.current || edit !== editRequest.current) return
       setEditPreview(null)
-      await loadEditFile(editPath)
-      if (request === detailRequest.current) await refreshDetail()
+      if (!await loadEditFile(editPath) || request !== detailRequest.current) return
+      const currentEdit = editRequest.current
+      const refresh = detailRequest.current + 1
+      await refreshDetail()
+      if (refresh !== detailRequest.current || currentEdit !== editRequest.current) return
+      const missing = value.dry_run.missing_env_names ?? []
+      setEditMessage(`dry 校验通过，已保存 ${value.written?.[0]?.path}${missing.length ? `；实际运行前需补齐环境变量：${missing.join('、')}` : ''}`)
     } catch (err) {
-      if (request === detailRequest.current) setError((err as Error).message)
-    }
+      if (request === detailRequest.current && edit === editRequest.current) setEditMessage(`${(err as Error).message}；草稿已保留。`)
+    } finally { setEditBusy(false) }
   }
 
   function evalPayload() {
@@ -399,40 +430,61 @@ export function AgentsPage({ rpc }: PlatformPageProps) {
             <div style={{ opacity: 0.75 }}>相关引用：{detail.related_references?.join(', ') || '无'} · 实例装载：{detail.loaded_instance.status}</div>
             <div style={{ opacity: 0.75 }}>登记版本：{selectedAgent?.active_experiment || '未登记'}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 12, marginTop: 14 }}>
-              <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto', margin: 0 }}>Declared{'\n'}{text(detail.declared)}</pre>
-              <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto', margin: 0 }}>Loaded{'\n'}{text(detail.loaded_instance)}</pre>
-              <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto', margin: 0 }}>Run 证据{'\n'}{text(detail.verification.runs)}</pre>
+              <article><h3>来源与 Runtime</h3><Fields items={[
+                ['来源', detail.declared.source_contract.source_id || `experiment:${detail.experiment.id}`],
+                ['合同状态', detail.declared.source_contract.status === 'unavailable' ? '无法解析' : '已解析'],
+                ['Candidate', detail.declared.catalog_source?.candidate_root],
+                ['Profile', detail.declared.catalog_source?.profile], ['Preset', detail.declared.catalog_source?.preset],
+                ['Patch', detail.declared.catalog_source?.patch], ['Guard', detail.declared.catalog_source?.guard ?? '无'],
+                ['Runtime 版本', detail.declared.source_contract.image?.cli_version], ['镜像', detail.declared.source_contract.image?.local_image_tag],
+                ['环境变量', detail.declared.catalog_source?.required_env_names],
+              ]} /></article>
+              <article><h3>实例观察</h3><p>{detail.loaded_instance.status === 'observed' ? '已查询' : detail.loaded_instance.status === 'not_queried' ? '尚未查询' : '观察失败，状态未知'}</p>
+                {(detail.loaded_instance.instances ?? []).map((instance: any) => <Fields key={instance.name} items={[
+                  ['实例', instance.name], ['状态', instance.state], ['镜像', instance.image_tag], ['端口', instance.port],
+                  ['只读挂载', Object.entries(instance.mount_modes ?? {}).map(([name, mode]) => `${name}：${mode}`)],
+                ]} />)}
+                {detail.loaded_instance.status === 'observed' && !detail.loaded_instance.instances?.length && <p>未观察到该版本的实例。</p>}
+                <p>{detail.loaded_instance.note || detail.loaded_instance.reason}</p>
+              </article>
+              <article><h3>Run 证据</h3>{detail.verification.runs.length ? <ul>{detail.verification.runs.map((run: any) => <li key={run.id}><button type="button" onClick={() => { setTab('evaluation'); setRunId(run.id) }}>{run.id}</button></li>)}</ul> : <p>暂无 Run 记录。</p>}
+                <p>可在评测页查看原始记录；来源声明和实例挂载不证明能力已生效。</p></article>
             </div>
           </section>}
           {detail && <section role="tabpanel" id="agent-panel-assets" aria-labelledby="agent-tab-assets" hidden={tab !== 'assets'} style={panel}>
             <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>智能体资产</h2>
-            <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto' }}>Features{'\n'}{text(detail.features)}</pre>
-            <h2 style={{ fontSize: 16 }}>可编辑文件</h2>
-            <div style={{ display: 'grid', gap: 8 }}>
-              {detail.editable_files.map((file: string) => <button key={file} type="button" style={{ textAlign: 'left', overflowWrap: 'anywhere' }}
-                onClick={() => { if (file !== editPath) selectEditFile(file); setTab('edit') }}>{file}</button>)}
+            <div className="harness-asset-layout">
+              <nav aria-label="智能体资产目录"><AssetTree nodes={detail.assets ?? []} selected={editPath} onSelect={path => { if (path !== editPath) selectEditFile(path) }} /></nav>
+              <article><h3>资产详情</h3><p>{editPath || '请选择资产'}</p>
+                {assetInfo && <>
+                  <Fields items={[['类型', assetInfo.kind === 'directory' ? '目录' : assetInfo.kind === 'text' ? '文本' : '二进制或大文件（只读）'], ['大小（字节）', assetInfo.size], ['SHA-256', assetInfo.sha256]]} />
+                  {assetInfo.kind === 'text' && <><button type="button" disabled={!editHash} onClick={() => { setEditMessage(''); setEditOpen(true) }}>编辑</button><pre className="harness-asset-content">{assetInfo.content || '空文件'}</pre></>}
+                  {assetInfo.kind === 'directory' && <p>展开左侧目录后选择文件。</p>}
+                </>}
+                {editMessage && <p role="status">{editMessage}</p>}
+              </article>
             </div>
           </section>}
-          {detail && <section role="tabpanel" id="agent-panel-edit" aria-labelledby="agent-tab-edit" hidden={tab !== 'edit'} style={panel}>
-            <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>资产编辑</h2>
-            <label style={field}>编辑文件
-              <select value={editPath} onChange={event => { if (event.target.value !== editPath) selectEditFile(event.target.value) }} style={{ width: '100%', boxSizing: 'border-box', marginBottom: 8 }}>
-                {detail.editable_files.map((file: string) => <option key={file} value={file}>{file}</option>)}
-              </select>
-            </label>
+          <dialog ref={editDialog} className="harness-asset-dialog" aria-labelledby="asset-edit-title" onCancel={event => { if (editBusy) event.preventDefault(); else setEditOpen(false) }}>
+            <h2 id="asset-edit-title">编辑资产</h2><p>{editPath}</p>
+            <p>应用保存会先进行 dry 校验，再核对文件是否被他人修改。dry 不执行模型、业务工具或 Candidate 代码。</p>
             <label style={field}>编辑正文
-              <textarea value={editBody} disabled={!editHash} onChange={event => { editRequest.current++; setEditBody(event.target.value); setEditPreview(null); setEditMessage('') }} rows={10} style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace' }} />
+              <textarea value={editBody} disabled={!editHash || editBusy} onChange={event => { editRequest.current++; setEditBody(event.target.value); setEditPreview(null); setEditMessage('') }} rows={12} style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace' }} />
             </label>
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button type="button" onClick={() => void loadEditFile()}>重读</button>
-              <button type="button" onClick={() => void doPreview()} disabled={!editHash}>预览差异</button>
-              <button type="button" onClick={() => void doApply()} disabled={!editPreview}>写入</button>
+              <button type="button" onClick={() => void loadEditFile()} disabled={editBusy}>重读文件</button>
+              <button type="button" onClick={() => void doPreview()} disabled={!editHash || editBusy}>dry 校验与预览</button>
+              <button type="button" onClick={() => void doApply()} disabled={!editHash || editBusy}>应用保存</button>
+              <button type="button" onClick={() => setEditOpen(false)} disabled={editBusy}>关闭</button>
             </div>
-            {editMessage && <p>{editMessage}</p>}
-            {editPreview && <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto' }}>{editPreview.diff}</pre>}
-          </section>}
+            {editBusy && <p role="status">正在进行 dry 校验…</p>}
+            {editMessage && <p role="status">{editMessage}</p>}
+            {editPreview && <><p>校验通过：{editPreview.dry.checks.join('、')} · 评测用例 {editPreview.dry.case_ids.length} 个。</p>
+              {editPreview.dry.missing_env_names?.length > 0 && <p>运行前需补齐环境变量：{editPreview.dry.missing_env_names.join('、')}。当前 dry 可继续。</p>}
+              <pre className="harness-asset-content">{editPreview.diff}</pre></>}
+          </dialog>
           {detail && <section role="tabpanel" id="agent-panel-evaluation" aria-labelledby="agent-tab-evaluation" hidden={tab !== 'evaluation'} style={panel}>
-            <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>评测与 Run</h2>
+            <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>评测</h2>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
               <label style={field}>模式
                 <select value={mode} onChange={event => setMode(event.target.value)}>

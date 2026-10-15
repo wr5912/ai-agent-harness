@@ -1,12 +1,14 @@
 import { execFile, spawn, spawnSync } from 'node:child_process'
 import { promisify } from 'node:util'
-import { load as loadYaml } from 'js-yaml'
+import { DEFAULT_SCHEMA, Type, load as loadYaml } from 'js-yaml'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import {
   existsSync,
   closeSync,
+  cpSync,
   lstatSync,
   mkdirSync,
+  mkdtempSync,
   openSync,
   readFileSync,
   readSync,
@@ -16,7 +18,8 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
-import { dirname, join, relative, resolve, sep } from 'node:path'
+import { dirname, extname, join, relative, resolve, sep } from 'node:path'
+import { tmpdir } from 'node:os'
 import type { ConnectionRpcHandler, ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
 
 type JsonMap = Record<string, unknown>
@@ -33,6 +36,9 @@ const VALIDATE_EXPERIMENT = '.agents/skills/research-eval/scripts/validate_exper
 const SOURCE_CONTRACT = 'runtime/adapters/dsh-container/source_contract.py'
 const EVALUATION_CONTRACT = '.agents/skills/research-eval/scripts/evaluation_contract.py'
 const LOG_LIMIT = 16 * 1024
+const EXCLUDED_ASSETS = new Set(['runs', 'history', 'RuntimeHOME', 'sessions', 'cache', '.git', 'node_modules', '__pycache__'])
+// DSH 的 !!js 只作为 YAML 标量解析，dry 校验不求值。
+const DRAFT_YAML_SCHEMA = DEFAULT_SCHEMA.extend(new Type('tag:yaml.org,2002:js', { kind: 'scalar', construct: value => value }))
 
 class RpcError extends Error {
   constructor(readonly code: string, message: string, readonly details: JsonMap = {}) {
@@ -267,36 +273,6 @@ async function loadEvaluation(root: string, agentId: string, signal?: AbortSigna
   return { path: `agents/${agentId}/evaluation.md`, content, sha256: sha256(content), parsed, cases: casesFromEvaluation(parsed as unknown as string) }
 }
 
-function featureList(root: string, experimentId: string) {
-  const candidate = join(root, 'evolution/experiments', experimentId, 'candidate')
-  const exists = (rel: string) => existsSync(join(candidate, rel))
-  const managedRoot = join(candidate, 'dsh/managed')
-  const managedEntries = (() => {
-    try {
-      return readdirSync(managedRoot, { withFileTypes: true }).map(entry => ({
-        name: entry.name,
-        kind: entry.isDirectory() ? 'directory' : entry.isFile() ? 'file' : 'other',
-        declared_only: true,
-      })).sort((left, right) => left.name.localeCompare(right.name))
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
-      throw error
-    }
-  })()
-  return {
-    candidate_root: `evolution/experiments/${experimentId}/candidate`,
-    harness_yaml: exists('harness.yaml'),
-    roles: listDirs(join(candidate, 'roles')),
-    presets: listDirs(join(candidate, 'dsh/presets')),
-    skills: listDirs(join(candidate, '.agents/skills')),
-    managed_entries: managedEntries,
-    plugins_note: '仅列出 candidate/dsh/managed 来源项；插件是否生效以 source_contract/Runtime 装载为准',
-    mcp: exists('mcp.json') || exists('dsh/mcp.json'),
-    model_markers: ['model', 'models', 'llm'].filter(name => exists(`${name}.yaml`) || exists(`${name}.json`)),
-    runtime_markers: ['runtime', 'dsh'].filter(name => exists(name)),
-  }
-}
-
 function declaredFusion(change: JsonMap) {
   const values = [change.fusion_sources, change.inherited_experiments, change.fused_experiments]
     .find(value => Array.isArray(value)) as unknown[] | undefined
@@ -356,6 +332,7 @@ async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
   const source = catalog(root)
   const [evaluation, contract] = await Promise.all([loadEvaluation(root, agentId, signal), sourceContract(root, experimentId, signal)])
   const decision = readText(repoPath(root, `evolution/experiments/${experimentId}/decision.md`))
+  const assets = assetTree(root, experimentId)
   return ok({
     agent: { id: agentId, manifest, path: `agents/${agentId}` },
     experiment: exp,
@@ -366,8 +343,8 @@ async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
     declared: { catalog_source: source.parsed.sources?.[experimentId] ?? null, source_contract: contract, source_catalog_sha256: source.hash },
     loaded_instance: { status: 'not_queried', note: '实际实例由平台实例模块统一观察。' },
     verification: { runs: listRuns(root, experimentId), note: 'Run 证据通过 runs/index 或 runs/show 查询原始记录' },
-    features: featureList(root, experimentId),
-    editable_files: editableFiles(root, experimentId),
+    assets,
+    editable_files: editableFiles(assets),
     evaluation: { path: evaluation.path, sha256: evaluation.sha256, cases: evaluation.cases },
     decision: { path: `evolution/experiments/${experimentId}/decision.md`, sha256: sha256(decision), content: decision },
   })
@@ -483,17 +460,29 @@ async function createExperiment(root: string, payload: JsonMap) {
   }
 }
 
-function editableFiles(root: string, experimentId: string) {
+function editableFiles(nodes: AssetNode[]) {
+  const flatten = (nodes: AssetNode[]): string[] => nodes.flatMap(node => node.children ? flatten(node.children) : [node.path])
+  return flatten(nodes)
+}
+
+type AssetNode = { name: string; path: string; kind: 'directory' | 'file'; children?: AssetNode[] }
+
+function assetTree(root: string, experimentId: string): AssetNode[] {
   const exp = experimentInfo(root, experimentId)
-  const files = [
-    `evolution/experiments/${experimentId}/candidate/harness.yaml`,
-    `agents/${exp.agent_id}/evaluation.md`,
-    `evolution/experiments/${experimentId}/decision.md`,
-  ]
-  for (const role of listDirs(join(root, 'evolution/experiments', experimentId, 'candidate/roles'))) {
-    files.push(`evolution/experiments/${experimentId}/candidate/roles/${role}/AGENTS.md`)
+  function node(rel: string): AssetNode | null {
+    const file = repoPath(root, rel)
+    assertNoSymlinkPath(root, dirname(file))
+    if (!existsSync(file) || lstatSync(file).isSymbolicLink()) return null
+    const name = rel.split('/').at(-1)!
+    if (EXCLUDED_ASSETS.has(name) || name.endsWith('.llm-api-key')) return null
+    if (lstatSync(file).isDirectory()) {
+      const children = readdirSync(file).sort().map(child => node(`${rel}/${child}`)).filter((child): child is AssetNode => child !== null)
+      return { name, path: rel, kind: 'directory', children }
+    }
+    return lstatSync(file).isFile() ? { name, path: rel, kind: 'file' } : null
   }
-  return files.filter((rel, index, all) => all.indexOf(rel) === index && existsSync(repoPath(root, rel)))
+  return [`evolution/experiments/${experimentId}/candidate`, `agents/${exp.agent_id}/evaluation.md`, `evolution/experiments/${experimentId}/decision.md`]
+    .map(node).filter((item): item is AssetNode => item !== null)
 }
 
 function assertNoSymlinkPath(root: string, target: string) {
@@ -516,10 +505,10 @@ function editablePath(root: string, payload: JsonMap, relPath: string) {
   if (rel.startsWith('candidate/')) rel = `evolution/experiments/${experimentId}/${rel}`
   if (!rel.startsWith('evolution/') && !rel.startsWith('agents/')) rel = `evolution/experiments/${experimentId}/candidate/${rel}`
   const parts = rel.split('/')
-  if (parts.some(part => ['runs', 'history', 'RuntimeHOME', 'sessions', 'cache', '.git'].includes(part)) || parts.some(part => part.endsWith('.llm-api-key'))) {
+  if (parts.some(part => EXCLUDED_ASSETS.has(part)) || parts.some(part => part.endsWith('.llm-api-key'))) {
     throw new RpcError('path_rejected', 'Run、历史、缓存、Session、RuntimeHOME、Git 和 LLM API Key 不可编辑', { path: rel })
   }
-  const allowed = rel.startsWith(`evolution/experiments/${experimentId}/candidate/`) ||
+  const allowed = rel === `evolution/experiments/${experimentId}/candidate` || rel.startsWith(`evolution/experiments/${experimentId}/candidate/`) ||
     rel === `evolution/experiments/${experimentId}/decision.md` ||
     rel === `agents/${agentId}/evaluation.md`
   if (!allowed) throw new RpcError('path_rejected', '路径不在可编辑范围内', { path: rel })
@@ -565,24 +554,76 @@ function rejectsLlmApiKey(pathName: string, content: string) {
 
 function readEditable(root: string, payload: JsonMap) {
   const path = optionalString(payload, 'path')
-  if (!path) return ok({ files: editableFiles(root, experimentIdField(payload)) })
+  if (!path) return ok({ files: editableFiles(assetTree(root, experimentIdField(payload))) })
   const target = editablePath(root, payload, path)
-  const content = readText(target.file)
-  return ok({ path: target.rel, content, sha256: sha256(content) })
+  const stat = lstatSync(target.file)
+  if (stat.isDirectory()) return ok({ path: target.rel, kind: 'directory', editable: false })
+  const value = readAssetText(target.file)
+  return ok({ path: target.rel, kind: value === null ? 'binary' : 'text', editable: value !== null, size: stat.size,
+    ...(value === null ? {} : { content: value, sha256: sha256(value) }) })
 }
 
-function previewEdit(root: string, payload: JsonMap) {
+function readAssetText(file: string): string | null {
+  if (!existsSync(file)) return ''
+  if (!lstatSync(file).isFile()) return null
+  // shortcut: 超过 1 MiB 的文件只展示元信息；需要编辑大资产时再提供专用编辑器。
+  if (lstatSync(file).size > 1024 * 1024) return null
+  const buffer = readFileSync(file)
+  if (buffer.includes(0)) return null
+  try { return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(buffer) } catch { return null }
+}
+
+function editableText(file: string) {
+  const value = readAssetText(file)
+  if (value === null) throw new RpcError('path_rejected', '二进制、目录或超过 1 MiB 的文件只读')
+  return value
+}
+
+async function validateDraft(root: string, payload: JsonMap, drafts: { rel: string; content: string }[], signal?: AbortSignal) {
+  for (const draft of drafts) {
+    try {
+      if (extname(draft.rel) === '.json') JSON.parse(draft.content)
+      if (['.yaml', '.yml'].includes(extname(draft.rel))) loadYaml(draft.content, { schema: DRAFT_YAML_SCHEMA })
+    } catch { throw new RpcError('invalid_request', '草稿格式无效', { path: draft.rel }) }
+  }
+  const experimentId = experimentIdField(payload)
+  const exp = experimentInfo(root, experimentId)
+  const temp = mkdtempSync(join(tmpdir(), 'harness-edit-dry-'))
+  const candidate = `evolution/experiments/${experimentId}/candidate`
+  const copy = (rel: string, filtered = false) => {
+    const file = repoPath(root, rel)
+    assertNoSymlinkPath(root, file)
+    mkdirSync(dirname(join(temp, rel)), { recursive: true })
+    cpSync(file, join(temp, rel), { recursive: true, filter: filtered ? path => {
+      const parts = relative(file, path).split(sep)
+      return !lstatSync(path).isSymbolicLink() && !parts.some(part => EXCLUDED_ASSETS.has(part) || part.endsWith('.llm-api-key'))
+    } : undefined })
+  }
+  try {
+    copy(candidate, true)
+    copy(`agents/${exp.agent_id}/evaluation.md`)
+    for (const rel of [DSH_EVAL, SOURCE_CATALOG, SOURCE_CONTRACT, EVALUATION_CONTRACT,
+      ...['scenario_analysis.py', 'source.lock.json', 'Dockerfile', 'apt-mirror.sh', 'build-image.sh', 'dsh-cli.sh', 'remote-host-settings.patch'].map(name => `runtime/adapters/dsh-container/${name}`)]) copy(rel)
+    for (const draft of drafts) atomicWrite(join(temp, draft.rel), draft.content)
+    const result = await parseJsonCommandAsync(temp, [DSH_EVAL, '--source', `experiment:${experimentId}`, '--dry-run', '--mode', 'full', '--executor', 'api', '--review', 'none'], '草稿 dry 校验失败', signal)
+    return { mode: 'dry', checks: ['草稿格式', '来源合同', '评测计划'], case_ids: result.case_ids,
+      missing_env_names: result.missing_env_names, note: '未执行 Candidate 代码、模型或业务工具，未启动实例或创建 Run。' }
+  } finally { rmSync(temp, { recursive: true, force: true }) }
+}
+
+async function previewEdit(root: string, payload: JsonMap, signal?: AbortSignal) {
   const raw = edits(payload)
   const targets = raw.map(edit => ({ edit, target: editablePath(root, payload, edit.path) }))
   assertUniqueResolved(targets.map(item => item.target))
   const result = targets.map(({ edit, target }) => {
-    const before = readText(target.file)
+    const before = editableText(target.file)
     if (edit.expected && sha256(before) !== edit.expected) throw new RpcError('conflict', '文件已被修改', { path: target.rel, expected_sha256: edit.expected, actual_sha256: sha256(before) })
     if (rejectsLlmApiKey(target.rel, edit.content)) throw new RpcError('secret_rejected', '拒绝写入 LLM API Key')
     if (target.rel.endsWith('/evaluation.md')) loadEvaluationPreview(root, edit.content)
     return { path: target.rel, before_sha256: sha256(before), after_sha256: sha256(edit.content), changed: before !== edit.content, diff: simpleDiff(target.rel, before, edit.content) }
   })
-  return ok({ edits: result })
+  const dryRun = await validateDraft(root, payload, targets.map(({ edit, target }) => ({ rel: target.rel, content: edit.content })), signal)
+  return ok({ edits: result, dry_run: dryRun })
 }
 
 function loadEvaluationPreview(root: string, content: string) {
@@ -604,10 +645,10 @@ function loadEvaluationPreview(root: string, content: string) {
   return JSON.parse(run.stdout) as JsonMap
 }
 
-function applyEdit(root: string, payload: JsonMap) {
+async function applyEdit(root: string, payload: JsonMap, signal?: AbortSignal) {
   const resolved = edits(payload).map(edit => {
     const target = editablePath(root, payload, edit.path)
-    const before = readText(target.file)
+    const before = editableText(target.file)
     if (!edit.expected) throw new RpcError('invalid_request', '写入必须提供 expected_sha256', { path: target.rel })
     if (sha256(before) !== edit.expected) throw new RpcError('conflict', '文件已被修改', { path: target.rel, expected_sha256: edit.expected, actual_sha256: sha256(before) })
     if (rejectsLlmApiKey(target.rel, edit.content)) throw new RpcError('secret_rejected', '拒绝写入 LLM API Key')
@@ -615,12 +656,15 @@ function applyEdit(root: string, payload: JsonMap) {
     return { ...target, content: edit.content, expected: edit.expected }
   })
   assertUniqueResolved(resolved)
+  const dryRun = await validateDraft(root, payload, resolved, signal)
+  if (signal?.aborted) throw new RpcError('aborted', '草稿保存已取消')
+  // dry 期间原文件可能变化；校验全部哈希后同步写入，避免异步交错。
   for (const item of resolved) {
-    const before = readText(item.file)
-    if (!item.expected || sha256(before) !== item.expected) throw new RpcError('conflict', '文件已被修改', { path: item.rel, expected_sha256: item.expected, actual_sha256: sha256(before) })
-    atomicWrite(item.file, item.content)
+    assertNoSymlinkPath(root, item.file)
+    if (sha256(editableText(item.file)) !== item.expected) throw new RpcError('conflict', '文件已被修改', { path: item.rel })
   }
-  return ok({ written: resolved.map(item => ({ path: item.rel, sha256: sha256(item.content) })) })
+  for (const item of resolved) atomicWrite(item.file, item.content)
+  return ok({ written: resolved.map(item => ({ path: item.rel, sha256: sha256(item.content) })), dry_run: dryRun })
 }
 
 async function cases(root: string, payload: JsonMap, signal?: AbortSignal) {
@@ -764,11 +808,11 @@ async function readRunEvidence(root: string, payload: JsonMap, signal?: AbortSig
   return ok({ path: entry.path, content: redact(buffer.subarray(0, Math.min(size, limit)).toString('utf8'), Infinity), truncated: size > limit })
 }
 
-function decisionUpdate(root: string, payload: JsonMap) {
-  const result = applyEdit(root, {
+async function decisionUpdate(root: string, payload: JsonMap, signal?: AbortSignal) {
+  const result = await applyEdit(root, {
     experiment_id: experimentIdField(payload),
     edits: [{ path: 'decision.md', content: textField(payload, 'content'), expected_sha256: stringField(payload, 'expected_sha256') }],
-  })
+  }, signal)
   const written = result.ok ? result.value.written?.[0] : null
   return ok({ path: written?.path ?? '', sha256: written?.sha256 ?? '' })
 }
@@ -785,8 +829,8 @@ export function createAgentsHandler(assetRoot: string): ConnectionRpcHandler {
         case 'detail': return await detail(root, body, signal)
         case 'create': return await createExperiment(root, body)
         case 'edit/read': return readEditable(root, body)
-        case 'edit/preview': return previewEdit(root, body)
-        case 'edit/apply': return await applyEdit(root, body)
+        case 'edit/preview': return await previewEdit(root, body, signal)
+        case 'edit/apply': return await applyEdit(root, body, signal)
         case 'cases/list': return await cases(root, body, signal)
         case 'eval/preview': return await evalPreview(root, body, signal)
         case 'eval/start': return startEval(root, body, jobs)
@@ -796,7 +840,7 @@ export function createAgentsHandler(assetRoot: string): ConnectionRpcHandler {
         case 'runs/show': return await runRecord(root, 'show', body, signal)
         case 'runs/evidence': return await readRunEvidence(root, body, signal)
         case 'runs/compare': return await runRecord(root, 'compare', body, signal)
-        case 'decision/update': return await decisionUpdate(root, body)
+        case 'decision/update': return await decisionUpdate(root, body, signal)
         default: return failure(new RpcError('not_found', '未知的智能体操作', { endpoint }))
       }
     } catch (error) {

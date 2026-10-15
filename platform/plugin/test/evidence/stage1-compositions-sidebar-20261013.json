@@ -1,0 +1,47 @@
+{
+  "at": "2026-10-14T06:29:03.939Z",
+  "target": "http://172.16.138.228:3090",
+  "branch": "fix/PLATFORM-agent-assets-mcp-ui",
+  "scope": "真实 3090 全局 DSH 壳及实际客户端；保存和发布只替换临时编排目录与受控连接边界",
+  "restart": {
+    "old_pid": 4037520,
+    "new_pid": 4096387
+  },
+  "checks": {
+    "live_sidebar_groups": {
+      "all": 1,
+      "drafts": 1,
+      "published": 1
+    },
+    "composition_stays_in_mcp_page": true,
+    "compiled_graph_selection": true,
+    "live_dry": {
+      "mode": "dry",
+      "upstream_requests": 0,
+      "connection": "soc-api",
+      "unverified": [
+        "上游规格及工具可用性",
+        "实际参数映射与工具执行结果"
+      ]
+    },
+    "draft_saved_and_old_published_selectable": true,
+    "new_composition_draft_and_publish": true,
+    "conflict_preserves_editor_and_saved_draft": true,
+    "publish_replaces_selected_tool_only": true,
+    "responsive_no_horizontal_overflow": [
+      1440,
+      900,
+      390
+    ],
+    "published_catalog_survives_reload": true,
+    "fixture_dry_and_publish_upstream_requests": 0,
+    "client_errors": 0,
+    "user_files_unchanged": true
+  },
+  "limits": [
+    "真实目录仅查询和 dry 测试；未发布用户工具或修改连接配置",
+    "dry 与发布验证不请求规格、登录或业务接口；实际业务结果未验证",
+    "宿主机浏览器访问局域网地址，未从另一设备验证"
+  ],
+  "validation": "passed"
+}
