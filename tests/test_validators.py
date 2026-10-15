@@ -57,7 +57,7 @@ def copy_repository(destination: Path) -> Path:
     shutil.copytree(
         ROOT,
         target,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", "__pycache__", "*.pyc", "node_modules"),
+        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".code-review-graph", "__pycache__", "*.pyc", "node_modules"),
     )
     return target
 
@@ -480,7 +480,7 @@ class ResearchEvalTests(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("RESULT_FIELDS", error_codes(payload))
 
-    def test_sealed_run_keeps_historical_evaluation_digest(self) -> None:
+    def test_running_and_sealed_runs_keep_frozen_evaluation(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             experiment = write_minimal_experiment(Path(temp), status="completed", outcome="adopt")
             run_id = "run-" + str(uuid.uuid4())
@@ -553,9 +553,16 @@ class ResearchEvalTests(unittest.TestCase):
             )
             evaluation.write_text(changed_evaluation, encoding="utf-8")
             completed, payload = run_json(VALIDATE_EXPERIMENT, experiment)
+            self.assertEqual(completed.returncode, 0, json.dumps(payload, ensure_ascii=False))
+            locked_path = run_dir / "inputs.lock.json"
+            original = locked_path.read_text(encoding="utf-8")
+            tampered = json.loads(original)
+            tampered["evaluation_cases"][0]["title"] = "篡改冻结标题"
+            locked_path.write_text(json.dumps(tampered), encoding="utf-8")
+            completed, payload = run_json(VALIDATE_EXPERIMENT, experiment)
             self.assertNotEqual(completed.returncode, 0)
             self.assertIn("RUN_EVALUATION_HASH", error_codes(payload))
-            self.assertIn("RUN_EVALUATION_CASES", error_codes(payload))
+            locked_path.write_text(original, encoding="utf-8")
             manifest = run_dir / "run.yaml"
             manifest.write_text(
                 manifest.read_text(encoding="utf-8").replace("status: running", "status: completed")
@@ -636,9 +643,9 @@ class RunRecordTests(unittest.TestCase):
                                       case=["U-INS-001"], selection_mode="explicit",
                                       kind="research", model=None, executor="api", review_mode=None)
             with mock.patch.object(module, "resolve", return_value=contract), \
-                    mock.patch.object(module, "execution_for", return_value=[{"case_id": "U-INS-001"}]), \
-                    mock.patch.object(module, "load_evaluation", return_value={"catalog": []}), \
-                    mock.patch.object(module, "evaluation_digest", return_value="digest"), \
+                    mock.patch.object(module, "load_evaluation", return_value={
+                        "case_ids": ["U-INS-001"], "cases": {"U-INS-001": {"case_id": "U-INS-001"}}, "catalog": [],
+                    }), \
                     mock.patch.object(module, "tree_digest", return_value={}):
                 module.command_init(repo, args)
             run_dir = next((experiment / "runs").iterdir())

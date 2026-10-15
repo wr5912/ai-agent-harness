@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CHANNEL } from '../protocol.ts'
-import type { PlatformPageProps } from '../protocol.ts'
+import type { PlatformNavigation, PlatformPageProps } from '../protocol.ts'
 import type { PlatformUpdates } from '../realtime/client.ts'
 import { instanceWebUrl } from '../instances/url.ts'
 
 type RpcResult = { ok: true; value: any } | { ok: false; error: { code: string; message: string; details?: any } }
-type AgentRow = { id: string; active_experiment?: string | null }
+type AgentRow = { id: string; name?: string; manifest?: Record<string, any>; active_experiment?: string | null; version_count?: number; latest_experiment_status?: string | null; instance_state?: string }
 type PreviewState = { path: string; body: string; before: string; diff: string; dry: any }
 type AssetNode = { name: string; path: string; kind: string; children?: AssetNode[] }
 
@@ -34,16 +34,23 @@ function text(value: unknown) {
   return typeof value === 'string' ? value : JSON.stringify(value, null, 2)
 }
 
+
+function researchStatus(status?: string | null) {
+  return ({ active: '研究中', completed: '已完成研究', archived: '已归档', adopted: '已采纳', rejected: '已拒绝' } as Record<string, string>)[status ?? ''] ?? status ?? '状态未记录'
+}
+
 const field = { display: 'grid', minWidth: 0, gap: 4 } as const
 const tabs = [
-  { id: 'overview', label: '基本信息' },
-  { id: 'assets', label: '资产' },
-  { id: 'evaluation', label: '评测' },
+  { id: 'overview', label: '概览' },
+  { id: 'assets', label: 'Harness 资产' },
+  { id: 'capabilities', label: '能力状态' },
+  { id: 'runtime', label: '运行情况' },
 ] as const
 
-export function AgentsPage({ rpc, updates, onContext, onAssistant }: PlatformPageProps & { updates?: PlatformUpdates; onContext?(context: Record<string, unknown>): void; onAssistant?(task: string, context: Record<string, unknown>): Promise<void> }) {
+export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNavigate, active = true }: PlatformPageProps & { target?: PlatformNavigation; onNavigate?(target: PlatformNavigation): void; active?: boolean; updates?: PlatformUpdates; onContext?(context: Record<string, unknown>): void; onAssistant?(task: string, context: Record<string, unknown>): Promise<void> }) {
   const [agents, setAgents] = useState<AgentRow[]>([])
   const [selected, setSelected] = useState('')
+  const [search, setSearch] = useState('')
   const [selectedExperiment, setSelectedExperiment] = useState('')
   const [tab, setTab] = useState<(typeof tabs)[number]['id']>('overview')
   const [detail, setDetail] = useState<any>(null)
@@ -57,27 +64,6 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant }: PlatformPag
   const [editOpen, setEditOpen] = useState(false)
   const [editBusy, setEditBusy] = useState(false)
   const editDialog = useRef<HTMLDialogElement>(null)
-  const [mode, setMode] = useState('fast')
-  const [executor, setExecutor] = useState('api')
-  const [review, setReview] = useState('none')
-  const [selectedCases, setSelectedCases] = useState<string[]>([])
-  const [evalResult, setEvalResult] = useState('')
-  const [jobId, setJobId] = useState('')
-  const [runId, setRunId] = useState('')
-  const [caseId, setCaseId] = useState('')
-  const [evidenceFile, setEvidenceFile] = useState('trace.jsonl')
-  const [leftRun, setLeftRun] = useState('')
-  const [rightRun, setRightRun] = useState('')
-  const [runs, setRuns] = useState<any[]>([])
-  const [runsLoading, setRunsLoading] = useState(false)
-  const [runsError, setRunsError] = useState('')
-  const [runCases, setRunCases] = useState<string[]>([])
-  const runsRequest = useRef(0)
-  const runRequest = useRef(0)
-  const [decisionBody, setDecisionBody] = useState('')
-  const [decisionHash, setDecisionHash] = useState('')
-  const decisionDraft = useRef({ body: '', hash: '', dirty: false })
-  const [decisionConflict, setDecisionConflict] = useState(false)
   const [versionOpen, setVersionOpen] = useState(false)
   const [versionGoal, setVersionGoal] = useState('')
   const [versionParent, setVersionParent] = useState('')
@@ -95,19 +81,39 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant }: PlatformPag
   const launchRequest = useRef(0)
   const editRequest = useRef(0)
   const selectedAgent = useMemo(() => agents.find(agent => agent.id === selected), [agents, selected])
+  const pendingSelectionNavigation = useRef(false)
+  const navigation = useRef({ active, target, onNavigate, tab })
+  navigation.current = { active, target, onNavigate, tab }
 
-  function selectVersion(agentId: string, experimentId = '') {
-    if (agentId === selected && experimentId === selectedExperiment) return
+  function navigateSelection(agentId: string, experimentId: string | undefined, nextTab = tab, replace = false) {
+    const current = navigation.current
+    if (!current.active || !agentId || !experimentId) return
+    if (current.target?.page === 'agents' && current.target.agent_id === agentId
+      && current.target.experiment_id === experimentId && current.target.tab === nextTab) return
+    current.onNavigate?.({ page: 'agents', agent_id: agentId, experiment_id: experimentId, tab: nextTab, ...(replace ? { replace: true } : {}) })
+  }
+
+  function selectTab(nextTab: (typeof tabs)[number]['id']) {
+    setTab(nextTab)
+    navigateSelection(selected, detail?.experiment?.id, nextTab)
+  }
+
+  function selectVersion(agentId: string, experimentId = '', notify = true) {
+    if (agentId === selected && (!experimentId || experimentId === selectedExperiment)) {
+      if (notify) navigateSelection(agentId, detail?.experiment?.id)
+      return true
+    }
+    if (!discardAssetDraft()) return false
     detailRequest.current++
     selectionRequest.current++
     versionPreviewRequest.current++
     launchRequest.current++
-    if (agentId !== selected) setTab('overview')
+    pendingSelectionNavigation.current = notify && !experimentId
+    const nextTab = agentId !== selected ? 'overview' : tab
+    setTab(nextTab)
     setSelected(agentId)
     setSelectedExperiment(experimentId)
     setDetail(null)
-    decisionDraft.current = { body: '', hash: '', dirty: false }
-    setDecisionConflict(false)
     setVersionOpen(false)
     setVersionInventory(null)
     setVersionProposal(null)
@@ -115,6 +121,8 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant }: PlatformPag
     setLaunch(null)
     setLaunchBusy(false)
     selectEditFile('')
+    if (notify && experimentId) navigateSelection(agentId, experimentId, nextTab)
+    return true
   }
 
   function selectEditFile(path: string) {
@@ -155,13 +163,9 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant }: PlatformPag
       if (request !== detailRequest.current) return
       setDetail(value)
       if (!experimentId) setSelectedExperiment(current => current || value.experiment.id)
-      if (!decisionDraft.current.dirty) {
-        setDecisionBody(value.decision?.content ?? '')
-        setDecisionHash(value.decision?.sha256 ?? '')
-        decisionDraft.current = { body: value.decision?.content ?? '', hash: value.decision?.sha256 ?? '', dirty: false }
-        setDecisionConflict(false)
-      } else if (decisionDraft.current.hash !== value.decision?.sha256) setDecisionConflict(true)
-      setSelectedCases((current) => current.filter(caseItem => value.evaluation.cases.some((item: any) => item.id === caseItem)))
+      // 默认版本必须使用服务端实际解析结果，不能用登记版本填充地址。
+      navigateSelection(agentId, value.experiment.id, navigation.current.tab, !pendingSelectionNavigation.current)
+      pendingSelectionNavigation.current = false
       const containsPath = (nodes: AssetNode[]): boolean => nodes.some(node => node.path === editPath || (node.children && containsPath(node.children)))
       if (!containsPath(value.assets ?? []) && !editOpen) selectEditFile(value.assets?.[0]?.path ?? '')
     } catch (err) {
@@ -191,23 +195,56 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant }: PlatformPag
 
   useEffect(() => { void refreshList() }, [])
   useEffect(() => { void refreshDetail(selected, selectedExperiment) }, [selected, selectedExperiment])
-  useEffect(() => { onContext?.({ page: 'agents', agent_id: selected || undefined, experiment_id: detail?.experiment?.id, tab }) }, [selected, detail?.experiment?.id, tab, onContext])
+  useEffect(() => {
+    if (active) onContext?.({ page: 'agents', agent_id: selected || undefined, experiment_id: detail?.experiment?.id, tab })
+  }, [active, selected, detail?.experiment?.id, tab, onContext])
+  useEffect(() => {
+    if (!active || !target || target.page !== 'agents') return
+    if (target.agent_id && !selectVersion(target.agent_id, target.experiment_id, false)) {
+      // 浏览器已更新地址；用户保留草稿时同步恢复当前对象与标签。
+      navigateSelection(selected, detail?.experiment?.id, tab, true)
+      return
+    }
+    const nextTab = tabs.find(item => item.id === target.tab)?.id ?? 'overview'
+    setTab(nextTab)
+    if ((!target.agent_id || target.agent_id === selected)
+      && (!target.experiment_id || target.experiment_id === selectedExperiment)) {
+      navigateSelection(selected, detail?.experiment?.id, nextTab, true)
+    }
+  }, [active, target?.page, target?.agent_id, target?.experiment_id, target?.tab])
+  useEffect(() => {
+    if (!editOpen || !assetDirty) return
+    const guard = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
+    window.addEventListener('beforeunload', guard)
+    return () => window.removeEventListener('beforeunload', guard)
+  }, [editOpen, editBody, assetInfo?.content])
+  useEffect(() => {
+    const selection = selectionRequest.current
+    if (selected) void call('fusion/proposal', { agent_id: selected }).then(value => {
+      if (selection === selectionRequest.current) setVersionProposal(value.proposal)
+    }).catch(() => undefined)
+    if (detail?.experiment?.id) void call('features/proposal', { experiment_id: detail.experiment.id }).then(value => {
+      if (selection === selectionRequest.current) setFeatureProposal(value.proposal)
+    }).catch(() => undefined)
+  }, [selected, detail?.experiment?.id])
   useEffect(() => updates?.subscribe(() => {
     const snapshot = updates.getSnapshot()
     if (!snapshot.domains.some(domain => ['agents', 'instances', 'catalog'].includes(domain))) return
+    const selection = selectionRequest.current
     void refreshList()
     void refreshDetail(selected, selectedExperiment)
-    if (selected) void call('fusion/proposal', { agent_id: selected }).then(value => setVersionProposal(value.proposal)).catch(() => undefined)
-    if (detail?.experiment?.id) void call('features/proposal', { experiment_id: detail.experiment.id }).then(value => setFeatureProposal(value.proposal)).catch(() => undefined)
-    if (editOpen && detail?.experiment?.id && editPath && editHash) void call('edit/read', { experiment_id: detail.experiment.id, path: editPath }).then(value => { if (value.sha256 !== editHash) setEditMessage('文件已被其他任务修改，编辑草稿已保留；保存前请核对最新内容。') }).catch(() => undefined)
-    if (tab === 'evaluation') void loadRuns()
-    if (jobId) void evalStatus()
-  }), [updates, selected, selectedExperiment, detail?.experiment?.id, tab, editOpen, editPath, editHash, jobId])
+    if (selected) void call('fusion/proposal', { agent_id: selected }).then(value => { if (selection === selectionRequest.current) setVersionProposal(value.proposal) }).catch(() => undefined)
+    if (detail?.experiment?.id) void call('features/proposal', { experiment_id: detail.experiment.id }).then(value => { if (selection === selectionRequest.current) setFeatureProposal(value.proposal) }).catch(() => undefined)
+    if (editOpen && detail?.experiment?.id && editPath && editHash) {
+      const request = editRequest.current
+      void call('edit/read', { experiment_id: detail.experiment.id, path: editPath }).then(value => { if (request === editRequest.current && value.sha256 !== editHash) setEditMessage('文件已被其他任务修改，编辑草稿已保留；保存前请核对最新内容。') }).catch(() => undefined)
+    }
+  }), [updates, selected, selectedExperiment, detail?.experiment?.id, editOpen, editPath, editHash])
   useEffect(() => { void loadEditFile(editPath) }, [detail?.experiment?.id, editPath])
   useEffect(() => {
-    if (editOpen) editDialog.current?.showModal()
+    if (editOpen && active) editDialog.current?.showModal()
     else editDialog.current?.close()
-  }, [editOpen])
+  }, [editOpen, active])
 
   async function previewVersion() {
     if (!detail || !versionGoal.trim()) return
@@ -376,183 +413,57 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant }: PlatformPag
     } finally { setEditBusy(false) }
   }
 
-  function evalPayload() {
-    return {
-      source: `experiment:${detail.experiment.id}`,
-      mode,
-      executor,
-      review,
-      cases: selectedCases.length ? selectedCases : undefined,
+  const assetDirty = assetInfo?.kind === 'text' && editBody !== assetInfo.content
+  const visibleAgents = agents.filter(agent => `${agent.name ?? agent.manifest?.name ?? ''} ${agent.id}`.toLowerCase().includes(search.trim().toLowerCase()))
+  const instances = detail?.loaded_instance?.instances ?? []
+  const versionRuns = detail?.verification?.runs ?? []
+
+  function discardAssetDraft() {
+    return !assetDirty || window.confirm('当前资产有未保存修改。确认放弃草稿？')
+  }
+
+  function closeEditor() {
+    if (!editBusy && discardAssetDraft()) {
+      setEditBody(assetInfo?.content ?? '')
+      setEditOpen(false)
     }
   }
 
-  async function evalPreview() {
-    if (!detail) return
-    try {
-      const value = await call('eval/preview', evalPayload())
-      setEvalResult(text(value.result))
-    } catch (err) {
-      setEvalResult((err as Error).message)
-    }
+  function openEvaluation(nextTab = 'runs', runId?: string) {
+    onNavigate?.({ page: 'evaluation', agent_id: selected, experiment_id: detail?.experiment?.id, tab: nextTab, ...(runId ? { run_id: runId } : {}) })
   }
-
-  async function evalStart() {
-    if (!detail) return
-    try {
-      const value = await call('eval/start', evalPayload())
-      setJobId(value.job_id)
-      setEvalResult(text(value))
-    } catch (err) {
-      setEvalResult((err as Error).message)
-    }
-  }
-
-  async function evalStatus() {
-    if (!jobId) return
-    try {
-      const value = await call('eval/status', { job_id: jobId })
-      setEvalResult(text(value))
-    } catch (err) {
-      setEvalResult((err as Error).message)
-    }
-  }
-
-  async function evalCancel() {
-    if (!jobId) return
-    try {
-      const value = await call('eval/cancel', { job_id: jobId })
-      setEvalResult(text(value))
-    } catch (err) {
-      setEvalResult((err as Error).message)
-    }
-  }
-
-  async function loadRuns() {
-    const request = ++runsRequest.current
-    if (!selected) return
-    setRunsLoading(true)
-    setRunsError('')
-    try {
-      const value = await call('runs/index', { agent_id: selected })
-      if (request !== runsRequest.current) return
-      setRuns((value.experiments ?? []).flatMap((experiment: any) =>
-        (experiment.runs ?? []).map((run: any) => ({ ...run, experiment_id: experiment.experiment_id ?? experiment.id }))))
-    } catch (err) {
-      if (request === runsRequest.current) setRunsError((err as Error).message)
-    } finally {
-      if (request === runsRequest.current) setRunsLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    setRuns([])
-    setRunId('')
-    setCaseId('')
-    setRunCases([])
-    setEvalResult('')
-    runRequest.current++
-    void loadRuns()
-    return () => { runsRequest.current++; runRequest.current++ }
-  }, [selected])
-
-  function chooseRun(id: string) {
-    runRequest.current++
-    setRunId(id)
-    setCaseId('')
-    setRunCases([])
-    setEvalResult('')
-  }
-
-  async function showRun() {
-    if (!runId) return
-    const request = ++runRequest.current
-    try {
-      const value = await call('runs/show', { run_id: runId })
-      if (request !== runRequest.current) return
-      const ids = (value.cases ?? []).map((item: any) => item.case_id)
-      setRunCases(ids)
-      setCaseId(current => ids.includes(current) ? current : ids[0] ?? '')
-      setEvalResult(text(value))
-    } catch (err) {
-      if (request === runRequest.current) setEvalResult((err as Error).message)
-    }
-  }
-
-  async function showEvidence() {
-    const request = ++runRequest.current
-    try {
-      const value = await call('runs/evidence', { run_id: runId, case_id: caseId, filename: evidenceFile })
-      if (request !== runRequest.current) return
-      setEvalResult(`${value.path}${value.truncated ? '（仅显示前 64 KiB）' : ''}\n${value.content}`)
-    } catch (err) {
-      if (request === runRequest.current) setEvalResult((err as Error).message)
-    }
-  }
-
-  async function compareRuns() {
-    if (!leftRun || !rightRun) return
-    const request = ++runRequest.current
-    try {
-      const value = await call('runs/compare', { left: leftRun, right: rightRun, case_id: caseId || undefined })
-      if (request === runRequest.current) setEvalResult(text(value))
-    } catch (err) {
-      if (request === runRequest.current) setEvalResult((err as Error).message)
-    }
-  }
-
-  async function saveDecision() {
-    if (!detail) return
-    const request = detailRequest.current
-    try {
-      const value = await call('decision/update', { experiment_id: detail.experiment.id, content: decisionBody, expected_sha256: decisionHash })
-      if (request !== detailRequest.current) return
-      setDecisionHash(value.sha256)
-      decisionDraft.current = { body: decisionDraft.current.body, hash: value.sha256, dirty: decisionDraft.current.body !== decisionBody }
-      await refreshDetail()
-    } catch (err) {
-      if (request === detailRequest.current) setError((err as Error).message)
-    }
-  }
-
-  const runOptions = useMemo(() => {
-    const ids = new Set<string>()
-    for (const run of runs) ids.add(run.run_id ?? run.id)
-    for (const version of detail?.versions ?? []) for (const run of version.runs ?? []) ids.add(run.run_id ?? run.id)
-    for (const run of detail?.verification?.runs ?? []) ids.add(run.id)
-    return [...ids].filter(Boolean).sort()
-  }, [detail, runs])
 
   return <main className="harness-agents">
     <div style={{ minWidth: 0, display: 'grid', gap: 16 }}>
-      <header style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
-        <h1 style={{ fontSize: 24, margin: 0, overflowWrap: 'anywhere' }}>智能体研究版本</h1>
-        <div style={{ display: 'flex', gap: 8 }}><button type="button" disabled={!detail} onClick={() => { setVersionOpen(true); setVersionParent(detail.repo_commit ? `git:${detail.repo_commit}` : ''); resetVersionPreview() }}>新建版本</button><button type="button" onClick={() => void refreshList()}>刷新</button></div>
+      <header className="agent-page-heading">
+        <div><h1>智能体管理</h1><p>管理研究版本与 Harness 资产，查看能力证据和运行情况。</p></div>
+        <button type="button" onClick={() => { void refreshList(); void refreshDetail() }}>刷新</button>
       </header>
-      {error && <p role="alert" style={{ color: 'var(--dsw-alias-state-error-primary, #c2410c)', margin: 0 }}>{error}</p>}
+      {error && <p role="alert" className="agent-error">{error}</p>}
       <section className="harness-agent-layout">
         <aside className="harness-agent-list" style={panel}>
-          <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>Agent</h2>
+          <div className="agent-list-heading"><h2>智能体列表</h2><span>{agents.length}</span></div>
+          <label className="agent-search"><span>搜索智能体</span><input type="search" placeholder="名称或 Agent ID" value={search} onChange={event => setSearch(event.target.value)} /></label>
           <div className="harness-agent-list-options">
-            {agents.map(agent => <button key={agent.id} type="button" onClick={() => selectVersion(agent.id)}
-              aria-pressed={agent.id === selected}
-              style={{ textAlign: 'left', padding: 10, borderRadius: 6, border: agent.id === selected ? '2px solid currentColor' : '1px solid var(--dsw-alias-border-l3, #d1d5db)', background: 'transparent', color: 'inherit' }}>
-              <strong>{agent.id}</strong>
+            {visibleAgents.map(agent => <button key={agent.id} type="button" className="agent-list-card" onClick={() => selectVersion(agent.id)} aria-pressed={agent.id === selected}>
+              <span className="agent-list-card-title"><strong>{agent.name || agent.manifest?.name || agent.id}</strong><span className="agent-badge">{researchStatus(agent.latest_experiment_status)}</span></span>
+              <span className="agent-id">{agent.id}</span>
+              {agent.manifest?.description && <span className="agent-list-description">{agent.manifest.description}</span>}
+              <span className="agent-list-meta">{typeof agent.version_count === 'number' ? `${agent.version_count} 个研究版本` : '版本数量未读取'} · {agent.instance_state || '实例未观察'}</span>
             </button>)}
+            {agents.length > 0 && !visibleAgents.length && <p className="agent-empty">没有匹配的智能体。</p>}
+            {!agents.length && !error && <p className="agent-empty">尚无智能体资产。</p>}
           </div>
         </aside>
         <section className="harness-agent-detail" style={{ display: 'grid', minWidth: 0, gap: 16 }}>
-          {!detail && !error && <p role="status">正在读取智能体与评估…</p>}
-          {detail && <section style={panel}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', alignItems: 'start' }}>
-              <div style={{ minWidth: 0 }}>
-                <h2 style={{ margin: '0 0 6px', fontSize: 18, overflowWrap: 'anywhere' }}>{detail.experiment.id}</h2>
-                <select aria-label="版本" style={{ maxWidth: '100%' }} value={selectedExperiment || detail.experiment.id} onChange={event => selectVersion(selected, event.target.value)}>
-                  {detail.versions.map((version: any) => <option key={version.id} value={version.id}>{version.id}</option>)}
-                </select>
-              </div>
-              <button type="button" disabled={launchBusy} onClick={() => void launchVersion()}>启动智能体</button>
+          {!detail && selected && !error && <p role="status">正在读取智能体…</p>}
+          {detail && <section className="agent-identity" style={panel}>
+            <div className="agent-identity-top">
+              <div className="agent-identity-title"><span className="agent-avatar" aria-hidden="true">◇</span><div><h2>{detail.agent.name || detail.agent.manifest.name || selectedAgent?.name || selected}</h2><p className="agent-id">Agent ID · {selected}</p></div></div>
+              <div className="agent-actions"><button type="button" disabled={!onNavigate} onClick={() => openEvaluation()}>评测此版本</button><button type="button" onClick={() => { setVersionOpen(true); setVersionParent(detail.repo_commit ? `git:${detail.repo_commit}` : ''); resetVersionPreview() }}>新建研究版本</button><button type="button" className="agent-primary" disabled={launchBusy} onClick={() => void launchVersion()}>启动智能体</button></div>
             </div>
-            {detail.creation && <p role="status">{detail.creation.status === 'completed' ? '新版本创建成功' : '融合中：等待资产集成与约定验证'}{detail.creation.status !== 'completed' && <button type="button" disabled={!onAssistant} onClick={() => void onAssistant?.('继续完成当前版本的融合。', { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id, session_id: detail.creation.assistant_session_id })}>继续融合</button>}</p>}
+            <div className="agent-version-bar"><label>所选研究版本<select aria-label="版本" value={selectedExperiment || detail.experiment.id} onChange={event => selectVersion(selected, event.target.value)}>{detail.versions.map((version: any) => <option key={version.id} value={version.id}>{version.id}</option>)}</select></label><div><span>登记版本</span><strong>{selectedAgent?.active_experiment || '未登记'}</strong></div></div>
+            {detail.creation && <p role="status" className="agent-notice">{detail.creation.status === 'completed' ? '新版本创建成功' : '融合中：等待资产集成与约定验证'}{detail.creation.status !== 'completed' && <button type="button" disabled={!onAssistant} onClick={() => void onAssistant?.('继续完成当前版本的融合。', { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id, session_id: detail.creation.assistant_session_id })}>继续融合</button>}</p>}
           </section>}
           {versionOpen && detail && <section style={panel} aria-label="新建智能体版本">
             <h2>新建 {selected} 版本</h2>
@@ -586,51 +497,48 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant }: PlatformPag
                 : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : undefined
             if (next === undefined) return
             event.preventDefault()
-            setTab(tabs[next].id)
+            selectTab(tabs[next].id)
             document.getElementById(`agent-tab-${tabs[next].id}`)?.focus()
           }}>
             {tabs.map(item => <button key={item.id} type="button" role="tab" id={`agent-tab-${item.id}`}
               aria-controls={`agent-panel-${item.id}`} aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1}
-              onClick={() => setTab(item.id)}>{item.label}</button>)}
+              onClick={() => selectTab(item.id)}>{item.label}</button>)}
           </div>}
           {detail && <section role="tabpanel" id="agent-panel-overview" aria-labelledby="agent-tab-overview" hidden={tab !== 'overview'} style={panel}>
-            <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>智能体基本信息</h2>
+            <div className="agent-section-heading"><h2>智能体概览</h2><button type="button" disabled={!onAssistant} onClick={() => void onAssistant?.('整理当前版本的用途与特性。', { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id })}>请 AI 整理特性</button></div>
             <p>{detail.agent.manifest.description || detail.experiment.change.research_question || '用途尚未整理。'}</p>
+            <div className="agent-stat-grid"><article><span>研究版本</span><strong>{detail.versions.length}</strong></article><article><span>所选版本 Run</span><strong>{versionRuns.length}</strong></article><article><span>所选版本实例</span><strong>{detail.loaded_instance.status === 'observed' ? instances.length : '—'}</strong><small>{detail.loaded_instance.status === 'observed' ? '最近一次实际观察' : '尚未取得实例观察'}</small></article></div>
             <h3>当前版本特性</h3>
-            {detail.features?.length ? <ul>{detail.features.map((feature: any) => <li key={feature.id}><strong>{feature.title}</strong><p>{feature.description}</p>{feature.change && <p>本版本变化：{feature.change}</p>}<p>来源：{feature.source_refs.join('、') || '未记录'} · {feature.verification}</p>{feature.evidence.length > 0 && <ul>{feature.evidence.map((evidence: any) => <li key={evidence.ref}>{evidence.ref} · {evidence.present ? '引用存在' : '未找到证据'}</li>)}</ul>}</li>)}</ul> : <p>此版本尚未整理特性，可由 AI 根据当前资产和证据整理后确认保存。</p>}
-            <button type="button" disabled={!onAssistant} onClick={() => void onAssistant?.('整理当前版本的用途与特性。', { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id })}>请 AI 整理特性</button>
-            {featureProposal && featureProposal.experiment_id === detail.experiment.id && <section aria-label="确认智能体特性"><h3>待确认特性</h3><ul>{featureProposal.features.map((feature: any) => <li key={feature.id}><strong>{feature.title}</strong><p>{feature.description}</p><p>{feature.source_refs.join('、') || '未记录来源'} · {feature.evidence_refs.length ? feature.evidence_refs.join('、') : '尚无验证证据'}</p></li>)}</ul><button type="button" onClick={() => void confirmFeatures()}>确认并保存特性</button></section>}
-            <div style={{ opacity: 0.75 }}>Baseline：{detail.baseline.ref || '未知'} · Parent：{detail.baseline.parent_experiment_id || '无'}</div>
-            <div style={{ opacity: 0.75 }}>Fusion：{detail.fusion.status}{detail.fusion.experiments?.length ? ` ${detail.fusion.experiments.join(', ')}` : ''}</div>
-            <div style={{ opacity: 0.75 }}>相关引用：{detail.related_references?.join(', ') || '无'} · 实例装载：{detail.loaded_instance.status}</div>
-            <div style={{ opacity: 0.75 }}>登记版本：{selectedAgent?.active_experiment || '未登记'}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 12, marginTop: 14 }}>
-              <article><h3>来源与 Runtime</h3><Fields items={[
-                ['来源', detail.declared.source_contract.source_id || `experiment:${detail.experiment.id}`],
-                ['合同状态', detail.declared.source_contract.status === 'unavailable' ? '无法解析' : '已解析'],
-                ['Candidate', detail.declared.catalog_source?.candidate_root],
-                ['Profile', detail.declared.catalog_source?.profile], ['Preset', detail.declared.catalog_source?.preset],
-                ['Patch', detail.declared.catalog_source?.patch], ['Guard', detail.declared.catalog_source?.guard ?? '无'],
-                ['Runtime 版本', detail.declared.source_contract.image?.cli_version], ['镜像', detail.declared.source_contract.image?.local_image_tag],
-                ['环境变量', detail.declared.catalog_source?.required_env_names],
-              ]} /></article>
-              <article><h3>实例观察</h3><p>{detail.loaded_instance.status === 'observed' ? '已查询' : detail.loaded_instance.status === 'not_queried' ? '尚未查询' : '观察失败，状态未知'}</p>
-                {(detail.loaded_instance.instances ?? []).map((instance: any) => <Fields key={instance.name} items={[
-                  ['实例', instance.name], ['状态', instance.state], ['镜像', instance.image_tag], ['端口', instance.port],
-                  ['只读挂载', Object.entries(instance.mount_modes ?? {}).map(([name, mode]) => `${name}：${mode}`)],
-                ]} />)}
-                {detail.loaded_instance.status === 'observed' && !detail.loaded_instance.instances?.length && <p>未观察到该版本的实例。</p>}
-                <p>{detail.loaded_instance.note || detail.loaded_instance.reason}</p>
-              </article>
-              <article><h3>Run 证据</h3>{detail.verification.runs.length ? <ul>{detail.verification.runs.map((run: any) => <li key={run.id}><button type="button" onClick={() => { setTab('evaluation'); setRunId(run.id) }}>{run.id}</button></li>)}</ul> : <p>暂无 Run 记录。</p>}
-                <p>可在评测页查看原始记录；来源声明和实例挂载不证明能力已生效。</p></article>
-            </div>
+            {detail.features?.length ? <div className="agent-feature-list">{detail.features.map((feature: any) => <article key={feature.id}><h4>{feature.title}</h4><p>{feature.description}</p>{feature.change && <p>本版本变化：{feature.change}</p>}<small>来源：{feature.source_refs.join('、') || '未记录'}</small></article>)}</div> : <p className="agent-empty">此版本尚未整理特性，可由 AI 根据当前资产和证据整理后确认保存。</p>}
+            {featureProposal && featureProposal.experiment_id === detail.experiment.id && <section className="agent-notice" aria-label="确认智能体特性"><h3>待确认特性</h3><ul>{featureProposal.features.map((feature: any) => <li key={feature.id}><strong>{feature.title}</strong><p>{feature.description}</p><p>{feature.source_refs.join('、') || '未记录来源'} · {feature.evidence_refs.length ? feature.evidence_refs.join('、') : '尚无验证证据'}</p></li>)}</ul><button type="button" onClick={() => void confirmFeatures()}>确认并保存特性</button></section>}
+            <h3>版本来源与继承</h3><Fields items={[
+              ['所选研究版本', detail.experiment.id], ['研究状态', researchStatus(detail.experiment.status)], ['Baseline', detail.baseline.ref || '未知'], ['主父版本', detail.baseline.parent_experiment_id || '无'],
+              ['融合来源', detail.fusion.experiments?.length ? detail.fusion.experiments : detail.fusion.status === 'unknown' ? '未声明融合来源' : detail.fusion.status], ['相关引用', detail.related_references ?? []],
+            ]} />
+          </section>}
+          {detail && <section role="tabpanel" id="agent-panel-capabilities" aria-labelledby="agent-tab-capabilities" hidden={tab !== 'capabilities'} style={panel}>
+            <div className="agent-section-heading"><h2>能力状态</h2><button type="button" disabled={!onNavigate} onClick={() => openEvaluation()}>查看评测证据</button></div>
+            <p className="agent-muted">分别查看资产声明、实例装载观察和 Run 证据，按实际证据判断能力。</p>
+            <div className="agent-evidence-stages"><article><span className="agent-badge">资产声明</span><h3>{detail.declared.source_contract.status === 'unavailable' ? '来源无法解析' : '已解析来源合同'}</h3><p>{detail.declared.source_contract.source_id || `experiment:${detail.experiment.id}`}</p></article><article><span className="agent-badge">实例装载</span><h3>{detail.loaded_instance.status === 'observed' ? `已观察 ${instances.length} 个实例` : '尚无装载观察'}</h3><p>{detail.loaded_instance.note || detail.loaded_instance.reason || '挂载观察不证明当前 Session 已调用能力。'}</p></article><article><span className="agent-badge">调用证据</span><h3>{versionRuns.length ? `${versionRuns.length} 条 Run 记录` : '尚无 Run'}</h3><p>具体能力与执行结果请在报告及轨迹中复核。</p></article></div>
+            <h3>特性与关联证据</h3>{detail.features?.length ? <div className="agent-feature-list">{detail.features.map((feature: any) => <article key={feature.id}><h4>{feature.title}</h4><p>{feature.verification}</p>{feature.evidence.length ? <ul>{feature.evidence.map((evidence: any) => <li key={evidence.ref}><code>{evidence.ref}</code> · {evidence.present ? '引用存在，效果需复核' : '未找到证据'}</li>)}</ul> : <p>尚未记录验证证据。</p>}</article>)}</div> : <p>尚无已整理的特性。</p>}
+            <details className="agent-source-details"><summary>来源与 Runtime 配置</summary><Fields items={[
+              ['Candidate', detail.declared.catalog_source?.candidate_root], ['Profile', detail.declared.catalog_source?.profile], ['Preset', detail.declared.catalog_source?.preset],
+              ['Patch', detail.declared.catalog_source?.patch], ['Guard', detail.declared.catalog_source?.guard ?? '无'], ['Runtime 版本', detail.declared.source_contract.image?.cli_version],
+              ['镜像', detail.declared.source_contract.image?.local_image_tag], ['环境变量名称', detail.declared.catalog_source?.required_env_names],
+            ]} /></details>
+          </section>}
+          {detail && <section role="tabpanel" id="agent-panel-runtime" aria-labelledby="agent-tab-runtime" hidden={tab !== 'runtime'} style={panel}>
+            <div className="agent-section-heading"><h2>关联实例</h2><button type="button" disabled={!onNavigate} onClick={() => onNavigate?.({ page: 'instances', agent_id: selected, experiment_id: detail.experiment.id })}>实例管理</button></div>
+            {detail.loaded_instance.status !== 'observed' && <p role="status">{detail.loaded_instance.note || detail.loaded_instance.reason || '尚未取得实际实例观察。'}</p>}
+            {instances.length ? <div className="harness-table-scroll"><table aria-label="所选版本实例"><thead><tr><th>实例</th><th>观察状态</th><th>端口</th><th>镜像</th></tr></thead><tbody>{instances.map((instance: any) => <tr key={instance.name}><td>{instance.name}</td><td>{instance.state || '未知'}</td><td>{instance.port ?? '未记录'}</td><td>{instance.image_tag || '未记录'}</td></tr>)}</tbody></table></div> : detail.loaded_instance.status === 'observed' && <p className="agent-empty">未观察到所选版本的实例。</p>}
+            <div className="agent-section-heading"><h2>近期 Run</h2><button type="button" disabled={!onNavigate} onClick={() => openEvaluation()}>进入评测中心</button></div>
+            {versionRuns.length ? <div className="harness-table-scroll"><table aria-label="所选版本 Run"><thead><tr><th>Run</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>{versionRuns.map((run: any) => <tr key={run.id ?? run.run_id}><td>{run.id ?? run.run_id}</td><td>{run.status || '未记录'}</td><td>{run.created_at ? new Date(run.created_at).toLocaleString() : '未记录'}</td><td><button type="button" disabled={!onNavigate} onClick={() => openEvaluation('runs', run.id ?? run.run_id)}>查看报告</button></td></tr>)}</tbody></table></div> : <p className="agent-empty">所选版本暂无 Run 记录。</p>}
           </section>}
           {detail && <section role="tabpanel" id="agent-panel-assets" aria-labelledby="agent-tab-assets" hidden={tab !== 'assets'} style={panel}>
             <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>智能体资产</h2>
             <div className="harness-asset-layout">
-              <nav aria-label="智能体资产目录"><AssetTree nodes={detail.assets ?? []} selected={editPath} onSelect={path => { if (path !== editPath) selectEditFile(path) }} /></nav>
-              <article><h3>资产详情</h3><p>{editPath || '请选择资产'}</p>
+              <nav aria-label="智能体资产目录"><AssetTree nodes={detail.assets ?? []} selected={editPath} onSelect={path => { if (path !== editPath && discardAssetDraft()) selectEditFile(path) }} /></nav>
+              <article><h3>资产详情</h3><p>{editPath || '请选择资产'}</p>{/(^|\/)evaluation(?:\.md|\/|$)/.test(editPath) && <p><button type="button" disabled={!onNavigate} onClick={() => openEvaluation('cases')}>到评测中心管理用例</button></p>}{/(^|\/)decision\.md$/.test(editPath) && <p><button type="button" disabled={!onNavigate} onClick={() => openEvaluation('compare')}>到评测中心比较结果与记录决策</button></p>}
                 {assetInfo && <>
                   <Fields items={[['类型', assetInfo.kind === 'directory' ? '目录' : assetInfo.kind === 'text' ? '文本' : '二进制或大文件（只读）'], ['大小（字节）', assetInfo.size], ['SHA-256', assetInfo.sha256]]} />
                   {assetInfo.kind === 'text' && <><button type="button" disabled={!editHash} onClick={() => { setEditMessage(''); setEditOpen(true) }}>编辑</button><pre className="harness-asset-content">{assetInfo.content || '空文件'}</pre></>}
@@ -640,17 +548,17 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant }: PlatformPag
               </article>
             </div>
           </section>}
-          <dialog ref={editDialog} className="harness-asset-dialog" aria-labelledby="asset-edit-title" onCancel={event => { if (editBusy) event.preventDefault(); else setEditOpen(false) }}>
+          <dialog ref={editDialog} className="harness-asset-dialog" aria-labelledby="asset-edit-title" onCancel={event => { event.preventDefault(); closeEditor() }}>
             <h2 id="asset-edit-title">编辑资产</h2><p>{editPath}</p>
             <p>应用保存会先进行 dry 校验，再核对文件是否被他人修改。dry 不执行模型、业务工具或 Candidate 代码。</p>
             <label style={field}>编辑正文
               <textarea value={editBody} disabled={!editHash || editBusy} onChange={event => { editRequest.current++; setEditBody(event.target.value); setEditPreview(null); setEditMessage('') }} rows={12} style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace' }} />
             </label>
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button type="button" onClick={() => void loadEditFile()} disabled={editBusy}>重读文件</button>
+              <button type="button" onClick={() => { if (discardAssetDraft()) void loadEditFile() }} disabled={editBusy}>重读文件</button>
               <button type="button" onClick={() => void doPreview()} disabled={!editHash || editBusy}>dry 校验与预览</button>
               <button type="button" onClick={() => void doApply()} disabled={!editHash || editBusy}>应用保存</button>
-              <button type="button" onClick={() => setEditOpen(false)} disabled={editBusy}>关闭</button>
+              <button type="button" onClick={closeEditor} disabled={editBusy}>关闭</button>
             </div>
             {editBusy && <p role="status">正在进行 dry 校验…</p>}
             {editMessage && <p role="status">{editMessage}</p>}
@@ -658,81 +566,6 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant }: PlatformPag
               {editPreview.dry.missing_env_names?.length > 0 && <p>运行前需补齐环境变量：{editPreview.dry.missing_env_names.join('、')}。当前 dry 可继续。</p>}
               <pre className="harness-asset-content">{editPreview.diff}</pre></>}
           </dialog>
-          {detail && <section role="tabpanel" id="agent-panel-evaluation" aria-labelledby="agent-tab-evaluation" hidden={tab !== 'evaluation'} style={panel}>
-            <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>评测</h2>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-              <label style={field}>模式
-                <select value={mode} onChange={event => setMode(event.target.value)}>
-                  <option value="fast">fast</option>
-                  <option value="full">full</option>
-                </select>
-              </label>
-              <label style={field}>执行器
-                <select value={executor} onChange={event => setExecutor(event.target.value)}>
-                  <option value="api">api</option>
-                  <option value="browser">browser</option>
-                </select>
-              </label>
-              <label style={field}>评审
-                <select value={review} onChange={event => setReview(event.target.value)}>
-                  <option value="none">none</option>
-                  <option value="ai">ai</option>
-                </select>
-              </label>
-              <button type="button" onClick={evalPreview}>执行预览</button>
-              <button type="button" onClick={evalStart}>启动评测</button>
-              <button type="button" onClick={evalStatus} disabled={!jobId}>刷新状态</button>
-              <button type="button" onClick={evalCancel} disabled={!jobId}>取消</button>
-              <button type="button" onClick={loadRuns} disabled={runsLoading}>{runsLoading ? '读取 Run…' : '刷新 Run 记录'}</button>
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-              {detail.evaluation.cases.map((item: any) => <label key={item.id} style={{ border: '1px solid var(--dsw-alias-border-l3, #d1d5db)', borderRadius: 6, padding: '4px 8px' }}>
-                <input type="checkbox" checked={selectedCases.includes(item.id)} onChange={event => setSelectedCases(current => event.target.checked ? [...current, item.id] : current.filter(id => id !== item.id))} /> {item.id}
-              </label>)}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
-              <label style={field}>Run
-                <input value={runId} onChange={event => chooseRun(event.target.value)} list="run-options" placeholder="run-..." />
-              </label>
-              <label style={field}>Case
-                <select aria-label="Run Case" value={caseId} onChange={event => setCaseId(event.target.value)} disabled={!runCases.length}>
-                  <option value="">先读取 Run</option>{runCases.map(id => <option key={id} value={id}>{id}</option>)}
-                </select>
-              </label>
-              <button type="button" onClick={showRun}>查看 Run/Case</button>
-              <label style={field}>轨迹文件
-                <select value={evidenceFile} onChange={event => setEvidenceFile(event.target.value)}>
-                  {['trace.jsonl', 'tools.jsonl', 'judge-trace.jsonl', 'response.json', 'checks.json', 'judge.json'].map(name => <option key={name}>{name}</option>)}
-                </select>
-              </label>
-              <button type="button" onClick={showEvidence} disabled={!runId || !caseId}>查看轨迹</button>
-              <label style={field}>左侧 Run
-                <input value={leftRun} onChange={event => setLeftRun(event.target.value)} list="run-options" placeholder="left run" />
-              </label>
-              <label style={field}>右侧 Run
-                <input value={rightRun} onChange={event => setRightRun(event.target.value)} list="run-options" placeholder="right run" />
-              </label>
-              <button type="button" onClick={compareRuns}>左右对照</button>
-            </div>
-            <datalist id="run-options">{runOptions.map(id => <option key={id} value={id} />)}</datalist>
-            {runsError && <p role="alert">{runsError}</p>}
-            {!runsLoading && !runsError && runs.length === 0 && <p>此智能体尚无 Run 记录。</p>}
-            {runs.length > 0 && <div className="harness-table-scroll"><table aria-label="Run 记录"><thead><tr><th>Run</th><th>研究版本</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
-              <tbody>{runs.map(run => <tr key={run.id ?? run.run_id}>
-                <td>{run.id ?? run.run_id}</td><td>{run.experiment_id}</td><td>{run.status ?? '未记录'}</td>
-                <td>{run.created_at ? new Date(run.created_at).toLocaleString() : '未记录'}</td>
-                <td><button type="button" onClick={() => chooseRun(run.id ?? run.run_id)}>选择 Run</button></td>
-              </tr>)}</tbody></table></div>}
-            {evalResult && <pre style={{ whiteSpace: 'pre-wrap', overflow: 'auto' }}>{evalResult}</pre>}
-            <h2 style={{ fontSize: 16, margin: '20px 0 12px' }}>Decision</h2>
-            <label style={field}>Decision 正文
-              <textarea value={decisionBody} onChange={event => { setDecisionBody(event.target.value); decisionDraft.current = { body: event.target.value, hash: decisionHash, dirty: true } }} rows={8} style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace' }} />
-            </label>
-            {decisionConflict && <p role="alert">Decision 已被其他任务修改，当前草稿已保留。请核对最新内容后再保存。</p>}
-            <div style={{ marginTop: 8 }}>
-              <button type="button" onClick={saveDecision}>保存 Decision</button>
-            </div>
-          </section>}
         </section>
       </section>
     </div>

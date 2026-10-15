@@ -25,11 +25,11 @@ export interface AssistantServices {
 }
 
 const actions: Record<Domain, readonly string[]> = {
-  agents: ['list', 'detail', 'edit/read', 'edit/preview', 'edit/apply', 'cases/list', 'eval/preview', 'eval/start', 'eval/status', 'eval/cancel', 'runs/index', 'runs/show', 'runs/evidence', 'runs/compare', 'decision/update', 'features/preview', 'features/proposal', 'features/apply', 'fusion/preview', 'fusion/proposal', 'fusion/confirm', 'fusion/status', 'fusion/verify', 'fusion/finalize'],
+  agents: ['list', 'detail', 'edit/read', 'edit/preview', 'edit/apply', 'cases/list', 'cases/read', 'eval/preview', 'eval/start', 'eval/status', 'eval/cancel', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'decision/update', 'features/preview', 'features/proposal', 'features/apply', 'fusion/preview', 'fusion/proposal', 'fusion/confirm', 'fusion/status', 'fusion/verify', 'fusion/finalize'],
   instances: ['list', 'detail', 'url', 'logs', 'preview', 'batch-preview', 'run', 'batch'],
   mcp: ['list', 'configuration', 'saveConfiguration', 'test', 'resources', 'resourceTemplates', 'readResource', 'callTool', 'sources/list', 'sources/create', 'sources/refresh', 'sources/toggle', 'sources/components', 'sources/logs', 'sources/preview', 'sources/invoke', 'saveCompositionDraft', 'publishComposition', 'executeComposition', 'dryRunComposition', 'callPublishedComposition'],
 }
-const readActions = new Set(['list', 'detail', 'edit/read', 'edit/preview', 'cases/list', 'eval/preview', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/compare', 'features/preview', 'features/proposal', 'fusion/preview', 'fusion/proposal', 'fusion/status', 'url', 'logs', 'preview', 'batch-preview', 'configuration', 'test', 'resources', 'resourceTemplates', 'readResource', 'sources/list', 'sources/components', 'sources/logs', 'sources/preview', 'dryRunComposition'])
+const readActions = new Set(['list', 'detail', 'edit/read', 'edit/preview', 'cases/list', 'cases/read', 'eval/preview', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'features/preview', 'features/proposal', 'fusion/preview', 'fusion/proposal', 'fusion/status', 'url', 'logs', 'preview', 'batch-preview', 'configuration', 'test', 'resources', 'resourceTemplates', 'readResource', 'sources/list', 'sources/components', 'sources/logs', 'sources/preview', 'dryRunComposition'])
 const recordType = 'plugin:harness-platform/assistant'
 const projectionKey = 'harnessPlatformAssistant'
 

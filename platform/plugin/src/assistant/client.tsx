@@ -291,9 +291,9 @@ export function AssistantOperations({ assistant, rpc, sessionId }: PropsRuntime<
   const pending = proposals.filter(item => ['awaiting_confirmation', 'running', 'unknown'].includes(item.state))
   const shown = pending.length ? pending : proposals.slice(-1)
   if (!shown.length) return null
-  return <details className="harness-assistant-proposals" open={pending.length > 0}>
+  return <div className="harness-assistant-proposals-dock"><details className="harness-assistant-proposals" open={pending.length > 0}>
     <summary>{pending.length ? '平台操作确认与进度' : '最近操作回执'}</summary>
     <div>{shown.map(proposal => <OperationCard key={proposal.id} assistant={assistant} rpc={rpc} sessionId={sessionId}
       phase="result" toolName={`platform_${proposal.domain}`} meta={{ ...proposal, kind: 'platform-operation', proposal_id: proposal.id }}/>)}</div>
-  </details>
+  </details></div>
 }

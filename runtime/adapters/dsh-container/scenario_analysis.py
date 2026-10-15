@@ -381,11 +381,11 @@ def _run(command: list[str], *, stage: str, input_text: str | None = None, timeo
 
 
 def _review_driver(prompts: list[dict], auth_url: str, image_ref: str,
-                   model_route: dict, timeout_seconds: int) -> dict:
+                   model_route: dict, timeout_seconds: int, evidence_root: Path) -> dict:
     override = os.environ.get("DSH_EVAL_API_DRIVER")
     if override:
         command = [override]
-        evidence_root = str(ADAPTER)
+        output_root = str(evidence_root.resolve())
     else:
         driver = ADAPTER / "dsh-eval-api.mjs"
         command = [
@@ -395,9 +395,10 @@ def _review_driver(prompts: list[dict], auth_url: str, image_ref: str,
             "--entrypoint", "node",
             "--mount", f"type=bind,src={driver},dst=/opt/dsh/apps/web/dsh-eval-api.mjs,readonly",
             "--mount", f"type=bind,src={ADAPTER / 'dsh-eval-common.mjs'},dst=/opt/dsh/apps/web/dsh-eval-common.mjs,readonly",
+            "--mount", f"type=bind,src={evidence_root.resolve()},dst=/evidence",
             image_ref, "/opt/dsh/apps/web/dsh-eval-api.mjs",
         ]
-        evidence_root = "/tmp"
+        output_root = "/evidence"
     payload = {
         "schema_version": "1.0",
         "operation": "review",
@@ -405,7 +406,7 @@ def _review_driver(prompts: list[dict], auth_url: str, image_ref: str,
         "workspace": ANALYSIS_ROOT,
         "preset_id": "scenario-analysis",
         "judge_preset_id": "scenario-analysis",
-        "evidence_root": evidence_root,
+        "evidence_root": output_root,
         "timeout_ms": timeout_seconds * 1000,
         "cases": [],
         "scenes": prompts,
@@ -675,7 +676,7 @@ def review_full(run_dir: Path, rows: list[dict], inputs: dict, *, timeout_second
         auth_url = _run([dev, "url", name, "--non-interactive"], stage="authentication", timeout=90)
         if not auth_url.startswith("http://127.0.0.1:") or "token=" not in auth_url:
             raise ValueError("authentication-url-invalid")
-        response = _review_driver(prompts, auth_url, image_ref, model_route, timeout_seconds)
+        response = _review_driver(prompts, auth_url, image_ref, model_route, timeout_seconds, evidence_root)
         by_id = {
             item.get("scene_id"): item for item in response["results"]
             if isinstance(item, dict) and isinstance(item.get("scene_id"), str)
@@ -734,7 +735,7 @@ def review_full(run_dir: Path, rows: list[dict], inputs: dict, *, timeout_second
                         ),
                         "session_id": raw["session_id"],
                         "prior_prompts": [prompt["prompt"]],
-                    }], auth_url, image_ref, model_route, timeout_seconds)
+                    }], auth_url, image_ref, model_route, timeout_seconds, evidence_root)
                     if len(repaired["results"]) != 1 \
                             or repaired["results"][0].get("scene_id") != scene_id:
                         raise ValueError("analysis-repair-failed")

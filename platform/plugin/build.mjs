@@ -134,7 +134,7 @@ await build({
   target: 'es2022',
   format: 'cjs',
   loader: { '.svg': 'dataurl' },
-  external: ['react', 'react/jsx-runtime', 'react-dom'],
+  external: ['react', 'react/jsx-runtime', 'react-dom', '@deepseek-ai/dsh-client-ui-primitives'],
   legalComments: 'none',
   plugins: [managerSources],
   banner: {

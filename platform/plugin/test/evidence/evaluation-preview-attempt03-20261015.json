@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-15T09:59:54.938Z",
+  "scope": "隔离平台：实际全局DSH、用例保存与恢复、历史Run下载，无模型调用",
+  "checks": [
+    "原生登录成功，实际资产根与目标工作树一致",
+    "智能体四标签、版本深链、融合盘点与启动预览入口保留，未执行写入",
+    "刷新恢复精确智能体、研究版本与资产标签",
+    "通过真实页面保存用例并RPC回读，随后按摘要恢复原始评测文件",
+    "历史Run深链直接打开报告，Markdown下载及完整ZIP浏览器下载成功"
+  ],
+  "page_errors": [],
+  "download_file_count": 235,
+  "ok": false,
+  "failure": "locator.click: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.harness-evaluation').getByRole('tab', { name: '轨迹与文件', exact: true })\u001b[22m\n\n    at /tmp/harness-evaluation-browser.mjs:102:69"
+}

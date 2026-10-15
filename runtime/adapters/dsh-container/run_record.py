@@ -24,7 +24,7 @@ for import_root in (ADAPTER, EVALUATION_SCRIPTS):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
 
-from evaluation_contract import evaluation_digest, execution_for, load_evaluation
+from evaluation_contract import cases_digest, execution_from, load_evaluation
 from scenario_analysis import analyze, summarize_review, validate_analysis
 from source_contract import EXPERIMENT as EXPERIMENT_RE, resolve
 
@@ -614,8 +614,9 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
         raise ValueError("baseline_ref must be git:<commit>, release:<id> or none:first-experiment")
     evaluation_relative = Path("agents") / agent_id / "evaluation.md"
     evaluation_path = repo / evaluation_relative
-    cases = execution_for(evaluation_path, args.case)
-    catalog = load_evaluation(evaluation_path)["catalog"]
+    evaluation = load_evaluation(evaluation_path)
+    cases = execution_from(evaluation, args.case)
+    catalog = evaluation["catalog"]
     selected = [case["case_id"] for case in cases]
     expected = [item["case_id"] for item in catalog if args.selection_mode == "full"
                 or args.selection_mode == "fast" and item["fast"]]
@@ -644,7 +645,7 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
                 "managed": tree_digest(repo, Path(contract["managed"])),
             },
             "reference_tree": tree_digest(repo, Path(contract["reference_root"])) if contract.get("reference_root") else None,
-            "evaluation_sha256": evaluation_digest(evaluation_path, args.case),
+            "evaluation_sha256": cases_digest(cases),
             "evaluation_cases": cases,
             "case_catalog": catalog,
             "selection_mode": args.selection_mode,

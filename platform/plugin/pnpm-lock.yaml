@@ -23,6 +23,9 @@ importers:
       '@modelcontextprotocol/server':
         specifier: 2.0.0
         version: 2.0.0
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
       js-yaml:
         specifier: 4.3.2
         version: 4.3.2
@@ -55,6 +58,9 @@ importers:
         specifier: 0.2.1-alpha.2
         version: 0.2.1-alpha.2(@deepseek-ai/cordis@4.0.5-alpha.1)
       '@deepseek-ai/dsh-client-ui-layout':
+        specifier: 0.2.1-alpha.2
+        version: 0.2.1-alpha.2(@deepseek-ai/cordis@4.0.5-alpha.1)
+      '@deepseek-ai/dsh-client-ui-primitives':
         specifier: 0.2.1-alpha.2
         version: 0.2.1-alpha.2(@deepseek-ai/cordis@4.0.5-alpha.1)
       '@deepseek-ai/dsh-client-ui-renderer':
@@ -505,6 +511,11 @@ packages:
 
   '@deepseek-ai/dsh-client-ui-plugin-manager@0.2.1-alpha.2':
     resolution: {integrity: sha512-/1CHlClzaUXFiZSw34JFVgf+0D7Mwqtxxmz05XFkqyq53OUnm4juMRb0JggjhxlYGMPCCq8WUdIIua6VmVAybA==}
+    peerDependencies:
+      '@deepseek-ai/cordis': ~4.0.5-alpha.1
+
+  '@deepseek-ai/dsh-client-ui-primitives@0.2.1-alpha.2':
+    resolution: {integrity: sha512-QwLpYqKxuDiszRLVC4da5LNirRW3XJmmxXrhPyjNS8hIoMRw5E1Nf58kjql35uCFvq2rbMyQYIkICtKgpU6Rzg==}
     peerDependencies:
       '@deepseek-ai/cordis': ~4.0.5-alpha.1
 
@@ -3218,6 +3229,10 @@ snapshots:
       '@deepseek-ai/dsh-typert-protocol': 0.2.1-alpha.2(@deepseek-ai/cordis@4.0.5-alpha.1)
       '@deepseek-ai/schemastery': 3.18.5-alpha.1
       zod: 4.4.3
+
+  '@deepseek-ai/dsh-client-ui-primitives@0.2.1-alpha.2(@deepseek-ai/cordis@4.0.5-alpha.1)':
+    dependencies:
+      '@deepseek-ai/cordis': 4.0.5-alpha.1(@deepseek-ai/cordis-plugin-include@1.0.10-alpha.1)(@deepseek-ai/cordis-plugin-loader@1.0.6-alpha.1)
 
   '@deepseek-ai/dsh-client-ui-reference@0.2.1-alpha.2(@deepseek-ai/cordis@4.0.5-alpha.1)':
     dependencies:

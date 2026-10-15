@@ -39,7 +39,7 @@ function editor() {
     structuredClone, URL, location: { origin: 'http://127.0.0.1:3090' },
     document: { baseURI: 'http://127.0.0.1:3090/hap/' },
   })
-  const { Manager } = registration.factory(name => name === 'react' ? react
+  const { Manager } = registration.factory(name => name === '@deepseek-ai/dsh-client-ui-primitives' ? {} : name === 'react' ? react
     : name === 'react-dom' ? { ...require(name), createPortal: element => element } : require(name))
   const server = { id: 'biz-soc-framework', description: '', enabled: true,
     specUrl: 'http://127.0.0.1:18080/v3/api-docs/mcp', authType: 'credential',

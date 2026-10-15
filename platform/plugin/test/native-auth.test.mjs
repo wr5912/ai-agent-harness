@@ -32,7 +32,7 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   const originalDist = WebApp.internals.resolveDistIndex
   WebApp.internals.resolveDistIndex = () => index
   t.after(() => { WebApp.internals.resolveDistIndex = originalDist })
-  // 仅替换凭据存储与静态页面；认证、Cordis、HTTP/RPC/Fetch 均运行真实实现。
+  // 仅替换凭据持久化、静态页面及未调用的外部 DSH 服务；认证、Cordis、HTTP/RPC/Fetch 均运行真实实现。
   class Credentials extends Service {
     records = new Map()
     constructor(ctx) { super(ctx, 'credentials') }
@@ -57,6 +57,12 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   } })
   const origin = `http://127.0.0.1:${root.webServer.port}`
   const base = origin + '/hap'
+  const runId = 'run-11111111-1111-4111-8111-111111111111'
+  const run = join(assetRoot, 'evolution/experiments/EXP-auth-agent-001/runs', runId)
+  mkdirSync(run, { recursive: true })
+  writeFileSync(join(run, 'run.yaml'), `run_id: ${runId}\nstatus: completed\n`)
+  writeFileSync(join(run, 'report.md'), '# 认证报告\n\n前缀路径下载验证。\n')
+  const downloadPath = `/api/harness-platform/runs/download?run_id=${runId}&kind=report`
   // 在新认证安装前取得旧原生会话，证明迁移不会继续接受它。
   const oldUrl = root.connection.authenticatedUrl(base + '/')
   const oldCookie = await new Promise(resolve => {
@@ -83,6 +89,7 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
     protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'native-test', version: '1' },
   } }
   assert.equal((await request(gateway, initialize)).status, 401)
+  assert.equal((await fetch(base + downloadPath)).status, 401)
   const anonymous = await fetch(oldUrl, { redirect: 'manual' })
   assert.equal(anonymous.status, 303)
   assert.equal(anonymous.headers.get('location'), '/hap/login')
@@ -99,7 +106,7 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
     assert.equal(redirect.status, 302)
     assert.equal(redirect.headers.get('location'), '/hap/?from=entry')
   }
-  for (const path of ['/login', '/api', gateway, '/harness-platform/inventory']) {
+  for (const path of ['/login', '/api', gateway, '/harness-platform/inventory', downloadPath]) {
     assert.equal((await fetch(origin + path, { redirect: 'manual' })).status, 404)
   }
   const wrong = await login('username=admin&password=wrong')
@@ -118,6 +125,16 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   assert.ok(!JSON.stringify(storedSession).includes(cookie.split('=')[1]))
   assert.ok(!JSON.stringify(storedSession).includes('admin123'))
   assert.equal((await fetch(base + '/', { headers: { cookie } })).status, 200)
+  const report = await fetch(base + downloadPath, { headers: { cookie } })
+  assert.equal(report.status, 200)
+  assert.equal(report.headers.get('content-type'), 'text/markdown; charset=utf-8')
+  assert.match(report.headers.get('content-disposition'), /attachment/)
+  assert.equal(report.headers.get('cache-control'), 'no-store')
+  assert.match(await report.text(), /前缀路径下载验证/)
+  const archive = await fetch(base + downloadPath.replace('kind=report', 'kind=archive'), { headers: { cookie } })
+  assert.equal(archive.status, 200)
+  assert.equal(archive.headers.get('content-type'), 'application/zip')
+  assert.equal(Buffer.from(await archive.arrayBuffer()).subarray(0, 2).toString(), 'PK')
   assert.equal((await login('username=admin&username=admin&password=admin123')).status, 401)
   assert.equal((await login('x'.repeat(4097))).status, 413)
   assert.equal((await fetch(base + '/login', { method: 'POST', headers: {
@@ -163,6 +180,7 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   assert.equal(logout.headers.get('location'), '/hap/login')
   assert.match(logout.headers.get('set-cookie'), /Max-Age=0/)
   assert.equal((await request('/harness-platform/inventory', envelope('inventory'), cookie)).status, 401)
+  assert.equal((await fetch(base + downloadPath, { headers: { cookie } })).status, 401)
   const second = await login('username=admin&password=admin123')
   const secondCookie = second.headers.get('set-cookie').split(';')[0]
   await loaded.dispose()

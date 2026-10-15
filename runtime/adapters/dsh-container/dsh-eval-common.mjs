@@ -94,9 +94,7 @@ export async function saveEvidence(root, item, response, archive, checks, judge 
   const directory = join(root, item.case_id)
   await mkdir(directory, { recursive: true })
   await writeFile(join(directory, 'response.json'), `${JSON.stringify(response, null, 2)}\n`)
-  await writeFile(join(directory, 'trace.jsonl'), archive ? jsonl(archive.trace) : '')
-  await writeFile(join(directory, 'tools.jsonl'), jsonl(toolEvents(archive)))
-  await writeFile(join(directory, 'checks.json'), `${JSON.stringify(checks, null, 2)}\n`)
+  await saveSessionTrace(directory, archive, checks)
   if (judge !== null) {
     await writeFile(join(directory, 'judge.json'), `${JSON.stringify({
       response: judge.response,
@@ -104,6 +102,13 @@ export async function saveEvidence(root, item, response, archive, checks, judge 
     }, null, 2)}\n`)
     await writeFile(join(directory, 'judge-trace.jsonl'), judge.archive ? jsonl(judge.archive.trace) : '')
   }
+}
+
+export async function saveSessionTrace(directory, archive, checks) {
+  await mkdir(directory, { recursive: true })
+  await writeFile(join(directory, 'trace.jsonl'), archive ? jsonl(archive.trace) : '')
+  await writeFile(join(directory, 'tools.jsonl'), jsonl(toolEvents(archive)))
+  await writeFile(join(directory, 'checks.json'), `${JSON.stringify(checks, null, 2)}\n`)
 }
 
 export function result(item, executionStatus, verdict, observation, failureReason) {
@@ -192,6 +197,7 @@ export async function judgeCase(item, targetResponse, targetArchive, promptJudge
       },
     }
   } catch (error) {
+    completed ??= error?.judge_evidence ?? null
     if (SAFETY_STOP_REASONS.has(error?.message)) throw error
     return {
       available: false,

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { randomUUID } from 'node:crypto'
+import { join } from 'node:path'
 import {
   SAFETY_STOP_REASONS,
   assertSessionIdentity,
@@ -8,6 +9,7 @@ import {
   parseArchive,
   result,
   saveEvidence,
+  saveSessionTrace,
   toolEvents,
   turnsFromTrace,
   withCaseTimeout,
@@ -174,7 +176,7 @@ async function selectSessionRoute(connection, sessionId, route, signal) {
   }
 }
 
-async function promptSession(connection, sessionId, input, inputs, timeoutMs, signal) {
+async function promptSession(connection, sessionId, input, inputs, timeoutMs, signal, onArchive) {
   const accepted = await rpc(connection, 'session/prompt', {
     request: {
       requestId: randomUUID(),
@@ -187,6 +189,7 @@ async function promptSession(connection, sessionId, input, inputs, timeoutMs, si
   let archive
   const turns = await poll(async () => {
     archive = await exportSession(connection, sessionId, signal)
+    onArchive?.(archive)
     return turnsFromTrace(archive, inputs)
   }, value => value !== null, timeoutMs, signal)
   return { archive, turns }
@@ -252,13 +255,13 @@ function analysisToolAccesses(archive, toolNames) {
   return accesses
 }
 
-async function runCase(connection, payload, item, workspace, signal) {
+async function runCase(connection, payload, item, workspace, signal, traceState) {
   const session = await createSession(connection, payload, workspace, payload.preset_id, signal)
   let completed
   for (let index = 0; index < item.inputs.length; index += 1) {
     completed = await promptSession(
       connection, session.session_id, item.inputs[index], item.inputs.slice(0, index + 1),
-      payload.timeout_ms, signal,
+      payload.timeout_ms, signal, archive => { traceState.targetArchive = archive },
     )
   }
   const { archive, turns } = completed
@@ -285,10 +288,17 @@ async function runCase(connection, payload, item, workspace, signal) {
     const judgeSession = await createSession(
       connection, payload, workspace, payload.judge_preset_id, signal,
     )
-    const judged = await promptSession(
-      connection, judgeSession.session_id, input, [input], payload.timeout_ms, signal,
-    )
-    return { ...judged, session: judgeSession }
+    traceState.judgeSession = judgeSession
+    try {
+      const judged = await promptSession(
+        connection, judgeSession.session_id, input, [input], payload.timeout_ms, signal,
+        archive => { traceState.judgeArchive = archive },
+      )
+      return { ...judged, session: judgeSession }
+    } catch (error) {
+      error.judge_evidence = { archive: traceState.judgeArchive, session: judgeSession }
+      throw error
+    }
   })
   checks.judge = judge.checks
   await saveEvidence(payload.evidence_root, item, response, archive, checks, judge)
@@ -307,6 +317,10 @@ async function main() {
   if (payload.operation === 'review') {
     const results = []
     for (const scene of payload.scenes) {
+      let latestArchive = null
+      let sessionId = scene.session_id ?? null
+      let failure = null
+      const attempt = (scene.prior_prompts?.length ?? 0) + 1
       try {
         const session = scene.session_id === undefined
           ? await createSession(connection, payload, workspace, payload.judge_preset_id)
@@ -319,11 +333,13 @@ async function main() {
                 payload.workspace,
               ),
             }
+        sessionId = session.session_id
         await selectSessionRoute(connection, session.session_id, payload.model_route)
         const inputs = [...(scene.prior_prompts ?? []), scene.prompt]
         const completed = await withCaseTimeout(
           signal => promptSession(
             connection, session.session_id, scene.prompt, inputs, payload.timeout_ms, signal,
+            archive => { latestArchive = archive },
           ),
           payload.timeout_ms,
         )
@@ -345,7 +361,14 @@ async function main() {
         })
       } catch (error) {
         const reason = /^[a-z0-9-]+$/.test(error?.message ?? '') ? error.message : 'scene-review-error'
+        failure = reason
         results.push({ scene_id: scene.scene_id, error: reason })
+      } finally {
+        await saveSessionTrace(join(payload.evidence_root, scene.scene_id, `attempt-${String(attempt).padStart(2, '0')}`), latestArchive, {
+          operation: 'review', session_id: sessionId, attempt,
+          status: failure ? 'error' : 'completed', failure_reason: failure,
+          trace_available: Boolean(latestArchive),
+        })
       }
     }
     process.stdout.write(`${JSON.stringify({ schema_version: '1.0', operation: 'review', results })}\n`)
@@ -354,16 +377,19 @@ async function main() {
   const rows = []
   let stopReason
   for (const item of payload.cases) {
+    const traceState = { targetArchive: null, judgeArchive: null, judgeSession: null }
     try {
       rows.push(await withCaseTimeout(
-        signal => runCase(connection, payload, item, workspace, signal),
+        signal => runCase(connection, payload, item, workspace, signal, traceState),
         payload.timeout_ms * (item.inputs.length + 2),
       ))
     } catch (error) {
       const reason = SAFETY_STOP_REASONS.has(error?.message) ? error.message : 'api-case-error'
+      const targetArchive = traceState.targetArchive ?? (traceState.judgeSession ? null : error?.archive ?? null)
       await saveEvidence(payload.evidence_root, item,
-        { inputs: item.inputs, assistant_texts: [] }, error?.archive ?? null,
-        { schema_version: '1.0', case_id: item.case_id, transport: 'api', completed: false, failure_reason: reason })
+        { inputs: item.inputs, assistant_texts: [] }, targetArchive,
+        { schema_version: '1.0', case_id: item.case_id, transport: 'api', completed: false, failure_reason: reason, trace_available: Boolean(targetArchive) },
+        traceState.judgeSession ? { response: null, archive: traceState.judgeArchive, checks: { ...traceState.judgeSession, unavailable_reason: reason, trace_available: Boolean(traceState.judgeArchive) } } : null)
       rows.push(result(item, 'error', 'inconclusive',
         reason === 'api-case-error' ? 'Runtime API 用例未完成，未产生语义结论。' : '评测身份或证据失配，已停止。',
         reason))

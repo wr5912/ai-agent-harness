@@ -11,6 +11,7 @@ import type { Inventory, RunAsset } from './protocol.ts'
 import { DOMAIN_PREFIXES } from './protocol.ts'
 import { recentRuns } from './dashboard.ts'
 import { createAgentsHandler } from './agents/index.ts'
+import { createRunDownloadHandler } from './agents/run-files.ts'
 import { createInstancesHandler } from './instances/index.ts'
 import { applyMcpGateway, createMcpHandler } from './mcp/index.ts'
 import type {} from './mcp/manager.ts'
@@ -127,11 +128,12 @@ export function applyTools(ctx: Context) {
   const mcp = manager ? createManagedMcpHandler(assetRoot, () => manager.servers.get()) : createMcpHandler(assetRoot)
   const events = createPlatformEvents(assetRoot)
   events.register(registrationContext)
+  registrationContext.connection.fetch.register({ path: '/api/harness-platform/runs/download', methods: ['GET'], requestBody: 'buffered', fetch: createRunDownloadHandler(assetRoot) })
   const notify = (domains: string[], ids?: string[]) => events.notify(domains as any, ids)
   const wrap = (domain: 'agents' | 'instances' | 'mcp', handler: ConnectionRpcHandler): ConnectionRpcHandler => async (endpoint, payload, signal, peer) => {
     try { return await handler(endpoint, payload, signal, peer) }
     finally {
-      if (!['list', 'detail', 'url', 'logs', 'edit/read', 'cases/list', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/compare', 'fusion/status', 'fusion/proposal', 'features/proposal'].includes(endpoint)) notify([domain, 'catalog'])
+      if (!['list', 'detail', 'url', 'logs', 'edit/read', 'cases/list', 'cases/read', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'fusion/status', 'fusion/proposal', 'features/proposal'].includes(endpoint)) notify([domain, 'catalog'])
     }
   }
   const domains = {

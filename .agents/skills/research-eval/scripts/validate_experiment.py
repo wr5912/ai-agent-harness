@@ -13,7 +13,7 @@ from pathlib import Path
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from evaluation_contract import evaluation_digest, execution_for, load_evaluation
+from evaluation_contract import cases_digest, load_evaluation
 
 ADAPTER = Path(__file__).resolve().parents[4] / "runtime/adapters/dsh-container"
 if str(ADAPTER) not in sys.path:
@@ -322,24 +322,16 @@ def validate_run(
     if status in {"planned", "running"}:
         if not valid_cases:
             errors.append(issue("RUN_EVALUATION_CASES", "未封存 Run 必须锁定完整 Case", inputs))
-        else:
-            try:
-                current_cases = execution_for(evaluation_path, case_ids)
-            except (OSError, ValueError) as exc:
-                errors.append(issue("RUN_EVALUATION_CASES", str(exc), inputs))
-            else:
-                if locked_cases != current_cases:
-                    errors.append(issue("RUN_EVALUATION_CASES", "Run 锁定的 Case 与当前定义不一致", inputs))
-                if locked_inputs.get("evaluation_sha256") != evaluation_digest(evaluation_path, case_ids):
-                    errors.append(issue("RUN_EVALUATION_HASH", "Run 锁定的 Case 摘要与当前定义不一致", inputs))
-                if has_catalog and valid_catalog and catalog != load_evaluation(evaluation_path)["catalog"]:
-                    errors.append(issue("RUN_CASE_CATALOG", "Run 场景目录与当前定义不一致", inputs))
     elif not valid_cases:
         historical = locked_inputs.get("evaluation_selection")
         case_ids = historical.get("case_ids", []) if isinstance(historical, dict) else []
         if not valid_id_list(case_ids, nonempty=True):
             errors.append(issue("RUN_EVALUATION_CASES", "封存 Run 缺少有效的历史 Case 选择", inputs))
             case_ids = []
+    # 当前用例可继续维护；Run 的完整性只依赖其冻结快照。
+    if valid_cases and (status in {"planned", "running"} or "evaluation_sha256" in locked_inputs):
+        if locked_inputs.get("evaluation_sha256") != cases_digest(locked_cases):
+            errors.append(issue("RUN_EVALUATION_HASH", "Run 锁定的 Case 摘要与冻结内容不一致", inputs))
     selected_ids = set(case_ids)
     results = run_dir / "results.jsonl"
     rows: list[dict] = []

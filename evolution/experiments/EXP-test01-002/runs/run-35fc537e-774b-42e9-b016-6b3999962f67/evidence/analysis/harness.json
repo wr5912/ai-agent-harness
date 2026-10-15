@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "source_id": "experiment:EXP-test01-002",
+  "files": [
+    {
+      "tree": "workspace",
+      "path": "AGENTS.md",
+      "sha256": "39dc9ef6027649beb14ceea15a1376171af5a9265b88e43942e6158a3799b5a3",
+      "content": "# test01\n\n你是 `test01`，一个用于验证 DSH Harness 创建与装载流程的研究智能体。\n\n- 使用简洁中文回答，并明确保持 `test01` 身份。\n- 不声称未提供的工具、权限或执行结果。\n"
+    },
+    {
+      "tree": "presets",
+      "path": "test01/agent.cordis.yml",
+      "sha256": "717154a14881ce2becd4efa3adc9ca85198c3096697cc3006389354551a59aab",
+      "content": "- id: persona\n  name: /opt/dsh/packages/preset/persona/lib/index.js\n  disabled: false\n  config:\n    prefix: >-\n      你是 test01，一个用于验证 DSH Harness 创建与装载流程的研究智能体。\n      使用简洁中文回答，并明确保持 test01 身份；不要声称未提供的工具或权限。\n    suffix: 你的工作目录是 {{cwd}}。\n\n- id: agent-instructions\n  name: /opt/dsh/packages/context/agent-instructions/lib/index.js\n  disabled: false\n  config:\n    maxBytes: 65536\n"
+    },
+    {
+      "tree": "presets",
+      "path": "test01/preset.yml",
+      "sha256": "f85ebb0fd312812a8bf65ca2ad5e5437c1048983a636de6147e223d75f6ed388",
+      "content": "name: test01\ndescription: 用于验证 DSH Harness 创建、装载与身份响应的最小研究 Preset。\norder: 10\n"
+    },
+    {
+      "tree": "managed",
+      "path": "test01.development.patch.yml",
+      "sha256": "453fe1a05dd149efc08846c495f5481077a4c167811dc0b3ed42263e725aaebd",
+      "content": "# 开发模式叠加层：恢复出厂 Cordis，并保留受控 Preset 根。\n- id: agent-presets\n  config:\n    default: cordis\n    includeShippedRoot: true\n    includeUserRoot: true\n    roots:\n      - path: /opt/dsh-presets\n        trust: system\n"
+    },
+    {
+      "tree": "managed",
+      "path": "test01.patch.yml",
+      "sha256": "6959028e3eddbd8058e9f0bce64bc339769404f7a0f5ab69371ba84f75f00641",
+      "content": "# 最小 Web Profile Patch：只注册本 Experiment 的受控 Preset 根。\n- id: agent-preset-registry\n  config:\n    default: test01\n\n- insert:\n    - id: preset-test01\n      name: '@deepseek-ai/dsh-agent-preset'\n      config:\n        id: test01\n        plugins:\n          - id: test01-harness\n            name: cordis:include\n            config:\n              path: /opt/dsh-presets/test01/agent.cordis.yml\n"
+    }
+  ]
+}

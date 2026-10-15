@@ -21,6 +21,7 @@ import {
 import { dirname, extname, join, relative, resolve, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { ConnectionRpcHandler, ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
+import { RunFileError, readRunReport, listRunFiles, previewRunFile } from './run-files.ts'
 
 type JsonMap = Record<string, unknown>
 type SourceCatalog = { schema_version?: string; sources?: Record<string, JsonMap> }
@@ -51,7 +52,7 @@ function ok<T extends RpcValue>(value: T): ConnectionRpcResult<T> {
 }
 
 function failure(error: unknown): ConnectionRpcResult<never> {
-  if (error instanceof RpcError) return { ok: false, error: { code: error.code, message: error.message, details: error.details } }
+  if (error instanceof RpcError || error instanceof RunFileError) return { ok: false, error: { code: error.code, message: error.message, details: error.details } }
   const code = (error as NodeJS.ErrnoException).code ?? 'unknown'
   return { ok: false, error: { code: 'asset_operation_failed', message: '智能体资产操作失败', details: { filesystem_code: code } } }
 }
@@ -137,12 +138,14 @@ function parseJsonCommand(root: string, args: string[], message = '命令执行�
   }
 }
 
-async function parseJsonCommandAsync(root: string, args: string[], message = '命令执行失败', signal?: AbortSignal) {
+async function parseJsonCommandAsync(root: string, args: string[], message = '命令执行失败', signal?: AbortSignal, input?: string) {
   let stdout: string
   try {
-    ({ stdout } = await promisify(execFile)('python3', args, {
+    const pending = promisify(execFile)('python3', args, {
       cwd: root, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, timeout: 20_000, signal,
-    }))
+    })
+    if (input !== undefined) pending.child.stdin?.end(input)
+    stdout = (await pending).stdout
   } catch (error) {
     const failed = error as Error & { stderr?: string }
     throw new RpcError('command_failed', message, { reason: redact(failed.stderr || failed.message) })
@@ -205,10 +208,21 @@ function listDirs(file: string): string[] {
   }
 }
 
-function listAgents(root: string) {
+function agentDisplayName(root: string, experimentId?: string): string | undefined {
+  if (!experimentId) return undefined
+  const file = join(root, 'evolution/experiments', experimentId, 'candidate/harness.yaml')
+  if (!existsSync(file)) return undefined
+  assertNoSymlinkPath(root, file)
+  const agent = readYamlMap(root, file).agent as JsonMap | undefined
+  return typeof agent?.name === 'string' && agent.name.trim() ? agent.name.trim() : undefined
+}
+
+function listAgents(root: string, experiments = listExperiments(root)) {
   return listDirs(join(root, 'agents')).filter(id => AGENT_ID.test(id)).map(id => {
     const manifest = readYamlMap(root, join(root, 'agents', id, 'manifest.yaml'))
-    return { id, path: `agents/${id}`, manifest, active_experiment: manifest.active_experiment ?? null }
+    const versions = experiments.filter(item => item.agent_id === id).sort((a, b) => b.id.localeCompare(a.id, 'en', { numeric: true }))
+    return { id, name: agentDisplayName(root, versions[0]?.id) ?? id, version_count: versions.length, latest_experiment_status: versions[0]?.status ?? null,
+      path: `agents/${id}`, manifest, active_experiment: manifest.active_experiment ?? null }
   })
 }
 
@@ -260,16 +274,11 @@ function casesFromEvaluation(parsed: unknown) {
 
 async function loadEvaluation(root: string, agentId: string, signal?: AbortSignal) {
   const path = repoPath(root, `agents/${agentId}/evaluation.md`)
+  assertNoSymlinkPath(root, path)
   const content = readText(path)
-  const code = [
-    'import json, sys',
-    'from pathlib import Path',
-    `sys.path.insert(0, ${JSON.stringify(join(root, dirname(EVALUATION_CONTRACT)))})`,
-    'from evaluation_contract import load_evaluation',
-    'print(json.dumps(load_evaluation(Path(sys.argv[1])), ensure_ascii=False))',
-  ].join('\n')
-  const parsed = await parseJsonCommandAsync(root, ['-c', code, path], 'evaluation.md 合同解析失败', signal)
-  return { path: `agents/${agentId}/evaluation.md`, content, sha256: sha256(content), parsed, cases: casesFromEvaluation(parsed as unknown as string) }
+  // 原文、摘要及解析共享同一个快照，避免读取期间保存造成口径错配。
+  const parsed = await parseJsonCommandAsync(root, ['-c', evaluationPreviewCode(root)], 'evaluation.md 合同解析失败', signal, content)
+  return { path: `agents/${agentId}/evaluation.md`, content, sha256: sha256(content), parsed, cases: casesFromEvaluation(parsed) }
 }
 
 function declaredFusion(change: JsonMap) {
@@ -309,12 +318,13 @@ function assertUniqueResolved(edits: { rel: string }[]) {
 
 function list(root: string) {
   const source = catalog(root)
+  const experiments = listExperiments(root)
   return ok({
     schema_version: '1.0',
     root,
     observed_at: new Date().toISOString(),
-    agents: listAgents(root),
-    experiments: listExperiments(root),
+    agents: listAgents(root, experiments),
+    experiments,
     releases: listDirs(join(root, 'releases')).map(id => ({ id, path: `releases/${id}` })),
     source_catalog: { path: SOURCE_CATALOG, schema_version: source.parsed.schema_version ?? null, sha256: source.hash, count: Object.keys(source.parsed.sources ?? {}).length },
   })
@@ -744,7 +754,7 @@ async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
   const decision = readText(repoPath(root, `evolution/experiments/${experimentId}/decision.md`))
   const assets = assetTree(root, experimentId)
   return ok({
-    agent: { id: agentId, manifest, path: `agents/${agentId}` },
+    agent: { id: agentId, name: agentDisplayName(root, experimentId) ?? agentId, manifest, path: `agents/${agentId}` },
     experiment: exp,
     versions: versions.map(item => ({ id: item.id, status: item.status, baseline_ref: item.baseline_ref })),
     baseline: { ref: exp.baseline_ref, parent_experiment_id: exp.change.parent_experiment_id ?? null, source: exp.baseline_ref ? 'change.yaml' : 'unknown' },
@@ -1042,8 +1052,8 @@ async function previewEdit(root: string, payload: JsonMap, signal?: AbortSignal)
   return ok({ edits: result, dry_run: dryRun })
 }
 
-function loadEvaluationPreview(root: string, content: string) {
-  const code = [
+function evaluationPreviewCode(root: string) {
+  return [
     'import json, sys, tempfile',
     'from pathlib import Path',
     `sys.path.insert(0, ${JSON.stringify(join(root, dirname(EVALUATION_CONTRACT)))})`,
@@ -1056,7 +1066,10 @@ function loadEvaluationPreview(root: string, content: string) {
     'finally:',
     '    Path(name).unlink(missing_ok=True)',
   ].join('\n')
-  const run = spawnSync('python3', ['-c', code], { cwd: root, input: content, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
+}
+
+function loadEvaluationPreview(root: string, content: string) {
+  const run = spawnSync('python3', ['-c', evaluationPreviewCode(root)], { cwd: root, input: content, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
   if (run.status !== 0) throw new RpcError('invalid_request', 'evaluation.md 合同无效', { stderr: redact(run.stderr) })
   return JSON.parse(run.stdout) as JsonMap
 }
@@ -1089,6 +1102,65 @@ async function cases(root: string, payload: JsonMap, signal?: AbortSignal) {
   return ok({ path: evaluation.path, sha256: evaluation.sha256, cases: evaluation.cases })
 }
 
+function caseFromEvaluation(evaluation: Awaited<ReturnType<typeof loadEvaluation>>, caseId: string) {
+  const summary = evaluation.cases.find(item => item.id === caseId)
+  const values = (evaluation.parsed.cases as Record<string, JsonMap> | undefined)?.[caseId]
+  if (!summary || !values) throw new RpcError('not_found', '未找到测试用例', { case_id: caseId })
+  return { id: summary.id, title: String(values.title), inputs: values.inputs as string[],
+    expected_behavior: String(values.expected_behavior), scene: summary.scene, tier: summary.tier }
+}
+
+async function readCase(root: string, payload: JsonMap, signal?: AbortSignal) {
+  const exp = experimentInfo(root, experimentIdField(payload))
+  const evaluation = await loadEvaluation(root, exp.agent_id, signal)
+  return ok({ case: caseFromEvaluation(evaluation, stringField(payload, 'case_id')), sha256: evaluation.sha256, path: evaluation.path })
+}
+
+async function updateCase(root: string, payload: JsonMap, signal?: AbortSignal) {
+  const experimentId = experimentIdField(payload)
+  const exp = experimentInfo(root, experimentId)
+  const caseId = stringField(payload, 'case_id')
+  const evaluation = await loadEvaluation(root, exp.agent_id, signal)
+  const previous = caseFromEvaluation(evaluation, caseId)
+  const expected = stringField(payload, 'expected_sha256')
+  if (expected !== evaluation.sha256) throw new RpcError('conflict', '评测用例已被修改，请重新读取后保存', { expected_sha256: expected, actual_sha256: evaluation.sha256 })
+  const title = stringField(payload, 'title')
+  if (/[\r\n]/.test(title)) throw new RpcError('invalid_request', '用例名称必须为单行')
+  if (!Array.isArray(payload.inputs) || !payload.inputs.length || payload.inputs.some(value => typeof value !== 'string' || !value.trim())) {
+    throw new RpcError('invalid_request', '至少需要一条非空用户输入')
+  }
+  const inputs = (payload.inputs as string[]).map(value => value.replace(/\r\n?/g, '\n').trim())
+  const expectedBehavior = stringField(payload, 'expected_behavior').replace(/\r\n?/g, '\n')
+  if (typeof payload.fast !== 'boolean') throw new RpcError('invalid_request', 'fast 必须是布尔值')
+  // 与 evaluation_contract 一致：普通四级标题属于预期正文，只有下一业务 Case 或一至三级章节结束该区块。
+  const headings = [...evaluation.content.matchAll(/^#### (U-[A-Z0-9-]+)\s+([^\r\n]+)\r?$/gm)]
+  const index = headings.findIndex(match => match[1] === caseId)
+  if (index < 0) throw new RpcError('invalid_request', '无法定位用例正文')
+  const start = headings[index].index!
+  let end = headings[index + 1]?.index ?? evaluation.content.length
+  const bodyStart = start + headings[index][0].length
+  const nextSection = /^#{1,3} /m.exec(evaluation.content.slice(bodyStart, end))
+  if (nextSection) end = bodyStart + nextSection.index
+  const oldBlock = evaluation.content.slice(start, end)
+  const newline = oldBlock.includes('\r\n') ? '\r\n' : '\n'
+  const tail = oldBlock.match(/(?:\r?\n)*$/)?.[0] || newline
+  const body = [`#### ${caseId} ${title}`, '', ...(payload.fast ? ['**评估档位：** `fast`', ''] : []),
+    ...inputs.flatMap((input, turn) => [`**用户输入${inputs.length > 1 ? ` ${turn + 1}` : ''}**`, '',
+      ...input.split('\n').map(line => `> ${line}`), '']), '**预期**', '', ...expectedBehavior.split('\n')].join(newline)
+  const content = evaluation.content.slice(0, start) + body + tail + evaluation.content.slice(end)
+  const parsed = loadEvaluationPreview(root, content)
+  const selected = (parsed.cases as Record<string, JsonMap>)[caseId]
+  const row = (parsed.catalog as JsonMap[]).find(item => item.case_id === caseId)
+  if (!selected || selected.title !== title || JSON.stringify(selected.inputs) !== JSON.stringify(inputs) || selected.expected_behavior !== expectedBehavior ||
+    row?.scene !== previous.scene || row?.fast !== payload.fast || JSON.stringify(parsed.case_ids) !== JSON.stringify(evaluation.parsed.case_ids)) {
+    throw new RpcError('invalid_request', '用例内容无法按评测合同完整保存，请检查输入和预期中的 Markdown 标题')
+  }
+  await applyEdit(root, { experiment_id: experimentId, edits: [{ path: evaluation.path, content, expected_sha256: expected }] }, signal)
+  const saved = await loadEvaluation(root, exp.agent_id, signal)
+  if (saved.sha256 !== sha256(content)) throw new RpcError('conflict', '保存后评测文件再次变化，请重新读取')
+  return ok({ case: caseFromEvaluation(saved, caseId), sha256: saved.sha256, path: saved.path })
+}
+
 function evalArgs(payload: JsonMap, dryRun: boolean) {
   const source = stringField(payload, 'source')
   if (source.startsWith('experiment:')) experimentIdValue(source.slice('experiment:'.length), 'source')
@@ -1111,7 +1183,7 @@ async function evalPreview(root: string, payload: JsonMap, signal?: AbortSignal)
   return ok({ command: ['python3', ...evalArgs(payload, true)], result: await parseJsonCommandAsync(root, evalArgs(payload, true), '评测预览失败', signal) })
 }
 
-type Job = { status: 'running' | 'completed' | 'failed' | 'cancelled'; started_at: string; updated_at: string; stdout: string; stderr: string; process?: ReturnType<typeof spawn>; result?: unknown; exit_code?: number | null; error?: string }
+type Job = { status: 'running' | 'completed' | 'failed' | 'cancelled'; started_at: string; updated_at: string; stdout: string; stderr: string; process?: ReturnType<typeof spawn>; result?: unknown; run_id?: string; exit_code?: number | null; error?: string }
 
 function appendLog(current: string, chunk: unknown) {
   return (current + String(chunk)).slice(-LOG_LIMIT)
@@ -1126,7 +1198,13 @@ function startEval(root: string, payload: JsonMap, jobs: Map<string, Job>, onCha
   proc.stdout.setEncoding('utf8')
   proc.stderr.setEncoding('utf8')
   proc.stdout.on('data', chunk => { job.stdout = appendLog(job.stdout, chunk); job.updated_at = new Date().toISOString(); onChange?.() })
-  proc.stderr.on('data', chunk => { job.stderr = appendLog(job.stderr, chunk); job.updated_at = new Date().toISOString(); onChange?.() })
+  proc.stderr.on('data', chunk => {
+    job.stderr = appendLog(job.stderr, chunk)
+    const run = job.stderr.match(/(?:^|\n)Research Run: (run-[0-9a-f-]+)(?:\n|$)/)?.[1]
+    if (run && RUN_ID.test(run)) job.run_id = run
+    job.updated_at = new Date().toISOString()
+    onChange?.()
+  })
   proc.on('error', error => {
     job.status = 'failed'
     job.error = redact(error.message)
@@ -1260,6 +1338,8 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void): C
         case 'edit/preview': return await previewEdit(root, body, signal)
         case 'edit/apply': return await applyEdit(root, body, signal)
         case 'cases/list': return await cases(root, body, signal)
+        case 'cases/read': return await readCase(root, body, signal)
+        case 'cases/update': return await updateCase(root, body, signal)
         case 'eval/preview': return await evalPreview(root, body, signal)
         case 'eval/start': return startEval(root, body, jobs, onChange)
         case 'eval/status': return jobStatus(body, jobs)
@@ -1267,6 +1347,9 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void): C
         case 'runs/index': return await runRecord(root, 'index', body, signal)
         case 'runs/show': return await runRecord(root, 'show', body, signal)
         case 'runs/evidence': return await readRunEvidence(root, body, signal)
+        case 'runs/report': return ok(await readRunReport(root, stringField(body, 'run_id'), signal))
+        case 'runs/files': return ok(await listRunFiles(root, stringField(body, 'run_id'), signal))
+        case 'runs/read-file': return ok(await previewRunFile(root, stringField(body, 'run_id'), stringField(body, 'path'), signal))
         case 'runs/compare': return await runRecord(root, 'compare', body, signal)
         case 'decision/update': return await decisionUpdate(root, body, signal)
         default: return failure(new RpcError('not_found', '未知的智能体操作', { endpoint }))

@@ -484,6 +484,10 @@ def execute(args: argparse.Namespace) -> int:
         emit_result(contract["experiment_id"], len(cases), executor=args.executor)
         return 2
     run_dir = Path(contract["experiment_root"]) / "runs" / run_id
+    # 初始化后的冻结输入是执行与评审共同使用的事实源。
+    locked_inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+    cases = locked_inputs["evaluation_cases"]
+    progress(f"Research Run: {run_id}")
     recorded: set[str] = set()
     instance_name = f"{contract['agent_id']}-eval-{uuid.uuid4().hex[:8]}"
     up_attempted = False

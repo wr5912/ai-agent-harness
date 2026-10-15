@@ -9,13 +9,15 @@ import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { SidebarBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { ConfigForm, SettingsLauncherOwnerProps, SettingsOnboardingOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { createCatalog, type Catalog } from './catalog.ts'
-import type { PlatformPageProps } from './protocol.ts'
-import { HomePage, PlatformLogo, type PageId } from './home.tsx'
+import type { PageId, PlatformNavigation, PlatformPageProps } from './protocol.ts'
+import { HomePage, PlatformLogo } from './home.tsx'
 import { AgentsPage } from './agents/client.tsx'
+import { EvaluationPage } from './evaluation/client.tsx'
+import { navigationHash, readNavigation } from './navigation.ts'
 import { InstancesPage } from './instances/client.tsx'
 import { McpPage } from './mcp/client.tsx'
 import { platformTheme } from './theme.ts'
-import { prepareConversation } from './conversation.ts'
+import { initializeConversationLayout, prepareConversation } from './conversation.ts'
 import { AssistantConversation, AssistantOperations, PlatformOperationCard, createAssistant, type Assistant, type AssistantContext } from './assistant/client.tsx'
 import { createPlatformUpdates, type PlatformUpdates } from './realtime/client.ts'
 
@@ -23,7 +25,8 @@ export const name = 'harness-platform-client'
 export const inject = ['connection', 'slots', 'configForms', 'layout', 'workspaces', 'uiWorkspace', 'uiSession', 'sessions', 'conversation']
 type ClientContext = Omit<Context, 'connection'> & { connection: ConnectionHandle }
 const pages: { id: PageId; label: string }[] = [
-  { id: 'home', label: '首页' }, { id: 'conversations', label: '管理对话' }, { id: 'agents', label: '智能体与评估' },
+  { id: 'home', label: '首页' }, { id: 'conversations', label: '管理对话' }, { id: 'agents', label: '智能体管理' },
+  { id: 'evaluation', label: '评测中心' },
   { id: 'instances', label: '实例管理' }, { id: 'mcp', label: 'MCP 管理' },
 ]
 
@@ -33,11 +36,13 @@ type PlatformProps = PlatformPageProps & PropsRuntime<'shell.overlay'> & PropsRe
   updates: PlatformUpdates
   mcpForm: ConfigForm<any>
   enterConversation: () => void
+  toggleConversationSidebar: () => void
   showNativeConversation: (visible: boolean, afterHidden?: () => void) => void
 }
 
-function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversation, showNativeConversation, SessionProvider, renderSlot, useSessionStatus }: PlatformProps) {
-  const [page, setPage] = useState<PageId>('home')
+function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversation, toggleConversationSidebar, showNativeConversation, SessionProvider, renderSlot, useSessionStatus }: PlatformProps) {
+  const [target, setTarget] = useState<PlatformNavigation>(() => readNavigation(window.location.hash))
+  const page = target.page
   const [open, setOpen] = useState(false)
   const [nativeMode, setNativeMode] = useState(false)
   const [unread, setUnread] = useState(false)
@@ -52,11 +57,19 @@ function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversa
   const assets = useSyncExternalStore(catalog.subscribe, catalog.getSnapshot).inventory
   useEffect(() => { assistant.restore() }, [assistant, assets?.root])
   const status = useSessionStatus(value => assistantState.sessionId ? value.get(assistantState.sessionId) : undefined)
-  const navigate = (next: PageId) => {
-    if (next === 'conversations') { enterConversation(); assistant.reveal() }
-    else if (next !== 'home') previousPage.current = next
-    setPage(next)
-  }
+  const navigate = useCallback((next: PageId | PlatformNavigation) => {
+    const { replace, ...destination } = typeof next === 'string' ? { page: next } : next
+    if (destination.page === 'conversations') { enterConversation(); assistant.reveal() }
+    else if (destination.page !== 'home') previousPage.current = destination.page
+    setTarget(destination)
+    if (window.location.hash !== navigationHash(destination)) window.history[replace ? 'replaceState' : 'pushState'](null, '', navigationHash(destination))
+  }, [assistant, enterConversation])
+  useEffect(() => {
+    const restore = () => setTarget(readNavigation(window.location.hash))
+    window.addEventListener('hashchange', restore)
+    window.addEventListener('popstate', restore)
+    return () => { window.removeEventListener('hashchange', restore); window.removeEventListener('popstate', restore) }
+  }, [])
   const onContext = useCallback((context: AssistantContext) => {
     const contextPage = String(context.page ?? activePage.current)
     contexts.current[contextPage] = context
@@ -135,10 +148,11 @@ function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversa
     <div className="harness-body">
       {page !== 'home' && <aside className="harness-sidebar">{navigation}</aside>}
       <div className="harness-content">
-        {page !== 'home' && <div className="harness-breadcrumb">工作空间 / {pages.find(item => item.id === page)?.label}</div>}
+        {page !== 'home' && <div className="harness-breadcrumb">{full && <button type="button" className="harness-conversation-sidebar-toggle" aria-label="切换会话侧栏" title="展开或收起会话侧栏" onClick={toggleConversationSidebar}><svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M7 3v14" stroke="currentColor" strokeWidth="1.5"/></svg>会话侧栏</button>}<span>工作空间 / {pages.find(item => item.id === page)?.label}</span></div>}
         <div hidden={page !== 'home'}><HomePage catalog={catalog} rpc={rpc} updates={updates} navigate={navigate} startConversation={async (_root, prompt) => { await assistant.create(prompt, { page: 'home' }) }} /></div>
-        <div hidden={page !== 'agents'}><AgentsPage rpc={rpc} updates={updates} onAssistant={onAssistant} onContext={onContext} /></div>
-        <div hidden={page !== 'instances'}><InstancesPage rpc={rpc} updates={updates} onContext={onContext} /></div>
+        <div hidden={page !== 'agents'}><AgentsPage rpc={rpc} updates={updates} onAssistant={onAssistant} onContext={onContext} target={target} onNavigate={navigate} active={page === 'agents'} /></div>
+        <div hidden={page !== 'evaluation'}><EvaluationPage rpc={rpc} updates={updates} onContext={onContext} target={target} onNavigate={navigate} active={page === 'evaluation'} /></div>
+        <div hidden={page !== 'instances'}><InstancesPage rpc={rpc} updates={updates} onContext={onContext} target={target} onNavigate={navigate} /></div>
         <div hidden={page !== 'mcp'}><McpPage rpc={rpc} form={mcpForm} updates={updates} onContext={onContext} /></div>
         <div ref={conversation} className="harness-conversation-viewport" hidden={!full}/>
         <section className="harness-assistant harness-assistant-floating" hidden={!floating} aria-label="平台 AI 助手">
@@ -190,6 +204,7 @@ function PlatformSettings({ openSettings, settingsOpen, settingsShortcut }: Sett
 }
 
 export function apply(ctx: ClientContext) {
+  initializeConversationLayout(ctx.layout, window.innerWidth)
   ctx.effect(() => ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
     name: 'settings.onboarding', id: 'welcome-notice', order: -100, priority: -1,
   }, ({ complete }: SettingsOnboardingOwnerProps) => {
@@ -227,7 +242,7 @@ export function apply(ctx: ClientContext) {
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'harness-platform', order: -100,
     children: { 'harness.assistant.conversation': { kind: 'single', scope: 'session-maybe' } },
-    inject: () => ({ catalog, assistant, updates, rpc: ctx.connection.rpc, mcpForm: ctx.configForms.get('mcp-session-manager'), enterConversation: () => prepareConversation(ctx.layout), showNativeConversation }),
+    inject: () => ({ catalog, assistant, updates, rpc: ctx.connection.rpc, mcpForm: ctx.configForms.get('mcp-session-manager'), enterConversation: () => prepareConversation(ctx.layout), toggleConversationSidebar: () => ctx.layout.toggleSidebar(), showNativeConversation }),
   }, PlatformPage))
   ctx.slots.inject('harness.assistant.conversation', () => ctx.slots.register({ name: 'harness.assistant.conversation' }, AssistantConversation))
   ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({ name: 'conversation.input.dock', id: 'harness-operation-confirmation', inject: () => ({ rpc: ctx.connection.rpc, assistant }) }, AssistantOperations))

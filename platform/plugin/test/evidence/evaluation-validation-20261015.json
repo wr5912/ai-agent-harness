@@ -1,0 +1,45 @@
+{
+  "config_changed": [],
+  "user_profile_unchanged": true,
+  "pid": 304220,
+  "asset_root": "/home/admin/work/ai-agent-harness",
+  "dsh_home": "/home/admin/.local/state/ai-agent-harness/platform/dsh-home",
+  "process_executable": "/opt/dsh/runtime/bin/node",
+  "log": "/tmp/harness-platform-3090-evaluation.log",
+  "stop": "tmux send-keys -t ai-agent-harness-platform-3090:0.0 C-c",
+  "configuration_values_unchanged": true,
+  "temporary_preview_stopped": true,
+  "machine_checks": [
+    {
+      "name": "platform-plugin",
+      "tests": 103,
+      "passed": 103
+    },
+    {
+      "name": "repository-and-run-validators",
+      "tests": 65,
+      "passed": 65
+    },
+    {
+      "name": "platform-launcher",
+      "tests": 14,
+      "passed": 14
+    },
+    {
+      "name": "runtime-api-drivers",
+      "tests": 10,
+      "passed": 10
+    },
+    {
+      "name": "run-snapshot-races",
+      "tests": 2,
+      "passed": 2
+    }
+  ],
+  "repository_contract": {
+    "valid": true,
+    "errors": 0,
+    "warnings": 0
+  },
+  "scope": "项目与工具链验证；业务AI归因失败事实见实际Run，不表示Harness效果改善"
+}

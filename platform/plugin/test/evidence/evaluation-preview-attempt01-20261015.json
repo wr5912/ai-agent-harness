@@ -1,0 +1,10 @@
+{
+  "at": "2026-10-15T09:55:57.184Z",
+  "scope": "隔离平台：实际全局DSH、用例保存与恢复、历史Run下载，无模型调用",
+  "checks": [
+    "原生登录成功，实际资产根与目标工作树一致"
+  ],
+  "page_errors": [],
+  "ok": false,
+  "failure": "locator.click: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.harness-agents').getByRole('button', { name: '新建版本', exact: true })\u001b[22m\n\n    at /tmp/harness-evaluation-browser.mjs:40:67"
+}

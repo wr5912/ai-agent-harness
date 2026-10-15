@@ -42,7 +42,7 @@
 - 不复制 Runtime 内部目录，不把 Session、缓存、附件或整个 `$DSH_HOME` 作为 Harness 资产；需入仓的平台和实例凭据只保存为专用文件，不通过复制 Runtime HOME 回流。
 - `agents/` 保存业务 Agent 的研究资料；`.agents/skills/` 保存维护本仓库的 Codex 项目技能，两者不得混用。
 - `.codex/` 和根级 `AGENTS.md` 只约束仓库研发协作，不是 DSH Runtime 策略或业务 Harness 资产。
-- 平台使用本地 CLI，以及基于系统全局 DSH-Cordis 的界面，当前提供首页、管理对话、智能体与评估、实例管理及 MCP 管理，复用现有资产与运行记录，不另建事实副本。平台启动入口、Profile 与插件源码集中在 `platform/`，其中 `platform/plugin/` 是独立 DSH 插件包；接入合同集中维护在[平台设计方案](docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。后续能力按实际使用需求扩展，实际验证状态以项目验收矩阵为准。
+- 平台使用本地 CLI，以及基于系统全局 DSH-Cordis 的界面，当前提供首页、管理对话、智能体管理、评测中心、实例管理及 MCP 管理，复用现有资产与运行记录，不另建事实副本。平台启动入口、Profile 与插件源码集中在 `platform/`，其中 `platform/plugin/` 是独立 DSH 插件包；接入合同集中维护在[平台设计方案](docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。后续能力按实际使用需求扩展，实际验证状态以项目验收矩阵为准。
 
 ## 工程语言取向
 

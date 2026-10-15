@@ -121,7 +121,11 @@ def load_evaluation(path: Path) -> dict[str, object]:
 
 
 def execution_for(path: Path, selected_case_ids: list[str]) -> list[dict[str, object]]:
-    evaluation = load_evaluation(path)
+    return execution_from(load_evaluation(path), selected_case_ids)
+
+
+def execution_from(evaluation: dict, selected_case_ids: list[str]) -> list[dict[str, object]]:
+    """从同一次解析选择执行输入，保持用例、目录与摘要一致。"""
     if not selected_case_ids:
         raise ValueError("至少显式选择一个 Case")
     if len(selected_case_ids) != len(set(selected_case_ids)):
@@ -135,8 +139,13 @@ def execution_for(path: Path, selected_case_ids: list[str]) -> list[dict[str, ob
 
 def evaluation_digest(path: Path, selected_case_ids: list[str]) -> str:
     """只摘要本次锁定的 Case，忽略其他 Case 的变化。"""
+    return cases_digest(execution_for(path, selected_case_ids))
+
+
+def cases_digest(cases: list[dict[str, object]]) -> str:
+    """当前定义和 Run 快照共用相同的用例摘要算法。"""
     raw = json.dumps(
-        execution_for(path, selected_case_ids),
+        cases,
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),

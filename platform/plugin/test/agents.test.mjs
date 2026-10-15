@@ -618,3 +618,94 @@ test('智能体详情解析不阻塞服务，YAML 顶层校验保留', async t =
   assert.equal(missing.ok, false)
   assert.equal(missing.error.code, 'asset_read_failed')
 })
+
+test('用例按选中区块保存，多轮与档位回读一致，冲突和无效内容不改源文件', async t => {
+  const { createAgentsHandler } = await loadServer()
+  const { root } = fixture()
+  t.after(() => rm(root, { recursive: true, force: true }))
+  const file = join(root, 'agents/test-agent/evaluation.md')
+  const first = readFileSync(file, 'utf8')
+  const following = '\n## 第二场景\n\n#### U-CASE-002 保留原文\n\n**用户输入**\n\n> untouched\n\n**预期**\n\n原样保留。\n'
+  write(file, first + following)
+  const handler = createAgentsHandler(root)
+  const base = { experiment_id: 'EXP-test-agent-001', case_id: 'U-CASE-001' }
+  const before = await rpc(handler, 'cases/read', base)
+  assert.deepEqual(before.case.inputs, ['ping'])
+  const update = { ...base, title: '多轮保存', inputs: ['first\n\ncontinued', 'second'], expected_behavior: '返回两轮的真实结果。', fast: false, expected_sha256: before.sha256 }
+  const saved = await rpc(handler, 'cases/update', update)
+  assert.deepEqual(saved.case.inputs, update.inputs)
+  assert.equal(saved.case.title, update.title)
+  assert.equal(saved.case.expected_behavior, update.expected_behavior)
+  assert.equal(saved.case.tier, 'full')
+  assert.equal(saved.case.scene, '基础')
+  const current = readFileSync(file, 'utf8')
+  assert.ok(current.endsWith(following))
+  assert.ok(current.startsWith('# Evaluation\n\n## 基础\n\n'))
+  await assert.rejects(() => rpc(handler, 'cases/update', update), /conflict:/)
+  await assert.rejects(() => rpc(handler, 'cases/update', { ...update, expected_sha256: saved.sha256, expected_behavior: '预期\n\n#### U-CASE-003 注入新用例\n\n**用户输入**\n> unexpected\n\n**预期**\nno' }), /invalid_request:/)
+  assert.equal(readFileSync(file, 'utf8'), current)
+  assert.deepEqual((await rpc(handler, 'cases/list', { agent_id: 'test-agent' })).cases.map(row => row.id), ['U-CASE-001', 'U-CASE-002'])
+})
+
+test('用例解析与摘要来自同一次读取，解析期间的外部修改不会混入口径', async t => {
+  const { createAgentsHandler } = await loadServer()
+  const { root } = fixture()
+  t.after(() => rm(root, { recursive: true, force: true }))
+  const file = join(root, 'agents/test-agent/evaluation.md')
+  const parser = join(root, '.agents/skills/research-eval/scripts/evaluation_contract.py')
+  write(parser, 'import time\ntime.sleep(0.25)\n' + readFileSync(parser, 'utf8').replace('from __future__ import annotations\n', ''))
+  const handler = createAgentsHandler(root)
+  const pending = rpc(handler, 'cases/read', { experiment_id: 'EXP-test-agent-001', case_id: 'U-CASE-001' })
+  await new Promise(resolve => setTimeout(resolve, 40))
+  write(file, readFileSync(file, 'utf8').replace('> ping', '> changed'))
+  const read = await pending
+  assert.deepEqual(read.case.inputs, ['ping'])
+  assert.notEqual(read.sha256, (await rpc(handler, 'cases/read', { experiment_id: 'EXP-test-agent-001', case_id: 'U-CASE-001' })).sha256)
+})
+
+test('用例保存保留预期中的普通四级小节，其他 Case 原文不变', async t => {
+  const { createAgentsHandler } = await loadServer()
+  const { root } = fixture()
+  t.after(() => rm(root, { recursive: true, force: true }))
+  const file = join(root, 'agents/test-agent/evaluation.md')
+  const following = '\n#### U-CASE-002 原样保留\n\n**用户输入**\n\n> second\n\n**预期**\n\n不变。\n'
+  write(file, readFileSync(file, 'utf8') + '\n#### 判定细节\n\n旧的详细标准。\n' + following)
+  const handler = createAgentsHandler(root)
+  const base = { experiment_id: 'EXP-test-agent-001', case_id: 'U-CASE-001' }
+  const before = await rpc(handler, 'cases/read', base)
+  assert.match(before.case.expected_behavior, /#### 判定细节/)
+  const expectedBehavior = '返回新的结果。\n\n#### 判定细节\n\n新的详细标准。'
+  const saved = await rpc(handler, 'cases/update', { ...base, title: before.case.title, inputs: before.case.inputs, expected_behavior: expectedBehavior, fast: true, expected_sha256: before.sha256 })
+  assert.equal(saved.case.expected_behavior, expectedBehavior)
+  const current = readFileSync(file, 'utf8')
+  assert.equal((current.match(/#### 判定细节/g) ?? []).length, 1)
+  assert.equal(current.includes('旧的详细标准'), false)
+  assert.ok(current.endsWith(following))
+})
+
+test('运行中 Job 即时返回 stderr 跨数据块输出的 Run ID', async t => {
+  const { createAgentsHandler } = await loadServer()
+  const { root } = fixture()
+  t.after(() => rm(root, { recursive: true, force: true }))
+  const runId = 'run-11111111-1111-4111-8111-111111111111'
+  write(join(root, 'runtime/adapters/dsh-container/dsh-eval'), [
+    'import sys,time,json',
+    'sys.stderr.write("Research Run: run-11111111-1111-");sys.stderr.flush()',
+    'time.sleep(0.08)',
+    'sys.stderr.write("4111-8111-111111111111\\n");sys.stderr.flush()',
+    'time.sleep(0.25)',
+    `print(json.dumps({"run_id":"${runId}"}))`,
+    '',
+  ].join('\n'))
+  const handler = createAgentsHandler(root)
+  const started = await rpc(handler, 'eval/start', { source: 'experiment:EXP-test-agent-001', mode: 'fast', executor: 'api', review: 'none' })
+  let observed
+  for (let attempt = 0; attempt < 30; attempt++) {
+    observed = await rpc(handler, 'eval/status', { job_id: started.job_id })
+    if (observed.run_id) break
+    await new Promise(resolve => setTimeout(resolve, 20))
+  }
+  assert.equal(observed.run_id, runId)
+  assert.equal(observed.status, 'running')
+  assert.equal((await waitForJob(handler, started.job_id)).result.run_id, runId)
+})

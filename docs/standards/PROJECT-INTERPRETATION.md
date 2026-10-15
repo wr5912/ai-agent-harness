@@ -85,7 +85,7 @@ Harness 资产说明“要装载什么”，DSH Runtime 负责实际装载和执
 
 Runtime 的 Session、设置、缓存和附件位于独立数据根，不进入 Candidate 或 Research Release。平台和实例凭据可以使用 Agent 的实例专用仓库文件作为来源；LLM API Key 只保存在匹配 `*.llm-api-key` 的本地忽略文件中，并由环境或受控凭据机制注入。
 
-当前平台通过系统全局 DSH 装载仓库维护的 Cordis 扩展，提供首页、管理对话、智能体与评估、实例管理及 MCP 管理。页面直接读取已有 Agent、Experiment 和 Run；编辑写回对应 Candidate、评估或 Decision，运行操作复用 `dsh-dev`、`dsh-eval` 和 Run 工具，不建立第二份资产或评估口径。平台组合、启动、插件兼容性和独立 HOME 的合同见[平台设计方案](../platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)；平台功能与工具变更按 `PA-12` 及受影响 CLI 路径验证，业务 Harness 语义变化另按研究流程验证。
+当前平台通过系统全局 DSH 装载仓库维护的 Cordis 扩展，提供首页、管理对话、智能体管理、评测中心、实例管理及 MCP 管理。页面直接读取已有 Agent、Experiment 和 Run；编辑写回对应 Candidate、评估或 Decision，运行操作复用 `dsh-dev`、`dsh-eval` 和 Run 工具，不建立第二份资产或评估口径。平台组合、启动、插件兼容性和独立 HOME 的合同见[平台设计方案](../platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)；平台功能与工具变更按 `PA-12` 及受影响 CLI 路径验证，业务 Harness 语义变化另按研究流程验证。
 
 ## 6. 三层验证
 

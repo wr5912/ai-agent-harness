@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "source_id": "experiment:EXP-test01-002",
+  "local_image_tag": "ai-agent-harness/dsh:21638c563-54f335ef05ac",
+  "local_image_id": "sha256:3907b02a066908dd67b20ad50bd593019a504b1ea8d988be35ebe7b34270d92b",
+  "image_ref": "ai-agent-harness/dsh:21638c563-54f335ef05ac@sha256:3907b02a066908dd67b20ad50bd593019a504b1ea8d988be35ebe7b34270d92b",
+  "image_build_fingerprint": "sha256:54f335ef05ac817d2d40a34186cf4e9573a6800979520da8ec65b1bfc82e9eae",
+  "platform": "linux/amd64",
+  "scope": "actual DSH evaluation runtime image identity; no semantic verdict"
+}

@@ -1,0 +1,132 @@
+{
+  "at": "2026-10-15",
+  "scope": "实际标准DSH容器，最小身份Case和AI证据复核；平台采集验证不作为业务Harness效果结论",
+  "run_id": "run-35fc537e-774b-42e9-b016-6b3999962f67",
+  "case_id": "U-IDENTITY-001",
+  "execution": "真实模型运行，独立实例已停止",
+  "summary": {
+    "schema_version": "3.0",
+    "run_id": "run-35fc537e-774b-42e9-b016-6b3999962f67",
+    "trial_count": 1,
+    "execution_status_counts": {
+      "completed": 1,
+      "error": 0,
+      "skipped": 0
+    },
+    "machine_trial_verdict_counts": {
+      "passed": 1,
+      "failed": 0,
+      "inconclusive": 0
+    },
+    "machine_overall_verdict": "passed",
+    "review_status": "failed",
+    "reviewed_case_count": 0,
+    "reviewed_case_verdict_counts": null,
+    "reviewed_overall_verdict": null,
+    "effective_verdict": "inconclusive"
+  },
+  "review_reason": "证据复核失败（session）：analysis-tools-invalid",
+  "evidence": [
+    {
+      "path": "run.yaml",
+      "bytes": 707,
+      "sha256": "53e6536fe2a26b1f9fcb1ffcc70cfbb62ee59b4835637357edf7305b33d00b36"
+    },
+    {
+      "path": "report.md",
+      "bytes": 2398,
+      "sha256": "eba33a9880d462d392999ce0a3da036aab74203bfef3204df91ec1169c1f5717"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 503,
+      "sha256": "28824f11c5aab7e24e668d5f37db078bde771c97619852ec21a5e56dec3dd941"
+    },
+    {
+      "path": "analysis.json",
+      "bytes": 895,
+      "sha256": "1b98689a571b777958b2867ed26f088fe69b22623311ff152161535e25d568ee"
+    },
+    {
+      "path": "results.jsonl",
+      "bytes": 478,
+      "sha256": "21f62cc57cb0382db7bf349abb3a9415c3be5fb3d338f930f5c7a5515d3df402"
+    },
+    {
+      "path": "inputs.lock.json",
+      "bytes": 4402,
+      "sha256": "069e4a9c595a1613e6396866cecd46685c7c6247fe0d37a33611ff091e163404"
+    },
+    {
+      "path": "evidence/dsh-image.json",
+      "bytes": 584,
+      "sha256": "0b3917a47425f55a6526f63b23c0c015fdb89df8b6fc6d78dd735562ae47a65e"
+    },
+    {
+      "path": "evidence/U-IDENTITY-001/tools.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/U-IDENTITY-001/trace.jsonl",
+      "bytes": 17190,
+      "sha256": "5ceff1bff60ff8001f36a952fa40d1140b44aacf14a5463fe091d2b2854498b3"
+    },
+    {
+      "path": "evidence/U-IDENTITY-001/checks.json",
+      "bytes": 1053,
+      "sha256": "db7daa746f510e7a0354e5b3349d3556f8cbcbe0b1ffcd71ca9dae3b41fa44f4"
+    },
+    {
+      "path": "evidence/U-IDENTITY-001/judge.json",
+      "bytes": 740,
+      "sha256": "c35d1964ff30ad265fe97a9609f659e7e499c39ad7bee95928b45c426c412ead"
+    },
+    {
+      "path": "evidence/U-IDENTITY-001/judge-trace.jsonl",
+      "bytes": 13981,
+      "sha256": "f3d4e5aba7e146d697fff1340f14dfe7567a05fe04f6e24dcfc0e52d6bc613e9"
+    },
+    {
+      "path": "evidence/U-IDENTITY-001/response.json",
+      "bytes": 816,
+      "sha256": "a64e1537df42093975195a9605cf3a112f0794ca1e7c2e832cd3054b81f3b0bd"
+    },
+    {
+      "path": "evidence/analysis/harness.json",
+      "bytes": 2530,
+      "sha256": "5003ed7222a1c931003e1e9642ac5c0ed06377e4c13b810cd7bae5c411772d4f"
+    },
+    {
+      "path": "evidence/analysis/scene-01/diagnostic.json",
+      "bytes": 63,
+      "sha256": "5adf9c035bd8861c115f7ea87be7567f5ecf54e34f95ee095323baf848a81a9f"
+    },
+    {
+      "path": "evidence/analysis/scene-01/attempt-01/tools.jsonl",
+      "bytes": 109785,
+      "sha256": "f38a082c9c4fecaf38df5241344c4ba99b2315a9dde2ae7d15b7d4240d29e0c2"
+    },
+    {
+      "path": "evidence/analysis/scene-01/attempt-01/trace.jsonl",
+      "bytes": 180317,
+      "sha256": "fc68a96ceae62c8423b567d6be909ba1a1f39f72fc227314a07697a400229994"
+    },
+    {
+      "path": "evidence/analysis/scene-01/attempt-01/checks.json",
+      "bytes": 202,
+      "sha256": "31c6e08b9491915b28a563e0aabd7fdf38c952ad8f1d1573a4d8d8fa538606ed"
+    },
+    {
+      "path": "evidence/analysis/readable/manifest.json",
+      "bytes": 2075,
+      "sha256": "353e51f9ba04bad9be888a8b615218d4edea5d69beb5937f951747fb5fe852cc"
+    },
+    {
+      "path": "evidence/analysis/readable/scene-01/part-001.txt",
+      "bytes": 8268,
+      "sha256": "2723f2ede00b531b5290b063e728368d305571aeeef2b0f46e98c79fed45f29e"
+    }
+  ],
+  "credential_scan": "未发现已配置LLM API Key原值"
+}

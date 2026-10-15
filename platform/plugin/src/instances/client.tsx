@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { CHANNEL } from '../protocol.ts'
-import type { PlatformPageProps } from '../protocol.ts'
+import type { PlatformNavigation, PlatformPageProps } from '../protocol.ts'
 import type { PlatformUpdates } from '../realtime/client.ts'
 import { instanceWebUrl } from './url.ts'
 
@@ -53,13 +53,17 @@ const labels: Record<Operation, string> = {
   delete: '删除',
 }
 
-export function InstancesPage({ rpc, updates, onContext }: PlatformPageProps & { updates?: PlatformUpdates; onContext?(context: Record<string, unknown>): void }) {
+export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: PlatformPageProps & { updates?: PlatformUpdates; target?: PlatformNavigation; onNavigate?(target: PlatformNavigation): void; onContext?(context: Record<string, unknown>): void }) {
   const [instances, setInstances] = useState<InstanceRow[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState('existing')
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState('')
+  const [sourceFilter, setSourceFilter] = useState('')
+  useEffect(() => {
+    if (target?.page === 'instances') setSourceFilter(target.experiment_id ? `experiment:${target.experiment_id}` : '')
+  }, [target?.page, target?.experiment_id])
   const [detailLoading, setDetailLoading] = useState(false)
   const [opening, setOpening] = useState<Set<string>>(new Set())
   const [error, setError] = useState('')
@@ -83,7 +87,7 @@ export function InstancesPage({ rpc, updates, onContext }: PlatformPageProps & {
   busyRef.current = busy
   const embedCode = embedUrl ? `<iframe\n  src="${embedUrl.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}"\n  title="DSH 智能体"\n  style="width: 100%; height: 700px; border: 0;"\n  allow="clipboard-write"\n></iframe>` : ''
 
-  const visible = useMemo(() => instances.filter(item => (filter === 'all' || (filter === 'existing' ? item.state !== 'absent' : item.state === filter)) && `${item.name} ${item.source_id ?? ''}`.toLowerCase().includes(query.toLowerCase())), [instances, filter, query])
+  const visible = useMemo(() => instances.filter(item => (!sourceFilter || item.source_id === sourceFilter) && (filter === 'all' || (filter === 'existing' ? item.state !== 'absent' : item.state === filter)) && `${item.name} ${item.source_id ?? ''}`.toLowerCase().includes(query.toLowerCase())), [instances, filter, query, sourceFilter])
   const visibleSelected = visible.filter(item => selected.has(item.name)).length
 
   async function call<T>(endpoint: string, payload: unknown): Promise<T> {
@@ -300,6 +304,7 @@ export function InstancesPage({ rpc, updates, onContext }: PlatformPageProps & {
     <main style={styles.page}>
       <header className="harness-page-heading"><div><h1>智能体 DSH 容器实例</h1><p>管理智能体的 DSH 容器启停；删除容器及管理登记，保留 HOME 卷与研究记录。</p></div><span>{containerCount} 个容器实例 · {absentCount} 个无容器登记{unknownCount > 0 && ` · ${unknownCount} 个状态未知`}</span></header>
       <section style={styles.toolbar}>
+        {sourceFilter && <p>关联来源：{sourceFilter} <button type="button" onClick={() => { setSourceFilter(''); onNavigate?.({ page: 'instances' }) }}>查看全部实例</button></p>}
         <div style={styles.form}>
           <input aria-label="实例名" placeholder="实例名" value={form.name}
             onChange={event => updateForm({ ...form, name: event.target.value })} style={styles.input} />

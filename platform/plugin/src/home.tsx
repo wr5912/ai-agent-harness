@@ -1,13 +1,13 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import type { Catalog } from './catalog.ts'
-import type { PlatformPageProps } from './protocol.ts'
+import type { PageId, PlatformNavigation, PlatformPageProps } from './protocol.ts'
 import type { RecentRun } from './dashboard.ts'
 import { CHANNEL } from './protocol.ts'
 import type { PlatformUpdates } from './realtime/client.ts'
 import { PlatformLogo } from './logo.tsx'
 export { PlatformLogo } from './logo.tsx'
 
-export type PageId = 'home' | 'conversations' | 'agents' | 'instances' | 'mcp'
+export type { PageId } from './protocol.ts'
 type Observation<T> = { ok: true; value: T } | { ok: false; error: { message: string } }
 interface Dashboard {
   recent_runs: RecentRun[]
@@ -25,7 +25,7 @@ function HeroArt({ side }: { side: string }) {
   </svg>
 }
 
-export function HomePage({ catalog, rpc, updates, navigate, startConversation }: PlatformPageProps & { catalog: Catalog; updates: PlatformUpdates; navigate: (page: PageId) => void; startConversation: (root: string, prompt: string) => Promise<void> }) {
+export function HomePage({ catalog, rpc, updates, navigate, startConversation }: PlatformPageProps & { catalog: Catalog; updates: PlatformUpdates; navigate: (page: PageId | PlatformNavigation) => void; startConversation: (root: string, prompt: string) => Promise<void> }) {
   const state = useSyncExternalStore(catalog.subscribe, catalog.getSnapshot)
   const revision = useSyncExternalStore(updates.subscribe, updates.getSnapshot).revision
   const [runs, setRuns] = useState<RecentRun[]>()
@@ -71,27 +71,27 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
         <button className="harness-primary" type="submit" disabled={sending || !assets || !prompt.trim()}>{sending ? '正在进入…' : '发送 →'}</button>
       </form>
       {entryError && <p role="alert">{entryError}</p>}
-      <div className="harness-shortcuts"><button onClick={() => navigate('agents')}>＋ 创建智能体版本</button><button onClick={() => navigate('agents')}>◷ 查看评估记录</button><button onClick={() => navigate('instances')}>▣ 管理实例</button><button onClick={() => navigate('mcp')}>◇ 配置 MCP 工具</button></div>
+      <div className="harness-shortcuts"><button onClick={() => navigate('agents')}>＋ 创建智能体版本</button><button onClick={() => navigate('evaluation')}>◷ 查看评估记录</button><button onClick={() => navigate('instances')}>▣ 管理实例</button><button onClick={() => navigate('mcp')}>◇ 配置 MCP 工具</button></div>
     </section>
     {state.status === 'error' && <p role="alert">{state.error}{assets && ' 保留上次查询结果。'}</p>}
     {!assets && state.status !== 'error' && <p role="status">正在读取仓库…</p>}
     <div className="harness-stats">
       {([{ label: '智能体', count: assets?.agents.length, page: 'agents', note: '研究与持续改进' },
         { label: '研究版本', count: assets?.experiments.length, page: 'agents', note: '完整继承与版本追溯' },
-        { label: '评估 Run', count: assets?.runs.length, page: 'agents', note: '比较效果与评估证据' },
+        { label: '评估 Run', count: assets?.runs.length, page: 'evaluation', note: '比较效果与评估证据' },
         { label: '运行实例', count: running, page: 'instances', note: dashboard?.instances.ok ? `共 ${dashboard.instances.value.instances.length} 个已登记实例` : '等待实时观察' }] as const)
         .map(item => <button className="harness-stat" key={item.label} onClick={() => navigate(item.page)}><span>{item.label}</span><strong>{item.count ?? '—'}</strong><small>{item.note}</small></button>)}
     </div>
     {dashboard && !dashboard.instances.ok && <p role="alert">实例观察失败：{dashboard.instances.error.message}</p>}
     {dashboard && !dashboard.mcp.ok && <p role="alert">MCP 查询失败：{dashboard.mcp.error.message}</p>}
     <div className="harness-home-columns">
-      <section className="harness-card"><div className="harness-section-heading"><h2>最近评估记录</h2><button onClick={() => navigate('agents')}>查看全部 →</button></div>
+      <section className="harness-card"><div className="harness-section-heading"><h2>最近评估记录</h2><button onClick={() => navigate('evaluation')}>查看全部 →</button></div>
         {runError && <p role="alert">{runError}</p>}{!runs && !runError && <p role="status">正在读取 Run 记录…</p>}
-        {runs?.length === 0 && <p>尚无 Run。进入智能体页面选择 Case 并执行评估。</p>}
-        {runs?.slice(0, 6).map(run => <div className="harness-run-row" key={`${run.experiment_id}/${run.id}`}><span className="harness-avatar">◷</span><div><strong>{run.id}</strong><small>{run.agent_id} · {run.experiment_id}</small><small>{run.created_at ? new Date(run.created_at).toLocaleString() : '创建时间未记录'}</small></div><span className="harness-run-state">{run.status ?? '未记录'}</span></div>)}
+        {runs?.length === 0 && <p>尚无 Run。进入评测中心选择用例并运行评测。</p>}
+        {runs?.slice(0, 6).map(run => <div className="harness-run-row" key={`${run.experiment_id}/${run.id}`}><span className="harness-avatar">◷</span><div><button className="harness-run-link" onClick={() => navigate({ page: 'evaluation', tab: 'runs', agent_id: run.agent_id, experiment_id: run.experiment_id, run_id: run.id })}>{run.id}</button><small>{run.agent_id} · {run.experiment_id}</small><small>{run.created_at ? new Date(run.created_at).toLocaleString() : '创建时间未记录'}</small></div><span className="harness-run-state">{run.status ?? '未记录'}</span></div>)}
       </section>
       <section className="harness-card"><div className="harness-section-heading"><h2>平台能力</h2><button disabled={state.status === 'loading'} onClick={() => setRefresh(value => value + 1)}>刷新观察</button></div>
-        <div className="harness-capabilities">{([{ icon: '◇', label: '智能体管理', note: '创建版本，查看特性与继承关系', page: 'agents' }, { icon: '◷', label: '评估与追溯', note: '运行评估，查看报告与 Trace', page: 'agents' }, { icon: '▣', label: '实例管理', note: '启停与批量操作，核对运行状态', page: 'instances' }, { icon: '⌘', label: 'MCP 管理', note: 'OpenAPI 接入、工具分组与资源', page: 'mcp' }] as const).map(item => <button className="harness-capability" key={item.label} onClick={() => navigate(item.page)}><span>{item.icon}</span><strong>{item.label}</strong><small>{item.note}</small></button>)}</div>
+        <div className="harness-capabilities">{([{ icon: '◇', label: '智能体管理', note: '创建版本，查看特性与继承关系', page: 'agents' }, { icon: '◷', label: '评估与追溯', note: '运行评估，查看报告与 Trace', page: 'evaluation' }, { icon: '▣', label: '实例管理', note: '启停与批量操作，核对运行状态', page: 'instances' }, { icon: '⌘', label: 'MCP 管理', note: 'OpenAPI 接入、工具分组与资源', page: 'mcp' }] as const).map(item => <button className="harness-capability" key={item.label} onClick={() => navigate(item.page)}><span>{item.icon}</span><strong>{item.label}</strong><small>{item.note}</small></button>)}</div>
         <div className="harness-guide"><strong>开始一次可复现的改进</strong><br/>选择版本 → 修改与评估 → 查看 Run → 记录决策</div>
       </section>
     </div>

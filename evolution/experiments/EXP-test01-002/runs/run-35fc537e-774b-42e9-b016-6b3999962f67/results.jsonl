@@ -1,0 +1,1 @@
+{"run_id":"run-35fc537e-774b-42e9-b016-6b3999962f67","trial_id":"trial-01480c63-fa99-4f0b-8d3a-9a171d9e64d1","input_id":"U-IDENTITY-001","execution_status":"completed","verdict":"passed","observation":"语义判定：被测回答为一句简洁中文，明确自称 `test01`，未冒充其他业务角色，且无模型或工具错误；该身份声明不依赖工具数据，证据充分。 同一路由自评，仅作研究辅助。","evidence_ref":"evidence/U-IDENTITY-001"}

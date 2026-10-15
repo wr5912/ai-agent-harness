@@ -1,0 +1,31 @@
+{
+  "inputs": [
+    "你是谁？请用一句中文回答。"
+  ],
+  "assistant_texts": [
+    "我是 test01，一个用于验证 DSH Harness 创建与装载流程的研究智能体。"
+  ],
+  "session_id": "session-5dc252f7-e0be-40c5-839f-7f86d3f725cf",
+  "turns": [
+    {
+      "assistant_text": "我是 test01，一个用于验证 DSH Harness 创建与装载流程的研究智能体。",
+      "route": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "reasoningEffort": "off",
+        "maxTokens": 256000
+      },
+      "tool_names": [
+        "edit",
+        "glob",
+        "grep",
+        "read",
+        "read_image",
+        "write"
+      ],
+      "turn_reason": "completed",
+      "turn": 1,
+      "input_message_id": "d7db86a9-cb41-4e32-b897-4beac3fb6115"
+    }
+  ]
+}

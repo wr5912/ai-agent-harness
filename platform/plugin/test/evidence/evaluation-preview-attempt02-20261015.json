@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-15T09:57:48.075Z",
+  "scope": "隔离平台：实际全局DSH、用例保存与恢复、历史Run下载，无模型调用",
+  "checks": [
+    "原生登录成功，实际资产根与目标工作树一致",
+    "智能体四标签、版本深链、融合盘点与启动预览入口保留，未执行写入",
+    "刷新恢复精确智能体、研究版本与资产标签",
+    "通过真实页面保存用例并RPC回读，随后按摘要恢复原始评测文件"
+  ],
+  "page_errors": [],
+  "ok": false,
+  "failure": "AssertionError [ERR_ASSERTION]: 需要已完成且有报告的真实 test01 Run\n    at file:///tmp/harness-evaluation-browser.mjs:81:10"
+}

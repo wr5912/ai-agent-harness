@@ -1,0 +1,8 @@
+{
+  "operation": "review",
+  "session_id": "session-fa848e46-2bb8-4982-88d2-eb281bb48075",
+  "attempt": 1,
+  "status": "error",
+  "failure_reason": "analysis-tools-invalid",
+  "trace_available": true
+}
