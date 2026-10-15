@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { PlatformLogo } from './logo.tsx'
 
-export function loginPage(error = ''): string {
+export function loginPage(action: string, error = ''): string {
   return '<!doctype html>' + renderToStaticMarkup(<html lang="zh-CN">
     <head><meta charSet="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>登录 · Harness工程平台</title><style>{`
@@ -17,7 +17,7 @@ export function loginPage(error = ''): string {
       `}</style></head>
     <body><main><header><PlatformLogo size={64} /><h1>Harness工程平台</h1>
       <p>Harness Engineering Platform</p></header>
-      <form method="post" action="/login">
+      <form method="post" action={action}>
         <label htmlFor="username">用户名</label><input id="username" name="username" autoComplete="username" required autoFocus maxLength={256} />
         <label htmlFor="password">密码</label><input id="password" name="password" type="password" autoComplete="current-password" required maxLength={1024} />
         {error && <p role="alert">{error}</p>}<button type="submit">登录</button>

@@ -178,6 +178,9 @@ class RenderComposeTest(unittest.TestCase):
         self.assertNotIn("0.0.0.0", rendered)
         self.assertNotIn("source: ./", rendered)
         self.assertIn(f"source: {ADAPTER}/verification-home-controls", rendered)
+        self.assertIn("/opt/dsh-adapter/verification-home-controls/web-base-path.patch.yml", rendered)
+        self.assertIn("source: ${DSH_WEB_ADAPTER_HOST:?", rendered)
+        self.assertIn("target: /opt/dsh-web\n        read_only: true", rendered)
 
     def test_lan_template_enables_authenticated_remote_settings(self):
         template = (ADAPTER / "verification.compose.yaml").read_text(encoding="utf-8")
@@ -417,6 +420,12 @@ class EvaluationModeContractTest(unittest.TestCase):
                                         port=3085)
             manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["container_name"], "secops-eval")
+            self.assertEqual(manifest["web_base_path"], "/assistant/")
+            self.assertEqual(manifest["web_adapter_root"], str(ADAPTER.parent / "dsh-web"))
+            self.assertEqual(dev.instance_base_url(manifest), "http://127.0.0.1:3085/assistant/")
+            self.assertEqual(dev.instance_compose_env(manifest)["DSH_WEB_ADAPTER_HOST"],
+                             str(ADAPTER.parent / "dsh-web"))
+            self.assertEqual(dev.instance_base_url({"port": 3085}), "http://127.0.0.1:3085/")
             for key in ("dev_target_file", "patch_overlay", "cordis_trust_accepted"):
                 self.assertNotIn(key, manifest)
             self.assertEqual(manifest["mount_modes"], {
@@ -1478,6 +1487,20 @@ class UrlCommandGuardTest(unittest.TestCase):
             printed = self.call(types.SimpleNamespace(name="soe-verify", non_interactive=True))
         self.assertIn("http://127.0.0.1:3081/?token=secret-token-value", printed)
 
+    def test_prefixed_token_url_preserves_the_instance_base_path(self):
+        logs = mock.Mock(stdout=TOKEN.replace("/?token=", "/assistant/?token="))
+        with mock.patch.object(dev, "running_container", return_value=("cid", "started")), \
+                mock.patch.object(dev, "run", return_value=logs), \
+                mock.patch.object(dev, "probe_url", return_value={"ok": True}) as probe:
+            printed = self.call(
+                types.SimpleNamespace(name="soe-verify", non_interactive=True),
+                {"port": 3081, "web_base_path": "/assistant/"},
+            )
+        expected = "http://127.0.0.1:3081/assistant/?token=secret-token-value"
+        self.assertEqual(printed, expected + "\n")
+        probe.assert_called_once_with(expected, 3081)
+        self.assertIsNone(dev.extract_auth_url(TOKEN, 3081, "/assistant/"))
+
     def test_cold_start_waits_for_current_process_url(self):
         logs = [mock.Mock(stdout=""), mock.Mock(stdout=TOKEN)]
         with mock.patch.object(dev, "running_container", return_value=("cid", "2026-01-01T00:00:00Z")), \
@@ -1521,6 +1544,16 @@ class UrlCommandGuardTest(unittest.TestCase):
         self.assertEqual(printed, "http://127.0.0.1:13181/\n")
         runner.assert_not_called()
 
+    def test_prefixed_no_auth_mode_reports_and_probes_the_site_path(self):
+        with mock.patch.object(dev, "running_container", return_value=("cid", "started")), \
+                mock.patch.object(dev, "probe_no_auth_url", return_value={"ok": True}) as probe:
+            printed = self.call(
+                types.SimpleNamespace(name="soe-verify", non_interactive=False),
+                {"port": 13181, "unsafe_no_auth": True, "web_base_path": "/assistant/"},
+            )
+        self.assertEqual(printed, "http://127.0.0.1:13181/assistant/\n")
+        probe.assert_called_once_with(13181, "/assistant/")
+
 
 class PortProbeTest(unittest.TestCase):
     def test_detects_open_and_closed_port(self):
@@ -1539,8 +1572,10 @@ class _AuthStubHandler(http.server.BaseHTTPRequestHandler):
     root_status = 200
     with_token_status = 303
     set_cookie = True
+    paths = []
 
     def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler 约定
+        self.paths.append(self.path)
         if "token=" in self.path:
             self.send_response(self.with_token_status)
             if self.set_cookie:
@@ -1559,6 +1594,7 @@ class _AuthStubHandler(http.server.BaseHTTPRequestHandler):
 
 class AuthUrlProbeTest(unittest.TestCase):
     def setUp(self):
+        _AuthStubHandler.paths = []
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _AuthStubHandler)
         self.port = self.server.server_address[1]
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
@@ -1572,6 +1608,22 @@ class AuthUrlProbeTest(unittest.TestCase):
         """回归：urllib 默认跟随重定向会把 303 变成 200，必须仍判为通过。"""
         probe = dev.probe_url(f"http://127.0.0.1:{self.port}/?token=abc", self.port)
         self.assertTrue(probe["ok"], probe["reason"])
+
+    def test_prefixed_token_probe_keeps_path_after_cookie_handshake(self):
+        probe = dev.probe_url(f"http://127.0.0.1:{self.port}/assistant/?token=abc", self.port)
+        self.assertTrue(probe["ok"], probe["reason"])
+        self.assertEqual(_AuthStubHandler.paths, ["/assistant/?token=abc", "/assistant/"])
+
+    def test_prefixed_no_auth_probe_keeps_the_site_path(self):
+        self.assertTrue(dev.probe_no_auth_url(self.port, "/assistant/")["ok"])
+        self.assertEqual(_AuthStubHandler.paths, ["/assistant/"])
+
+    def test_loopback_probe_bypasses_environment_http_proxy(self):
+        with mock.patch.dict(os.environ, {"http_proxy": "http://127.0.0.1:1",
+                                          "HTTP_PROXY": "http://127.0.0.1:1",
+                                          "no_proxy": "", "NO_PROXY": ""}):
+            self.assertTrue(dev.probe_no_auth_url(self.port, "/assistant/")["ok"])
+        self.assertEqual(_AuthStubHandler.paths, ["/assistant/"])
 
     def test_no_auth_probe_requires_direct_boot_without_cookie(self):
         self.assertTrue(dev.probe_no_auth_url(self.port)["ok"])

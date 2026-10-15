@@ -10,7 +10,9 @@ const expected = ['node', '--expose-internals', '/opt/dsh/apps/cli/lib/bin.js']
 const required = {
   DSH_IMAGE_TAG: 'ai-agent-harness/dsh:000000000',
   DSH_ADAPTER_HOST: '/tmp/placeholder/adapter',
+  DSH_WEB_ADAPTER_HOST: '/tmp/placeholder/dsh-web',
   DSH_WEB_PROFILE_MANIFEST_HOST: '/tmp/placeholder/web-profile.package.json',
+  DSH_WEB_PROFILE_SEED_DIR_HOST: '/tmp/placeholder/profile-seed',
   DSH_MANAGED_PATCH: '/opt/dsh-managed/placeholder.patch.yml',
   DSH_EVALUATION_PATCH: '/opt/dsh-adapter/evaluation-registry.patch.yml',
   DSH_WORKSPACE_HOST: '/tmp/placeholder/workspace',
@@ -42,6 +44,9 @@ for (const mode of ['verification']) {
     '--profile', 'web', '--patch', required.DSH_MANAGED_PATCH,
     '--patch', required.DSH_EVALUATION_PATCH,
   ])
+  assert.ok(config.services.dsh.command.includes('/opt/dsh-adapter/verification-home-controls/web-base-path.patch.yml'))
+  assert.ok(config.services.dsh.volumes.some(volume =>
+    volume.target === '/opt/dsh-web' && volume.source === required.DSH_WEB_ADAPTER_HOST && volume.read_only))
   assert.equal(config.services.dsh.environment.DSH_EVAL_TARGET_PRESET, required.DSH_EVAL_TARGET_PRESET)
   assert.deepEqual(config.services['home-init'].entrypoint,
     ['node', '/opt/dsh-adapter/prepare-verification-home.mjs'])

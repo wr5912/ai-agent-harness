@@ -18,6 +18,11 @@ PLUGIN = REPO / "platform" / "plugin"
 PROFILE_NAME = "harness-platform"
 PROFILE_FILES = ("package.json", "cordis.patch.yml", "pnpm-workspace.yaml")
 PLATFORM_PATCH = "harness-platform.patch.yml"
+WEB = REPO / "runtime" / "adapters" / "dsh-web"
+
+
+def base_path():
+    return json.loads((WEB / "sites.json").read_text(encoding="utf-8"))["platform"]
 
 
 class PlatformError(Exception):
@@ -82,6 +87,8 @@ def rendered_profile():
             "{{HARNESS_PLATFORM_PLUGIN}}", json.dumps(str(PLUGIN / "lib" / "index.js"))
         ).replace(
             "{{HARNESS_PLATFORM_SKILLS}}", json.dumps(str(REPO / "platform" / "skills"))
+        ).replace(
+            "{{HARNESS_PLATFORM_WEBSERVER}}", json.dumps(str(WEB / "lib" / "platform-webserver.mjs"))
         )
     return result
 
@@ -91,6 +98,9 @@ def check_artifacts():
         path = PLUGIN / "lib" / name
         if not path.is_file():
             raise PlatformError(f"缺少插件构建产物：{path}；请先运行 prepare。")
+    path = WEB / "lib" / "platform-webserver.mjs"
+    if not path.is_file():
+        raise PlatformError(f"缺少 Web 基址适配构建产物：{path}；请先运行 prepare。")
 
 
 def check_profile(profile, rendered):
@@ -193,10 +203,12 @@ def start(home, host, port, dry_run):
             "patch": str(profile / PLATFORM_PATCH),
             "plugin": str(PLUGIN / "lib" / "index.js"),
             "client": str(PLUGIN / "lib" / "client.js"),
+            "webserver": str(WEB / "lib" / "platform-webserver.mjs"),
+            "base_url": f"http://{host}:{port}{base_path()}",
             "host": host, "port": port, "command": command,
         }, ensure_ascii=False, indent=2))
         return
-    print(f"平台地址：http://{host}:{port}（打开页面登录）", flush=True)
+    print(f"平台地址：http://{host}:{port}{base_path()}（打开页面登录）", flush=True)
     print("前台运行；Ctrl+C 停止，重启复用同一平台 HOME。", flush=True)
     os.execvpe(executable, command, {**runtime_environment(home),
                                   "HARNESS_DSH_ENTRY": str(Path(executable).resolve())})

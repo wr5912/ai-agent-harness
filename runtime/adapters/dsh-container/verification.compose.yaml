@@ -67,11 +67,17 @@ services:
       - ${DSH_MANAGED_PATCH:?Profile patch 路径由所选来源注入}
       - --patch
       - ${DSH_EVALUATION_PATCH:?评测 Patch 路径由所选来源注入}
+      - --patch
+      - /opt/dsh-adapter/verification-home-controls/web-base-path.patch.yml
       - --no-open
     volumes:
       - type: bind
         source: ${DSH_ADAPTER_HOST:?适配层脚本目录由启动器注入}
         target: /opt/dsh-adapter
+        read_only: true
+      - type: bind
+        source: ${DSH_WEB_ADAPTER_HOST:?Web 基址适配器目录由启动器注入}
+        target: /opt/dsh-web
         read_only: true
       - type: bind
         source: ${DSH_WORKSPACE_HOST:?工作区根由所选来源注入}

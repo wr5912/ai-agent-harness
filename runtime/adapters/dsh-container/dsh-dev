@@ -32,10 +32,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from source_contract import IMAGE_LABEL_KEY, REPO, SOURCES, resolve, strict_json  # noqa: E402
 
 ADAPTER = Path(__file__).resolve().parent
+WEB_ADAPTER = ADAPTER.parent / "dsh-web"
 STATE_ROOT = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "dsh-dev"
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 RUN_ID_RE = re.compile(r"^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
-TOKEN_URL_RE = re.compile(r"dsh web: (http://127\.0\.0\.1:(\d+)/\?token=[^\s()]+)")
+TOKEN_URL_RE = re.compile(r"dsh web: (http://127\.0\.0\.1:(\d+)/[A-Za-z0-9/_-]*\?token=[^\s()]+)")
 SECRET_RE = re.compile(
     r"(Bearer\s+)[^\s,)\"']+|(token=)[^\s&)\"']+|"
     r"(\"(?:api[_-]?key|token|password|secret)\"\s*:\s*\")[^\"]+(\")|"
@@ -62,8 +63,21 @@ CONTAINER_REFERENCE = "/work/reference"
 # 2.4：主 dsh 容器名与实例名保持一致。
 # 2.5：记录 Web Profile、LAN 开关与实际监听地址。
 # 2.6：归因实例只装载专用 Harness 与只读 Run，不装载业务 Candidate。
-INSTANCE_SCHEMA_VERSION = "2.6"
+# 2.7：整站 Web 基址与只读适配器挂载写入实例状态。
+INSTANCE_SCHEMA_VERSION = "2.7"
 ANALYSIS_PRESET = "scenario-analysis"
+
+
+def current_web_base_path() -> str:
+    """新进程的整站基址由公共适配器配置维护。"""
+    return strict_json(WEB_ADAPTER / "sites.json")["assistant"]
+
+
+def instance_base_url(manifest: dict) -> str:
+    """旧状态没有基址时继续按原来的根路径运维。"""
+    return f"http://127.0.0.1:{manifest['port']}{manifest.get('web_base_path', '/')}"
+
+
 # DSH Web 首次打开是冷启动：会话必须先绑定一个**已注册工作区**，而新实例的 DSH_HOME 里工作区注册表为空
 # （注册表 storages/workspace.json 只从已存会话头 bootstrap，且初始化标记一经写入不再重建）。DSH 在该锁定提交上
 # 没有受支持的工作区预注册入口，因此启动器只如实交付路径与操作步骤，不改写 Runtime 存储内部格式。
@@ -381,6 +395,7 @@ def compose_env(contract: dict, mode: str, port: int, name: str,
     environment.update({
         "DSH_IMAGE_TAG": image_reference(contract["image"]["local_image_tag"], image_id),
         "DSH_ADAPTER_HOST": str(ADAPTER),
+        "DSH_WEB_ADAPTER_HOST": str(WEB_ADAPTER),
         "DSH_EVAL_TARGET_PRESET": ANALYSIS_PRESET if analysis_workspace else target_preset(contract),
         "DSH_EVALUATION_PATCH": contract["evaluation_patch"],
         "DSH_WEB_PROFILE_MANIFEST_HOST": (
@@ -568,9 +583,11 @@ def render_compose(template: str, *, mode: str, name: str, project: str, port: i
     return text
 
 
-def extract_auth_url(log_text: str, port: int) -> str | None:
+def extract_auth_url(log_text: str, port: int, base_path: str | None = None) -> str | None:
     """从日志中提取唯一匹配本次端口与本机回环的认证 URL。"""
-    matches = [match for match in TOKEN_URL_RE.finditer(log_text) if int(match.group(2)) == port]
+    matches = [match for match in TOKEN_URL_RE.finditer(log_text)
+               if int(match.group(2)) == port
+               and (base_path is None or urllib.parse.urlsplit(match.group(1)).path == base_path)]
     if not matches:
         return None
     urls = {match.group(1) for match in matches}
@@ -653,6 +670,8 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         "image_id": image_id,
         "image_build_fingerprint": contract["image"].get("build_fingerprint"),
         "adapter_root": str(ADAPTER),
+        "web_adapter_root": str(WEB_ADAPTER),
+        "web_base_path": current_web_base_path(),
         "web_profile_manifest": (
             str(ADAPTER / "verification-home-controls/web-profile.package.json")
             if analysis_workspace else contract.get("profile_manifest", str(ADAPTER / "verification-home-controls/web-profile.package.json"))
@@ -695,6 +714,7 @@ def instance_compose_env(manifest: dict) -> dict:
     values = {
         "DSH_IMAGE_TAG": image_reference(manifest.get("image_tag"), manifest.get("image_id")),
         "DSH_ADAPTER_HOST": manifest.get("adapter_root") or str(ADAPTER),
+        "DSH_WEB_ADAPTER_HOST": manifest.get("web_adapter_root"),
         "DSH_WEB_PROFILE_MANIFEST_HOST": manifest.get("web_profile_manifest"),
         "DSH_WEB_PROFILE_SEED_DIR_HOST": (
             str(Path(manifest["web_profile_manifest"]).parent) if manifest.get("web_profile_manifest") else None
@@ -864,6 +884,8 @@ def build_plan(args: argparse.Namespace, contract: dict) -> dict:
         "listen_host": "0.0.0.0" if lan_access else "127.0.0.1",
         "workspace_to_register": workspace_to_register(args.mode, analysis_workspace),
         "grading_material_mounted": analysis_workspace is not None,
+        "web_base_path": current_web_base_path(),
+        "base_url": f"http://127.0.0.1:{args.port}{current_web_base_path()}",
         "port": args.port,
         "source_id": contract["source_id"],
         "source_kind": contract["source_kind"],
@@ -877,6 +899,7 @@ def build_plan(args: argparse.Namespace, contract: dict) -> dict:
             *([{"container": "/opt/node_modules", "mode": "ro"}]
               if getattr(args, "plugin_node_modules", None) else []),
         ]),
+        "web_adapter_mount": {"host": str(WEB_ADAPTER), "container": "/opt/dsh-web", "mode": "ro"},
         "context_assets": [],
         "web_cold_start": web_cold_start_hint(args.mode, analysis_workspace),
         "network": "host (0.0.0.0, LAN exposed)" if lan_access else "host (127.0.0.1 only)",
@@ -1017,6 +1040,8 @@ def command_up(args: argparse.Namespace) -> None:
     containers = wait_for_service(args.name, "dsh")
     report = {"name": args.name, "container_name": args.name,
               "project": project_name(args.name), "port": args.port,
+              "web_base_path": current_web_base_path(),
+              "base_url": f"http://127.0.0.1:{args.port}{current_web_base_path()}",
               "state_dir": str(target), "agent_id": contract["agent_id"],
               "target_preset": target_preset(contract),
               "session_preset": session_preset(contract, args.mode, args.analysis_workspace),
@@ -1210,7 +1235,8 @@ def instance_entry(target: Path, manifest: dict, observation: dict | None = None
         "home_preserved": home_preserved,
         "state_dir": str(target),
         "context_mounts": [item.get("container") for item in manifest.get("context_mounts") or []],
-        "base_url": f"http://127.0.0.1:{port}/" if isinstance(port, int) else None,
+        "web_base_path": manifest.get("web_base_path", "/"),
+        "base_url": instance_base_url(manifest) if isinstance(port, int) else None,
         "ps_query": ps_state,
         "ps": ps_detail,
     }
@@ -1245,9 +1271,9 @@ def command_url(args: argparse.Namespace) -> None:
         running_container(args.name)
         deadline = time.monotonic() + 30.0
         while True:
-            probe = probe_login_url(manifest["port"])
+            probe = probe_login_url(manifest["port"], manifest.get("web_base_path", "/"))
             if probe["ok"]:
-                print(f"http://127.0.0.1:{manifest['port']}/")
+                print(instance_base_url(manifest))
                 return
             if time.monotonic() >= deadline:
                 fail(f"密码登录入口探针失败：{probe['reason']}")
@@ -1256,9 +1282,9 @@ def command_url(args: argparse.Namespace) -> None:
         running_container(args.name)
         deadline = time.monotonic() + 30.0
         while True:
-            probe = probe_no_auth_url(manifest["port"])
+            probe = probe_no_auth_url(manifest["port"], manifest.get("web_base_path", "/"))
             if probe["ok"]:
-                print(f"http://127.0.0.1:{manifest['port']}/")
+                print(instance_base_url(manifest))
                 return
             if time.monotonic() >= deadline:
                 fail(f"免认证入口探针失败：{probe['reason']}")
@@ -1272,7 +1298,7 @@ def command_url(args: argparse.Namespace) -> None:
     deadline = time.monotonic() + 30.0
     while True:
         logs = run(["docker", "logs", "--since", started_at, container], check=False).stdout or ""
-        url = extract_auth_url(logs, manifest["port"])
+        url = extract_auth_url(logs, manifest["port"], manifest.get("web_base_path", "/"))
         probe = probe_url(url, manifest["port"]) if url is not None else None
         if probe is not None and probe["ok"]:
             break
@@ -1293,10 +1319,10 @@ class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def probe_login_url(port: int) -> dict:
+def probe_login_url(port: int, base_path: str = "/") -> dict:
     """确认未认证页面被送往本机密码登录页，且登录表单可用。"""
-    root = f"http://127.0.0.1:{port}/"
-    opener = urllib.request.build_opener(NoRedirectHandler())
+    root = f"http://127.0.0.1:{port}{base_path}"
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirectHandler())
     try:
         request = urllib.request.Request(root, headers={"Accept": "text/html"}, method="GET")
         try:
@@ -1308,7 +1334,7 @@ def probe_login_url(port: int) -> dict:
             error.close()
         parsed = urllib.parse.urlsplit(urllib.parse.urljoin(root, location))
         if status != 302 or parsed.scheme != "http" or parsed.hostname != "127.0.0.1" \
-                or parsed.port != port or parsed.path != "/auth/login":
+                or parsed.port != port or parsed.path != base_path + "auth/login":
             return {"ok": False, "reason": f"未认证根页面返回意外登录跳转（HTTP {status}）"}
         login = urllib.parse.urljoin(root, location)
         with opener.open(urllib.request.Request(login, headers={"Accept": "text/html"}, method="GET"),
@@ -1316,18 +1342,18 @@ def probe_login_url(port: int) -> dict:
             html = response.read(65536).decode("utf-8", "replace")
             if response.status != 200:
                 return {"ok": False, "reason": f"登录页面 HTTP {response.status}"}
-        if 'action="/auth/login"' not in html or 'name="username"' not in html:
+        if f'action="{base_path}auth/login"' not in html or 'name="username"' not in html:
             return {"ok": False, "reason": "登录页面缺少密码登录表单"}
         return {"ok": True, "reason": "root 302→login 200"}
     except (urllib.error.HTTPError, urllib.error.URLError, OSError, ValueError) as error:
         return {"ok": False, "reason": f"{type(error).__name__}"}
 
 
-def probe_no_auth_url(port: int) -> dict:
+def probe_no_auth_url(port: int, base_path: str = "/") -> dict:
     """不用 Token/Cookie 请求根页面；只接受直接返回的 DSH Web。"""
-    opener = urllib.request.build_opener(NoRedirectHandler())
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirectHandler())
     try:
-        with opener.open(urllib.request.Request(f"http://127.0.0.1:{port}/", method="GET"),
+        with opener.open(urllib.request.Request(f"http://127.0.0.1:{port}{base_path}", method="GET"),
                          timeout=20) as response:
             html = response.read(65536).decode("utf-8", "replace")
             if response.status != 200 or "__DSH_BOOT__" not in html:
@@ -1343,7 +1369,7 @@ def probe_no_auth_url(port: int) -> dict:
 def probe_url(url: str, port: int) -> dict:
     jar = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(
-        urllib.request.HTTPCookieProcessor(jar), NoRedirectHandler()
+        urllib.request.ProxyHandler({}), urllib.request.HTTPCookieProcessor(jar), NoRedirectHandler()
     )
     try:
         request = urllib.request.Request(url, method="GET")
@@ -1357,7 +1383,8 @@ def probe_url(url: str, port: int) -> dict:
             return {"ok": False, "reason": f"Token 入口返回意外状态（HTTP {status}）"}
         if not any(cookie.name for cookie in jar):
             return {"ok": False, "reason": f"Token 入口未建立会话 Cookie（HTTP {status}）"}
-        root = f"http://127.0.0.1:{port}/"
+        parsed = urllib.parse.urlsplit(url)
+        root = urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
         try:
             with opener.open(urllib.request.Request(root, method="GET"), timeout=20) as response:
                 root_status = response.status
@@ -1576,6 +1603,10 @@ def existing_instance(name: str) -> tuple[Path, dict] | None:
 def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
     """在停旧实例前校验新 Compose 可展开，不写入实例目录。"""
     analysis_workspace = getattr(args, "analysis_workspace", None)
+    run(["node", str(WEB_ADAPTER / "build.mjs")])
+    for filename in ("container-webserver.mjs", "container-web-app.mjs"):
+        if not (WEB_ADAPTER / "lib" / filename).is_file():
+            fail(f"Web 基址适配器缺少构建产物：{filename}")
     if analysis_workspace is None:
         check_managed_plugin_dependencies(contract, getattr(args, "plugin_node_modules", None))
     with tempfile.TemporaryDirectory(prefix="dsh-dev-preflight-") as location:

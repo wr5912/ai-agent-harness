@@ -70,6 +70,7 @@ if [[ -n "$task_frozen_root" ]]; then
 fi
 # 适配层脚本不在镜像里，由本目录只读挂载进容器；因此脚本改动只需重启实例，不必重建镜像。
 export DSH_ADAPTER_HOST="$task_adapter_dir"
+export DSH_WEB_ADAPTER_HOST="$(cd "$task_adapter_dir/../dsh-web" && pwd -P)"
 export DSH_WEB_PROFILE_MANIFEST_HOST="$(python3 "$task_adapter_dir/source_contract.py" --source "$task_source_id" "${task_source_resolve_options[@]}" --field profile_manifest)"
 export DSH_WEB_PROFILE_SEED_DIR_HOST="$(dirname -- "$DSH_WEB_PROFILE_MANIFEST_HOST")"
 export DSH_MANAGED_PATCH="$task_patch"
@@ -142,6 +143,7 @@ if [[ "$task_image_platform" != "$task_image_platform_expected" ]]; then
 fi
 task_image_ref="$task_image_tag@$task_image_id"
 export DSH_IMAGE_TAG="$task_image_ref"
+node "$DSH_WEB_ADAPTER_HOST/build.mjs"
 "${task_compose_prefix[@]}" docker compose -f "$task_adapter_dir/verification.compose.yaml" config --quiet
 
 # 先在无卷、无网络的容器中核挂载进来的三脚本身份：脚本来自本目录的只读 bind，

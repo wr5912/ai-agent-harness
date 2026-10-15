@@ -1,6 +1,17 @@
 # 此模板由 prepare 将仓库插件路径渲染为绝对路径；修改后重新 prepare 并启动。
 # Patch 的 name 仅校验；插入同 ID 后 Loader 使用最后一项，保留必需启动检查。
 - insert:
+    - id: webserver
+      name: {{HARNESS_PLATFORM_WEBSERVER}}
+      inject: [webStartup]
+      disabled: false
+      config:
+        host: !!js ctx.webStartup.host ?? '127.0.0.1'
+        port: !!js ctx.webStartup.port ?? 3080
+        tls: !!js ctx.webStartup.tls
+        compression: gzip
+        compressionLevel: 1
+        compressionThresholdBytes: 1024
     - id: web-runtime
       name: {{HARNESS_PLATFORM_PLUGIN}}
       disabled: false

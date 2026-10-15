@@ -79,19 +79,22 @@ async function poll(action, accept, timeoutMs, signal) {
 }
 
 async function authenticate(authUrl) {
+  const baseUrl = new URL(authUrl)
+  baseUrl.search = ''
+  baseUrl.hash = ''
   const response = await fetch(authUrl, { redirect: 'manual' })
   if (response.status === 200 && !new URL(authUrl).searchParams.has('token')) {
-    return { origin: new URL(authUrl).origin, cookie: '' }
+    return { baseUrl, cookie: '' }
   }
   if (response.status !== 303) throw new Error('auth-redirect-failed')
   const setCookie = response.headers.getSetCookie?.()[0] ?? response.headers.get('set-cookie')
   const cookie = setCookie?.split(';', 1)[0]
   if (!cookie) throw new Error('auth-cookie-missing')
-  return { origin: new URL(authUrl).origin, cookie }
+  return { baseUrl, cookie }
 }
 
 async function rpc(connection, method, args, signal) {
-  const response = await fetch(new URL(`/api/${method}`, connection.origin), {
+  const response = await fetch(new URL(`api/${method}`, connection.baseUrl), {
     method: 'POST',
     headers: { 'content-type': 'application/json', cookie: connection.cookie },
     signal,
@@ -109,7 +112,7 @@ async function rpc(connection, method, args, signal) {
 }
 
 async function exportSession(connection, sessionId, signal) {
-  const url = new URL('/api/session.export', connection.origin)
+  const url = new URL('api/session.export', connection.baseUrl)
   url.searchParams.set('sessionId', sessionId)
   url.searchParams.set('includeDescendants', 'true')
   const response = await fetch(url, { headers: { cookie: connection.cookie }, signal })

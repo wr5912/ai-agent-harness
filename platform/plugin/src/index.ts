@@ -1,7 +1,5 @@
 import { readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { createRequire } from 'node:module'
-import { pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionRpcHandler, ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-host-webserver'
@@ -17,11 +15,10 @@ import { createInstancesHandler } from './instances/index.ts'
 import { applyMcpGateway, createMcpHandler } from './mcp/index.ts'
 import type {} from './mcp/manager.ts'
 import { createManagedMcpHandler } from './mcp/native.ts'
+import { runtimeModule } from '../../../runtime/adapters/dsh-web/src/resolve-runtime.ts'
 
 // 使用启动器核对过的全局 Runtime；开发依赖只提供类型和隔离测试环境。
-const WebApp: typeof NativeWebApp = await import(process.env.HARNESS_DSH_ENTRY
-  ? pathToFileURL(createRequire(process.env.HARNESS_DSH_ENTRY).resolve('@deepseek-ai/dsh-web-app')).href
-  : '@deepseek-ai/dsh-web-app')
+const WebApp: typeof NativeWebApp = await runtimeModule('@deepseek-ai/dsh-web-app')
 
 export const name = 'harness-platform'
 export const inject = ['connection', 'webServer', 'credentials', 'platformMcp']
@@ -134,5 +131,5 @@ export async function apply(ctx: Context, config: Config) {
   if (!assetRoot) throw new Error('未设置 HARNESS_ASSET_ROOT')
   await applyAuthentication(ctx, assetRoot)
   applyTools(ctx)
-  WebApp.apply(ctx, config)
+  WebApp.apply(ctx, { ...config, publicUrl: `${ctx.webServer.protocol}//${ctx.webServer.host}:${ctx.webServer.port}${ctx.webServer.publicPath('/')}` })
 }

@@ -32,6 +32,7 @@ function editor() {
   vm.runInNewContext(source, {
     window: { __ModuleLoader__: { load: value => { registration = value } } },
     structuredClone, URL, location: { origin: 'http://127.0.0.1:3090' },
+    document: { baseURI: 'http://127.0.0.1:3090/hap/' },
   })
   const { Manager } = registration.factory(name => name === 'react' ? react
     : name === 'react-dom' ? { ...require(name), createPortal: element => element } : require(name))
@@ -121,4 +122,10 @@ test('列表中的其他服务不完整时定位该服务和具体字段，且�
   ui.nodes().find(node => node.type === 'button' && ui.text(node).startsWith('biz-soc-framework')).props.onClick()
   ui.render()
   assert.equal(ui.input('描述（可选）').props.value, '外部更新')
+})
+
+test('MCP 分组入口使用当前站点基址', () => {
+  const ui = editor()
+  ui.setView('groups')
+  assert.match(ui.text(ui.render()), /http:\/\/127\.0\.0\.1:3090\/hap\/mcp\/groups\/research/)
 })

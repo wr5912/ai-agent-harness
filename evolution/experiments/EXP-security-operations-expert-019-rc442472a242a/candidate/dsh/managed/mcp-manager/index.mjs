@@ -359,6 +359,7 @@ async function manage(server, request) {
     throw new Error('不支持的 OpenAPI 管理操作');
 }
 export function apply(ctx, config) {
+    const publicPath = (path) => ctx.webServer.publicPath?.(path) ?? path;
     const agents = new Map();
     const agentToken = randomBytes(32).toString('hex');
     const mounted = new Map();
@@ -408,7 +409,7 @@ export function apply(ctx, config) {
                     return send(res, 200, {
                         servers: current.servers.map(server => ({ id: server.id, enabled: server.enabled,
                             addressConfigured: Boolean(server.specUrl || resolvedUrl(server)), managementConfigured: Boolean(server.managementUrl) })),
-                        groupPaths: current.groups.map(group => ({ id: group.id, path: `/mcp/groups/${group.id}` })),
+                        groupPaths: current.groups.map(group => ({ id: group.id, path: publicPath(`/mcp/groups/${group.id}`) })),
                         tokenConfigured: Boolean(current.sharedToken),
                     });
                 if (req.method !== 'POST')
@@ -464,7 +465,7 @@ export function apply(ctx, config) {
                             await scope.ctx.plugin(McpClient, McpClient.Config({
                                 transport: 'streamable-http',
                                 serverName: serverName(server),
-                                url: `http://127.0.0.1:${ctx.webServer.port}/mcp/agents/${id}`,
+                                url: `http://127.0.0.1:${ctx.webServer.port}${publicPath(`/mcp/agents/${id}`)}`,
                                 headers: { Authorization: `Bearer ${agentToken}` },
                             }));
                         }

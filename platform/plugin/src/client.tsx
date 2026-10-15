@@ -81,7 +81,7 @@ function PlatformPage({ catalog, rpc, mcpForm, enterConversation, startConversat
     <style>{platformTheme}</style>
     <header className="harness-topbar"><div className="harness-brand"><PlatformLogo size={38}/><div><strong>Harness工程平台</strong><small>Harness Engineering Platform</small></div></div>
       {navigation}
-      <div className="harness-account"><span className="harness-avatar">A</span><span>admin</span><span id="harness-settings"/><form method="post" action="/logout"><button type="submit">退出登录</button></form></div>
+      <div className="harness-account"><span className="harness-avatar">A</span><span>admin</span><span id="harness-settings"/><form method="post" action={new URL('logout', document.baseURI).href}><button type="submit">退出登录</button></form></div>
     </header>
     <div className="harness-body">
       {page !== 'home' && <aside className="harness-sidebar">{navigation}</aside>}

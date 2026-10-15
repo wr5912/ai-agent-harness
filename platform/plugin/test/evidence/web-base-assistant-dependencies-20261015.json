@@ -1,0 +1,106 @@
+{
+  "verified_at": "2026-10-15T05:23:53.565431+00:00",
+  "purpose": "EXP-019 语音插件生产依赖修复后的独立全 Profile 装载核验",
+  "source": {
+    "experiment": "EXP-security-operations-expert-019-rc442472a242a",
+    "git_commit": "78797f73b0e6b04d2bbdc2e0e59fa586ee034e14",
+    "git_dirty": true,
+    "package_sha256": "f6d874261f17b79ce714a25420e11bf3afce6774f1c966737612856a202a7e60",
+    "lock_sha256": "e6522a59002b67351a994dbd57eadf7c720efe6576144dd7ef73b0c3c93f8e57",
+    "lock_package_set_versions_resolved_integrity_unchanged": true
+  },
+  "installation": {
+    "command": "npm ci --omit=dev --ignore-scripts --legacy-peer-deps --offline --no-audit --no-fund",
+    "packages_added": 51,
+    "exit_code": 0,
+    "runtime_packages": [
+      {
+        "name": "@deepseek-ai/dsh-typert-protocol",
+        "version": "0.1.7-rc.2",
+        "symlink": false
+      },
+      {
+        "name": "@deepseek-ai/dsh-brand",
+        "version": "0.1.7-rc.2",
+        "symlink": false
+      },
+      {
+        "name": "@deepseek-ai/cordis",
+        "version": "4.0.4",
+        "symlink": false
+      }
+    ],
+    "temporary_symlink_used": false,
+    "node_modules_source": "Candidate 内按锁文件重新安装的生产依赖"
+  },
+  "runtime": {
+    "name": "voice-production-dependencies-check",
+    "state_root": "/tmp/dsh-voice-production-dependencies-state",
+    "base_url": "http://127.0.0.1:31091/assistant/",
+    "image": "ai-agent-harness/dsh:21638c563-54f335ef05ac",
+    "image_id": "sha256:3907b02a066908dd67b20ad50bd593019a504b1ea8d988be35ebe7b34270d92b",
+    "image_build_fingerprint": "sha256:54f335ef05ac817d2d40a34186cf4e9573a6800979520da8ec65b1bfc82e9eae",
+    "running_after_checks": true,
+    "profile": "web",
+    "unsafe_no_auth": true,
+    "allow_missing_env": true,
+    "readonly_candidate_mount": true
+  },
+  "checks": [
+    {
+      "path": "",
+      "status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 37065,
+      "sha256": "2724e62fb55811933dfec56792f0bf54ae9a94d0fc06623e8ff173c38ee60155",
+      "voice_client": {
+        "id": "@aisoc/dsh-voice-hub",
+        "url": "plugins/??@aisoc/dsh-voice-hub/client.js&rev=188011e8f129",
+        "rev": "188011e8f129"
+      }
+    },
+    {
+      "path": "voice-mode/config",
+      "status": 200,
+      "content_type": "application/json",
+      "bytes": 651,
+      "sha256": "848b565ae9ac07c4b66485058eeb3398e28ee6237a21fc77d7ecba9fc631d93d",
+      "valid_json": true
+    },
+    {
+      "path": "voice-mode/kws/kws-worker.js",
+      "status": 200,
+      "content_type": "application/javascript; charset=utf-8",
+      "bytes": 3582,
+      "sha256": "a5e079357b30c0ca46cb0f7772f6322c5be625e44f895dae990bfc0997e1361a"
+    },
+    {
+      "path": "voice-mode/kws/kws-capture-worklet.js",
+      "status": 200,
+      "content_type": "application/javascript; charset=utf-8",
+      "bytes": 1281,
+      "sha256": "b80355c9eafd2d51bf8675e9cf8fb4a047663a71070d5a48d18f560bcb00f9f1"
+    },
+    {
+      "path": "plugins/??@aisoc/dsh-voice-hub/client.js&rev=188011e8f129",
+      "status": 200,
+      "bytes": 1540635,
+      "client_url_transform_present": true,
+      "sha256": "2cec674a19208d0a16e91175864fac20d06af933cfc6629de85b99c19ef9828b"
+    }
+  ],
+  "result": "passed",
+  "limits": [
+    "使用标准镜像、独立实例与新 HOME；未发送模型请求。",
+    "确认完整 Profile 与 voice-mode/config 实际注册、客户端制品及 KWS Worker/Worklet 资源可访问；未测真实麦克风、ASR、TTS、MCP 业务及远程语音事件。"
+  ],
+  "cleanup": {
+    "pending": false,
+    "completed_at": "2026-10-15T05:25:01.971328+00:00",
+    "containers_removed": true,
+    "registration_removed": true,
+    "home_preserved": true,
+    "home_volume": "dsh-dev-voice-production-dependencies-check_dsh-dev-voice-production-dependencies-check-home",
+    "platform_3090_touched": false
+  }
+}

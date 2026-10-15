@@ -36,7 +36,7 @@ ai-agent-harness 是正在持续建设的、基于 DSH 的 Harness 工程平台�
 ./platform/dsh-platform start --host 192.168.1.10 --port 3091
 ```
 
-打开终端显示的 URL，使用 [`platform/credentials/admin.json`](./platform/credentials/admin.json) 中配置的账号登录。账号在该文件维护，修改后重启生效，旧登录会话失效。查询与编辑不需要 LLM API Key；使用管理对话前，在“设置 → 模型”配置所选模型。
+打开终端显示的 `/hap/` URL，使用 [`platform/credentials/admin.json`](./platform/credentials/admin.json) 中配置的账号登录。账号在该文件维护，修改后重启生效，旧登录会话失效。查询与编辑不需要 LLM API Key；使用管理对话前，在“设置 → 模型”配置所选模型。
 
 平台使用仓库外独立 HOME 保存 Session、设置及凭据，再次 `prepare` 和重启会保留用户设置。使用 `Ctrl+C` 停止，再次 `start` 复用同一 HOME；“退出登录”撤销当前会话。版本兼容、认证和装载的完整合同见[当前平台接入合同](./docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。
 
@@ -50,7 +50,7 @@ python3 runtime/adapters/dsh-container/dsh-eval \
   --source experiment:<experiment-id> --mode fast --dry-run
 ```
 
-当前启动器的来源选择器支持 `experiment:<id>`；`--mode eval` 表示实例只读装载被测 Harness，`dsh-eval --mode fast/full` 表示评测范围，两者不同。实例生命周期、镜像构建、工作区注册、环境变量和访问规则的唯一使用说明见[容器适配器 README](./runtime/adapters/dsh-container/README.md)。业务实例的访问设置与平台密码登录分别维护。
+当前启动器的来源选择器支持 `experiment:<id>`；`--mode eval` 表示实例只读装载被测 Harness，`dsh-eval --mode fast/full` 表示评测范围，两者不同。业务实例从 `/assistant/` 访问。实例生命周期、镜像构建、工作区注册、环境变量和访问规则的唯一使用说明见[容器适配器 README](./runtime/adapters/dsh-container/README.md)。业务实例的访问设置与平台密码登录分别维护。
 
 ## 开发与研究方式
 

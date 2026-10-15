@@ -62,7 +62,7 @@ function diagnostic(error) {
 }
 
 async function rpc(page, method, args) {
-  const response = await page.request.post(new URL(`/api/${method}`, page.url()).href, {
+  const response = await page.request.post(new URL(`api/${method}`, page.url()).href, {
     data: {
       type: 'client-request',
       rpcId: `dsh-eval-${crypto.randomUUID()}`,
@@ -83,7 +83,7 @@ async function listSessions(page) {
 }
 
 async function exportSession(page, sessionId) {
-  const url = new URL('/api/session.export', page.url())
+  const url = new URL('api/session.export', page.url())
   url.searchParams.set('sessionId', sessionId)
   url.searchParams.set('includeDescendants', 'true')
   const response = await page.request.get(url.href)

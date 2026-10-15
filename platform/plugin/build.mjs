@@ -1,6 +1,10 @@
 import { build } from 'esbuild'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+
+execFileSync(process.execPath, [fileURLToPath(new URL('../../runtime/adapters/dsh-web/build.mjs', import.meta.url))], { stdio: 'inherit' })
 
 export const managerSource = resolve('../../evolution/experiments/EXP-security-operations-expert-018-rfbf7fd53a340/candidate/dsh/managed/mcp-manager')
 export const managerSources = {
@@ -49,7 +53,7 @@ export const managerSources = {
         contents = `import { appendQueryParameter } from ${JSON.stringify(resolve('src/mcp/openapi.ts'))};\nfunction platformTimeout(server: any) { const timeout = AbortSignal.timeout(20_000); return server.platformSignal ? AbortSignal.any([server.platformSignal, timeout]) : timeout }\n${original.replaceAll('AbortSignal.timeout(20_000)', 'platformTimeout(server)').replace('const { response, credential } = await authorizedFetch(source.server', 'const server = source.server\n  const { response, credential } = await authorizedFetch(source.server').replace("if (parameter.in === 'query') for (const entry of Array.isArray(value) ? value : [value]) url.searchParams.append(parameter.name, String(entry))", "if (parameter.in === 'query') appendQueryParameter(url.searchParams, parameter, value)")}\nexport { execute };`
       } else {
         contents = (await readFile(resolve(managerSource, 'index.ts'), 'utf8'))
-          .replace("createRequire('/opt/dsh/packages/mcp/mcp-client/package.json')", "createRequire(process.env.HARNESS_DSH_ENTRY || import.meta.url)")
+          .replace("createRequire('/opt/dsh/packages/mcp/mcp-client/package.json')", "resolveRuntimeRequire('@deepseek-ai/schemastery')")
           .replace("const z = runtimeRequire", "const platformRequire = createRequire(import.meta.url)\nconst z = runtimeRequire")
           .replaceAll("runtimeRequire('@modelcontextprotocol/", "platformRequire('@modelcontextprotocol/")
           .replace("from './openapi.mjs'", "from './openapi.ts'")
@@ -65,6 +69,9 @@ export const managerSources = {
         return send(res, 200, result)
       }
       if (request.action === 'test') {`)
+      }
+      if (!path.endsWith('client') && !path.endsWith('openapi')) {
+        contents = `import { runtimeRequire as resolveRuntimeRequire } from ${JSON.stringify(resolve('../../runtime/adapters/dsh-web/src/resolve-runtime.ts'))};\n${contents}`
       }
       return { contents, loader: path.endsWith('client') ? 'tsx' : 'ts', resolveDir: managerSource }
     })

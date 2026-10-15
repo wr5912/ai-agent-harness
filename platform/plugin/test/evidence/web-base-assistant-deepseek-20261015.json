@@ -1,0 +1,84 @@
+{
+  "at": "2026-10-15T06:15:03.697663+00:00",
+  "scope": "用户既有 EXP-019 实例的 Web 基址回归修复及真实 DeepSeek 问候；项目与工具链验证，不构成业务 Evaluation。",
+  "source": {
+    "git_commit": "78797f73b0e6b04d2bbdc2e0e59fa586ee034e14",
+    "dirty": true,
+    "source_id": "experiment:EXP-security-operations-expert-019-rc442472a242a",
+    "file_sha256": {
+      "runtime/adapters/dsh-web/package.json": "sha256:9f09408a3f730d689a68a397d9d28e5c7bbeff3f949392fd4f7fd09c1cdfc393",
+      "runtime/adapters/dsh-web/test/plugin-inventory.integration.mjs": "sha256:d7e95c583bfdeabb1b2ddfd30825deec1f1631be0e23e8be634e792b84bd7efc"
+    }
+  },
+  "runtime": {
+    "container": "security-operations-expert-eval",
+    "started_at": "2026-10-15T05:58:20.269980925Z",
+    "image_tag": "ai-agent-harness/dsh:21638c563-54f335ef05ac@sha256:3907b02a066908dd67b20ad50bd593019a504b1ea8d988be35ebe7b34270d92b",
+    "image_id": "sha256:3907b02a066908dd67b20ad50bd593019a504b1ea8d988be35ebe7b34270d92b",
+    "dsh_commit": "21638c56315ae6a2b552d6091945d3144c9af32e",
+    "dsh_cli_version": "0.1.7-rc.2",
+    "port": 3081,
+    "web_base_path": "/assistant/",
+    "adapter_read_only": true,
+    "model_environment_present": {
+      "DEEPSEEK_API_KEY": true,
+      "LOCAL_LLM_BASE_URL": true,
+      "LOCAL_LLM_API_KEY": true
+    },
+    "container_restarted": false,
+    "model_configuration_changed": false
+  },
+  "fix": {
+    "cause": "Web 适配器包已有 name，但遗漏 version；锁定 Runtime 的插件清单要求两者均非空，导致 DeepSeek REQUEST_EXTENSION。",
+    "adapter_package_version": "0.1.0",
+    "activation": "既有只读挂载中的 package.json 即时可见，失败的清单解析未缓存；原容器下一条消息成功。"
+  },
+  "browser": {
+    "driver": "容器 Chromium + Playwright，真实页面选择原工作区和失败会话，通过输入框 Enter 发送。",
+    "path": "/assistant/",
+    "model_label_before_send": "DeepSeek-V41-FlashOff",
+    "prompt_rpc_path": "/assistant/api/session/prompt",
+    "user_count_before": 1,
+    "user_count_after": 2,
+    "visible_work_completed": true,
+    "visible_reply_excerpt": "你好！我是这个工作区的网络安全运营助手。",
+    "page_errors": []
+  },
+  "session_export": {
+    "session_id": "session-b87d2c3e-ada9-4208-aa84-71e2500773c8",
+    "input": "你好啊",
+    "user_message_count": 2,
+    "original_failure": {
+      "turn": 1,
+      "reason": {
+        "kind": "error",
+        "error": {
+          "message": "DeepSeek request extension preparation failed",
+          "code": "REQUEST_EXTENSION"
+        }
+      }
+    },
+    "latest_turn": {
+      "turn": 2,
+      "reason": {
+        "kind": "completed"
+      }
+    },
+    "elapsed_ms": 2218,
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reply_excerpt": "你好！我是这个工作区的网络安全运营助手。",
+    "tool_calls": 0
+  },
+  "checks": {
+    "typescript": "pnpm run check: passed",
+    "unit_tests": "pnpm test: 8 passed, 0 failed",
+    "locked_runtime_integration": "pnpm run test:integration: 1 passed, 0 failed, 0 skipped",
+    "integration_scope": "真实标准镜像内 native provider 校验三个适配器入口并去重生成包身份；缺 version 的独立夹具触发原始拒绝。未使用模型凭据或网络。"
+  },
+  "limits": [
+    "仅验证问候及模型调用链，未执行 SOC 业务 Case。",
+    "原失败消息和会话完整保留；既有独立技术探针证据不改写。",
+    "集成测试只替代 Loader 条目和注册收集器；真实 Session 由本次浏览器及导出核验。"
+  ]
+}

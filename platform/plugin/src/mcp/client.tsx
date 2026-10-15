@@ -171,7 +171,7 @@ function CompositionPage({ rpc, configuration, onCatalogChange }: PlatformPagePr
             {result.result?.alertSummary && <p>近 30 天：{result.result.alertSummary.totalGroups} 个告警分组 · {result.result.alertSummary.totalAlerts} 条告警 · 当前展示 {result.result.alerts.length} 个分组。{result.result.alertSummary.truncated && '上游结果已截断。'}<br/>查询范围：{result.result.alertSummary.from} ～ {result.result.alertSummary.to}</p>}
             <div className="harness-table-scroll"><table><thead><tr><th>步骤</th><th>状态</th><th>HTTP</th><th>耗时</th></tr></thead><tbody>{(result.result?.trace ?? []).map((step: any) => <tr key={step.step}><td>{step.operationId}</td><td>{step.status}</td><td>{step.httpStatus ?? '未调用'}</td><td>{step.durationMs === undefined ? '—' : `${step.durationMs} ms`}</td></tr>)}</tbody></table></div>
             <details><summary>业务结果</summary><pre>{JSON.stringify({ asset: result.result?.asset, alerts: result.result?.alerts, alertSummary: result.result?.alertSummary }, null, 2)}</pre></details><details><summary>执行回执与来源版本</summary><pre>{JSON.stringify({ receipts: result.receipts, version: result.version }, null, 2)}</pre></details></div>}
-          <hr/><h3>调用与发布信息</h3><p>MCP 入口：<code>{window.location.origin}/api/harness-platform/mcp</code></p><p>入口受平台登录认证保护，仅列出并执行已发布版本。发布后调用方需重新发现工具；草稿供页面查看与测试。</p>
+          <hr/><h3>调用与发布信息</h3><p>MCP 入口：<code>{new URL('api/harness-platform/mcp', document.baseURI).href}</code></p><p>入口受平台登录认证保护，仅列出并执行已发布版本。发布后调用方需重新发现工具；草稿供页面查看与测试。</p>
           <p>在管理对话中可使用 <code>mcp-composition</code> Skill 修改 TypeScript 流程，构建并重启后图会同步更新。</p>
         </>}
       </>}

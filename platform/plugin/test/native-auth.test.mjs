@@ -6,7 +6,7 @@ import { request as httpRequest } from 'node:http'
 import test from 'node:test'
 import { Context, Service } from '@deepseek-ai/cordis'
 import * as Connection from '@deepseek-ai/dsh-client-connection'
-import WebServer from '@deepseek-ai/dsh-host-webserver'
+import WebServer from '../../../runtime/adapters/dsh-web/lib/platform-webserver.mjs'
 import * as WebApp from '@deepseek-ai/dsh-web-app'
 import * as plugin from '../lib/index.js'
 
@@ -44,12 +44,13 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   await root.plugin(WebServer, { host: '127.0.0.1', port: 0 })
   await root.plugin(Connection)
   await root.plugin({ name: 'test-platform-mcp', apply(ctx) { ctx.provide('platformMcp', { servers: { get: () => [] }, groups: { get: () => [] } }) } })
-  const base = `http://127.0.0.1:${root.webServer.port}`
+  const origin = `http://127.0.0.1:${root.webServer.port}`
+  const base = origin + '/hap'
   // 在新认证安装前取得旧原生会话，证明迁移不会继续接受它。
   const oldUrl = root.connection.authenticatedUrl(base + '/')
   const oldCookie = await new Promise(resolve => {
     root.webServer.register({ kind: 'exact', path: '/old-auth', handler(req, res) {
-      req.url = new URL(oldUrl).pathname + new URL(oldUrl).search
+      req.url = '/' + new URL(oldUrl).search
       root.connection.authorizeIndex(req, res)
     } })
     fetch(base + '/old-auth', { redirect: 'manual' }).then(response => resolve(response.headers.get('set-cookie').split(';')[0]))
@@ -72,22 +73,33 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   assert.equal((await request(gateway, initialize)).status, 401)
   const anonymous = await fetch(oldUrl, { redirect: 'manual' })
   assert.equal(anonymous.status, 303)
-  assert.equal(anonymous.headers.get('location'), '/login')
+  assert.equal(anonymous.headers.get('location'), '/hap/login')
   assert.equal(anonymous.headers.get('set-cookie'), null)
   assert.equal((await request('/harness-platform/inventory', envelope('inventory'), oldCookie)).status, 401)
   assert.equal(root.connection.authenticatedUrl(base + '/?token=discard'), base + '/')
   const login = body => fetch(base + '/login', { method: 'POST', redirect: 'manual',
-    headers: { 'content-type': 'application/x-www-form-urlencoded', origin: base }, body })
-  assert.equal((await fetch(base + '/login')).headers.get('referrer-policy'), 'same-origin')
+    headers: { 'content-type': 'application/x-www-form-urlencoded', origin }, body })
+  const loginPage = await fetch(base + '/login')
+  assert.equal(loginPage.headers.get('referrer-policy'), 'same-origin')
+  assert.match(await loginPage.text(), /action="\/hap\/login"/)
+  for (const path of ['/', '/hap']) {
+    const redirect = await fetch(origin + path + '?from=entry', { redirect: 'manual' })
+    assert.equal(redirect.status, 302)
+    assert.equal(redirect.headers.get('location'), '/hap/?from=entry')
+  }
+  for (const path of ['/login', '/api', gateway, '/harness-platform/inventory']) {
+    assert.equal((await fetch(origin + path, { redirect: 'manual' })).status, 404)
+  }
   const wrong = await login('username=admin&password=wrong')
   assert.equal(wrong.status, 401)
   assert.match(await wrong.text(), /用户名或密码错误/)
   assert.equal(wrong.headers.get('set-cookie'), null)
   const signedIn = await login('username=admin&password=admin123')
   assert.equal(signedIn.status, 303)
+  assert.equal(signedIn.headers.get('location'), '/hap/')
   assert.equal(signedIn.headers.get('referrer-policy'), 'same-origin')
   const setCookie = signedIn.headers.get('set-cookie')
-  assert.match(setCookie, /HttpOnly; SameSite=Strict; Max-Age=2592000/)
+  assert.match(setCookie, /Path=\/; HttpOnly; SameSite=Strict; Max-Age=2592000/)
   const cookie = setCookie.split(';')[0]
   const storedSession = root.credentials.records.get('harness-platform/browser-sessions')
   assert.ok(storedSession.payload.sessions.every(item => /^[a-f0-9]{64}$/.test(item.digest)))
@@ -127,8 +139,9 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   const call = await request(gateway, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: list[0].name, arguments: {} } }, cookie)
   const failed = await call.json()
   assert.ok(failed.error || failed.result?.isError)
-  const logout = await fetch(base + '/logout', { method: 'POST', headers: { cookie, origin: base }, redirect: 'manual' })
+  const logout = await fetch(base + '/logout', { method: 'POST', headers: { cookie, origin }, redirect: 'manual' })
   assert.equal(logout.status, 303)
+  assert.equal(logout.headers.get('location'), '/hap/login')
   assert.match(logout.headers.get('set-cookie'), /Max-Age=0/)
   assert.equal((await request('/harness-platform/inventory', envelope('inventory'), cookie)).status, 401)
   const second = await login('username=admin&password=admin123')

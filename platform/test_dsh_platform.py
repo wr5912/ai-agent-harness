@@ -25,6 +25,9 @@ class PlatformLauncherTests(unittest.TestCase):
         shutil.copytree(PLATFORM, self.repo / "platform", ignore=shutil.ignore_patterns("plugin"))
         self.plugin = self.repo / "platform" / "plugin"
         self.plugin.mkdir(parents=True)
+        self.web = self.repo / "runtime" / "adapters" / "dsh-web"
+        self.web.mkdir(parents=True)
+        shutil.copyfile(PLATFORM.parent / "runtime/adapters/dsh-web/sites.json", self.web / "sites.json")
         (self.plugin / "package.json").write_text(json.dumps({
             "name": "@ai-agent-harness/harness-platform", "peerDependencies": {
                 "@deepseek-ai/dsh-client-connection": VERSION,
@@ -70,6 +73,9 @@ if sys.argv[1:] == ["run", "build"]:
     pathlib.Path("lib/index.js").write_text("export function apply() {}\n")
     pathlib.Path("lib/mcp-manager.js").write_text("export function apply() {}\n")
     pathlib.Path("lib/client.js").write_text("export function apply() {}\n")
+    web = pathlib.Path("../../runtime/adapters/dsh-web/lib")
+    web.mkdir(parents=True, exist_ok=True)
+    (web / "platform-webserver.mjs").write_text("export default class WebServer {}\n")
 ''')
         self.env = {**os.environ, "PATH": str(self.bin), "HOME": str(self.root / "user"),
                     "XDG_STATE_HOME": str(self.root / "state"),
@@ -128,6 +134,9 @@ if sys.argv[1:] == ["run", "build"]:
         self.assertNotIn("{{HARNESS_PLATFORM_PLUGIN}}", patch)
         self.assertIn(json.dumps(str(self.repo / "platform" / "skills")), patch)
         self.assertNotIn("{{HARNESS_PLATFORM_SKILLS}}", patch)
+        self.assertIn(json.dumps(str(self.web / "lib/platform-webserver.mjs")), patch)
+        self.assertNotIn("{{HARNESS_PLATFORM_WEBSERVER}}", patch)
+        self.assertIn("inject: [webStartup]", patch)
         self.assertIn("- id: skill-filesystem\n  disabled: false\n  config:\n    includeDefaultRoots: false\n", patch)
         self.assertEqual((self.profile / "cordis.patch.yml").read_text(), "[]\n")
         self.prepare()
@@ -148,6 +157,8 @@ if sys.argv[1:] == ["run", "build"]:
         self.assertEqual(preview["patch"], str(self.profile / "harness-platform.patch.yml"))
         self.assertEqual(preview["host"], "127.0.0.1")
         self.assertEqual(preview["port"], port)
+        self.assertEqual(preview["base_url"], f"http://127.0.0.1:{port}/hap/")
+        self.assertEqual(preview["webserver"], str(self.web / "lib/platform-webserver.mjs"))
         self.assertNotIn("--from-default-profile", preview["command"])
         self.assertEqual(self.snapshot(), before)
         self.assertFalse(self.trace.exists())
@@ -205,6 +216,14 @@ if sys.argv[1:] == ["run", "build"]:
         result = self.run_cli("prepare", env={**self.env, "FAKE_PNPM_FAIL": "1"})
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual((self.profile / "harness-platform.patch.yml").read_bytes(), before)
+
+    def test_missing_web_adapter_blocks_start(self):
+        self.prepare()
+        (self.web / "lib/platform-webserver.mjs").unlink()
+        result = self.run_cli("start", "--dry-run")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Web 基址适配构建产物", result.stderr)
+        self.assertFalse(self.trace.exists())
 
     def test_port_conflict_fails_and_does_not_select_another_port(self):
         self.prepare()

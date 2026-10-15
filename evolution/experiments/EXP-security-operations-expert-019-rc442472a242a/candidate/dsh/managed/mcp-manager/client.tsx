@@ -308,7 +308,7 @@ window.__ModuleLoader__.load({
                 {editingGroup ? <div className="mcp-card">
                   <div className="mcp-card-head"><div><h3>{editingGroup.id || '新分组'}</h3><p className="mcp-muted">仅开放此组勾选的工具、资源和资源模板。</p></div></div>
                   <section className="mcp-section"><div className="mcp-fields"><label className="mcp-field">分组 ID{input(editingGroup.id, value => editGroup(activeGroup, group => { group.id = value }))}</label></div>
-                    {editingGroup.id && <div className="mcp-actions"><span className="mcp-muted">MCP 链接</span><code className="mcp-link">{location.origin}/mcp/groups/{editingGroup.id}</code></div>}
+                    {editingGroup.id && <div className="mcp-actions"><span className="mcp-muted">MCP 链接</span><code className="mcp-link">{new URL(`mcp/groups/${editingGroup.id}`, document.baseURI).href}</code></div>}
                     <p className="mcp-muted">通过 Authorization: Bearer &lt;统一访问 Token&gt; 调用；此链接的工具与资源范围由本组勾选结果决定。</p>
                   </section>
                   <section className="mcp-section"><h3>选择工具与资源</h3><p className="mcp-muted">工具执行操作；资源按 URI 读取数据；资源模板填写参数后读取。展开服务器自动发现；已保存的选择会保留。</p>

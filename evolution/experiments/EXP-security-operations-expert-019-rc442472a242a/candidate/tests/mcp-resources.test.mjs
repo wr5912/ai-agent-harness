@@ -48,7 +48,7 @@ test('旧分组兼容，资源独立分组与范围验证', () => {
     'fixture://selected'), /匹配多个来源/)
 })
 
-test('真实 MCP 分组发现、分页、工具调用、资源及模板读取', async () => {
+for (const basePath of ['', '/assistant', '/hap']) test(`真实 MCP 分组与 Agent loopback 保留 Web 基址 ${basePath || '/'}`, async () => {
   const receipts = []
   const upstream = createMcpHandler(() => {
     const mcp = new McpServer({ name: 'fixture', version: '1' }, { capabilities: { tools: {}, resources: {} } })
@@ -72,20 +72,33 @@ test('真实 MCP 分组发现、分页、工具调用、资源及模板读取', 
     return mcp
   })
   const routes = []
+  const requests = []
+  const publicPath = path => basePath + path
   const http = createServer((req, res) => {
-    const route = routes.find(route => req.url.split('?')[0].startsWith(route.path))
-    if (route) void route.handler(req, res)
-    else void toNodeHandler(upstream)(req, res)
+    requests.push(req.url)
+    const route = routes.find(route => req.url.split('?')[0].startsWith(publicPath(route.path)))
+    if (route) {
+      req.url = req.url.slice(basePath.length)
+      void route.handler(req, res)
+    } else if (req.url === '/upstream') void toNodeHandler(upstream)(req, res)
+    else { res.writeHead(404); res.end() }
   })
   await new Promise(resolve => http.listen(0, '127.0.0.1', resolve))
-  const url = `http://127.0.0.1:${http.address().port}`
+  const origin = `http://127.0.0.1:${http.address().port}`
+  const url = origin + basePath
   const groups = [
     { id: 'mixed', members: [member({ names: ['lookup'], resourceUris: ['fixture://selected'], resourceTemplates: ['fixture://record/{id}'] })] },
     { id: 'data', members: [member({ resourceUris: ['fixture://selected'] })] },
   ]
-  apply({ effect: fn => fn(), webServer: { register: route => routes.push(route) },
-    connection: { requestRejection: () => undefined }, on: () => {} },
-    configOf([{ ...server, url: url + '/upstream' }], groups))
+  const { Context } = require('@deepseek-ai/cordis')
+  const { createScope } = await import(require.resolve('@deepseek-ai/dsh-scope'))
+  const ctx = new Context()
+  await ctx.plugin(require('@deepseek-ai/dsh-system-prompt').default)
+  await ctx.plugin(require('@deepseek-ai/dsh-tools').default, { mode: 'native' })
+  await ctx.plugin(require('@deepseek-ai/dsh-mcp-resources').default)
+  apply(ctx.extend({ webServer: { port: http.address().port, register: route => { routes.push(route); return () => {} },
+    ...(basePath ? { publicPath } : {}) }, connection: { requestRejection: () => undefined } }),
+    configOf([{ ...server, url: origin + '/upstream' }], groups))
   const connect = async id => {
     const client = new Client({ name: 'test', version: '1' })
     await client.connect(new StreamableHTTPClientTransport(new URL(url + '/mcp/groups/' + id),
@@ -93,10 +106,11 @@ test('真实 MCP 分组发现、分页、工具调用、资源及模板读取', 
     return client
   }
   const clients = []
-  const { Context } = require('@deepseek-ai/cordis')
-  const ctx = new Context()
   try {
     assert.equal((await fetch(url + '/mcp/groups/mixed')).status, 401)
+    if (basePath) assert.equal((await fetch(origin + '/mcp/groups/mixed')).status, 404)
+    const metadata = await fetch(url + '/api/mcp-manager').then(r => r.json())
+    assert.deepEqual(metadata.groupPaths, groups.map(group => ({ id: group.id, path: publicPath('/mcp/groups/' + group.id) })))
     const discovered = await fetch(url + '/api/mcp-manager', { method: 'POST',
       headers: { 'content-type': 'application/json' }, body: JSON.stringify({ serverId: 'fixture', action: 'test' }) }).then(r => r.json())
     assert.equal(discovered.tools.length, 2)
@@ -117,9 +131,6 @@ test('真实 MCP 分组发现、分页、工具调用、资源及模板读取', 
     assert.deepEqual(receipts, ['lookup', 'fixture://selected', 'fixture://record/42', 'fixture://selected'])
 
     // 通过锁定 DSH 的模型工具执行器读取同一个真实分组，而非只验证协议客户端。
-    await ctx.plugin(require('@deepseek-ai/dsh-system-prompt').default)
-    await ctx.plugin(require('@deepseek-ai/dsh-tools').default, { mode: 'native' })
-    await ctx.plugin(require('@deepseek-ai/dsh-mcp-resources').default)
     await ctx.plugin(require('@deepseek-ai/dsh-mcp-client'), {
       transport: 'streamable-http', serverName: 'group-data', url: url + '/mcp/groups/mixed',
       headers: { authorization: 'Bearer ' + token }, toolCallTimeoutMs: 5000, failOnStartupError: true,
@@ -143,6 +154,14 @@ test('真实 MCP 分组发现、分页、工具调用、资源及模板读取', 
     assert.equal((await call('read_mcp_resource', { server: 'group-data', uri: 'fixture://private' })).isError, true)
     assert.equal((await call('read_mcp_resource', { server: 'missing', uri: 'fixture://selected' })).isError, true)
     assert.equal(receipts.at(-1), 'fixture://record/42')
+
+    // 实际触发 Manager 的 Agent 装载，检查其内部 MCP 客户端走同一个站点前缀。
+    const scopedAgent = { session: { header: { delegationDepth: 0 } } }
+    scopedAgent.ctx = createScope(ctx, scopedAgent, { parent: {} }).ctx
+    await ctx.serial('agent/created', { agent: scopedAgent })
+    assert.ok(ctx.tools.get('mcp__fixture__lookup', scopedAgent))
+    assert.ok(requests.some(path => path.startsWith(publicPath('/mcp/agents/'))))
+    if (basePath) assert.ok(!requests.some(path => path.startsWith('/mcp/agents/')))
   } finally {
     await ctx.fiber.dispose()
     await Promise.all(clients.map(client => client.close()))

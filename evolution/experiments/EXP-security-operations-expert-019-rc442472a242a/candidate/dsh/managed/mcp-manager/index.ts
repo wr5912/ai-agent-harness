@@ -338,6 +338,7 @@ async function manage(server: any, request: any): Promise<any> {
 }
 
 export function apply(ctx: any, config: any): void {
+  const publicPath = (path: string) => ctx.webServer.publicPath?.(path) ?? path
   const agents = new Map<string, Target>()
   const agentToken = randomBytes(32).toString('hex')
   const mounted = new Map<object, { version: string; ready: Promise<any[]>; users: number }>()
@@ -371,7 +372,7 @@ export function apply(ctx: any, config: any): void {
       if (req.method === 'GET') return send(res, 200, {
         servers: current.servers.map(server => ({ id: server.id, enabled: server.enabled,
           addressConfigured: Boolean(server.specUrl || resolvedUrl(server)), managementConfigured: Boolean(server.managementUrl) })),
-        groupPaths: current.groups.map(group => ({ id: group.id, path: `/mcp/groups/${group.id}` })),
+        groupPaths: current.groups.map(group => ({ id: group.id, path: publicPath(`/mcp/groups/${group.id}`) })),
         tokenConfigured: Boolean(current.sharedToken),
       })
       if (req.method !== 'POST') return send(res, 405, { error: 'method not allowed' })
@@ -420,7 +421,7 @@ export function apply(ctx: any, config: any): void {
             await scope.ctx.plugin(McpClient, McpClient.Config({
               transport: 'streamable-http',
               serverName: serverName(server),
-              url: `http://127.0.0.1:${ctx.webServer.port}/mcp/agents/${id}`,
+              url: `http://127.0.0.1:${ctx.webServer.port}${publicPath(`/mcp/agents/${id}`)}`,
               headers: { Authorization: `Bearer ${agentToken}` },
             }))
           }

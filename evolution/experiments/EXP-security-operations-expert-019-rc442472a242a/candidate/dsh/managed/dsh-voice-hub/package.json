@@ -96,6 +96,8 @@
     }
   },
   "dependencies": {
+    "@deepseek-ai/cordis": "~4.0.4",
+    "@deepseek-ai/dsh-typert-protocol": "0.1.7-rc.2",
     "@deepseek-ai/schemastery": "^3.18.4",
     "msedge-tts": "^2.0.7",
     "pinyin-pro": "^3.29.4",
@@ -108,7 +110,6 @@
     "react": "^18.2.0"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "~4.0.4",
     "@deepseek-ai/dsh-host-webserver": "0.1.7-rc.2",
     "@deepseek-ai/dsh-llm": "0.1.7-rc.2",
     "@deepseek-ai/dsh-settings": "0.1.7-rc.2",
@@ -118,7 +119,6 @@
     "esbuild": "^0.25.0",
     "playwright-core": "^1.62.1",
     "typescript": "^5.9.2",
-    "@deepseek-ai/dsh-typert-protocol": "0.1.7-rc.2",
     "@deepseek-ai/dsh-typert-generator": "0.1.7-rc.2",
     "@deepseek-ai/dsh-typert-registry": "0.1.7-rc.2",
     "@deepseek-ai/dsh-api-gateway": "0.1.7-rc.2",

@@ -112,6 +112,9 @@
 - **统一实例访问实机证据（2026-10-13）**：[标准 DSH 容器检查](../platform/plugin/test/evidence/stage1-instance-web-policy-20261013.json)验证 CLI 与平台新建时无需访问开关即可监听局域网、匿名访问并跳过内测声明；旧停止登记启动及平台重启应用相同规则，端口与 HOME 卷保留，两个实例共用标准 Runtime 镜像。评测 API 执行器可通过免认证入口注册工作区；旧 Token 入口的兼容由机器合同覆盖。规则唯一维护于[实例访问规则](../runtime/adapters/dsh-container/README.md#实例访问规则)。探针显式允许缺少业务环境变量，平台重启请求也仅对测试实例加入此标记；未执行业务 Case，未重启用户既有实例，测试容器、登记与专用卷已清理。
 - **自动化边界**：参数、状态转换和失败报告进入测试；Docker 进程、认证交接和真实停止状态用实机探针。
 
+- **Web 子路径访问（2026-10-15）**：[EXP-019 容器检查](../platform/plugin/test/evidence/web-base-assistant-20261015.json)核对标准镜像与只读 Web 适配器，`dsh-dev url` 返回 `/assistant/`；根页面与缺少尾斜杠入口保留查询参数跳转，旧根 API/MCP/语音入口不再命中。真实浏览器覆盖资源、动态插件、RPC、Session 创建与恢复、导出、MCP 管理公开路径，以及语音 Worker、WASM/data 和 Worklet 装载。一次冷启动技术请求超时未能唯一定位，保留原观察后复跑通过。首次装载暴露语音插件把实际运行包列为开发依赖；修正声明后，[独立生产依赖安装检查](../platform/plugin/test/evidence/web-base-assistant-dependencies-20261015.json)在不使用临时链接、不改变锁内版本的情况下完成完整 Profile 启动与语音资源访问。仅验证 URL 与装载行为，未调用模型或外部业务服务；测试实例停止并删除登记，HOME 保留。
+- **Web 子路径模型请求补充（2026-10-15）**：用户实例发送问候时暴露 Web 适配器包缺少 `version`，锁定 Runtime 的 DeepSeek 插件身份清单因此在发出请求前失败。补齐包元数据后，[原失败会话复测](../platform/plugin/test/evidence/web-base-assistant-deepseek-20261015.json)在同一容器、原 DeepSeek 模型及 `/assistant/` 页面再次发送“你好啊”，约 2.2 秒完成并显示回复；原失败轮次保留，未重启或更换模型。共享适配器类型检查、8 项单测及调用真实锁定 Runtime provider 的正反向集成测试通过。此次补充证明消息调用链恢复，不替代业务 Case Evaluation。
+
 ### PA-06 被测容器的真实装载与只读边界
 
 - **要回答**：评测容器是否加载正确来源，并形成三棵 Candidate 资产只读、判分材料不可见的视图。
@@ -196,6 +199,8 @@
 - **真实 SOC 资产关联告警调试（2026-10-14）**：插件 63 项测试、TypeScript 检查、构建和仓库合同校验通过；受控接口覆盖独立适配器与原生适配器的双服务调用、对象查询参数展开、严格资产 ID、业务失败停止及 dry 零请求。已重启 3090 平台，[浏览器检查记录](../platform/plugin/test/evidence/stage1-compositions-asset-9106-20261014.json)与[实际结果页面](../platform/plugin/test/evidence/stage1-compositions-asset-9106-20261014.png)确认资产 `9106`（联试硬件服务器241，`172.16.138.241`）通过 `biz-soc-master` 的 `get_soc_asset_by_asset_id` 查询，再通过 `biz-soc-detect` 的 `list_detect_alert` 查询近 30 天关联告警：共 22 个分组、777 条告警，当前展示首页 5 个分组。两次真实 GET 均为 HTTP `200` 且业务 `code=200`，回执保留实际规范、参数模型和源码摘要。新编排保存为草稿，刷新回读及版本切换展示各自编译图，原发布版保持不变；原生服务设置、账号及非会话凭据不变，客户端错误为零。未发布新编排，未验证其他资产、全量告警明细或模型选用工具，远端服务未修改。
 - **业务与功能边界**：MCP 目前支持多项编排的草稿和发布配置，均复用开发者通过 LangGraph.js SDK 维护的“资产→关联告警”两节点只读流程；界面从编译图展示流程，未实现通用手工流程编辑器。发布快照保存工具配置，不冻结共享 SDK 代码；代码变更仍需构建、重启和受影响验证。受控 OpenAPI 接口和协议调用证明组合技术合同；真实 SOC 仅验证资产 `9106` 的近 30 天首页告警分组，不表示其他资产、全量明细或模型选用工具已经验收。评测入口已接入，但本轮没有新增模型 Run；trace 仅查询已有持久材料。Research Release 仍以 `PA-11` 的未实现状态为准。
 - **自动化边界**：参数、路径、摘要、失败恢复、状态分派和平台密码认证进入测试；局域网地址监听已在本机浏览器验证，未从另一台局域网设备访问。真实 Docker 生命周期、浏览器操作、全局 DSH 装载及模型/外部业务调用分别保留证据，不互相替代。
+
+- **双站点基址与实际平台生效（2026-10-15）**：基址唯一配置在 [`sites.json`](../runtime/adapters/dsh-web/sites.json)，共用 TypeScript WebServer 适配器通过原生注册接口挂载，未引入反向代理或修改系统全局 DSH。共享适配器 8 项、平台插件 64 项、平台启动器 14 项、容器 CLI/评测访问 101 项及来源合同 20 项测试通过；MCP 受控协议测试覆盖分组和 Agent 内部 loopback 的新基址。项目合同校验无错误或警告。[隔离平台浏览器检查](../platform/plugin/test/evidence/web-base-platform-20261015.json)完成登录、退出、四页、真实 RPC、双向 WebSocket 和窄屏布局；[实际 3090 平台检查](../platform/plugin/test/evidence/web-base-platform-live-20261015.json)确认 `/hap/` 已重启生效，原 HOME、账号、编排及用户配置保持原样，旧协议入口不可用。现有平台没有已保存的 MCP 分组，链接仅用未保存草稿验证；未发送模型消息、调用真实 SOC 服务或验证另一设备连通性。业务容器的观察及限制见 `PA-05`，不提升其他研究结论或 Release 状态。
 
 ## 4. 为什么是 12 条
 

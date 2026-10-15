@@ -1,0 +1,21 @@
+# Loader 的同 id 插入以后者为准；普通 patch 的 name 只校验已有实现。
+- insert:
+    - id: webserver
+      name: /opt/dsh-web/lib/container-webserver.mjs
+      disabled: false
+      inject: [webStartup]
+      config:
+        host: !!js ctx.webStartup.host ?? '127.0.0.1'
+        port: !!js ctx.webStartup.port ?? 3080
+        compression: gzip
+        compressionLevel: 1
+        compressionThresholdBytes: 1024
+    - id: web-runtime
+      name: /opt/dsh-web/lib/container-web-app.mjs
+      disabled: false
+      inject: [webStartup]
+      config:
+        openBrowser: !!js ctx.webStartup.openBrowser
+        printUrl: true
+        surfaceContext: true
+        trustedHosts: !!js ctx.webStartup.trustedHosts

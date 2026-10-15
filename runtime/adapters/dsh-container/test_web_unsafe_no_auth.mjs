@@ -25,6 +25,12 @@ assert.equal(connection.requestRejection({}), 403)
 assert.equal(connection.authorizeIndex({}, {}), false)
 assert.equal(connection.authenticatedUrl('http://127.0.0.1:3080/'), 'http://127.0.0.1:3080/?token=existing')
 
+apply({ connection, webServer: { publicPath: path => path.startsWith('/assistant/') ? path : '/assistant' + path },
+  on: () => {}, effect: setup => { dispose = setup() } })
+assert.equal(connection.authenticatedUrl('http://127.0.0.1:3080/'), 'http://127.0.0.1:3080/assistant/')
+assert.equal(connection.authenticatedUrl('http://127.0.0.1:3080/assistant/'), 'http://127.0.0.1:3080/assistant/')
+dispose()
+
 const manifest = JSON.parse(readFileSync(new URL('./web-unsafe-no-auth/package.json', import.meta.url)))
 assert.ok(manifest.name && manifest.version)
 assert.equal(manifest.dsh, undefined)

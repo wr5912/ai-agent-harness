@@ -1,0 +1,51 @@
+{
+  "scope": "PA-12 isolated HOME, actual global DSH and Chromium",
+  "checks": [
+    "root and missing slash 302 preserve query; old API, MCP and login 404",
+    "anonymous prefixed RPC rejected",
+    "actual browser login form uses /hap/login; wrong credentials fail; successful login reaches /hap/",
+    "authenticated real RPC reads current repository",
+    "browser page 智能体与评估",
+    "browser page 实例管理",
+    "browser page MCP 管理",
+    "browser page 首页",
+    "MCP groups rendered; isolated HOME has no configured groups",
+    "375px layout does not overflow",
+    "native WebSocket under /hap/ sends and receives frames",
+    "browser logout returns /hap/login and revokes authenticated session"
+  ],
+  "browserErrors": [],
+  "failedRequests": [],
+  "webSocket": {
+    "paths": [
+      "/hap/api/remote.mux"
+    ],
+    "sent": 3,
+    "received": 10
+  },
+  "expectedRevocations": [],
+  "ok": true,
+  "observed_at": "2026-10-15T05:14:48.580833+00:00",
+  "repository_commit": "78797f73b0e6b04d2bbdc2e0e59fa586ee034e14",
+  "repository_dirty": true,
+  "runtime": {
+    "dsh_version": "0.2.1-alpha.2",
+    "node_version": "v24.19.0",
+    "launcher": "platform/dsh-platform",
+    "entry": "/opt/dsh/npm/lib/node_modules/@deepseek-ai/dsh/lib/bin.js",
+    "webserver": "runtime/adapters/dsh-web/lib/platform-webserver.mjs",
+    "profile": "platform/profile/cordis.patch.yml"
+  },
+  "site": {
+    "base_path": "/hap/",
+    "host": "127.0.0.1",
+    "port": 3091,
+    "home": "隔离的临时 HOME；未使用 3090 平台 HOME",
+    "stopped_after_checks": true
+  },
+  "limits": [
+    "隔离 HOME 没有已配置的 MCP 分组；分组 URL 的实际客户端构建产物另由 mcp-client.test.mjs 验证。",
+    "未配置模型、未发送模型消息；不证明业务 Harness 效果、生产部署或 Research Release。",
+    "没有使用另一台设备验证局域网访问。"
+  ]
+}

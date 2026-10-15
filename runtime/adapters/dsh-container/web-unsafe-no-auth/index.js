@@ -11,7 +11,11 @@ export function apply(ctx) {
   const replacements = {
     requestRejection: () => undefined,
     authorizeIndex: () => true,
-    authenticatedUrl: (baseUrl) => baseUrl,
+    authenticatedUrl: (baseUrl) => {
+      const url = new URL(baseUrl)
+      if (ctx.webServer?.publicPath) url.pathname = ctx.webServer.publicPath(url.pathname)
+      return url.href
+    },
   }
   const previous = Object.fromEntries(Object.keys(replacements).map((key) => {
     if (typeof connection[key] !== 'function') throw new Error(`web-unsafe-no-auth: missing ${key}`)

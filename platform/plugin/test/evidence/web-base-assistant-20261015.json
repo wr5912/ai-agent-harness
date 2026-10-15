@@ -1,0 +1,278 @@
+{
+  "at": "2026-10-15T05:20:47.688053Z",
+  "target": "http://127.0.0.1:3085/assistant/",
+  "scope": "独立 EXP-019 实例的 Web 基址、实际装载、浏览器资源与 API/语音技术验收；不构成业务 Evaluation。",
+  "source": {
+    "git_commit": "78797f73b0e6b04d2bbdc2e0e59fa586ee034e14",
+    "dirty": true,
+    "tracked_diff_sha256": "sha256:119ea30e65a03df7ccf8cd6fa2d7d28862a11ae779ef2df878c019aea509b847",
+    "source_id": "experiment:EXP-security-operations-expert-019-rc442472a242a",
+    "adapter_artifacts": {
+      "chunk-EIJNRWSN.mjs": "sha256:f99897b081f3f1d43a63a9dd4449db20091c0e69aa0fda639bc42fa49a4e81d8",
+      "chunk-L7OCA6TH.mjs": "sha256:b686ae04722ddd1fa31366307fa1e168089bd18b7721bb5b2e0dd924db4fd4b5",
+      "chunk-MMHYPQGK.mjs": "sha256:9c2c931cf04323ed17acd9ada2d716d877adf93d61df27e8ddd21153bc4d776b",
+      "chunk-RI7WULZH.mjs": "sha256:24a19d423514720318a5aca4fbe0e31301d0b3d1a004b847e82d15ea55c9e784",
+      "container-web-app.mjs": "sha256:3e027bed5874879f8b70c5bbfde7bae6241031b97685bb0f19503da6914e652a",
+      "container-webserver.mjs": "sha256:b05885ee04d4b9372ce6952ea5bb5b8e60e41486734754407e31e5a519d2d6f1"
+    }
+  },
+  "runtime": {
+    "container": "web-base-assistant-check",
+    "started_at": "2026-10-15T05:18:02.863543452Z",
+    "image_id": "sha256:3907b02a066908dd67b20ad50bd593019a504b1ea8d988be35ebe7b34270d92b",
+    "image_tag": "ai-agent-harness/dsh:21638c563-54f335ef05ac",
+    "dsh_commit": "21638c56315ae6a2b552d6091945d3144c9af32e",
+    "dsh_cli_version": "0.1.7-rc.2",
+    "port": 3085,
+    "web_base_path": "/assistant/",
+    "auth_mode": "unsafe_no_auth",
+    "model_environment_present": false,
+    "mounts": [
+      {
+        "type": "bind",
+        "destination": "/opt/dsh-web",
+        "read_only": true,
+        "source": "runtime/adapters/dsh-web"
+      },
+      {
+        "type": "bind",
+        "destination": "/work/harness/workspace",
+        "read_only": true,
+        "source": "evolution/experiments/EXP-security-operations-expert-019-rc442472a242a/candidate/dsh/workspace"
+      },
+      {
+        "type": "bind",
+        "destination": "/opt/dsh-adapter",
+        "read_only": true,
+        "source": "runtime/adapters/dsh-container"
+      },
+      {
+        "type": "bind",
+        "destination": "/opt/dsh-presets",
+        "read_only": true,
+        "source": "evolution/experiments/EXP-security-operations-expert-019-rc442472a242a/candidate/dsh/presets"
+      },
+      {
+        "type": "bind",
+        "destination": "/opt/dsh-managed",
+        "read_only": true,
+        "source": "evolution/experiments/EXP-security-operations-expert-019-rc442472a242a/candidate/dsh/managed"
+      },
+      {
+        "type": "volume",
+        "destination": "/var/lib/dsh",
+        "read_only": false,
+        "volume": "dsh-dev-web-base-assistant-check_dsh-dev-web-base-assistant-check-home"
+      }
+    ]
+  },
+  "checks": {
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/?query=retained",
+        "status": 302,
+        "location": "/assistant/?query=retained",
+        "hasDshBoot": false
+      },
+      {
+        "method": "GET",
+        "path": "/assistant?query=retained",
+        "status": 302,
+        "location": "/assistant/?query=retained",
+        "hasDshBoot": false
+      },
+      {
+        "method": "GET",
+        "path": "/assistant/",
+        "status": 200,
+        "location": null,
+        "hasDshBoot": true
+      },
+      {
+        "method": "GET",
+        "path": "/api/mcp-manager",
+        "status": 404,
+        "location": null,
+        "hasDshBoot": false
+      },
+      {
+        "method": "POST",
+        "path": "/api/session/list",
+        "status": 404,
+        "location": null,
+        "hasDshBoot": false
+      },
+      {
+        "method": "GET",
+        "path": "/mcp/groups/inspection-readonly",
+        "status": 404,
+        "location": null,
+        "hasDshBoot": false
+      },
+      {
+        "method": "GET",
+        "path": "/voice-mode/config",
+        "status": 404,
+        "location": null,
+        "hasDshBoot": false
+      },
+      {
+        "method": "GET",
+        "path": "/assistant/api/mcp-manager",
+        "status": 200,
+        "location": null,
+        "hasDshBoot": false
+      },
+      {
+        "method": "GET",
+        "path": "/assistant/voice-mode/config",
+        "status": 200,
+        "location": null,
+        "hasDshBoot": false
+      }
+    ],
+    "browser": {
+      "url": "http://127.0.0.1:3085/assistant/",
+      "title": "DSH 本地构建",
+      "session": {
+        "priorSessionCount": 4,
+        "sessionCreated": true,
+        "sessionListed": true,
+        "exportStatus": 200,
+        "exportBytes": 406,
+        "sessionStillListedAfterRefresh": true
+      },
+      "voice": {
+        "configStatus": 200,
+        "worker": "ready",
+        "worklet": "loaded",
+        "mcpStatus": 200,
+        "groupPaths": [
+          {
+            "id": "inspection-readonly",
+            "path": "/assistant/mcp/groups/inspection-readonly"
+          }
+        ]
+      },
+      "pageErrors": [],
+      "requestFailures": [
+        {
+          "path": "/assistant/plugins/events",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "httpFailures": [],
+      "requestPaths": [
+        "/assistant/",
+        "/assistant/plugins/",
+        "/assistant/assets/index-B6rlXntr.js",
+        "/assistant/assets/vendor-CCJJTK99.js",
+        "/assistant/assets/vendor-BNsW4eBh.css",
+        "/assistant/assets/index-DUvMhLle.css",
+        "/assistant/api/settings/describe",
+        "/assistant/api/dynamicCordisRunner/syncInspectManifest",
+        "/assistant/api/credentials/describe",
+        "/assistant/api/dynamicCordisRunner/inventory",
+        "/assistant/open-in-app/apps",
+        "/assistant/api/session/modelCatalog",
+        "/assistant/api/workspace/create",
+        "/assistant/plugins/events",
+        "/assistant/api/agentPresets/list",
+        "/assistant/favicon.svg",
+        "/assistant/api/session/list",
+        "/assistant/api/permissionPresets/catalog",
+        "/assistant/api/session/create",
+        "/assistant/api/llm/listProviders",
+        "/assistant/api/llm/listConfigurableProviders",
+        "/assistant/api/security-operations/overview",
+        "/assistant/voice-mode/config",
+        "/assistant/api/commands/list",
+        "/assistant/api/skills/list",
+        "/assistant/api/session.export",
+        "/assistant/voice-mode/kws/kws-worker.js",
+        "/assistant/voice-mode/kws/sherpa-onnx-kws.js",
+        "/assistant/voice-mode/kws/sherpa-onnx-wasm-kws-main.js",
+        "/assistant/voice-mode/kws/sherpa-onnx-wasm-kws-main.data",
+        "/assistant/voice-mode/kws/sherpa-onnx-wasm-kws-main.wasm",
+        "/assistant/api/mcp-manager"
+      ]
+    }
+  },
+  "automated_tests": [
+    {
+      "command": "python3 -m unittest runtime/adapters/dsh-container/test_dsh_dev.py runtime/adapters/dsh-container/test_dsh_eval_access.py",
+      "tests": 101,
+      "status": "passed"
+    },
+    {
+      "command": "node --test runtime/adapters/dsh-container/test_dsh_eval_access.mjs runtime/adapters/dsh-container/test_dsh_eval_common.mjs runtime/adapters/dsh-container/test_startup_vector.mjs",
+      "tests": 3,
+      "api_authentication_scenarios": 10,
+      "common_cases": 6,
+      "status": "passed"
+    },
+    {
+      "command": "bash -n runtime/adapters/dsh-container/verify-load.sh",
+      "status": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed"
+    }
+  ],
+  "observations": [
+    {
+      "phase": "首次技术装载",
+      "result": "缺少语音生产依赖；按原锁执行 npm ci --omit=dev --ignore-scripts --legacy-peer-deps 后，又发现静态导入的 dsh-typert-protocol 仅声明在 devDependencies。该次验证临时使用忽略 node_modules 中指向镜像原生包的 symlink；未复制 Runtime 或修改标准镜像。永久 manifest/lock 修复由本轮其他工作项另行核验。"
+    },
+    {
+      "phase": "首次共享适配器装载",
+      "result": "TypeScript 打包代码使用 __filename 导致 ESM 导入失败；共享构建修正后重新构建并重启，通过本记录的最终浏览器验收。"
+    },
+    {
+      "phase": "最新构建冷进程首次 Session 技术检查",
+      "result": "workspace/create、session/create、session/list、session.export 串行检查中的某一步出现 15 秒请求超时；未记录逐步时间，不能唯一定位。Session 计数已经增长。仅重复同一动作一次后全部通过；未发送 session/prompt 或模型请求。"
+    },
+    {
+      "phase": "页面刷新",
+      "result": "原 /assistant/plugins/events SSE 请求在导航时以 net::ERR_ABORTED 结束；重新打开成功，其他请求无失败、无 HTTP 错误。"
+    }
+  ],
+  "limits": [
+    "技术实例未注入模型服务凭据，未验证模型回复、真实业务工具效果或完整语音识别与合成。",
+    "Worker ready、Worklet loaded 和同源 WASM/data 请求证明本地资源与执行入口可加载；不证明麦克风采集、ASR 或 TTS 效果。",
+    "本记录的 MCP 验证限管理读取与公开路径；MCP 工具协议调用另有专项测试。",
+    "未修改用户业务实例；验证后只移除本次临时容器和登记，保留其 HOME 卷。"
+  ],
+  "validation": "passed",
+  "cleanup": {
+    "status": "completed",
+    "down": {
+      "name": "web-base-assistant-check",
+      "project": "dsh-dev-web-base-assistant-check",
+      "home_volume": "dsh-dev-web-base-assistant-check_dsh-dev-web-base-assistant-check-home",
+      "home_preserved": true,
+      "containers": [],
+      "stopped": true,
+      "containers_removed": true
+    },
+    "delete": {
+      "name": "web-base-assistant-check",
+      "project": "dsh-dev-web-base-assistant-check",
+      "registration_dir": "/home/admin/.local/state/dsh-dev/web-base-assistant-check",
+      "state": "absent",
+      "containers_before": [],
+      "home_volume_before": "dsh-dev-web-base-assistant-check_dsh-dev-web-base-assistant-check-home",
+      "home_preserved_before": true,
+      "home_volume": "dsh-dev-web-base-assistant-check_dsh-dev-web-base-assistant-check-home",
+      "home_preserved": true,
+      "deleted": true,
+      "registration_deleted": true
+    },
+    "remaining_containers": [],
+    "port_open": false,
+    "home_preserved": true,
+    "registration_deleted": true
+  }
+}

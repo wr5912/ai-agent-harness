@@ -8,6 +8,13 @@ import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import { loginPage } from './login.tsx'
 
+declare module '@deepseek-ai/dsh-host-webserver' {
+  interface WebServer {
+    readonly basePath: string
+    publicPath(path: string): string
+  }
+}
+
 const KEY = credentialKey('harness-platform', 'browser-sessions')
 const COOKIE = 'harness_platform_session'
 const MAX_AGE = 30 * 24 * 60 * 60
@@ -78,9 +85,9 @@ export async function applyAuthentication(ctx: Context, assetRoot: string) {
       fence(req) ? 403 : active && sessionOf(req) ? undefined : 401 },
     authorizeIndex: { configurable: true, value: (req: IncomingMessage, res: ServerResponse) => {
       if (fence(req)) { res.writeHead(403); res.end(); return false }
-      if (!active || !sessionOf(req)) { redirect(res, '/login'); return false }
+      if (!active || !sessionOf(req)) { redirect(res, ctx.webServer.publicPath('/login')); return false }
       if (new URL(req.url ?? '/', 'http://platform.invalid').searchParams.has('token')) {
-        redirect(res, '/'); return false
+        redirect(res, ctx.webServer.publicPath('/')); return false
       }
       res.setHeader('cache-control', 'no-store')
       return true
@@ -110,14 +117,14 @@ export async function applyAuthentication(ctx: Context, assetRoot: string) {
       // no-referrer 会使浏览器表单的 Origin 变成 null，导致同源登录被拒绝。
       'referrer-policy': 'same-origin', 'x-content-type-options': 'nosniff',
       'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'" })
-    res.end(loginPage(error))
+    res.end(loginPage(ctx.webServer.publicPath('/login'), error))
   }
   for (const path of ['/login', '/logout']) {
     ctx.effect(() => ctx.webServer.register({ kind: 'exact', path, async handler(req, res) {
       if (!active) { res.writeHead(503); res.end(); return }
       if (fence(req)) { res.writeHead(403); res.end(); return }
       if (path === '/login' && req.method === 'GET') {
-        if (sessionOf(req)) redirect(res, '/')
+        if (sessionOf(req)) redirect(res, ctx.webServer.publicPath('/'))
         else html(res)
         return
       }
@@ -129,7 +136,7 @@ export async function applyAuthentication(ctx: Context, assetRoot: string) {
         sessions.delete(session.digest)
         try { await update(value => value.filter(item => item.digest !== session.digest)) }
         catch { res.writeHead(503); res.end(); return }
-        redirect(res, '/login', cookieHeader('', 0))
+        redirect(res, ctx.webServer.publicPath('/login'), cookieHeader('', 0))
         return
       }
       if (req.headers['content-type']?.split(';')[0] !== 'application/x-www-form-urlencoded') {
@@ -146,7 +153,7 @@ export async function applyAuthentication(ctx: Context, assetRoot: string) {
       const session = { digest: hash(value), authority: authority(req), expires: Date.now() + MAX_AGE * 1000 }
       try { await update(items => [...items, session]) }
       catch { html(res, 503, '暂时无法保存登录状态，请重试。'); return }
-      redirect(res, '/', cookieHeader(value, MAX_AGE))
+      redirect(res, ctx.webServer.publicPath('/'), cookieHeader(value, MAX_AGE))
     } }))
   }
   ctx.on('webserver/index-inject', table => {

@@ -1,0 +1,89 @@
+{
+  "scope": "PA-12 existing platform HOME, actual global DSH and Chromium",
+  "checks": [
+    "root and missing slash 302 preserve query; old API, MCP and login 404",
+    "anonymous prefixed RPC rejected",
+    "actual browser login form uses /hap/login; wrong credentials fail; successful login reaches /hap/",
+    "authenticated real RPC reads current repository",
+    "browser page 智能体与评估",
+    "browser page 实例管理",
+    "browser page MCP 管理",
+    "browser page 首页",
+    "unsaved browser-only MCP group draft generates /hap/mcp/groups/ link; no save requested",
+    "375px layout does not overflow",
+    "native WebSocket under /hap/ sends and receives frames"
+  ],
+  "browserErrors": [],
+  "failedRequests": [],
+  "webSocket": {
+    "paths": [
+      "/hap/api/remote.mux"
+    ],
+    "sent": 4,
+    "received": 3
+  },
+  "browserOnlyGroupDraft": true,
+  "expectedRevocations": [],
+  "ok": true,
+  "observed_at": "2026-10-15T05:18:39.542994+00:00",
+  "repository_commit": "78797f73b0e6b04d2bbdc2e0e59fa586ee034e14",
+  "repository_dirty": true,
+  "configuration_digests": {
+    "account": {
+      "path": "platform/credentials/admin.json",
+      "before_sha256": "34c59441beefc0c2b143bc1b2d185eccca7b96832b2eb6c92dd264a93318f681",
+      "after_sha256": "34c59441beefc0c2b143bc1b2d185eccca7b96832b2eb6c92dd264a93318f681",
+      "unchanged": true
+    },
+    "compositions": {
+      "path": "platform/mcp-compositions.json",
+      "before_sha256": "602ea9b60c1db51841cad4c750cee1e59d42d41af15d26775248f9e075406b44",
+      "after_sha256": "602ea9b60c1db51841cad4c750cee1e59d42d41af15d26775248f9e075406b44",
+      "unchanged": true
+    },
+    "user_patch": {
+      "path": "$DSH_HOME/profiles/harness-platform/cordis.patch.yml",
+      "before_sha256": "ef0c07cb022c4a26b0b6ef38a5247da4504ed0debedf3f882ce372315cc88b4a",
+      "after_sha256": "ef0c07cb022c4a26b0b6ef38a5247da4504ed0debedf3f882ce372315cc88b4a",
+      "unchanged": true
+    },
+    "profile_manifest": {
+      "path": "$DSH_HOME/profiles/harness-platform/package.json",
+      "before_sha256": "9f39e3e80fde999c5c3984eb962860f55d277921b3e08b206681860ace8d9859",
+      "after_sha256": "9f39e3e80fde999c5c3984eb962860f55d277921b3e08b206681860ace8d9859",
+      "unchanged": true
+    },
+    "profile_workspace": {
+      "path": "$DSH_HOME/profiles/harness-platform/pnpm-workspace.yaml",
+      "before_sha256": "ae7c5b68e2f157528e62885804e69e88583897b775e03c86fcbe52feaf498aba",
+      "after_sha256": "ae7c5b68e2f157528e62885804e69e88583897b775e03c86fcbe52feaf498aba",
+      "unchanged": true
+    }
+  },
+  "configuration_unchanged": true,
+  "site": {
+    "base_path": "/hap/",
+    "port": 3090,
+    "home": "原平台 HOME，保持不变",
+    "running_after_checks": true
+  },
+  "process": {
+    "previous_pid": 3883715,
+    "current_pid": 4008098,
+    "executable": "/opt/dsh/runtime/bin/node",
+    "cwd": "/home/admin/work/ai-agent-harness",
+    "runtime_entry": "/opt/dsh/npm/lib/node_modules/@deepseek-ai/dsh/lib/bin.js",
+    "dsh_version": "0.2.1-alpha.2",
+    "node_version": "v24.19.0",
+    "launcher": "platform/dsh-platform",
+    "webserver": "runtime/adapters/dsh-web/lib/platform-webserver.mjs",
+    "tmux_pane": "ai-agent-harness-platform-3090:0.0",
+    "stop_command": "tmux send-keys -t ai-agent-harness-platform-3090:0.0 C-c"
+  },
+  "limits": [
+    "MCP 没有已保存分组；仅创建未保存的浏览器草稿检查链接，关闭该新浏览器后丢弃，未请求保存。",
+    "仅使用新的独立浏览器上下文登录，不请求退出既有用户会话。",
+    "没有修改模型或 MCP 服务配置、没有调用上游业务工具或发送模型消息。",
+    "本机访问当前监听地址；未从另一台设备验证局域网连通性。"
+  ]
+}
