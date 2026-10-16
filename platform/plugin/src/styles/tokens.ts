@@ -1,6 +1,6 @@
 // 平台与登录页共用的视觉规则；颜色继承 DSH 主题，业务页只消费语义变量。
 export const visualTokens = `
-:root,.harness-platform,.harness-assistant-proposals,.harness-operation-inline{
+:root,body,.harness-platform,.harness-assistant-proposals,.harness-operation-inline{
   --hep-primary:#0075ca;--hep-primary-hover:#0063ab;
   --hep-link:var(--hep-primary);--hep-link-hover:var(--hep-primary-hover);
   --hep-surface:var(--dsw-alias-bg-layer-1,#fff);
@@ -17,9 +17,9 @@ export const visualTokens = `
 body[data-ds-dark-theme],body[data-ds-dark-theme] :is(.harness-platform,.harness-assistant-proposals,.harness-operation-inline){
   --hep-link:var(--dsw-alias-link,#7aaaff);--hep-link-hover:var(--dsw-alias-link,#7aaaff);
 }
-@media(max-width:900px){:root,.harness-platform{--hep-page-padding:24px}}
-@media(max-width:680px){:root,.harness-platform{--hep-page-padding:16px}}
-@media(pointer:coarse){:root,.harness-platform,.harness-assistant-proposals,.harness-operation-inline{--hep-hit-target:44px}}
+@media(max-width:900px){:root,body,.harness-platform{--hep-page-padding:24px}}
+@media(max-width:680px){:root,body,.harness-platform{--hep-page-padding:16px}}
+@media(pointer:coarse){:root,body,.harness-platform,.harness-assistant-proposals,.harness-operation-inline{--hep-hit-target:44px}}
 @keyframes hep-enter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-@media(prefers-reduced-motion:reduce){:root,.harness-platform,.harness-assistant-proposals,.harness-operation-inline{--hep-motion-fast:0ms;--hep-motion:0ms}}
+@media(prefers-reduced-motion:reduce){:root,body,.harness-platform,.harness-assistant-proposals,.harness-operation-inline{--hep-motion-fast:0ms;--hep-motion:0ms}}
 `

@@ -1,6 +1,10 @@
 import { nativeConversationCompatibility } from './native-compat.ts'
+import { nativeConversationTheme } from './conversation-style.ts'
+import { nativeOverlayTheme } from './native-overlays.ts'
 
 export const assistantTheme = `${nativeConversationCompatibility}
+${nativeConversationTheme}
+${nativeOverlayTheme}
 .harness-operation-inline{font-size:14px;line-height:1.7;overflow-wrap:anywhere}
 .harness-operation-inline>.harness-operation-result{margin:4px 0}
 .harness-operation-inline summary{cursor:pointer;color:var(--hep-muted)}
@@ -22,7 +26,7 @@ export const assistantTheme = `${nativeConversationCompatibility}
 .harness-assistant-toggle[data-status=waiting]::after{background:#eaa127}
 .harness-assistant-toggle[data-status=unread]::after{background:#10b5ce}
 @media(prefers-reduced-motion:reduce){.harness-platform button.harness-assistant-toggle{transition:none}.harness-platform button.harness-assistant-toggle:hover:enabled{transform:none}}
-.harness-assistant{z-index:44;display:flex;flex-direction:column;min-height:0;background:var(--hep-surface);border:1px solid var(--hep-border);border-radius:14px;box-shadow:0 12px 48px #12396326;overflow:hidden;--dsh-composer-card-max-width:100%;--dsh-conversation-content-max-width:100%}
+.harness-assistant{z-index:44;display:flex;flex-direction:column;min-height:0;background:var(--hep-surface);border:1px solid var(--hep-border);border-radius:14px;box-shadow:0 12px 48px #12396326;overflow:hidden;--dsh-composer-card-max-width:100%}
 .harness-assistant-floating{position:fixed;right:24px;bottom:88px;width:480px;height:min(640px,calc(100dvh - 112px));max-width:calc(100vw - 32px)}
 .harness-assistant-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;background:var(--hep-surface-muted);border-bottom:1px solid var(--hep-border);flex-shrink:0}
 .harness-assistant-heading>div{display:flex;align-items:center;gap:6px}
