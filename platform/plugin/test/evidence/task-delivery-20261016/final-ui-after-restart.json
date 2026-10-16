@@ -1,0 +1,24 @@
+{
+  "at": "2026-10-16T11:04:32.046Z",
+  "base": "http://10.0.160.32:3090/hep/",
+  "pageerrors": [],
+  "scope": "重启后的只读用户界面复核；等待数据加载，未提交任何模型任务",
+  "input_height": 39.09375,
+  "start_enabled": true,
+  "association_default": "optional and collapsed",
+  "running_instances": [
+    {
+      "name": "hep-inspection-delivery",
+      "port": 3114
+    },
+    {
+      "name": "security-operations-expert-eval",
+      "port": 3081
+    },
+    {
+      "name": "test01-002-64212",
+      "port": 3089
+    }
+  ],
+  "ok": true
+}

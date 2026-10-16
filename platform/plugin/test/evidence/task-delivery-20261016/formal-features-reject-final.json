@@ -1,0 +1,22 @@
+{
+  "session_id": "session-cd8cc90b-bc03-4511-9414-a85e16c12246",
+  "scope": "正式3090、新管理Session、真实预览与暂不执行，无确认写入",
+  "program_commit": "00930af",
+  "before": {
+    "sha256": "51819081bf315780ca90c0ef272c0cc6c4101ac7518106602ce5a613b559235f",
+    "files": 98
+  },
+  "after": {
+    "sha256": "51819081bf315780ca90c0ef272c0cc6c4101ac7518106602ce5a613b559235f",
+    "files": 98
+  },
+  "proposal_state": "cancelled",
+  "model_calls_before_reject": 9,
+  "model_calls_final": 10,
+  "turn_reason": {
+    "kind": "completed"
+  },
+  "final_text": "本次未保存。待确认的特性清单没有写入该 Experiment 的 `change.yaml`（该版本 features 仍为空），预览也未执行任何写入。\n\n已读到的内容（固定版本用途与特性，共 8 项：身份装配、只读分页巡检、漏页不称完整、Markdown/CSV 交付、模拟边界、工具范围限制、复用装配、运行时与装载观察）已随预览提案保留；后续需要保存时我再提交一次即可。",
+  "observation": "正文较原结果简短，但仍列技术字段和八项特性，未完全遵守简短取消反馈原则；不以一次输出声称所有助手表达已稳定达标。",
+  "page_errors": []
+}

@@ -11,5 +11,12 @@
 - [特性整理确认与拒绝](features-reject-live.json)：实际页面按钮触发 AI 提案，1440/390px 展示原生确认，用户操作“暂不执行”后目标资产摘要不变。[最终观察](features-reject-final.json)计入拒绝后的说明回复，共 9 次管理模型调用。初始确认摘要只显示版本而缺智能体名称的事实保留在原图中。
 - [确认对象回归](features-confirmation-target-after.json)：同一次真实提案经实际组件隔离渲染，验证明确显示智能体对象和版本；没有追加 AI 请求或写入资产。
 - [实际回退回读](task-rollback-live-independent.json)：实际任务卡只执行一次回退，恢复编辑和装配、删除新增文件，保留已耗预算；修改路径与未修改路径分别核对权限，完整内容和目录与固定父版一致。原始 Task、Run 和回退材料随数据仓 005 保存。
+- [正式 3090 页面复验](formal-homepage-and-pages.json)：首页三模式与六页在 1440/900/390px 下共 27 组布局观察通过，无页面错误；核对需求为主、可选关联运行记录的“改进优化任务”，未额外提交模型任务。精选原图为[正式首页](formal-home-1440.png)和[窄屏评测中心](formal-evaluation-390.png)。
 
 首页体验通过一次 UI 整体确认；新建智能体使用真实平台任务请求、RPC 确认及真实浏览器下载。两者都运行真实模型和基础 Mock 服务，均不表示真实设备健康验收。完整结论与限制见[任务交付与验收](../../../../../docs/platform-design/17_任务型智能体交付与验收.md)。
+
+正式新实例 3114 的[来源拒绝、三文件权限恢复与成功复验](https://github.com/wr5912/harness-engineering-platform-data/blob/8f1c88ba14227bda685bd374150bf95e91df41e2/evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/evaluation/evidence/formal-delivery-20261016/README.md)在数据仓保存。恢复保持内容摘要不变，复用已运行实例，原 Run 未改写；最终业务探针 6 次调用、供应商回报 18,684 Token、费用未知，Markdown 699 字节和 CSV 362 字节实际下载核验通过，原 3081/3089 实例未变。这不表示平台已自动实现通用权限迁移。本文仅复制一份正式页面 JSON 和两张原图，业务探针、报告及失败原件仍引用数据仓。
+
+正式平台的取消反馈见 [`formal-features-reject-final.json`](formal-features-reject-final.json)：新管理会话实际选择“暂不执行”，98 个资产文件的内容摘要前后相同，提案已取消，总计 10 次模型调用。实际收尾回复比此前简短，但仍包含技术字段和特性列表，不能据此声称所有管理助手表达已经稳定符合简短反馈原则。共同原则中的取消示例只说明未保存，不承诺未实际提供的概览草稿入口。该示例修订后仅核对装载，未额外重复模型任务。
+
+最终重启后的只读复核见 [`final-ui-after-restart.json`](final-ui-after-restart.json)：正式首页标题、39px 单行初始输入、改进入口空关联可开始及默认折叠均符合要求，未额外发送模型任务。正式 3114、3081、3089 保持运行。

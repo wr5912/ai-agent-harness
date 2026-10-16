@@ -1,0 +1,635 @@
+{
+  "at": "2026-10-16T10:48:43.526Z",
+  "scope": "正式3090主数据根首页与六页只读UI，不提交模型任务或控制Session",
+  "checks": [
+    "真实未登录页面展示品牌口号",
+    "真实输入框初始单行，输入增长，达到最大高度滚动，清空恢复单行",
+    "真实首页主副标题和行业情报示例准确，首页不重复口号；空输入禁用",
+    "评测入口选择正式新智能体与版本，加载完毕后开始评测可用",
+    "同一已加载评测版本连续5秒保持选择与提交可用，记录实际并发后台查询",
+    "改进优化正确新标签，空输入/空关联可以开始，运行关联默认折叠，真实成功Run可选并能清空；默认问询仅核对合同未发模型任务",
+    "三模式草稿独立保留",
+    "体验默认真实启用来源且可直接开始，更换版本默认折叠、展开可选；本轮不点击开始体验",
+    "正式六页面在1440/900/390均无横向溢出，智能体与评测上下文来自主数据根新Agent和固定Run"
+  ],
+  "errors": [],
+  "requests": [
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal"
+    },
+    {
+      "method": "agents/edit/read"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/tasks/capabilities"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal"
+    },
+    {
+      "method": "agents/edit/read"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    }
+  ],
+  "viewports": [
+    {
+      "mode": "build",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440,
+      "content": {
+        "x": 0,
+        "y": 72,
+        "width": 1440,
+        "height": 928,
+        "top": 72,
+        "right": 1440,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "build",
+      "width": 900,
+      "scroll": 900,
+      "client": 900,
+      "content": {
+        "x": 0,
+        "y": 121,
+        "width": 900,
+        "height": 879,
+        "top": 121,
+        "right": 900,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "build",
+      "width": 390,
+      "scroll": 390,
+      "client": 390,
+      "content": {
+        "x": 0,
+        "y": 153,
+        "width": 390,
+        "height": 847,
+        "top": 153,
+        "right": 390,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "evaluate",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440,
+      "content": {
+        "x": 0,
+        "y": 72,
+        "width": 1440,
+        "height": 928,
+        "top": 72,
+        "right": 1440,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "evaluate",
+      "width": 900,
+      "scroll": 900,
+      "client": 900,
+      "content": {
+        "x": 0,
+        "y": 121,
+        "width": 900,
+        "height": 879,
+        "top": 121,
+        "right": 900,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "evaluate",
+      "width": 390,
+      "scroll": 390,
+      "client": 390,
+      "content": {
+        "x": 0,
+        "y": 153,
+        "width": 390,
+        "height": 847,
+        "top": 153,
+        "right": 390,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "improve",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440,
+      "content": {
+        "x": 0,
+        "y": 72,
+        "width": 1440,
+        "height": 928,
+        "top": 72,
+        "right": 1440,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "improve",
+      "width": 900,
+      "scroll": 900,
+      "client": 900,
+      "content": {
+        "x": 0,
+        "y": 121,
+        "width": 900,
+        "height": 879,
+        "top": 121,
+        "right": 900,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "improve",
+      "width": 390,
+      "scroll": 390,
+      "client": 390,
+      "content": {
+        "x": 0,
+        "y": 153,
+        "width": 390,
+        "height": 847,
+        "top": 153,
+        "right": 390,
+        "bottom": 1000,
+        "left": 0
+      }
+    }
+  ],
+  "workspace": {
+    "id": "workspace-95db14d2-d53d-4015-8256-ade8612b1b77",
+    "root": "/home/admin/harness-engineering-platform-data",
+    "legacyRoots": [
+      "/home/admin/work/ai-agent-harness"
+    ]
+  },
+  "heading": "让AI帮您管理、评测和改进智能体",
+  "autosize": {
+    "initial": {
+      "height": 39.09375,
+      "scroll": 39,
+      "client": 39,
+      "line": 23.1,
+      "padding": 16
+    },
+    "multiline": {
+      "height": 85,
+      "scroll": 85,
+      "client": 85,
+      "line": 23.1,
+      "padding": 16
+    },
+    "capped": {
+      "height": 240,
+      "scroll": 1125,
+      "client": 240,
+      "line": 23.1,
+      "padding": 16
+    },
+    "cleared": {
+      "height": 39.09375,
+      "scroll": 39,
+      "client": 39,
+      "line": 23.1,
+      "padding": 16
+    }
+  },
+  "evaluation_selection": {
+    "agent": "inspection-delivery-demo",
+    "version": "EXP-inspection-delivery-demo-001-rf841e4415364",
+    "versions": [
+      {
+        "id": "",
+        "label": "选择要评测的版本"
+      },
+      {
+        "id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+        "label": "版本 001 · 当前启用"
+      }
+    ]
+  },
+  "background_observation": {
+    "duration_ms": 5000,
+    "samples": 50,
+    "selected_version": "EXP-inspection-delivery-demo-001-rf841e4415364",
+    "all_operable": true,
+    "requests": {},
+    "scope": "真实平台页面观察；纯助手事件过滤另由真实updates+HomePage回归验证，未额外提交模型任务"
+  },
+  "improve_empty": {
+    "enabled": true,
+    "associated_run": "",
+    "details_default_open": false,
+    "height": {
+      "height": 39.09375,
+      "scroll": 39,
+      "client": 39,
+      "line": 23.1,
+      "padding": 16
+    },
+    "default_request_contract": {
+      "prompt": "请先查询当前工作区的智能体、已有能力和运行记录，帮助我确定值得改进或优化的任务。先利用已有信息，目标不明确时只询问必要信息；提出明确的目标、评测和执行范围后，再请求整体确认。",
+      "context": {
+        "page": "home",
+        "skill": "task-builder",
+        "workflow": "improvement",
+        "entry_intent": "improve",
+        "max_repair_rounds": 3
+      }
+    },
+    "scope": "真实UI未点击提交；纯函数核对默认先查询后必要问询合同，未声称模型已实际问询"
+  },
+  "related_run": {
+    "id": "run-05973a80-6b91-40e7-a0da-acca3a4ea696",
+    "status": "completed",
+    "verdict": "passed",
+    "fixed_context_contract": {
+      "page": "evaluation",
+      "skill": "task-builder",
+      "workflow": "improvement",
+      "entry_intent": "improve",
+      "agent_id": "inspection-delivery-demo",
+      "experiment_id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+      "source": "experiment:EXP-inspection-delivery-demo-001-rf841e4415364",
+      "run_id": "run-05973a80-6b91-40e7-a0da-acca3a4ea696",
+      "max_repair_rounds": 3
+    }
+  },
+  "example": {
+    "active": "EXP-daily-inspection-assistant-002-r9eba480e9d2a",
+    "source_count": 3,
+    "default_source": "experiment:EXP-daily-inspection-assistant-002-r9eba480e9d2a",
+    "optional_source": "experiment:EXP-daily-inspection-assistant-003-r6fcb63b26bd9"
+  },
+  "pages": [
+    {
+      "page": "home",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440
+    },
+    {
+      "page": "home",
+      "width": 900,
+      "scroll": 900,
+      "client": 900
+    },
+    {
+      "page": "home",
+      "width": 390,
+      "scroll": 390,
+      "client": 390
+    },
+    {
+      "page": "conversations",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440
+    },
+    {
+      "page": "conversations",
+      "width": 900,
+      "scroll": 900,
+      "client": 900
+    },
+    {
+      "page": "conversations",
+      "width": 390,
+      "scroll": 390,
+      "client": 390
+    },
+    {
+      "page": "agents",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440
+    },
+    {
+      "page": "agents",
+      "width": 900,
+      "scroll": 900,
+      "client": 900
+    },
+    {
+      "page": "agents",
+      "width": 390,
+      "scroll": 390,
+      "client": 390
+    },
+    {
+      "page": "evaluation",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440
+    },
+    {
+      "page": "evaluation",
+      "width": 900,
+      "scroll": 900,
+      "client": 900
+    },
+    {
+      "page": "evaluation",
+      "width": 390,
+      "scroll": 390,
+      "client": 390
+    },
+    {
+      "page": "instances",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440
+    },
+    {
+      "page": "instances",
+      "width": 900,
+      "scroll": 900,
+      "client": 900
+    },
+    {
+      "page": "instances",
+      "width": 390,
+      "scroll": 390,
+      "client": 390
+    },
+    {
+      "page": "mcp",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440
+    },
+    {
+      "page": "mcp",
+      "width": 900,
+      "scroll": 900,
+      "client": 900
+    },
+    {
+      "page": "mcp",
+      "width": 390,
+      "scroll": 390,
+      "client": 390
+    }
+  ],
+  "ok": true
+}
