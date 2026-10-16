@@ -41,6 +41,7 @@ test('真实 Cordis 提供方 Fiber 无 webServer 注入时，插件仍经原生
     ctx.provide('settingsController', {})
     ctx.provide('agents', { get: () => undefined })
     ctx.provide('tools', { register() {} })
+    ctx.provide('goals', { get: () => undefined })
   } })
   // 此项只验证注册方 Fiber；完整登录入口由 native-auth 与真实全局 DSH 验证。
   const loaded = root.plugin({ ...plugin, inject: plugin.inject.filter(name => name !== 'credentials'), apply: plugin.applyTools })

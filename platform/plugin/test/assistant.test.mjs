@@ -52,8 +52,110 @@ function fixture(t, responder, root = '/project') {
   const assembly = id => ctx.systemPrompt.assemble({ agent: { session: sessions.get(id).session } })
   const assemble = async id => (await assembly(id)).sections.filter(item => ['harness-platform/assistant', 'harness-platform/assistant-output'].includes(item.name)).map(item => item.text).filter(Boolean).join('\n')
   return { ctx, sessions, services, tools, calls, prompts, rpc, status, execute, proposal, assemble, assembly, addSession,
+    beforeModelCall: id => assistant.beforeModelCall(id),
     async reload() { await assistant.dispose(); assistant = create() } }
 }
+
+function taskPlan(overrides = {}) {
+  return { goal: '检查三台设备并交付完整报告', agent_id: 'test-agent', source: 'experiment:EXP-test-agent-001',
+    evaluation_case_ids: ['U-BUSINESS-001'], deliverables: ['设备巡检报告'], instance_name: 'test-delivery',
+    allowed_actions: [{ domain: 'agents', action: 'edit/apply' }, { domain: 'agents', action: 'eval/start' }, { domain: 'instances', action: 'run' }], ...overrides }
+}
+function installTaskGoals(f) {
+  const goals = new Map()
+  f.services.goals = {
+    get(agent) { return goals.get(agent.id) },
+    create(agent, request) { const row = { id: 'native-goal', revision: 1, phase: 'active', activation: 'armed', ...request }; goals.set(agent.id, row); return row },
+    pause(agent) { const row = { ...goals.get(agent.id), revision: goals.get(agent.id).revision + 1, phase: 'paused', activation: 'disarmed' }; goals.set(agent.id, row); return row },
+    resume(agent) { const row = { ...goals.get(agent.id), revision: goals.get(agent.id).revision + 1, phase: 'active', activation: 'armed' }; goals.set(agent.id, row); return row },
+    complete(agent) { const row = { ...goals.get(agent.id), revision: goals.get(agent.id).revision + 1, phase: 'complete', activation: 'disarmed' }; goals.set(agent.id, row); return row },
+  }
+  return goals
+}
+async function beginTask(f, id, plan = taskPlan()) {
+  const operation = f.execute(id, 'task', 'start', { plan })
+  const proposal = await f.proposal(id)
+  const confirmed = await f.rpc('confirm', { session_id: id, proposal_id: proposal.id })
+  assert.equal(confirmed.ok, true, JSON.stringify(confirmed))
+  await operation
+  assert.equal((await f.status(id)).execution.state, 'running')
+}
+function taskResponder(endpoint, input) {
+  if (endpoint === 'agents/detail') return { ok: true, value: { experiment: { id: 'EXP-test-agent-001' }, evaluation: { sha256: 'fixed-evaluation', cases: [{ id: 'U-BUSINESS-001' }] }, derivation: { parent_ref: 'git:' + 'a'.repeat(40) } } }
+  if (endpoint === 'agents/eval/start') return { ok: true, value: { job_id: 'job-' + Math.random(), status: 'running' } }
+  if (endpoint === 'agents/eval/status') return { ok: true, value: { status: 'completed', run_id: 'run-own' } }
+  if (endpoint === 'agents/tasks/delivery') return { ok: true, value: { ready: false, checks: [{ name: '业务统计', ok: false }] } }
+}
+
+test('任务一次确认后仅向固定目标连续执行，初测不计轮次且第四轮修复被拒绝', async t => {
+  const f = fixture(t, taskResponder)
+  const goals = installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '构建巡检助手', context: { skill: 'task-builder' } })).value.session_id
+  await beginTask(f, id)
+  assert.equal(goals.get(id).maxGoalRounds, 60)
+  await assert.rejects(() => f.execute(id, 'task', 'begin-repair'), /初次评测/)
+  await f.execute(id, 'agents', 'eval/start', { source: 'experiment:EXP-test-agent-001', cases: ['U-BUSINESS-001'] })
+  assert.equal((await f.status(id)).execution.repair_rounds, 0)
+  await assert.rejects(() => f.execute(id, 'agents', 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'candidate/dsh/workspace/AGENTS.md', content: 'fix' }] }), /预留/)
+  for (let round = 1; round <= 3; round++) {
+    await f.execute(id, 'task', 'begin-repair')
+    assert.equal((await f.execute(id, 'agents', 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'candidate/dsh/workspace/AGENTS.md', content: `fix ${round}` }] })).state, 'completed')
+    await f.execute(id, 'agents', 'eval/start', { source: 'experiment:EXP-test-agent-001', cases: ['U-BUSINESS-001'] })
+    assert.equal((await f.status(id)).execution.repair_rounds, round)
+  }
+  await assert.rejects(() => f.execute(id, 'task', 'begin-repair'), /最多三轮/)
+  await assert.rejects(() => f.execute(id, 'agents', 'cases/update', { experiment_id: 'EXP-test-agent-001' }), /冻结/)
+  assert.equal(f.calls.filter(row => row.endpoint === 'agents/eval/start').length, 4)
+  assert.equal((await f.status(id)).proposals.length, 1)
+})
+
+test('真实Session持久记模型调用，暂停及冷恢复不重置额度，fork不继承执行权', async t => {
+  const f = fixture(t, taskResponder)
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '构建巡检助手' })).value.session_id
+  await f.beforeModelCall(id)
+  await beginTask(f, id, taskPlan({ budget: { max_model_calls: 3, max_repair_rounds: 3, timeout_minutes: 30 } }))
+  assert.equal((await f.status(id)).execution.model_calls, 1)
+  await f.beforeModelCall(id)
+  await f.rpc('task/pause', { session_id: id })
+  const deadline = (await f.status(id)).execution.deadline_at
+  await assert.rejects(() => f.beforeModelCall(id), /尚未恢复/)
+  assert.equal((await f.rpc('task/resume', { session_id: id })).ok, true)
+  await f.reload()
+  assert.equal((await f.status(id)).execution.state, 'paused')
+  assert.equal((await f.status(id)).execution.model_calls, 2)
+  assert.equal((await f.rpc('task/resume', { session_id: id })).ok, true)
+  await f.beforeModelCall(id)
+  await assert.rejects(() => f.beforeModelCall(id), /额度已耗尽/)
+  assert.equal((await f.status(id)).execution.state, 'budget_exhausted')
+  assert.equal((await f.status(id)).execution.model_calls, 3)
+  assert.equal((await f.status(id)).execution.deadline_at, deadline)
+  f.addSession('task-fork', '/project', f.sessions.get(id).events, id)
+  assert.equal((await f.status('task-fork')).execution, undefined)
+  await assert.rejects(() => f.execute('task-fork', 'task', 'begin-repair'), /没有已确认任务/)
+})
+
+test('交付必须引用本任务Run并通过服务侧核验，模型ready不能覆盖失败', async t => {
+  const f = fixture(t, taskResponder)
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '交付报告' })).value.session_id
+  await beginTask(f, id)
+  await assert.rejects(() => f.execute(id, 'task', 'deliver', { run_id: 'run-other', ready: true, artifacts: ['report.md'] }), /本任务实际启动/)
+  await f.execute(id, 'agents', 'eval/start', { source: 'experiment:EXP-test-agent-001', cases: ['U-BUSINESS-001'] })
+  assert.equal((await f.execute(id, 'task', 'deliver', { run_id: 'run-own', ready: true, artifacts: ['report.md'] })).state, 'verification_failed')
+  assert.equal((await f.status(id)).execution.state, 'running')
+})
+
+test('首次创建把已确认业务Case传给真实new入口，回执一次绑定目标和评判摘要', async t => {
+  const f = fixture(t, (endpoint, input) => endpoint === 'agents/new' ? { ok: true, value: { source_id: 'experiment:EXP-test-agent-001', experiment_id: 'EXP-test-agent-001' } } : taskResponder(endpoint, input))
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '创建巡检助手' })).value.session_id
+  await beginTask(f, id, taskPlan({ source: undefined, new_agent: { name: '设备巡检', description: '只读设备检查', role: '完整统计工具数据', evaluation_cases: [{ id: 'U-BUSINESS-001', title: '设备完整', inputs: '检查三台设备', expected_behavior: '包含全部设备且总数3' }] }, allowed_actions: [{ domain: 'agents', action: 'new' }] }))
+  await f.execute(id, 'agents', 'new', { agent_id: 'test-agent', role: '丢弃业务要求' })
+  assert.equal(f.calls.find(row => row.endpoint === 'agents/new').input.role, '完整统计工具数据')
+  assert.equal((await f.status(id)).execution.target_source, 'experiment:EXP-test-agent-001')
+  assert.equal((await f.status(id)).execution.evaluation_sha256, 'fixed-evaluation')
+})
 
 test('真实 Session 投影隔离上下文、冷恢复固定任务，用户 prompt 保持原文', async t => {
   const f = fixture(t)
@@ -627,4 +729,29 @@ test('MCP 草稿复用真实结构校验，无效包装在提案前拒绝', asyn
   assert.equal(result.state, 'completed')
   assert.equal(result.preview, undefined)
   assert.equal(f.calls.filter(call => call.endpoint === 'mcp/saveCompositionDraft').length, 1)
+})
+
+test('回退只恢复本任务实际修改文件，固定来源与当前摘要不匹配时拒绝覆盖', async t => {
+  const original = '# 已固定的设备巡检\n', edited = '# 本轮修改\n'
+  let content = original
+  const sha = async text => (await import('node:crypto')).createHash('sha256').update(text).digest('hex')
+  const f = fixture(t, async (endpoint, input) => {
+    if (endpoint === 'agents/edit/read') return { ok: true, value: { content, sha256: await sha(content) } }
+    if (endpoint === 'agents/assets/read-fixed') return { ok: true, value: { selected: { kind: 'text', content: original, sha256: await sha(original), truncated: false } } }
+    if (endpoint === 'agents/edit/apply') { content = input.edits[0].content; return { ok: true, value: { written: [{ path: input.edits[0].path, sha256: await sha(content) }] } } }
+    return taskResponder(endpoint, input)
+  })
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '改进巡检' })).value.session_id
+  await beginTask(f, id)
+  await f.execute(id, 'agents', 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'candidate/dsh/workspace/AGENTS.md', content: edited, expected_sha256: await sha(original) }] })
+  content = '# 用户并行修改\n'
+  await assert.rejects(() => f.execute(id, 'task', 'rollback'), /并行改动/)
+  assert.equal(content, '# 用户并行修改\n')
+  content = edited
+  const restored = await f.execute(id, 'task', 'rollback')
+  assert.equal(restored.state, 'rolled_back')
+  assert.equal(content, original)
+  assert.equal((await f.status(id)).execution.state, 'paused')
+  assert.equal((await f.status(id)).execution.operations[0].state, 'rolled_back')
 })

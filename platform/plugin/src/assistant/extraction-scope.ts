@@ -17,6 +17,27 @@ export const createExtractionScope = () => createTaskScope('decision-sample-extr
 export const createComputeVariantScope = () => createTaskScope('compute-variant-research', '算力变体研究')
 
 export const createFeatureScope = () => createTaskScope('agent-maintenance', '特性整理任务')
+export function createTaskBuilderScope() {
+  const names = new Set(['skill', 'platform_task', 'platform_agents', 'platform_instances', 'platform_mcp'])
+  const skills = new Set(['task-builder', 'workspace-management', 'agent-maintenance', 'mcp-composition', 'harness-experiment-fusion'])
+  const scopes = new Map<any, (() => void)[]>()
+  const release = (agent: any) => { for (const stop of (scopes.get(agent) ?? []).reverse()) stop(); scopes.delete(agent) }
+  return {
+    apply(agent: any) {
+      if (scopes.has(agent)) return
+      const tools = agent.ctx?.tools
+      if (!tools?.restrict || !tools?.guard || !tools?.presentAs) throw new Error('当前 Runtime 缺少任务构建工具作用域')
+      const cleanup: (() => void)[] = []
+      try {
+        cleanup.push(tools.restrict({ allow: [...names] }))
+        cleanup.push(tools.presentAs('native'))
+        cleanup.push(tools.guard((execution: any) => names.has(execution.name) && (execution.name !== 'skill' || skills.has(execution.arguments?.name)) ? undefined : '任务构建仅通过平台工具办理；不能通过其他工具绕过任务预算或目标范围'))
+        scopes.set(agent, cleanup)
+      } catch (error) { for (const stop of cleanup.reverse()) stop(); throw error }
+    }, release,
+    dispose() { for (const agent of scopes.keys()) release(agent) },
+  }
+}
 
 /** 专用任务复用 Runtime 工具作用域；动作与写入确认仍由各自平台接口负责。 */
 function createTaskScope(skill: string, label: string) {

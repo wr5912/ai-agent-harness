@@ -29,6 +29,9 @@ import { readAssetDiff, readFixedAsset } from './asset-diff.ts'
 import { createAgent } from './create-agent.ts'
 import { createComputeVariantsHandler } from './compute-variants.ts'
 import { programRoot, workspaceConfigPath } from '../workspace.ts'
+import { discoverTaskCapabilities, type CapabilityOptions } from '../tasks/capabilities.ts'
+import { previewTaskAssembly, applyTaskAssembly, type TaskAssemblyInput } from '../tasks/assembly.ts'
+import { verifyTaskDelivery, type TaskDeliveryInput } from '../tasks/delivery.ts'
 
 type JsonMap = Record<string, unknown>
 type SourceCatalog = { schema_version?: string; sources?: Record<string, JsonMap> }
@@ -1397,7 +1400,7 @@ async function decisionUpdate(root: string, payload: JsonMap, signal?: AbortSign
   return ok({ path: written?.path ?? '', sha256: written?.sha256 ?? '' })
 }
 
-export function createAgentsHandler(assetRoot: string, onChange?: () => void): ConnectionRpcHandler {
+export function createAgentsHandler(assetRoot: string, onChange?: () => void, capabilityOptions: CapabilityOptions = {}): ConnectionRpcHandler {
   const root = rootOf(assetRoot)
   const jobs = new Map<string, Job>()
   const previews = new Map<string, VersionPreview>()
@@ -1434,6 +1437,13 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void): C
         return result.ok ? ok(result.value) : failure(new RpcError(result.error.code, result.error.message))
       }
       switch (endpoint) {
+        case 'tasks/capabilities': return ok(await discoverTaskCapabilities(root, { ...capabilityOptions, signal }))
+        case 'tasks/assembly-preview': return ok(await previewTaskAssembly(root, body as unknown as TaskAssemblyInput))
+        case 'tasks/assembly-apply': {
+          if (body.confirmed !== true) throw new RpcError('confirmation_required', '请先确认资产装配方案')
+          return ok(await applyTaskAssembly(root, body as unknown as TaskAssemblyInput))
+        }
+        case 'tasks/delivery': return ok(await verifyTaskDelivery(root, body as unknown as TaskDeliveryInput, signal))
         case 'list': return list(root)
         case 'detail': return await detail(root, body, signal)
         case 'create': return await createExperiment(root, body)

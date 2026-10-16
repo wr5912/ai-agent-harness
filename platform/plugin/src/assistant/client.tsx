@@ -6,6 +6,8 @@ import type { ConversationViewsProps } from '@deepseek-ai/dsh-client-ui-conversa
 import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { PropsRenderFactories, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { CHANNEL } from '../protocol.ts'
+import type { TaskExecution } from './task.ts'
+import { instanceWebUrl } from '../instances/url.ts'
 
 type SessionId = Parameters<Context['sessions']['binding']>[0]
 type SessionReference = ReturnType<Context['sessions']['retain']>
@@ -26,7 +28,7 @@ interface AssistantSnapshot {
   platformContext?: boolean
   busy: boolean
   error: string
-  status?: { running?: boolean; proposals?: { id: string; state: OperationMeta['state']; domain: string; action: string; preview?: unknown; result?: unknown; error?: string }[] }
+  status?: { running?: boolean; execution?: TaskExecution; proposals?: { id: string; state: OperationMeta['state']; domain: string; action: string; preview?: unknown; result?: unknown; error?: string }[] }
 }
 
 /** 浏览器只保留当前会话引用，任务与业务结果由原生 Session 和后端维护。 */
@@ -187,7 +189,7 @@ export function AssistantConversation({ useSession, useConversation, renderFacto
   return renderFactorySlot('conversation.content', { variant: 'embedded', phase: hero ? 'hero' : 'active', hero }, { slots: { views: ChatView } })
 }
 
-const domainLabels: Record<string, string> = { agents: '智能体与评测', instances: '实例', mcp: 'MCP' }
+const domainLabels: Record<string, string> = { agents: '智能体与评测', instances: '实例', mcp: 'MCP', task: '智能体交付任务' }
 const labels: Record<string, string> = {
   agent_id: '智能体', experiment_id: '版本', baseline: '主父版', sources: '关联来源', features: '特性',
   action: '操作', operation: '操作', name: '名称', instance: '实例', instance_name: '实例', source: '来源',
@@ -199,7 +201,7 @@ const labels: Record<string, string> = {
 }
 const internalFields = new Set(['preview_id', 'proposal_id', 'assistant_session_id', 'catalog_hash', 'plan_ready', 'requires_confirmation', 'evaluation_sha256', 'candidate_sha256', 'source_sha256'])
 const technicalFields = new Set(['command', 'argv', 'cwd', 'stdout', 'stderr', 'logs', 'trace'])
-const actionLabels: Record<string, string> = { saveConfiguration: '保存 MCP 配置', callPublishedComposition: '执行固定版本工具组合', 'fusion/confirm': '新建融合版本', 'features/apply': '保存版本特性', 'datasets/apply': '保存待复核决策样本', 'cases/create': '新增测试用例', new: '新建智能体', 'edit/apply': '保存资产修改', 'eval/start': '执行评测', 'eval/cancel': '取消评测', run: '实例操作', batch: '批量实例操作' }
+const actionLabels: Record<string, string> = { start: '开始交付任务', create: '从固定父版派生', 'tasks/assembly-apply': '装配复用能力', saveConfiguration: '保存 MCP 配置', callPublishedComposition: '执行固定版本工具组合', 'fusion/confirm': '新建融合版本', 'features/apply': '保存版本特性', 'datasets/apply': '保存待复核决策样本', 'cases/create': '新增测试用例', new: '新建智能体', 'edit/apply': '保存资产修改', 'eval/start': '执行评测', 'eval/cancel': '取消评测', run: '实例操作', batch: '批量实例操作' }
 
 function unwrap(value: unknown): unknown {
   if (value && typeof value === 'object' && 'ok' in value && 'value' in value && value.ok === true) return value.value
@@ -216,6 +218,21 @@ function Details({ value }: { value: unknown }) {
 
 function BusinessPreview({ value }: { value: unknown }) {
   const dataset = unwrap(value) as any
+  if (dataset?.plan?.goal && Array.isArray(dataset.plan.evaluation_case_ids)) {
+    const plan = dataset.plan
+    return <div className="harness-task-preview">
+      <p><strong>{plan.goal}</strong></p>
+      <p>{plan.new_agent ? `新建${plan.new_agent.name}` : `改进${plan.agent_id}`}，交付：{plan.deliverables.join('、')}。</p>
+      <p>初测后最多修复 {plan.budget.max_repair_rounds} 轮，总时限 {plan.budget.timeout_minutes} 分钟，模型调用额度 {plan.budget.max_model_calls} 次。暂停和重启不会重置额度。</p>
+      <p>确认后在本方案范围内连续办理；扩大任务、改验收标准或新增外部操作会单独确认。</p>
+      <details><summary>查看能力、测试和允许操作</summary>
+        {plan.new_agent && <><p>{plan.new_agent.description}</p><ul>{plan.new_agent.evaluation_cases.map((item: any) => <li key={item.id}><strong>{item.title}</strong><p>{item.expected_behavior}</p></li>)}</ul></>}
+        <p>评测：{plan.evaluation_case_ids.join('、')}</p><p>允许操作：{plan.allowed_actions.map((item: any) => actionLabels[item.action] ?? item.action).join('、')}</p>
+        {plan.source && <p>来源：{plan.source}</p>}
+      </details>
+      {dataset.note && <small>{dataset.note}</small>}
+    </div>
+  }
   if (dataset?.status === 'suggested' && Array.isArray(dataset.records)) return <div>
     <p>从 Run <strong>{dataset.run_id}</strong> 提取了 {dataset.count} 条待复核候选。确认保存后，在 Run 的“决策样本”中逐条复核。</p>
     {dataset.records.map((record: any) => <article key={record._meta.id}><strong>{record.questions.decision.instructions}</strong><p>建议标签：{String(record.questions.decision.label)}</p><p>{record._meta.label_basis}</p><details><summary>输入、候选与证据</summary><Details value={record}/></details></article>)}
@@ -308,10 +325,42 @@ export function AssistantOperations({ assistant, rpc, sessionId }: PropsRuntime<
   const proposals = state.status?.proposals ?? []
   const pending = proposals.filter(item => ['awaiting_confirmation', 'running', 'unknown'].includes(item.state))
   const shown = pending.length ? pending : proposals.slice(-1)
-  if (!shown.length) return null
-  return <div className="harness-assistant-proposals-dock"><details className="harness-assistant-proposals" open={pending.length > 0}>
+  const execution = state.status?.execution
+  if (!shown.length && !execution) return null
+  return <div className="harness-assistant-proposals-dock">{execution && <TaskCard task={execution} assistant={assistant} rpc={rpc} sessionId={sessionId}/>}{shown.length > 0 && <details className="harness-assistant-proposals" open={pending.length > 0}>
     <summary>{pending.length ? '平台操作确认与进度' : '最近操作回执'}</summary>
     <div>{shown.map(proposal => <OperationCard key={proposal.id} assistant={assistant} rpc={rpc} sessionId={sessionId}
       phase="result" toolName={`platform_${proposal.domain}`} meta={{ ...proposal, kind: 'platform-operation', proposal_id: proposal.id }}/>)}</div>
-  </details></div>
+  </details>}</div>
+}
+
+function TaskCard({ task, assistant, rpc, sessionId }: { task: TaskExecution; assistant: Assistant; rpc: ClientConnectionRpc; sessionId: SessionId }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const statuses = { running: '正在执行', paused: '已暂停', cancelled: '已取消', budget_exhausted: '额度已用尽', unknown: '需要核对操作状态', completed: '已验证并交付' }
+  const act = async (action: string) => {
+    setBusy(true); setError('')
+    try {
+      const response = await rpc.call(CHANNEL, `assistant/task/${action}`, { session_id: sessionId })
+      if (!response.ok) throw new Error(response.error.message)
+      await assistant.refresh()
+    } catch (failure) { setError(failure instanceof Error ? failure.message : '任务操作失败') }
+    finally { setBusy(false) }
+  }
+  return <section className="harness-operation-card" aria-label="智能体交付任务">
+    <header><strong>{statuses[task.state]}</strong><span>{task.plan.new_agent?.name ?? task.plan.agent_id}</span></header>
+    <p>{task.plan.goal}</p>
+    <p>修复 {task.repair_rounds}/{task.plan.budget.max_repair_rounds} 轮 · 助手模型调用 {task.model_calls}/{task.plan.budget.max_model_calls} 次 · 截止 {new Date(task.deadline_at).toLocaleTimeString()}</p>
+    <small>外部评测、工具和训练消耗另见实际运行记录；缺失的费用或调用统计不按零计。</small>
+    {task.reason && <p role="status">{task.reason}</p>}
+    {task.state === 'running' && <button disabled={busy} onClick={() => void act('pause')}>暂停任务</button>}
+    {task.state === 'paused' && <button disabled={busy} onClick={() => void act('resume')}>恢复任务</button>}
+    {task.source_ref && task.operations.some(item => item.action === 'edit/apply' && item.state === 'completed') && task.state !== 'completed' && <button disabled={busy} onClick={() => void act('rollback')}>恢复任务前版本</button>}
+    {!['completed', 'cancelled'].includes(task.state) && <button disabled={busy} onClick={() => void act('cancel')}>取消任务</button>}
+    {task.delivery && <><p>业务测试、目标实例及产物已核验。</p>
+      {task.delivery.entry && <p><a href={instanceWebUrl(task.delivery.entry, window.location.hostname)} target="_blank" rel="noreferrer">打开智能体</a></p>}
+      {(task.delivery.artifacts ?? []).map((artifact: any) => <p key={artifact.path}><a href={(() => { const url = new URL('api/harness-platform/runs/download', document.baseURI); url.searchParams.set('run_id', task.delivery.run_id); url.searchParams.set('kind', 'file'); url.searchParams.set('path', artifact.run_path); return url.href })()} download>下载 {artifact.run_path?.split('/').at(-1) ?? '业务产物'}</a></p>)}
+      <details><summary>查看验证结果与限制</summary><Details value={task.delivery}/></details></>}
+    {error && <p role="alert">{error}</p>}
+  </section>
 }

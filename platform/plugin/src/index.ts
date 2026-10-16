@@ -12,7 +12,7 @@ import { DOMAIN_PREFIXES } from './protocol.ts'
 import { recentRuns } from './dashboard.ts'
 import { workspaceIdentity } from './workspace.ts'
 import { createAgentsHandler } from './agents/index.ts'
-import { createExtractionScope, createComputeVariantScope, isDecisionExtraction, isComputeVariantResearch, createFeatureScope, isFeatureOrganization } from './assistant/extraction-scope.ts'
+import { createExtractionScope, createComputeVariantScope, isDecisionExtraction, isComputeVariantResearch, createFeatureScope, isFeatureOrganization, createTaskBuilderScope } from './assistant/extraction-scope.ts'
 import { createRunDownloadHandler } from './agents/run-files.ts'
 import { createInstancesHandler } from './instances/index.ts'
 import { applyMcpGateway, createMcpHandler } from './mcp/index.ts'
@@ -28,7 +28,7 @@ import logo from '../assets/harness-logo.svg'
 const WebApp: typeof NativeWebApp = await runtimeModule('@deepseek-ai/dsh-web-app')
 
 export const name = 'harness-platform'
-export const inject = ['connection', 'webServer', 'credentials', 'platformMcp', 'sessionController', 'settingsController', 'tools', 'agents', 'sessionProjections', 'systemPrompt']
+export const inject = ['connection', 'webServer', 'credentials', 'platformMcp', 'sessionController', 'settingsController', 'tools', 'agents', 'sessionProjections', 'systemPrompt', 'goals']
 export const Config = WebApp.Config
 export type Config = NativeWebApp.Config
 
@@ -141,7 +141,7 @@ export function applyTools(ctx: Context) {
     }
   }
   const domains = {
-    agents: wrap('agents', createAgentsHandler(assetRoot, () => notify(['agents', 'catalog']))),
+    agents: wrap('agents', createAgentsHandler(assetRoot, () => notify(['agents', 'catalog']), { nativeServers: () => manager?.servers.get() ?? [] })),
     instances: wrap('instances', createInstancesHandler(assetRoot)), mcp: wrap('mcp', mcp),
     assistant: undefined as ConnectionRpcHandler | undefined,
   }
@@ -150,6 +150,7 @@ export function applyTools(ctx: Context) {
   const extractionScope = createExtractionScope()
   const computeVariantScope = createComputeVariantScope()
   const featureScope = createFeatureScope()
+  const builderScope = createTaskBuilderScope()
   const taskScope = (agent: any, state: any) => isDecisionExtraction(assetRoot, agent, state) ? extractionScope
     : isComputeVariantResearch(assetRoot, agent, state) ? computeVariantScope
       : isFeatureOrganization(assetRoot, agent, state) ? featureScope : undefined
@@ -158,22 +159,30 @@ export function applyTools(ctx: Context) {
     scopeExtraction: agent => extractionScope.apply(agent),
     scopeComputeVariants: agent => computeVariantScope.apply(agent),
     scopeFeatures: agent => featureScope.apply(agent),
+    scopeTaskBuilder: agent => builderScope.apply(agent),
     running: id => services.agents.get(id)?.status === 'running',
     record: async (session, type, value) => { const records = await runtimeModule('@deepseek-ai/dsh-session'); records.appendPluginRecord(session, type, value) },
     projections: services.sessionProjections, systemPrompt: services.systemPrompt,
     notify, mcp: manager ? assistantMcp(services.settingsController, manager) : undefined,
+    goals: services.goals,
   })
   domains.assistant = assistant.handler
   assistant.registerTools(services.tools)
+  ctx.on('llm/stream' as any, (async function* (request: any, next: any) {
+    if (request.sessionId) await assistant.beforeModelCall(String(request.sessionId))
+    yield* next()
+  }) as any)
   ctx.on('agent/created' as any, (({ agent }: any) => {
     const state = services.sessionProjections.stateOf(agent.session, 'harnessPlatformAssistant')
     taskScope(agent, state)?.apply(agent)
+    if (assistant.isTaskSession(agent)) builderScope.apply(agent)
   }) as any)
-  ctx.on('agent/disposed' as any, (({ agent }: any) => { extractionScope.release(agent); computeVariantScope.release(agent); featureScope.release(agent) }) as any)
+  ctx.on('agent/disposed' as any, (({ agent }: any) => { extractionScope.release(agent); computeVariantScope.release(agent); featureScope.release(agent); builderScope.release(agent) }) as any)
   ctx.on('system-prompt/assemble' as any, (async (_assembly: any, context: any, next: any) => {
     const assembly = await next()
     const agent = context.agent
     const state = agent && services.sessionProjections.stateOf(agent.session, 'harnessPlatformAssistant')
+    if (assistant.isTaskSession(agent)) return { ...assembly, tools: assembly.tools.filter((tool: any) => ['skill', 'platform_task', 'platform_agents', 'platform_instances', 'platform_mcp'].includes(tool.name)) }
     const scope = taskScope(agent, state)
     if (!scope) return assembly
     scope.apply(agent)
@@ -182,6 +191,7 @@ export function applyTools(ctx: Context) {
   ctx.effect(() => () => extractionScope.dispose())
   ctx.effect(() => () => computeVariantScope.dispose())
   ctx.effect(() => () => featureScope.dispose())
+  ctx.effect(() => () => builderScope.dispose())
   ctx.effect(() => () => assistant.dispose())
   ctx.on('session/event' as any, ((session: any) => notify(['assistant'], [session.id])) as any)
   ctx.on('agent/status' as any, ((event: any) => notify(['assistant'], [event.agent.id])) as any)
