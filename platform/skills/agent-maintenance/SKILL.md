@@ -17,7 +17,7 @@ description: 平台管理助手整理智能体版本特性、办理日常实例�
 
 1. 读取 `detail`；用 `features/read-source {experiment_id}` 列出研究说明、观察和 Decision，再用 `features/read-source {experiment_id,ref}` 读取必要内容。此处 `ref` 是文件相对路径（如 `hypothesis.md`、`evaluation/observations.md`），不是 `git:<commit>`；固定 Candidate 的 Git 引用只用于 `assets/read-fixed`。历史 `evaluation/observations.md` 等引用相对于所属 Experiment，返回 `path` 才是数据根相对路径；此入口也可读取同一 Agent 的其他版本观察。Candidate 使用 `edit/read {experiment_id,path}` 和必要的 `assets/diff {experiment_id,against:"baseline"}`。保留仍有效的已有特性；来源为当前 Candidate、声明配置或实际差异，不能将研究计划描述成已实现。
 2. 用 `runs/index {agent_id}`、`runs/show {run_id}`、`runs/report {run_id}` 查相关评测。源码存在只支持实现描述；实际装载、任务效果和回归结论须引用匹配来源的 Run。缺少证据时明确“尚未验证”，不要补造证据路径。
-3. 提交 `features/preview {experiment_id,features:[{id,title,description,source_refs,evidence_refs,change?}]}`。source_refs、evidence_refs 使用已读取的数据根相对路径；没有评测证据时 evidence_refs 留空。一次预览完整清单，保留必要限制。features/preview 在确认卡等待期间不会返回；它返回 action=features/apply、state=completed 和 result.ok=true 时表示用户已确认且清单已保存，立即进入下一步回读，不再请求确认。取消或失败按实际回执说明。
+3. 提交 `features/preview {experiment_id,features:[{id,title,description,source_refs,evidence_refs,change?}]}`。source_refs、evidence_refs 使用已读取的数据根相对路径；没有评测证据时 evidence_refs 留空。一次预览完整清单，保留必要限制。features/preview 在确认卡等待期间不会返回；它返回 action=features/apply、state=completed 和 result.ok=true 时表示用户已确认且清单已保存，立即进入下一步回读，不再请求确认。用户暂不执行时结束本轮保存流程，保留已有预览；后续明确续办后再继续。失败按实际回执说明。
 4. 确认后重新 `detail`，核对清单确实落入该 Experiment 的 `change.yaml`，再向用户说明改动和证据边界。不要直接调用 features/apply 重复保存，更不要覆盖 Candidate 来迎合文案。
 
 ## 日常管理和运维
