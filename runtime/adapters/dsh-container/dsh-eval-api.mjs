@@ -396,16 +396,18 @@ export async function runDeliverySession(payload, item, signal, archiveCodec) {
   const workspace = await createWorkspace(connection, payload.workspace, signal)
   const session = await createSession(connection, payload, workspace, payload.preset_id, signal, created => saveEvidence(payload.evidence_root, item,
     { inputs: item.inputs, assistant_texts: [], session_id: created.session_id }, null, { ...created, completed: false, stage: 'delivery-session-created' }), `交付 ${item.case_id}`)
-  let completed, lastArchive
+  let completed, lastArchive, allCompleted = false
   try {
     for (let index = 0; index < item.inputs.length; index++) {
       completed = await promptSession(connection, session.session_id, item.inputs[index], item.inputs.slice(0, index + 1), payload.timeout_ms, signal, archive => { lastArchive = archive })
     }
+    allCompleted = completed?.turns.length === item.inputs.length && completed.turns.every(turn => turn.turn_reason === 'completed')
   } finally {
-    const turns = lastArchive ? turnsFromTrace(lastArchive, item.inputs) ?? [] : []
-    if (!completed) try { await rpc(connection, 'session/cancel', { request: { sessionId: session.session_id } }, AbortSignal.timeout(5000)) } catch { /* 采集失败不覆盖原始证据，交付检查仍按失败处理。 */ }
+    if (!allCompleted) try { await rpc(connection, 'session/cancel', { request: { sessionId: session.session_id } }, AbortSignal.timeout(5000)) } catch { /* 采集失败不覆盖原始证据，交付检查仍按失败处理。 */ }
+    let turns = completed?.turns ?? []
+    if (lastArchive) try { turns = turnsFromTrace(lastArchive, item.inputs) ?? turns } catch { /* 身份或轮次失配保留原始轨迹，不阻断实际取消和失败记录。 */ }
     await saveEvidence(payload.evidence_root, item, { inputs: item.inputs, assistant_texts: turns.map(turn => turn.assistant_text), session_id: session.session_id }, lastArchive ?? null,
-      { ...session, completed: Boolean(completed), root_session_log: lastArchive?.rootName ?? null })
+      { ...session, completed: allCompleted, root_session_log: lastArchive?.rootName ?? null })
   }
   const { archive, turns } = completed
   const checks = { ...session, completed: turns.every(turn => turn.turn_reason === 'completed'), root_session_log: archive.rootName }
