@@ -223,6 +223,7 @@ async function runCase(page, payload, item, uiStartup, signal) {
     ...session,
     ui_startup: uiStartup,
     trace_format: 'dsh-session-export-envelope-v1',
+    root_session_log: archive.rootName,
     completed: turns.every(turn => turn.turn_reason === 'completed'),
   }
   checks.ui_smoke_passed = checks.completed && turns.every(turn => turn.assistant_text.trim() !== '')

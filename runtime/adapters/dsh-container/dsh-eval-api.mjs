@@ -324,6 +324,7 @@ async function runCase(connection, payload, item, workspace, signal, traceState)
     expected_behavior: item.expected_behavior,
     ...session,
     trace_format: 'dsh-session-export-envelope-v1',
+    root_session_log: archive.rootName,
     guard: payload.declared_guard ? {
       declared: payload.declared_guard, status: 'unknown',
       reason: 'Runtime Session API 未提供可核验的 Guard 激活信息；Preset 和 Workspace 匹配不能替代插件激活证据。',

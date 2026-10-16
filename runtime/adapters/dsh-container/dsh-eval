@@ -249,7 +249,7 @@ def write_unfinished_evidence(
 
 
 def export_response_artifacts(run_dir: Path, cases: list[dict], rows: dict[str, dict], filename: str) -> None:
-    """显式请求时导出真实最后回答；不改写回答，也不替业务任务构造报告。"""
+    """显式请求时复制工具正式产物或真实最后回答，不替业务任务构造报告。"""
     artifacts = []
     for case in cases:
         case_id = case["case_id"]
@@ -258,18 +258,80 @@ def export_response_artifacts(run_dir: Path, cases: list[dict], rows: dict[str, 
         response_path = run_dir / "evidence" / case_id / "response.json"
         response_bytes = response_path.read_bytes()
         texts = json.loads(response_bytes).get("assistant_texts", [])
-        if not texts or not isinstance(texts[-1], str) or not texts[-1].strip():
-            continue
+        tool_artifact = exported_tool_markdown(run_dir, case_id)
+        if tool_artifact:
+            content, provenance = tool_artifact
+        else:
+            if not texts or not isinstance(texts[-1], str) or not texts[-1].strip():
+                continue
+            content = texts[-1].encode("utf-8")
+            provenance = {"origin": "assistant-response", "source_evidence": response_path.relative_to(run_dir).as_posix(),
+                          "source_sha256": hashlib.sha256(response_bytes).hexdigest(), "message_index": len(texts) - 1}
         relative = Path("artifacts") / case_id / filename
         output = run_dir / relative
         output.parent.mkdir(parents=True, exist_ok=True)
-        content = texts[-1].encode("utf-8")
         output.write_bytes(content)
         artifacts.append({"path": relative.as_posix(), "media_type": "text/markdown", "case_id": case_id,
                           "sha256": hashlib.sha256(content).hexdigest(), "size": len(content),
-                          "source_evidence": response_path.relative_to(run_dir).as_posix(),
-                          "source_sha256": hashlib.sha256(response_bytes).hexdigest(), "message_index": len(texts) - 1})
+                          **provenance})
     write_json(run_dir / "artifacts" / "index.json", {"schema_version": "1.0", "artifacts": artifacts})
+
+
+def exported_tool_markdown(run_dir: Path, case_id: str):
+    """只读取当前目标 Session 的正式工具回执；正文摘要不匹配时直接失败。"""
+    evidence = run_dir / "evidence" / case_id
+    tools_path = evidence / "tools.jsonl"
+    checks = json.loads((evidence / "checks.json").read_text(encoding="utf-8"))
+    root_log = checks.get("root_session_log")
+    if not isinstance(root_log, str) or not tools_path.is_file():
+        return None
+    tools_bytes = tools_path.read_bytes()
+    calls = {}
+    selected = None
+
+    def text_blocks(content):
+        for block in content if isinstance(content, list) else []:
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "text" and isinstance(block.get("text"), str):
+                yield block["text"]
+            if isinstance(block.get("content"), list):
+                yield from text_blocks(block["content"])
+
+    for line_number, line in enumerate(tools_bytes.decode("utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        if row.get("session_log") != root_log:
+            continue
+        event = row.get("event", {})
+        data = event.get("data", {})
+        if event.get("type") == "tool/call" and isinstance(data.get("callId"), str):
+            calls[data["callId"]] = data.get("name")
+        if event.get("type") != "tool/result":
+            continue
+        message = data.get("message", {})
+        call_id = message.get("source", {}).get("callId")
+        if call_id not in calls or data.get("error") or message.get("isError"):
+            continue
+        for text in text_blocks(message.get("content")):
+            try:
+                value = json.loads(text)
+            except ValueError:
+                continue
+            if not isinstance(value, dict) or value.get("completed") is not True \
+                    or not isinstance(value.get("markdown"), str) or not value["markdown"].strip() \
+                    or "report_sha256" not in value:
+                continue
+            content = value["markdown"].encode("utf-8")
+            digest = value["report_sha256"]
+            if digest != hashlib.sha256(content).hexdigest():
+                raise EvaluationError("tool-artifact-digest-mismatch")
+            selected = (content, {"origin": "tool-result", "source_evidence": tools_path.relative_to(run_dir).as_posix(),
+                                 "source_sha256": hashlib.sha256(tools_bytes).hexdigest(), "source_line": line_number,
+                                 "source_call_id": call_id, "tool_name": calls[call_id],
+                                 "tool_run_id": value.get("run_id"), "source_kind": value.get("source_kind")})
+    return selected
 
 
 def dsh_dev_path() -> str:

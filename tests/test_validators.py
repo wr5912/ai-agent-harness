@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import re
+import runpy
 import signal
 import shutil
 import subprocess
@@ -1011,6 +1012,38 @@ class RunRecordTests(unittest.TestCase):
 
 
 class DshEvalTests(unittest.TestCase):
+    def test_markdown_export_prefers_verified_target_tool_artifact_and_rejects_bad_digest(self) -> None:
+        module = runpy.run_path(str(DSH_EVAL))
+        with tempfile.TemporaryDirectory() as temp:
+            run = Path(temp)
+            evidence = run / "evidence/U-CASE-001"
+            evidence.mkdir(parents=True)
+            (evidence / "response.json").write_text(json.dumps({"assistant_texts": ["报告已生成，共三台设备。"]}), encoding="utf-8")
+            (evidence / "checks.json").write_text(json.dumps({"root_session_log": "target.jsonl"}), encoding="utf-8")
+            report = "# 三台设备巡检报告\n\n| 设备 | 状态 |\n| A | 正常 |\n| B | 正常 |\n| C | 正常 |\n"
+            receipt = {"run_id": "task-" + str(uuid.uuid4()), "completed": True, "source_kind": "basic_mock",
+                       "report_sha256": hashlib.sha256(report.encode()).hexdigest(), "markdown": report}
+            rows = [
+                {"session_log": "child.jsonl", "event": {"type": "tool/call", "data": {"callId": "child", "name": "other"}}},
+                {"session_log": "target.jsonl", "event": {"type": "tool/call", "data": {"callId": "actual-call", "name": "inspection"}}},
+                {"session_log": "target.jsonl", "event": {"type": "tool/result", "data": {"message": {
+                    "source": {"callId": "actual-call"}, "content": [{"type": "text", "text": json.dumps(receipt)}]}}}},
+            ]
+            tools = evidence / "tools.jsonl"
+            tools.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            module["export_response_artifacts"](run, [{"case_id": "U-CASE-001"}], {"U-CASE-001": {"execution_status": "completed"}}, "inspection-report.md")
+            artifact = json.loads((run / "artifacts/index.json").read_text())["artifacts"][0]
+            self.assertEqual((run / artifact["path"]).read_bytes(), report.encode())
+            self.assertEqual(artifact["origin"], "tool-result")
+            self.assertEqual(artifact["source_call_id"], "actual-call")
+            self.assertEqual(artifact["source_kind"], "basic_mock")
+            self.assertEqual(artifact["source_sha256"], hashlib.sha256(tools.read_bytes()).hexdigest())
+            receipt["report_sha256"] = "0" * 64
+            rows[-1]["event"]["data"]["message"]["content"][0]["text"] = json.dumps(receipt)
+            tools.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            with self.assertRaisesRegex(module["EvaluationError"], "tool-artifact-digest-mismatch"):
+                module["exported_tool_markdown"](run, "U-CASE-001")
+
     REQUIRED_RUNTIME_ENV = (
         "DEEPSEEK_API_KEY",
         "SEC_OPS_MCP_URL",
