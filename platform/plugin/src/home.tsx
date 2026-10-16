@@ -28,7 +28,13 @@ function HeroArt({ side }: { side: string }) {
 
 export function HomePage({ catalog, rpc, updates, navigate, startConversation }: PlatformPageProps & { catalog: Catalog; updates: PlatformUpdates; navigate: (page: PageId | PlatformNavigation) => void; startConversation: (root: string, prompt: string, context?: Record<string, unknown>) => Promise<void> }) {
   const state = useSyncExternalStore(catalog.subscribe, catalog.getSnapshot)
-  const revision = useSyncExternalStore(updates.subscribe, updates.getSnapshot).revision
+  const [revision, setRevision] = useState(0)
+  const [agentRevision, setAgentRevision] = useState(0)
+  useEffect(() => updates.subscribe(() => {
+    const snapshot = updates.getSnapshot()
+    if (snapshot.domains.some(domain => domain === 'catalog' || domain === 'agents')) setAgentRevision(snapshot.revision)
+    if (snapshot.domains.some(domain => domain === 'catalog' || domain === 'agents' || domain === 'instances' || domain === 'mcp')) setRevision(snapshot.revision)
+  }), [updates])
   const [runs, setRuns] = useState<RecentRun[]>()
   const [dashboard, setDashboard] = useState<Dashboard>()
   const [runError, setRunError] = useState('')
@@ -91,11 +97,11 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
       else if (active && !result.ok) setSelectionError(result.error.message)
     }).catch(() => { if (active) setSelectionError('无法读取智能体，请重试或进入智能体管理。') })
     return () => { active = false }
-  }, [rpc, mode, assets?.root, revision])
+  }, [rpc, mode, assets?.root, agentRevision])
   useEffect(() => {
     if (mode !== 'evaluate' || !selectedAgent) { setDetail(null); return }
     let active = true
-    setSelectionLoading(true); setSelectionError('')
+    setSelectionLoading(detail?.agent?.id !== selectedAgent || detail?.experiment?.id !== selectedVersion); setSelectionError('')
     void rpc.call(CHANNEL, 'agents/detail', { agent_id: selectedAgent, ...(selectedVersion ? { experiment_id: selectedVersion } : {}) }).then(result => {
       if (!active) return
       if (!result.ok) { setSelectionError(result.error.message); return }
@@ -104,7 +110,7 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
       if (!selectedVersion && value.selection?.basis === 'active_experiment') setSelectedVersion(value.experiment.id)
     }).catch(() => { if (active) setSelectionError('无法读取选定版本，请重新选择。') }).finally(() => { if (active) setSelectionLoading(false) })
     return () => { active = false }
-  }, [rpc, mode, selectedAgent, selectedVersion, revision])
+  }, [rpc, mode, selectedAgent, selectedVersion, agentRevision])
   const relatedRuns = (runs ?? []).filter(run => ['completed', 'failed', 'cancelled'].includes(run.status ?? ''))
   const associatedRun = relatedRuns.find(run => run.id === selectedRun)
   const selectedExample = exampleSources.find(source => source.source === exampleSource)

@@ -4,13 +4,14 @@ import vm from 'node:vm'
 import test from 'node:test'
 import { build } from 'esbuild'
 import { BUILD_PLACEHOLDER, HOME_SUBTITLE, PLATFORM_SLOGAN, homeTaskRequest } from '../src/home-entry.ts'
+import { createPlatformUpdates } from '../src/realtime/client.ts'
 
 const require = createRequire(import.meta.url)
 const compile = async entry => (await build({ entryPoints: [new URL(entry, import.meta.url).pathname], bundle: true, write: false, platform: 'node', format: 'cjs', loader: { '.svg': 'dataurl' }, external: ['react', 'react/jsx-runtime', 'react-dom/server'] })).outputFiles[0].text
 const homeSource = await compile('../src/home.tsx'), loginSource = await compile('../src/login.tsx')
 const experiment = 'EXP-alpha-001-r123456abcdef'
 const runId = 'run-12345678-1234-4234-8234-123456789abc'
-function home({ example = false, exampleCase = true, exampleExtra = false, exampleActive = 'EXP-daily-inspection-assistant-002-r222222222222', noRuns = false, runVerdict = 'failed', runStatus = 'completed', failStart = false } = {}) {
+function home({ example = false, exampleCase = true, exampleExtra = false, exampleActive = 'EXP-daily-inspection-assistant-002-r222222222222', noRuns = false, runVerdict = 'failed', runStatus = 'completed', failStart = false, intercept } = {}) {
   const states = [], dependencies = [], cleanups = [], calls = [], tasks = [], navigations = []
   let cursor = 0, effects = [], changed = false, tree
   const react = { ...require('react'),
@@ -23,11 +24,14 @@ function home({ example = false, exampleCase = true, exampleExtra = false, examp
   const module = { exports: {} }
   vm.runInNewContext(homeSource, { module, exports: module.exports, Error, require: name => name === 'react' ? react : require(name) })
   const inventory = { root: '/test-assets', observed_at: '2026-10-16T00:00:00Z', agents: [{ id: 'alpha' }, ...(example ? [{ id: 'daily-inspection-assistant' }] : [])], experiments: [], runs: [] }
+  const updates = createPlatformUpdates()
   const props = { catalog: { subscribe() { return () => {} }, getSnapshot() { return { status: 'ready', inventory } }, refresh: async () => {} },
-    updates: { subscribe() { return () => {} }, getSnapshot() { return { revision: 1 } } }, navigate: target => navigations.push(target),
+    updates, navigate: target => navigations.push(target),
     startConversation: async (root, prompt, context) => { if (failStart) throw new Error('会话服务暂不可用'); tasks.push({ root, prompt, context }) },
     rpc: { call: async (_channel, method, body) => {
       calls.push({ method, body })
+      const intercepted = intercept?.(method, body)
+      if (intercepted !== undefined) return await intercepted
       if (method === 'home') return { ok: true, value: { recent_runs: noRuns ? [] : [{ id: runId, agent_id: 'alpha', experiment_id: experiment, status: runStatus, effective_verdict: runVerdict, created_at: '2026-10-16T00:00:00Z' }], instances: { ok: true, value: { instances: [] } }, mcp: { ok: true, value: { connections: [] } } } }
       if (method === 'agents/list') return { ok: true, value: { agents: [{ id: 'alpha', name: '行业简报助手' }] } }
       if (method === 'agents/detail') return { ok: true, value: { agent: { id: body.agent_id, manifest: { active_experiment: body.agent_id === 'daily-inspection-assistant' ? exampleActive : body.experiment_id || experiment } }, experiment: { id: body.experiment_id || experiment }, selection: { basis: body.experiment_id ? 'explicit' : 'active_experiment' }, versions: [{ id: body.experiment_id || experiment }], evaluation: { cases: body.agent_id === 'daily-inspection-assistant' ? exampleCase ? [{ id: 'U-ASSET-PAGES-001' }] : [] : [{ id: 'U-BUSINESS-001' }] } } }
@@ -45,7 +49,7 @@ function home({ example = false, exampleCase = true, exampleExtra = false, examp
   const click = async title => { const found = button(title); assert.ok(found, `missing button ${title}`); await found.props.onClick?.(); await settle() }
   const submit = async () => { nodes().find(node => node.type === 'form').props.onSubmit({ preventDefault() {} }); await settle() }
   render()
-  return { settle, nodes, text, calls, tasks, navigations, button, label, change, click, submit, cleanup: () => cleanups.forEach(cleanup => cleanup?.()) }
+  return { settle, nodes, text, calls, tasks, navigations, button, label, change, click, submit, invalidate: updates.invalidate, cleanup: () => cleanups.forEach(cleanup => cleanup?.()) }
 }
 
 test('首页准确展示业务标题、副标题、构建示例，登录承接品牌口号', async () => {
@@ -72,6 +76,45 @@ test('评测入口实际读取目标和当前启用版本，带现有业务用�
     await ui.click('评测已有智能体'); ui.change('要评测的智能体', 'alpha'); await ui.settle(); assert.equal(ui.button('开始评测').props.disabled, false)
     await ui.submit(); assert.equal(ui.tasks[0].context.workflow, 'evaluation'); assert.equal(ui.tasks[0].context.agent_id, 'alpha'); assert.equal(ui.tasks[0].context.experiment_id, experiment); assert.deepEqual(Array.from(ui.tasks[0].context.evaluation_case_ids), ['U-BUSINESS-001'])
     assert.equal(ui.calls.some(call => call.method === 'agents/detail' && call.body.agent_id === 'alpha'), true)
+  } finally { ui.cleanup() }
+})
+
+test('首页按实际业务域刷新，助手事件不重复读取资产，实例和MCP变化只刷新摘要', async () => {
+  const ui = home()
+  try {
+    await ui.click('评测已有智能体'); ui.change('要评测的智能体', 'alpha'); await ui.settle()
+    const count = method => ui.calls.filter(call => call.method === method).length
+    const initial = ['home', 'agents/list', 'agents/detail'].map(count)
+    for (let index = 0; index < 5; index++) { ui.invalidate(['assistant']); await ui.settle() }
+    assert.deepEqual(['home', 'agents/list', 'agents/detail'].map(count), initial)
+    for (const domain of ['instances', 'mcp']) { ui.invalidate([domain]); await ui.settle() }
+    assert.deepEqual(['home', 'agents/list', 'agents/detail'].map(count), [initial[0] + 2, initial[1], initial[2]])
+    for (const domain of ['agents', 'catalog']) { ui.invalidate([domain]); await ui.settle() }
+    assert.deepEqual(['home', 'agents/list', 'agents/detail'].map(count), [initial[0] + 4, initial[1] + 2, initial[2] + 2])
+  } finally { ui.cleanup() }
+})
+
+test('同版本后台更新保持可操作，切换版本仍等待真实回读且忽略旧目标迟到响应', async () => {
+  let hold = false
+  const pending = []
+  const ui = home({ intercept(method, body) {
+    if (hold && method === 'agents/detail') return new Promise(resolve => pending.push({ body, resolve }))
+  } })
+  const reply = body => ({ ok: true, value: { agent: { id: body.agent_id }, experiment: { id: body.experiment_id }, versions: [{ id: body.experiment_id }], evaluation: { cases: [{ id: 'U-BUSINESS-001' }] } } })
+  try {
+    await ui.click('评测已有智能体'); ui.change('要评测的智能体', 'alpha'); await ui.settle()
+    hold = true; ui.invalidate(['agents']); await ui.settle()
+    assert.equal(pending.length, 1); assert.equal(ui.label('要评测的版本').props.disabled, false); assert.equal(ui.button('开始评测').props.disabled, false)
+    await ui.submit(); assert.equal(ui.tasks[0].context.experiment_id, experiment)
+    const next = 'EXP-alpha-002-r123456abcdef'
+    ui.change('要评测的版本', next); await ui.settle()
+    assert.equal(pending.length, 2); assert.equal(ui.button('开始评测').props.disabled, true)
+    await ui.submit(); assert.equal(ui.tasks.length, 1); assert.match(ui.text(), /请先选择并读完/)
+    pending[0].resolve(reply(pending[0].body)); await ui.settle()
+    assert.equal(ui.label('要评测的版本').props.value, next); assert.equal(ui.button('开始评测').props.disabled, true)
+    pending[1].resolve(reply(pending[1].body)); await ui.settle()
+    assert.equal(ui.button('开始评测').props.disabled, false)
+    await ui.submit(); assert.equal(ui.tasks[1].context.experiment_id, next)
   } finally { ui.cleanup() }
 })
 
