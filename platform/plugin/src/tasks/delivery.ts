@@ -238,17 +238,18 @@ export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput,
       record('delivery_business_tools', input.required_tool_names.every(name => tools.some(tool => tool.name === name)), '交付实例实际成功调用约定业务工具')
       const report = tools.find(tool => input.required_tool_names!.includes(tool.name) && tool.value.completed === true && typeof tool.value.markdown === 'string'
         && sha256(tool.value.markdown) === tool.value.report_sha256)
+      record('delivery_report', Boolean(report?.value.markdown.trim()), '交付实例的新业务 Session 有完整报告及匹配的完成回执摘要')
+      const downloaded = report && typeof report.value.download_url === 'string' ? await observed.download(report.value.download_url) : null
+      const downloadedOk = downloaded && report && sha256(Buffer.from(downloaded)) === report.value.report_sha256
+      record('delivery_download', downloadedOk, '从交付实例实际下载的新报告与该实例业务工具回执摘要一致')
+      probe.downloads = []
+      if (report) {
+        writeFileSync(join(directory, 'report.md'), report.value.markdown); probe.report_sha256 = report.value.report_sha256
+        if (downloadedOk) probe.downloads.push({ format: 'markdown', url: publicDownload(report.value.download_url, 'report.md'), sha256: report.value.report_sha256, bytes: downloaded.length })
+      }
       if (input.expected_device_ids?.length) {
         const markdownInspection = report && verifyInspectionReport(report.value.markdown, 'markdown', { expected_device_ids: input.expected_device_ids })
-        record('delivery_report', markdownInspection?.ok, '交付实例新报告的设备集合、状态及汇总完整一致')
-        const downloaded = report && typeof report.value.download_url === 'string' ? await observed.download(report.value.download_url) : null
-        const downloadedOk = downloaded && report && sha256(Buffer.from(downloaded)) === report.value.report_sha256
-        record('delivery_download', downloadedOk, '从交付实例实际下载的新报告与该实例业务工具回执摘要一致')
-        probe.downloads = []
-        if (report) {
-          writeFileSync(join(directory, 'report.md'), report.value.markdown); probe.report_sha256 = report.value.report_sha256
-          if (downloadedOk) probe.downloads.push({ format: 'markdown', url: publicDownload(report.value.download_url, 'report.md'), sha256: report.value.report_sha256, bytes: downloaded.length })
-        }
+        record('delivery_report_devices', markdownInspection?.ok, '交付实例新报告的设备集合、状态及汇总完整一致')
         if (input.require_csv || report?.value.csv !== undefined || report?.value.csv_url !== undefined) {
           const csv = report?.value.csv
           const expectedStatuses = Object.fromEntries((markdownInspection?.devices ?? []).map((device: any) => [device.id, device.status]))

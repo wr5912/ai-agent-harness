@@ -118,10 +118,11 @@ test('交付检查执行真实封存与来源校验，仅隔离 Docker 边界；
   const report = readFileSync(join(root, artifact), 'utf8')
   const csv = 'device_id,status\nD-1,正常\nD-2,正常\n'
   let includeCsv = true, toolCsv = csv, downloadedCsv = csv
+  let includeReport = true, validReportHash = true, downloadedReport = report
   let probeInput = ''
   const server = createServer(async (request, response) => {
     if (request.url === '/assistant/') { response.end('ready'); return }
-    if (request.url.startsWith('/assistant/api/task-examples/artifact')) { response.end(new URL(request.url, 'http://localhost').searchParams.get('file') === 'devices.csv' ? downloadedCsv : report); return }
+    if (request.url.startsWith('/assistant/api/task-examples/artifact')) { response.end(new URL(request.url, 'http://localhost').searchParams.get('file') === 'devices.csv' ? downloadedCsv : downloadedReport); return }
     const chunks = []; for await (const chunk of request) chunks.push(chunk)
     const args = chunks.length ? JSON.parse(Buffer.concat(chunks)).payload.args : null
     const method = new URL(request.url, 'http://localhost').pathname.slice('/assistant/api/'.length)
@@ -133,7 +134,7 @@ test('交付检查执行真实封存与来源校验，仅隔离 Docker 边界；
     if (method === 'session.export') {
       const events = [{ type: 'session', id: 'session-probe' }, { type: 'user/message', data: { id: 'probe-message', source: { kind: 'user' }, content: [{ type: 'text', text: probeInput }] } },
         { type: 'tool/call', data: { callId: 'probe-call', name: 'task_inspection', arguments: '{}' } },
-        { type: 'tool/result', data: { message: { toolCallId: 'probe-call', isError: false, content: [{ type: 'text', text: JSON.stringify({ completed: true, markdown: report, report_sha256: sha256(report), download_url: '/assistant/api/task-examples/artifact?run_id=new-delivery-report&file=report.md', ...(includeCsv ? { csv: toolCsv, csv_url: '/assistant/api/task-examples/artifact?run_id=new-delivery-report&file=devices.csv' } : {}) }) }] } } },
+        { type: 'tool/result', data: { message: { toolCallId: 'probe-call', isError: false, content: [{ type: 'text', text: JSON.stringify({ completed: includeReport, ...(includeReport ? { markdown: report } : {}), report_sha256: validReportHash ? sha256(report) : '0'.repeat(64), download_url: '/assistant/api/task-examples/artifact?run_id=new-delivery-report&file=report.md', ...(includeCsv ? { csv: toolCsv, csv_url: '/assistant/api/task-examples/artifact?run_id=new-delivery-report&file=devices.csv' } : {}) }) }] } } },
         { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '报告已生成。' }] } } }, { type: 'turn/end', data: { reason: { kind: 'completed' }, turn: 1 } }]
       response.end(Buffer.from(zipSync({ 'session.jsonl': strToU8(events.map(event => JSON.stringify(event)).join('\n') + '\n') }))); return
     }
@@ -155,6 +156,25 @@ test('交付检查执行真实封存与来源校验，仅隔离 Docker 边界；
   assert.equal(readFileSync(join(passed.probe.path, 'devices.csv'), 'utf8'), csv)
   assert.equal(new URL(passed.probe.downloads[1].url).port, String(server.address().port))
   assert.equal(passed.checks.some(check => check.name === 'business_tools:U-IDENTITY-001'), false)
+  // 非巡检任务也必须在交付实例完成报告并实际下载；旧 Run 的成功不能替代新实例。
+  const generic = { ...input, expected_device_ids: undefined, require_csv: false }
+  const genericPassed = await verify(generic)
+  assert.equal(genericPassed.ready, true)
+  assert.deepEqual(genericPassed.probe.downloads.map(item => item.format), ['markdown'])
+  includeReport = false
+  const startedOnly = await verify(generic)
+  assert.equal(startedOnly.ready, false)
+  assert.equal(startedOnly.checks.find(check => check.name === 'delivery_report').ok, false)
+  assert.equal(startedOnly.probe.status, 'failed')
+  assert.ok(existsSync(join(startedOnly.probe.path, 'evidence/U-INS-001/trace.jsonl')))
+  assert.match(readFileSync(join(startedOnly.probe.path, 'evidence/U-INS-001/tools.jsonl'), 'utf8'), /completed/)
+  includeReport = true; validReportHash = false
+  assert.equal((await verify(generic)).ready, false, '完成自报不能代替真实正文摘要')
+  validReportHash = true; downloadedReport = '另一次任务的旧报告'
+  const staleDownload = await verify(generic)
+  assert.equal(staleDownload.ready, false)
+  assert.equal(staleDownload.checks.find(check => check.name === 'delivery_download').ok, false)
+  downloadedReport = report
   downloadedCsv = 'device_id,status\nD-1,正常\n'
   const mismatchedCsv = await verify(input)
   assert.equal(mismatchedCsv.ready, false); assert.equal(mismatchedCsv.checks.find(check => check.name === 'delivery_csv_download').ok, false)
