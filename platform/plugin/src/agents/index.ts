@@ -833,7 +833,7 @@ async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
     else if (fixedDigest) derivation.note = '所选 Candidate 有未提交改动，请先固定当前 Candidate；不能用 HEAD 的旧资产或祖先提交冒充当前版本。'
   } catch { /* 新建但尚未提交的版本不能冒用其祖先提交派生。 */ }
   let readableCandidateDigest: string | null = null
-  try { readableCandidateDigest = candidateDigest(root, experimentId) }
+  try { if (existsSync(repoPath(root, `evolution/experiments/${experimentId}/candidate`))) readableCandidateDigest = candidateDigest(root, experimentId) }
   catch (error) { if (!(error instanceof RpcError && error.code === 'path_rejected')) throw error }
   return ok({
     agent: { id: agentId, name: agentDisplayName(root, experimentId) ?? agentId, manifest, path: `agents/${agentId}` },
