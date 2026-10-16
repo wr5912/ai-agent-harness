@@ -5,7 +5,7 @@ export { transformClientUrls } from './client-urls.ts'
 type Handler = (req: IncomingMessage, res: ServerResponse) => any
 
 /** 在原生注册边界挂载站点；协议、路由所有者与流式响应继续由 DSH 执行。 */
-export function createMountedWebServer(NativeWebServer: any, basePath: string): any {
+export function createMountedWebServer(NativeWebServer: any, basePath: string, productTitle?: string): any {
   if (!/^\/[a-z][a-z0-9-]*\/$/.test(basePath)) throw new Error(`无效 Web 基址：${basePath}`)
   const prefix = basePath.slice(0, -1)
   return class MountedWebServer extends NativeWebServer {
@@ -75,6 +75,8 @@ export function createMountedWebServer(NativeWebServer: any, basePath: string): 
           let code = this.clientSources.get(key)
           if (code === undefined) {
             code = transformClientUrls(body.toString('utf8'))
+            // 当前原生布局在构建时固定产品名；平台沿原有标题投影更换品牌。
+            if (productTitle !== undefined) code = code.replace('const productTitle = "DeepSeek Harness";', `const productTitle = ${JSON.stringify(productTitle)};`)
             this.clientSources.set(key, code)
             if (this.clientSources.size > 16) this.clientSources.delete(this.clientSources.keys().next().value!)
           }

@@ -12,11 +12,12 @@ const { default: NativeWebServer } = await import(pathToFileURL(require.resolve(
 for (const basePath of ['/assistant/', '/hep/']) test(`${basePath} 原生 HTTP、插件资源、SSE 和 upgrade 共同挂载且旧入口拒绝`, async t => {
   const root = new Context()
   t.after(() => root.fiber.dispose())
-  await root.plugin(createMountedWebServer(NativeWebServer, basePath), { host: '127.0.0.1', port: 0, compression: 'gzip', compressionThresholdBytes: 0 })
+  const productTitle = basePath === '/hep/' ? 'Harness工程平台' : undefined
+  await root.plugin(createMountedWebServer(NativeWebServer, basePath, productTitle), { host: '127.0.0.1', port: 0, compression: 'gzip', compressionThresholdBytes: 0 })
   root.provide('clientModules', { async fetchBundle(request) {
     if (!['GET', 'HEAD'].includes(request.method)) return new Response(null, { status: 405 })
     if (!request.url.includes('rev=current')) return new Response(null, { status: 404 })
-    return new Response(request.method === 'HEAD' ? null : `fetch('/api/echo');\n//# sourceMappingURL=old.map`, {
+    return new Response(request.method === 'HEAD' ? null : `const productTitle = "DeepSeek Harness";\nfetch('/api/echo');\n//# sourceMappingURL=old.map`, {
       headers: { 'content-type': 'application/javascript', 'cache-control': 'public,max-age=31536000,immutable' },
     })
   } })
@@ -53,6 +54,8 @@ for (const basePath of ['/assistant/', '/hep/']) test(`${basePath} 原生 HTTP�
   const code = await plugin.text()
   assert.match(code, /__harnessSiteUrl/)
   assert.ok(!code.includes('sourceMappingURL'))
+  assert.ok(code.includes(`const productTitle = ${JSON.stringify(productTitle ?? 'DeepSeek Harness')};`))
+  if (productTitle) assert.ok(!code.includes('DeepSeek Harness'))
   assert.equal((await fetch(base + 'plugins/example/client.js?rev=wrong')).status, 404)
   assert.equal((await fetch(base + 'plugins/example/client.js?rev=current', { method: 'POST' })).status, 405)
   assert.equal((await (await fetch(base + 'plugins/example/client.js?rev=current', { method: 'HEAD' })).text()), '')

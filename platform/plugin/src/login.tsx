@@ -1,10 +1,11 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { PlatformLogo } from './logo.tsx'
+import logo from '../assets/harness-logo.svg'
 
 export function loginPage(action: string, error = ''): string {
   return '<!doctype html>' + renderToStaticMarkup(<html lang="zh-CN">
     <head><meta charSet="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>登录 · Harness工程平台</title><style>{`
+      <title>登录 · Harness工程平台</title><link rel="icon" type="image/svg+xml" href={logo} /><style>{`
       *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;
         padding:24px;background:#f3f5f9;color:#152336;font:16px/1.6 system-ui,sans-serif}
       main{width:min(100%,420px);padding:32px;background:white;border:1px solid #e0e5ec;border-radius:20px;

@@ -88,12 +88,9 @@ function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversa
     const underneath = [...layer.parentElement!.children].filter(element => element !== layer) as HTMLElement[]
     const previous = underneath.map(element => ({ element, hidden: element.hidden, inert: element.inert, display: element.style.display }))
     underneath.forEach(element => { element.hidden = true; element.inert = true; element.style.display = 'none' })
-    const title = document.title
-    document.title = 'Harness工程平台'
     return () => {
       nativeLayoutActive.current = false
       previous.forEach(({ element, hidden, inert, display }) => { element.hidden = hidden; element.inert = inert; element.style.display = display })
-      document.title = title
     }
   }, [])
   const full = page === 'conversations'
