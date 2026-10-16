@@ -10,6 +10,8 @@ Docker CLI 与 Compose；实例配置生成在仓库外，Token 不落盘、不�
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager, nullcontext
+import fcntl
 import hashlib
 import http.cookiejar
 import json
@@ -50,6 +52,8 @@ MODE_ALIASES = {"eval": "verification"}
 MODE_CHOICES = ("eval", "verification")
 PURPOSES = {"verification": "eval"}
 AUTO_PORT_START = 3081
+# 实例目录分属不同账户/数据根，宿主监听端口仍共享；只在启动期间共用此锁。
+STARTUP_LOCK = Path("/tmp/harness-engineering-platform-dsh-dev-startup.lock")
 LAN_LISTEN_PATCH = "/opt/dsh-adapter/verification-home-controls/lan-listen.patch.yml"
 UNSAFE_NO_AUTH_PATCH = "/opt/dsh-adapter/verification-home-controls/web-unsafe-no-auth.patch.yml"
 SKIP_TESTING_NOTICE_PATCH = "/opt/dsh-adapter/verification-home-controls/web-skip-testing-notice.patch.yml"
@@ -906,6 +910,36 @@ def first_available_port(name: str) -> int:
     fail(f"从 {AUTO_PORT_START} 起没有可用 TCP 端口")
 
 
+@contextmanager
+def instance_startup_lock(timeout: float = 120.0):
+    """互斥选端口、登记与真正监听；只读 fd 也可 flock，供其它账户共用。"""
+    while True:
+        try:
+            descriptor = os.open(STARTUP_LOCK, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+            break
+        except FileNotFoundError:
+            try:
+                descriptor = os.open(STARTUP_LOCK, os.O_RDONLY | os.O_CREAT | os.O_EXCL
+                                     | os.O_NOFOLLOW | os.O_CLOEXEC, 0o644)
+                os.fchmod(descriptor, 0o644)
+                break
+            except FileExistsError:
+                continue
+    try:
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    fail("等待其它实例完成启动超时；未分配端口或更改实例，请稍后重试")
+                time.sleep(0.1)
+        yield
+    finally:
+        os.close(descriptor)
+
+
 def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None]:
     """解析来源并补齐确定性的实例名与端口，不修改状态。"""
     require_up_arguments(args)
@@ -1087,14 +1121,16 @@ def validate_image_identity(contract: dict, current: tuple[Path, dict] | None = 
 
 
 def command_up(args: argparse.Namespace) -> None:
-    contract, current = prepare_up(args)
-    inherited = existing_runtime_environment(args, contract, current)
-    os.environ.update(inherited)
-    try:
-        _command_up(args, contract, current)
-    finally:
-        for name in inherited:
-            os.environ.pop(name, None)
+    # 必须在选端口前加锁；仅锁写 instance.json 无法避免两个启动同时看到空闲端口。
+    with nullcontext() if getattr(args, "dry_run", False) else instance_startup_lock():
+        contract, current = prepare_up(args)
+        inherited = existing_runtime_environment(args, contract, current)
+        os.environ.update(inherited)
+        try:
+            _command_up(args, contract, current)
+        finally:
+            for name in inherited:
+                os.environ.pop(name, None)
 
 
 def _command_up(args: argparse.Namespace, contract: dict,
@@ -1174,6 +1210,10 @@ def _command_up(args: argparse.Namespace, contract: dict,
     if not running:
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True), file=sys.stderr)
         fail("docker compose up 返回 0，但 dsh 服务没有进入运行状态；用 logs 查看失败原因")
+    report["listener_verified"] = wait_for_instance_listener(args.name, args.port)
+    if not report["listener_verified"]:
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True), file=sys.stderr)
+        fail("dsh 容器未确认拥有指定端口的监听；不能交付可能属于其它实例的入口，用 logs 查看失败原因")
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     print(json.dumps({
         "hint": web_cold_start_hint(args.mode, args.analysis_workspace),
@@ -1608,6 +1648,64 @@ def wait_for_service(name: str, service: str, timeout: float = 20.0) -> list[dic
         if time.monotonic() >= deadline:
             return containers
         time.sleep(1.0)
+
+
+def container_owns_listener(container_id: str, port: int) -> bool:
+    """host 网络中的 /proc/net 是共享的，只有本容器进程持有 socket 才算就绪。"""
+    script = r"""
+const fs = require('node:fs');
+const port = Number(process.argv[1]);
+const inodes = new Set();
+for (const file of ['/proc/net/tcp', '/proc/net/tcp6']) {
+  if (!fs.existsSync(file)) continue;
+  for (const row of fs.readFileSync(file, 'utf8').trim().split('\n').slice(1)) {
+    const fields = row.trim().split(/\s+/);
+    const [address, hexPort] = fields[1].split(':');
+    // 回环探针必须对应 IPv4 回环或任意地址，不能只是在其它网卡上监听同一端口。
+    if (fields[3] === '0A' && parseInt(hexPort, 16) === port &&
+        ['00000000', '0100007F', '00000000000000000000000000000000'].includes(address)) {
+      inodes.add(fields[9]);
+    }
+  }
+}
+let owned = false;
+for (const pid of fs.readdirSync('/proc').filter(value => /^\d+$/.test(value))) {
+  try {
+    for (const fd of fs.readdirSync(`/proc/${pid}/fd`)) {
+      try {
+        const match = /^socket:\[(\d+)\]$/.exec(fs.readlinkSync(`/proc/${pid}/fd/${fd}`));
+        if (match && inodes.has(match[1])) owned = true;
+      } catch {}
+    }
+  } catch {}
+}
+process.stdout.write(JSON.stringify({owned}));
+"""
+    try:
+        probe = run(["docker", "exec", container_id, "node", "-e", script, str(port)],
+                    check=False, timeout=5)
+        return probe.returncode == 0 and json.loads(probe.stdout).get("owned") is True
+    except (OSError, subprocess.TimeoutExpired, ValueError, AttributeError):
+        return False
+
+
+def wait_for_instance_listener(name: str, port: int, timeout: float = 30.0) -> bool:
+    _, manifest = load_instance(name)
+    require_docker_registration(name, manifest)
+    deadline = time.monotonic() + timeout
+    while True:
+        containers = project_containers(name)
+        running = [item for item in containers or [] if item["service"] == "dsh" and item["state"] == "running"]
+        if len(running) != 1 or not running[0].get("id"):
+            return False
+        identity = running[0]["id"]
+        if container_owns_listener(identity, port):
+            # 监听探测期间也可能退出，不能用探测前的短暂 running 作为成功回执。
+            return any(item.get("id") == identity and item["state"] == "running"
+                       for item in project_containers(name) or [])
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.25)
 
 
 def home_volume(manifest: dict) -> tuple[str | None, bool | None]:

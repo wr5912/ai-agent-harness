@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import types
 import unittest
 from pathlib import Path
@@ -1139,6 +1140,7 @@ class RuntimeEnvironmentRetentionTest(unittest.TestCase):
                 mock.patch.object(dev, "migrate_existing_instance", side_effect=lambda *_: order.append("stop")), \
                 mock.patch.object(dev, "port_in_use", return_value=False), \
                 mock.patch.object(dev, "run", side_effect=run), \
+                mock.patch.object(dev, "wait_for_instance_listener", return_value=True), \
                 mock.patch.object(dev, "wait_for_service", return_value=[{"name": "environment-probe", "service": "dsh", "state": "running"}]), \
                 contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
             dev.command_up(self.args())
@@ -1206,6 +1208,7 @@ class UpCommandStateTest(unittest.TestCase):
                 mock.patch.object(dev, "check_environment"), \
                 mock.patch.object(dev, "compose_env", return_value={}), \
                 mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, stdout="", stderr="")), \
+                mock.patch.object(dev, "wait_for_instance_listener", return_value=True), \
                 mock.patch.object(dev, "wait_for_service", return_value=[{
                     "id": "abc123", "state": "exited", "status": "Exited (1)",
                     "name": "up-probe", "service": "dsh"}]), \
@@ -1228,6 +1231,7 @@ class UpCommandStateTest(unittest.TestCase):
                 mock.patch.object(dev, "check_environment"), \
                 mock.patch.object(dev, "compose_env", return_value={}), \
                 mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, stdout="", stderr="")), \
+                mock.patch.object(dev, "wait_for_instance_listener", return_value=True), \
                 mock.patch.object(dev, "wait_for_service", return_value=[
                     {"id": "abc123", "state": "running", "status": "Up 3 seconds",
                      "name": "up-probe", "service": "dsh"},
@@ -1568,6 +1572,7 @@ class UpPortOwnershipTest(unittest.TestCase):
                                   side_effect=lambda *a, **k: order.append("write") or dev.STATE_ROOT / "probe"), \
                 mock.patch.object(dev, "compose_env", return_value={}), \
                 mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, stdout="", stderr="")), \
+                mock.patch.object(dev, "wait_for_instance_listener", return_value=True), \
                 mock.patch.object(dev, "wait_for_service", return_value=[{
                     "id": "abc", "state": "running", "status": "Up", "name": "x-dsh-1", "service": "dsh"}]), \
                 contextlib.redirect_stdout(stdout):
@@ -1757,6 +1762,127 @@ class PortProbeTest(unittest.TestCase):
             port = listener.getsockname()[1]
             self.assertTrue(dev.port_in_use(port))
         self.assertFalse(dev.port_in_use(port))
+
+
+class ConcurrentStartupTest(unittest.TestCase):
+    def test_separate_data_roots_serialize_selection_until_socket_is_owned(self):
+        """独立进程执行真实 command_up；仅 Docker/来源边界替换为实际 TCP 监听。"""
+        script = r'''
+import contextlib, importlib.util, io, json, socket, sys, time, types
+from importlib.machinery import SourceFileLoader
+from pathlib import Path
+from unittest import mock
+adapter, directory, name, port = sys.argv[1:]
+spec = importlib.util.spec_from_loader('startup_probe', SourceFileLoader('startup_probe', str(Path(adapter) / 'dsh-dev')))
+dev = importlib.util.module_from_spec(spec); spec.loader.exec_module(dev)
+base = Path(directory); dev.STATE_ROOT = base / name / 'instances'
+dev.STARTUP_LOCK = base / 'startup.lock'; dev.AUTO_PORT_START = int(port)
+contract = {'source_id':'experiment:EXP-fixture-001','source_kind':'experiment','agent_id':'fixture',
+ 'preset_id':'fixture','workspace':'/tmp/ws','presets':'/tmp/presets','managed':'/tmp/managed',
+ 'patch':'/opt/managed/fixture.patch.yml','required_env_names':[], 'image':{'local_image_tag':'fixture'}}
+listener = None
+def write_instance(name, **kwargs):
+ target = dev.STATE_ROOT / name; target.mkdir(parents=True)
+ (target / 'instance.json').write_text(json.dumps({'port':kwargs['port']}))
+ return target
+def docker(command, **kwargs):
+ global listener
+ if 'up' in command:
+  time.sleep(.25)
+  listener = socket.socket(); listener.bind(('127.0.0.1', args.port)); listener.listen()
+ return types.SimpleNamespace(returncode=0, stdout='', stderr='')
+container = [{'id':name,'name':name,'service':'dsh','state':'running'}]
+while not (base / 'go').exists(): time.sleep(.01)
+args = types.SimpleNamespace(source='experiment:EXP-fixture-001', mode='verification', name=name,
+ port=None, allow_missing_env=False, replace=False)
+with mock.patch.object(dev, 'resolve', return_value=contract), \
+ mock.patch.object(dev, 'require_unused_docker_name'), mock.patch.object(dev, 'require_docker_registration'), \
+ mock.patch.object(dev, 'existing_runtime_environment', return_value={}), \
+ mock.patch.object(dev, 'check_environment'), mock.patch.object(dev, 'preflight_new_instance'), \
+ mock.patch.object(dev, 'migrate_existing_instance', return_value=None), \
+ mock.patch.object(dev, 'validate_image_identity', return_value={'image_id':'sha256:'+'1'*64}), \
+ mock.patch.object(dev, 'compose_env', return_value={}), mock.patch.object(dev, 'write_instance', side_effect=write_instance), \
+ mock.patch.object(dev, 'run', side_effect=docker), mock.patch.object(dev, 'wait_for_service', return_value=container), \
+ mock.patch.object(dev, 'load_instance', return_value=(dev.STATE_ROOT / name, {})), \
+ mock.patch.object(dev, 'project_containers', return_value=container), \
+ mock.patch.object(dev, 'container_owns_listener', side_effect=lambda *_: listener is not None), \
+ contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+ dev.command_up(args)
+(base / (name + '.json')).write_text(json.dumps({'port':args.port, 'listener_owned': listener is not None}))
+deadline = time.monotonic() + 5
+while len(list(base.glob('*.json'))) < 2 and time.monotonic() < deadline: time.sleep(.02)
+listener.close()
+'''
+        with tempfile.TemporaryDirectory() as directory, socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            start_port = probe.getsockname()[1]
+            probe.close()
+            processes = [subprocess.Popen([sys.executable, "-c", script, str(ADAPTER), directory, name, str(start_port)],
+                                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                         for name in ("first", "second")]
+            try:
+                (Path(directory) / "go").touch()
+                for process in processes:
+                    output, error = process.communicate(timeout=15)
+                    self.assertEqual(process.returncode, 0, error + output)
+                results = [json.loads((Path(directory) / (name + ".json")).read_text()) for name in ("first", "second")]
+                self.assertEqual(len({result["port"] for result in results}), 2)
+                self.assertTrue(all(result["listener_owned"] for result in results))
+            finally:
+                for process in processes:
+                    if process.poll() is None:
+                        process.kill()
+                    process.communicate()
+
+    def test_startup_lock_timeout_is_bounded_and_releases_after_process_exit(self):
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(dev, "STARTUP_LOCK", Path(directory) / "startup.lock"):
+            script = 'import fcntl,os,sys,time; fd=os.open(sys.argv[1],os.O_RDONLY|os.O_CREAT,0o644); fcntl.flock(fd,fcntl.LOCK_EX); print("locked",flush=True); time.sleep(20)'
+            holder = subprocess.Popen([sys.executable, "-c", script, str(dev.STARTUP_LOCK)], stdout=subprocess.PIPE, text=True)
+            try:
+                self.assertEqual(holder.stdout.readline().strip(), "locked")
+                started = time.monotonic()
+                with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                    with dev.instance_startup_lock(timeout=.05):
+                        self.fail("不应进入其它进程持有的启动区间")
+                self.assertLess(time.monotonic() - started, 1)
+            finally:
+                holder.terminate(); holder.wait(timeout=3); holder.stdout.close()
+            with dev.instance_startup_lock(timeout=.05):
+                pass
+
+
+class ListenerReadinessTest(unittest.TestCase):
+    def test_native_socket_probe_reads_real_owned_descriptor(self):
+        """Docker exec 边界替换为本进程命名空间中的 Node，其余探测脚本真实执行。"""
+        def execute(command, **kwargs):
+            return subprocess.run(command[3:], text=True, capture_output=True, timeout=5)
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0)); listener.listen()
+            port = listener.getsockname()[1]
+            with mock.patch.object(dev, "run", side_effect=execute):
+                self.assertTrue(dev.container_owns_listener("container", port))
+                listener.close()
+                self.assertFalse(dev.container_owns_listener("container", port))
+
+    def test_foreign_http_service_is_not_ready_without_container_socket(self):
+        running = [{"id":"ours", "service":"dsh", "state":"running"}]
+        with http.server.ThreadingHTTPServer(("127.0.0.1", 0), http.server.BaseHTTPRequestHandler) as server, \
+                mock.patch.object(dev, "load_instance", return_value=(Path("/unused"), {})), \
+                mock.patch.object(dev, "require_docker_registration"), \
+                mock.patch.object(dev, "project_containers", return_value=running), \
+                mock.patch.object(dev, "container_owns_listener", return_value=False) as owned:
+            self.assertTrue(dev.port_in_use(server.server_port))
+            self.assertFalse(dev.wait_for_instance_listener("ours", server.server_port, timeout=0))
+            owned.assert_called_once_with("ours", server.server_port)
+
+    def test_exit_after_listener_probe_is_not_delivered_as_running(self):
+        with mock.patch.object(dev, "load_instance", return_value=(Path("/unused"), {})), \
+                mock.patch.object(dev, "require_docker_registration"), \
+                mock.patch.object(dev, "project_containers", side_effect=[
+                    [{"id":"ours", "service":"dsh", "state":"running"}],
+                    [{"id":"ours", "service":"dsh", "state":"exited"}]]), \
+                mock.patch.object(dev, "container_owns_listener", return_value=True):
+            self.assertFalse(dev.wait_for_instance_listener("ours", 3212, timeout=0))
 
 
 class _AuthStubHandler(http.server.BaseHTTPRequestHandler):
