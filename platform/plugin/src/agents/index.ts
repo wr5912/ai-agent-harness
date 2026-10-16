@@ -1,4 +1,4 @@
-import { execFile, spawn, spawnSync } from 'node:child_process'
+import { execFile, spawnSync } from 'node:child_process'
 import { isDeepStrictEqual, promisify } from 'node:util'
 import { DEFAULT_SCHEMA, Type, load as loadYaml, dump as dumpYaml } from 'js-yaml'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
@@ -24,6 +24,7 @@ import type { ConnectionRpcHandler, ConnectionRpcResult } from '@deepseek-ai/dsh
 import { RunFileError, readRunReport, listRunFiles, previewRunFile, redactRunText } from './run-files.ts'
 import { readRunTrace } from '../evaluation/trace.ts'
 import { createDecisionDatasetHandler } from '../evaluation/datasets.ts'
+import { createEvaluationJobs, EvaluationJobError } from '../evaluation/jobs.ts'
 import { caseSourceReferences, createCaseManagementHandler, type RunCaseSource } from '../evaluation/cases.ts'
 import { readAssetDiff, readFixedAsset } from './asset-diff.ts'
 import { createAgent } from './create-agent.ts'
@@ -47,7 +48,6 @@ const RUN_RECORD = 'runtime/adapters/dsh-container/run_record.py'
 const VALIDATE_EXPERIMENT = '.agents/skills/research-eval/scripts/validate_experiment.py'
 const SOURCE_CONTRACT = 'runtime/adapters/dsh-container/source_contract.py'
 const EVALUATION_CONTRACT = '.agents/skills/research-eval/scripts/evaluation_contract.py'
-const LOG_LIMIT = 16 * 1024
 const EXCLUDED_ASSETS = new Set(['runs', 'history', 'RuntimeHOME', 'sessions', 'cache', '.git', 'node_modules', '__pycache__'])
 // DSH 的 !!js 只作为 YAML 标量解析，dry 校验不求值。
 const DRAFT_YAML_SCHEMA = DEFAULT_SCHEMA.extend(new Type('tag:yaml.org,2002:js', { kind: 'scalar', construct: value => value }))
@@ -63,6 +63,7 @@ function ok<T extends RpcValue>(value: T): ConnectionRpcResult<T> {
 }
 
 function failure(error: unknown): ConnectionRpcResult<never> {
+  if (error instanceof EvaluationJobError) return { ok: false, error: { code: error.code, message: error.message, details: {} } }
   if (error instanceof RpcError || error instanceof RunFileError) return { ok: false, error: { code: error.code, message: error.message, details: error.details } }
   const code = (error as NodeJS.ErrnoException).code ?? 'unknown'
   return { ok: false, error: { code: 'asset_operation_failed', message: '智能体资产操作失败', details: { filesystem_code: code } } }
@@ -1268,66 +1269,6 @@ async function evalPreview(root: string, payload: JsonMap, signal?: AbortSignal)
   return ok({ command: [process.env.HARNESS_PYTHON || 'python3', ...programArgs(evalArgs(payload, true))], result: await parseJsonCommandAsync(root, evalArgs(payload, true), '评测预览失败', signal) })
 }
 
-type Job = { status: 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled'; started_at: string; updated_at: string; stdout: string; stderr: string; process?: ReturnType<typeof spawn>; result?: unknown; run_id?: string; exit_code?: number | null; error?: string }
-
-function appendLog(current: string, chunk: unknown) {
-  return (current + String(chunk)).slice(-LOG_LIMIT)
-}
-
-function startEval(root: string, payload: JsonMap, jobs: Map<string, Job>, onChange?: () => void) {
-  const jobId = randomUUID()
-  const args = evalArgs(payload, false)
-  const proc = spawn(process.env.HARNESS_PYTHON || 'python3', programArgs(args), { cwd: root, env: programEnvironment(root), stdio: ['ignore', 'pipe', 'pipe'] })
-  const job: Job = { status: 'running', started_at: new Date().toISOString(), updated_at: new Date().toISOString(), stdout: '', stderr: '', process: proc }
-  jobs.set(jobId, job)
-  proc.stdout.setEncoding('utf8')
-  proc.stderr.setEncoding('utf8')
-  proc.stdout.on('data', chunk => { job.stdout = appendLog(job.stdout, chunk); job.updated_at = new Date().toISOString(); onChange?.() })
-  proc.stderr.on('data', chunk => {
-    job.stderr = appendLog(job.stderr, chunk)
-    const run = job.stderr.match(/(?:^|\n)Research Run: (run-[0-9a-f-]+)(?:\n|$)/)?.[1]
-    if (run && RUN_ID.test(run)) job.run_id = run
-    job.updated_at = new Date().toISOString()
-    onChange?.()
-  })
-  proc.on('error', error => {
-    job.status = 'failed'
-    job.error = redact(error.message)
-    job.updated_at = new Date().toISOString()
-    delete job.process
-    onChange?.()
-  })
-  proc.on('close', code => {
-    if (job.status === 'failed' && job.error) return
-    job.exit_code = code
-    job.updated_at = new Date().toISOString()
-    try { job.result = JSON.parse(redact(job.stdout)) } catch { job.result = null }
-    const receipt = job.result as { cancelled?: boolean; instance_stopped?: boolean } | null
-    job.status = receipt?.cancelled === true ? receipt.instance_stopped === true ? 'cancelled' : 'failed' : code === 0 ? 'completed' : 'failed'
-    if (receipt?.cancelled === true && receipt.instance_stopped !== true) job.error = '取消后的实例停止尚未确认，请核对 Run 与实例状态。'
-    delete job.process
-    onChange?.()
-  })
-  return ok({ job_id: jobId, status: job.status, started_at: job.started_at })
-}
-
-function jobStatus(payload: JsonMap, jobs: Map<string, Job>) {
-  const job = jobs.get(stringField(payload, 'job_id'))
-  if (!job) throw new RpcError('not_found', '评测任务不存在')
-  return ok({ ...job, process: undefined, stdout: redact(job.stdout), stderr: redact(job.stderr), log_note: 'stdout/stderr 为截断显示；事实记录以封存 Run 为准' })
-}
-
-function cancelJob(payload: JsonMap, jobs: Map<string, Job>) {
-  const job = jobs.get(stringField(payload, 'job_id'))
-  if (!job) throw new RpcError('not_found', '评测任务不存在')
-  if (job.process && job.status !== 'cancelling') {
-    job.status = 'cancelling'
-    job.updated_at = new Date().toISOString()
-    job.process.kill('SIGTERM')
-  }
-  return ok({ status: job.status })
-}
-
 async function runRecord(root: string, op: 'index' | 'show' | 'compare', payload: JsonMap, signal?: AbortSignal) {
   const args = [RUN_RECORD, '--repo', root, op]
   if (op === 'index') args.push('--agent', agentIdField(payload))
@@ -1402,7 +1343,10 @@ async function decisionUpdate(root: string, payload: JsonMap, signal?: AbortSign
 
 export function createAgentsHandler(assetRoot: string, onChange?: () => void, capabilityOptions: CapabilityOptions = {}): ConnectionRpcHandler {
   const root = rootOf(assetRoot)
-  const jobs = new Map<string, Job>()
+  const jobs = createEvaluationJobs(root, {
+    command: payload => ({ executable: process.env.HARNESS_PYTHON || 'python3', args: programArgs(evalArgs(payload, false)) }),
+    environment: () => programEnvironment(root), redact: text => redact(text, 16 * 1024), onChange,
+  })
   const previews = new Map<string, VersionPreview>()
   const datasets = createDecisionDatasetHandler(root)
   const computeVariants = createComputeVariantsHandler(root, {
@@ -1471,9 +1415,9 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void, ca
         case 'cases/create-preview':
         case 'cases/create': return await caseManagement(endpoint, body, signal, peer)
         case 'eval/preview': return await evalPreview(root, body, signal)
-        case 'eval/start': return startEval(root, body, jobs, onChange)
-        case 'eval/status': return jobStatus(body, jobs)
-        case 'eval/cancel': return cancelJob(body, jobs)
+        case 'eval/start': return ok(jobs.start(body))
+        case 'eval/status': return ok(jobs.status(stringField(body, 'job_id')))
+        case 'eval/cancel': return ok(jobs.cancel(stringField(body, 'job_id')))
         case 'runs/index': return await runRecord(root, 'index', body, signal)
         case 'runs/show': return await runRecord(root, 'show', body, signal)
         case 'runs/evidence': return await readRunEvidence(root, body, signal)
