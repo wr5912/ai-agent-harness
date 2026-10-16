@@ -7,7 +7,7 @@ body:has(.harness-platform) [role="dialog"][data-shortcut-modal="settings"]{
   height:min(800px,calc(100dvh - 48px));min-height:0;
   color:var(--hep-text);background:var(--hep-surface);
   border:1px solid var(--hep-border);border-radius:var(--hep-radius);box-shadow:var(--hep-shadow);
-  --dsw-alias-state-business-primary:var(--hep-primary);
+  --dsw-alias-state-business-primary:var(--hep-link);
   --dsw-alias-button-primary-fill:var(--hep-primary);
   --dsw-alias-button-primary-hover:var(--hep-primary-hover);
   --dsw-focus-ring-color:var(--hep-link);
@@ -32,6 +32,10 @@ body:has(.harness-platform) [data-shortcut-modal="settings"] > [class$="_content
 }
 body:has(.harness-platform) [data-shortcut-modal="settings"] :is(button:not([role="switch"]),select){
   box-sizing:border-box;min-width:44px;min-height:44px;border-radius:var(--hep-control-radius);
+}
+/* 原生 Button 未输出 variant 属性；仅在 primary 按钮内配对蓝底与白字，保留开关等其他控件的前景变量。 */
+body:has(.harness-platform) [data-shortcut-modal="settings"] button:is([class*="_primary_"],[class$="_primaryButton"]){
+  --dsw-alias-label-primary-foreground:#fff;
 }
 body:has(.harness-platform) [data-shortcut-modal="settings"] [class$="_close"]{width:44px;flex:none}
 body:has(.harness-platform) [data-shortcut-modal="settings"] button[role="switch"]{
