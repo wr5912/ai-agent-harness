@@ -9,7 +9,7 @@ export const instanceTheme = `
 .instance-create-note{margin:8px 0 20px;color:var(--hep-muted)}
 .instance-create-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:16px}
 .instance-field,.instance-filter-field,.instance-search-field{display:grid;gap:8px;min-width:0}
-.instance-field-input{box-sizing:border-box;width:100%;min-width:0;min-height:40px}
+.instance-field-input{box-sizing:border-box;width:100%;min-width:0;min-height:max(40px,var(--hep-hit-target))}
 .instance-create-actions{display:flex;justify-content:flex-end;margin-top:20px}
 .instance-filter-panel{padding:20px;margin-bottom:16px}
 .instance-filter-row{align-items:flex-end;justify-content:flex-start;gap:12px}
@@ -19,7 +19,7 @@ export const instanceTheme = `
 .instance-batch-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--hep-border)}
 .instance-selection-notice{color:var(--dsw-alias-danger-text,#c24140)}
 .instance-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.harness-instances-page .instance-button{min-height:40px;padding:8px 12px;line-height:1.4}
+.harness-instances-page .instance-button{min-height:max(40px,var(--hep-hit-target));padding:8px 12px;line-height:1.4}
 .instance-list-panel{overflow:hidden}
 .instance-list-heading{padding:18px 20px;border-bottom:1px solid var(--hep-border)}
 .instance-table-wrap{max-width:100%}
@@ -64,7 +64,7 @@ export const instanceTheme = `
 .instance-run-list{list-style:none;padding:0;margin:12px 0 0}
 .instance-run-item{display:grid;gap:4px;padding:12px 0;overflow-wrap:anywhere}
 .instance-run-item+li{border-top:1px solid var(--hep-border)}
-.harness-instances-page .instance-run-link{border:0;padding:0;min-height:32px;text-align:left;color:var(--hep-primary);background:transparent;overflow-wrap:anywhere;justify-self:start}
+.harness-instances-page .instance-run-link{border:0;padding:0;min-height:max(32px,var(--hep-hit-target));text-align:left;color:var(--hep-primary);background:transparent;overflow-wrap:anywhere;justify-self:start}
 .instance-path{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
 .instance-embed-heading{align-items:start}
 .instance-section-title{font-size:16px;margin:0}

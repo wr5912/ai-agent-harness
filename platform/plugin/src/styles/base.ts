@@ -6,7 +6,7 @@ export const baseTheme = `${visualTokens}
 .harness-platform [hidden]{display:none!important}
 /* :where 降低公共控件权重；原生对话控件继续由 DSH 管理。 */
 .harness-platform :where(button,input,select,textarea):not(:where(.harness-assistant-chat *)){font:inherit}
-.harness-platform :where(button):not(:where(.harness-assistant-chat *)){border:1px solid var(--hep-border);border-radius:var(--hep-control-radius);background:var(--hep-surface);color:var(--hep-text);padding:7px 12px;min-height:38px;cursor:pointer;transition:background-color var(--hep-motion-fast),border-color var(--hep-motion-fast),box-shadow var(--hep-motion-fast),transform var(--hep-motion-fast)}
+.harness-platform :where(button):not(:where(.harness-assistant-chat *)){border:1px solid var(--hep-border);border-radius:var(--hep-control-radius);background:var(--hep-surface);color:var(--hep-text);padding:7px 12px;min-height:max(38px,var(--hep-hit-target));cursor:pointer;transition:background-color var(--hep-motion-fast),border-color var(--hep-motion-fast),box-shadow var(--hep-motion-fast),transform var(--hep-motion-fast)}
 .harness-platform :where(button):not(:where(.harness-assistant-chat *)):hover:enabled{border-color:var(--hep-primary);background:var(--hep-primary-soft);color:var(--hep-primary)}
 .harness-platform :where(button):not(:where(.harness-assistant-chat *)):active:enabled{transform:translateY(1px)}
 .harness-platform :where(button):not(:where(.harness-assistant-chat *)):disabled{opacity:.45;cursor:default}
@@ -53,7 +53,7 @@ export const baseTheme = `${visualTokens}
 .harness-guide{color:var(--hep-muted);background:var(--hep-surface-muted);padding:16px;border-radius:8px;margin-top:16px;line-height:1.8;font-size:12px}
 .harness-source{font-size:12px;color:var(--hep-muted);margin-top:18px;overflow-wrap:anywhere}
 .harness-fields{margin:8px 0;overflow-wrap:anywhere}.harness-fields>div{margin:10px 0}.harness-fields dt{font-size:12px;color:var(--hep-muted)}.harness-fields dd{margin:4px 0 0}
-.harness-password-field{display:flex;align-items:center;position:relative;min-width:0}.harness-platform .harness-password-field input{width:100%;padding-right:44px}.harness-platform .harness-password-field button{position:absolute;right:4px;display:grid;place-items:center;width:36px;min-height:36px;padding:4px;border:0;background:transparent;color:var(--hep-muted)}
+.harness-password-field{display:flex;align-items:center;position:relative;min-width:0}.harness-platform .harness-password-field input{width:100%;padding-right:calc(max(36px,var(--hep-hit-target)) + 8px)}.harness-platform .harness-password-field button{position:absolute;right:4px;display:grid;place-items:center;width:max(36px,var(--hep-hit-target));min-height:max(36px,var(--hep-hit-target));padding:4px;border:0;background:transparent;color:var(--hep-muted)}
 .harness-platform[data-page=conversations]{background:transparent;pointer-events:none}.harness-platform[data-page=conversations] .harness-topbar{pointer-events:auto}.harness-platform[data-page=conversations] .harness-content{display:flex;flex-direction:column;overflow:hidden}
 .harness-platform dialog::backdrop{background:#10283e52}
 @media(prefers-reduced-motion:no-preference){.harness-platform dialog[open]{animation:hep-enter var(--hep-motion) var(--hep-ease)}}

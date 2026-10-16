@@ -65,12 +65,12 @@ export const assistantTheme = `${nativeConversationCompatibility}
 
 .harness-operation-card summary,.harness-operation-inline summary{padding:6px 0;line-height:1.7;cursor:pointer;color:var(--hep-muted)}
 .harness-operation-card summary:focus-visible,.harness-operation-inline summary:focus-visible{outline:2px solid var(--hep-primary);outline-offset:3px;border-radius:4px}
-.harness-operation-card button{font:inherit;min-height:38px;background:var(--hep-surface);color:var(--hep-text);transition:background-color var(--hep-motion-fast),border-color var(--hep-motion-fast);}
+.harness-operation-card button{font:inherit;min-height:max(38px,var(--hep-hit-target));background:var(--hep-surface);color:var(--hep-text);transition:background-color var(--hep-motion-fast),border-color var(--hep-motion-fast);}
 .harness-operation-card button:hover:enabled{border-color:var(--hep-primary);background:var(--hep-primary-soft)}
 .harness-operation-card button:disabled{opacity:.45;cursor:default}
 .harness-operation-card button:focus-visible{outline:2px solid var(--hep-primary);outline-offset:3px}
 .harness-confirmation-actions .harness-primary:hover:enabled{background:var(--hep-primary-hover);border-color:var(--hep-primary-hover);color:#fff}
-.harness-assistant-proposals>.harness-operation-card{border:0;border-radius:0;padding:12px 0;margin:8px 0 0;border-top:1px solid var(--hep-border)}
+.harness-assistant-proposals>div>.harness-operation-card{border:0;border-radius:0;padding:12px 0;margin:8px 0 0;border-top:1px solid var(--hep-border)}
 .harness-confirmation-summary>details{border-top:1px solid var(--hep-border);padding-top:8px;margin-top:16px}
 .harness-confirmation-budget{padding:12px;background:var(--hep-surface-muted);border-radius:8px}
 .harness-assistant-proposals>summary{font-size:12px;font-weight:500;padding:4px 0}

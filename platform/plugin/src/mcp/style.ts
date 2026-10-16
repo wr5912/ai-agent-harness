@@ -25,7 +25,7 @@ export const mcpPageTheme = `
 .harness-composition-detail p,.harness-composition-detail code{overflow-wrap:anywhere}
 .harness-composition-detail>.harness-mcp-actions{margin:12px 0}
 .harness-composition-detail [aria-label="编排版本"]{padding:4px;background:var(--hep-surface-muted);width:fit-content;border-radius:var(--hep-control-radius)}
-.harness-composition-detail [aria-label="编排版本"] button{border-color:transparent;background:transparent;min-height:36px;padding:6px 12px}
+.harness-composition-detail [aria-label="编排版本"] button{border-color:transparent;background:transparent;min-height:max(36px,var(--hep-hit-target));padding:6px 12px}
 .harness-composition-detail [aria-label="编排版本"] button[aria-pressed=true]{background:var(--hep-surface);border-color:var(--hep-border);color:var(--hep-primary)}
 .harness-composition-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px}
 .harness-composition-editor>p,.harness-composition-editor>.harness-mcp-actions,.harness-composition-editor>.harness-threat-editor,.harness-composition-editor>.harness-mcp-wide{grid-column:1/-1}
