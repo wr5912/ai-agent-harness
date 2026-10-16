@@ -354,6 +354,7 @@ test('确认首屏仅展示决策摘要、具体交付与重要预算，完整�
   nodes = []; render(view())
   const beforeRefresh = refreshes
   await nodes.find(node => node.type === 'button' && node.props.children === '恢复任务').props.onClick()
+  await new Promise(resolve => setImmediate(resolve))
   assert.equal(refreshes, beforeRefresh + 1, '恢复被后端拒绝后也必须刷新持久状态')
   nodes = []; const exhausted = render(view())
   assert.match(exhausted, /额度已用尽/); assert.doesNotMatch(exhausted, /恢复任务/)
