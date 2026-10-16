@@ -129,21 +129,104 @@ test('新版本继承盘点仍交由现有 AI 融合流程，保留目标和当�
   assert.equal(ui.calls.some(call => call.endpoint === 'agents/versions/create'), false)
 })
 
-test('启动智能体保留预览、人工确认与打开会话入口', async () => {
-  const ui = page({ intercept: endpoint => {
-    if (endpoint === 'instances/list') return { ok: true, value: { instances: [] } }
-    if (endpoint === 'instances/preview') return { ok: true, value: { operation: 'create', source: 'experiment:EXP-first-agent-002' } }
+function launchPage(instances = [], override) {
+  return page({ intercept: (endpoint, payload) => {
+    const result = override?.(endpoint, payload)
+    if (result !== undefined) return result
+    if (endpoint === 'instances/list') return { ok: true, value: { instances } }
     if (endpoint === 'instances/run') return { ok: true, value: { ok: true } }
     if (endpoint === 'instances/url') return { ok: true, value: { url: 'http://127.0.0.1:3100/assistant/' } }
   } })
-  await ui.settle()
-  ui.button('启动智能体').props.onClick(); await ui.settle()
-  ui.button('预览启动').props.onClick(); await ui.settle()
+}
+
+test('新建实例只需一次确认启动，直接实际执行并保留名称和端口', async () => {
+  const ui = launchPage()
+  await ui.settle(); ui.button('启动智能体').props.onClick(); await ui.settle()
   assert.equal(ui.calls.some(call => call.endpoint === 'instances/run'), false)
+  const name = ui.nodes().find(node => node.type === 'label' && ui.text(node).startsWith('实例名称')).props.children[1]
+  name.props.onChange({ target: { value: 'inspection-new' } }); ui.render()
+  const port = ui.nodes().find(node => node.type === 'input' && node.props.inputMode === 'numeric')
+  port.props.onChange({ target: { value: '3115' } }); ui.render()
+  assert.equal(ui.button('预览启动'), undefined)
   ui.button('确认启动').props.onClick(); await ui.settle()
-  const request = ui.calls.find(call => call.endpoint === 'instances/run')
-  assert.equal(request.payload.source, 'experiment:EXP-first-agent-002')
+  const requests = ui.calls.filter(call => call.endpoint === 'instances/run')
+  assert.equal(requests.length, 1)
+  assert.deepEqual(JSON.parse(JSON.stringify(requests[0].payload)), { operation: 'create', name: 'inspection-new', source: 'experiment:EXP-first-agent-002', port: 3115 })
+  assert.equal(ui.calls.some(call => call.endpoint === 'instances/preview'), false)
   assert.ok(ui.nodes().find(node => node.type === 'a' && node.props.href === 'http://127.0.0.1:3100/assistant/'))
+  assert.ok(ui.button('获取对话入口')); assert.equal(ui.button('确认启动'), undefined)
+})
+
+test('已停止实例确认启动后执行start，已运行实例仅获取入口而不重复run', async () => {
+  for (const state of ['stopped', 'running']) {
+    const ui = launchPage([{ name: 'existing', source_id: 'experiment:EXP-first-agent-002', state }])
+    await ui.settle(); ui.button('启动智能体').props.onClick(); await ui.settle()
+    ui.button(state === 'running' ? '获取对话入口' : '确认启动').props.onClick(); await ui.settle()
+    const requests = ui.calls.filter(call => call.endpoint === 'instances/run')
+    assert.equal(requests.length, state === 'running' ? 0 : 1)
+    if (state === 'stopped') assert.deepEqual(JSON.parse(JSON.stringify(requests[0].payload)), { operation: 'start', name: 'existing', source: 'experiment:EXP-first-agent-002' })
+    assert.equal(ui.calls.filter(call => call.endpoint === 'instances/url').length, 1)
+    assert.equal(ui.calls.some(call => call.endpoint === 'instances/preview'), false)
+  }
+})
+
+test('实际启动中的快速双击只发送一次run，表单在执行期间禁用', async () => {
+  let finish
+  const pending = new Promise(resolve => { finish = resolve })
+  const ui = launchPage([], endpoint => endpoint === 'instances/run' ? pending : undefined)
+  await ui.settle(); ui.button('启动智能体').props.onClick(); await ui.settle()
+  const click = ui.button('确认启动').props.onClick
+  click(); click(); ui.render(); await ui.settle()
+  assert.equal(ui.calls.filter(call => call.endpoint === 'instances/run').length, 1)
+  assert.equal(ui.button('确认启动').props.disabled, true)
+  assert.ok(ui.nodes().filter(node => node.type === 'input' && node.props.inputMode === 'numeric').every(node => node.props.disabled))
+  finish({ ok: true, value: { ok: true } }); await ui.settle()
+  assert.equal(ui.button('获取对话入口').props.disabled, false)
+})
+
+test('实际启动失败显示原因为失败且不生成入口，启动后取入口失败不重复启动', async () => {
+  for (const failure of ['run', 'receipt', 'url']) {
+    let failed = false
+    const ui = launchPage([], endpoint => {
+      if (endpoint === 'instances/' + (failure === 'receipt' ? 'run' : failure) && !failed) {
+        failed = true
+        if (failure === 'receipt') return { ok: true, value: { ok: false, error: { message: '端口已被占用' } } }
+        return { ok: false, error: { code: 'failed', message: failure === 'run' ? '端口已被占用' : '入口暂不可读' } }
+      }
+    })
+    await ui.settle(); ui.button('启动智能体').props.onClick(); await ui.settle()
+    ui.button('确认启动').props.onClick(); await ui.settle()
+    assert.equal(ui.nodes().some(node => node.type === 'a' && ui.text(node) === '打开智能体对话'), false)
+    if (failure !== 'url') {
+      assert.match(ui.text(ui.render()), /端口已被占用/); assert.equal(ui.calls.some(call => call.endpoint === 'instances/url'), false)
+      assert.equal(ui.button('确认启动').props.disabled, false)
+    } else {
+      assert.match(ui.text(ui.render()), /实例已启动，但获取对话入口失败/)
+      ui.button('获取对话入口').props.onClick(); await ui.settle()
+      assert.equal(ui.calls.filter(call => call.endpoint === 'instances/run').length, 1)
+      assert.ok(ui.nodes().find(node => node.type === 'a' && ui.text(node) === '打开智能体对话'))
+    }
+  }
+})
+
+test('切换智能体或版本后，迟到的启动及入口回执不覆盖新对象也不继续旧目标查询', async () => {
+  for (const stage of ['run', 'url']) for (const next of ['agent', 'version']) {
+    let finish
+    const pending = new Promise(resolve => { finish = resolve })
+    const ui = launchPage([], endpoint => endpoint === 'instances/' + stage ? pending : undefined)
+    await ui.settle(); ui.button('启动智能体').props.onClick(); await ui.settle()
+    ui.button('确认启动').props.onClick(); ui.render(); await ui.settle()
+    if (next === 'agent') ui.nodes().find(node => node.props?.className === 'agent-list-card' && ui.text(node).includes('second-agent')).props.onClick()
+    else ui.nodes().find(node => node.props?.['aria-label'] === '版本').props.onChange({ target: { value: 'EXP-first-agent-001' } })
+    ui.render(); await ui.settle()
+    const firstDetails = ui.calls.filter(call => call.endpoint === 'agents/detail' && call.payload.agent_id === 'first-agent').length
+    finish(stage === 'run' ? { ok: true, value: { ok: true } } : { ok: true, value: { url: 'http://127.0.0.1:3100/assistant/' } }); await ui.settle()
+    assert.equal(ui.contexts.at(-1).agent_id, next === 'agent' ? 'second-agent' : 'first-agent')
+    assert.equal(ui.contexts.at(-1).experiment_id, next === 'agent' ? 'EXP-second-agent-002' : 'EXP-first-agent-001')
+    assert.equal(ui.nodes().some(node => node.type === 'a' && ui.text(node) === '打开智能体对话'), false)
+    assert.equal(ui.calls.filter(call => call.endpoint === 'agents/detail' && call.payload.agent_id === 'first-agent').length, firstDetails)
+    assert.equal(ui.calls.filter(call => call.endpoint === 'instances/url').length, stage === 'run' ? 0 : 1)
+  }
 })
 
 test('智能体、版本和标签选择同步导航地址，后退精确恢复且不产生导航循环', async () => {

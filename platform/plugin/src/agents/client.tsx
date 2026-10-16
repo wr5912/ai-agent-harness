@@ -33,11 +33,6 @@ const panel = {
   background: 'var(--dsw-alias-bg-layer-1, transparent)',
 } as const
 
-function text(value: unknown) {
-  return typeof value === 'string' ? value : JSON.stringify(value, null, 2)
-}
-
-
 function researchStatus(status?: string | null) {
   return ({ active: '研究中', completed: '已完成研究', archived: '已归档', adopted: '已采纳', rejected: '已拒绝' } as Record<string, string>)[status ?? ''] ?? status ?? '状态未记录'
 }
@@ -85,6 +80,7 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
   const selectionRequest = useRef(0)
   const versionPreviewRequest = useRef(0)
   const launchRequest = useRef(0)
+  const launchBusyRef = useRef(false)
   const editRequest = useRef(0)
   const selectedAgent = useMemo(() => agents.find(agent => agent.id === selected), [agents, selected])
   const pendingSelectionNavigation = useRef(false)
@@ -125,8 +121,10 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
     setVersionProposal(null)
     setFeatureProposal(null)
     setLaunch(null)
+    setLaunchMessage('')
     setDiffOpen(false)
     setLaunchBusy(false)
+    launchBusyRef.current = false
     selectEditFile('')
     if (notify && experimentId) navigateSelection(agentId, experimentId, nextTab)
     return true
@@ -318,62 +316,52 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
     return result.value
   }
 
-  function changeLaunch(value: any) { launchRequest.current++; setLaunchBusy(false); setLaunch(value) }
+  function changeLaunch(value: any) { launchRequest.current++; launchBusyRef.current = false; setLaunchBusy(false); setLaunchMessage(''); setLaunch(value) }
   function resetVersionPreview() { versionPreviewRequest.current++; setVersionInventory(null); setVersionProposal(null) }
 
   async function launchVersion() {
-    if (!detail) return
+    if (!detail || launchBusyRef.current) return
     const selection = selectionRequest.current
     const request = ++launchRequest.current
-    setLaunchBusy(true)
+    launchBusyRef.current = true; setLaunchBusy(true)
     setLaunchMessage('')
     try {
       const value = await instanceCall('list')
       if (selection !== selectionRequest.current || request !== launchRequest.current) return
       const instances = value.instances.filter((item: any) => item.source_id === `experiment:${detail.experiment.id}`)
-      setLaunch({ experiment_id: detail.experiment.id, instances, selected: instances[0]?.name ?? '', preview: null, url: null })
+      setLaunch({ experiment_id: detail.experiment.id, instances, selected: instances[0]?.name ?? '', url: null })
       setLaunchName(`${selected}-${detail.experiment.id.match(/-(\d{3})(?:-|$)/)?.[1] ?? 'new'}-${Date.now().toString().slice(-5)}`)
       setLaunchPort('')
     } catch (err) { if (selection === selectionRequest.current && request === launchRequest.current) setLaunchMessage((err as Error).message) }
-    finally { if (selection === selectionRequest.current && request === launchRequest.current) setLaunchBusy(false) }
+    finally { if (selection === selectionRequest.current && request === launchRequest.current) { launchBusyRef.current = false; setLaunchBusy(false) } }
   }
 
-  async function previewLaunch() {
-    if (!launch) return
+  async function startInstance() {
+    if (!launch || launchBusyRef.current) return
     const selection = selectionRequest.current
     const requestId = ++launchRequest.current
-    setLaunchBusy(true)
+    launchBusyRef.current = true; setLaunchBusy(true); setLaunchMessage('')
+    let started = false
     try {
       const item = launch.instances.find((item: any) => item.name === launch.selected)
-      if (item?.state === 'running') {
-        const value = await instanceCall('url', { name: item.name })
+      const name = item?.name ?? launchName
+      let current = launch
+      if (item?.state !== 'running') {
+        const request = { operation: item ? 'start' : 'create', name, source: `experiment:${launch.experiment_id}`, ...(launchPort ? { port: Number(launchPort) } : {}) }
+        const receipt = await instanceCall('run', request)
         if (selection !== selectionRequest.current || requestId !== launchRequest.current) return
-        setLaunch({ ...launch, url: instanceWebUrl(value, window.location.hostname) })
-      } else {
-        const request = { operation: item ? 'start' : 'create', name: item?.name ?? launchName, source: `experiment:${launch.experiment_id}`, ...(launchPort ? { port: Number(launchPort) } : {}) }
-        const preview = await instanceCall('preview', request)
-        if (selection !== selectionRequest.current || requestId !== launchRequest.current) return
-        setLaunch({ ...launch, request, preview, url: null })
+        if (!receipt.ok) throw new Error(receipt.error?.message || '启动失败')
+        started = true
+        current = { ...launch, selected: name, instances: item ? launch.instances.map((entry: any) => entry.name === name ? { ...entry, state: 'running' } : entry)
+          : [...launch.instances, { name, state: 'running', source_id: request.source }], url: null }
+        setLaunch(current)
       }
-    } catch (err) { if (selection === selectionRequest.current && requestId === launchRequest.current) setLaunchMessage((err as Error).message) }
-    finally { if (selection === selectionRequest.current && requestId === launchRequest.current) setLaunchBusy(false) }
-  }
-
-  async function confirmLaunch() {
-    if (!launch?.request) return
-    const selection = selectionRequest.current
-    const request = ++launchRequest.current
-    setLaunchBusy(true)
-    try {
-      const receipt = await instanceCall('run', launch.request)
-      if (!receipt.ok) throw new Error(receipt.error?.message || '启动失败')
-      const value = await instanceCall('url', { name: launch.request.name })
-      if (selection !== selectionRequest.current || request !== launchRequest.current) return
-      setLaunch({ ...launch, preview: null, url: instanceWebUrl(value, window.location.hostname) })
-      setLaunchMessage('实例已启动，可打开智能体对话。')
-      await refreshDetail()
-    } catch (err) { if (selection === selectionRequest.current && request === launchRequest.current) setLaunchMessage((err as Error).message) }
-    finally { if (selection === selectionRequest.current && request === launchRequest.current) setLaunchBusy(false) }
+      const value = await instanceCall('url', { name })
+      if (selection !== selectionRequest.current || requestId !== launchRequest.current) return
+      setLaunch({ ...current, url: instanceWebUrl(value, window.location.hostname) })
+      if (started) { setLaunchMessage('实例已启动，可打开智能体对话。'); await refreshDetail() }
+    } catch (err) { if (selection === selectionRequest.current && requestId === launchRequest.current) setLaunchMessage((started ? '实例已启动，但获取对话入口失败：' : '') + (err as Error).message) }
+    finally { if (selection === selectionRequest.current && requestId === launchRequest.current) { launchBusyRef.current = false; setLaunchBusy(false) } }
   }
 
   async function doPreview() {
@@ -490,10 +478,9 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
             </>}
           </section>}
           {launch && <section style={panel} aria-label="启动选中版本"><h2>启动 {launch.experiment_id}</h2>
-            {launch.instances.length > 0 && <label style={field}>实例<select value={launch.selected} onChange={event => { changeLaunch({ ...launch, selected: event.target.value, preview: null, url: null }); setLaunchMessage('') }}>{launch.instances.map((item: any) => <option key={item.name} value={item.name}>{item.name} · {item.state}</option>)}<option value="">新建实例</option></select></label>}
-            {!launch.selected && <><label style={field}>实例名称<input value={launchName} onChange={event => { setLaunchName(event.target.value); changeLaunch({ ...launch, preview: null }) }} /></label><label style={field}>端口（可留空自动分配）<input inputMode="numeric" value={launchPort} onChange={event => { setLaunchPort(event.target.value); changeLaunch({ ...launch, preview: null }) }} /></label></>}
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}><button type="button" disabled={launchBusy} onClick={() => void previewLaunch()}>{launch.instances.find((item: any) => item.name === launch.selected)?.state === 'running' ? '获取对话入口' : '预览启动'}</button><button type="button" onClick={() => changeLaunch(null)}>关闭</button></div>
-            {launch.preview && <><pre className="harness-asset-content">{text(launch.preview)}</pre><button type="button" disabled={launchBusy} onClick={() => void confirmLaunch()}>确认启动</button></>}
+            {launch.instances.length > 0 && <label style={field}>实例<select value={launch.selected} disabled={launchBusy} onChange={event => changeLaunch({ ...launch, selected: event.target.value, url: null })}>{launch.instances.map((item: any) => <option key={item.name} value={item.name}>{item.name} · {item.state}</option>)}<option value="">新建实例</option></select></label>}
+            {!launch.selected && <><label style={field}>实例名称<input value={launchName} disabled={launchBusy} onChange={event => { setLaunchName(event.target.value); changeLaunch({ ...launch, url: null }) }} /></label><label style={field}>端口（可留空自动分配）<input inputMode="numeric" value={launchPort} disabled={launchBusy} onChange={event => { setLaunchPort(event.target.value); changeLaunch({ ...launch, url: null }) }} /></label></>}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}><button type="button" className="agent-primary" disabled={launchBusy} onClick={() => void startInstance()}>{launch.instances.find((item: any) => item.name === launch.selected)?.state === 'running' ? '获取对话入口' : '确认启动'}</button><button type="button" onClick={() => changeLaunch(null)}>关闭</button></div>
             {launch.url && <p><a href={launch.url} target="_blank" rel="noreferrer">打开智能体对话</a></p>}
           </section>}
           {launchMessage && <p role="status">{launchMessage}</p>}
