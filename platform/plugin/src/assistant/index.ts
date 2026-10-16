@@ -401,9 +401,16 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
         if (!matched) throw new Error('交付必须引用本任务实际启动的评测 Run，不能用无关历史结果代替')
         await saveTask(id, task)
         assertTaskBudget(task)
-        const receipt = await dispatch('agents', 'tasks/delivery', { ...input, artifacts: artifactRefs, agent_id: task.plan.agent_id, source: task.target_source,
-          instance_name: task.plan.instance_name, required_case_ids: task.plan.evaluation_case_ids, expected_device_ids: task.plan.inspection?.expected_device_ids, required_tool_names: task.plan.required_tool_names, deadline_at: task.deadline_at }, signal)
+        const deliveryController = new AbortController()
+        taskOperations.set(id, deliveryController)
+        let receipt: any
+        try {
+          receipt = await dispatch('agents', 'tasks/delivery', { ...input, artifacts: artifactRefs, agent_id: task.plan.agent_id, source: task.target_source,
+            instance_name: task.plan.instance_name, required_case_ids: task.plan.evaluation_case_ids, expected_device_ids: task.plan.inspection?.expected_device_ids, required_tool_names: task.plan.required_tool_names, deadline_at: task.deadline_at }, AbortSignal.any([signal, deliveryController.signal]))
+        } finally { if (taskOperations.get(id) === deliveryController) taskOperations.delete(id) }
+        task = (await inspect(id)).state.execution!
         if (receipt.value?.probe?.model_usage) { task = accountUsage(task, `delivery:${receipt.value.probe.id}`, receipt.value.probe.model_usage); await saveTask(id, task) }
+        if (task.state !== 'running') return { state: task.state, result: receipt }
         if (task.model_calls > task.plan.budget.max_model_calls) { await stopTask(id, 'budget_exhausted', '实际已观测总模型调用超出预算，保留交付检查证据'); return { state: 'budget_exhausted', result: receipt } }
         if (!receipt.ok || !receipt.value?.ready) return { state: 'verification_failed', result: receipt }
         const entry = await dispatch('instances', 'url', { name: task.plan.instance_name }, signal)
