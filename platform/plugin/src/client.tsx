@@ -153,7 +153,7 @@ function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversa
     <div className="harness-body">
       <div className="harness-content">
         {page !== 'home' && <div className="harness-breadcrumb">工作空间 / {pages.find(item => item.id === page)?.label}</div>}
-        <div hidden={page !== 'home'}><HomePage catalog={catalog} rpc={rpc} updates={updates} navigate={navigate} startConversation={async (_root, prompt) => { await assistant.create(prompt, { page: 'home' }); collapseOnEntry.current = true }} /></div>
+        <div hidden={page !== 'home'}><HomePage catalog={catalog} rpc={rpc} updates={updates} navigate={navigate} startConversation={async (_root, prompt, context) => { await assistant.create(prompt, context ?? { page: 'home' }); collapseOnEntry.current = true }} /></div>
         <div hidden={page !== 'agents'}><AgentsPage rpc={rpc} updates={updates} onAssistant={onAssistant} onContext={onContext} target={target} onNavigate={navigate} active={page === 'agents'} /></div>
         <div hidden={page !== 'evaluation'}><EvaluationPage rpc={rpc} updates={updates} onAssistant={onAssistant} onContext={onContext} target={target} onNavigate={navigate} active={page === 'evaluation'} /></div>
         <div hidden={page !== 'instances'}><InstancesPage rpc={rpc} updates={updates} onContext={onContext} target={target} onNavigate={navigate} /></div>

@@ -36,6 +36,7 @@ test('首页按冻结 Run 创建时间排序，保留失败状态，不以目录
     mkdirSync(join(path, 'runs', id), { recursive: true })
     writeFileSync(join(path, 'change.yaml'), `status: active\n`)
     writeFileSync(join(path, 'runs', id, 'run.yaml'), `run_id: ${id}\ncreated_at: ${created}\nstatus: ${status}\n`)
+    if (status === 'completed') writeFileSync(join(path, 'runs', id, 'summary.json'), JSON.stringify({ effective_verdict: 'failed' }))
   }
   const handler = createPlatformHandler(root, {
     instances: async () => ({ ok: false, error: { message: 'Docker 暂不可用' } }),
@@ -47,6 +48,8 @@ test('首页按冻结 Run 创建时间排序，保留失败状态，不以目录
   assert.equal(response.value.recent_runs[0].experiment_id, 'EXP-test-agent-001')
   assert.equal(response.value.recent_runs[0].status, 'failed')
   assert.equal(response.value.recent_runs[0].agent_id, 'test-agent')
+  assert.equal(response.value.recent_runs[1].status, 'completed')
+  assert.equal(response.value.recent_runs[1].effective_verdict, 'failed')
   assert.equal(response.value.instances.ok, false)
   assert.equal(response.value.mcp.value.connections.length, 0)
   assert.equal((await handler('home', { root: '/etc' }, signal)).error.code, 'invalid_request')

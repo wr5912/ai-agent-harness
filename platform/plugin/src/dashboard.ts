@@ -1,6 +1,7 @@
 import { programRoot } from './workspace.ts'
 import { execFile } from 'node:child_process'
 import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
 import { promisify } from 'node:util'
 
 const execute = promisify(execFile)
@@ -12,6 +13,7 @@ export interface RecentRun {
   status: string | null
   created_at: string | null
   finished_at: string | null
+  effective_verdict?: string | null
 }
 
 export async function recentRuns(root: string, agentIds: string[], signal: AbortSignal): Promise<RecentRun[]> {
@@ -26,5 +28,13 @@ export async function recentRuns(root: string, agentIds: string[], signal: Abort
       status: run.status, created_at: run.created_at, finished_at: run.finished_at,
     })))
   }))
-  return rows.flat().sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? '')).slice(0, 8)
+  const recent = rows.flat().sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? '')).slice(0, 8)
+  return Promise.all(recent.map(async run => {
+    try {
+      if (!/^run-[0-9a-f-]{36}$/.test(run.id)) return { ...run, effective_verdict: null }
+      const summary = JSON.parse(await readFile(join(root, 'evolution/experiments', run.experiment_id, 'runs', run.id, 'summary.json'), 'utf8'))
+      const verdict = summary.effective_verdict ?? summary.machine_overall_verdict
+      return { ...run, effective_verdict: ['passed', 'failed', 'inconclusive'].includes(verdict) ? verdict : null }
+    } catch { return { ...run, effective_verdict: null } }
+  }))
 }
