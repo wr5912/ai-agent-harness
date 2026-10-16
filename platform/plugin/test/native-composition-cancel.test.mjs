@@ -38,7 +38,7 @@ async function managerModule(t) {
   await writeFile(adapter, "import { readFile } from 'node:fs/promises'; import { resolve } from 'node:path';\n" + source.slice(start, end).replace(/fileURLToPath\(new URL\('..\/..\/plugins\/mcp-manager', import.meta.url\)\)/, JSON.stringify(new URL('../../../plugins/mcp-manager', import.meta.url).pathname)))
   const { managerSources } = await import(pathToFileURL(adapter).href)
   const outfile = join(directory, 'manager.mjs')
-  await build({ stdin: { contents: "export * from 'harness-mcp-manager-server'", resolveDir: process.cwd(), loader: 'ts' },
+  await build({ stdin: { contents: "export * from 'harness-mcp-manager-server'; export { createMcpHandler } from './src/mcp/index.ts'", resolveDir: process.cwd(), loader: 'ts' },
     outfile, bundle: true, platform: 'node', format: 'esm', packages: 'external', plugins: [managerSources] })
   return import(pathToFileURL(outfile).href)
 }
@@ -146,4 +146,45 @@ test('原生 dispatch 调用真实外部 MCP 时保留认证 Header 并把取消
   assert.equal(authorized, true)
   assert.equal(observedSignal.aborted, true)
   assert.equal(calls, 1, '取消不能重试业务调用')
+})
+
+test('原生管理器与平台网关一致展开 OpenAPI form/explode 对象查询参数', async t => {
+  const manager = await managerModule(t)
+  const expected = [['assetId', '9106'], ['pageNum', '2'], ['label', '基础 & 模拟'], ['enabled', 'false'], ['tags', 'a'], ['tags', 'b']]
+  const observed = []
+  const { origin } = await serve(t, (request, response) => {
+    const url = new URL(request.url, 'http://localhost')
+    response.setHeader('content-type', 'application/json')
+    if (url.pathname === '/openapi.json') return response.end(JSON.stringify({
+      openapi: '3.0.0', info: { title: '基础查询模拟', version: '1' }, servers: [{ url: origin }],
+      paths: { '/alerts': { get: { operationId: 'list_alerts', parameters: [{
+        name: 'req', in: 'query', required: true, style: 'form', explode: true,
+        schema: { type: 'object', properties: { assetId: { type: 'string' }, pageNum: { type: 'integer' }, label: { type: 'string' }, enabled: { type: 'boolean' }, tags: { type: 'array', items: { type: 'string' } } } },
+      }], responses: { 200: { description: '基本模拟查询结果' } } } } },
+    }))
+    if (url.pathname !== '/alerts') return response.writeHead(404).end('{}')
+    const query = [...url.searchParams]
+    observed.push(query)
+    response.writeHead(JSON.stringify(query) === JSON.stringify(expected) ? 200 : 422).end(JSON.stringify({ query }))
+  })
+  const service = { id: 'basic-query', specUrl: origin + '/openapi.json', enabled: true }
+  const args = { req: { assetId: '9106', pageNum: 2, label: '基础 & 模拟', enabled: false, tags: ['a', 'b'] } }
+  let dispatch
+  manager.apply({ webServer: { register: () => () => {} }, connection: { requestRejection: () => undefined }, effect: create => create(), on: () => {} }, {
+    servers: { get: () => [service] }, groups: { get: () => [] }, sharedToken: { get: () => '' }, platformDispatch: handler => { dispatch = handler },
+  })
+  const native = await dispatch({ action: 'callTool', serverId: service.id, toolName: 'list_alerts', arguments: args })
+  assert.equal(native.status, 200)
+  assert.equal(native.value.isError, false)
+  assert.deepEqual(JSON.parse(native.value.content[0].text).query, expected)
+
+  const root = await mkdtemp(join(tmpdir(), 'native-object-query-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  const gateway = manager.createMcpHandler(root, { stateFile: join(root, 'state.json') })
+  assert.equal((await gateway('registerOpenApi', service)).ok, true)
+  const result = await gateway('callTool', { connectionId: service.id, toolName: 'list_alerts', arguments: args })
+  assert.equal(result.ok, true)
+  assert.equal(result.value.ok, true)
+  assert.deepEqual(result.value.json.query, expected)
+  assert.deepEqual(observed, [expected, expected], '两条真实 HTTP 请求采用同一对象展开语义')
 })
