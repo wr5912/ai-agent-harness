@@ -6,7 +6,9 @@ export const SAFETY_STOP_REASONS = new Set([
 ])
 
 export async function parseArchive(bytes, codec) {
-  const { strFromU8, unzipSync } = codec ?? await import('fflate')
+  // 平台直接复用时由其依赖包注入；独立 CLI 在既有 staging 目录解析自己的压缩依赖。
+  const compressionModule = 'fflate'
+  const { strFromU8, unzipSync } = codec ?? await import(compressionModule)
   const files = unzipSync(bytes)
   const names = Object.keys(files).filter(name => name.endsWith('.jsonl')).sort()
   const rootName = names.find(name => !name.includes('/'))
