@@ -101,7 +101,7 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-e
 
 `init <agent-id>` 创建最小 Agent、`EXP-<agent-id>-001-r<12位随机十六进制>` Candidate，并把该 Experiment 登记到数据工作区的 `config/sources.json`；已有 Agent、Experiment 或来源登记时拒绝覆盖。旧编号 Experiment 继续可用。它只创建研究资产，不启动实例、不执行 Evaluation，也不创建 Research Release。
 
-`--source` 和 `--mode` 始终由用户显式选择；缺失或无值时命令会列出当前可用值并以用法错误退出。`--name` 默认为 `<agent-id>-eval`。新实例未指定 `--port` 时从 `3081` 起选第一个未监听且未被有效实例记录占用的端口；已有同名实例复用记录端口。`--dry-run` 只给出建议，不写状态、不调用 Docker，也不要求运行时环境变量。
+`--source` 和 `--mode` 始终由用户显式选择；缺失或无值时命令会列出当前可用值并以用法错误退出。`--name` 默认为 `<agent-id>-eval`。新实例未指定 `--port` 时从 `3081` 起选第一个未监听且未被有效实例记录占用的端口；探测包含仅绑定局域网地址的服务。实际启动时，宿主短期文件锁覆盖选端口到确认本容器持有监听，避免不同账户或数据根并发选中同一端口；已有同名实例复用记录端口。`--dry-run` 只给出建议，不预留端口、不写状态、不调用 Docker，也不要求运行时环境变量。
 
 `up` 会先核对镜像标签对应的构建指纹、平台和 Image ID，再执行停旧实例、写状态和启动；Compose 使用 `tag@image-id` 不可变引用。新建或替换后的主 `dsh` 容器名与实例名完全一致，Compose 项目名固定为 `dsh-dev-<实例名>`；`up --dry-run`、`up` 和 `ps` 都直接输出实例名、实际主容器名和项目名，旧实例由 `ps` 输出其现有主容器名并标记 `needs_migration`。它仍不只看 `docker compose up -d` 的退出码：命令返回 0 之后还要确认 `dsh` 服务真的在运行（`home-init` 是一次性服务，正常结束不算失败），否则报告失败或 `dsh_running: "unknown"` 并以非零退出码结束。成功时 stdout 只输出一个 JSON 结果，其中包含 `image_id`、`image_ref` 和 `image_build_fingerprint`；进度、提示和错误输出到 stderr，失败时 stdout 保持为空。`up --replace` 的成功 JSON 在 `replaced.stop` 中包含完整停止结果。
 

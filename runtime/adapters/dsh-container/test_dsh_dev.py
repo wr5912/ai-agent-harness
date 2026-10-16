@@ -1763,6 +1763,21 @@ class PortProbeTest(unittest.TestCase):
             self.assertTrue(dev.port_in_use(port))
         self.assertFalse(dev.port_in_use(port))
 
+    def test_detects_listener_outside_primary_loopback_address(self):
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.2", 0))
+            listener.listen()
+            port = listener.getsockname()[1]
+            self.assertTrue(dev.port_in_use(port))
+            with mock.patch.object(dev, "reserved_instance_ports", return_value=set()), \
+                    mock.patch.object(dev, "AUTO_PORT_START", port):
+                self.assertGreater(dev.first_available_port("lan-probe"), port)
+
+    def test_bind_errors_are_not_reported_as_an_available_port(self):
+        with mock.patch.object(socket.socket, "bind", side_effect=PermissionError("test bind denied")):
+            with self.assertRaises(PermissionError):
+                dev.port_in_use(3081)
+
 
 class ConcurrentStartupTest(unittest.TestCase):
     def test_separate_data_roots_serialize_selection_until_socket_is_owned(self):

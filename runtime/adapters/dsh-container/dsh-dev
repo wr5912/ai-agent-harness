@@ -856,18 +856,21 @@ def require_instance_workspace(name: str, manifest: dict) -> None:
 
 
 def port_in_use(port: int) -> bool:
-    """以 TCP 连接探测宿主回环端口是否已被占用。"""
+    """按实例实际 IPv4 全接口监听方式探测，包含仅绑定局域网地址的服务。"""
+    import errno
     import socket
 
     probe = socket.socket()
-    probe.settimeout(1.0)
+    probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
-        probe.connect(("127.0.0.1", port))
-    except OSError:
-        return False
+        probe.bind(("0.0.0.0", port))
+    except OSError as error:
+        if error.errno != errno.EADDRINUSE:
+            raise
+        return True
     finally:
         probe.close()
-    return True
+    return False
 
 
 def require_up_arguments(args: argparse.Namespace) -> None:
