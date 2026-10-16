@@ -52,6 +52,7 @@ const assistantStateSchema = z.object({
   proposals: z.array(z.record(z.string(), z.any())), running: z.boolean(), turn_reason: z.any().optional(),
   execution: z.custom<TaskExecution>().optional(),
   model_calls_observed: z.number().int().nonnegative().default(0),
+  closing_task_id: z.string().optional(),
 })
 type AssistantState = z.infer<typeof assistantStateSchema>
 declare module '@deepseek-ai/dsh-session-projection/types' {
@@ -63,7 +64,7 @@ declare module '@deepseek-ai/dsh-session' {
 
 // 框架负责按 Session 增量折叠、冷恢复和 fork；本插件不再读取完整事件日志。
 export const assistantProjection: ProjectionDefinition<typeof projectionKey> = {
-  key: projectionKey, stateVersion: 2, stateSchema: assistantStateSchema,
+  key: projectionKey, stateVersion: 3, stateSchema: assistantStateSchema,
   init: (header, inheritedEventCount) => ({ session_id: header.id, inherited_event_count: inheritedEventCount, active: false, context: {}, task_context: {}, proposals: [], running: false, model_calls_observed: 0 }),
   apply(state, event) {
     if (event.type === 'request/header') {
@@ -72,6 +73,8 @@ export const assistantProjection: ProjectionDefinition<typeof projectionKey> = {
     }
     if (event.type === 'turn/start') return { ...state, running: true }
     if (event.type === 'turn/end') return { ...state, running: false, turn_reason: event.data.reason }
+    // 原生 user/message 也承载 Goal 和注入上下文；只有实际新用户输入结束旧任务的收尾归属。
+    if (event.type === 'user/message' && event.data.source?.kind === 'user') return { ...state, closing_task_id: undefined }
     const pluginRecord = pluginRecordOf(event)
     if (pluginRecord?.type !== recordType) return state
     const data = pluginRecord.data as MapValue
@@ -81,7 +84,11 @@ export const assistantProjection: ProjectionDefinition<typeof projectionKey> = {
     if (data.kind === 'context') return { ...state, active: true, context: data.context ?? {} }
     if (data.kind === 'execution') {
       if (data.owner_session_id !== state.session_id || pluginRecord.seq < state.inherited_event_count) return state
-      return { ...state, execution: data.execution }
+      const execution = data.execution as TaskExecution
+      const closing = execution.state === 'completed'
+        ? state.execution?.state !== 'completed' || state.execution.id !== execution.id ? execution.id : state.closing_task_id
+        : undefined
+      return { ...state, execution, closing_task_id: closing }
     }
     if (data.kind === 'model-call' && data.owner_session_id === state.session_id && pluginRecord.seq >= state.inherited_event_count) return { ...state,
       model_calls_observed: (state.model_calls_observed ?? 0) + 1,
@@ -784,12 +791,15 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
       const current = services.projections.stateOf(resolved.agent.session, projectionKey)
       if (!current?.active) return
       await locked(id, async () => {
-        const task = (await inspect(id)).state.execution
+        const state = (await inspect(id)).state
+        const task = state.execution
+        const closing = task?.state === 'completed' && state.closing_task_id === task.id
         if (task && !['completed', 'cancelled'].includes(task.state)) {
           if (!armedTasks.has(id)) throw new Error('任务尚未恢复，模型调用未发出')
           try { assertTaskBudget(task) } catch (error) { await stopTask(id, 'budget_exhausted', error instanceof Error ? error.message : String(error)); throw error }
         }
-        await record(id, { kind: 'model-call', owner_session_id: id, ...(task && !['completed', 'cancelled'].includes(task.state) ? { task_id: task.id } : {}) })
+        if (closing && (task.model_calls >= task.plan.budget.max_model_calls || Date.now() >= Date.parse(task.deadline_at))) throw new Error('实例与产物已交付，收尾说明的任务额度已耗尽；请查看任务卡')
+        await record(id, { kind: 'model-call', owner_session_id: id, ...(task && (closing || !['completed', 'cancelled'].includes(task.state)) ? { task_id: task.id } : {}) })
       })
     }, async dispose() {
     for (const id of taskTimers.keys()) clearTaskTimer(id)
