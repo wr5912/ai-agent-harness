@@ -921,3 +921,23 @@ test('用户可仅拒绝当前未执行提案，结算原工具但不取消其�
   assert.equal(f.calls.filter(call => call.endpoint === 'instances/run').length, 1)
   assert.equal((await f.rpc('reject', { session_id: id, proposal_id: remaining.id })).ok, false)
 })
+
+test('暂停跨过截止后恢复持久记录预算耗尽，不更换原任务、额度、截止或操作', async t => {
+  const f = fixture(t, taskResponder)
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '有总时限的交付任务' })).value.session_id
+  await f.beforeModelCall(id)
+  await beginTask(f, id)
+  await f.execute(id, 'agents', 'eval/start', { source: 'experiment:EXP-test-agent-001', cases: ['U-BUSINESS-001'] })
+  await f.rpc('task/pause', { session_id: id })
+  const before = (await f.status(id)).execution
+  t.mock.method(Date, 'now', () => Date.parse(before.deadline_at) + 1)
+  const response = await f.rpc('task/resume', { session_id: id })
+  assert.equal(response.ok, false); assert.match(response.error.message, /总时限已耗尽/)
+  const after = (await f.status(id)).execution
+  assert.equal(after.state, 'budget_exhausted'); assert.match(after.reason, /总时限已耗尽/)
+  for (const key of ['id', 'started_at', 'deadline_at', 'model_calls', 'assistant_model_calls', 'repair_rounds']) assert.equal(after[key], before[key])
+  assert.deepEqual(after.operations, before.operations)
+  assert.equal((await f.rpc('task/resume', { session_id: id })).ok, false)
+  assert.equal(f.calls.filter(item => item.endpoint === 'agents/eval/start').length, 1)
+})

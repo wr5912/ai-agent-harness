@@ -379,9 +379,11 @@ function TaskCard({ task, assistant, rpc, sessionId }: { task: TaskExecution; as
     try {
       const response = await rpc.call(CHANNEL, `assistant/task/${action}`, { session_id: sessionId })
       if (!response.ok) throw new Error(response.error.message)
-      await assistant.refresh()
     } catch (failure) { setError(failure instanceof Error ? failure.message : '任务操作失败') }
-    finally { setBusy(false) }
+    finally {
+      try { await assistant.refresh() } catch (failure) { setError(previous => previous || (failure instanceof Error ? failure.message : '无法刷新任务状态')) }
+      setBusy(false)
+    }
   }
   return <section className="harness-operation-card" aria-label="智能体交付任务">
     <header><strong>{statuses[task.state]}</strong><span>{task.plan.new_agent?.name ?? task.plan.agent_id}</span></header>

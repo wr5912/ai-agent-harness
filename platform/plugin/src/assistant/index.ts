@@ -390,10 +390,11 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
       if (action === 'resume') {
         if (!fromUi) throw new Error('恢复需用户在任务卡明确发起')
         if (['completed', 'cancelled', 'budget_exhausted'].includes(task.state)) throw new Error('已结束或预算耗尽的任务不能恢复')
-        // 进程中断的进行中动作没有可信回执；先读状态，不能自动重新执行。
-        if (task.operations.some(item => item.state === 'running' || item.state === 'unknown')) throw new Error('有操作回执未知，请先核对实际状态并记录 checkpoint')
         task = { ...task, state: 'running', reason: undefined }
-        assertTaskBudget(task)
+        try { assertTaskBudget(task) } catch (error) {
+          if (Date.now() >= Date.parse(task.deadline_at) || task.model_calls >= task.plan.budget.max_model_calls) await stopTask(id, 'budget_exhausted', error instanceof Error ? error.message : String(error))
+          throw error
+        }
         await saveTask(id, task)
         await changeGoal(id, 'resume')
         armTask(id, task)

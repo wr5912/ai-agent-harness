@@ -311,7 +311,8 @@ test('确认首屏仅展示决策摘要、具体交付与重要预算，完整�
   const compiled = await build({ entryPoints: ['src/assistant/client.tsx'], write: false, bundle: true, platform: 'node', format: 'cjs', external: ['react', 'react/jsx-runtime'] })
   const plan = { goal: '构建只读巡检助手：完整需求包括五台模拟设备的分页查询与正式报告下载。', agent_id: 'daily-inspection-assistant', source: 'experiment:EXP-daily-inspection-assistant-002-r123456789abc', evaluation_case_ids: ['U-PRIVATE-BUSINESS-CASE'], allowed_actions: [{ domain: 'agents', action: 'create' }], budget: { timeout_minutes: 30, max_repair_rounds: 3, max_model_calls: 60 }, deliverables: ['Markdown 报告和设备 CSV'], artifact_paths: ['artifacts/U-PRIVATE-BUSINESS-CASE/report.md'], instance_name: 'delivery-test' }
   let proposal = { id: 'p', domain: 'task', action: 'start', state: 'awaiting_confirmation', preview: { plan, agent_name: '日常巡检整理助手', candidate_sha256: 'a'.repeat(64) } }
-  const assistant = { subscribe: () => () => {}, getSnapshot: () => ({ sessionId: 's', status: { proposals: [proposal] } }), refresh: async () => {} }
+  let execution, refreshes = 0
+  const assistant = { subscribe: () => () => {}, getSnapshot: () => ({ sessionId: 's', status: { proposals: proposal ? [proposal] : [], execution } }), refresh: async () => { refreshes++ } }
   const requests = [], rpc = { async call(_channel, method, body) { requests.push({ method, body }); return { ok: true, value: { state: 'cancelled' } } } }
   const jsx = (type, props) => ({ type, props }), module = { exports: {} }
   runInNewContext(compiled.outputFiles[0].text, { module, exports: module.exports, require(name) {
@@ -347,6 +348,15 @@ test('确认首屏仅展示决策摘要、具体交付与重要预算，完整�
   assert.match(sample, /保存 1 条样本/); assert.match(sample, /人工复核/); assert.doesNotMatch(sample, /只在完整详情/)
   proposal = { id: 'mcp', domain: 'mcp', action: 'saveConfiguration', state: 'awaiting_confirmation', preview: { action: 'saveConfiguration', input: { ops: [{ op: 'set', path: ['servers', 'test', 'enabled'], value: false }] } } }
   assert.match(render(view()), /停用连接.*不可调用/)
+  proposal = undefined
+  execution = { plan, state: 'paused', repair_rounds: 1, model_calls: 46, deadline_at: '2020-01-01T00:00:00Z', operations: [] }
+  rpc.call = async () => { execution = { ...execution, state: 'budget_exhausted', reason: '任务总时限已耗尽' }; return { ok: false, error: { message: execution.reason } } }
+  nodes = []; render(view())
+  const beforeRefresh = refreshes
+  await nodes.find(node => node.type === 'button' && node.props.children === '恢复任务').props.onClick()
+  assert.equal(refreshes, beforeRefresh + 1, '恢复被后端拒绝后也必须刷新持久状态')
+  nodes = []; const exhausted = render(view())
+  assert.match(exhausted, /额度已用尽/); assert.doesNotMatch(exhausted, /恢复任务/)
 })
 
 
