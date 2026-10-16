@@ -325,7 +325,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
       }
       return locked(id, async () => { await stopTask(id, action === 'cancel' ? 'cancelled' : 'paused', action === 'cancel' ? '用户取消任务' : '用户暂停任务'); return (await inspect(id)).state.execution })
     }
-    if (action === 'status') return (await inspect(id)).state.execution ?? null
+    if (action === 'status') return (await inspect(id)).state.execution ?? { state: 'not_started', message: '尚未确认交付方案，任务还未开始' }
     return locked(id, async () => {
       let task = (await inspect(id)).state.execution
       if (!task || task.owner_session_id !== id) throw new Error('本会话没有已确认任务；fork 不继承授权')

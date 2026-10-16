@@ -249,8 +249,8 @@ function BusinessPreview({ value, meta }: { value: unknown; meta: OperationMeta 
       <p><strong>{lead}</strong></p>
       <p>{plan.new_agent ? `新建“${plan.new_agent.name}”` : plan.allowed_actions.some((item: any) => item.action === 'create') ? `为“${name}”从${parent}派生新版本` : `${plan.allowed_actions.some((item: any) => ['edit/apply', 'tasks/assembly-apply'].includes(item.action)) ? '改进' : '验证'}“${name}”的${parent}`}，执行 {plan.evaluation_case_ids.length} 项测试。</p>
       <p><strong>交付：</strong>{products.length ? products.join('、') : plan.deliverables.join('、')}。</p>
-      <p><strong>执行上限：</strong>{plan.budget.timeout_minutes} 分钟、初测后最多修复 {plan.budget.max_repair_rounds} 轮、总模型调用额度 {plan.budget.max_model_calls} 次。暂停和重启不重置预算。</p>
-      <small>确认后在本方案内连续创建、装配、评测及办理约定实例操作。助手逐次控制调用额度；外部评测按实际轨迹累计，暂不能实时硬封顶。</small>
+      <p className="harness-confirmation-budget"><strong>上限：</strong>{plan.budget.timeout_minutes} 分钟、初测后最多修复 {plan.budget.max_repair_rounds} 轮、模型调用 {plan.budget.max_model_calls} 次。<small>暂停和重启不重置。助手逐次控制调用额度；外部评测按实际轨迹累计，不能实时硬封顶。</small></p>
+      <small>确认后在本方案内连续办理约定操作，范围详见完整方案。</small>
     </>
   } else if (data?.status === 'suggested' && Array.isArray(data.records)) summary = <>
     <p>将 <strong>{data.count ?? data.records.length} 条决策样本</strong>保存到本次运行的“决策样本”。</p>

@@ -24,21 +24,25 @@ const titles: Record<string, string> = {
   callTool: '调用 MCP 工具', callPublishedComposition: '执行工具组合', test: '测试工具连接',
 }
 const taskTitles: Record<string, string> = { preview: '核对交付方案', start: '启动交付任务', status: '查询交付任务进度', 'begin-repair': '预留一轮修复', checkpoint: '核对中断操作', rollback: '恢复任务前版本', deliver: '检查交付实例与业务产物' }
-const taskStates: Record<string, string> = { running: '任务执行中', paused: '任务已暂停', completed: '实际实例与业务产物已核验', cancelled: '任务已取消', unknown: '仍有操作结果待核对', budget_exhausted: '预算已耗尽，任务已停止' }
+const taskStates: Record<string, string> = { not_started: '尚未确认交付方案，任务还未开始', running: '任务执行中', paused: '任务已暂停', completed: '实际实例与业务产物已核验', cancelled: '任务已取消', unknown: '仍有操作结果待核对', budget_exhausted: '预算已耗尽，任务已停止' }
 
 /** 只翻译实际字段；接口返回、资产创建和任务通过是不同结果。 */
 export function operationSummary(meta: OperationMeta, phase = 'result') {
   const input = meta.input ?? {}
   let value = meta.result
   let error = meta.error
-  for (let n = 0; n < 4 && value && typeof value === 'object'; n++) {
+  const receipts: any[] = []
+  for (let n = 0; n < 6 && value && typeof value === 'object'; n++) {
+    receipts.push(value)
     error ??= value.error?.message ?? (typeof value.error === 'string' ? value.error : undefined)
     if ((value.kind === 'platform-operation' || typeof value.state === 'string') && value.result !== undefined) value = value.result
     else if (value.ok === true && value.value !== undefined) value = value.value
     else break
   }
   const action = meta.action
-  let title = meta.domain === 'task' ? taskTitles[action] ?? titles[action] : action === 'list' ? ({ agents: '查询智能体', instances: '查询实例', mcp: '查询 MCP 工具与组合' } as Record<string, string>)[meta.domain] : meta.domain === 'instances' && action === 'run' ? ({ create: '创建实例', start: '启动实例', stop: '停止实例', restart: '重启实例', delete: '删除实例' } as Record<string, string>)[input.operation] : titles[action]
+  const instanceReceipt = meta.domain === 'instances' ? receipts.find(item => typeof item.operation === 'string' && typeof item.name === 'string') : undefined
+  const instanceOperation = instanceReceipt?.operation ?? input.operation
+  let title = meta.domain === 'task' ? taskTitles[action] ?? titles[action] : action === 'list' ? ({ agents: '查询智能体', instances: '查询实例', mcp: '查询 MCP 工具与组合' } as Record<string, string>)[meta.domain] : meta.domain === 'instances' && action === 'run' ? ({ create: '创建实例', start: '启动实例', stop: '停止实例', restart: '重启实例', delete: '删除实例' } as Record<string, string>)[instanceOperation] : meta.domain === 'instances' && action === 'preview' ? '核对实例操作范围' : titles[action]
   title ??= action || `平台${meta.domain}操作`
   const file = input.path ?? value?.selected?.path
   const agent = value?.agent?.name ?? value?.agent?.manifest?.name ?? input.agent_id
@@ -52,16 +56,31 @@ export function operationSummary(meta: OperationMeta, phase = 'result') {
   if (meta.state === 'running' && meta.result === undefined) return { title, outcome: '正在执行', failed: false }
   if (phase !== 'result') return { title, outcome: phase === 'preparing' ? '正在准备参数' : '正在执行', failed: false }
   let outcome = '已收到回执，可展开查看'
-  if (meta.domain === 'task') outcome = action === 'begin-repair' && Number.isFinite(value?.repair_rounds) ? `已预留第 ${value.repair_rounds} 轮修复` : taskStates[value?.state] ?? (action === 'preview' && value?.plan ? '方案已校验，执行前将请求整体确认' : outcome)
+  if (action === 'context' && value?.workspace) outcome = '已读取当前工作区与固定任务目标'
+  else if (meta.domain === 'task') outcome = action === 'begin-repair' && Number.isFinite(value?.repair_rounds) ? `已预留第 ${value.repair_rounds} 轮修复` : taskStates[value?.state] ?? (action === 'preview' && value?.plan ? '方案已校验，执行前将请求整体确认' : outcome)
+  else if (meta.domain === 'instances' && action === 'preview' && instanceReceipt) {
+    const plan = instanceReceipt.plan ?? instanceReceipt
+    const source = /-(\d{3})(?:-r[0-9a-f]{12})?$/.exec(plan.source_id ?? '')?.[1]
+    outcome = `已核对${source ? `版本 ${source}` : '所选来源'}${plan.port ? `、端口 ${plan.port}` : ''}；尚未执行实例操作`
+  } else if (meta.domain === 'instances' && action === 'run' && instanceReceipt) {
+    // CLI 最后一条 JSON 可能只是工作区提示；运行状态来自同一回执的容器观察。
+    const observed = receipts.flatMap(item => Array.isArray(item.json_objects) ? item.json_objects : []).find(item => item?.name === instanceReceipt.name && typeof item.dsh_running === 'boolean')
+    outcome = observed ? `DSH 当前${observed.dsh_running ? '正在运行' : '未运行'}${observed.port ? `，端口 ${observed.port}` : ''}；业务效果仍需核验` : '实例命令已执行，最终状态需查询实例核对'
+  }
   else if (action === 'tasks/capabilities' && Array.isArray(value?.sources)) outcome = `找到 ${value.sources.length} 个资产来源${Array.isArray(value.mcp) ? `、${value.mcp.length} 个 MCP 连接` : ''}；尚未验证运行效果`
   else if (action === 'detail' && value?.experiment) outcome = `已读取版本${version ? ` ${version}` : ''}${Array.isArray(value.evaluation?.cases) ? `、${value.evaluation.cases.length} 个测试用例` : ''}`
   else if (action === 'eval/status') outcome = ({ running: '评测运行中', queued: '评测等待执行', completed: '评测已结束，结果以运行报告为准', failed: '评测执行失败', cancelled: '评测已取消', interrupted: '评测已中断，已保留现有证据' } as Record<string, string>)[value?.status] ?? '评测状态尚未明确'
   else if (action === 'eval/start' && value?.job_id) outcome = '评测已启动'
   else if (action === 'eval/preview') outcome = '已核对评测范围，尚未启动运行'
   else if (action === 'new' || action === 'create') outcome = value?.experiment_id ? '已创建研究版本，业务效果仍需评测' : outcome
+  else if (action === 'edit/preview' && Array.isArray(value?.edits)) outcome = `已核对 ${value.edits.length} 份文件修改；尚未写入`
   else if (action === 'edit/apply' && value) outcome = '已保存资产修改'
   else if (action === 'assets/read-fixed' && value?.files) outcome = value.selected ? '已读取固定文件内容' : `已列出 ${value.files.length} 个固定版本文件`
   else if (action === 'context') outcome = '已读取当前工作区与固定任务目标'
+  else if (action === 'runs/index' && Array.isArray(value?.experiments)) outcome = `查到 ${value.experiments.length} 个版本、${value.experiments.reduce((count: number, experiment: any) => count + (Array.isArray(experiment.runs) ? experiment.runs.length : 0), 0)} 条运行记录`
+  else if (action === 'list' && Array.isArray(value?.agents)) outcome = `查到 ${value.agents.length} 个智能体`
+  else if (meta.domain === 'instances' && action === 'list' && Array.isArray(value?.instances)) outcome = `查到 ${value.instances.length} 个实例`
+  else if (meta.domain === 'mcp' && action === 'list' && Array.isArray(value?.connections)) outcome = `查到 ${value.connections.length} 个连接${Array.isArray(value.compositions) ? `、${value.compositions.length} 个工具组合` : ''}`
   else {
     const items = ['agents', 'instances', 'cases', 'runs', 'datasets', 'items'].map(key => value?.[key]).find(Array.isArray)
     if (items) outcome = `已读取 ${items.length} 项`
