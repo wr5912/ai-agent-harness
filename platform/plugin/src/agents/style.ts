@@ -1,5 +1,25 @@
 // 智能体页的视觉与布局；仅复用平台既有资产与表格样式。
 export const agentPageTheme = `
+.harness-asset-layout{display:grid;grid-template-columns:minmax(180px,1fr) minmax(0,2fr);gap:20px;align-items:start}
+.harness-asset-layout>nav{border-right:1px solid #dce6f2;padding-right:12px}
+.harness-asset-layout article{min-width:0}
+.harness-asset-tree{list-style:none;padding-left:16px;margin:4px 0}
+.harness-asset-tree>li{margin:4px 0}
+.harness-asset-tree button{padding:4px 8px;text-align:left;overflow-wrap:anywhere;max-width:100%}
+.harness-asset-tree button[aria-pressed=true]{background:#edf5ff;border-color:#9cc3ff;color:#006eff}
+.harness-asset-content{white-space:pre-wrap;overflow:auto;max-height:420px;overflow-wrap:anywhere}
+.harness-asset-dialog{width:min(880px,calc(100% - 32px));max-height:90vh;overflow:auto;padding:24px;border:1px solid #dce6f2;border-radius:12px}
+.harness-asset-dialog::backdrop{background:#102c4a66}
+@media(max-width:900px){.harness-asset-layout{grid-template-columns:minmax(0,1fr)}.harness-asset-layout>nav{border-right:0;border-bottom:1px solid #dce6f2;padding-bottom:12px}}
+.harness-agents{width:100%;min-width:0;padding:24px clamp(16px,3vw,36px)}
+.harness-agent-layout{display:grid;grid-template-columns:190px minmax(0,1fr);align-items:start;gap:16px}
+.harness-agent-list-options{display:grid;gap:8px}
+.harness-agent-list-options button{min-width:0;overflow-wrap:anywhere}
+.harness-agent-tabs{display:flex;flex-wrap:wrap;gap:8px;border-bottom:1px solid #dce6f2;padding-bottom:10px}
+.harness-agent-tabs button[aria-selected=true]{color:#006eff;background:#edf5ff;border-color:#9cc3ff}
+.harness-agent-detail [role=tabpanel]{overflow-wrap:anywhere}
+@media(max-width:1000px){.harness-agent-layout{grid-template-columns:150px minmax(0,1fr)}}
+@media(max-width:680px){.harness-agent-layout{grid-template-columns:minmax(0,1fr)}.harness-agent-list-options{grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr))}.harness-agents{padding:16px}.harness-agent-tabs{gap:4px}}
 .harness-agents{width:100%;min-width:0;padding:24px clamp(16px,3vw,36px)}
 .harness-agents .agent-page-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .harness-agents .agent-page-heading p{margin:0;color:#728299;font-size:13px}
