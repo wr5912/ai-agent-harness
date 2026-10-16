@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { isDeepStrictEqual } from 'node:util'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -169,12 +170,22 @@ export function createEvaluationJobs(assetRoot: string, options: Options) {
       || !Number.isFinite(Date.parse(deadline)) || Date.parse(deadline) <= Date.now()))
       throw new EvaluationJobError('invalid_request', '任务截止时间无效或已到期')
     const command = options.command(payload)
-    const id = randomUUID()
+    const id = budget?.operation_id ?? randomUUID()
+    if (typeof id !== 'string' || !UUID.test(id)) throw new EvaluationJobError('invalid_request', '任务操作 ID 格式无效')
+    const existing = () => {
+      const job = read(id)
+      if (job.source !== String(payload.source) || !isDeepStrictEqual(job.cases, payload.cases))
+        throw new EvaluationJobError('conflict', '同一任务操作 ID 已绑定其他来源或用例；未重新投递')
+      return status(id)
+    }
+    if (existsSync(pathFor(id))) return existing()
     const now = new Date().toISOString()
     const job: Job = { job_id: id, workspace_id: identity.id, asset_root: root,
       source: String(payload.source), cases: payload.cases, status: 'running', started_at: now, updated_at: now,
       stdout: '', stderr: '', ...(deadline ? { deadline_at: deadline } : {}) }
-    save(job)
+    mkdirSync(directory, { recursive: true })
+    try { writeFileSync(pathFor(id), JSON.stringify(job, null, 2) + '\n', { mode: 0o600, flag: 'wx' }) }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === 'EEXIST') return existing(); throw error }
     const proc = spawn(command.executable, command.args, { cwd: root,
       env: { ...options.environment(), HARNESS_EVAL_JOB_ID: id, ...(deadline ? { HARNESS_EVAL_DEADLINE_AT: deadline } : {}) },
       stdio: ['ignore', 'pipe', 'pipe'] })

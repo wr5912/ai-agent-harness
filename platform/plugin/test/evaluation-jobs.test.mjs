@@ -64,6 +64,21 @@ test('过时 PID 的取消拒绝向当前进程发信号', async t => {
   assert.equal(final.hard_cap_supported, false)
 })
 
+test('同一持久操作 ID 重试只查询原 Job，不重复启动；改来源拒绝复用', async t => {
+  const fx = await fixture(t, "console.error('started-once');setTimeout(()=>process.exit(0),100)")
+  const jobs = fx.create()
+  const operation = randomUUID()
+  const payload = { source: 'experiment:EXP-test-agent-001', cases: ['U-CASE-001'], task_budget: { operation_id: operation } }
+  const first = jobs.start(payload)
+  const repeated = jobs.start(payload)
+  assert.equal(first.job_id, operation)
+  assert.equal(repeated.job_id, first.job_id)
+  const final = await waitFor(() => jobs.status(first.job_id), job => job.status === 'completed')
+  assert.equal((final.stderr.match(/started-once/g) ?? []).length, 1)
+  assert.equal(fx.create().start(payload).job_id, operation)
+  assert.throws(() => fx.create().start({ ...payload, source: 'experiment:EXP-other-agent-001' }), error => error.code === 'conflict')
+})
+
 test('截止时间传入执行环境并触发取消，重建管理器不重置期限', async t => {
   const fx = await fixture(t, [
     "process.on('SIGTERM',()=>{console.log(JSON.stringify({cancelled:true,instance_stopped:true}));process.exit(2)})",
