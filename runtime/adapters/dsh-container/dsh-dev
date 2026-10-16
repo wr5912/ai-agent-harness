@@ -1185,6 +1185,7 @@ def _command_up(args: argparse.Namespace, contract: dict,
 def command_ps(args: argparse.Namespace) -> None:
     show_all = bool(getattr(args, "all", False))
     entries = []
+    unowned_record_count = 0
     try:
         observed = run(["node", str(ADAPTER / "instance-observation.ts")], check=False, timeout=12)
         observation = json.loads(observed.stdout) if observed.returncode == 0 else {}
@@ -1197,15 +1198,20 @@ def command_ps(args: argparse.Namespace) -> None:
             manifest_path = target / "instance.json"
             if not manifest_path.is_file():
                 continue
-            # 单条实例记录损坏不应中断整张列表：该条如实报错，其余实例照常列出。
+            # 共享状态内损坏的登记无法确认归属，不将名称或状态归入当前用户。
+            owned = False
             try:
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
                 if not isinstance(manifest, dict):
                     raise ValueError("状态文件根必须是 JSON 对象")
                 if not instance_belongs_to_workspace(REPO, manifest):
                     continue
+                owned = True
                 entry = instance_entry(target, manifest, observation)
             except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as error:
+                if not owned:
+                    unowned_record_count += 1
+                    continue
                 entry = {
                     "name": target.name,
                     "state_dir": str(target),
@@ -1218,7 +1224,8 @@ def command_ps(args: argparse.Namespace) -> None:
                 continue
             if show_all or entry.get("state") == "running":
                 entries.append(entry)
-    print(json.dumps({"schema_version": "1.0", "instances": entries}, ensure_ascii=False, indent=2, sort_keys=True))
+    print(json.dumps({"schema_version": "1.0", "instances": entries,
+                      "unowned_record_count": unowned_record_count}, ensure_ascii=False, indent=2, sort_keys=True))
 
 
 def compose_ps_containers(output: str) -> list[dict] | None:

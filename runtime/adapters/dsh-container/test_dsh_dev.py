@@ -1345,8 +1345,9 @@ class LegacyInstanceStateTest(unittest.TestCase):
                 contextlib.redirect_stdout(stdout):
             dev.command_ps(types.SimpleNamespace(all=True))
         instances = {item["name"]: item for item in json.loads(stdout.getvalue())["instances"]}
-        self.assertIn("error", instances["broken"])
-        self.assertIn("error", instances["wrong-root"])
+        self.assertNotIn("broken", instances)
+        self.assertNotIn("wrong-root", instances)
+        self.assertEqual(json.loads(stdout.getvalue())["unowned_record_count"], 2)
         self.assertIn("legacy", instances)
 
 
@@ -1990,6 +1991,20 @@ class WorkspaceInstanceOwnershipTest(unittest.TestCase):
                 contextlib.redirect_stdout(output):
             dev.command_ps(types.SimpleNamespace(all=True))
         self.assertEqual([value["name"] for value in json.loads(output.getvalue())["instances"]], ["owned"])
+
+    def test_shared_state_omits_corrupt_unowned_records(self):
+        self.register("owned", "workspace-selected")
+        target = self.state / "foreign-broken"
+        target.mkdir()
+        (target / "instance.json").write_text("{not json")
+        output = io.StringIO()
+        with mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, '{"projects":{},"homes":{}}', "")), \
+                contextlib.redirect_stdout(output):
+            dev.command_ps(types.SimpleNamespace(all=True))
+        value = json.loads(output.getvalue())
+        self.assertEqual([item["name"] for item in value["instances"]], ["owned"])
+        self.assertEqual(value["unowned_record_count"], 1)
+        self.assertNotIn("foreign-broken", output.getvalue())
 
     def test_new_local_registration_cannot_reuse_global_docker_identity(self):
         occupied = "abc\trunning\tUp\tshared-name\tdsh\n"

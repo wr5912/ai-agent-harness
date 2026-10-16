@@ -37,7 +37,8 @@ export function workspaceOwnsInstance(assetRoot: string, manifest: Record<string
   const roots = [workspace.root, ...workspace.legacyRoots]
   if (manifest.workspace_id != null && (!initialized || manifest.workspace_id !== workspace.id)) return false
   if (manifest.asset_root != null && (typeof manifest.asset_root !== 'string' || !isAbsolute(manifest.asset_root) || !roots.includes(resolve(manifest.asset_root)))) return false
-  if (manifest.workspace_id != null || manifest.asset_root != null) return true
+  // UUID 可随 Git 克隆；缺少路径的旧登记仍须由 Candidate 挂载确认。
+  if (manifest.asset_root != null) return true
   if (!initialized) return true
   if (typeof manifest.source_id !== 'string' || !/^experiment:EXP-[a-z0-9-]+-\d{3}(?:-r[0-9a-f]{12})?$/.test(manifest.source_id)) return false
   const mounts = manifest.mounts as Record<string, unknown> | undefined

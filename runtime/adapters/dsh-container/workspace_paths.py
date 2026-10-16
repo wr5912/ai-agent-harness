@@ -71,8 +71,8 @@ def instance_belongs_to_workspace(root: Path, manifest: dict) -> bool:
     if recorded_root is not None and (not isinstance(recorded_root, str)
             or not Path(recorded_root).is_absolute() or Path(recorded_root).resolve() not in roots):
         return False
-    if recorded_id is not None or recorded_root is not None:
-        return True
+    if recorded_root is not None:
+        return True  # UUID 可随 Git 克隆；只有 ID 的旧登记仍须核对挂载路径。
     if descriptor is None:
         return True  # 尚无描述符的历史工作区保持原合同，不接纳其他已绑定身份。
     source = manifest.get("source_id", "")
