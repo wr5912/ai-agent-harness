@@ -8,6 +8,7 @@ import type { PropsRenderFactories, PropsRuntime } from '@deepseek-ai/dsh-client
 import { CHANNEL } from '../protocol.ts'
 import type { TaskExecution } from './task.ts'
 import { instanceWebUrl } from '../instances/url.ts'
+import { operationSummary, type OperationMeta } from './operation-summary.ts'
 
 type SessionId = Parameters<Context['sessions']['binding']>[0]
 type SessionReference = ReturnType<Context['sessions']['retain']>
@@ -28,7 +29,7 @@ interface AssistantSnapshot {
   platformContext?: boolean
   busy: boolean
   error: string
-  status?: { running?: boolean; execution?: TaskExecution; proposals?: { id: string; state: OperationMeta['state']; domain: string; action: string; preview?: unknown; result?: unknown; error?: string }[] }
+  status?: { running?: boolean; execution?: TaskExecution; proposals?: { id: string; state: OperationMeta['state']; domain: string; action: string; input?: Record<string, any>; preview?: unknown; result?: unknown; error?: string }[] }
 }
 
 /** 浏览器只保留当前会话引用，任务与业务结果由原生 Session 和后端维护。 */
@@ -263,16 +264,6 @@ function BusinessPreview({ value }: { value: unknown }) {
   </div>
 }
 
-interface OperationMeta {
-  kind: 'platform-operation'
-  domain: string
-  action: string
-  proposal_id?: string
-  preview?: unknown
-  result?: unknown
-  state: 'awaiting_confirmation' | 'running' | 'completed' | 'failed' | 'cancelled' | 'unknown'
-}
-
 interface OperationProps {
   meta?: OperationMeta
   phase: string
@@ -280,6 +271,7 @@ interface OperationProps {
   sessionId: SessionId
   rpc: ClientConnectionRpc
   assistant: Assistant
+  origin?: 'dock' | 'tool'
 }
 function OperationCard(props: OperationProps) {
   const [busy, setBusy] = useState(false)
@@ -290,11 +282,20 @@ function OperationCard(props: OperationProps) {
   const proposal = assistantState.sessionId === props.sessionId ? assistantState.status?.proposals?.find(item => item.id === meta?.proposal_id) : undefined
   const state = proposal?.state ?? meta?.state
   const result = proposal?.result ?? meta?.result
+  const summary = operationSummary({ kind: 'platform-operation', domain: meta?.domain ?? '', action: meta?.action ?? props.toolName,
+    ...meta, state: state ?? 'unknown', input: proposal?.input ?? meta?.input, result, error: proposal?.error ?? meta?.error }, props.phase)
+  if (props.origin !== 'dock') return <div className="harness-operation-inline" aria-label="平台操作回执">
+    {props.phase !== 'result' ? <p role="status">{summary.title}：{summary.outcome}</p> : <details className="harness-operation-result">
+      <summary><strong>{summary.title}</strong><span role={summary.failed ? 'alert' : undefined}> · {summary.outcome}</span></summary>
+      {result !== undefined && <Details value={unwrap(result)}/>}
+      {proposal?.error && <p role="alert">{proposal.error}</p>}
+    </details>}
+  </div>
   return <section className="harness-operation-card" aria-label="平台操作回执">
-    <header><strong>{domainLabels[meta?.domain ?? ''] ?? '平台操作'}</strong><span>{meta?.action ? actionLabels[meta.action] ?? meta.action : props.toolName}</span></header>
+    <header><strong>{summary.title}</strong><span>{domainLabels[meta?.domain ?? ''] ?? '平台操作'}</span></header>
     {!meta || meta.kind !== 'platform-operation' ? <p role="status">{props.phase === 'result' ? '操作已返回，请查看会话说明。' : '正在读取与处理…'}</p> : <>
-      <p className="harness-operation-state">{state === 'completed' ? '已返回操作结果' : state === 'failed' ? '操作失败' : state === 'cancelled' ? '操作已取消' : state === 'unknown' ? '未收到完整回执，请核对实际状态' : state === 'running' ? '已确认，正在执行' : '请确认以下操作方案'}</p>
-      {meta.preview !== undefined && <BusinessPreview value={meta.preview}/>}
+      <p className="harness-operation-state" role={summary.failed ? 'alert' : 'status'}>{summary.outcome}</p>
+      {state === 'awaiting_confirmation' && meta.preview !== undefined && <BusinessPreview value={meta.preview}/>}
       {result !== undefined && <details className="harness-operation-result"><summary>查看实际操作回执</summary><Details value={unwrap(result)}/></details>}
       {proposal?.error && <p role="alert">{proposal.error}</p>}
       {state === 'awaiting_confirmation' && meta.proposal_id && <button className="harness-primary" disabled={busy} onClick={async () => {
@@ -315,7 +316,20 @@ function OperationCard(props: OperationProps) {
 
 /** 原生工具结果携带的真实提案可以在原会话内确认。 */
 export function PlatformOperationCard(props: ToolCallViewProps & { rpc: ClientConnectionRpc; assistant: Assistant }) {
-  return <OperationCard {...props} meta={props.phase === 'result' ? props.block.meta as OperationMeta | undefined : undefined}/>
+  const block = props.block
+  let args: any = { action: block.args?.text?.('action'), input: block.args?.value?.('input') }
+  if (!args.action) try { args = JSON.parse(props.phase === 'result' ? props.block.call?.argsRaw ?? '{}' : props.phase === 'start' ? props.block.argsRaw : '{}') } catch { /* 流式参数尚不完整，继续展示已知工具身份。 */ }
+  let payload: any, text = ''
+  if (props.phase === 'result') {
+    text = props.block.content.filter(item => item.type === 'text').map(item => item.text).join('\n')
+    try { payload = JSON.parse(text) } catch { /* 普通错误回执保留原文，不编造成功。 */ }
+  }
+  const wire = props.phase === 'result' ? props.block.meta as any : undefined
+  const meta: OperationMeta = { kind: 'platform-operation', domain: props.toolName.replace(/^platform_/, ''), action: args.action ?? props.toolName,
+    state: props.phase === 'result' ? props.block.isError ? 'failed' : text ? 'completed' : 'unknown' : 'running', result: payload ?? (text || undefined),
+    ...(wire?.kind === 'platform-operation' ? wire : payload?.kind === 'platform-operation' ? payload : {}), input: wire?.input ?? payload?.input ?? args.input,
+    ...(props.phase === 'result' && props.block.isError ? { state: 'failed', error: text || '工具执行失败，未收到完整回执' } : {}) }
+  return <OperationCard {...props} meta={meta} origin="tool"/>
 }
 
 /** 原生轨迹默认折叠；待确认操作直接出现在 Composer 上方。 */
@@ -324,13 +338,12 @@ export function AssistantOperations({ assistant, rpc, sessionId }: PropsRuntime<
   if (state.sessionId !== sessionId) return null
   const proposals = state.status?.proposals ?? []
   const pending = proposals.filter(item => ['awaiting_confirmation', 'running', 'unknown'].includes(item.state))
-  const shown = pending.length ? pending : proposals.slice(-1)
   const execution = state.status?.execution
-  if (!shown.length && !execution) return null
-  return <div className="harness-assistant-proposals-dock">{execution && <TaskCard task={execution} assistant={assistant} rpc={rpc} sessionId={sessionId}/>}{shown.length > 0 && <details className="harness-assistant-proposals" open={pending.length > 0}>
-    <summary>{pending.length ? '平台操作确认与进度' : '最近操作回执'}</summary>
-    <div>{shown.map(proposal => <OperationCard key={proposal.id} assistant={assistant} rpc={rpc} sessionId={sessionId}
-      phase="result" toolName={`platform_${proposal.domain}`} meta={{ ...proposal, kind: 'platform-operation', proposal_id: proposal.id }}/>)}</div>
+  if (!pending.length && !execution) return null
+  return <div className="harness-assistant-proposals-dock">{execution && <TaskCard task={execution} assistant={assistant} rpc={rpc} sessionId={sessionId}/>}{pending.length > 0 && <details className="harness-assistant-proposals" open>
+    <summary>平台操作确认与进度</summary>
+    <div>{pending.map(proposal => <OperationCard key={proposal.id} assistant={assistant} rpc={rpc} sessionId={sessionId}
+      origin="dock" phase="result" toolName={`platform_${proposal.domain}`} meta={{ ...proposal, kind: 'platform-operation', proposal_id: proposal.id }}/>)}</div>
   </details>}</div>
 }
 

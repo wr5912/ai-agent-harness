@@ -1,0 +1,72 @@
+export interface OperationMeta {
+  kind: 'platform-operation'
+  domain: string
+  action: string
+  input?: Record<string, any>
+  proposal_id?: string
+  preview?: unknown
+  result?: any
+  error?: string
+  state: 'awaiting_confirmation' | 'running' | 'completed' | 'failed' | 'cancelled' | 'unknown'
+}
+
+const titles: Record<string, string> = {
+  context: '读取工作区与任务目标', list: '查询智能体', detail: '读取智能体详情',
+  'tasks/capabilities': '查找可复用能力', 'assets/read-fixed': '读取固定版本文件', 'assets/diff': '比较版本资产',
+  'features/read-source': '读取版本说明', 'features/preview': '整理版本特性方案', 'features/apply': '保存版本特性',
+  'cases/read': '读取测试用例', 'cases/list': '查询测试用例', 'cases/create': '新增测试用例', 'cases/update': '修改测试用例',
+  'edit/read': '读取资产文件', 'edit/preview': '核对资产修改', 'edit/apply': '保存资产修改',
+  'eval/preview': '核对评测范围', 'eval/start': '启动评测', 'eval/status': '查询评测进度', 'eval/cancel': '取消评测',
+  'runs/index': '查询运行记录', 'runs/show': '读取运行详情', 'runs/report': '读取评测报告', 'runs/read-file': '读取运行文件', 'runs/trace': '读取执行轨迹',
+  'tasks/assembly-preview': '核对能力装配', 'tasks/assembly-apply': '装配复用能力',
+  'datasets/source': '读取决策样本来源', 'datasets/preview': '核对待保存决策样本', 'datasets/apply': '保存待复核决策样本', 'datasets/list': '查询决策样本集',
+  new: '创建智能体资产', create: '从固定父版派生', configuration: '读取 MCP 配置', saveConfiguration: '保存 MCP 配置',
+  callTool: '调用 MCP 工具', callPublishedComposition: '执行工具组合', test: '测试工具连接',
+}
+const taskTitles: Record<string, string> = { preview: '核对交付方案', start: '启动交付任务', status: '查询交付任务进度', 'begin-repair': '预留一轮修复', checkpoint: '核对中断操作', rollback: '恢复任务前版本', deliver: '检查交付实例与业务产物' }
+const taskStates: Record<string, string> = { running: '任务执行中', paused: '任务已暂停', completed: '实际实例与业务产物已核验', cancelled: '任务已取消', unknown: '仍有操作结果待核对', budget_exhausted: '预算已耗尽，任务已停止' }
+
+/** 只翻译实际字段；接口返回、资产创建和任务通过是不同结果。 */
+export function operationSummary(meta: OperationMeta, phase = 'result') {
+  const input = meta.input ?? {}
+  let value = meta.result
+  let error = meta.error
+  for (let n = 0; n < 4 && value && typeof value === 'object'; n++) {
+    error ??= value.error?.message ?? (typeof value.error === 'string' ? value.error : undefined)
+    if (value.kind === 'platform-operation' && value.result !== undefined) value = value.result
+    else if (value.ok === true && value.value !== undefined) value = value.value
+    else break
+  }
+  const action = meta.action
+  let title = meta.domain === 'task' ? taskTitles[action] : meta.domain === 'instances' && action === 'list' ? '查询实例' : meta.domain === 'instances' && action === 'run' ? ({ create: '创建实例', start: '启动实例', stop: '停止实例', restart: '重启实例', delete: '删除实例' } as Record<string, string>)[input.operation] : titles[action]
+  title ??= action || `平台${meta.domain}操作`
+  const file = input.path ?? value?.selected?.path
+  const agent = value?.agent?.name ?? value?.agent?.manifest?.name ?? input.agent_id
+  const version = /-(\d{3})(?:-r[0-9a-f]{12})?$/.exec(input.experiment_id ?? value?.experiment?.id ?? '')?.[1]
+  const target = file ? String(file).split('/').at(-1) : input.name ?? input.toolName ?? (agent ? `${agent}${version ? ` · 版本 ${version}` : ''}` : version ? `版本 ${version}` : undefined)
+  if (target) title += `：${target}`
+  if (meta.state === 'failed' || value?.ok === false || value?.isError === true) return { title, outcome: error || '操作失败，请展开查看实际回执', failed: true }
+  if (meta.state === 'unknown') return { title, outcome: error || '结果未知，请先核对实际状态', failed: true }
+  if (meta.state === 'cancelled') return { title, outcome: '已取消', failed: false }
+  if (meta.state === 'awaiting_confirmation') return { title, outcome: '等待确认', failed: false }
+  if (meta.state === 'running' && meta.result === undefined) return { title, outcome: '正在执行', failed: false }
+  if (phase !== 'result') return { title, outcome: phase === 'preparing' ? '正在准备参数' : '正在执行', failed: false }
+  let outcome = '已收到回执，可展开查看'
+  if (meta.domain === 'task') outcome = action === 'begin-repair' && Number.isFinite(value?.repair_rounds) ? `已预留第 ${value.repair_rounds} 轮修复` : taskStates[value?.state] ?? (action === 'preview' && value?.plan ? '方案已校验，执行前将请求整体确认' : outcome)
+  else if (action === 'tasks/capabilities' && Array.isArray(value?.sources)) outcome = `找到 ${value.sources.length} 个资产来源${Array.isArray(value.mcp) ? `、${value.mcp.length} 个 MCP 连接` : ''}；尚未验证运行效果`
+  else if (action === 'detail' && value?.experiment) outcome = `已读取版本${version ? ` ${version}` : ''}${Array.isArray(value.evaluation?.cases) ? `、${value.evaluation.cases.length} 个测试用例` : ''}`
+  else if (action === 'eval/status') outcome = ({ running: '评测运行中', queued: '评测等待执行', completed: '评测已结束，结果以运行报告为准', failed: '评测执行失败', cancelled: '评测已取消', interrupted: '评测已中断，已保留现有证据' } as Record<string, string>)[value?.status] ?? '评测状态尚未明确'
+  else if (action === 'eval/start' && value?.job_id) outcome = '评测已启动'
+  else if (action === 'eval/preview') outcome = '已核对评测范围，尚未启动运行'
+  else if (action === 'new' || action === 'create') outcome = value?.experiment_id ? '已创建研究版本，业务效果仍需评测' : outcome
+  else if (action === 'edit/apply' && value) outcome = '已保存资产修改'
+  else if (action === 'assets/read-fixed' && value?.files) outcome = value.selected ? '已读取固定文件内容' : `已列出 ${value.files.length} 个固定版本文件`
+  else if (action === 'context') outcome = '已读取当前工作区与固定任务目标'
+  else {
+    const items = ['agents', 'instances', 'cases', 'runs', 'datasets', 'items'].map(key => value?.[key]).find(Array.isArray)
+    if (items) outcome = `已读取 ${items.length} 项`
+    else if (['edit/read', 'runs/read-file', 'runs/report', 'features/read-source', 'cases/read'].includes(action) && value !== undefined) outcome = '已读取内容'
+  }
+  if (value?.ready === false) outcome = `尚未交付：${value.checks?.find((check: any) => check.ok === false)?.message ?? '检查未通过'}`
+  return { title, outcome, failed: value?.ready === false || ['failed', 'interrupted'].includes(value?.status) }
+}

@@ -270,6 +270,42 @@ test('组合确认卡片显示实际冻结版本与工具身份', async () => {
   assert.match(text, /确认并执行/)
 })
 
+test('原生回执消费真实参数与结果，完成提案不重复进dock，只有dock保留确认入口', async () => {
+  const compiled = await build({ entryPoints: ['src/assistant/client.tsx'], write: false, bundle: true, platform: 'node', format: 'cjs', external: ['react', 'react/jsx-runtime'] })
+  let proposals = []
+  const assistant = { subscribe: () => () => {}, getSnapshot: () => ({ sessionId: 's', status: { proposals } }) }
+  const jsx = (type, props) => ({ type, props }), module = { exports: {} }
+  runInNewContext(compiled.outputFiles[0].text, { module, exports: module.exports, require(name) {
+    if (name === 'react') return { useState: initial => [initial, () => {}], useSyncExternalStore: (_subscribe, snapshot) => snapshot() }
+    if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx }
+    throw new Error(`unexpected import: ${name}`)
+  } })
+  const nodes = []
+  const render = node => {
+    if (node == null || typeof node === 'boolean') return ''
+    if (typeof node !== 'object') return String(node)
+    if (Array.isArray(node)) return node.map(render).join(' ')
+    if (typeof node.type === 'function') return render(node.type(node.props))
+    nodes.push(node); return render(node.props?.children)
+  }
+  const props = { phase: 'result', toolName: 'platform_agents', callId: 'read-1', sessionId: 's', assistant, rpc: { call() { assert.fail('渲染不得执行操作') } } }
+  const block = { args: { text: () => 'detail', value: () => ({ agent_id: 'daily-inspection-assistant' }) }, call: null, isError: false,
+    content: [{ type: 'text', text: JSON.stringify({ kind: 'platform-operation', domain: 'agents', action: 'detail', state: 'completed', result: { ok: true, value: { agent: { name: '巡检助手' }, experiment: { id: 'EXP-a-003' }, evaluation: { cases: [{}] } } } }) }] }
+  const text = render(module.exports.PlatformOperationCard({ ...props, block }))
+  assert.match(text, /读取智能体详情.*巡检助手/); assert.match(text, /1 个测试用例/)
+  assert.equal(nodes.some(node => node.type === 'section'), false, '只读回执为可展开单行，不再绘制大卡片')
+  assert.doesNotMatch(text, /已返回操作结果/)
+  proposals = [{ id: 'p', domain: 'agents', action: 'create', state: 'completed', result: { ok: true } }]
+  assert.equal(module.exports.AssistantOperations({ assistant, rpc: props.rpc, sessionId: 's' }), null)
+  proposals = [{ ...proposals[0], state: 'awaiting_confirmation', preview: { parent_experiment_id: 'EXP-a-001' } }]
+  const dockText = render(module.exports.AssistantOperations({ assistant, rpc: props.rpc, sessionId: 's' }))
+  assert.equal((dockText.match(/确认并执行/g) ?? []).length, 1)
+  const toolText = render(module.exports.PlatformOperationCard({ ...props, block: { ...block, meta: { ...proposals[0], kind: 'platform-operation', proposal_id: 'p' } } }))
+  assert.doesNotMatch(toolText, /确认并执行/, '同一提案原生轨迹不重复绘制确认按钮')
+  const errorText = render(module.exports.PlatformOperationCard({ ...props, toolName: 'platform_task', block: { ...block, args: { text: () => 'start', value: () => ({}) }, isError: true, content: [{ type: 'text', text: '已有未结束任务' }] } }))
+  assert.match(errorText, /启动交付任务.*已有未结束任务/)
+})
+
 
 test('迁移前原生会话按服务端提供的旧根恢复平台上下文', async () => {
   const calls = []
