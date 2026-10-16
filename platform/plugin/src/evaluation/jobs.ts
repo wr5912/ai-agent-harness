@@ -126,6 +126,7 @@ export function createEvaluationJobs(assetRoot: string, options: Options) {
     walk(join(run, 'evidence'))
     result.sessions = [...sessions]
     try { result.summary = JSON.parse(readFileSync(join(run, 'summary.json'), 'utf8')) } catch {}
+    try { result.artifacts = JSON.parse(readFileSync(join(run, 'artifacts/index.json'), 'utf8')).artifacts } catch {}
     return result
   }
   function status(id: string) {

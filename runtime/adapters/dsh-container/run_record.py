@@ -927,6 +927,9 @@ def command_finalize(repo: Path, args: argparse.Namespace) -> None:
     manifest["summary_sha256"] = hashlib.sha256(summary_path.read_bytes()).hexdigest()
     manifest["report_sha256"] = hashlib.sha256(report_path.read_bytes()).hexdigest()
     manifest["analysis_sha256"] = hashlib.sha256(analysis_path.read_bytes()).hexdigest()
+    artifact_index = run_dir / "artifacts/index.json"
+    if artifact_index.is_file():
+        manifest["artifacts_sha256"] = hashlib.sha256(artifact_index.read_bytes()).hexdigest()
     gaps = run_dir / "gaps.jsonl"
     if gaps.is_file():
         manifest["gaps_sha256"] = hashlib.sha256(gaps.read_bytes()).hexdigest()

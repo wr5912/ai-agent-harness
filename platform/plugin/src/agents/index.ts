@@ -1257,6 +1257,14 @@ function evalArgs(payload: JsonMap, dryRun: boolean) {
   const compareTo = optionalString(payload, 'compare_to')
   if (model) args.push('--model', model)
   if (compareTo) args.push('--compare-to', compareTo)
+  if (payload.artifact_export !== undefined) {
+    const artifact = requireObject(payload.artifact_export)
+    if (artifact.format !== 'markdown' || typeof artifact.filename !== 'string'
+      || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.md$/.test(artifact.filename)) {
+      throw new RpcError('invalid_request', '回答导出需要 markdown 格式和不含目录的 .md 文件名')
+    }
+    args.push('--export-response-markdown', artifact.filename)
+  }
   if (dryRun) args.push('--dry-run')
   return args
 }

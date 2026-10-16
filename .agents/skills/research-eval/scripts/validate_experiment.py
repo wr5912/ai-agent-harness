@@ -437,6 +437,22 @@ def validate_run(
             if manifest.get("report_sha256") != expected_hash:
                 errors.append(issue("RUN_HASH", "report_sha256 与文件不一致", manifest_path))
         gaps_path = run_dir / "gaps.jsonl"
+        artifact_index = run_dir / "artifacts/index.json"
+        if artifact_index.is_file() or manifest.get("artifacts_sha256"):
+            expected_hash = hashlib.sha256(artifact_index.read_bytes() if artifact_index.is_file() else b"").hexdigest()
+            if manifest.get("artifacts_sha256") != expected_hash:
+                errors.append(issue("RUN_HASH", "artifacts_sha256 与文件不一致", manifest_path))
+            try:
+                artifacts = json.loads(artifact_index.read_text(encoding="utf-8"))["artifacts"]
+                for artifact in artifacts:
+                    relative = Path(artifact["path"])
+                    output = run_dir / relative
+                    if relative.is_absolute() or ".." in relative.parts or relative.parts[0] != "artifacts" \
+                            or output.is_symlink() or not output.is_file() \
+                            or hashlib.sha256(output.read_bytes()).hexdigest() != artifact["sha256"]:
+                        raise ValueError("产物文件与导出索引不一致")
+            except (OSError, ValueError, KeyError, TypeError, IndexError):
+                errors.append(issue("RUN_ARTIFACT", "产物文件与导出索引不一致", artifact_index))
         if gaps_path.is_file() or manifest.get("gaps_sha256"):
             expected_hash = hashlib.sha256(gaps_path.read_bytes() if gaps_path.is_file() else b"").hexdigest()
             if manifest.get("gaps_sha256") != expected_hash:

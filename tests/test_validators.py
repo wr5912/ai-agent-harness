@@ -1449,6 +1449,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         mode: str | None = None,
         compare_to: str | None = None,
         review: str | None = None,
+        export_response_markdown: str | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], dict]:
         command = [
             "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"), "--repo", str(repository),
@@ -1462,6 +1463,8 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             command.extend(("--compare-to", compare_to))
         if review:
             command.extend(("--review", review))
+        if export_response_markdown:
+            command.extend(("--export-response-markdown", export_response_markdown))
         for case_id in case_ids:
             command.extend(("--case", case_id))
         completed = subprocess.run(
@@ -1498,6 +1501,26 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         self.assertTrue(payload["runtime_required"])
         self.assertEqual(payload["missing_env_names"], list(self.REQUIRED_RUNTIME_ENV))
         self.assertEqual(before, after)
+
+    def test_explicit_export_copies_only_actual_final_response_before_sealing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repository, env, _ = self.runtime_fixture(Path(temp))
+            completed, payload = self.run_eval(repository, env, "U-INS-001", export_response_markdown="inspection-report.md")
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            run = (repository / payload["summary"]).parent
+            index = json.loads((run / "artifacts/index.json").read_text())
+            self.assertEqual(len(index["artifacts"]), 1)
+            artifact = index["artifacts"][0]
+            output = (run / artifact["path"]).read_bytes()
+            response = json.loads((run / artifact["source_evidence"]).read_text())
+            self.assertEqual(output, response["assistant_texts"][-1].encode("utf-8"))
+            self.assertEqual(artifact["sha256"], hashlib.sha256(output).hexdigest())
+            self.assertEqual(artifact["source_sha256"], hashlib.sha256((run / artifact["source_evidence"]).read_bytes()).hexdigest())
+            self.assertEqual(artifact["path"], "artifacts/U-INS-001/inspection-report.md")
+            (run / artifact["path"]).write_text("修改后的内容", encoding="utf-8")
+            checked, validation = run_json(repository / ".agents/skills/research-eval/scripts/validate_experiment.py", run.parents[1], cwd=repository)
+            self.assertNotEqual(checked.returncode, 0)
+            self.assertIn("RUN_ARTIFACT", error_codes(validation))
 
     def test_runtime_flow_seals_run_stops_instance_and_does_not_persist_auth_url(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

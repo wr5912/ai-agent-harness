@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 from contextlib import contextmanager
 from fnmatch import fnmatchcase
 import json
@@ -245,6 +246,30 @@ def write_unfinished_evidence(
     if execution_status == "error":
         value["failure_reason"] = reason
     return value
+
+
+def export_response_artifacts(run_dir: Path, cases: list[dict], rows: dict[str, dict], filename: str) -> None:
+    """显式请求时导出真实最后回答；不改写回答，也不替业务任务构造报告。"""
+    artifacts = []
+    for case in cases:
+        case_id = case["case_id"]
+        if rows.get(case_id, {}).get("execution_status") != "completed":
+            continue
+        response_path = run_dir / "evidence" / case_id / "response.json"
+        response_bytes = response_path.read_bytes()
+        texts = json.loads(response_bytes).get("assistant_texts", [])
+        if not texts or not isinstance(texts[-1], str) or not texts[-1].strip():
+            continue
+        relative = Path("artifacts") / case_id / filename
+        output = run_dir / relative
+        output.parent.mkdir(parents=True, exist_ok=True)
+        content = texts[-1].encode("utf-8")
+        output.write_bytes(content)
+        artifacts.append({"path": relative.as_posix(), "media_type": "text/markdown", "case_id": case_id,
+                          "sha256": hashlib.sha256(content).hexdigest(), "size": len(content),
+                          "source_evidence": response_path.relative_to(run_dir).as_posix(),
+                          "source_sha256": hashlib.sha256(response_bytes).hexdigest(), "message_index": len(texts) - 1})
+    write_json(run_dir / "artifacts" / "index.json", {"schema_version": "1.0", "artifacts": artifacts})
 
 
 def dsh_dev_path() -> str:
@@ -619,6 +644,8 @@ def execute_owned_run(args: argparse.Namespace, contract: dict, cases: list[dict
                 persist_case(case["case_id"], value)
                 if _cancel_requested:
                     raise KeyboardInterrupt
+            if args.export_response_markdown:
+                export_response_artifacts(run_dir, cases, runtime_rows, args.export_response_markdown)
             inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
             rows = [json.loads(line) for line in (run_dir / "results.jsonl").read_text(encoding="utf-8").splitlines()]
             if review_mode == "ai":
@@ -714,6 +741,7 @@ def main() -> None:
     parser.add_argument("--review", choices=("ai", "none"), help="API 证据复核；默认 full 为 ai，其余为 none；浏览器仅支持 none")
     parser.add_argument("--model", help="记录本次 Session 预期使用的模型标识，不改变 Runtime 设置")
     parser.add_argument("--compare-to", help="已封存的同 Agent Run ID，自动生成观察性对照")
+    parser.add_argument("--export-response-markdown", help="显式导出各已完成 Case 的最后真实回答；指定不含目录的 .md 文件名")
     parser.add_argument("--dry-run", action="store_true", help="只解析计划，不写 Run、不启动进程")
     parser.add_argument("--timeout-seconds", type=int, default=300, help="每轮等待上限（秒）")
     args = parser.parse_args()
@@ -721,6 +749,8 @@ def main() -> None:
     os.environ["HARNESS_ASSET_ROOT"] = str(REPO)
     if args.timeout_seconds < 10:
         parser.error("--timeout-seconds 不能小于 10")
+    if args.export_response_markdown and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.md", args.export_response_markdown):
+        parser.error("--export-response-markdown 必须是不含目录的 .md 文件名")
     _cancel_requested = False
     _deadline_exceeded = False
     previous_handlers = {name: signal.signal(name, request_cancellation)
