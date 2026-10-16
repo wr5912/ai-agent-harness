@@ -46,6 +46,7 @@ test('能力目录读取实际来源和原生 MCP，区分发现与验证并过�
   assert.doesNotMatch(JSON.stringify(result), /do-not-output|private.invalid/)
   const digest = execFileSync(python, ['-c', 'import sys; from pathlib import Path; sys.path.insert(0,sys.argv[1]); from run_record import candidate_digest; print(candidate_digest(Path(sys.argv[2])))', adapter, join(root, `evolution/experiments/${sourceId}/candidate`)], { encoding: 'utf8', env: { ...process.env, HARNESS_PROGRAM_ROOT: program } }).trim()
   assert.equal(result.sources[0].candidate_sha256, digest)
+  assert.equal(result.sources[0].candidate_sha256_basis, 'run-content-path-mode')
 })
 
 test('装配预览无写入，应用复制真实 Skill 并核对配置引用，拒绝重复应用和来源漂移', async t => {
@@ -115,10 +116,12 @@ function sealedRun(root, withRegression = false) {
 test('交付检查执行真实封存与来源校验，仅隔离 Docker 边界；不能只凭 running 通过', async t => {
   const root = fixture(t), { run, artifact, observed } = sealedRun(root, true)
   const report = readFileSync(join(root, artifact), 'utf8')
+  const csv = 'device_id,status\nD-1,正常\nD-2,正常\n'
+  let includeCsv = true, toolCsv = csv, downloadedCsv = csv
   let probeInput = ''
   const server = createServer(async (request, response) => {
     if (request.url === '/assistant/') { response.end('ready'); return }
-    if (request.url.startsWith('/assistant/api/task-examples/artifact')) { response.end(report); return }
+    if (request.url.startsWith('/assistant/api/task-examples/artifact')) { response.end(new URL(request.url, 'http://localhost').searchParams.get('file') === 'devices.csv' ? downloadedCsv : report); return }
     const chunks = []; for await (const chunk of request) chunks.push(chunk)
     const args = chunks.length ? JSON.parse(Buffer.concat(chunks)).payload.args : null
     const method = new URL(request.url, 'http://localhost').pathname.slice('/assistant/api/'.length)
@@ -130,7 +133,7 @@ test('交付检查执行真实封存与来源校验，仅隔离 Docker 边界；
     if (method === 'session.export') {
       const events = [{ type: 'session', id: 'session-probe' }, { type: 'user/message', data: { id: 'probe-message', source: { kind: 'user' }, content: [{ type: 'text', text: probeInput }] } },
         { type: 'tool/call', data: { callId: 'probe-call', name: 'task_inspection', arguments: '{}' } },
-        { type: 'tool/result', data: { message: { toolCallId: 'probe-call', isError: false, content: [{ type: 'text', text: JSON.stringify({ completed: true, markdown: report, report_sha256: sha256(report), download_url: '/assistant/api/task-examples/artifact?run_id=new-delivery-report&file=report.md' }) }] } } },
+        { type: 'tool/result', data: { message: { toolCallId: 'probe-call', isError: false, content: [{ type: 'text', text: JSON.stringify({ completed: true, markdown: report, report_sha256: sha256(report), download_url: '/assistant/api/task-examples/artifact?run_id=new-delivery-report&file=report.md', ...(includeCsv ? { csv: toolCsv, csv_url: '/assistant/api/task-examples/artifact?run_id=new-delivery-report&file=devices.csv' } : {}) }) }] } } },
         { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '报告已生成。' }] } } }, { type: 'turn/end', data: { reason: { kind: 'completed' }, turn: 1 } }]
       response.end(Buffer.from(zipSync({ 'session.jsonl': strToU8(events.map(event => JSON.stringify(event)).join('\n') + '\n') }))); return
     }
@@ -144,11 +147,24 @@ test('交付检查执行真实封存与来源校验，仅隔离 Docker 边界；
   const before = Object.fromEntries(['PATH', 'HARNESS_PYTHON', 'HARNESS_PROGRAM_ROOT', 'HEP_DELIVERY_TEST_OBSERVATION'].map(key => [key, process.env[key]]))
   Object.assign(process.env, { PATH: `${bin}:${process.env.PATH}`, HARNESS_PYTHON: python, HARNESS_PROGRAM_ROOT: program, HEP_DELIVERY_TEST_OBSERVATION: join(root, 'observation.json') })
   t.after(() => { for (const [key, value] of Object.entries(before)) if (value === undefined) delete process.env[key]; else process.env[key] = value })
-  const input = { agent_id: 'inspection-task', source: `experiment:${sourceId}`, run_id: run, instance_name: 'delivery-test', artifacts: [artifact], expected_device_ids: ['D-1', 'D-2'], required_case_ids: ['U-INS-001', 'U-IDENTITY-001'], required_tool_names: ['task_inspection'] }
+  const input = { agent_id: 'inspection-task', source: `experiment:${sourceId}`, run_id: run, instance_name: 'delivery-test', artifacts: [artifact], expected_device_ids: ['D-1', 'D-2'], required_case_ids: ['U-INS-001', 'U-IDENTITY-001'], required_tool_names: ['task_inspection'], require_csv: true }
   const verify = value => verifyTaskDelivery(root, value, undefined, { instanceUrl: async () => `http://127.0.0.1:${server.address().port}/assistant/` })
   const passed = await verify(input); assert.equal(passed.ready, true, JSON.stringify(passed.checks))
   assert.equal(passed.probe.session_id, 'session-probe')
+  assert.deepEqual(passed.probe.downloads.map(item => item.format), ['markdown', 'csv'])
+  assert.equal(readFileSync(join(passed.probe.path, 'devices.csv'), 'utf8'), csv)
+  assert.equal(new URL(passed.probe.downloads[1].url).port, String(server.address().port))
   assert.equal(passed.checks.some(check => check.name === 'business_tools:U-IDENTITY-001'), false)
+  downloadedCsv = 'device_id,status\nD-1,正常\n'
+  const mismatchedCsv = await verify(input)
+  assert.equal(mismatchedCsv.ready, false); assert.equal(mismatchedCsv.checks.find(check => check.name === 'delivery_csv_download').ok, false)
+  downloadedCsv = csv; includeCsv = false
+  const missingCsv = await verify(input)
+  assert.equal(missingCsv.ready, false); assert.equal(missingCsv.checks.find(check => check.name === 'delivery_csv').ok, false)
+  includeCsv = true
+  toolCsv = downloadedCsv = csv.replace('D-2,正常', 'D-2,待核对')
+  assert.equal((await verify(input)).checks.find(check => check.name === 'delivery_csv').ok, false, '下载匹配也不能掩盖 Markdown 与 CSV 状态不一致')
+  toolCsv = downloadedCsv = csv
   assert.equal((await verify({ ...input, required_tool_names: ['unrelated_business_tool'] })).ready, false)
   assert.equal((await verifyTaskDelivery(root, { ...input, ready: true, artifacts: ['agents/inspection-task/evaluation.md'] })).ready, false)
   observed.container[0].Mounts[0].RW = true; write(root, 'observation.json', JSON.stringify(observed)); assert.equal((await verifyTaskDelivery(root, input)).ready, false)

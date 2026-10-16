@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { programRoot, workspaceIdentity, workspaceLocalPath, workspaceOwnsCwd } from '../workspace.ts'
 import type { ConnectionRpcHandler } from '@deepseek-ai/dsh-client-connection'
 import type { Session } from '@deepseek-ai/dsh-session'
@@ -197,6 +198,33 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     const previous = task.evaluation_usage?.[key]?.observed_model_calls ?? 0
     return { ...task, model_calls: task.model_calls + Math.max(0, observed - previous), evaluation_usage: { ...task.evaluation_usage,
       [key]: { observed_model_calls: Math.max(previous, observed), complete: usage.model_calls_complete === true } } }
+  }
+  async function observeEvaluation(id: string, jobId: string, receipt: any) {
+    if (!receipt.ok) return
+    const exhausted = await locked(id, async () => {
+      let task = (await inspect(id)).state.execution
+      if (!task?.operations.some(item => item.action === 'eval/start' && (item.receipt?.value?.job_id === jobId || item.id === jobId))) return false
+      const updated = accountUsage(task, jobId, receipt.value)
+      if (updated.model_calls !== task.model_calls || JSON.stringify(updated.evaluation_usage) !== JSON.stringify(task.evaluation_usage)) await saveTask(id, updated)
+      task = updated
+      return task.model_calls >= task.plan.budget.max_model_calls && task.state === 'running'
+    })
+    if (exhausted) await stopTask(id, 'budget_exhausted', '已达到总模型调用预算，助手和后续评测已停止')
+  }
+  async function waitEvaluation(id: string, input: MapValue, receipt: any, signal: AbortSignal) {
+    const task = (await inspect(id)).state.execution
+    const owned = task?.operations.some(item => item.action === 'eval/start' && (item.receipt?.value?.job_id === input.job_id || item.id === input.job_id))
+    // 仅原生助手工具有限等待；页面 RPC 和其他任务的查询保持即时返回。
+    const until = Math.min(Date.now() + 45_000, task ? Date.parse(task.deadline_at) : Date.now())
+    await observeEvaluation(id, input.job_id, receipt)
+    while (owned && receipt.ok && ['running', 'queued', 'recovering'].includes(receipt.value?.status) && Date.now() < until) {
+      if ((await inspect(id)).state.execution?.state !== 'running' || !armedTasks.has(id)) break
+      await delay(Math.min(1000, until - Date.now()), undefined, { signal })
+      if ((await inspect(id)).state.execution?.state !== 'running' || !armedTasks.has(id)) break
+      receipt = await dispatch('agents', 'eval/status', input, signal)
+      await observeEvaluation(id, input.job_id, receipt)
+    }
+    return receipt
   }
   function clearTaskTimer(id: string) {
     const timer = taskTimers.get(id)
@@ -410,7 +438,8 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
         let receipt: any
         try {
           receipt = await dispatch('agents', 'tasks/delivery', { ...input, artifacts: artifactRefs, agent_id: task.plan.agent_id, source: task.target_source,
-            instance_name: task.plan.instance_name, required_case_ids: task.plan.evaluation_case_ids, expected_device_ids: task.plan.inspection?.expected_device_ids, required_tool_names: task.plan.required_tool_names, deadline_at: task.deadline_at }, AbortSignal.any([signal, deliveryController.signal]))
+            instance_name: task.plan.instance_name, required_case_ids: task.plan.evaluation_case_ids, expected_device_ids: task.plan.inspection?.expected_device_ids, required_tool_names: task.plan.required_tool_names,
+            require_csv: task.plan.kind === 'inspection' && task.plan.deliverables.some(item => /\bcsv\b/i.test(item)), deadline_at: task.deadline_at }, AbortSignal.any([signal, deliveryController.signal]))
         } finally { if (taskOperations.get(id) === deliveryController) taskOperations.delete(id) }
         task = (await inspect(id)).state.execution!
         if (receipt.value?.probe?.model_usage) { task = accountUsage(task, `delivery:${receipt.value.probe.id}`, receipt.value.probe.model_usage); await saveTask(id, task) }
@@ -689,6 +718,14 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
         const input = { ...object(args.input) }
         if (domain === 'task') return wireValue(await taskAction(id, args.action, input, exec.signal))
         if (state.execution && domain === 'agents' && args.action === 'tasks/delivery') throw new Error('当前任务的交付检查须使用 platform_task deliver，以计入预算并固定来源与业务判据')
+        if (domain === 'agents' && args.action === 'detail' && !input.experiment_id && !input.source && (state.execution || state.task_context.skill === 'task-builder')) {
+          const agentId = state.execution?.plan.agent_id ?? state.task_context.agent_id
+          if (!input.agent_id || input.agent_id === agentId) {
+            const selected = state.execution?.target_source?.slice(11) ?? state.task_context.experiment_id
+            if (selected) input.experiment_id = selected
+            if (agentId) input.agent_id = agentId
+          }
+        }
         if (state.task_context.skill === 'agent-maintenance' && state.task_context.workflow === 'features') {
           if (['detail', 'edit/read', 'assets/diff', 'features/read-source', 'features/preview', 'features/proposal'].includes(args.action)) input.experiment_id = state.task_context.experiment_id
           if (['detail', 'runs/index'].includes(args.action) && state.task_context.agent_id) input.agent_id = state.task_context.agent_id
@@ -708,15 +745,8 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
         if (!readActions.has(args.action) && !(domain === 'agents' && await confirmedFusion(id, args.action, input, exec.signal))) {
           return propose(id, domain, args.action, input, exec.signal)
         }
-        const receipt = await dispatch(domain, args.action, input, exec.signal)
-        if (domain === 'agents' && args.action === 'eval/status' && receipt.ok) await locked(id, async () => {
-          let task = (await inspect(id)).state.execution
-          if (task?.operations.some(item => item.action === 'eval/start' && (item.receipt?.value?.job_id === input.job_id || item.id === input.job_id))) {
-            task = accountUsage(task, input.job_id, receipt.value)
-            await saveTask(id, task)
-            if (task.model_calls >= task.plan.budget.max_model_calls && task.state === 'running') await stopTask(id, 'budget_exhausted', '已达到总模型调用预算，助手和后续评测已停止')
-          }
-        })
+        let receipt = await dispatch(domain, args.action, input, exec.signal)
+        if (domain === 'agents' && args.action === 'eval/status') receipt = await waitEvaluation(id, input, receipt, exec.signal)
         if (domain === 'agents' && receipt.ok && receipt.value?.preview_id && (args.action === 'datasets/preview' || args.action === 'features/preview' || args.action === 'fusion/preview' && receipt.value.plan_ready)) {
           return propose(id, domain, args.action === 'datasets/preview' ? 'datasets/apply' : args.action === 'features/preview' ? 'features/apply' : 'fusion/confirm', { preview_id: receipt.value.preview_id, ...(args.action === 'datasets/preview' ? { assistant_session_id: id } : {}) }, exec.signal, receipt.value)
         }

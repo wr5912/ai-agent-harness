@@ -844,6 +844,45 @@ test('业务与评审请求按job去重累计预算，同一status重复查询�
   assert.equal((await f.status(id)).execution.evaluation_usage[job].complete, true)
 })
 
+test('任务详情缺省使用固定上下文，绑定目标后优先实际新版本，显式复用来源保持不变', async t => {
+  const f = fixture(t, taskResponder)
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '改进所选版本', context: { skill: 'task-builder', agent_id: 'test-agent', experiment_id: 'EXP-test-agent-000' } })).value.session_id
+  await f.execute(id, 'agents', 'detail', { agent_id: 'test-agent' })
+  assert.equal(f.calls.at(-1).input.experiment_id, 'EXP-test-agent-000')
+  await f.execute(id, 'agents', 'detail', { agent_id: 'test-agent', experiment_id: 'EXP-test-agent-002' })
+  assert.equal(f.calls.at(-1).input.experiment_id, 'EXP-test-agent-002')
+  await beginTask(f, id)
+  await f.execute(id, 'agents', 'detail', { agent_id: 'test-agent' })
+  assert.equal(f.calls.at(-1).input.experiment_id, 'EXP-test-agent-001')
+  const other = (await f.rpc('session', { task: '查看智能体' })).value.session_id
+  await f.execute(other, 'agents', 'detail', { agent_id: 'test-agent' })
+  assert.equal(f.calls.at(-1).input.experiment_id, undefined)
+})
+
+test('助手查询本任务评测在工具内等待实际终态，暂停可中断等待且不重复启动', async t => {
+  let polls = 0
+  const f = fixture(t, (endpoint, input) => endpoint === 'agents/eval/status'
+    ? { ok: true, value: { job_id: input.job_id, status: ++polls === 1 ? 'running' : 'completed', observed_model_calls: 2, model_calls_complete: true } }
+    : taskResponder(endpoint, input))
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '等待真实评测' })).value.session_id
+  await beginTask(f, id)
+  const started = await f.execute(id, 'agents', 'eval/start', { source: 'experiment:EXP-test-agent-001', cases: ['U-BUSINESS-001'] })
+  const input = { job_id: started.result.value.job_id }
+  assert.equal((await f.execute(id, 'agents', 'eval/status', input)).result.value.status, 'completed')
+  assert.equal(polls, 2)
+  assert.equal((await f.status(id)).execution.model_calls, 2)
+  polls = 0
+  const pending = f.execute(id, 'agents', 'eval/status', input)
+  while (polls === 0) await setImmediate()
+  await f.rpc('task/pause', { session_id: id })
+  await pending
+  assert.equal(polls, 1, '暂停后不得继续查询或重发评测')
+  assert.equal(f.calls.filter(item => item.endpoint === 'agents/eval/start').length, 1)
+  assert.equal(f.calls.some(item => item.endpoint === 'agents/eval/cancel'), true)
+})
+
 test('任务不能通过领域delivery入口绕过预算或替换已确认业务判据', async t => {
   const f = fixture(t, taskResponder)
   installTaskGoals(f)

@@ -361,6 +361,7 @@ function TaskCard({ task, assistant, rpc, sessionId }: { task: TaskExecution; as
     {task.delivery && <><p>业务测试、目标实例及产物已核验。</p>
       {task.delivery.entry && <p><a href={instanceWebUrl(task.delivery.entry, window.location.hostname)} target="_blank" rel="noreferrer">打开智能体</a></p>}
       {(task.delivery.artifacts ?? []).map((artifact: any) => <p key={artifact.path}><a href={(() => { const url = new URL('api/harness-platform/runs/download', document.baseURI); url.searchParams.set('run_id', task.delivery.run_id); url.searchParams.set('kind', 'file'); url.searchParams.set('path', artifact.run_path); return url.href })()} download>下载 {artifact.run_path?.split('/').at(-1) ?? '业务产物'}</a></p>)}
+      {(task.delivery.probe?.downloads ?? []).map((artifact: any) => <p key={artifact.format}><a href={instanceWebUrl({ ...task.delivery.entry, url: artifact.url }, window.location.hostname)} target="_blank" rel="noreferrer" download>{artifact.format === 'csv' ? '下载设备 CSV' : '下载 Markdown'}</a></p>)}
       <details><summary>查看验证结果与限制</summary><Details value={task.delivery}/></details></>}
     {error && <p role="alert">{error}</p>}
   </section>

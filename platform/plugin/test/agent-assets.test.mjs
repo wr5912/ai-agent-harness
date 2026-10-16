@@ -120,6 +120,8 @@ test('固定资产读取核对来源身份并保持只读，不受后续工作�
     const listing = success(await readFixedAsset(root, payload))
     assert.equal(listing.commit, commit); assert.equal(listing.files.length, 3)
     assert.match(listing.candidate_digest, /^[a-f0-9]{64}$/)
+    assert.equal(listing.candidate_digest_basis, 'git-object-path-mode')
+    assert.match(listing.notes.join('\n'), /不能与.*candidate_sha256/)
     const value = success(await readFixedAsset(root, { ...payload, path: 'change.md' }))
     assert.equal(value.selected.content, 'old\n'); assert.equal(value.selected.kind, 'text')
     assert.match(value.selected.sha256, /^[a-f0-9]{64}$/)

@@ -21,6 +21,7 @@ export interface TaskDeliveryInput {
   expected_device_ids?: string[]
   required_case_ids?: string[]
   required_tool_names?: string[]
+  require_csv?: boolean
   deadline_at?: string
 }
 interface DeliveryServices { instanceUrl?: () => Promise<string> }
@@ -209,6 +210,15 @@ export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput,
       const authUrl = await services.instanceUrl()
       const parsed = new URL(authUrl)
       if (parsed.protocol !== 'http:' || parsed.hostname !== '127.0.0.1' || Number(parsed.port) !== instance.port) throw new Error('交付实例访问地址不匹配')
+      function publicDownload(path: string, filename: string) {
+        const url = new URL(path, parsed)
+        if (url.origin !== parsed.origin || url.pathname !== parsed.pathname.replace(/\/$/, '') + '/api/task-examples/artifact' || url.searchParams.get('file') !== filename || !url.searchParams.get('run_id')) throw new Error('业务产物下载地址不匹配')
+        // 不把实例登录地址的凭据或额外查询参数复制到任务回执。
+        const publicUrl = new URL(url.pathname, parsed.origin)
+        publicUrl.searchParams.set('run_id', url.searchParams.get('run_id')!)
+        publicUrl.searchParams.set('file', filename)
+        return publicUrl.href
+      }
       const frozen = JSON.parse(readFileSync(dataPath(root, `evolution/experiments/${info.id}/runs/${input.run_id}/inputs.lock.json`), 'utf8'))
       const representative = frozen.evaluation_cases.find((item: any) => businessCaseIds.includes(item.case_id))
       if (!representative) throw new Error('冻结业务输入不存在')
@@ -229,10 +239,30 @@ export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput,
       const report = tools.find(tool => input.required_tool_names!.includes(tool.name) && tool.value.completed === true && typeof tool.value.markdown === 'string'
         && sha256(tool.value.markdown) === tool.value.report_sha256)
       if (input.expected_device_ids?.length) {
-        record('delivery_report', report && verifyInspectionReport(report.value.markdown, 'markdown', { expected_device_ids: input.expected_device_ids }).ok, '交付实例新报告的设备集合、状态及汇总完整一致')
+        const markdownInspection = report && verifyInspectionReport(report.value.markdown, 'markdown', { expected_device_ids: input.expected_device_ids })
+        record('delivery_report', markdownInspection?.ok, '交付实例新报告的设备集合、状态及汇总完整一致')
         const downloaded = report && typeof report.value.download_url === 'string' ? await observed.download(report.value.download_url) : null
-        record('delivery_download', downloaded && report && sha256(Buffer.from(downloaded)) === report.value.report_sha256, '从交付实例实际下载的新报告与该实例业务工具回执摘要一致')
-        if (report) { writeFileSync(join(directory, 'report.md'), report.value.markdown); probe.report_sha256 = report.value.report_sha256 }
+        const downloadedOk = downloaded && report && sha256(Buffer.from(downloaded)) === report.value.report_sha256
+        record('delivery_download', downloadedOk, '从交付实例实际下载的新报告与该实例业务工具回执摘要一致')
+        probe.downloads = []
+        if (report) {
+          writeFileSync(join(directory, 'report.md'), report.value.markdown); probe.report_sha256 = report.value.report_sha256
+          if (downloadedOk) probe.downloads.push({ format: 'markdown', url: publicDownload(report.value.download_url, 'report.md'), sha256: report.value.report_sha256, bytes: downloaded.length })
+        }
+        if (input.require_csv || report?.value.csv !== undefined || report?.value.csv_url !== undefined) {
+          const csv = report?.value.csv
+          const expectedStatuses = Object.fromEntries((markdownInspection?.devices ?? []).map((device: any) => [device.id, device.status]))
+          const csvValid = typeof csv === 'string' && csv.length && verifyInspectionReport(csv, 'csv', { expected_device_ids: input.expected_device_ids, expected_statuses: expectedStatuses }).ok
+          record('delivery_csv', csvValid, '设备 CSV 覆盖约定设备集合、逐行状态完整，不能省略已约定的 CSV')
+          const csvDownloaded = typeof report?.value.csv_url === 'string' ? await observed.download(report.value.csv_url) : null
+          const csvDigest = typeof csv === 'string' ? sha256(csv) : undefined
+          const csvDownloadedOk = csvValid && csvDownloaded && sha256(Buffer.from(csvDownloaded)) === csvDigest
+          record('delivery_csv_download', csvDownloadedOk, '从交付实例实际下载的设备 CSV 与同一业务工具回执逐字节一致')
+          if (csvDownloadedOk) {
+            writeFileSync(join(directory, 'devices.csv'), csv)
+            probe.downloads.push({ format: 'csv', url: publicDownload(report!.value.csv_url, 'devices.csv'), sha256: csvDigest, bytes: csvDownloaded.length })
+          }
+        }
       }
       probe.status = checks.every(check => check.ok) ? 'completed' : 'failed'
     } catch {

@@ -26,6 +26,7 @@ export type AssetDiffView = {
 }
 export type FixedAssetView = {
   agent_id: string; experiment_id: string; ref: string; commit: string; candidate_digest: string
+  candidate_digest_basis: 'git-object-path-mode'
   files: Array<Omit<Entry, 'file'>>
   selected?: { path: string; object: string; size: number; kind: 'text' | 'binary' | 'oversize'; content: string | null; truncated: boolean; sha256?: string }
   notes: string[]
@@ -145,7 +146,8 @@ export async function readFixedAsset(rootPath: string, payload: JsonMap, signal?
     if (files.length > 10_000) throw new DiffError('limit_exceeded', '固定 Candidate 超出 10000 文件读取范围')
     const value: FixedAssetView = {
       agent_id: agentId, experiment_id: id, ref: `git:${commit}`, commit, candidate_digest: digest(files), files,
-      notes: ['只读固定提交中的 Candidate；不读取环境凭据、Session、Run、缓存或依赖目录。', '文本预览脱敏且最多 128 KiB；超过 1 MiB 的文件仅返回 Git 对象摘要与大小。预览不构成另一份可编辑来源。'],
+      candidate_digest_basis: 'git-object-path-mode',
+      notes: ['candidate_digest 汇总固定 Git 文件路径、blob 对象与执行模式；不是运行内容摘要，不能与 detail 或 tasks/capabilities 的 candidate_sha256 比较来判断漂移。装配 expected_candidate_sha256 使用目标 detail/capabilities 返回值；单文件 expected_source_sha256 使用 selected.sha256。', '只读固定提交中的 Candidate；不读取环境凭据、Session、Run、缓存或依赖目录。', '文本预览脱敏且最多 128 KiB；超过 1 MiB 的文件仅返回 Git 对象摘要与大小。预览不构成另一份可编辑来源。'],
     }
     if (payload.path !== undefined) {
       const entry = files.find(item => item.path === payload.path)

@@ -4,6 +4,7 @@ export interface InspectionReportContract {
 }
 
 export interface InspectionReportCheck {
+  devices: { id: string; status: string }[]
   ok: boolean
   device_ids: string[]
   missing: string[]
@@ -42,7 +43,7 @@ export function verifyInspectionReport(content: string, format: 'csv' | 'markdow
   if (format === 'markdown' && declaredTotal === undefined) errors.push('Markdown 报告缺少“设备总数：N”汇总')
   if (declaredTotal !== undefined && declaredTotal !== ids.length) errors.push('报告汇总与明细数量不一致')
   return { ok: !errors.length && !missing.length && !unexpected.length && !duplicates.size,
-    device_ids: ids, missing, unexpected, duplicates: [...duplicates], errors, total: ids.length,
+    device_ids: ids, devices, missing, unexpected, duplicates: [...duplicates], errors, total: ids.length,
     ...(declaredTotal === undefined ? {} : { declared_total: declaredTotal }) }
 }
 

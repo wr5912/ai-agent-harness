@@ -7,6 +7,8 @@ description: 根据用户任务复用能力、装配 DSH 智能体，通过固�
 
 保持平台管理身份。用户要的是可使用的业务结果。先用 `platform_agents context/list/detail` 和 `tasks/capabilities` 查询已有任务、固定来源、Skill、Plugin、工具及评测，不重复询问已知信息。只对会改变业务目标、必要输入、验收方式或外部权限的缺口集中提问。现有配置名称只能说明已配置；实际装载、调用和当前业务验证必须分别取证。
 
+固定任务上下文已有 `experiment_id` 时，它是本次所选目标；`reference_sources` 是待复用来源，不能因 active 或最新版本能力更全就把父版换过去。读取所选目标时明确传 experiment_id；确认计划的 source 与用户目标一致。能力复用只需读取相关文件和已知业务 Case，不为凑齐资料遍历全部历史 Run。
+
 ## 提出并确认任务
 
 使用 `platform_task preview`，再用相同计划 `start` 显示原生确认卡。确认卡返回实际结果后连续执行，不重复要求用户确认范围内动作。计划包括：
@@ -29,9 +31,11 @@ description: 根据用户任务复用能力、装配 DSH 智能体，通过固�
 
 `expected_target_sha256:null` 仅用于不存在的目标；覆盖时填实际摘要。需要更新 Preset/Plugin 绑定时，把 `configuration_edits:[{path,content,expected_target_sha256}]` 放在同一批次，path 相对 Candidate。预览成功后用完全相同 input 调用 `tasks/assembly-apply`。这些是实际发现数据的填参位置，不能把尖括号占位文字直接传给服务，也不能猜来源摘要。
 
+`assets/read-fixed.candidate_digest` 是 Git 对象目录摘要；`detail` 和 `tasks/capabilities.candidate_sha256` 是 Run 使用的内容摘要，两者数值不同不代表漂移，不能交叉比较。装配目标用后者，单文件源内容用 `assets/read-fixed.selected.sha256`。`features/read-source.ref` 是说明文件路径，不是 Git 提交；只需读取资产时直接用 `assets/read-fixed`。
+
 1. 新建用 `platform_agents new`；服务端从已确认计划取角色和业务 Case，绑定真实回执的目标。读取目标详情，后续不得操作其他 Candidate。已有智能体的语义改动先从固定来源创建独立 Experiment；不要覆盖已启用的原版本。
 2. 从 `tasks/capabilities` 返回的真实资产选择复用；`tasks/assembly-preview` 预检，再 `tasks/assembly-apply`。复制引用与目标 Preset/Plugin 绑定要一并准备。只增加角色描述、复制文件但未绑定，不算能力就绪。工具接入使用现有 MCP 管理，凭据由原生配置维护，助手不读取密钥。
-3. `eval/preview` 后 `eval/start {source,cases,mode:"fast",executor:"api",review:"none",artifact_export:{format:"markdown",filename:"inspection-report.md"}}`，cases 与计划相同。该显式导出优先复制同一业务 Session 内实际完成工具回执的 Markdown，校验其 `report_sha256`，保存到 `artifacts/<case_id>/inspection-report.md`；没有正式工具正文时才导出最后实际回复，不要求模型重复报告全文。用 `eval/status` 查询进度与实际产物引用。初测保留完整 Run。不能把 HTTP 成功、模型声明完成或同模型自评分作为业务通过。
+3. `eval/preview` 后 `eval/start {source,cases,mode:"fast",executor:"api",review:"none",artifact_export:{format:"markdown",filename:"inspection-report.md"}}`，cases 与计划相同。该显式导出优先复制同一业务 Session 内实际完成工具回执的 Markdown，校验其 `report_sha256`，保存到 `artifacts/<case_id>/inspection-report.md`；没有正式工具正文时才导出最后实际回复，不要求模型重复报告全文。用 `eval/status` 查询进度与实际产物引用，工具会有界等待本任务 Job，不用频繁另起模型轮询。初测保留完整 Run。不能把 HTTP 成功、模型声明完成或同模型自评分作为业务通过。
 4. 有失败时读取 Run 输入、轨迹和实际结果，找共同原因。调用 `platform_task begin-repair` 持久预留一轮后再编辑 Candidate，随后复测失败项及约定回归。失败轮也计数；最多三轮，达到额度后保留失败证据并停止，不自增预算。不修改原 Run、不抹去失败；有回归时恢复本任务已验证修订，保留用户并行改动。
 5. 任务卡可暂停、恢复、取消；重启后先查状态再显式恢复，额度不重置。外部动作回执未知时查询实际 job/实例状态，不重发写入；无法确认则如实停止并给出具体待核对对象。
 
@@ -40,5 +44,7 @@ description: 根据用户任务复用能力、装配 DSH 智能体，通过固�
 ## 交付
 
 使用约定来源创建或启动目标实例。调用 `platform_task deliver {run_id,artifacts:["artifacts/<case_id>/inspection-report.md"]}`；服务端核验本任务 Run、冻结 Case、当前 Candidate、真实实例和可读取产物。有固定业务工具时，还会在交付实例新建 Session 执行代表业务输入，核对实际工具与报告下载；评测容器和交付实例 HOME 不同，各自产物 ID 可以不同，不能拿评测报告的临时下载地址拼到交付实例。此探针最长 120 秒且受任务截止时间约束，失败证据保存在运行状态根，消耗计入总额。返回 completed 后才能宣布已交付。
+
+全部约定 Case 都须通过；业务工具和代表探针对应实际交付产物的业务 Case，身份和用户数据摘要回归不要求额外查服务。评测或交付检查失败后继续当前任务核对缺口，需要改资产时预留修复轮；不要再次 preview/start 要求整体授权，不自行缩小原方案。
 
 默认只告诉用户结果、实例入口、产物入口及影响使用的限制；失败告诉用户缺少什么、已保存什么、需要何种介入。Mock 明确标注模拟边界，真实训练缺算力或真实外部系统未验时单列待验收，不能用模拟结果代替。

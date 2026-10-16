@@ -38,7 +38,7 @@ export async function discoverTaskCapabilities(assetRoot: string, options: Capab
         } catch { return { path, name: path.split('/').at(-1), verification: 'invalid' as const } }
       })
       sources.push({ source: info.source, experiment_id: id, agent_id: info.agent_id,
-        candidate_sha256: candidateDigest(info.candidate), skills, plugins, preset: info.entry.preset,
+        candidate_sha256: candidateDigest(info.candidate), candidate_sha256_basis: 'run-content-path-mode', skills, plugins, preset: info.entry.preset,
         required_env_names: info.entry.required_env_names ?? [] })
     } catch { unavailable.push({ source: `experiment:${id}`, reason: '来源登记或资产不可读取' }) }
   }
