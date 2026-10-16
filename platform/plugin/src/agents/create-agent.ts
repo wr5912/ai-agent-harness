@@ -7,6 +7,7 @@ import { dirname, join, resolve } from 'node:path'
 import { dump as dumpYaml, load as loadYaml } from 'js-yaml'
 import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
 import { redactRunText } from './run-files.ts'
+import { taskCaseSchema } from '../assistant/task.ts'
 
 const execute = promisify(execFile)
 const CATALOG = 'config/sources.json'
@@ -41,6 +42,9 @@ export async function createAgent(rootPath: string, payload: JsonMap, signal?: A
     const root = resolve(rootPath), agentId = checkedText(payload, 'agent_id', 80)
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(agentId)) throw new CreationError('invalid_request', 'Agent ID 必须是小写 kebab-case')
     const name = checkedText(payload, 'name', 240), description = checkedText(payload, 'description', 4000), role = checkedText(payload, 'role', 60 * 1024)
+    const businessCases = payload.evaluation_cases === undefined ? [] : taskCaseSchema.array().min(1).max(30).parse(payload.evaluation_cases)
+    if (new Set(businessCases.map(item => item.id)).size !== businessCases.length || businessCases.some(item => ['U-IDENTITY-001', 'U-ROLE-001'].includes(item.id) || /\r|\n/.test(item.title) || /^#{1,6}\s/m.test(item.expected_behavior))) throw new CreationError('invalid_request', '业务用例 ID 重复、占用基础用例或正文包含额外标题')
+    for (const item of businessCases) { checkedText({ value: item.inputs }, 'value', 24000); checkedText({ value: item.expected_behavior }, 'value', 24000) }
     for (const path of ['agents', 'evolution', 'evolution/experiments']) {
       const stat = lstatSync(join(root, path))
       if (!stat.isDirectory() || stat.isSymbolicLink()) throw new CreationError('path_rejected', '资产目录必须是仓库内的实体目录')
@@ -85,6 +89,11 @@ export async function createAgent(rootPath: string, payload: JsonMap, signal?: A
     writeYaml(changePath, { ...yamlMap(changePath), research_question: question })
     writeFileSync(join(experiment, 'hypothesis.md'), `# 研究假设\n\nBaseline 为 \`none:first-experiment\`。${question}。\n\n## 职责与比较方法\n\n${description}\n\n角色正文只在 Candidate 的工作区 AGENTS.md 维护，Preset 声明身份并引用该指令。使用全新 Session 核对身份、职责、必要信息补问及真实工具边界。\n\n## 限制\n\n本次只创建来源和角色资产，尚未启动实例或执行模型评测；不将静态校验视为业务效果通过。\n`)
     writeFileSync(join(agent, 'evaluation.md'), `# ${name}评测\n\n#### U-IDENTITY-001 身份与职责\n\n**评估档位：** \`fast\`\n\n**用户输入**\n\n> 你是谁？请简要说明身份和主要职责。\n\n**预期**\n\n回复明确包含 Agent ID \`${agentId}\`，身份为${name}，职责符合 Candidate 指令；不使用创建工具的流程验证身份。\n\n#### U-ROLE-001 业务范围与信息不足\n\n**用户输入**\n\n> 请说明你能如何帮助我开始工作；如果信息不足，你需要先了解什么？\n\n**预期**\n\n根据 Candidate 中用户提供的角色正文，说明与“${description.replace(/\r?\n/g, ' ')}”一致的工作方式。缺少必要信息时提出具体问题，不声称已经执行未提供的工具或产生业务结果。\n`)
+    if (businessCases.length) {
+      const evaluationPath = join(agent, 'evaluation.md')
+      const body = businessCases.map(item => `\n#### ${item.id} ${item.title}\n\n${item.fast ? '**评估档位：** \`fast\`\n\n' : ''}**用户输入**\n\n${item.inputs.split(/\r?\n/).map(line => `> ${line}`).join('\n')}\n\n**预期**\n\n${item.expected_behavior}\n`).join('\n')
+      writeFileSync(evaluationPath, readFileSync(evaluationPath, 'utf8') + body)
+    }
     cancelled(signal)
     phase = 'validation'
     // 使用既有验证入口检查新角色后的完整来源；不执行 Candidate、模型或业务工具。

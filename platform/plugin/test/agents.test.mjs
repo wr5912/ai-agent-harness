@@ -1092,3 +1092,18 @@ test('详情派生引用绑定所选版本的可恢复提交，未提交版本�
     assert.match(changed.derivation.note, /未提交改动/)
   } finally { await rm(fx.root, { recursive: true, force: true }) }
 })
+
+test('默认详情优先manifest启用版本，新实验编号更大也不自动切换', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    addVersion(fx.root, 'EXP-test-agent-002', 'status: active\n')
+    const handler = createAgentsHandler(fx.root)
+    const active = await rpc(handler, 'detail', { agent_id: 'test-agent' })
+    assert.equal(active.experiment.id, 'EXP-test-agent-001')
+    assert.equal(active.selection.basis, 'active_experiment')
+    const explicit = await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: 'EXP-test-agent-002' })
+    assert.equal(explicit.experiment.id, 'EXP-test-agent-002')
+    assert.equal(explicit.selection.basis, 'explicit')
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})

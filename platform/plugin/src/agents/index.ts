@@ -808,7 +808,9 @@ async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
   const agentId = agentIdField(payload)
   const manifest = readYamlMap(root, repoPath(root, `agents/${agentId}/manifest.yaml`))
   const versions = listExperiments(root, agentId).sort((left, right) => right.id.localeCompare(left.id, 'en', { numeric: true }))
-  const rawExperimentId = optionalString(payload, 'experiment_id') ?? versions[0]?.id ?? (typeof manifest.active_experiment === 'string' ? manifest.active_experiment : undefined)
+  const explicitExperiment = optionalString(payload, 'experiment_id')
+  const activeExperiment = typeof manifest.active_experiment === 'string' ? manifest.active_experiment : undefined
+  const rawExperimentId = explicitExperiment ?? activeExperiment ?? versions[0]?.id
   const experimentId = rawExperimentId ? experimentIdValue(rawExperimentId) : undefined
   if (!experimentId) throw new RpcError('invalid_request', '未指定 experiment_id，manifest 也没有 active_experiment')
   const exp = experimentInfo(root, experimentId)
@@ -828,6 +830,7 @@ async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
   return ok({
     agent: { id: agentId, name: agentDisplayName(root, experimentId) ?? agentId, manifest, path: `agents/${agentId}` },
     experiment: exp,
+    selection: { basis: explicitExperiment ? 'explicit' : activeExperiment ? 'active_experiment' : 'latest_experiment', experiment_id: experimentId },
     versions: versions.map(item => ({ id: item.id, status: item.status, baseline_ref: item.baseline_ref })),
     baseline: { ref: exp.baseline_ref, parent_experiment_id: exp.change.parent_experiment_id ?? null, source: exp.baseline_ref ? 'change.yaml' : 'unknown' },
     fusion: declaredFusion(exp.change),

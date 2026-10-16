@@ -27,10 +27,15 @@ test('数据根含空格且工作目录任意时，新建、读改回读与草�
   const previousCwd = process.cwd()
   try {
     process.chdir(tmpdir())
-    const created = await invoke('new', { agent_id: 'basic-reader', name: '基本数据助手', description: '读取基本模拟数据。', role: '只读取已提供的基本模拟数据。' })
+    const created = await invoke('new', { agent_id: 'basic-reader', name: '基本数据助手', description: '读取基本模拟数据。', role: '只读取已提供的基本模拟数据。',
+      evaluation_cases: [{ id: 'U-BUSINESS-001', title: '完整统计设备', inputs: '读取 TEST-01、TEST-02 两台设备。', expected_behavior: '报告逐台列出两台设备，汇总数为2；声明模拟来源。', fast: true }] })
     const id = created.experiment_id
     const detail = await invoke('detail', { agent_id: 'basic-reader', experiment_id: id })
     assert.equal(detail.agent.id, 'basic-reader')
+    assert.equal(detail.evaluation.cases.length, 3)
+    const business = await invoke('cases/read', { experiment_id: id, case_id: 'U-BUSINESS-001' })
+    assert.deepEqual(business.case.inputs, ['读取 TEST-01、TEST-02 两台设备。'])
+    assert.equal(business.case.expected_behavior, '报告逐台列出两台设备，汇总数为2；声明模拟来源。')
     assert.equal(detail.declared.catalog_source.agent_id, 'basic-reader')
     const path = 'candidate/dsh/workspace/AGENTS.md'
     const before = await invoke('edit/read', { experiment_id: id, path })
