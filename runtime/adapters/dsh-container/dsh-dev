@@ -698,6 +698,9 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
     home_directory = selected_home_directory(name, current, migrate_home=migrate_home)
     if home_directory:
         Path(home_directory).mkdir(exist_ok=True)
+        # Docker 会在挂载 profiles/node_modules 子卷前创建缺失的父目录，
+        # 属主为 root；提前创建使首次 HOME 初始化仍能以容器用户写入。
+        (Path(home_directory) / "profiles").mkdir(exist_ok=True)
     template = (ADAPTER / f"{mode}.compose.yaml").read_text(encoding="utf-8")
     rendered = render_compose(
         template,

@@ -828,6 +828,7 @@ class DownCommandTest(unittest.TestCase):
         manifest = json.loads(path.read_text())
         manifest.pop("home_directory", None)
         path.write_text(json.dumps(manifest))
+        (path.parent / "dsh-home/profiles").rmdir()
         (path.parent / "dsh-home").rmdir()
 
     def tearDown(self):
@@ -928,6 +929,7 @@ class DeleteCommandTest(unittest.TestCase):
         manifest = json.loads(path.read_text())
         manifest.pop("home_directory", None)
         path.write_text(json.dumps(manifest))
+        (path.parent / "dsh-home/profiles").rmdir()
         (path.parent / "dsh-home").rmdir()
 
     def tearDown(self):
@@ -1899,6 +1901,9 @@ class BindHomeMigrationTests(unittest.TestCase):
             target = dev.write_instance("probe", mode="verification", contract=contract, port=3081)
             manifest = json.loads((target / "instance.json").read_text())
             directory = Path(manifest["home_directory"])
+            # 子卷挂载之前父目录必须已由调用用户创建，避免 Docker 以 root 创建它。
+            self.assertTrue((directory / "profiles").is_dir())
+            self.assertEqual((directory / "profiles").stat().st_uid, directory.stat().st_uid)
             session = directory / "session-fixture.json"
             session.write_text('{"fixture":true}')
             compose = (target / "compose.yaml").read_text()
