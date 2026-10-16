@@ -35,14 +35,19 @@ async function fixture(t, failure) {
     }
     if (method === 'session/list') return reply({ items: [...sessions].map(([sessionId, session]) => ({ sessionId,
       cwd: '/work/harness/workspace', projections: { values: { agentPreset: session.preset } } })) })
+    if (method === 'session/rename') {
+      sessions.get(input.request.sessionId).title = input.request.title
+      return reply({ title: input.request.title, seq: 1 })
+    }
     if (method === 'session/prompt') {
+      assert.ok(sessions.get(input.request.sessionId).title, '必须在业务与评审 prompt 前固定已有 Case 标题')
       sessions.get(input.request.sessionId).inputs.push(input.request.content[0].text)
       return reply({ accepted: true })
     }
     if (method.startsWith('session.export')) {
       const id = new URL(request.url, 'http://localhost').searchParams.get('sessionId')
       const session = sessions.get(id)
-      const events = session.inputs.flatMap((text, index) => [
+      const events = [{ type: 'session/title', data: { title: session.title, source: { kind: 'user' }, messageSeqs: [] } }, ...session.inputs.flatMap((text, index) => [
         { type: 'user/message', data: { id: `message-${index}`, source: { kind: 'user' }, content: [{ type: 'text', text }] } },
         { type: 'request/header', data: { header: { config: { provider: 'test', model: 'test', reasoningEffort: 'off' }, tools: [] } } },
         { type: 'tool/call', data: { callId: `call-${index}`, name: 'read', arguments: '{}' } },
@@ -50,7 +55,7 @@ async function fixture(t, failure) {
           { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '完成' }] } } },
           { type: 'turn/end', data: { reason: { kind: 'completed' }, turn: index } },
         ]),
-      ])
+      ])]
       response.end(Buffer.from(zipSync({ 'session.jsonl': strToU8(events.map(event => JSON.stringify(event)).join('\n') + '\n') })))
       return
     }
@@ -75,6 +80,7 @@ for (const [failure, stage, session] of [
   ['session/create', 'target-session-create', null],
   ['session/prompt', 'target-prompt', 'session-1'],
   ['session/list', 'target-session-verify', 'session-1'],
+  ['session/rename', 'target-session-verify', 'session-1'],
   ['session.export', 'target-trace-export', 'session-1'],
 ]) test(`API ${failure} 失败保留阶段、请求和已创建的 Session`, async t => {
   const fx = await fixture(t, failure)

@@ -152,7 +152,7 @@ async function createWorkspace(connection, workspacePath, signal) {
   return workspace
 }
 
-async function createSession(connection, payload, workspace, presetId, signal, onCreated) {
+async function createSession(connection, payload, workspace, presetId, signal, onCreated, title = `评测 ${presetId}`) {
   const created = await rpc(connection, 'session/create', {
     request: { workspaceId: workspace.workspaceId, agentPreset: presetId },
   }, signal)
@@ -163,6 +163,9 @@ async function createSession(connection, payload, workspace, presetId, signal, o
   if (typeof created?.sessionId !== 'string' || created.agentPreset !== presetId) {
     throw new Error('identity-drift')
   }
+  // Case 已有固定名称，通过原生公开能力固定标题，避免额外生成评测会话标题。
+  const renamed = await rpc(connection, 'session/rename', { request: { sessionId: created.sessionId, title } }, signal)
+  if (renamed?.title !== title || !Number.isSafeInteger(renamed.seq) || renamed.seq < 0) throw new Error('session-title-pin-failed')
   const summary = await poll(
     async pollSignal => (await listSessions(connection, pollSignal))
       .find(item => item.sessionId === created.sessionId),
@@ -173,6 +176,7 @@ async function createSession(connection, payload, workspace, presetId, signal, o
   return {
     session_id: created.sessionId,
     workspace_id: workspace.workspaceId,
+    session_title: title,
     ...assertSessionIdentity(summary, presetId, payload.workspace),
   }
 }
@@ -287,7 +291,7 @@ async function runCase(connection, payload, item, workspace, signal, traceState)
       schema_version: '1.0', case_id: item.case_id, transport: 'api', ...created,
       completed: false, stage: traceState.stage, last_successful_step: traceState.last_successful_step,
     })
-  })
+  }, `评测 ${item.case_id}`)
   traceState.session = session
   traceState.last_successful_step = 'target-session-verified'
   let completed
@@ -348,7 +352,7 @@ async function runCase(connection, payload, item, workspace, signal, traceState)
           await saveEvidence(payload.evidence_root, item, response, archive, checks, {
             response: null, archive: null, checks: { ...created, completed: false, stage: traceState.stage },
           })
-        },
+        }, `评审 ${item.case_id}`,
       )
       traceState.judgeSession = judgeSession
       const judged = await promptSession(
@@ -391,7 +395,7 @@ export async function runDeliverySession(payload, item, signal, archiveCodec) {
   connection.archiveCodec = archiveCodec
   const workspace = await createWorkspace(connection, payload.workspace, signal)
   const session = await createSession(connection, payload, workspace, payload.preset_id, signal, created => saveEvidence(payload.evidence_root, item,
-    { inputs: item.inputs, assistant_texts: [], session_id: created.session_id }, null, { ...created, completed: false, stage: 'delivery-session-created' }))
+    { inputs: item.inputs, assistant_texts: [], session_id: created.session_id }, null, { ...created, completed: false, stage: 'delivery-session-created' }), `交付 ${item.case_id}`)
   let completed, lastArchive
   try {
     for (let index = 0; index < item.inputs.length; index++) {
@@ -429,7 +433,7 @@ async function main() {
       const attempt = (scene.prior_prompts?.length ?? 0) + 1
       try {
         const session = scene.session_id === undefined
-          ? await createSession(connection, payload, workspace, payload.judge_preset_id)
+          ? await createSession(connection, payload, workspace, payload.judge_preset_id, undefined, undefined, `复核 ${scene.scene_id}`)
           : {
               session_id: scene.session_id,
               workspace_id: workspace.workspaceId,

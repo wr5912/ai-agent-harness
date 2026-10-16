@@ -96,7 +96,8 @@ export function createEvaluationJobs(assetRoot: string, options: Options) {
   function receipt(job: Job): MapValue {
     const run = runDirectory(job)
     const result: MapValue = { job_id: job.job_id, source: job.source, cases: job.cases ?? [],
-      actual_model_calls: null, hard_cap_supported: false,
+      actual_model_calls: null, token_usage: null, observed_token_usage: null, token_usage_complete: false,
+      token_usage_note: '尚未取得可核验轨迹，总 Token 和费用未知。', hard_cap_supported: false,
       model_calls_complete: false, model_calls_basis: '轨迹请求头仅在配置变化时产生，不能据此推算实际模型调用或内部重试次数。' }
     if (!run) return result
     const inputs = JSON.parse(readFileSync(join(run, 'inputs.lock.json'), 'utf8'))

@@ -129,6 +129,7 @@ test('交付检查执行真实封存与来源校验，仅隔离 Docker 边界；
     const reply = value => { response.setHeader('content-type', 'application/json'); response.end(JSON.stringify({ result: { ok: true, value } })) }
     if (method === 'workspace/create') return reply({ workspace: { workspaceId: 'workspace-probe', path: '/work/harness/workspace' } })
     if (method === 'session/create') return reply({ sessionId: 'session-probe', agentPreset: 'inspection-task' })
+    if (method === 'session/rename') return reply({ title: args.request.title, seq: 1 })
     if (method === 'session/list') return reply({ items: [{ sessionId: 'session-probe', cwd: '/work/harness/workspace', projections: { values: { agentPreset: 'inspection-task' } } }] })
     if (method === 'session/prompt') { probeInput = args.request.content[0].text; return reply({ accepted: true }) }
     if (method === 'session.export') {
