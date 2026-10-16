@@ -10,7 +10,7 @@ const compile = async entry => (await build({ entryPoints: [new URL(entry, impor
 const homeSource = await compile('../src/home.tsx'), loginSource = await compile('../src/login.tsx')
 const experiment = 'EXP-alpha-001-r123456abcdef'
 const runId = 'run-12345678-1234-4234-8234-123456789abc'
-function home({ example = false, exampleCase = true, failStart = false } = {}) {
+function home({ example = false, exampleCase = true, exampleExtra = false, exampleActive = 'EXP-daily-inspection-assistant-002-r222222222222', failStart = false } = {}) {
   const states = [], dependencies = [], cleanups = [], calls = [], tasks = [], navigations = []
   let cursor = 0, effects = [], changed = false, tree
   const react = { ...require('react'),
@@ -28,8 +28,8 @@ function home({ example = false, exampleCase = true, failStart = false } = {}) {
       calls.push({ method, body })
       if (method === 'home') return { ok: true, value: { recent_runs: [{ id: runId, agent_id: 'alpha', experiment_id: experiment, status: 'completed', effective_verdict: 'failed', created_at: '2026-10-16T00:00:00Z' }], instances: { ok: true, value: { instances: [] } }, mcp: { ok: true, value: { connections: [] } } } }
       if (method === 'agents/list') return { ok: true, value: { agents: [{ id: 'alpha', name: '行业简报助手' }] } }
-      if (method === 'agents/detail') return { ok: true, value: { agent: { id: body.agent_id, manifest: { active_experiment: body.experiment_id || experiment } }, experiment: { id: body.experiment_id || experiment }, selection: { basis: body.experiment_id ? 'explicit' : 'active_experiment' }, versions: [{ id: body.experiment_id || experiment }], evaluation: { cases: body.agent_id === 'daily-inspection-assistant' ? exampleCase ? [{ id: 'U-ASSET-PAGES-001' }] : [] : [{ id: 'U-BUSINESS-001' }] } } }
-      if (method === 'agents/tasks/capabilities') return { ok: true, value: { sources: [{ source: 'experiment:EXP-daily-inspection-assistant-001-r111111111111', experiment_id: 'EXP-daily-inspection-assistant-001-r111111111111', plugins: [] }, { source: 'experiment:EXP-daily-inspection-assistant-002-r222222222222', experiment_id: 'EXP-daily-inspection-assistant-002-r222222222222', plugins: [{ plugin_names: ['/opt/dsh-managed/task-example-tools.mjs'] }] }] } }
+      if (method === 'agents/detail') return { ok: true, value: { agent: { id: body.agent_id, manifest: { active_experiment: body.agent_id === 'daily-inspection-assistant' ? exampleActive : body.experiment_id || experiment } }, experiment: { id: body.experiment_id || experiment }, selection: { basis: body.experiment_id ? 'explicit' : 'active_experiment' }, versions: [{ id: body.experiment_id || experiment }], evaluation: { cases: body.agent_id === 'daily-inspection-assistant' ? exampleCase ? [{ id: 'U-ASSET-PAGES-001' }] : [] : [{ id: 'U-BUSINESS-001' }] } } }
+      if (method === 'agents/tasks/capabilities') return { ok: true, value: { sources: [{ source: 'experiment:EXP-daily-inspection-assistant-001-r111111111111', experiment_id: 'EXP-daily-inspection-assistant-001-r111111111111', plugins: [] }, { source: 'experiment:EXP-daily-inspection-assistant-002-r222222222222', experiment_id: 'EXP-daily-inspection-assistant-002-r222222222222', plugins: [{ plugin_names: ['/opt/dsh-managed/task-example-tools.mjs'] }] }, ...(exampleExtra ? [{ source: 'experiment:EXP-daily-inspection-assistant-003-r333333333333', experiment_id: 'EXP-daily-inspection-assistant-003-r333333333333', plugins: [{ plugin_names: ['/opt/dsh-managed/task-example-tools.mjs'] }] }] : [])] } }
       throw new Error(`unexpected RPC ${method}`)
     } },
   }
@@ -93,4 +93,29 @@ test('体验示例只选择带实际工具和业务Case的来源，缺依赖时�
     const missing = home(options)
     try { await missing.click('体验示例'); assert.equal(missing.button('开始体验'), undefined); assert.match(missing.text(), /尚未安装带工具的巡检示例/); await missing.click('构建一个基础示例'); assert.match(missing.label('业务任务').props.value, /不连接外部设备/); assert.equal(missing.tasks.length, 0) } finally { missing.cleanup() }
   }
+})
+
+
+test('多版本示例默认使用具工具和Case的启用来源，版本切换可选且启动前回读', async () => {
+  const active = 'EXP-daily-inspection-assistant-003-r333333333333'
+  for (const selectedActive of [active, null, 'EXP-daily-inspection-assistant-001-r111111111111']) {
+    const ui = home({ example: true, exampleExtra: true, exampleActive: selectedActive })
+    try {
+      await ui.click('体验示例')
+      const expected = selectedActive === active ? active : 'EXP-daily-inspection-assistant-002-r222222222222'
+      assert.equal(ui.label('巡检示例版本').props.value, `experiment:${expected}`)
+      assert.equal(ui.button('开始体验').props.disabled, false)
+      assert.equal(ui.label('可选示例版本').type, 'details'); assert.equal(ui.label('可选示例版本').props.open, undefined)
+      if (selectedActive === active) assert.match(ui.text(), /版本 003（当前启用）/)
+      const before = ui.calls.filter(call => call.method === 'agents/detail' && call.body.experiment_id === expected).length
+      await ui.click('开始体验')
+      assert.equal(ui.tasks[0].context.source, `experiment:${expected}`)
+      assert.equal(ui.calls.filter(call => call.method === 'agents/detail' && call.body.experiment_id === expected).length, before + 1)
+    } finally { ui.cleanup() }
+  }
+  const ui = home({ example: true, exampleExtra: true, exampleActive: active })
+  try {
+    await ui.click('体验示例'); ui.change('巡检示例版本', 'experiment:EXP-daily-inspection-assistant-002-r222222222222')
+    await ui.click('开始体验'); assert.equal(ui.tasks[0].context.experiment_id, 'EXP-daily-inspection-assistant-002-r222222222222')
+  } finally { ui.cleanup() }
 })

@@ -46,7 +46,7 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
   const [exampleOpen, setExampleOpen] = useState(false)
   const [exampleLoading, setExampleLoading] = useState(false)
   const [exampleError, setExampleError] = useState('')
-  const [exampleSources, setExampleSources] = useState<{ source: string; experiment_id: string }[]>([])
+  const [exampleSources, setExampleSources] = useState<{ source: string; experiment_id: string; active: boolean }[]>([])
   const [exampleSource, setExampleSource] = useState('')
   const [sending, setSending] = useState(false)
   const [entryError, setEntryError] = useState('')
@@ -90,6 +90,7 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
   }, [rpc, mode, selectedAgent, selectedVersion, revision])
   const failedRuns = (runs ?? []).filter(isFailedRun)
   const failedRun = failedRuns.find(run => run.id === selectedRun)
+  const selectedExample = exampleSources.find(source => source.source === exampleSource)
   const runLabel = (run: RecentRun) => run.effective_verdict === 'failed' ? '业务未通过' : run.effective_verdict === 'inconclusive' ? '结果待核实' : ({ completed: '已完成', failed: '运行失败', cancelled: '已取消', running: '运行中', planned: '计划中' } as Record<string, string>)[run.status ?? ''] ?? '状态未记录'
   const versionName = (id: string) => '版本 ' + (/-([0-9]{3})(?:-r[0-9a-f]{12})?$/.exec(id)?.[1] ?? id)
   const agentName = (id: string) => agentOptions.find(agent => agent.id === id)?.name || id
@@ -121,11 +122,12 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
       const inspected = await Promise.all(found.map(async (source: any) => {
         const detail = await rpc.call(CHANNEL, 'agents/detail', { agent_id: DEMO_AGENT, experiment_id: source.experiment_id })
         if (!detail.ok) throw new Error(detail.error.message)
-        return (detail.value as any).evaluation?.cases?.some((item: any) => item.id === DEMO_CASE) ? source : null
+        const value = detail.value as any
+        return value.evaluation?.cases?.some((item: any) => item.id === DEMO_CASE) ? { ...source, active: value.agent?.manifest?.active_experiment === source.experiment_id } : null
       }))
       const ready = inspected.filter(Boolean)
       setExampleSources(ready)
-      if (ready.length === 1) setExampleSource(ready[0].source)
+      if (ready.length) setExampleSource((ready.find(source => source.active) ?? ready[0]).source)
     } catch (error) { setExampleError(error instanceof Error ? error.message : '示例资产暂时无法读取。') }
     finally { setExampleLoading(false) }
   }
@@ -169,7 +171,7 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
       </div>
       <button className="harness-example-toggle" type="button" aria-expanded={exampleOpen} disabled={!assets || exampleLoading} onClick={() => void showExample()}>体验示例 <span aria-hidden="true">→</span></button>
       {exampleOpen && <section className="harness-example" aria-label="基础资产巡检体验示例"><strong>基础资产台账巡检</strong><p>读取五台基础模拟资产，处理分页并生成报告。使用 Mock 台账数据，不代表连接或检测真实设备。</p>
-        {exampleLoading ? <p role="status">正在核对当前工作区的示例资产…</p> : exampleSources.length ? <><p>已找到示例资产；开始后将核对服务和实际任务结果。</p>{exampleSources.length > 1 && <label>示例版本<select aria-label="巡检示例版本" value={exampleSource} onChange={event => setExampleSource(event.target.value)}><option value="">选择已安装版本</option>{exampleSources.map(source => <option key={source.source} value={source.source}>{versionName(source.experiment_id)}</option>)}</select></label>}<button type="button" disabled={sending || !exampleSource} onClick={() => void launchExample()}>开始体验</button></> : exampleError ? <p>暂时无法核对示例资产，请稍后重新打开体验入口。</p> : <><p>当前工作区尚未安装带工具的巡检示例。可以先构建一个只整理用户给定模拟数据的智能体，或到智能体管理接入已有版本。</p><div><button type="button" onClick={() => { setMode('build'); setDrafts(value => ({ ...value, build: DEMO_BUILD_PROMPT })); setExampleOpen(false) }}>构建一个基础示例</button><button type="button" onClick={() => navigate('agents')}>查看智能体管理</button></div></>}
+        {exampleLoading ? <p role="status">正在核对当前工作区的示例资产…</p> : exampleSources.length ? <>{selectedExample && <p>将使用{versionName(selectedExample.experiment_id)}{selectedExample.active ? '（当前启用）' : ''}；开始后将核对服务和实际任务结果。</p>}{exampleSources.length > 1 && <details aria-label="可选示例版本"><summary>更换示例版本</summary><label>示例版本<select aria-label="巡检示例版本" value={exampleSource} onChange={event => setExampleSource(event.target.value)}>{exampleSources.map(source => <option key={source.source} value={source.source}>{versionName(source.experiment_id)}{source.active ? ' · 当前启用' : ''}</option>)}</select></label></details>}<button type="button" disabled={sending || !selectedExample} onClick={() => void launchExample()}>开始体验</button></> : exampleError ? <p>暂时无法核对示例资产，请稍后重新打开体验入口。</p> : <><p>当前工作区尚未安装带工具的巡检示例。可以先构建一个只整理用户给定模拟数据的智能体，或到智能体管理接入已有版本。</p><div><button type="button" onClick={() => { setMode('build'); setDrafts(value => ({ ...value, build: DEMO_BUILD_PROMPT })); setExampleOpen(false) }}>构建一个基础示例</button><button type="button" onClick={() => navigate('agents')}>查看智能体管理</button></div></>}
         {exampleError && <p role="alert">{exampleError}</p>}
       </section>}
     </section>
