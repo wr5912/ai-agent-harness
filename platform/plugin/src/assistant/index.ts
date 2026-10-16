@@ -498,7 +498,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     return locked(id, async () => {
       let task = (await inspect(id)).state.execution
       if (!task) return undefined
-      if (domain === 'agents' && action === 'edit/apply' && Array.isArray(input.edits)) input = { ...input, edits: input.edits.map((edit: any) => ({ ...edit, path: taskCandidatePath(task, edit.path) ?? edit.path })) }
+      if (domain === 'agents' && action === 'edit/apply' && Array.isArray(input.edits)) input = { ...input, edits: input.edits.map((edit: any) => ({ ...edit, path: taskCandidatePath(task!, edit.path) ?? edit.path })) }
       if (domain === 'agents' && ['cases/update', 'cases/create', 'decision/update'].includes(action)) throw new Error('任务运行期间评判口径已冻结，修改标准或结论需结束当前任务并重新确认')
       if (!taskAllows(task, domain, action, input)) return undefined
       if (!armedTasks.has(id)) throw new Error('任务已暂停或原进程中断，请先在任务卡恢复')
