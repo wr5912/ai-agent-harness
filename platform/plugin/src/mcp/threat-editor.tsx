@@ -10,7 +10,25 @@ const stages: { id: ThreatStage; title: string }[] = [
 ]
 const conditions = { always: '始终', five_source: '需要五源研判', claimed: '已取得认领', completed: '研判已完成' }
 export const threatEditorStyle = `
-.harness-threat-editor{display:grid;gap:14px}.harness-threat-editor label{display:grid;gap:6px}.harness-threat-editor fieldset{border:1px solid #d9e4ed;border-radius:8px;padding:14px;display:grid;gap:12px;min-width:0}.harness-threat-editor input,.harness-threat-editor select,.harness-threat-editor textarea{box-sizing:border-box;width:100%;padding:8px;border:1px solid #c9d7e3;border-radius:6px;background:#fff;color:#1d3449}.harness-threat-bindings{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.harness-threat-step{border:1px solid #d9e4ed;border-radius:8px;padding:12px;display:grid;gap:10px}.harness-threat-step header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.harness-threat-step textarea{font-family:monospace;min-height:90px}.harness-threat-run{display:grid;gap:12px;margin-top:18px}.harness-threat-run pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto}.harness-threat-run dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.harness-threat-run dt{color:#52677b}.harness-threat-run dd{margin:4px 0;overflow-wrap:anywhere}.harness-threat-run li{margin:8px 0}.harness-threat-run [role=alert]{color:#9c312b}
+.harness-threat-editor{display:grid;gap:16px;min-width:0}
+.harness-threat-editor label{display:grid;gap:8px;min-width:0}
+.harness-threat-editor fieldset{border:1px solid var(--hep-border);border-radius:var(--hep-control-radius);padding:20px;display:grid;gap:16px;min-width:0;margin:0}
+.harness-threat-editor legend{padding:0 8px;font-weight:500}
+.harness-threat-editor input,.harness-threat-editor select,.harness-threat-editor textarea{box-sizing:border-box;width:100%;min-width:0}
+.harness-threat-bindings{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:16px}
+.harness-threat-step{border-top:1px solid var(--hep-border);padding-top:20px;display:grid;gap:16px;min-width:0}
+.harness-threat-step header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.harness-threat-step textarea{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;min-height:100px;resize:vertical}
+.harness-threat-run{display:grid;gap:16px;margin-top:24px}
+.harness-threat-run p{margin:0}
+.harness-threat-run pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto}
+.harness-threat-run dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:16px 24px;margin:0}
+.harness-threat-run dl>div{min-width:0;padding-bottom:12px;border-bottom:1px solid var(--hep-border)}
+.harness-threat-run dt{color:var(--hep-muted);font-size:12px}
+.harness-threat-run dd{margin:6px 0 0;overflow-wrap:anywhere}
+.harness-threat-run li{margin:12px 0;overflow-wrap:anywhere}
+.harness-threat-run [role=alert]{color:var(--dsw-alias-danger-text,#9c312b)}
+@media(max-width:680px){.harness-threat-editor fieldset{padding:16px}}
 `
 
 export function isThreatComposition(config?: CompositionConfig | null) { return config?.kind === 'threat-stage' || config?.kind === 'composite' }
