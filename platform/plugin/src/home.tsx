@@ -5,7 +5,7 @@ import type { RecentRun } from './dashboard.ts'
 import { CHANNEL } from './protocol.ts'
 import type { PlatformUpdates } from './realtime/client.ts'
 import { PlatformLogo } from './logo.tsx'
-import { BUILD_PLACEHOLDER, DEMO_AGENT, DEMO_BUILD_PROMPT, DEMO_CASE, HOME_MODES, HOME_SUBTITLE, homeTaskRequest, isFailedRun, type HomeMode } from './home-entry.ts'
+import { BUILD_PLACEHOLDER, DEMO_AGENT, DEMO_BUILD_PROMPT, DEMO_CASE, HOME_MODES, HOME_SUBTITLE, homeTaskRequest, type HomeMode } from './home-entry.ts'
 export { PlatformLogo } from './logo.tsx'
 
 export type { PageId } from './protocol.ts'
@@ -105,8 +105,8 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
     }).catch(() => { if (active) setSelectionError('无法读取选定版本，请重新选择。') }).finally(() => { if (active) setSelectionLoading(false) })
     return () => { active = false }
   }, [rpc, mode, selectedAgent, selectedVersion, revision])
-  const failedRuns = (runs ?? []).filter(isFailedRun)
-  const failedRun = failedRuns.find(run => run.id === selectedRun)
+  const relatedRuns = (runs ?? []).filter(run => ['completed', 'failed', 'cancelled'].includes(run.status ?? ''))
+  const associatedRun = relatedRuns.find(run => run.id === selectedRun)
   const selectedExample = exampleSources.find(source => source.source === exampleSource)
   const runLabel = (run: RecentRun) => run.effective_verdict === 'failed' ? '业务未通过' : run.effective_verdict === 'inconclusive' ? '结果待核实' : ({ completed: '已完成', failed: '运行失败', cancelled: '已取消', running: '运行中', planned: '计划中' } as Record<string, string>)[run.status ?? ''] ?? '状态未记录'
   const versionName = (id: string) => '版本 ' + (/-([0-9]{3})(?:-r[0-9a-f]{12})?$/.exec(id)?.[1] ?? id)
@@ -121,7 +121,7 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
     setEntryError(''); setSending(true)
     try {
       if (mode === 'evaluate' && (selectionLoading || detail?.agent?.id !== selectedAgent || detail?.experiment?.id !== selectedVersion)) throw new Error('请先选择并读完要评测的版本。')
-      const selected = mode === 'improve' ? failedRun && { agent_id: failedRun.agent_id, experiment_id: failedRun.experiment_id, run_id: failedRun.id }
+      const selected = mode === 'improve' ? associatedRun && { agent_id: associatedRun.agent_id, experiment_id: associatedRun.experiment_id, run_id: associatedRun.id }
         : { agent_id: selectedAgent, experiment_id: selectedVersion, evaluation_case_ids: detail?.evaluation?.cases?.map((item: any) => item.id) }
       await enterTask(homeTaskRequest(mode, prompt, selected))
     } catch (error) { setEntryError(error instanceof Error ? error.message : '无法开始任务，请重试。') }
@@ -176,14 +176,13 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
             <label>智能体<select aria-label="要评测的智能体" value={selectedAgent} disabled={sending} onChange={event => { setSelectedAgent(event.target.value); setSelectedVersion(''); setDetail(null) }}><option value="">选择已有智能体</option>{agentOptions.map(agent => <option key={agent.id} value={agent.id}>{agent.name || agent.id}</option>)}</select></label>
             <label>版本<select aria-label="要评测的版本" value={selectedVersion} disabled={sending || !selectedAgent || selectionLoading} onChange={event => setSelectedVersion(event.target.value)}><option value="">选择要评测的版本</option>{detail?.versions?.map((version: any) => <option key={version.id} value={version.id}>{versionName(version.id)}{detail?.agent?.manifest?.active_experiment === version.id ? ' · 当前启用' : ''}</option>)}</select></label>
           </div>}
-          {mode === 'improve' && <label className="harness-entry-run">失败运行<select aria-label="需要改进的失败运行" value={selectedRun} disabled={sending} onChange={event => setSelectedRun(event.target.value)}><option value="">选择最近一次失败或未能判定的运行</option>{failedRuns.map(run => <option key={run.id} value={run.id}>{agentName(run.agent_id)} · {runLabel(run)} · {run.created_at ? new Date(run.created_at).toLocaleString() : run.id}</option>)}</select></label>}
-          <textarea ref={promptRef} rows={1} aria-label="业务任务" placeholder={mode === 'build' ? BUILD_PLACEHOLDER : mode === 'evaluate' ? '可补充你希望重点验证的业务能力；留空将评测所选版本的现有用例。' : '可补充你观察到的问题，例如报告漏统计设备；平台先读取原始失败证据。'} value={prompt} disabled={sending}
+          <textarea ref={promptRef} rows={1} aria-label="业务任务" placeholder={mode === 'build' ? BUILD_PLACEHOLDER : mode === 'evaluate' ? '可补充你希望重点验证的业务能力；留空将评测所选版本的现有用例。' : '描述希望改进或优化的任务，例如让巡检报告覆盖全部设备，或减少行业简报中的重复信息；也可关联已有运行记录。'} value={prompt} disabled={sending}
             onChange={event => setDrafts(value => ({ ...value, [mode]: event.target.value }))} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); void submitTask() } }}/>
-          <div className="harness-entry-footer"><span>{mode === 'build' ? '先理解任务和复用能力，再确认执行范围。' : mode === 'evaluate' ? '使用真实版本和已有测试，运行前确认范围。' : '保留失败证据与评判口径，最多修复 3 轮。'}</span><button className="harness-primary" type="submit" disabled={sending || !assets || mode === 'build' && !prompt.trim() || mode === 'evaluate' && (!selectedVersion || selectionLoading) || mode === 'improve' && !failedRun}>{sending ? '正在进入…' : HOME_MODES.find(item => item.id === mode)!.action}</button></div>
+          {mode === 'improve' && <details className="harness-entry-association"><summary>关联运行记录（可选）</summary><label className="harness-entry-run">运行记录<select aria-label="关联的运行记录" value={selectedRun} disabled={sending} onChange={event => setSelectedRun(event.target.value)}><option value="">不关联，按任务描述查找</option>{relatedRuns.map(run => <option key={run.id} value={run.id}>{agentName(run.agent_id)} · {runLabel(run)} · {run.created_at ? new Date(run.created_at).toLocaleString() : run.id}</option>)}</select></label>{runs && relatedRuns.length === 0 && <p>暂无已结束的运行记录，可直接描述希望优化的智能体和目标。</p>}</details>}
+          <div className="harness-entry-footer"><span>{mode === 'build' ? '先理解任务和复用能力，再确认执行范围。' : mode === 'evaluate' ? '使用真实版本和已有测试，运行前确认范围。' : '先查已有资产和记录，确认优化目标；最多修复 3 轮。'}</span><button className="harness-primary" type="submit" disabled={sending || !assets || mode === 'build' && !prompt.trim() || mode === 'evaluate' && (!selectedVersion || selectionLoading)}>{sending ? '正在进入…' : HOME_MODES.find(item => item.id === mode)!.action}</button></div>
         </form>
         {selectionError && <p role="alert">{selectionError}</p>}
         {mode === 'evaluate' && assets && !assets.agents.length && <p>还没有业务智能体。<button type="button" onClick={() => setMode('build')}>先构建一个</button></p>}
-        {mode === 'improve' && runs && !failedRuns.length && <p>最近暂无可改进的失败运行。<button type="button" onClick={() => navigate({ page: 'evaluation', tab: 'runs' })}>到评测中心查看其他记录</button></p>}
         {entryError && <p role="alert">{entryError}</p>}
       </div>
       <button className="harness-example-toggle" type="button" aria-expanded={exampleOpen} disabled={!assets || exampleLoading} onClick={() => void showExample()}>体验示例 <span aria-hidden="true">→</span></button>

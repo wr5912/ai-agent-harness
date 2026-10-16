@@ -3,14 +3,14 @@ import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import test from 'node:test'
 import { build } from 'esbuild'
-import { BUILD_PLACEHOLDER, HOME_SUBTITLE, PLATFORM_SLOGAN, homeTaskRequest, isFailedRun } from '../src/home-entry.ts'
+import { BUILD_PLACEHOLDER, HOME_SUBTITLE, PLATFORM_SLOGAN, homeTaskRequest } from '../src/home-entry.ts'
 
 const require = createRequire(import.meta.url)
 const compile = async entry => (await build({ entryPoints: [new URL(entry, import.meta.url).pathname], bundle: true, write: false, platform: 'node', format: 'cjs', loader: { '.svg': 'dataurl' }, external: ['react', 'react/jsx-runtime', 'react-dom/server'] })).outputFiles[0].text
 const homeSource = await compile('../src/home.tsx'), loginSource = await compile('../src/login.tsx')
 const experiment = 'EXP-alpha-001-r123456abcdef'
 const runId = 'run-12345678-1234-4234-8234-123456789abc'
-function home({ example = false, exampleCase = true, exampleExtra = false, exampleActive = 'EXP-daily-inspection-assistant-002-r222222222222', failStart = false } = {}) {
+function home({ example = false, exampleCase = true, exampleExtra = false, exampleActive = 'EXP-daily-inspection-assistant-002-r222222222222', noRuns = false, runVerdict = 'failed', runStatus = 'completed', failStart = false } = {}) {
   const states = [], dependencies = [], cleanups = [], calls = [], tasks = [], navigations = []
   let cursor = 0, effects = [], changed = false, tree
   const react = { ...require('react'),
@@ -28,7 +28,7 @@ function home({ example = false, exampleCase = true, exampleExtra = false, examp
     startConversation: async (root, prompt, context) => { if (failStart) throw new Error('会话服务暂不可用'); tasks.push({ root, prompt, context }) },
     rpc: { call: async (_channel, method, body) => {
       calls.push({ method, body })
-      if (method === 'home') return { ok: true, value: { recent_runs: [{ id: runId, agent_id: 'alpha', experiment_id: experiment, status: 'completed', effective_verdict: 'failed', created_at: '2026-10-16T00:00:00Z' }], instances: { ok: true, value: { instances: [] } }, mcp: { ok: true, value: { connections: [] } } } }
+      if (method === 'home') return { ok: true, value: { recent_runs: noRuns ? [] : [{ id: runId, agent_id: 'alpha', experiment_id: experiment, status: runStatus, effective_verdict: runVerdict, created_at: '2026-10-16T00:00:00Z' }], instances: { ok: true, value: { instances: [] } }, mcp: { ok: true, value: { connections: [] } } } }
       if (method === 'agents/list') return { ok: true, value: { agents: [{ id: 'alpha', name: '行业简报助手' }] } }
       if (method === 'agents/detail') return { ok: true, value: { agent: { id: body.agent_id, manifest: { active_experiment: body.agent_id === 'daily-inspection-assistant' ? exampleActive : body.experiment_id || experiment } }, experiment: { id: body.experiment_id || experiment }, selection: { basis: body.experiment_id ? 'explicit' : 'active_experiment' }, versions: [{ id: body.experiment_id || experiment }], evaluation: { cases: body.agent_id === 'daily-inspection-assistant' ? exampleCase ? [{ id: 'U-ASSET-PAGES-001' }] : [] : [{ id: 'U-BUSINESS-001' }] } } }
       if (method === 'agents/tasks/capabilities') return { ok: true, value: { sources: [{ source: 'experiment:EXP-daily-inspection-assistant-001-r111111111111', experiment_id: 'EXP-daily-inspection-assistant-001-r111111111111', plugins: [] }, { source: 'experiment:EXP-daily-inspection-assistant-002-r222222222222', experiment_id: 'EXP-daily-inspection-assistant-002-r222222222222', plugins: [{ plugin_names: ['/opt/dsh-managed/task-example-tools.mjs'] }] }, ...(exampleExtra ? [{ source: 'experiment:EXP-daily-inspection-assistant-003-r333333333333', experiment_id: 'EXP-daily-inspection-assistant-003-r333333333333', plugins: [{ plugin_names: ['/opt/dsh-managed/task-example-tools.mjs'] }] }] : [])] } }
@@ -45,7 +45,7 @@ function home({ example = false, exampleCase = true, exampleExtra = false, examp
   const click = async title => { const found = button(title); assert.ok(found, `missing button ${title}`); await found.props.onClick?.(); await settle() }
   const submit = async () => { nodes().find(node => node.type === 'form').props.onSubmit({ preventDefault() {} }); await settle() }
   render()
-  return { settle, text, calls, tasks, navigations, button, label, change, click, submit, cleanup: () => cleanups.forEach(cleanup => cleanup?.()) }
+  return { settle, nodes, text, calls, tasks, navigations, button, label, change, click, submit, cleanup: () => cleanups.forEach(cleanup => cleanup?.()) }
 }
 
 test('首页准确展示业务标题、副标题、构建示例，登录承接品牌口号', async () => {
@@ -78,11 +78,10 @@ test('评测入口实际读取目标和当前启用版本，带现有业务用�
 test('改进入口包含completed但业务失败的Run，并固定原始Run与三轮预算', async () => {
   const ui = home()
   try {
-    await ui.click('改进失败任务'); ui.change('需要改进的失败运行', runId); await ui.submit()
-    assert.equal(ui.tasks[0].context.run_id, runId); assert.equal(ui.tasks[0].context.experiment_id, experiment); assert.equal(ui.tasks[0].context.max_repair_rounds, 3); assert.match(ui.tasks[0].prompt, /保留原始失败证据/)
+    await ui.click('改进优化任务'); ui.change('关联的运行记录', runId); await ui.submit()
+    assert.equal(ui.tasks[0].context.run_id, runId); assert.equal(ui.tasks[0].context.experiment_id, experiment); assert.equal(ui.tasks[0].context.max_repair_rounds, 3); assert.match(ui.tasks[0].prompt, /保留原始证据/)
   } finally { ui.cleanup() }
-  assert.equal(isFailedRun({ status: 'completed', effective_verdict: 'passed' }), false)
-  assert.throws(() => homeTaskRequest('improve', '', { agent_id: 'alpha', experiment_id: experiment }), /失败运行/)
+  assert.equal(homeTaskRequest('improve', '').context.workflow, 'improvement')
 })
 
 test('体验示例只选择带实际工具和业务Case的来源，缺依赖时明确引导构建', async () => {
@@ -135,4 +134,28 @@ test('首页输入时保持换行与IME行为，Ctrl+Enter仍提交当前模式�
     ui.label('业务任务').props.onKeyDown(event(true, false)); await ui.settle()
     assert.equal(prevented, 1); assert.equal(ui.tasks.length, 1); assert.equal(ui.tasks[0].prompt, '第一行\n第二行')
   } finally { ui.cleanup() }
+})
+
+
+test('改进优化以任务描述为主，无运行记录也可开始，已有通过记录可选关联', async () => {
+  for (const options of [{ noRuns: true }, { runStatus: 'running' }, { runVerdict: 'passed' }]) {
+    const ui = home(options)
+    try {
+      await ui.click('改进优化任务')
+      const association = ui.nodes().find(node => node.type === 'details' && ui.text(node).includes('关联运行记录（可选）'))
+      assert.ok(association); assert.equal(association.props.open, undefined)
+      if (options.runStatus === 'running') assert.equal(ui.nodes().some(node => node.type === 'option' && node.props.value === runId), false)
+      assert.equal(ui.button('开始改进').props.disabled, false)
+      await ui.submit(); assert.match(ui.tasks[0].prompt, /查询当前工作区/); assert.equal(ui.tasks[0].context.run_id, undefined); assert.equal(ui.tasks[0].context.source, undefined)
+      ui.change('业务任务', '优化行业简报，减少重复信息并保留来源。'); await ui.submit()
+      assert.equal(ui.tasks[1].prompt, '优化行业简报，减少重复信息并保留来源。')
+      assert.equal(ui.tasks[1].context.entry_intent, 'improve'); assert.equal(ui.tasks[1].context.agent_id, undefined)
+      await ui.click('构建业务智能体'); ui.change('业务任务', '构建草稿'); await ui.click('改进优化任务')
+      assert.equal(ui.label('业务任务').props.value, '优化行业简报，减少重复信息并保留来源。')
+      if (!options.noRuns && options.runStatus !== 'running') {
+        ui.change('关联的运行记录', runId); await ui.submit()
+        assert.equal(ui.tasks.at(-1).context.run_id, runId); assert.equal(ui.tasks.at(-1).context.source, `experiment:${experiment}`)
+      }
+    } finally { ui.cleanup() }
+  }
 })
