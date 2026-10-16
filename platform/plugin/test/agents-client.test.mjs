@@ -179,9 +179,11 @@ test('实际启动中的快速双击只发送一次run，表单在执行期间�
   click(); click(); ui.render(); await ui.settle()
   assert.equal(ui.calls.filter(call => call.endpoint === 'instances/run').length, 1)
   assert.equal(ui.button('确认启动').props.disabled, true)
+  assert.equal(ui.button('关闭').props.disabled, true, '运行中不能关闭并遗失在途回执')
   assert.ok(ui.nodes().filter(node => node.type === 'input' && node.props.inputMode === 'numeric').every(node => node.props.disabled))
   finish({ ok: true, value: { ok: true } }); await ui.settle()
   assert.equal(ui.button('获取对话入口').props.disabled, false)
+  assert.equal(ui.button('关闭').props.disabled, false)
 })
 
 test('实际启动失败显示原因为失败且不生成入口，启动后取入口失败不重复启动', async () => {
