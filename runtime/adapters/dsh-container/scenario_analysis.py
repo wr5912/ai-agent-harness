@@ -746,20 +746,21 @@ def review_full(run_dir: Path, rows: list[dict], inputs: dict, *, timeout_second
         _diagnostic(analysis, "evidence", reason, str(path.relative_to(run_dir)))
         return analysis
 
-    dev = os.environ.get("DSH_EVAL_DSH_DEV", str(ADAPTER / "dsh-dev"))
+    override = os.environ.get("DSH_EVAL_DSH_DEV")
+    dev = [override] if override is not None else [sys.executable, str(ADAPTER / "dsh-dev")]
     name = f"analysis-{uuid.uuid4().hex[:8]}"
     up_attempted = False
     try:
         up_attempted = True
         report = json.loads(_run(
             [
-                dev, "up", "--source", inputs["source_id"], "--mode", "eval", "--name", name,
+                *dev, "up", "--source", inputs["source_id"], "--mode", "eval", "--name", name,
                 "--analysis-workspace", str(run_dir.resolve()),
             ],
             stage="instance-start", timeout=240,
         ))
         image_ref = report["image_ref"]
-        auth_url = _run([dev, "url", name, "--non-interactive"], stage="authentication", timeout=90)
+        auth_url = _run([*dev, "url", name, "--non-interactive"], stage="authentication", timeout=90)
         if not auth_url.startswith("http://127.0.0.1:") or "token=" not in auth_url:
             raise ValueError("authentication-url-invalid")
         response = _review_driver(prompts, auth_url, image_ref, model_route, timeout_seconds, evidence_root)
@@ -873,7 +874,7 @@ def review_full(run_dir: Path, rows: list[dict], inputs: dict, *, timeout_second
         if up_attempted:
             try:
                 with delay_signal_handlers():
-                    _run([dev, "down", name], stage="instance-stop", timeout=180)
+                    _run([*dev, "down", name], stage="instance-stop", timeout=180)
             except RuntimeError as error:
                 reason = str(error)
                 path = evidence_root / "stop-diagnostic.json"
