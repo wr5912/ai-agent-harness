@@ -122,7 +122,7 @@ class FrozenRunSnapshotTests(unittest.TestCase):
                     self.assertIn(verification["reason"], (run_dir / "report.md").read_text(encoding="utf-8"))
                 if mutation == "directory_permission":
                     checks = {item["component"]: item["status"] for item in verification["checks"]}
-                    self.assertEqual(checks, {"candidate": "matched", "workspace": "matched", "presets": "matched", "managed": "changed"})
+                    self.assertEqual(checks, {"candidate": "matched", "workspace": "matched", "presets": "matched", "managed": "changed", "evaluation_implementation": "matched"})
                 completed, validation = fixtures.run_json(fixtures.VALIDATE_EXPERIMENT, run_dir.parents[1])
                 self.assertEqual(completed.returncode, 0, validation)
                 self.assertTrue(validation["valid"])
@@ -233,7 +233,7 @@ class FrozenRunSnapshotTests(unittest.TestCase):
 
             args = argparse.Namespace(source="experiment:EXP-security-operations-expert-006", case=[case_id],
                                       mode="fast", executor="api", review="none", dry_run=False,
-                                      model=None, compare_to=None, timeout_seconds=10)
+                                      model=None, compare_to=None, timeout_seconds=10, export_response_markdown=None)
             with mock.patch.dict(os.environ, env, clear=True), \
                     mock.patch.object(module, "initialize_run", side_effect=initialize_after_concurrent_save), \
                     contextlib.redirect_stdout(io.StringIO()) as output, \

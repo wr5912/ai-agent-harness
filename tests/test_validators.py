@@ -239,7 +239,8 @@ class RepositoryValidatorTests(unittest.TestCase):
             self.assertFalse((root / "docs").exists())
 
     def test_current_repository_passes_project_contract(self) -> None:
-        completed, payload = run_json(VALIDATE_REPOSITORY, ROOT)
+        # 程序合同由 HARNESS_PROGRAM_ROOT 定位，业务资产从独立数据根读取。
+        completed, payload = run_json(VALIDATE_REPOSITORY, ASSETS)
         self.assertEqual(completed.returncode, 0, json.dumps(payload, ensure_ascii=False, indent=2))
         self.assertTrue(payload["valid"])
         self.assertIn("不代表 Experiment 结果", payload["scope"])
