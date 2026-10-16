@@ -841,3 +841,12 @@ test('业务与评审请求按job去重累计预算，同一status重复查询�
   assert.equal((await f.status(id)).execution.assistant_model_calls, 1)
   assert.equal((await f.status(id)).execution.evaluation_usage[job].complete, true)
 })
+
+test('任务不能通过领域delivery入口绕过预算或替换已确认业务判据', async t => {
+  const f = fixture(t, taskResponder)
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '交付巡检' })).value.session_id
+  await beginTask(f, id)
+  await assert.rejects(() => f.execute(id, 'agents', 'tasks/delivery', { required_tool_names: [], expected_device_ids: [] }), /platform_task deliver/)
+  assert.equal(f.calls.filter(row => row.endpoint === 'agents/tasks/delivery').length, 0)
+})
