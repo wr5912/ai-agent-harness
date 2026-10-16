@@ -8,6 +8,7 @@ import {
   assertSessionIdentity,
   parseArchive,
   result,
+  saveCaseResult,
   saveEvidence,
   turnsFromTrace,
   withCaseTimeout,
@@ -207,6 +208,7 @@ async function runCase(page, payload, item, uiStartup, signal) {
     }
   }
   const { archive, turns } = completed
+  if (signal?.aborted) throw new Error('case-hard-timeout')
   const response = {
     inputs: item.inputs,
     assistant_texts: turns.map(turn => turn.assistant_text),
@@ -276,9 +278,11 @@ async function main() {
           reason))
         if (SAFETY_STOP_REASONS.has(reason)) {
           stopReason = reason
+          await saveCaseResult(payload.evidence_root, rows.at(-1))
           break
         }
       }
+      await saveCaseResult(payload.evidence_root, rows.at(-1))
     }
     await context.close()
   } finally {

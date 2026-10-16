@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 export const SAFETY_STOP_REASONS = new Set([
@@ -32,12 +32,13 @@ export function safetyError(reason, archive) {
   return error
 }
 
-export async function withCaseTimeout(task, timeoutMs) {
+export async function withCaseTimeout(task, timeoutMs, settleOnAbort = false) {
   const controller = new AbortController()
   let timer
+  const running = task(controller.signal)
   try {
     return await Promise.race([
-      task(controller.signal),
+      running,
       new Promise((_, reject) => {
         timer = setTimeout(() => {
           controller.abort()
@@ -45,6 +46,11 @@ export async function withCaseTimeout(task, timeoutMs) {
         }, timeoutMs)
       }),
     ])
+  } catch (error) {
+    controller.abort()
+    // API 操作均响应 signal；等它收尾后再写最终失败证据，避免晚到的写入覆盖诊断。
+    if (settleOnAbort) await running.catch(() => {})
+    throw error
   } finally {
     clearTimeout(timer)
     controller.abort()
@@ -86,6 +92,11 @@ function jsonl(rows) {
   return rows.length ? `${rows.map(row => JSON.stringify(row)).join('\n')}\n` : ''
 }
 
+async function atomicWrite(path, content) {
+  await writeFile(`${path}.tmp`, content)
+  await rename(`${path}.tmp`, path)
+}
+
 export function toolEvents(archive) {
   return archive?.trace.filter(row => ['tool/call', 'tool/result'].includes(row.event.type)) ?? []
 }
@@ -93,24 +104,24 @@ export function toolEvents(archive) {
 export async function saveEvidence(root, item, response, archive, checks, judge = null) {
   const directory = join(root, item.case_id)
   await mkdir(directory, { recursive: true })
-  await writeFile(join(directory, 'response.json'), `${JSON.stringify(response, null, 2)}\n`)
+  await atomicWrite(join(directory, 'response.json'), `${JSON.stringify(response, null, 2)}\n`)
   await saveSessionTrace(directory, archive, checks)
   if (judge !== null) {
-    await writeFile(join(directory, 'judge.json'), `${JSON.stringify({
+    await atomicWrite(join(directory, 'judge.json'), `${JSON.stringify({
       response: judge.response,
       checks: judge.checks,
     }, null, 2)}\n`)
-    await writeFile(join(directory, 'judge-trace.jsonl'), judge.archive ? jsonl(judge.archive.trace) : '')
+    await atomicWrite(join(directory, 'judge-trace.jsonl'), judge.archive ? jsonl(judge.archive.trace) : '')
   }
 }
 
 export async function saveSessionTrace(directory, archive, checks) {
   await mkdir(directory, { recursive: true })
-  await writeFile(join(directory, 'trace.jsonl'), archive ? jsonl(archive.trace) : '')
-  await writeFile(join(directory, 'tools.jsonl'), jsonl(toolEvents(archive)))
+  await atomicWrite(join(directory, 'trace.jsonl'), archive ? jsonl(archive.trace) : '')
+  await atomicWrite(join(directory, 'tools.jsonl'), jsonl(toolEvents(archive)))
   // 这里只声明已实际保存非空轨迹；是否完成仍由 completed、turn/step 与证据消费者核对。
   const persistedChecks = { ...checks, trace_available: Boolean(archive?.trace?.length) }
-  await writeFile(join(directory, 'checks.json'), `${JSON.stringify(persistedChecks, null, 2)}\n`)
+  await atomicWrite(join(directory, 'checks.json'), `${JSON.stringify(persistedChecks, null, 2)}\n`)
 }
 
 export function result(item, executionStatus, verdict, observation, failureReason) {
@@ -122,6 +133,15 @@ export function result(item, executionStatus, verdict, observation, failureReaso
     evidence_ref: `evidence/${item.case_id}`,
     ...(failureReason ? { failure_reason: failureReason } : {}),
   }
+}
+
+/** 每个 Case 完成即发布回执；父进程只读取原子替换后的完整 JSON。 */
+export async function saveCaseResult(root, row) {
+  const directory = join(root, row.case_id)
+  await mkdir(directory, { recursive: true })
+  const path = join(directory, 'case-result.json')
+  await writeFile(`${path}.tmp`, `${JSON.stringify(row, null, 2)}\n`)
+  await rename(`${path}.tmp`, path)
 }
 
 export function assertSessionIdentity(session, presetId, workspace) {
@@ -208,6 +228,7 @@ export async function judgeCase(item, targetResponse, targetArchive, promptJudge
       checks: {
         session_id: completed?.session?.session_id ?? null,
         unavailable_reason: error?.message ?? 'judge-error',
+        ...error?.evaluation_context,
       },
     }
   }

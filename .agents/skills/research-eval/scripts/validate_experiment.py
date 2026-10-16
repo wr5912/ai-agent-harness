@@ -103,13 +103,16 @@ def valid_id_list(values: object, *, nonempty: bool = False) -> bool:
         and len(values) == len(set(values))
 
 
-def valid_source_verification(value: object) -> bool:
+def valid_source_verification(value: object, with_implementation: bool = False) -> bool:
     if not isinstance(value, dict) or set(value) != {"status", "reason", "checks"}:
         return False
     checks = value["checks"]
-    if not isinstance(checks, list) or len(checks) != 4 \
+    components = {"candidate", "workspace", "presets", "managed"}
+    if with_implementation:
+        components.add("evaluation_implementation")
+    if not isinstance(checks, list) or len(checks) != len(components) \
             or any(not isinstance(item, dict) or not isinstance(item.get("component"), str) for item in checks) \
-            or {item["component"] for item in checks} != {"candidate", "workspace", "presets", "managed"}:
+            or {item["component"] for item in checks} != components:
         return False
     for item in checks:
         expected, actual, status = item.get("expected_sha256"), item.get("actual_sha256"), item.get("status")
@@ -417,7 +420,7 @@ def validate_run(
                 }
                 if "source_verification" in summary:
                     verification = summary["source_verification"]
-                    if not valid_source_verification(verification) \
+                    if not valid_source_verification(verification, isinstance(locked_inputs.get("evaluation_implementation"), dict)) \
                             or status == "completed" and verification.get("status") != "matched":
                         errors.append(issue("RUN_SOURCE_VERIFICATION", "来源核对记录无效或未匹配来源却标记 completed", summary_path))
                     expected_summary["source_verification"] = verification

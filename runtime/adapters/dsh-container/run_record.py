@@ -61,6 +61,17 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def evaluation_implementation() -> dict:
+    """冻结实际执行及评审资产身份；缺失文件保留 null，不用当前版本回填旧 Run。"""
+    names = ["dsh-eval", "dsh-eval-api.mjs", "dsh-eval-browser.mjs", "dsh-eval-common.mjs",
+             "run_record.py", "scenario_analysis.py", "evaluation-judge-guard.mjs",
+             "scenario-analysis-guard.mjs"]
+    names += [path.relative_to(ADAPTER).as_posix()
+              for path in sorted((ADAPTER / "evaluation-presets").rglob("*")) if path.is_file()]
+    return {name: hashlib.sha256((ADAPTER / name).read_bytes()).hexdigest()
+            if (ADAPTER / name).is_file() else None for name in names}
+
+
 def valid_baseline_ref(value: str) -> bool:
     if value == "none:first-experiment":
         return True
@@ -145,6 +156,10 @@ def verify_run_source(repo: Path, manifest: dict, inputs: dict) -> dict:
         frozen = trees.get(name) if isinstance(trees, dict) else None
         check(name, snapshot_digest(frozen) if isinstance(frozen, dict) else None,
               lambda name=name: current_tree(name))
+    implementation = inputs.get("evaluation_implementation")
+    if isinstance(implementation, dict):
+        check("evaluation_implementation", snapshot_digest(implementation),
+              lambda: snapshot_digest(evaluation_implementation()))
     statuses = {item["status"] for item in checks}
     status = "changed" if "changed" in statuses else "unavailable" if "unavailable" in statuses else "matched"
     return {"status": status, "reason": "source-changed" if status == "changed" else
@@ -563,6 +578,7 @@ def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
                          or selected_id in finding.get("counterexample_case_ids", [])],
             "load_observation": {key: checks.get(key) for key in (
                 "session_id", "session_preset", "session_workspace", "preset_matches", "workspace_matches",
+                "guard",
             )} if checks else None,
             "session_created_at": session_created_at,
             "raw_evidence": {name: {"path": (evidence_dir / name).relative_to(repo).as_posix(),
@@ -579,6 +595,7 @@ def run_view(repo: Path, run_id: str, case_id: str | None = None) -> dict:
             "source_id", "baseline_ref", "git_version", "evaluation_sha256",
             "executor", "model", "created_at", "compare_to_run_id", "candidate_sha256",
             "review_mode", "configured_capabilities", "dependency_env",
+            "program_origin", "asset_origin", "evaluation_implementation", "declared_guard",
         )}, "candidate_trees": {key: {"tree_sha256": value.get("tree_sha256"),
                                         "file_count": value.get("file_count")}
                                   for key, value in inputs.get("harness_trees", {}).items()},
@@ -711,6 +728,8 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
             "selection_mode": args.selection_mode,
             "review_mode": args.review_mode or ("ai" if args.selection_mode == "full" else "none"),
             "configured_capabilities": contract["config_markers"],
+            "declared_guard": contract.get("guard"),
+            "evaluation_implementation": evaluation_implementation(),
             "dependency_env": {name: bool(os.environ.get(name)) for name in
                                contract["required_env_names"] + contract["optional_env_names"]},
             "git_version": version,

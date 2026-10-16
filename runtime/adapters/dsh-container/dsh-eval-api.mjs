@@ -8,6 +8,7 @@ import {
   judgeCase,
   parseArchive,
   result,
+  saveCaseResult,
   saveEvidence,
   saveSessionTrace,
   toolEvents,
@@ -67,6 +68,7 @@ const delay = milliseconds => new Promise(resolve => setTimeout(resolve, millise
 
 async function poll(action, accept, timeoutMs, signal) {
   const deadline = Date.now() + timeoutMs
+  let lastError
   while (Date.now() < deadline) {
     if (signal?.aborted) throw new Error('case-hard-timeout')
     try {
@@ -74,10 +76,14 @@ async function poll(action, accept, timeoutMs, signal) {
       if (accept(value)) return value
     } catch (error) {
       if (SAFETY_STOP_REASONS.has(error?.message)) throw error
+      lastError = error
     }
     await delay(300)
   }
-  throw new Error('poll-timeout')
+  throw Object.assign(new Error('poll-timeout'), {
+    rpc_method: lastError?.rpc_method, http_status: lastError?.http_status,
+    error_code: lastError?.error_code ?? lastError?.message,
+  })
 }
 
 async function authenticate(authUrl) {
@@ -107,9 +113,15 @@ async function rpc(connection, method, args, signal) {
       payload: { args },
     }),
   })
-  if (!response.ok) throw new Error('runtime-rpc-failed')
+  if (!response.ok) throw Object.assign(new Error('runtime-rpc-failed'), {
+    rpc_method: method, http_status: response.status,
+  })
   const body = await response.json()
-  if (!body?.result?.ok) throw new Error('runtime-rpc-failed')
+  if (!body?.result?.ok) throw Object.assign(new Error('runtime-rpc-failed'), {
+    rpc_method: method,
+    error_code: typeof body?.result?.error?.code === 'string' && /^[a-zA-Z0-9_-]+$/.test(body.result.error.code)
+      ? body.result.error.code : null,
+  })
   return body.result.value
 }
 
@@ -118,7 +130,9 @@ async function exportSession(connection, sessionId, signal) {
   url.searchParams.set('sessionId', sessionId)
   url.searchParams.set('includeDescendants', 'true')
   const response = await fetch(url, { headers: { cookie: connection.cookie }, signal })
-  if (!response.ok) throw new Error('session-export-failed')
+  if (!response.ok) throw Object.assign(new Error('session-export-failed'), {
+    rpc_method: 'session.export', http_status: response.status,
+  })
   return parseArchive(new Uint8Array(await response.arrayBuffer()))
 }
 
@@ -137,10 +151,14 @@ async function createWorkspace(connection, workspacePath, signal) {
   return workspace
 }
 
-async function createSession(connection, payload, workspace, presetId, signal) {
+async function createSession(connection, payload, workspace, presetId, signal, onCreated) {
   const created = await rpc(connection, 'session/create', {
     request: { workspaceId: workspace.workspaceId, agentPreset: presetId },
   }, signal)
+  if (typeof created?.sessionId === 'string') await onCreated?.({
+    session_id: created.sessionId, workspace_id: workspace.workspaceId,
+    session_preset: created.agentPreset, session_workspace: payload.workspace,
+  })
   if (typeof created?.sessionId !== 'string' || created.agentPreset !== presetId) {
     throw new Error('identity-drift')
   }
@@ -176,20 +194,23 @@ async function selectSessionRoute(connection, sessionId, route, signal) {
   }
 }
 
-async function promptSession(connection, sessionId, input, inputs, timeoutMs, signal, onArchive) {
+async function promptSession(connection, sessionId, input, inputs, timeoutMs, signal, onArchive, onStep) {
+  const requestId = randomUUID()
+  onStep?.('prompt', { request_id: requestId, session_id: sessionId, input_index: inputs.length - 1 })
   const accepted = await rpc(connection, 'session/prompt', {
     request: {
-      requestId: randomUUID(),
+      requestId,
       sessionId,
       mode: 'queue',
       content: [{ type: 'text', text: input }],
     },
   }, signal)
   if (accepted?.accepted !== true) throw new Error('prompt-not-accepted')
+  onStep?.('trace-export', { last_successful_step: 'prompt-accepted' })
   let archive
   const turns = await poll(async () => {
     archive = await exportSession(connection, sessionId, signal)
-    onArchive?.(archive)
+    await onArchive?.(archive)
     return turnsFromTrace(archive, inputs)
   }, value => value !== null, timeoutMs, signal)
   return { archive, turns }
@@ -256,15 +277,40 @@ function analysisToolAccesses(archive, toolNames) {
 }
 
 async function runCase(connection, payload, item, workspace, signal, traceState) {
-  const session = await createSession(connection, payload, workspace, payload.preset_id, signal)
+  traceState.stage = 'target-session-create'
+  const session = await createSession(connection, payload, workspace, payload.preset_id, signal, async created => {
+    traceState.session = created
+    traceState.stage = 'target-session-verify'
+    traceState.last_successful_step = 'target-session-created'
+    await saveEvidence(payload.evidence_root, item, { inputs: item.inputs, assistant_texts: [], session_id: created.session_id }, null, {
+      schema_version: '1.0', case_id: item.case_id, transport: 'api', ...created,
+      completed: false, stage: traceState.stage, last_successful_step: traceState.last_successful_step,
+    })
+  })
+  traceState.session = session
+  traceState.last_successful_step = 'target-session-verified'
   let completed
   for (let index = 0; index < item.inputs.length; index += 1) {
     completed = await promptSession(
       connection, session.session_id, item.inputs[index], item.inputs.slice(0, index + 1),
-      payload.timeout_ms, signal, archive => { traceState.targetArchive = archive },
+      payload.timeout_ms, signal, async archive => {
+        traceState.targetArchive = archive
+        const turns = turnsFromTrace(archive, item.inputs.slice(0, index + 1)) ?? []
+        await saveEvidence(payload.evidence_root, item, {
+          inputs: item.inputs, assistant_texts: turns.map(turn => turn.assistant_text),
+          session_id: session.session_id, turns,
+        }, archive, {
+          schema_version: '1.0', case_id: item.case_id, transport: 'api', ...session,
+          completed: false, stage: traceState.stage, last_successful_step: traceState.last_successful_step,
+        })
+      }, (step, metadata) => {
+        traceState.stage = `target-${step}`
+        Object.assign(traceState, metadata)
+      },
     )
   }
   const { archive, turns } = completed
+  traceState.last_successful_step = 'target-turns-completed'
   const response = {
     inputs: item.inputs,
     assistant_texts: turns.map(turn => turn.assistant_text),
@@ -278,6 +324,10 @@ async function runCase(connection, payload, item, workspace, signal, traceState)
     expected_behavior: item.expected_behavior,
     ...session,
     trace_format: 'dsh-session-export-envelope-v1',
+    guard: payload.declared_guard ? {
+      declared: payload.declared_guard, status: 'unknown',
+      reason: 'Runtime Session API 未提供可核验的 Guard 激活信息；Preset 和 Workspace 匹配不能替代插件激活证据。',
+    } : { declared: null, status: 'not-declared' },
     completed: turns.every(turn => turn.turn_reason === 'completed'),
   }
   if (!checks.completed) {
@@ -285,22 +335,45 @@ async function runCase(connection, payload, item, workspace, signal, traceState)
     return result(item, 'error', 'inconclusive', 'DSH Turn 未正常完成。', 'turn-not-completed')
   }
   const judge = await judgeCase(item, response, archive, async input => {
-    const judgeSession = await createSession(
-      connection, payload, workspace, payload.judge_preset_id, signal,
-    )
-    traceState.judgeSession = judgeSession
+    let judgeSession
     try {
+      traceState.stage = 'judge-session-create'
+      judgeSession = await createSession(
+        connection, payload, workspace, payload.judge_preset_id, signal, async created => {
+          traceState.judgeSession = created
+          traceState.stage = 'judge-session-verify'
+          traceState.last_successful_step = 'judge-session-created'
+          await saveEvidence(payload.evidence_root, item, response, archive, checks, {
+            response: null, archive: null, checks: { ...created, completed: false, stage: traceState.stage },
+          })
+        },
+      )
+      traceState.judgeSession = judgeSession
       const judged = await promptSession(
         connection, judgeSession.session_id, input, [input], payload.timeout_ms, signal,
-        archive => { traceState.judgeArchive = archive },
+        async archive => {
+          traceState.judgeArchive = archive
+          await saveEvidence(payload.evidence_root, item, response, traceState.targetArchive, checks, {
+            response: null, archive, checks: { ...judgeSession, completed: false },
+          })
+        }, (step, metadata) => {
+          traceState.stage = `judge-${step}`
+          Object.assign(traceState, metadata)
+        },
       )
       return { ...judged, session: judgeSession }
     } catch (error) {
-      error.judge_evidence = { archive: traceState.judgeArchive, session: judgeSession }
+      error.judge_evidence = { archive: traceState.judgeArchive, session: judgeSession ?? traceState.judgeSession }
+      error.evaluation_context = {
+        failure_stage: traceState.stage, last_successful_step: traceState.last_successful_step ?? null,
+        rpc_method: error?.rpc_method ?? null, http_status: error?.http_status ?? null,
+        request_id: traceState.request_id ?? null,
+      }
       throw error
     }
   })
   checks.judge = judge.checks
+  if (signal?.aborted) throw new Error('case-hard-timeout')
   await saveEvidence(payload.evidence_root, item, response, archive, checks, judge)
   if (!judge.available) {
     return result(item, 'completed', 'inconclusive', '评审未产生有效结论，需人工判定。')
@@ -377,27 +450,38 @@ async function main() {
   const rows = []
   let stopReason
   for (const item of payload.cases) {
-    const traceState = { targetArchive: null, judgeArchive: null, judgeSession: null }
+    const traceState = { targetArchive: null, judgeArchive: null, judgeSession: null, session: null, stage: 'target-session-create' }
     try {
       rows.push(await withCaseTimeout(
         signal => runCase(connection, payload, item, workspace, signal, traceState),
-        payload.timeout_ms * (item.inputs.length + 2),
+        payload.timeout_ms * (item.inputs.length + 2), true,
       ))
     } catch (error) {
-      const reason = SAFETY_STOP_REASONS.has(error?.message) ? error.message : 'api-case-error'
+      const reason = SAFETY_STOP_REASONS.has(error?.message) ? error.message : `api-${traceState.stage}-failed`
       const targetArchive = traceState.targetArchive ?? (traceState.judgeSession ? null : error?.archive ?? null)
+      let turns = []
+      if (targetArchive) {
+        try { turns = turnsFromTrace(targetArchive, item.inputs) ?? [] } catch { /* 原始轨迹仍完整保存，失配不抹去证据。 */ }
+      }
       await saveEvidence(payload.evidence_root, item,
-        { inputs: item.inputs, assistant_texts: [] }, targetArchive,
-        { schema_version: '1.0', case_id: item.case_id, transport: 'api', completed: false, failure_reason: reason, trace_available: Boolean(targetArchive) },
+        { inputs: item.inputs, assistant_texts: turns.map(turn => turn.assistant_text), session_id: traceState.session?.session_id ?? null, turns }, targetArchive,
+        { schema_version: '1.0', case_id: item.case_id, transport: 'api', ...traceState.session, completed: false,
+          failure_reason: reason, failure_stage: traceState.stage, last_successful_step: traceState.last_successful_step ?? null,
+          request_id: traceState.request_id ?? null, input_index: traceState.input_index ?? null,
+          rpc_method: error?.rpc_method ?? null, http_status: error?.http_status ?? null,
+          error_code: error?.error_code ?? (/^[a-z0-9-]+$/.test(error?.message ?? '') ? error.message : error?.name ?? 'Error'),
+          trace_available: Boolean(targetArchive) },
         traceState.judgeSession ? { response: null, archive: traceState.judgeArchive, checks: { ...traceState.judgeSession, unavailable_reason: reason, trace_available: Boolean(traceState.judgeArchive) } } : null)
       rows.push(result(item, 'error', 'inconclusive',
-        reason === 'api-case-error' ? 'Runtime API 用例未完成，未产生语义结论。' : '评测身份或证据失配，已停止。',
+        SAFETY_STOP_REASONS.has(reason) ? '评测身份或证据失配，已停止。' : `Runtime API 在 ${traceState.stage} 阶段未完成，未产生语义结论。`,
         reason))
       if (SAFETY_STOP_REASONS.has(reason)) {
         stopReason = reason
+        await saveCaseResult(payload.evidence_root, rows.at(-1))
         break
       }
     }
+    await saveCaseResult(payload.evidence_root, rows.at(-1))
   }
   process.stdout.write(`${JSON.stringify({
     schema_version: '1.0',

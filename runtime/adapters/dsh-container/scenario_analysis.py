@@ -9,6 +9,7 @@ import posixpath
 import re
 import signal
 import subprocess
+import time
 import sys
 from contextlib import contextmanager
 import uuid
@@ -398,7 +399,8 @@ def delay_signal_handlers():
 
 
 def run_cancellable_process(command: list[str], *, timeout: int, input_text: str | None = None,
-                            env: dict[str, str] | None = None, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+                            env: dict[str, str] | None = None, cwd: Path | None = None,
+                            on_poll=None) -> subprocess.CompletedProcess[str]:
     """评测和复核共用：取消时先终止子进程组，再确认临时驱动容器已移除。"""
     driver_name = f"dsh-eval-driver-{uuid.uuid4().hex}" if command[:2] == ["docker", "run"] else None
     actual = command[:2] + ["--name", driver_name] + command[2:] if driver_name else command
@@ -410,8 +412,23 @@ def run_cancellable_process(command: list[str], *, timeout: int, input_text: str
                 process = subprocess.Popen(actual, cwd=cwd, text=True, stdin=subprocess.PIPE,
                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env,
                                            start_new_session=True)
-            stdout, stderr = process.communicate(input_text, timeout=timeout)
-        except (KeyboardInterrupt, subprocess.TimeoutExpired):
+            if on_poll is None:
+                stdout, stderr = process.communicate(input_text, timeout=timeout)
+            else:
+                deadline = time.monotonic() + timeout
+                pending_input = input_text
+                while True:
+                    on_poll()
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise subprocess.TimeoutExpired(actual, timeout)
+                    try:
+                        stdout, stderr = process.communicate(pending_input, timeout=min(0.2, remaining))
+                        on_poll()
+                        break
+                    except subprocess.TimeoutExpired:
+                        pending_input = None
+        except BaseException:
             if process is not None:
                 try:
                     os.killpg(process.pid, signal.SIGTERM)

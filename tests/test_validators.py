@@ -56,10 +56,11 @@ def error_codes(payload: dict) -> set[str]:
 
 def copy_repository(destination: Path) -> Path:
     target = destination / "repo"
+    ignored = shutil.ignore_patterns(".git", ".local", ".pytest_cache", ".code-review-graph", "__pycache__", "*.pyc", "node_modules")
     shutil.copytree(
         ROOT,
         target,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".code-review-graph", "__pycache__", "*.pyc", "node_modules"),
+        ignore=lambda folder, names: set(ignored(folder, names)) | ({"agents", "evolution"} if Path(folder) == ROOT else set()),
     )
     # 兼容历史同根 fixture；真实业务资料来自显式数据工作区，程序不再持有副本。
     for name in ("agents", "evolution"):
@@ -646,6 +647,52 @@ class ResearchEvalTests(unittest.TestCase):
 
 
 class RunRecordTests(unittest.TestCase):
+    def test_finalization_detects_evaluator_implementation_change(self) -> None:
+        spec = importlib.util.spec_from_file_location("run_record_implementation_test", RUN_RECORD)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        inputs = {"source_id": "experiment:test", "candidate_sha256": "a" * 64,
+                  "harness_trees": {name: {} for name in ("workspace", "presets", "managed")},
+                  "evaluation_implementation": {"driver": "original"}}
+        with mock.patch.object(module, "candidate_digest", return_value="a" * 64), \
+                mock.patch.object(module, "resolve", return_value={name: ROOT / name for name in ("workspace", "presets", "managed")}), \
+                mock.patch.object(module, "tree_digest", return_value={}), \
+                mock.patch.object(module, "evaluation_implementation", return_value={"driver": "changed"}):
+            result = module.verify_run_source(ROOT, {"experiment_id": EXPERIMENT_ID}, inputs)
+        self.assertEqual(result["status"], "changed")
+        self.assertEqual(result["checks"][-1]["component"], "evaluation_implementation")
+
+    def test_comparison_rejects_program_and_judge_drift_and_unknown_guard(self) -> None:
+        view = {
+            "run_id": "left", "run_path": "runs/left", "manifest": {"agent_id": AGENT_ID, "status": "completed"},
+            "source": {"executor": "api", "model": "test-model", "review_mode": "none",
+                       "configured_capabilities": {}, "dependency_env": {},
+                       "git_version": {"commit": "a" * 40, "dirty": False},
+                       "program_origin": {"commit": "b" * 40, "dirty": False},
+                       "evaluation_implementation": {"judge": "c" * 64}},
+            "image": {"image_build_fingerprint": "test", "local_image_id": "test"},
+            "cases": [{"case_id": "U-CASE-001", "frozen": {},
+                       "trials": [{"execution_status": "completed", "verdict": "passed", "observation": "成功"}],
+                       "output": [], "actual_routes": [{"provider": "test", "model": "test", "reasoningEffort": "off"}],
+                       "review": None, "load_observation": {"preset_matches": True, "workspace_matches": True},
+                       "tool_calls": [], "evidence": []}], "missing": [],
+        }
+        def compare(right):
+            result = subprocess.run(["node", str(ROOT / "runtime/adapters/dsh-container/run-comparison.ts")],
+                                    input=json.dumps({"left": view, "right": right}), text=True,
+                                    capture_output=True, check=True)
+            return json.loads(result.stdout)
+        right = json.loads(json.dumps(view))
+        self.assertTrue(compare(right)["causal_comparable"])
+        right["source"]["program_origin"] = {"commit": "d" * 40, "dirty": True}
+        right["source"]["evaluation_implementation"]["judge"] = "e" * 64
+        right["source"]["declared_guard"] = "/opt/dsh-managed/guard.mjs"
+        comparison = compare(right)
+        self.assertFalse(comparison["causal_comparable"])
+        self.assertIn("program_origin: 平台程序提交不同", comparison["limits"])
+        self.assertIn("evaluation_implementation: 不同", comparison["limits"])
+        self.assertTrue(any("Guard 实际激活未验证" in item for item in comparison["limits"]))
+
     def test_inspection_comparison_uses_tool_receipt_without_legacy_env(self) -> None:
         def view(run_id: str, calls: list[dict]) -> dict:
             return {
@@ -1340,6 +1387,10 @@ for index, item in enumerate(payload["cases"]):
         }}) + "\\n"
     )
     (evidence / "checks.json").write_text(json.dumps({"completed": True}) + "\\n")
+    if mode == "partial-hang" and index == 1:
+        (evidence / "checks.json").write_text(json.dumps({"completed": False, "session_id": "partial-session"}) + "\\n")
+        Path(os.environ["TEST_BROWSER_READY"]).write_text("ready\\n", encoding="utf-8")
+        time.sleep(120)
     if mode == "safety-stop":
         rows.append({
             "case_id": item["case_id"],
@@ -1364,6 +1415,8 @@ for index, item in enumerate(payload["cases"]):
         "observation": "替身浏览器完成评测链路",
         "evidence_ref": f"evidence/{item['case_id']}",
     })
+    if mode == "partial-hang":
+        (evidence / "case-result.json").write_text(json.dumps(rows[-1]) + "\\n")
 print(json.dumps({"schema_version": "1.0", "rows": rows}))
 """,
             encoding="utf-8",
@@ -1934,6 +1987,62 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
 
     def test_sigterm_seals_cancelled_run_and_stops_instance(self) -> None:
         self.assert_signal_seals_cancelled_run(signal.SIGTERM)
+
+    def test_cancel_preserves_completed_trial_and_in_progress_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            repository, env, _ = self.runtime_fixture(root, mode="partial-hang")
+            process = subprocess.Popen([
+                "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"), "--repo", str(repository),
+                "--source", "experiment:EXP-security-operations-expert-006",
+                "--case", "U-INS-001", "--case", "U-INS-002", "--timeout-seconds", "10",
+            ], cwd=repository, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+            try:
+                runs = repository / "evolution/experiments/EXP-security-operations-expert-006/runs"
+                previous = {path.name for path in runs.glob("run-*")}
+                deadline = time.monotonic() + 180
+                selected = None
+                while time.monotonic() < deadline and process.poll() is None:
+                    selected = next((run for run in runs.glob("run-*") if run.name not in previous and (run / "results.jsonl").is_file()
+                                     and "U-INS-001" in (run / "results.jsonl").read_text()), None)
+                    if selected and (root / "browser-ready").is_file():
+                        break
+                    time.sleep(0.05)
+                self.assertIsNotNone(selected, "第一条 Case 应在第二条完成前持久保存")
+                evidence = selected / "evidence/U-INS-002"
+                original = {name: (evidence / name).read_bytes() for name in ("trace.jsonl", "tools.jsonl", "response.json", "checks.json")}
+                process.send_signal(signal.SIGTERM)
+                stdout, stderr = process.communicate(timeout=30)
+                self.assertEqual(process.returncode, 2, stderr)
+                payload = json.loads(stdout)
+                rows = [json.loads(line) for line in (selected / "results.jsonl").read_text().splitlines()]
+                self.assertEqual([row["execution_status"] for row in rows], ["completed", "skipped"])
+                for name, content in original.items():
+                    self.assertEqual((evidence / name).read_bytes(), content, name)
+                self.assertTrue(json.loads((evidence / "interruption.json").read_text())["trace_available"])
+                self.assertTrue(payload["cancelled"])
+            finally:
+                if process.poll() is None:
+                    process.send_signal(signal.SIGTERM)
+                    try:
+                        process.communicate(timeout=30)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.communicate(timeout=5)
+
+    def test_process_deadline_stops_and_seals_without_platform_timer(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            repository, env, _ = self.runtime_fixture(root, mode="hang")
+            env["HARNESS_EVAL_DEADLINE_AT"] = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime(time.time() + 8))
+            env["HARNESS_EVAL_JOB_ID"] = str(uuid.uuid4())
+            completed, payload = self.run_eval(repository, env, "U-INS-001")
+            self.assertEqual(completed.returncode, 2, completed.stderr)
+            self.assertTrue(payload["cancelled"])
+            self.assertTrue(payload["instance_stopped"])
+            execution = json.loads(((repository / payload["summary"]).parent / "execution.json").read_text())
+            self.assertEqual(execution["failure_reason"], "budget-deadline-exceeded")
+            self.assertEqual(execution["job_id"], env["HARNESS_EVAL_JOB_ID"])
 
 
 class EvaluationSourceTests(unittest.TestCase):

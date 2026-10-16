@@ -13,6 +13,7 @@ import signal
 import subprocess
 import sys
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -46,11 +47,14 @@ class EvaluationError(RuntimeError):
 
 
 _cancel_requested = False
+_deadline_exceeded = False
 _defer_cancellation = 0
 
 
 def request_cancellation(_signum, _frame) -> None:
-    global _cancel_requested
+    global _cancel_requested, _deadline_exceeded
+    if _signum == signal.SIGALRM:
+        _deadline_exceeded = True
     if _cancel_requested:
         return
     _cancel_requested = True
@@ -197,7 +201,9 @@ def finalize_run(run_id: str, status: str) -> None:
 
 def write_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
 
 
 def write_unfinished_evidence(
@@ -208,17 +214,26 @@ def write_unfinished_evidence(
 ) -> dict:
     target = run_dir / "evidence" / case["case_id"]
     target.mkdir(parents=True, exist_ok=True)
-    write_json(target / "response.json", {
-        "schema_version": "1.0", "case_id": case["case_id"], "response": None,
-    })
-    (target / "trace.jsonl").write_text("", encoding="utf-8")
-    (target / "tools.jsonl").write_text("", encoding="utf-8")
-    write_json(target / "checks.json", {
-        "schema_version": "1.0",
-        "case_id": case["case_id"],
-        "completed": False,
-        "expected_behavior": case["expected_behavior"],
-        "failure_reason": reason,
+    # 已采集的部分回答、轨迹、工具回执和诊断保持原样，只补尚不存在的文件。
+    if not (target / "response.json").exists():
+        write_json(target / "response.json", {
+            "schema_version": "1.0", "case_id": case["case_id"], "response": None,
+        })
+    for name in ("trace.jsonl", "tools.jsonl"):
+        if not (target / name).exists():
+            (target / name).write_text("", encoding="utf-8")
+    if not (target / "checks.json").exists():
+        write_json(target / "checks.json", {
+            "schema_version": "1.0",
+            "case_id": case["case_id"],
+            "completed": False,
+            "expected_behavior": case["expected_behavior"],
+            "failure_reason": reason,
+        })
+    write_json(target / "interruption.json", {
+        "schema_version": "1.0", "case_id": case["case_id"],
+        "execution_status": execution_status, "failure_reason": reason,
+        "trace_available": (target / "trace.jsonl").stat().st_size > 0,
     })
     value = {
         "execution_status": execution_status,
@@ -316,6 +331,7 @@ def run_driver(
     evidence_root: Path,
     timeout_seconds: int,
     image_ref: str,
+    on_case=None,
 ) -> dict:
     evidence_root.mkdir(parents=True, exist_ok=True)
     command, container_evidence = driver_command(executor, image_ref, evidence_root)
@@ -327,14 +343,30 @@ def run_driver(
         "timeout_ms": timeout_seconds * 1000,
         "evidence_root": container_evidence,
         "cases": cases,
+        "declared_guard": contract.get("guard"),
     }
     if executor == "api":
         payload["judge_preset_id"] = "evaluation-judge"
     outer_timeout = timeout_seconds * sum(len(case["inputs"]) + 2 for case in cases) + 90
-    completed = checked_process(
-        command, label=f"{executor} 评测", timeout=outer_timeout,
-        input_text=json.dumps(payload, ensure_ascii=False),
-    )
+    def collect_results():
+        if on_case is None:
+            return
+        for case in cases:
+            path = evidence_root / case["case_id"] / "case-result.json"
+            if path.is_file():
+                value = json.loads(path.read_text(encoding="utf-8"))
+                rows, _ = normalize_runtime_rows({"rows": [value]}, [case], executor)
+                on_case(case["case_id"], rows[case["case_id"]])
+
+    try:
+        completed = run_cancellable_process(
+            command, cwd=REPO, timeout=outer_timeout,
+            input_text=json.dumps(payload, ensure_ascii=False), on_poll=collect_results,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise EvaluationError(f"{executor} 评测未完成：{type(error).__name__}") from error
+    if completed.returncode != 0:
+        raise EvaluationError(f"{executor} 评测失败（退出码 {completed.returncode}）")
     try:
         value = json.loads(completed.stdout)
     except json.JSONDecodeError as error:
@@ -528,6 +560,10 @@ def execute_owned_run(args: argparse.Namespace, contract: dict, cases: list[dict
         progress(f"Research Run: {run_id}")
         recorded: set[str] = set()
         instance_name = f"{contract['agent_id']}-eval-{uuid.uuid4().hex[:8]}"
+        execution = {"schema_version": "1.0", "job_id": os.environ.get("HARNESS_EVAL_JOB_ID"),
+                     "pid": os.getpid(), "run_id": run_id, "instance_name": instance_name,
+                     "status": "running", "deadline_at": os.environ.get("HARNESS_EVAL_DEADLINE_AT")}
+        write_json(run_dir / "execution.json", execution)
         up_attempted = False
         fatal_reason = None
         interrupted = False
@@ -556,10 +592,18 @@ def execute_owned_run(args: argparse.Namespace, contract: dict, cases: list[dict
                 "scope": "actual DSH evaluation runtime image identity; no semantic verdict",
             })
             auth_url = authentication_url(instance_name)
+            def persist_case(case_id, value):
+                if case_id not in recorded:
+                    with defer_cancellation():
+                        record_trial(run_id, case_id, value)
+                        recorded.add(case_id)
+                if _cancel_requested:
+                    raise KeyboardInterrupt
+
             runtime_rows, stop_reason = normalize_runtime_rows(
                 run_driver(
                     args.executor, auth_url, cases, contract,
-                    run_dir / "evidence", args.timeout_seconds, image_identity["image_ref"],
+                    run_dir / "evidence", args.timeout_seconds, image_identity["image_ref"], persist_case,
                 ),
                 cases,
                 args.executor,
@@ -572,9 +616,7 @@ def execute_owned_run(args: argparse.Namespace, contract: dict, cases: list[dict
             for index, case in enumerate(cases):
                 value = write_unfinished_evidence(run_dir, case, stop_reason, "skipped") \
                     if stop_index is not None and index > stop_index else runtime_rows[case["case_id"]]
-                with defer_cancellation():
-                    record_trial(run_id, case["case_id"], value)
-                    recorded.add(case["case_id"])
+                persist_case(case["case_id"], value)
                 if _cancel_requested:
                     raise KeyboardInterrupt
             inputs = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
@@ -589,7 +631,7 @@ def execute_owned_run(args: argparse.Namespace, contract: dict, cases: list[dict
                 raise EvaluationError(analysis["review_reason"])
     except KeyboardInterrupt:
         interrupted = True
-        fatal_reason = "evaluation-interrupted"
+        fatal_reason = "budget-deadline-exceeded" if _deadline_exceeded else "evaluation-interrupted"
     except EvaluationError as error:
         fatal_reason = str(error)
     except ProcessCleanupError as error:
@@ -611,10 +653,15 @@ def execute_owned_run(args: argparse.Namespace, contract: dict, cases: list[dict
         unfinished_status = "skipped" if interrupted else "error"
         for case in cases:
             if case["case_id"] not in recorded:
-                record_trial(
-                    run_id, case["case_id"],
-                    write_unfinished_evidence(run_dir, case, fatal_reason, unfinished_status),
-                )
+                receipt_path = run_dir / "evidence" / case["case_id"] / "case-result.json"
+                if receipt_path.is_file():
+                    rows, _ = normalize_runtime_rows({"rows": [json.loads(receipt_path.read_text(encoding="utf-8"))]}, [case], args.executor)
+                    value = rows[case["case_id"]]
+                else:
+                    value = write_unfinished_evidence(run_dir, case, fatal_reason, unfinished_status)
+                record_trial(run_id, case["case_id"], value)
+        write_json(run_dir / "execution.json", {**execution, "status": "cancelled" if interrupted and stopped else "failed",
+                   "instance_stopped": stopped, "failure_reason": fatal_reason})
         finalize_run(run_id, "cancelled" if interrupted and stopped else "failed")
         summary_path = run_dir / "summary.json"
         try:
@@ -629,6 +676,7 @@ def execute_owned_run(args: argparse.Namespace, contract: dict, cases: list[dict
         )
         return 2
 
+    write_json(run_dir / "execution.json", {**execution, "status": "completed", "instance_stopped": stopped})
     finalize_run(run_id, "completed")
     summary_path = run_dir / "summary.json"
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
@@ -653,7 +701,7 @@ def execute_owned_run(args: argparse.Namespace, contract: dict, cases: list[dict
 
 
 def main() -> None:
-    global _cancel_requested, REPO
+    global _cancel_requested, _deadline_exceeded, REPO
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=REPO, help="用户数据工作区根目录")
     parser.add_argument("--source", required=True, help="experiment:<id> 或已登记 Experiment ID")
@@ -674,9 +722,19 @@ def main() -> None:
     if args.timeout_seconds < 10:
         parser.error("--timeout-seconds 不能小于 10")
     _cancel_requested = False
+    _deadline_exceeded = False
     previous_handlers = {name: signal.signal(name, request_cancellation)
-                         for name in (signal.SIGINT, signal.SIGTERM)}
+                         for name in (signal.SIGINT, signal.SIGTERM, signal.SIGALRM)}
     try:
+        deadline = os.environ.get("HARNESS_EVAL_DEADLINE_AT")
+        if deadline and not args.dry_run:
+            deadline_value = datetime.fromisoformat(deadline.replace("Z", "+00:00"))
+            if deadline_value.tzinfo is None:
+                raise EvaluationError("任务截止时间必须包含时区")
+            seconds = (deadline_value - datetime.now(timezone.utc)).total_seconds()
+            if seconds <= 0:
+                raise EvaluationError("budget-deadline-exceeded")
+            signal.setitimer(signal.ITIMER_REAL, seconds)
         raise SystemExit(execute(args))
     except KeyboardInterrupt:
         # 尚未进入拥有 Run/实例的执行区块，此时没有待清理的业务实例。
@@ -689,6 +747,7 @@ def main() -> None:
         emit_result(experiment_id, 0, executor=args.executor)
         raise SystemExit(2)
     finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
         for name, handler in previous_handlers.items():
             signal.signal(name, handler)
 

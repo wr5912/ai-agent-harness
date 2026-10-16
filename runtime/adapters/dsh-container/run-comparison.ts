@@ -12,7 +12,7 @@ type Case = {
   registered_tools?: Array<string[] | null> | null;
   tool_calls?: Array<{ name: string | null; status: string; error_code?: string | null }>;
   review: { reviewed_verdict?: string; reason?: string } | null;
-  load_observation: { preset_matches?: boolean; workspace_matches?: boolean } | null;
+  load_observation: { preset_matches?: boolean; workspace_matches?: boolean; guard?: { status?: string } } | null;
   evidence: Array<{ path: string; present: boolean }>;
 };
 type View = {
@@ -42,15 +42,19 @@ for (const field of ['executor', 'model'] as const) {
   if (!a || !b) limit(`${field}: 未记录`);
   else if (a !== b) limit(`${field}: 不同`);
 }
-for (const field of ['review_mode', 'configured_capabilities', 'dependency_env']) {
+for (const field of ['review_mode', 'configured_capabilities', 'dependency_env', 'evaluation_implementation']) {
   const a = left.source[field], b = right.source[field];
   if (!a || !b) limit(`${field}: 未记录`);
   else if (!isDeepStrictEqual(a, b)) limit(`${field}: 不同`);
 }
 for (const [side, run] of [['left', left], ['right', right]] as const) {
   if (run.source.git_version?.dirty !== false) limit(`${side}: Git 来源不干净或未记录`);
+  if (!run.source.program_origin?.commit) limit(`${side}: 平台程序来源未记录`);
+  if (run.source.program_origin?.dirty !== false) limit(`${side}: 平台程序来源不干净或未记录`);
   if (run.missing.length) limit(`${side}: 缺少证据或记录（${run.missing.join('；')}）`);
 }
+if (left.source.program_origin?.commit !== right.source.program_origin?.commit)
+  limit('program_origin: 平台程序提交不同');
 for (const field of ['image_build_fingerprint', 'local_image_id']) {
   const a = left.image?.[field], b = right.image?.[field];
   if (!a || !b) limit(`${field}: 缺少实际镜像证据`);
@@ -71,6 +75,9 @@ const cases = shared.map(case_id => {
   for (const [side, item] of [['left', a], ['right', b]] as const) {
     if (!item.load_observation?.preset_matches || !item.load_observation?.workspace_matches)
       limit(`${case_id}: ${side} 缺少正确装载观察`);
+    const source = side === 'left' ? left.source : right.source;
+    if (source.declared_guard && item.load_observation?.guard?.status !== 'verified')
+      limit(`${case_id}: ${side} 来源声明的 Guard 实际激活未验证`);
   }
   for (const [side, item] of [['left', a], ['right', b]] as const) {
     if (!item.actual_routes?.length) limit(`${case_id}: ${side} 缺少实际模型路由记录`);
@@ -113,6 +120,10 @@ const sourceFacts = (run: View) => {
   return {
     'Run': link(`${run.run_path}/report.md`, run.run_id),
     'Git': `${cell(run.source.git_version?.commit)}；dirty=${cell(run.source.git_version?.dirty)}`,
+    '平台程序': `${cell(run.source.program_origin?.commit)}；dirty=${cell(run.source.program_origin?.dirty)}`,
+    '执行与评审实现': run.source.evaluation_implementation
+      ? link(`${run.run_path}/inputs.lock.json`, `已冻结 ${Object.keys(run.source.evaluation_implementation).length} 项文件`)
+      : '未记录',
     'Candidate': trees,
     '执行器 / 预期模型': `${cell(run.source.executor)} / ${cell(run.source.model)}`,
     '实际模型路由': cell(actualModels),
