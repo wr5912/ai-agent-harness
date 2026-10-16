@@ -5,7 +5,7 @@ import type { RecentRun } from './dashboard.ts'
 import { CHANNEL } from './protocol.ts'
 import type { PlatformUpdates } from './realtime/client.ts'
 import { PlatformLogo } from './logo.tsx'
-import { BUILD_PLACEHOLDER, DEMO_AGENT, DEMO_BUILD_PROMPT, DEMO_CASE, HOME_MODES, HOME_SUBTITLE, homeTaskRequest, type HomeMode } from './home-entry.ts'
+import { GENERAL_PLACEHOLDER, DEMO_AGENT, DEMO_BUILD_PROMPT, DEMO_CASE, HOME_MODES, HOME_SUBTITLE, homeTaskRequest, type HomeMode } from './home-entry.ts'
 export { PlatformLogo } from './logo.tsx'
 
 export type { PageId } from './protocol.ts'
@@ -37,8 +37,8 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
   const [dashboard, setDashboard] = useState<Dashboard>()
   const [runError, setRunError] = useState('')
   const [refresh, setRefresh] = useState(0)
-  const [mode, setMode] = useState<HomeMode>('build')
-  const [drafts, setDrafts] = useState<Record<HomeMode, string>>({ build: '', evaluate: '', improve: '' })
+  const [mode, setMode] = useState<HomeMode>('general')
+  const [drafts, setDrafts] = useState<Record<HomeMode, string>>({ general: '', evaluate: '', improve: '' })
   const prompt = drafts[mode]
   const promptRef = useRef<HTMLTextAreaElement>(null)
   useLayoutEffect(() => {
@@ -141,16 +141,16 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
       <div className="harness-task-composer">
         <div className="harness-entry-modes" role="group" aria-label="任务类型">{HOME_MODES.map(item => <button key={item.id} type="button" aria-pressed={mode === item.id} disabled={sending} onClick={() => { setMode(item.id); setEntryError('') }}>{item.label}</button>)}</div>
         <form className="harness-entry" onSubmit={event => { event.preventDefault(); void submitTask() }}>
-          <textarea ref={promptRef} rows={1} aria-label="业务任务" placeholder={mode === 'build' ? BUILD_PLACEHOLDER : mode === 'evaluate' ? '描述要评测的智能体和业务能力，例如评测巡检助手能否完整统计全部设备。' : '描述希望改进或优化的任务，例如让巡检报告覆盖全部设备，或减少行业简报中的重复信息。'} value={prompt} disabled={sending}
+          <textarea ref={promptRef} rows={1} aria-label="业务任务" placeholder={mode === 'general' ? GENERAL_PLACEHOLDER : mode === 'evaluate' ? '描述要评测的智能体和业务能力，例如评测巡检助手能否完整统计全部设备。' : '描述希望改进或优化的任务，例如让巡检报告覆盖全部设备，或减少行业简报中的重复信息。'} value={prompt} disabled={sending}
             onChange={event => setDrafts(value => ({ ...value, [mode]: event.target.value }))} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); void submitTask() } }}/>
-          <div className="harness-entry-footer"><span>{mode === 'build' ? '先理解任务和复用能力，再确认执行范围。' : mode === 'evaluate' ? '先查询智能体和已有测试，确认范围后运行评测。' : '先查已有资产和记录，确认优化目标；最多修复 3 轮。'}</span><button className="harness-primary" type="submit" disabled={sending || !assets || mode === 'build' && !prompt.trim()}>{sending ? '正在进入…' : HOME_MODES.find(item => item.id === mode)!.action}</button></div>
+          <div className="harness-entry-footer"><span>{mode === 'general' ? '可以咨询平台用法，也可以描述需要协助完成的任务。' : mode === 'evaluate' ? '先查询智能体和已有测试，确认范围后运行评测。' : '先查已有资产和记录，确认优化目标；最多修复 3 轮。'}</span><button className="harness-primary" type="submit" disabled={sending || !assets || mode === 'general' && !prompt.trim()}>{sending ? '正在进入…' : HOME_MODES.find(item => item.id === mode)!.action}</button></div>
         </form>
-        {mode === 'evaluate' && assets && !assets.agents.length && <p>还没有业务智能体。<button type="button" onClick={() => setMode('build')}>先构建一个</button></p>}
+        {mode === 'evaluate' && assets && !assets.agents.length && <p>还没有业务智能体。<button type="button" onClick={() => setMode('general')}>先构建一个</button></p>}
         {entryError && <p role="alert">{entryError}</p>}
       </div>
       <button className="harness-example-toggle" type="button" aria-expanded={exampleOpen} disabled={!assets || exampleLoading} onClick={() => void showExample()}>体验示例 <span aria-hidden="true">→</span></button>
       {exampleOpen && <section className="harness-example" aria-label="基础资产巡检体验示例"><strong>基础资产台账巡检</strong><p>读取五台基础模拟资产，处理分页并生成报告。使用 Mock 台账数据，不代表连接或检测真实设备。</p>
-        {exampleLoading ? <p role="status">正在核对当前工作区的示例资产…</p> : exampleSources.length ? <>{selectedExample && <p>将使用{versionName(selectedExample.experiment_id)}{selectedExample.active ? '（当前启用）' : ''}；开始后将核对服务和实际任务结果。</p>}{exampleSources.length > 1 && <details aria-label="可选示例版本"><summary>更换示例版本</summary><label>示例版本<select aria-label="巡检示例版本" value={exampleSource} onChange={event => setExampleSource(event.target.value)}>{exampleSources.map(source => <option key={source.source} value={source.source}>{versionName(source.experiment_id)}{source.active ? ' · 当前启用' : ''}</option>)}</select></label></details>}<button type="button" disabled={sending || !selectedExample} onClick={() => void launchExample()}>开始体验</button></> : exampleError ? <p>暂时无法核对示例资产，请稍后重新打开体验入口。</p> : <><p>当前工作区尚未安装带工具的巡检示例。可以先构建一个只整理用户给定模拟数据的智能体，或到智能体管理接入已有版本。</p><div><button type="button" onClick={() => { setMode('build'); setDrafts(value => ({ ...value, build: DEMO_BUILD_PROMPT })); setExampleOpen(false) }}>构建一个基础示例</button><button type="button" onClick={() => navigate('agents')}>查看智能体管理</button></div></>}
+        {exampleLoading ? <p role="status">正在核对当前工作区的示例资产…</p> : exampleSources.length ? <>{selectedExample && <p>将使用{versionName(selectedExample.experiment_id)}{selectedExample.active ? '（当前启用）' : ''}；开始后将核对服务和实际任务结果。</p>}{exampleSources.length > 1 && <details aria-label="可选示例版本"><summary>更换示例版本</summary><label>示例版本<select aria-label="巡检示例版本" value={exampleSource} onChange={event => setExampleSource(event.target.value)}>{exampleSources.map(source => <option key={source.source} value={source.source}>{versionName(source.experiment_id)}{source.active ? ' · 当前启用' : ''}</option>)}</select></label></details>}<button type="button" disabled={sending || !selectedExample} onClick={() => void launchExample()}>开始体验</button></> : exampleError ? <p>暂时无法核对示例资产，请稍后重新打开体验入口。</p> : <><p>当前工作区尚未安装带工具的巡检示例。可以先构建一个只整理用户给定模拟数据的智能体，或到智能体管理接入已有版本。</p><div><button type="button" onClick={() => { setMode('general'); setDrafts(value => ({ ...value, general: DEMO_BUILD_PROMPT })); setExampleOpen(false) }}>构建一个基础示例</button><button type="button" onClick={() => navigate('agents')}>查看智能体管理</button></div></>}
         {exampleError && <p role="alert">{exampleError}</p>}
       </section>}
     </section>
