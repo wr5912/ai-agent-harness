@@ -76,7 +76,9 @@ export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput,
   const checks: DeliveryCheck[] = []
   const record = (name: string, ok: unknown, message: string) => checks.push({ name, ok: Boolean(ok), message })
   let run: any
-  const businessTools: ReturnType<typeof successfulTools> = []
+  let businessCaseIds: string[] = []
+  const artifactCases = new Map<string, string>()
+  const businessTools: Array<ReturnType<typeof successfulTools>[number] & { case_id: string }> = []
   try {
     const result = await execFile(process.env.HARNESS_PYTHON || 'python3', ['-c', runEvidenceScript,
       join(programRoot(), 'runtime/adapters/dsh-container'), resolve(root), input.run_id], {
@@ -97,9 +99,28 @@ export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput,
       && item.load_observation?.session_id && item.load_observation.preset_matches === true && item.load_observation.workspace_matches === true), '业务 Session 有实际轨迹，Preset 和工作目录装载吻合')
     const requiredTools = input.required_tool_names ?? []
     if (input.expected_device_ids?.length) record('business_tools_declared', requiredTools.length > 0, '巡检交付要求固定业务工具，不能只根据回复中的设备列表判断完成')
-    for (const item of cases.filter(Boolean)) {
+    const prefix = `evolution/experiments/${info.id}/runs/${input.run_id}/`
+    const indexPath = dataPath(root, prefix + 'artifacts/index.json')
+    const indexBytes = existsSync(indexPath) ? readFileSync(indexPath) : undefined
+    if (run.manifest.artifacts_sha256 && (!indexBytes || sha256(indexBytes) !== run.manifest.artifacts_sha256)) throw new Error('封存业务产物索引摘要不匹配')
+    const index = indexBytes && run.manifest.artifacts_sha256 ? JSON.parse(indexBytes.toString('utf8')).artifacts ?? [] : []
+    const linkedCases = (input.artifacts ?? []).map(ref => {
+      const path = typeof ref === 'string' ? ref : ref.path
+      const relative = path.startsWith(prefix) ? path.slice(prefix.length) : ''
+      const entry = index.find((item: any) => item.path === relative)
+      const evidenceCase = /^evidence\/([^/]+)\//.exec(entry?.source_evidence ?? '')?.[1]
+      const pathCase = /^artifacts\/([^/]+)\//.exec(relative)?.[1]
+      // 封存索引优先；旧版单 Case 产物没有分目录时，来源仍可唯一确定。
+      const id = entry ? entry.case_id ?? evidenceCase : pathCase ?? (required.length === 1 ? required[0] : undefined)
+      if (!id || !required.includes(id) || evidenceCase && evidenceCase !== id) return undefined
+      artifactCases.set(path, id)
+      return id
+    })
+    businessCaseIds = [...new Set(linkedCases.filter((id): id is string => Boolean(id)))]
+    if (requiredTools.length) record('business_artifact_cases', linkedCases.length && linkedCases.every(Boolean), '业务产物可唯一关联到固定验收 Case；身份与摘要回归不要求调用业务工具')
+    for (const item of cases.filter((item: any) => item && businessCaseIds.includes(item.case_id))) {
       const tools = successfulTools(root, `evolution/experiments/${info.id}/runs/${input.run_id}/`, item)
-      businessTools.push(...tools.filter(tool => requiredTools.includes(tool.name)))
+      businessTools.push(...tools.filter(tool => requiredTools.includes(tool.name)).map(tool => ({ ...tool, case_id: item.case_id })))
       if (requiredTools.length) record(`business_tools:${item.case_id}`, requiredTools.every(name => tools.some(tool => tool.name === name)), '固定 Case 的同一业务 Session 中存在实际业务工具调用及匹配成功回执')
     }
   } catch {
@@ -151,7 +172,7 @@ export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput,
       const digest = sha256(content)
       if (ref.sha256 && ref.sha256 !== digest) throw new Error('产物摘要不匹配')
       record(`artifact:${ref.path}`, true, '已回读本次 Run 的非空产物并计算摘要')
-      if (input.required_tool_names?.length) record(`business_artifact:${ref.path}`, businessTools.some(tool => tool.value.completed === true
+      if (input.required_tool_names?.length) record(`business_artifact:${ref.path}`, businessTools.some(tool => tool.case_id === artifactCases.get(ref.path) && tool.value.completed === true
         && typeof tool.value.markdown === 'string' && sha256(tool.value.markdown) === tool.value.report_sha256 && tool.value.report_sha256 === digest), '报告内容摘要与已声明业务工具的真实完成回执一致')
       let inspection
       if (input.expected_device_ids?.length) {
@@ -189,7 +210,7 @@ export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput,
       const parsed = new URL(authUrl)
       if (parsed.protocol !== 'http:' || parsed.hostname !== '127.0.0.1' || Number(parsed.port) !== instance.port) throw new Error('交付实例访问地址不匹配')
       const frozen = JSON.parse(readFileSync(dataPath(root, `evolution/experiments/${info.id}/runs/${input.run_id}/inputs.lock.json`), 'utf8'))
-      const representative = frozen.evaluation_cases.find((item: any) => (!input.required_case_ids || input.required_case_ids.includes(item.case_id)) && !/IDENTITY|ROLE/.test(item.case_id))
+      const representative = frozen.evaluation_cases.find((item: any) => businessCaseIds.includes(item.case_id))
       if (!representative) throw new Error('冻结业务输入不存在')
       probe.case_id = representative.case_id
       const remaining = input.deadline_at ? Date.parse(input.deadline_at) - Date.now() : 120000

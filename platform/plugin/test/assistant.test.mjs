@@ -92,6 +92,8 @@ test('任务一次确认后仅向固定目标连续执行，初测不计轮次�
   const goals = installTaskGoals(f)
   const id = (await f.rpc('session', { task: '构建巡检助手', context: { skill: 'task-builder' } })).value.session_id
   await beginTask(f, id)
+  for (const action of ['preview', 'start']) await assert.rejects(() => f.execute(id, 'task', action, { plan: taskPlan() }), /已有未结束任务/)
+  assert.equal((await f.status(id)).proposals.length, 1, '活动任务重复 start 不再产生第二张无效确认卡')
   assert.equal(goals.get(id).maxGoalRounds, 60)
   await assert.rejects(() => f.execute(id, 'task', 'begin-repair'), /初次评测/)
   await f.execute(id, 'agents', 'eval/start', { source: 'experiment:EXP-test-agent-001', cases: ['U-BUSINESS-001'] })

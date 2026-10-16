@@ -274,6 +274,10 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     })
   }
   async function taskAction(id: string, action: string, input: MapValue, signal: AbortSignal, fromUi = false): Promise<any> {
+    if (action === 'preview' || action === 'start') {
+      const current = (await inspect(id)).state.execution
+      if (current && !['completed', 'cancelled'].includes(current.state)) throw new Error('当前会话已有未结束任务，请继续当前任务；评测或交付失败不需要重新授权。需要修改时先 begin-repair，未知回执先 checkpoint')
+    }
     if (action === 'preview') return taskPreview(id, input, signal)
     if (action === 'start') {
       const preview = await taskPreview(id, input, signal)

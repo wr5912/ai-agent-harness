@@ -81,11 +81,12 @@ test('CSV 和 Markdown 真实报告检查设备集合、重复、状态和统计
   assert.throws(() => verifyInspectionReport('"device_id,status', 'csv', contract), /引号未闭合/)
 })
 
-function sealedRun(root) {
+function sealedRun(root, withRegression = false) {
   const env = { ...process.env, HARNESS_ASSET_ROOT: root, HARNESS_PROGRAM_ROOT: program }
   const cli = (...args) => execFileSync(python, [join(adapter, 'run_record.py'), '--repo', root, ...args], { env, encoding: 'utf8' }).trim()
   write(root, 'agents/inspection-task/evaluation.md', '# 巡检\n\n#### U-INS-001 报告设备完整\n\n**用户输入**\n\n> 查询 D-1、D-2 并生成 CSV。\n\n**预期**\n\nCSV 含两台设备，设备清单完整。\n')
-  const run = cli('init', '--source', `experiment:${sourceId}`, '--case', 'U-INS-001', '--kind', 'technical'), prefix = `evolution/experiments/${sourceId}/runs/${run}`
+  if (withRegression) write(root, 'agents/inspection-task/evaluation.md', readFileSync(join(root, 'agents/inspection-task/evaluation.md'), 'utf8') + '\n#### U-IDENTITY-001 身份回归\n\n**用户输入**\n\n> 你是谁？\n\n**预期**\n\n说明巡检职责，不需要查询设备。\n')
+  const run = cli('init', '--source', `experiment:${sourceId}`, '--case', 'U-INS-001', ...(withRegression ? ['--case', 'U-IDENTITY-001'] : []), '--kind', 'technical'), prefix = `evolution/experiments/${sourceId}/runs/${run}`
   const report = '# 巡检\n\n| device_id | status |\n| --- | --- |\n| D-1 | 正常 |\n| D-2 | 正常 |\n\n设备总数：2\n'
   write(root, `${prefix}/evidence/U-INS-001/response.json`, JSON.stringify({ assistant_texts: [report] }))
   const toolReport = { completed: true, markdown: report, report_sha256: sha256(report), download_url: '/assistant/api/task-examples/artifact?run_id=task-test&file=report.md' }
@@ -96,10 +97,15 @@ function sealedRun(root) {
   ].map(event => JSON.stringify({ session_log: 'session.v4.jsonl', event })).join('\n') + '\n')
   write(root, `${prefix}/evidence/U-INS-001/checks.json`, JSON.stringify({ session_id: 'session-test-1', session_preset: 'inspection-task', session_workspace: '/work/harness/workspace', preset_matches: true, workspace_matches: true }))
   write(root, `${prefix}/results.jsonl`, JSON.stringify({ run_id: run, trial_id: 'trial-test', input_id: 'U-INS-001', execution_status: 'completed', verdict: 'passed', observation: '确定性设备清单通过。', evidence_ref: 'evidence/U-INS-001' }) + '\n')
+  if (withRegression) {
+    write(root, `${prefix}/evidence/U-IDENTITY-001/trace.jsonl`, JSON.stringify({ session_log: 'session.v4.jsonl', event: { type: 'session', id: 'session-identity' } }) + '\n')
+    write(root, `${prefix}/evidence/U-IDENTITY-001/checks.json`, JSON.stringify({ session_id: 'session-identity', preset_matches: true, workspace_matches: true }))
+    write(root, `${prefix}/results.jsonl`, readFileSync(join(root, prefix, 'results.jsonl'), 'utf8') + JSON.stringify({ run_id: run, trial_id: 'trial-identity', input_id: 'U-IDENTITY-001', execution_status: 'completed', verdict: 'passed', observation: '身份回归通过。', evidence_ref: 'evidence/U-IDENTITY-001' }) + '\n')
+  }
   const contract = JSON.parse(execFileSync(python, [join(adapter, 'source_contract.py'), '--repo', root, '--source', `experiment:${sourceId}`], { env, encoding: 'utf8' })), image = 'sha256:' + '1'.repeat(64)
   write(root, `${prefix}/evidence/dsh-image.json`, JSON.stringify({ local_image_id: image, local_image_tag: contract.image.local_image_tag, image_build_fingerprint: contract.image.build_fingerprint }))
   cli('finalize', '--run', run, '--status', 'completed')
-  const artifact = `${prefix}/artifacts/report.md`; write(root, artifact, report)
+  const artifact = `${prefix}/artifacts/${withRegression ? 'U-INS-001/' : ''}report.md`; write(root, artifact, report)
   const directory = join(root, '.local/instances/delivery-test')
   write(root, '.local/instances/delivery-test/instance.json', JSON.stringify({ name: 'delivery-test', workspace_id: 'workspace-task-test', asset_root: root, source_id: `experiment:${sourceId}`, agent_id: 'inspection-task', container_name: 'delivery-test-container', image_id: image, image_tag: contract.image.local_image_tag, port: 3184 }))
   const observed = { container: [{ Image: image, State: { Running: true }, Config: { Labels: { 'com.docker.compose.project.working_dir': directory, 'com.docker.compose.project.config_files': join(directory, 'compose.yaml') } }, Mounts: ['workspace', 'presets', 'managed'].map((key, index) => ({ Destination: ['/work/harness/workspace', '/opt/dsh-presets', '/opt/dsh-managed'][index], Source: contract[key], RW: false })) }], image: [{ Config: { Labels: { 'org.ai-agent-harness.dsh.image-build-fingerprint': contract.image.build_fingerprint } } }] }
@@ -107,7 +113,7 @@ function sealedRun(root) {
 }
 
 test('交付检查执行真实封存与来源校验，仅隔离 Docker 边界；不能只凭 running 通过', async t => {
-  const root = fixture(t), { run, artifact, observed } = sealedRun(root)
+  const root = fixture(t), { run, artifact, observed } = sealedRun(root, true)
   const report = readFileSync(join(root, artifact), 'utf8')
   let probeInput = ''
   const server = createServer(async (request, response) => {
@@ -138,10 +144,11 @@ test('交付检查执行真实封存与来源校验，仅隔离 Docker 边界；
   const before = Object.fromEntries(['PATH', 'HARNESS_PYTHON', 'HARNESS_PROGRAM_ROOT', 'HEP_DELIVERY_TEST_OBSERVATION'].map(key => [key, process.env[key]]))
   Object.assign(process.env, { PATH: `${bin}:${process.env.PATH}`, HARNESS_PYTHON: python, HARNESS_PROGRAM_ROOT: program, HEP_DELIVERY_TEST_OBSERVATION: join(root, 'observation.json') })
   t.after(() => { for (const [key, value] of Object.entries(before)) if (value === undefined) delete process.env[key]; else process.env[key] = value })
-  const input = { agent_id: 'inspection-task', source: `experiment:${sourceId}`, run_id: run, instance_name: 'delivery-test', artifacts: [artifact], expected_device_ids: ['D-1', 'D-2'], required_case_ids: ['U-INS-001'], required_tool_names: ['task_inspection'] }
+  const input = { agent_id: 'inspection-task', source: `experiment:${sourceId}`, run_id: run, instance_name: 'delivery-test', artifacts: [artifact], expected_device_ids: ['D-1', 'D-2'], required_case_ids: ['U-INS-001', 'U-IDENTITY-001'], required_tool_names: ['task_inspection'] }
   const verify = value => verifyTaskDelivery(root, value, undefined, { instanceUrl: async () => `http://127.0.0.1:${server.address().port}/assistant/` })
   const passed = await verify(input); assert.equal(passed.ready, true, JSON.stringify(passed.checks))
   assert.equal(passed.probe.session_id, 'session-probe')
+  assert.equal(passed.checks.some(check => check.name === 'business_tools:U-IDENTITY-001'), false)
   assert.equal((await verify({ ...input, required_tool_names: ['unrelated_business_tool'] })).ready, false)
   assert.equal((await verifyTaskDelivery(root, { ...input, ready: true, artifacts: ['agents/inspection-task/evaluation.md'] })).ready, false)
   observed.container[0].Mounts[0].RW = true; write(root, 'observation.json', JSON.stringify(observed)); assert.equal((await verifyTaskDelivery(root, input)).ready, false)
