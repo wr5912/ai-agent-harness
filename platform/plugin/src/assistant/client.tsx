@@ -225,6 +225,12 @@ function versionLabel(value: unknown) {
   const text = String(value ?? '')
   return /-(\d{3})(?:-r[0-9a-f]{12})?$/.exec(text)?.[1] ? `版本 ${/-(\d{3})(?:-r[0-9a-f]{12})?$/.exec(text)![1]}` : text
 }
+function targetVersionLabel(value: unknown, data: any, input: Record<string, any>) {
+  const match = /^(?:experiment:)?EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-\d{3}(?:-r[0-9a-f]{12})?$/.exec(String(value ?? ''))
+  const agent = data?.agent_name ?? data?.agent_id ?? input.agent_name ?? input.agent_id ?? match?.[1]
+  const version = versionLabel(value) || '所选版本'
+  return agent ? `智能体“${agent}”的${version}` : version
+}
 function confirmationAction(meta: OperationMeta) {
   const value = unwrap(meta.preview) as any
   if (meta.domain === 'task' && meta.action === 'start') return value?.plan?.new_agent || value?.plan?.allowed_actions?.some((item: any) => ['new', 'create', 'edit/apply', 'tasks/assembly-apply'].includes(item.action)) ? '开始构建并验证' : '开始验证并交付'
@@ -259,7 +265,7 @@ function BusinessPreview({ value, meta }: { value: unknown; meta: OperationMeta 
   else if (meta.action === 'features/apply') {
     const features = data?.features ?? data?.after?.features ?? []
     const removed = (data?.before?.features ?? []).filter((feature: any) => !features.some((next: any) => next.id === feature.id)).length
-    summary = <><p>把 <strong>{features.length} 项特性说明</strong>保存到{versionLabel(data?.experiment_id ?? input.experiment_id) || '所选版本'}。</p>{removed > 0 && <p><strong>将移除原有的 {removed} 项特性说明。</strong></p>}<p>保存说明不会自动将能力标记为已验证；来源与证据会一并保留。</p></>
+    summary = <><p>把 <strong>{features.length} 项特性说明</strong>保存到{targetVersionLabel(data?.experiment_id ?? input.experiment_id, data, input)}。</p>{removed > 0 && <p><strong>将移除原有的 {removed} 项特性说明。</strong></p>}<p>保存说明不会自动将能力标记为已验证；来源与证据会一并保留。</p></>
   } else if (meta.action === 'saveConfiguration') {
     const ops = data?.input?.ops ?? input.ops ?? []
     const disabled = ops.filter((op: any) => op.path?.at(-1) === 'enabled' && op.value === false).length
@@ -270,8 +276,8 @@ function BusinessPreview({ value, meta }: { value: unknown; meta: OperationMeta 
     <p>采用 {plan.sources?.filter((source: any) => source.decision === 'inherit').length ?? 0} 个来源，纳入 {plan.features?.length ?? 0} 项特性，约定 {plan.checks?.length ?? 0} 项验证。当前版本保留，新版本须完成验证后才可交付。</p>
   </>
   else if (meta.action === 'new') summary = <><p>创建智能体 <strong>{data?.name ?? input.name ?? data?.agent_id ?? input.agent_id}</strong>及其首个研究版本。</p><p>先保存角色和资产；可用的业务能力仍需装配与评测。</p></>
-  else if (meta.action === 'edit/apply') summary = <p>向{versionLabel(input.experiment_id ?? data?.experiment_id) || '所选版本'}保存 <strong>{input.edits?.length ?? data?.files?.length ?? data?.edits?.length ?? '约定'} 份文件修改</strong>。具体内容和差异见下方。</p>
-  else if (meta.action === 'eval/start') summary = <><p>对{versionLabel(input.source ?? data?.source) || '所选版本'}执行 <strong>{input.cases?.length ?? data?.cases?.length ?? '约定'} 项测试</strong>，创建新的评测运行记录。</p><p>将调用已配置的模型；结果按实际执行保存。</p></>
+  else if (meta.action === 'edit/apply') summary = <p>向{targetVersionLabel(input.experiment_id ?? data?.experiment_id, data, input)}保存 <strong>{input.edits?.length ?? data?.files?.length ?? data?.edits?.length ?? '约定'} 份文件修改</strong>。具体内容和差异见下方。</p>
+  else if (meta.action === 'eval/start') summary = <><p>对{targetVersionLabel(input.source ?? data?.source, data, input)}执行 <strong>{input.cases?.length ?? data?.cases?.length ?? '约定'} 项测试</strong>，创建新的评测运行记录。</p><p>将调用已配置的模型；结果按实际执行保存。</p></>
   else if (meta.action === 'callPublishedComposition' || meta.action === 'callTool') summary = <><p>执行 <strong>{data?.title ?? data?.toolName ?? input.toolName ?? data?.compositionId ?? input.compositionId ?? '所选工具'}</strong>，请求已配置的上游接口。</p><p>使用本提案固定的工具、参数及版本；实际业务结果在执行后核对。</p></>
   else summary = <p>{operationSummary({ ...meta, state: 'awaiting_confirmation' }).title}。执行范围与实际修改保留在下方详情。</p>
   const warnings = data?.warnings ?? data?.validation?.warnings ?? []
