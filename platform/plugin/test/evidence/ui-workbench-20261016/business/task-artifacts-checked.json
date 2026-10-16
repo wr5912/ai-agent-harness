@@ -1,0 +1,52 @@
+{
+  "task_id": "task-971de1b8-8fec-4027-9455-cf95b3434226",
+  "scope": "只读核对真实评测生成的业务产物；评测临时实例已自动停止，未声称其下载URL仍在线",
+  "rows": [
+    {
+      "device_id": "asset-0001",
+      "status": "台账已记录",
+      "hostname": "prod-web-01",
+      "asset_type": "workstation",
+      "risk_score": "1"
+    },
+    {
+      "device_id": "asset-0002",
+      "status": "台账已记录",
+      "hostname": "edr-gateway-02",
+      "asset_type": "workstation",
+      "risk_score": "79"
+    },
+    {
+      "device_id": "asset-0003",
+      "status": "台账已记录",
+      "hostname": "waf-edge-03",
+      "asset_type": "server",
+      "risk_score": "95"
+    },
+    {
+      "device_id": "asset-0004",
+      "status": "台账已记录",
+      "hostname": "k8s-node-04",
+      "asset_type": "firewall",
+      "risk_score": "98"
+    },
+    {
+      "device_id": "asset-0005",
+      "status": "台账已记录",
+      "hostname": "db-core-05",
+      "asset_type": "firewall",
+      "risk_score": "60"
+    }
+  ],
+  "device_count": 5,
+  "files": {
+    "report.md": {
+      "bytes": 695,
+      "sha256": "f68f39c4481b4d71047afa2b9fdaf13e73369b65ea183082cc06d20ee1b1c291"
+    },
+    "devices.csv": {
+      "bytes": 358,
+      "sha256": "c8e2dd3e7e5013cd4d4198e1c3e19a97e905a342d1e1a6dd243d05a9901df09f"
+    }
+  }
+}

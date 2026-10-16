@@ -50,19 +50,15 @@ async function page(rpc) {
   return ui
 }
 
-test('页面以目录版本创建五个草稿，阶段测试使用run_id并显示服务端编译节点', async t => {
+test('页面读取已有编排，阶段测试使用run_id并显示服务端编译节点', async t => {
   const calls = []
   const ui = await page({ call: async (channel, endpoint, payload) => {
     calls.push({ channel, endpoint, payload })
     return { ok: true, value: endpoint === 'mcp/dryRunComposition' ? { mode: 'dry', graph, checks: [], unverified: [], upstreamRequests: 0 } : state }
   } })
   t.after(ui.dispose)
-  ui.button('威胁分析样例').props.onClick(); ui.render()
-  const form = ui.nodes().find(node => typeof node.type === 'function' && node.type.name === 'ThreatSeedForm')
-  assert.ok(form.props.connections.some(connection => connection.id === 'report'))
-  form.props.create({ socConnectionId: 'soc', reportConnectionId: 'report' })
-  await tick(); ui.render()
-  assert.deepEqual(JSON.parse(JSON.stringify(calls.find(call => call.endpoint === 'mcp/seedThreatCompositions'))), { channel: '/harness-platform', endpoint: 'mcp/seedThreatCompositions', payload: { revision: 'r1', bindings: { socConnectionId: 'soc', reportConnectionId: 'report' } } })
+  assert.equal(ui.button('威胁分析样例'), undefined)
+  assert.equal(calls.some(call => call.endpoint === 'mcp/seedThreatCompositions'), false)
   assert.ok(ui.nodes().some(node => node.props?.['aria-label'] === '组合事件 ID'))
   ui.nodes().find(node => node.type === 'button' && ui.text(node).startsWith('threat-inferthreat-infer')).props.onClick(); ui.render()
   const input = ui.nodes().find(node => node.props?.['aria-label'] === '组合运行 ID')
@@ -71,6 +67,30 @@ test('页面以目录版本创建五个草稿，阶段测试使用run_id并显�
   assert.deepEqual(JSON.parse(JSON.stringify(calls.find(call => call.endpoint === 'mcp/dryRunComposition').payload.input)), { run_id: 'run-basic' })
   assert.match(ui.text(), /实际编译阶段/)
   assert.equal(calls.some(call => call.endpoint === 'mcp/executeComposition'), false)
+})
+
+test('编排只列一次，草稿与发布状态并存且发布版本仍可选择', async t => {
+  const draft = { toolName: 'query_assets', title: '资产查询草稿', description: '', connectionId: 'soc' }
+  const published = { ...draft, title: '资产查询发布版', publishedAt: '2026-10-16T00:00:00Z' }
+  const ui = await page({ call: async () => ({ ok: true, value: { ...state, compositions: [
+    { id: 'both', draft, published, graphs: { draft: graph, published: graph } },
+    { id: 'published-only', published: { ...published, title: '已发布的另一编排' }, graphs: { published: graph } },
+    { id: 'draft-only', draft: { ...draft, title: '新草稿' }, graphs: { draft: graph } },
+  ] } }) })
+  t.after(ui.dispose)
+  const list = () => ui.nodes().find(node => node.props?.['aria-label'] === '工具编排列表')
+  const rows = () => ui.nodes(list()).filter(node => node.type === 'li')
+  assert.equal(rows().length, 3)
+  assert.match(ui.text(rows()[0]), /已发布.*正在编辑/)
+  assert.equal(ui.nodes(list()).filter(node => node.type === 'section').length, 1)
+  assert.ok(ui.button('已发布版本'))
+  ui.button('已发布版本').props.onClick(); ui.render()
+  assert.equal(ui.button('已发布版本').props['aria-pressed'], true)
+  assert.equal(ui.nodes(rows()[0]).find(node => node.type === 'button').props['aria-current'], 'true')
+  assert.ok(ui.nodes().some(node => node.type === 'h2' && ui.text(node) === '资产查询发布版'))
+  ui.nodes(rows()[1]).find(node => node.type === 'button').props.onClick(); ui.render()
+  assert.ok(ui.nodes().some(node => node.type === 'h2' && ui.text(node) === '已发布的另一编排'))
+  assert.equal(ui.button('编辑草稿'), undefined)
 })
 
 test('总组合固定子版本可编辑，切换引用清空旧版本，非法映射不覆盖有效草稿', async t => {

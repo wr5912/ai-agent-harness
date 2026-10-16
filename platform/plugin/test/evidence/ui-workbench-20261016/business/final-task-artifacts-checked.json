@@ -1,0 +1,52 @@
+{
+  "run_id": "run-b48e0885-3e17-4310-82db-48e1177a9a99",
+  "task_id": "task-96f0750d-9957-49ea-a6fe-2e648b7b3af2",
+  "scope": "真实评测生成的业务产物；临时评测实例已自动停止，未声称其下载URL仍在线",
+  "device_count": 5,
+  "actual_routes": [
+    {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "off",
+      "maxTokens": 256000
+    }
+  ],
+  "tool_calls": [
+    {
+      "name": "task_inspection",
+      "status": "ok",
+      "error_code": null
+    },
+    {
+      "name": "task_inspection",
+      "status": "ok",
+      "error_code": null
+    },
+    {
+      "name": "task_inspection",
+      "status": "ok",
+      "error_code": null
+    },
+    {
+      "name": "task_inspection",
+      "status": "ok",
+      "error_code": null
+    },
+    {
+      "name": "task_inspection",
+      "status": "ok",
+      "error_code": null
+    }
+  ],
+  "source_verification": "matched",
+  "files": {
+    "report.md": {
+      "bytes": 692,
+      "sha256": "d52b47507706a05b9c7297cbfced0ba8e2d20e02ebc598c12265528ff9d792d0"
+    },
+    "devices.csv": {
+      "bytes": 355,
+      "sha256": "3e41f539b0e3d6d4905f81a42147396e062b6c19456fcca33ba60812824b1d8b"
+    }
+  }
+}

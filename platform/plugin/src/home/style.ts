@@ -9,7 +9,7 @@ export const homePageTheme = `
 .harness-task-composer:focus-within{border-color:var(--hep-primary);box-shadow:0 0 0 3px var(--hep-primary-soft),var(--hep-shadow)}
 .harness-entry-modes{display:flex;gap:4px;padding:4px;background:var(--hep-surface-muted);border-radius:10px}
 .harness-platform .harness-entry-modes button{flex:1;min-width:0;border:0;background:transparent;font-size:14px;color:var(--hep-muted);padding:8px}
-.harness-platform .harness-entry-modes button[aria-pressed=true]{background:var(--hep-surface);color:var(--hep-primary);font-weight:600;box-shadow:0 1px 4px #16395912}
+.harness-platform .harness-entry-modes button[aria-pressed=true]{background:var(--hep-surface);color:var(--hep-link);font-weight:600;box-shadow:0 1px 4px #16395912}
 .harness-entry{display:flex;flex-direction:column;gap:12px;margin-top:12px}
 .harness-entry textarea{width:100%;min-height:0;max-height:240px;resize:none;overflow-y:auto;border:0;line-height:1.65;background:transparent;padding:8px 4px;scrollbar-width:thin}
 .harness-entry textarea:placeholder-shown{white-space:nowrap}
@@ -33,10 +33,10 @@ export const homePageTheme = `
 .harness-home .harness-run-row:last-child{border-bottom:0;padding-bottom:0}
 .harness-home .harness-run-row>div>small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .harness-platform .harness-run-link{display:block;max-width:100%;padding:0;min-height:0;border:0;border-radius:4px;background:transparent;color:var(--hep-text);font-size:14px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.harness-platform .harness-run-link:hover:enabled{background:transparent;color:var(--hep-primary)}
+.harness-platform .harness-run-link:hover:enabled{background:transparent;color:var(--hep-link)}
 .harness-capabilities{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
 .harness-platform .harness-capability{text-align:left;padding:16px;border-color:transparent;background:var(--hep-surface-muted)}
-.harness-capability span{display:grid;place-items:center;width:32px;height:32px;border-radius:8px;background:var(--hep-primary-soft);color:var(--hep-primary);font-size:20px;margin-bottom:12px}
+.harness-capability span{display:grid;place-items:center;width:32px;height:32px;border-radius:8px;background:var(--hep-primary-soft);color:var(--hep-link);font-size:20px;margin-bottom:12px}
 .harness-capability strong{display:block;font-size:14px;font-weight:600}
 .harness-capability small{display:block;line-height:1.6;font-size:12px;color:var(--hep-muted);margin-top:6px}
 @media(prefers-reduced-motion:no-preference){.harness-hero-art.left{animation:hep-art-left 320ms var(--hep-ease)}.harness-hero-art.right{animation:hep-art-right 320ms var(--hep-ease)}.harness-example{animation:hep-enter var(--hep-motion) var(--hep-ease)}}

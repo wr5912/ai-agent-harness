@@ -13,60 +13,66 @@ window.__ModuleLoader__.load({
     const input = (value, change, props = {}) => <input value={value ?? ''} onChange={event => change(event.target.value)} {...props} />
     const button = (label, action, disabled = false) => <button type="button" onClick={action} disabled={disabled}>{label}</button>
     const styles = `
-      .mcp-manager{--mcp-ink:#202838;--mcp-muted:#667287;--mcp-line:#e4e9f1;--mcp-tint:#f6f8fc;--mcp-blue:#4669e8;width:min(100%,1120px);margin:18px auto 44px;color:var(--mcp-ink);font-size:14px}
+      .mcp-manager{--mcp-ink:var(--hep-text,var(--dsw-alias-label-primary,#20344c));--mcp-muted:var(--hep-muted,var(--dsw-alias-label-secondary,#607186));--mcp-line:var(--hep-border,var(--dsw-alias-border-l3,#dfe6ee));--mcp-tint:var(--hep-surface-muted,color-mix(in srgb,var(--mcp-surface) 96%,#0075ca));--mcp-blue:var(--hep-primary,#0075ca);--mcp-link:var(--hep-link,#0075ca);--mcp-surface:var(--hep-surface,var(--dsw-alias-bg-layer-1,#fff));--mcp-active:var(--hep-primary-soft,color-mix(in srgb,var(--mcp-surface) 92%,var(--mcp-blue)));width:100%;max-width:1200px;margin:20px auto 40px;color:var(--mcp-ink);font-size:14px;line-height:1.6}
+      body[data-ds-dark-theme] .mcp-manager{--mcp-link:var(--hep-link,var(--dsw-alias-link,#7aaaff))}
       .mcp-manager *{box-sizing:border-box}
       .mcp-manager button,.mcp-manager input,.mcp-manager select{font:inherit}
-      .mcp-manager button{cursor:pointer}
+      .mcp-manager button{cursor:pointer;min-height:40px;padding:8px 12px;border:1px solid var(--mcp-line);border-radius:var(--hep-control-radius,8px);background:var(--mcp-surface);color:var(--mcp-ink);line-height:1.4;transition:background var(--hep-motion-fast,140ms),border-color var(--hep-motion-fast,140ms),box-shadow var(--hep-motion-fast,140ms),transform var(--hep-motion-fast,140ms)}
+      .mcp-manager button:hover:not(:disabled){background:var(--mcp-tint);border-color:color-mix(in srgb,var(--mcp-blue) 32%,var(--mcp-line))}
+      .mcp-manager button:active:not(:disabled){transform:translateY(1px)}
       .mcp-manager button:disabled{cursor:not-allowed;opacity:.5}
-      .mcp-manager .mcp-toolbar{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:16px;padding:16px 20px;background:#eef3ff;border:1px solid #dce6ff;border-radius:14px}
-      .mcp-manager .mcp-toolbar strong{display:block;font-size:14px}.mcp-manager .mcp-toolbar p{margin:4px 0 0;color:var(--mcp-muted);line-height:1.5}
-      .mcp-manager .mcp-primary{border:1px solid var(--mcp-blue);border-radius:9px;background:var(--mcp-blue);color:white;padding:9px 16px;font-weight:600;white-space:nowrap}
-      .mcp-manager .mcp-primary:hover:not(:disabled){background:#3658d5}
-      .mcp-manager .mcp-shell{border:1px solid var(--mcp-line);border-radius:16px;background:white;box-shadow:0 12px 32px rgba(24,38,73,.045);overflow:hidden}
-      .mcp-manager .mcp-tabs{display:flex;gap:6px;padding:12px 18px 0;border-bottom:1px solid var(--mcp-line);overflow-x:auto}
-      .mcp-manager .mcp-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;color:var(--mcp-muted);padding:10px 16px 12px;white-space:nowrap;font-weight:600}
-      .mcp-manager .mcp-tabs button[aria-current=page]{border-color:var(--mcp-blue);color:var(--mcp-blue)}
-      .mcp-manager .mcp-tabs small{margin-left:6px;padding:2px 6px;border-radius:6px;background:var(--mcp-tint);color:inherit;font-size:11px}
-      .mcp-manager .mcp-content{padding:24px;background:var(--mcp-tint);min-height:460px}
-      .mcp-manager .mcp-heading{display:flex;justify-content:space-between;align-items:start;gap:16px;margin-bottom:18px}
-      .mcp-manager h2,.mcp-manager h3{margin:0;color:var(--mcp-ink);line-height:1.3}.mcp-manager h2{font-size:20px}.mcp-manager h3{font-size:16px}
-      .mcp-manager .mcp-muted{color:var(--mcp-muted);line-height:1.5}.mcp-manager .mcp-heading p{margin:5px 0 0}
-      .mcp-manager .mcp-layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:18px;align-items:start}
-      .mcp-manager .mcp-card{min-width:0;border:1px solid var(--mcp-line);border-radius:13px;background:white;padding:20px}
-      .mcp-manager .mcp-sidebar{padding:8px}.mcp-manager .mcp-list-item{display:block;width:100%;margin:0 0 4px;padding:12px;border:1px solid transparent;border-radius:9px;background:transparent;text-align:left;color:var(--mcp-ink)}
-      .mcp-manager .mcp-list-item:hover{background:var(--mcp-tint)}.mcp-manager .mcp-list-item[aria-current=true]{background:#eef3ff;border-color:#dce6ff}
-      .mcp-manager .mcp-list-item strong{display:block;overflow-wrap:anywhere}.mcp-manager .mcp-list-item small{display:block;margin-top:3px;color:var(--mcp-muted);font-size:12px}
-      .mcp-manager .mcp-add{width:100%;margin-top:6px;border:1px dashed #b9c8ea;border-radius:9px;background:#fff;color:var(--mcp-blue);padding:10px;font-weight:600}
-      .mcp-manager .mcp-card-head{display:flex;align-items:start;justify-content:space-between;gap:12px;padding-bottom:18px;border-bottom:1px solid var(--mcp-line)}
-      .mcp-manager .mcp-card-head p{margin:5px 0 0}.mcp-manager .mcp-card-head .mcp-switch{flex:none;margin:0}
-      .mcp-manager .mcp-section{padding-top:20px}.mcp-manager .mcp-section+.mcp-section{margin-top:20px;border-top:1px solid var(--mcp-line)}
-      .mcp-manager .mcp-section h3{margin-bottom:12px}.mcp-manager .mcp-section>p{margin:0 0 12px}
-      .mcp-manager .mcp-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
-      .mcp-manager label.mcp-field{display:grid;gap:7px;min-width:0;color:#344054;font-weight:600}
-      .mcp-manager .mcp-field input,.mcp-manager .mcp-field select{width:100%;min-width:0;height:39px;padding:8px 11px;border:1px solid #cfd7e3;border-radius:8px;background:white;color:var(--mcp-ink);outline:none;font-weight:400}
-      .mcp-manager .mcp-field input:focus,.mcp-manager .mcp-field select:focus{border-color:var(--mcp-blue);box-shadow:0 0 0 3px #e7edff}
+      .mcp-manager :is(button,input,select,summary):focus-visible{outline:2px solid var(--mcp-blue);outline-offset:3px}
+      .mcp-manager .mcp-toolbar{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:24px;padding:20px 24px;background:var(--mcp-tint);border:1px solid var(--mcp-line);border-radius:var(--hep-radius,12px)}
+      .mcp-manager .mcp-toolbar strong{display:block;font-size:14px}.mcp-manager .mcp-toolbar p{margin:4px 0 0;color:var(--mcp-muted)}
+      .mcp-manager .mcp-primary{border-color:var(--mcp-blue);background:var(--mcp-blue);color:#fff;padding:9px 16px;font-weight:600;white-space:nowrap}
+      .mcp-manager .mcp-primary:hover:not(:disabled){background:var(--hep-primary-hover,#0063ab);border-color:var(--hep-primary-hover,#0063ab)}
+      .mcp-manager .mcp-shell{min-width:0}
+      .mcp-manager .mcp-tabs{display:flex;gap:24px;margin-bottom:24px;border-bottom:1px solid var(--mcp-line);overflow-x:auto}
+      .mcp-manager .mcp-tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--mcp-muted);padding:12px 0;white-space:nowrap;font-weight:500}
+      .mcp-manager .mcp-tabs button[aria-current=page]{border-color:var(--mcp-blue);color:var(--mcp-link);font-weight:600}
+      .mcp-manager .mcp-tabs small{margin-left:6px;padding:2px 6px;border-radius:6px;background:var(--mcp-tint);color:inherit;font-size:12px;font-variant-numeric:tabular-nums}
+      .mcp-manager .mcp-content{min-width:0}
+      .mcp-manager .mcp-heading{display:flex;justify-content:space-between;align-items:start;gap:16px;margin-bottom:20px}
+      .mcp-manager h2,.mcp-manager h3{margin:0;color:var(--mcp-ink);line-height:1.4;overflow-wrap:anywhere}.mcp-manager h2{font-size:18px}.mcp-manager h3{font-size:16px}
+      .mcp-manager .mcp-muted{color:var(--mcp-muted);line-height:1.6;overflow-wrap:anywhere}.mcp-manager .mcp-heading p{margin:6px 0 0}
+      .mcp-manager .mcp-layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px;align-items:start}
+      .mcp-manager .mcp-card{min-width:0;border:1px solid var(--mcp-line);border-radius:var(--hep-radius,12px);background:var(--mcp-surface);padding:24px}
+      .mcp-manager .mcp-sidebar{padding:8px;background:var(--mcp-tint);border-color:transparent}
+      .mcp-manager .mcp-list-item{display:block;width:100%;margin:0 0 4px;padding:12px;border-color:transparent;background:transparent;text-align:left;color:var(--mcp-ink)}
+      .mcp-manager .mcp-list-item:hover:not(:disabled){background:var(--mcp-surface);border-color:transparent}.mcp-manager .mcp-list-item[aria-current=true]{background:var(--mcp-surface);border-color:var(--mcp-line);box-shadow:0 2px 8px #16395908;color:var(--mcp-link)}
+      .mcp-manager .mcp-list-item strong{display:block;overflow-wrap:anywhere;font-weight:600}.mcp-manager .mcp-list-item small{display:block;margin-top:4px;color:var(--mcp-muted);font-size:12px;overflow-wrap:anywhere}
+      .mcp-manager .mcp-add{width:100%;margin-top:8px;border:1px dashed var(--mcp-line);background:transparent;color:var(--mcp-link);padding:10px;font-weight:500}
+      .mcp-manager .mcp-card-head{display:flex;align-items:start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:20px;border-bottom:1px solid var(--mcp-line)}
+      .mcp-manager .mcp-card-head>div{min-width:0}.mcp-manager .mcp-card-head p{margin:6px 0 0}.mcp-manager .mcp-card-head .mcp-switch{flex:none;margin:0}
+      .mcp-manager .mcp-section{padding-top:24px}.mcp-manager .mcp-section+.mcp-section{margin-top:24px;border-top:1px solid var(--mcp-line)}
+      .mcp-manager .mcp-section h3{margin-bottom:16px}.mcp-manager .mcp-section>p{margin:0 0 16px}
+      .mcp-manager .mcp-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px}
+      .mcp-manager label.mcp-field{display:grid;gap:8px;min-width:0;color:var(--mcp-ink);font-weight:500}
+      .mcp-manager .mcp-field input,.mcp-manager .mcp-field select{width:100%;min-width:0;min-height:40px;padding:8px 12px;border:1px solid var(--mcp-line);border-radius:var(--hep-control-radius,8px);background:var(--mcp-surface);color:var(--mcp-ink);font-weight:400;transition:border-color var(--hep-motion-fast,140ms),box-shadow var(--hep-motion-fast,140ms)}
+      .mcp-manager .mcp-field input:focus,.mcp-manager .mcp-field select:focus{border-color:var(--mcp-blue);box-shadow:0 0 0 3px var(--mcp-active)}
       .mcp-manager .mcp-field small{font-size:12px;color:var(--mcp-muted);font-weight:400}
-      .mcp-manager .mcp-wide{grid-column:1/-1}.mcp-manager .mcp-switch,.mcp-manager .mcp-check{display:flex;align-items:center;gap:9px;cursor:pointer}
+      .mcp-manager .mcp-wide{grid-column:1/-1}.mcp-manager .mcp-switch,.mcp-manager .mcp-check{display:flex;align-items:center;gap:10px;cursor:pointer}
       .mcp-manager .mcp-switch input,.mcp-manager .mcp-check input{width:16px;height:16px;flex:none;accent-color:var(--mcp-blue)}
-      .mcp-manager .mcp-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:18px}
-      .mcp-manager .mcp-actions button,.mcp-manager .mcp-quiet{border:1px solid #ccd6e5;border-radius:8px;background:white;color:#344054;padding:8px 12px}
-      .mcp-manager .mcp-actions button:hover:not(:disabled),.mcp-manager .mcp-quiet:hover:not(:disabled){background:#f3f6fb}
-      .mcp-manager .mcp-danger{color:#bd3a42!important;border-color:#f1c9cd!important}
-      .mcp-manager .mcp-note{padding:12px 14px;border-radius:9px;background:#f4f7fd;color:var(--mcp-muted);line-height:1.55}
-      .mcp-manager .mcp-status{margin:0 0 16px;padding:11px 14px;border:1px solid #cdddfd;border-radius:9px;background:#f1f6ff;color:#294780}
-      .mcp-manager .mcp-link{display:block;overflow-wrap:anywhere;padding:10px 12px;border:1px solid var(--mcp-line);border-radius:8px;background:var(--mcp-tint);color:#3154c3}
-      .mcp-manager .mcp-server-tools{border:1px solid var(--mcp-line);border-radius:9px;margin-top:10px;background:#fff;overflow:hidden}
-      .mcp-manager .mcp-server-tools summary{display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px 14px;font-weight:600;list-style:none}
-      .mcp-manager .mcp-server-tools summary::-webkit-details-marker{display:none}.mcp-manager .mcp-server-tools summary::before{content:'▸';color:var(--mcp-blue);margin-right:7px}.mcp-manager .mcp-server-tools[open] summary{border-bottom:1px solid var(--mcp-line)}.mcp-manager .mcp-server-tools[open] summary::before{content:'▾'}
-      .mcp-manager .mcp-server-tools summary .mcp-muted{margin-left:auto}
-      .mcp-manager .mcp-tool-body{padding:12px 14px}.mcp-manager .mcp-tool-body p{margin:0 0 10px}
-      .mcp-manager .mcp-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:280px;overflow:auto}
-      .mcp-manager .mcp-check{min-width:0;overflow-wrap:anywhere;padding:8px;border-radius:7px;background:var(--mcp-tint);font-size:12px}
-      .mcp-manager .mcp-result{max-height:320px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0 0;padding:14px;border-radius:8px;background:#1f2937;color:#edf2ff;font-size:12px}
-      .mcp-manager .mcp-catalog{list-style:none;margin:0;padding:0}.mcp-manager .mcp-catalog li{padding:11px 0;border-top:1px solid var(--mcp-line);overflow-wrap:anywhere}.mcp-manager .mcp-catalog li:first-child{border-top:0}.mcp-manager .mcp-catalog strong{display:block}.mcp-manager .mcp-catalog small{display:block;margin-top:3px;color:var(--mcp-muted)}
-      .mcp-manager .mcp-source{padding:13px 0;border-top:1px solid var(--mcp-line)}.mcp-manager .mcp-source:first-child{border-top:0}
-      .mcp-manager .mcp-empty{text-align:center;padding:72px 20px;color:var(--mcp-muted)}.mcp-manager .mcp-empty strong{display:block;color:var(--mcp-ink);font-size:16px}
-      @media(max-width:760px){.mcp-manager .mcp-toolbar{align-items:start;flex-direction:column}.mcp-manager .mcp-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;padding:8px 8px 0;overflow:visible}.mcp-manager .mcp-tabs button{white-space:normal;padding:9px 5px}.mcp-manager .mcp-tabs button:last-child{grid-column:1/-1}.mcp-manager .mcp-layout{grid-template-columns:1fr}.mcp-manager .mcp-content{padding:14px}.mcp-manager .mcp-fields,.mcp-manager .mcp-tools{grid-template-columns:1fr}}
+      .mcp-manager .mcp-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:20px}
+      .mcp-manager .mcp-danger{color:var(--dsw-alias-danger-text,#bd3a42);border-color:color-mix(in srgb,var(--dsw-alias-danger-text,#bd3a42) 25%,var(--mcp-line))}
+      .mcp-manager .mcp-note{padding:16px;border-radius:var(--hep-control-radius,8px);background:var(--mcp-tint);color:var(--mcp-muted)}
+      .mcp-manager .mcp-status{margin:0 0 20px;padding:12px 16px;border-left:3px solid var(--mcp-blue);border-radius:0 8px 8px 0;background:var(--mcp-active);color:var(--mcp-ink);overflow-wrap:anywhere}
+      .mcp-manager .mcp-link{display:block;min-width:0;max-width:100%;overflow-wrap:anywhere;padding:10px 12px;border:1px solid var(--mcp-line);border-radius:var(--hep-control-radius,8px);background:var(--mcp-tint);color:var(--mcp-link)}
+      .mcp-manager .mcp-server-tools{border-bottom:1px solid var(--mcp-line);margin-top:12px;background:var(--mcp-surface)}
+      .mcp-manager .mcp-server-tools summary{display:flex;align-items:center;gap:8px;cursor:pointer;padding:12px 0;font-weight:500;list-style:none;overflow-wrap:anywhere}
+      .mcp-manager .mcp-server-tools summary::-webkit-details-marker{display:none}.mcp-manager .mcp-server-tools summary::before{content:'▸';flex:none;color:var(--mcp-link);transition:transform var(--hep-motion-fast,140ms)}.mcp-manager .mcp-server-tools[open] summary::before{transform:rotate(90deg)}
+      .mcp-manager .mcp-server-tools summary .mcp-muted{margin-left:auto;flex:none;font-size:12px}
+      .mcp-manager .mcp-tool-body{padding:4px 0 16px}.mcp-manager .mcp-tool-body p{margin:0 0 12px}
+      .mcp-manager .mcp-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:320px;overflow:auto;margin-top:12px}
+      .mcp-manager .mcp-check{min-width:0;overflow-wrap:anywhere;padding:10px;border-radius:var(--hep-control-radius,8px);background:var(--mcp-tint);font-size:13px}
+      .mcp-manager .mcp-result{max-height:420px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:16px 0 0;padding:20px;border:1px solid var(--mcp-line);border-radius:var(--hep-control-radius,8px);background:var(--mcp-tint);color:var(--mcp-ink);font-size:13px;line-height:1.7}
+      .mcp-manager .mcp-catalog{list-style:none;margin:0;padding:0}.mcp-manager .mcp-catalog li{padding:16px 0;border-top:1px solid var(--mcp-line);overflow-wrap:anywhere}.mcp-manager .mcp-catalog li:first-child{border-top:0}.mcp-manager .mcp-catalog strong{display:block}.mcp-manager .mcp-catalog small{display:block;margin-top:4px;color:var(--mcp-muted);font-size:12px}
+      .mcp-manager .mcp-source{padding:16px 0;border-top:1px solid var(--mcp-line)}.mcp-manager .mcp-source:first-child{border-top:0}
+      .mcp-manager .mcp-empty{text-align:center;padding:64px 24px;color:var(--mcp-muted)}.mcp-manager .mcp-empty strong{display:block;color:var(--mcp-ink);font-size:16px}
+      @media(max-width:1000px){.mcp-manager .mcp-layout{grid-template-columns:200px minmax(0,1fr);gap:20px}}
+      @media(max-width:760px){.mcp-manager .mcp-toolbar{align-items:start;flex-direction:column;padding:16px}.mcp-manager .mcp-tabs{gap:20px}.mcp-manager .mcp-layout{grid-template-columns:minmax(0,1fr)}.mcp-manager .mcp-fields,.mcp-manager .mcp-tools{grid-template-columns:minmax(0,1fr)}.mcp-manager .mcp-card{padding:16px}.mcp-manager .mcp-sidebar{padding:8px}}
+      @media(pointer:coarse){.mcp-manager button,.mcp-manager .mcp-field input,.mcp-manager .mcp-field select{min-height:44px}.mcp-manager .mcp-switch input,.mcp-manager .mcp-check input{width:20px;height:20px}}
+      @media(prefers-reduced-motion:reduce){.mcp-manager button,.mcp-manager input,.mcp-manager select,.mcp-manager summary::before{transition:none}.mcp-manager button:active:not(:disabled){transform:none}}
     `
 
     function Manager({ view, form, write }) {

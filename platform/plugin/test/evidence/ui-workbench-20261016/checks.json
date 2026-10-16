@@ -1,0 +1,28 @@
+{
+  "platform_tests": {
+    "source": "06f7f78",
+    "command": "pnpm test",
+    "cwd": "platform/plugin",
+    "tests": 350,
+    "pass": 350,
+    "fail": 0
+  },
+  "removed_sample_entry_tests": {
+    "source": "e2a69ac",
+    "command": "node --test test/threat-composition-client.test.mjs",
+    "pass": 5,
+    "fail": 0
+  },
+  "interpreter_tests": {
+    "source": "06f7f78",
+    "python_pass": 19,
+    "node_pass": 2
+  },
+  "repository_validation": {
+    "schema_version": "1.0",
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "scope": "仅校验项目与 Harness 资产合同；不代表 Experiment 结果或生产验收"
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "base": "http://127.0.0.1:3120/hep/",
+  "checks": [
+    {
+      "name": "light-preserved",
+      "elements": [
+        {
+          "selector": ".harness-nav button[aria-current=page]",
+          "color": "rgb(0, 117, 202)",
+          "bg": "color(srgb 0.92 0.956706 0.983373)",
+          "effectiveBg": "color(srgb 0.92 0.956706 0.983373)",
+          "border": "rgb(0, 117, 202)",
+          "contrast": 4.29
+        },
+        {
+          "selector": ".harness-section-heading button",
+          "color": "rgb(0, 117, 202)",
+          "bg": "rgba(0, 0, 0, 0)",
+          "effectiveBg": "rgb(255, 255, 255)",
+          "border": "rgb(0, 117, 202)",
+          "contrast": 4.78
+        },
+        {
+          "selector": ".harness-run-state",
+          "color": "rgb(0, 117, 202)",
+          "bg": "color(srgb 0.92 0.956706 0.983373)",
+          "effectiveBg": "color(srgb 0.92 0.956706 0.983373)",
+          "border": "rgb(0, 117, 202)",
+          "contrast": 4.29
+        },
+        {
+          "selector": ".harness-entry-modes button[aria-pressed=true]",
+          "color": "rgb(0, 117, 202)",
+          "bg": "rgb(255, 255, 255)",
+          "effectiveBg": "rgb(255, 255, 255)",
+          "border": "rgb(0, 117, 202)",
+          "contrast": 4.78
+        },
+        {
+          "selector": ".harness-primary",
+          "color": "rgb(255, 255, 255)",
+          "bg": "rgb(0, 117, 202)",
+          "effectiveBg": "rgb(0, 117, 202)",
+          "border": "rgb(0, 117, 202)",
+          "contrast": 4.78
+        }
+      ]
+    },
+    {
+      "name": "dark-link-contrast-and-filled-primary",
+      "elements": [
+        {
+          "selector": ".harness-nav button[aria-current=page]",
+          "color": "rgb(122, 170, 255)",
+          "bg": "color(srgb 0.126275 0.16298 0.193255)",
+          "effectiveBg": "color(srgb 0.126275 0.16298 0.193255)",
+          "border": "rgb(122, 170, 255)",
+          "contrast": 6.28
+        },
+        {
+          "selector": ".harness-section-heading button",
+          "color": "rgb(122, 170, 255)",
+          "bg": "rgba(0, 0, 0, 0)",
+          "effectiveBg": "rgb(35, 35, 36)",
+          "border": "rgb(122, 170, 255)",
+          "contrast": 6.75
+        },
+        {
+          "selector": ".harness-run-state",
+          "color": "rgb(122, 170, 255)",
+          "bg": "color(srgb 0.126275 0.16298 0.193255)",
+          "effectiveBg": "color(srgb 0.126275 0.16298 0.193255)",
+          "border": "rgb(122, 170, 255)",
+          "contrast": 6.28
+        },
+        {
+          "selector": ".harness-entry-modes button[aria-pressed=true]",
+          "color": "rgb(122, 170, 255)",
+          "bg": "rgb(35, 35, 36)",
+          "effectiveBg": "rgb(35, 35, 36)",
+          "border": "rgb(122, 170, 255)",
+          "contrast": 6.75
+        },
+        {
+          "selector": ".harness-primary",
+          "color": "rgb(255, 255, 255)",
+          "bg": "rgb(0, 117, 202)",
+          "effectiveBg": "rgb(0, 117, 202)",
+          "border": "rgb(0, 117, 202)",
+          "contrast": 4.78
+        }
+      ]
+    },
+    {
+      "name": "integrated-mcp",
+      "link": "#7aaaff",
+      "filled": "#0075ca"
+    },
+    {
+      "name": "standalone-mcp-css",
+      "dark": false,
+      "link": "rgb(0, 117, 202)",
+      "fill": "rgb(0, 117, 202)",
+      "text": "rgb(255, 255, 255)"
+    },
+    {
+      "name": "standalone-mcp-css",
+      "dark": true,
+      "link": "rgb(122, 170, 255)",
+      "fill": "rgb(0, 117, 202)",
+      "text": "rgb(255, 255, 255)"
+    }
+  ],
+  "ok": true,
+  "restoredLight": true
+}

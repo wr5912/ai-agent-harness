@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { defaultAssetRoot } from '../../../platform/plugin/src/workspace.ts';
 
 const adapter = dirname(new URL(import.meta.url).pathname);
+const python = process.env.HARNESS_PYTHON || 'python3';
 const programRoot = resolve(process.env.HARNESS_PROGRAM_ROOT || resolve(adapter, '../../..'));
 const repo = defaultAssetRoot();
 process.env.HARNESS_PROGRAM_ROOT = programRoot;
@@ -30,12 +31,12 @@ const run = (program: string, params: string[], inherit = false) => {
 };
 const json = (program: string, params: string[]) => JSON.parse(run(program, params));
 const source = () => option('--source');
-const contract = (id: string) => json('python3', [join(adapter, 'source_contract.py'), '--source', id]);
-const record = (...params: string[]) => json('python3', [join(adapter, 'run_record.py'), '--repo', repo, ...params]);
+const contract = (id: string) => json(python, [join(adapter, 'source_contract.py'), '--source', id]);
+const record = (...params: string[]) => json(python, [join(adapter, 'run_record.py'), '--repo', repo, ...params]);
 const digest = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex');
 const print = (item: unknown) => process.stdout.write(JSON.stringify(item, null, 2) + '\n');
 const instancesFor = (c: any) => {
-  const entries = json(join(adapter, 'dsh-dev'), ['ps', '--all']).instances as any[];
+  const entries = json(python, [join(adapter, 'dsh-dev'), 'ps', '--all']).instances as any[];
   return entries.filter(item => item.source_id === c.source_id).map(item => {
     const { name, state, source_id, target_preset, session_preset, container_name, needs_migration } = item;
     if (state !== 'running' || !container_name) return { name, state, source_id, target_preset, session_preset, needs_migration };
@@ -89,7 +90,7 @@ try {
       ...(has('--model') ? ['--model', option('--model')] : []),
       ...(has('--compare-to') ? ['--compare-to', option('--compare-to')] : []),
       ...(has('--dry-run') ? ['--dry-run'] : [])];
-    const result = spawnSync('python3', params, {cwd: repo, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024});
+    const result = spawnSync(python, params, {cwd: repo, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024});
     if (result.stderr) process.stderr.write(result.stderr);
     if (result.error) throw result.error;
     const payload = JSON.parse(result.stdout || '{}');
@@ -109,7 +110,7 @@ try {
     if (has('--restart')) {
       if (!instancesFor(c).some(item => item.name === option('--name')))
         throw new Error('只能重启所选来源的已有实例');
-      run(join(adapter, 'dsh-dev'), ['up', '--source', c.source_id, '--mode', 'eval',
+      run(python, [join(adapter, 'dsh-dev'), 'up', '--source', c.source_id, '--mode', 'eval',
         '--name', option('--name'), '--replace']);
     }
     print({source_id: c.source_id, desired: {preset: c.preset_id, image: c.image},

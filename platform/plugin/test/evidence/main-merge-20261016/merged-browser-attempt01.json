@@ -1,0 +1,320 @@
+{
+  "at": "2026-10-16T15:00:35.955Z",
+  "base": "http://10.0.160.32:3115/hep/",
+  "read_only": true,
+  "source_manifest": "merged-source-sync.json",
+  "checks": [
+    "合并源码实际装载，变体列表/智能体身份/版本选择共享独立名称且无筛选下拉",
+    "独立名称与子串搜索、空态、清空恢复",
+    "左侧双标签切换保留右侧智能体、版本和详情页签",
+    "父版同页定位与021→023→024真实来源、后退与刷新恢复"
+  ],
+  "errors": [],
+  "failed_requests": [],
+  "rpc": [
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/edit/read",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-023-r2233d74f6fb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal",
+      "experiment_id": "EXP-security-operations-expert-023-r2233d74f6fb3"
+    },
+    {
+      "method": "agents/edit/read",
+      "experiment_id": "EXP-security-operations-expert-023-r2233d74f6fb3"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/edit/read",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "client.js,@deepseek-ai/dsh-client-ui-directory-picker-browse/client.js&rev=62fb68776816"
+    },
+    {
+      "method": "events"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/edit/read",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/compute-variants/context",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    }
+  ],
+  "layouts": [],
+  "before": {
+    "variant_name": "资产关联告警查询（LangGraph）",
+    "change_sha256": "8bba18f101ce8034c29de991713d70add35dd3353e014f50fc601ef8c8f8d692",
+    "other_change_sha256": "d4e6fdd0ec8d850850bcec15ea82311e95feae9be3060ffb73c61e3af0f1bdc6",
+    "research_question_sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "strategy_sha256": "627374bfb98d623b7cad6b2e4f2e0d8f45398c6b954e9f69519f9e70d0440021",
+    "protected": {
+      "candidate": {
+        "files": 1921,
+        "sha256": "24d178fc7fa17b100810ca519c4076c669cd0985a7834994d31ba213bf64ecfb"
+      },
+      "runs": {
+        "files": 206,
+        "sha256": "dcbbed087acb960341d71df4c9f324ef905cf48ebab623b034a7119f0c8606e6"
+      },
+      "evaluation": {
+        "files": 2,
+        "sha256": "ae228effcfa17746ac08d1a385632636c202cf7dd22a496cc5d963395ee1ccbc"
+      },
+      "decision.md": {
+        "files": 1,
+        "sha256": "32d915fcf0d16a8f460e1dbf1b6c67dc94775b4545af778210e0edbb4859a5ce"
+      }
+    }
+  },
+  "ok": false,
+  "error": "locator.waitFor: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - waiting for getByRole('region', { name: '代码变体生成进度' }).getByText('实际 Run 已比较：已验证') to be visible\u001b[22m\n\n    at /tmp/hep-main-publish-20261016/merged-browser.mjs:23:192"
+}

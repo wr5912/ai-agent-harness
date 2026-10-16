@@ -4,7 +4,7 @@ import { Manager } from 'harness-mcp-manager-client'
 import { CHANNEL, type PlatformPageProps } from '../protocol.ts'
 import type { CompositionConfig, CompositionEntry } from './compositions.ts'
 import type { PlatformUpdates } from '../realtime/client.ts'
-import { compositionTestInput, isThreatComposition, ThreatConfigurationFields, ThreatRunResult, ThreatSeedForm, threatEditorStyle } from './threat-editor.tsx'
+import { compositionTestInput, isThreatComposition, ThreatConfigurationFields, ThreatRunResult, threatEditorStyle } from './threat-editor.tsx'
 
 type LivePageProps = { updates?: PlatformUpdates; onContext?(context: Record<string, unknown>): void }
 
@@ -58,7 +58,6 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
   const [data, setData] = useState<any>(null)
   const [selection, setSelection] = useState<{ id: string; version: 'draft' | 'published' } | null>(null)
   const [editor, setEditor] = useState<{ id?: string; revision: string; value: CompositionConfig } | null>(null)
-  const [seeding, setSeeding] = useState(false)
   const [asset, setAsset] = useState('')
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState('')
@@ -120,10 +119,6 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
       if (!response.ok) { setError(response.error.message); return }
       const value = response.value as any
       if (endpoint === 'list') accept(value)
-      else if (endpoint === 'seedThreatCompositions') {
-        requestId.current++
-        accept(value); setSelection({ id: 'threat-analysis', version: 'draft' }); setSeeding(false); setAsset('')
-      }
       else if (endpoint === 'saveCompositionDraft') {
         requestId.current++
         const saved = editor?.id ? value.compositions.find((item: CompositionEntry) => item.id === editor.id) : value.compositions.at(-1)
@@ -132,44 +127,39 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
         requestId.current++
         accept(value); setSelection({ id: payload.compositionId, version: 'published' }); setResult(value.dry)
       } else setResult(value)
-      if (['seedThreatCompositions', 'saveCompositionDraft', 'publishComposition'].includes(endpoint)) updates?.invalidate(['mcp'])
+      if (['saveCompositionDraft', 'publishComposition'].includes(endpoint)) updates?.invalidate(['mcp'])
     } catch { if (id === actionId.current) setError('操作失败，请检查连接并重试。') }
     finally { setBusy(false) }
   }
   const selectedPayload = { compositionId: entry?.id, version: selection?.version, revision: data?.revision, input: compositionTestInput(config || undefined, asset) }
-  const groups = [
-    { title: '全部编排', entries, version: undefined },
-    { title: '正在编辑', entries: entries.filter(item => item.draft), version: 'draft' as const },
-    { title: '已发布', entries: entries.filter(item => item.published), version: 'published' as const },
-  ]
   return <div className="harness-composition-workspace">
     <style>{threatEditorStyle}</style>
     <nav className="harness-card harness-composition-sidebar" aria-label="工具编排列表">
-      <h2>工具组合编排</h2><div className="harness-mcp-actions"><button type="button" disabled={busy || !!editor || seeding || !data} onClick={() => setEditor({ revision: data.revision, value: { toolName: '', title: '资产相关告警查询', description: '查询资产后查询相关告警的两步只读组合', connectionId: connections[0]?.id ?? '' } })}>新建编排</button>
-        {data?.extension?.seed && <button type="button" disabled={busy || !!editor || seeding || !data} onClick={() => { setSeeding(true); setResult(null); setError('') }}>威胁分析样例</button>}
-        <button type="button" disabled={busy || !!editor || seeding} onClick={() => void action('list', {})}>刷新</button></div>
-      {groups.map(group => <section key={group.title} aria-label={group.title}><h3>{group.title}（{group.entries.length}）</h3>
-        {group.entries.length ? <ul>{group.entries.map(item => {
-          const version = group.version ?? (item.draft ? 'draft' : 'published')
+      <h2>工具组合编排</h2><div className="harness-mcp-actions"><button type="button" disabled={busy || !!editor || !data} onClick={() => setEditor({ revision: data.revision, value: { toolName: '', title: '资产相关告警查询', description: '查询资产后查询相关告警的两步只读组合', connectionId: connections[0]?.id ?? '' } })}>新建编排</button>
+        <button type="button" disabled={busy || !!editor} onClick={() => void action('list', {})}>刷新</button></div>
+      <section aria-label="全部编排"><h3>全部编排（{entries.length}）</h3>
+        {entries.length ? <ul>{entries.map(item => {
+          const version = item.draft ? 'draft' : 'published'
           const value = item[version]!
-          return <li key={item.id}><button type="button" disabled={busy || !!editor || seeding} aria-current={selection?.id === item.id && selection.version === version ? 'true' : undefined} onClick={() => select(item, version)}>
-            <span>{value.title}</span><small>{value.toolName} · {group.version ? (version === 'draft' ? '草稿' : '已发布') : [item.draft && '正在编辑', item.published && '已发布'].filter(Boolean).join(' / ')}</small>
+          return <li key={item.id}><button type="button" disabled={busy || !!editor} aria-current={selection?.id === item.id ? 'true' : undefined} onClick={() => select(item, version)}>
+            <span>{value.title}</span><small>{value.toolName}</small>
+            <span className="harness-composition-status">{item.published && <span data-state="published">已发布</span>}{item.draft && <span data-state="draft">正在编辑</span>}</span>
           </button></li>
-        })}</ul> : <p>暂无{group.title === '全部编排' ? '编排' : group.title === '正在编辑' ? '草稿' : '已发布工具'}</p>}
-      </section>)}
+        })}</ul> : <p>暂无编排</p>}
+      </section>
     </nav>
     <section className="harness-card harness-composition-detail" aria-label="组合编排详情">
       {error && <p role="alert">{error}</p>}
       {busy && <p role="status">正在处理…</p>}
       {config && !extensionReady && <p role="alert">此编排依赖的业务扩展尚未装载。已有目录保持可读，请先启用工作区的 DSH 扩展。</p>}
       {editor && data && editor.revision !== data.revision && <p role="alert">编排目录已在其他位置更新，当前草稿已保留。请先复制需要保留的内容，取消编辑后重新读取；旧版本草稿不会覆盖新数据。</p>}
-      {seeding ? <ThreatSeedForm connections={registeredConnections} busy={busy} create={bindings => void action('seedThreatCompositions', { revision: data.revision, bindings })} cancel={() => setSeeding(false)}/> : !config && !editor ? <p>{data ? selection ? `所选编排 ${selection.id} 的${selection.version === 'draft' ? '草稿' : '已发布版本'}已不存在，请重新选择。` : '选择一个编排查看，或新建编排。' : '正在读取编排目录…'}</p> : <>
+      {!config && !editor ? <p>{data ? selection ? `所选编排 ${selection.id} 的${selection.version === 'draft' ? '草稿' : '已发布版本'}已不存在，请重新选择。` : '选择一个编排查看，或新建编排。' : '正在读取编排目录…'}</p> : <>
         <h2>{editor ? (editor.id ? '编辑草稿' : '新建编排') : config?.title}</h2>
         {editor ? <form onSubmit={event => { event.preventDefault(); void action('saveCompositionDraft', { compositionId: editor.id, revision: editor.revision, draft: editor.value }) }} className="harness-composition-editor">
           <p>{isThreatComposition(editor.value) ? '编辑阶段连接或固定子版本，保存草稿后进行 dry 校验和发布。' : '复用当前 LangGraph 两步只读流程：查询资产 → 查询相关告警。保存草稿后进行 dry 测试和发布。'}</p>
           <label>编排标题<input required maxLength={80} value={editor.value.title} onChange={event => setEditor({ ...editor, value: { ...editor.value, title: event.target.value } })} /></label>
           <label>工具名称<input required maxLength={64} pattern="[A-Za-z0-9_.\-]+" value={editor.value.toolName} onChange={event => setEditor({ ...editor, value: { ...editor.value, toolName: event.target.value } })} /></label>
-          <label>工具说明<textarea maxLength={500} value={editor.value.description} onChange={event => setEditor({ ...editor, value: { ...editor.value, description: event.target.value } })} /></label>
+          <label className="harness-mcp-wide">工具说明<textarea maxLength={500} value={editor.value.description} onChange={event => setEditor({ ...editor, value: { ...editor.value, description: event.target.value } })} /></label>
           {isThreatComposition(editor.value) ? <ThreatConfigurationFields value={editor.value} change={value => setEditor({ ...editor, value })} compositionId={editor.id} connections={registeredConnections} entries={entries}/> : <><label>接口流程<select value={editor.value.flow ?? ''} onChange={event => setEditor({ ...editor, value: { ...editor.value, flow: event.target.value === 'soc-asset-alerts' ? 'soc-asset-alerts' : undefined, alertsConnectionId: event.target.value ? editor.value.alertsConnectionId ?? connections[0]?.id ?? '' : undefined } })}>
             <option value="">get_asset → list_alerts</option>{(data?.extension?.flow || editor.value.flow) && <option value="soc-asset-alerts">SOC 资产详情 → 近 30 天告警分组</option>}
           </select></label>
@@ -198,7 +188,7 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
           {trace?.mappedArguments && <pre className="harness-asset-content">{JSON.stringify(trace.mappedArguments, null, 2)}</pre>}
           <h4>输出：{node.output}</h4><pre className="harness-asset-content">{result?.result ? JSON.stringify(config?.kind === 'threat-stage' ? result.result : result.result.stepValues?.[node.output] ?? result.result[node.output], null, 2) : '尚无执行结果'}</pre>{trace?.reason && <p>{trace.reason}</p>}
         </>}</aside></div>}
-        {!editor && <><p>{threat ? '实际执行将按已编译流程调用取证、模型或模拟存储；请使用基本运维测试事件。' : '第一步失败或缺少资产 ID 时，第二步停止执行。'}</p>
+        {!editor && <><section className="harness-composition-test"><p>{threat ? '实际执行将按已编译流程调用取证、模型或模拟存储；请使用基本运维测试事件。' : '第一步失败或缺少资产 ID 时，第二步停止执行。'}</p>
           <label>{threat ? config?.kind === 'threat-stage' && config.stage !== 'collect' ? '运行 ID' : '事件 ID' : '查询资产'}<input aria-label={threat ? config?.kind === 'threat-stage' && config.stage !== 'collect' ? '组合运行 ID' : '组合事件 ID' : '组合查询资产'} value={asset} onChange={event => { setAsset(event.target.value); setResult(null) }} placeholder={threat ? config?.kind === 'threat-stage' && config.stage !== 'collect' ? '先执行取证阶段，复制返回的 run_id' : 'INC-20261015-000001' : config?.flow ? '资产 ID，如 9106' : '资产 ID、主机名或 IP'} /></label>
           <div className="harness-mcp-actions"><button type="button" disabled={busy || !asset.trim()} onClick={() => void action('dryRunComposition', selectedPayload)}>测试（dry）</button>
             {selection?.version === 'draft' && <button type="button" disabled={busy || !asset.trim()} onClick={() => void action('publishComposition', selectedPayload)}>发布工具</button>}
@@ -207,10 +197,10 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
           {result?.mode === 'dry' && <div role="status"><p>dry 校验通过 · 上游请求 {result.upstreamRequests} 次</p><p>{result.checks.join('、')}。未验证：{result.unverified.join('、')}。</p></div>}
           {result && result.mode !== 'dry' && (threat ? <ThreatRunResult rpc={rpc} execution={result}/> : <div><p role="status">{result.ok ? '组合执行成功' : '组合执行失败'}</p>{result.error && <p role="alert">{result.error.message}</p>}
             {result.result?.alertSummary && <p>近 30 天：{result.result.alertSummary.totalGroups} 个告警分组 · {result.result.alertSummary.totalAlerts} 条告警 · 当前展示 {result.result.alerts.length} 个分组。{result.result.alertSummary.truncated && '上游结果已截断。'}<br/>查询范围：{result.result.alertSummary.from} ～ {result.result.alertSummary.to}</p>}
-            <div className="harness-table-scroll"><table><thead><tr><th>步骤</th><th>状态</th><th>HTTP</th><th>耗时</th></tr></thead><tbody>{(result.result?.trace ?? []).map((step: any) => <tr key={step.step}><td>{step.operationId}</td><td>{step.status}</td><td>{step.httpStatus ?? '未调用'}</td><td>{step.durationMs === undefined ? '—' : `${step.durationMs} ms`}</td></tr>)}</tbody></table></div>
+            <div className="harness-table-scroll"><table className="harness-composition-trace"><thead><tr><th>步骤</th><th>状态</th><th>HTTP</th><th>耗时</th></tr></thead><tbody>{(result.result?.trace ?? []).map((step: any) => <tr key={step.step}><td data-label="步骤">{step.operationId}</td><td data-label="状态">{step.status}</td><td data-label="HTTP">{step.httpStatus ?? '未调用'}</td><td data-label="耗时">{step.durationMs === undefined ? '—' : `${step.durationMs} ms`}</td></tr>)}</tbody></table></div>
             <details><summary>业务结果</summary><pre>{JSON.stringify({ asset: result.result?.asset, alerts: result.result?.alerts, alertSummary: result.result?.alertSummary }, null, 2)}</pre></details><details><summary>执行回执与来源版本</summary><pre>{JSON.stringify({ receipts: result.receipts, version: result.version }, null, 2)}</pre></details></div>)}
-          <hr/><h3>调用与发布信息</h3><p>MCP 入口：<code>{new URL('api/harness-platform/mcp', document.baseURI).href}</code></p><p>入口受平台登录认证保护，仅列出并执行已发布版本。发布后调用方需重新发现工具；草稿供页面查看与测试。</p>
-          <p>{threat ? '通过页面编辑连接和固定子版本，保存、校验并发布；原智能体 Harness 保持不变。' : <>在管理对话中可使用 <code>mcp-composition</code> Skill 修改 TypeScript 流程，构建并重启后图会同步更新。</>}</p>
+          </section><section className="harness-composition-publish"><h3>调用与发布信息</h3><p>MCP 入口：<code>{new URL('api/harness-platform/mcp', document.baseURI).href}</code></p><p>入口受平台登录认证保护，仅列出并执行已发布版本。发布后调用方需重新发现工具；草稿供页面查看与测试。</p>
+          <p>{threat ? '通过页面编辑连接和固定子版本，保存、校验并发布；原智能体 Harness 保持不变。' : <>在管理对话中可使用 <code>mcp-composition</code> Skill 修改 TypeScript 流程，构建并重启后图会同步更新。</>}</p></section>
         </>}
       </>}
     </section>

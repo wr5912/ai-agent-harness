@@ -1,0 +1,419 @@
+{
+  "at": "2026-10-16T15:08:01.451Z",
+  "base": "http://10.0.160.32:3115/hep/",
+  "read_only": true,
+  "source_manifest": "merged-source-sync-final.json",
+  "checks": [
+    "合并源码实际装载，变体列表/智能体身份/版本选择共享独立名称且无筛选下拉",
+    "独立名称与子串搜索、空态、清空恢复",
+    "左侧双标签切换保留右侧智能体、版本和详情页签",
+    "父版同页定位与021→023→024真实来源、后退与刷新恢复",
+    "当前runner变化正确使旧构建/比较失效，原不可变22→16历史回执仍可读取，未提升Evaluation结论",
+    "上游工作台样式与变体布局在1440/390px无整页横向溢出",
+    "上游首页保留通用对话入口和输入语义，只读检查未发消息",
+    "上游MCP编排页无创建威胁样例入口，保留真实编排管理",
+    "全程无模型/新Experiment/Run/改名/工具测试，目标资产与记录完整摘要不变"
+  ],
+  "errors": [],
+  "failed_requests": [],
+  "rpc": [
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/edit/read",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-023-r2233d74f6fb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal",
+      "experiment_id": "EXP-security-operations-expert-023-r2233d74f6fb3"
+    },
+    {
+      "method": "agents/edit/read",
+      "experiment_id": "EXP-security-operations-expert-023-r2233d74f6fb3"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/edit/read",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "client.js,@deepseek-ai/dsh-client-ui-directory-picker-browse/client.js&rev=9690d6a29b31"
+    },
+    {
+      "method": "events"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/edit/read",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/compute-variants/context",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    }
+  ],
+  "layouts": [
+    {
+      "width": 1440,
+      "client": 1440,
+      "scroll": 1440
+    },
+    {
+      "width": 390,
+      "client": 390,
+      "scroll": 390
+    }
+  ],
+  "before": {
+    "variant_name": "资产关联告警查询（LangGraph）",
+    "change_sha256": "8bba18f101ce8034c29de991713d70add35dd3353e014f50fc601ef8c8f8d692",
+    "other_change_sha256": "d4e6fdd0ec8d850850bcec15ea82311e95feae9be3060ffb73c61e3af0f1bdc6",
+    "research_question_sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "strategy_sha256": "627374bfb98d623b7cad6b2e4f2e0d8f45398c6b954e9f69519f9e70d0440021",
+    "protected": {
+      "candidate": {
+        "files": 1921,
+        "sha256": "24d178fc7fa17b100810ca519c4076c669cd0985a7834994d31ba213bf64ecfb"
+      },
+      "runs": {
+        "files": 206,
+        "sha256": "dcbbed087acb960341d71df4c9f324ef905cf48ebab623b034a7119f0c8606e6"
+      },
+      "evaluation": {
+        "files": 2,
+        "sha256": "ae228effcfa17746ac08d1a385632636c202cf7dd22a496cc5d963395ee1ccbc"
+      },
+      "decision.md": {
+        "files": 1,
+        "sha256": "32d915fcf0d16a8f460e1dbf1b6c67dc94775b4545af778210e0edbb4859a5ce"
+      }
+    }
+  },
+  "current_evidence": {
+    "build_verified": false,
+    "reasons": [
+      "runner_sha256 已变化，需要重新构建"
+    ],
+    "workflow_status": {
+      "generated": true,
+      "built": false,
+      "frozen": true,
+      "loaded": false,
+      "compared": false
+    },
+    "comparison_restored": false
+  },
+  "progress_text": "代码已保存：已验证\n构建已核对：尚未验证\n数据提交已冻结：已验证\n新 Session 已装载：尚未验证\n实际 Run 已比较：尚未验证\n\n状态来自实际文件、构建回执和 Run；保存源码不代表已装载或已节省资源。\n\n查看生成代码预览冻结差异",
+  "historical_comparison": {
+    "path": "/tmp/hep-langgraph-20261016/data/evolution/experiments/EXP-security-operations-expert-024-r290c02339cb3/evaluation/compute-comparison-382c6d7b4fad568a52fbf14a96469c3d205b41c4654a37c57c1fcfc23399e786.json",
+    "sha256": "382c6d7b4fad568a52fbf14a96469c3d205b41c4654a37c57c1fcfc23399e786",
+    "target_calls_parent": 22,
+    "target_calls_variant": 16,
+    "scope": "既有固定四Case两次Run的历史观察；当前runner变化后没有恢复为本次程序已验证"
+  },
+  "limits": [
+    "runner_sha256变化使旧构建与比较不再是当前程序已验证证据；需要另行重建并验证，不为程序发布改写或重跑业务Run"
+  ],
+  "after": {
+    "variant_name": "资产关联告警查询（LangGraph）",
+    "change_sha256": "8bba18f101ce8034c29de991713d70add35dd3353e014f50fc601ef8c8f8d692",
+    "other_change_sha256": "d4e6fdd0ec8d850850bcec15ea82311e95feae9be3060ffb73c61e3af0f1bdc6",
+    "research_question_sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "strategy_sha256": "627374bfb98d623b7cad6b2e4f2e0d8f45398c6b954e9f69519f9e70d0440021",
+    "protected": {
+      "candidate": {
+        "files": 1921,
+        "sha256": "24d178fc7fa17b100810ca519c4076c669cd0985a7834994d31ba213bf64ecfb"
+      },
+      "runs": {
+        "files": 206,
+        "sha256": "dcbbed087acb960341d71df4c9f324ef905cf48ebab623b034a7119f0c8606e6"
+      },
+      "evaluation": {
+        "files": 2,
+        "sha256": "ae228effcfa17746ac08d1a385632636c202cf7dd22a496cc5d963395ee1ccbc"
+      },
+      "decision.md": {
+        "files": 1,
+        "sha256": "32d915fcf0d16a8f460e1dbf1b6c67dc94775b4545af778210e0edbb4859a5ce"
+      }
+    }
+  },
+  "final_url": "http://10.0.160.32:3115/hep/#/agents?agent_id=security-operations-expert&experiment_id=EXP-security-operations-expert-024-r290c02339cb3&tab=overview&list_view=variants",
+  "ok": true
+}

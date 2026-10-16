@@ -1,0 +1,29 @@
+{
+  "base": "http://127.0.0.1:3120/hep/",
+  "checks": [
+    {
+      "width": 1440,
+      "colors": {
+        "bg": "color(srgb 0.0798824 0.0936471 0.111255)",
+        "text": "rgb(249, 250, 251)"
+      }
+    },
+    {
+      "width": 390,
+      "colors": {
+        "bg": "color(srgb 0.0798824 0.0936471 0.111255)",
+        "text": "rgb(249, 250, 251)"
+      }
+    },
+    {
+      "touchTargets": [
+        44,
+        44,
+        44
+      ]
+    }
+  ],
+  "errors": [],
+  "ok": true,
+  "restoredLight": true
+}

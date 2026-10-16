@@ -73,7 +73,7 @@ export const managerSources = {
           .replace("createRequire('/opt/dsh/packages/mcp/mcp-client/package.json')", "resolveRuntimeRequire('@deepseek-ai/schemastery')")
           .replace("const z = runtimeRequire", "const platformRequire = createRequire(import.meta.url)\nconst z = runtimeRequire")
           .replaceAll("runtimeRequire('@modelcontextprotocol/", "platformRequire('@modelcontextprotocol/")
-          .replace("from './openapi.mjs'", "from './openapi.ts'")
+          .replace("from './openapi.mjs'", "from 'harness-mcp-manager-openapi'")
           .replace('if (server.specUrl) {', 'if (server.platformComposition) {\n      if (!config.platformClient) throw new Error("已发布编排服务未装载")\n      server.platformClient = config.platformClient\n      continue\n    }\n    if (server.specUrl) {')
           .replace('const url = resolvedUrl(server)\n', 'if (server.platformComposition) return run(server.platformClient)\n  const url = resolvedUrl(server)\n')
           .replace('requestInit: { headers:', 'requestInit: { signal: server.platformSignal, headers:')

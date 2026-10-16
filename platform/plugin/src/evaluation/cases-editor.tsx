@@ -19,7 +19,6 @@ export interface CaseCreationDialogProps extends PlatformPageProps {
   onClose(): void
 }
 
-const fieldStyle = { display: 'grid', gap: 5 } as const
 export function CaseCreationDialog({ rpc, agentId, experimentId, sourceRun, active = true, onDirty, onBusy, onSaved, onClose }: CaseCreationDialogProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const request = useRef(0)
@@ -94,20 +93,21 @@ export function CaseCreationDialog({ rpc, agentId, experimentId, sourceRun, acti
 
   return <dialog ref={dialog} className="harness-eval-decision-dialog" aria-labelledby="evaluation-case-create-title" onCancel={event => { event.preventDefault(); close() }}>
     <div className="harness-eval-section-heading"><div><h2 id="evaluation-case-create-title">{sourceRun ? '从运行记录整理测试用例' : '新增测试用例'}</h2><small>{agentId} · {experimentId}</small></div><button type="button" disabled={busy || loading} onClick={close}>关闭</button></div>
-    <p className="harness-eval-note">新增内容写入智能体共用的 evaluation.md；已启动和历史 Run 保留冻结口径。</p>
+    <div className="harness-eval-dialog-body"><p className="harness-eval-note">新增内容写入智能体共用的 evaluation.md；已启动和历史 Run 保留冻结口径。</p>
     {sourceRun && <p className="harness-eval-note">来源：{sourceRun.run_id} / {sourceRun.case_id}。仅复制冻结输入，请调整为新的复现输入并独立填写预期行为；实际回答不会作为参考答案。</p>}
     {loading && <p role="status">正在读取当前用例与来源…</p>}
     {error && <p role="alert">{error}</p>}
     {conflict && <p role="alert">当前文件或 Case ID 已变化。<button type="button" disabled={busy || loading} onClick={() => void load(true)}>保留草稿并重读最新版本</button></p>}
     {draft && <div className="harness-eval-editor">
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}><label style={fieldStyle}>Case ID<input aria-label="新增用例 ID" disabled={busy || loading} value={draft.case_id} onChange={event => update({ ...draft, case_id: event.target.value })} /></label><label style={fieldStyle}>场景<input aria-label="新增用例场景" list="evaluation-case-scenes" disabled={busy || loading} value={draft.scene} onChange={event => update({ ...draft, scene: event.target.value })} /><datalist id="evaluation-case-scenes">{document?.scenes?.map((scene: string) => <option key={scene} value={scene} />)}</datalist></label></div>
-      <label style={fieldStyle}>名称<input aria-label="新增用例名称" disabled={busy || loading} value={draft.title} onChange={event => update({ ...draft, title: event.target.value })} /></label>
-      <h3>多轮输入</h3>{draft.inputs.map((value, index) => <div className="harness-eval-input-turn" key={index}><label style={fieldStyle}>第 {index + 1} 轮<textarea aria-label={`新增用例第 ${index + 1} 轮输入`} rows={3} disabled={busy || loading} value={value} onChange={event => update({ ...draft, inputs: draft.inputs.map((item, at) => at === index ? event.target.value : item) })} /></label><button type="button" disabled={busy || loading || draft.inputs.length === 1} onClick={() => update({ ...draft, inputs: draft.inputs.filter((_, at) => at !== index) })}>移除第 {index + 1} 轮</button></div>)}
+      <div className="harness-eval-form-grid"><label className="harness-eval-field">Case ID<input aria-label="新增用例 ID" disabled={busy || loading} value={draft.case_id} onChange={event => update({ ...draft, case_id: event.target.value })} /></label><label className="harness-eval-field">场景<input aria-label="新增用例场景" list="evaluation-case-scenes" disabled={busy || loading} value={draft.scene} onChange={event => update({ ...draft, scene: event.target.value })} /><datalist id="evaluation-case-scenes">{document?.scenes?.map((scene: string) => <option key={scene} value={scene} />)}</datalist></label></div>
+      <label className="harness-eval-field">名称<input aria-label="新增用例名称" disabled={busy || loading} value={draft.title} onChange={event => update({ ...draft, title: event.target.value })} /></label>
+      <h3>多轮输入</h3>{draft.inputs.map((value, index) => <div className="harness-eval-input-turn" key={index}><label className="harness-eval-field">第 {index + 1} 轮<textarea aria-label={`新增用例第 ${index + 1} 轮输入`} rows={3} disabled={busy || loading} value={value} onChange={event => update({ ...draft, inputs: draft.inputs.map((item, at) => at === index ? event.target.value : item) })} /></label><button type="button" disabled={busy || loading || draft.inputs.length === 1} onClick={() => update({ ...draft, inputs: draft.inputs.filter((_, at) => at !== index) })}>移除第 {index + 1} 轮</button></div>)}
       <button type="button" disabled={busy || loading} onClick={() => update({ ...draft, inputs: [...draft.inputs, ''] })}>＋ 添加一轮输入</button>
-      <label style={fieldStyle}>预期行为<textarea aria-label="新增用例预期行为" rows={5} disabled={busy || loading} value={draft.expected_behavior} placeholder="填写应如何判断正确行为，保留无法判断的条件。" onChange={event => update({ ...draft, expected_behavior: event.target.value })} /></label>
+      <label className="harness-eval-field">预期行为<textarea aria-label="新增用例预期行为" rows={5} disabled={busy || loading} value={draft.expected_behavior} placeholder="填写应如何判断正确行为，保留无法判断的条件。" onChange={event => update({ ...draft, expected_behavior: event.target.value })} /></label>
       <label className="harness-eval-check"><input type="checkbox" disabled={busy || loading} checked={draft.fast} onChange={event => update({ ...draft, fast: event.target.checked })} />纳入快速评测（fast）</label>
-      <div className="harness-eval-actions"><button type="button" disabled={busy || loading || conflict} onClick={() => void perform(false)}>{busy ? '处理中…' : '预览差异'}</button><button type="button" className="harness-primary" disabled={busy || loading || conflict || !preview} onClick={() => void perform(true)}>确认新增用例</button></div>
     </div>}
     {message && <p role="status">{message}</p>}{preview && <details open><summary>新增用例差异</summary><pre className="harness-asset-content">{preview.diff}</pre></details>}
+    </div>
+    {draft && <div className="harness-eval-actions harness-eval-dialog-footer"><button type="button" disabled={busy || loading || conflict} onClick={() => void perform(false)}>{busy ? '处理中…' : '预览差异'}</button><button type="button" className="harness-primary" disabled={busy || loading || conflict || !preview} onClick={() => void perform(true)}>确认新增用例</button></div>}
   </dialog>
 }

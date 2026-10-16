@@ -119,42 +119,49 @@ def checked_process(
     return completed
 
 
-def validate_before_run(contract: dict) -> dict:
-    checks = {}
-    commands = {
-        "repository": ["python3", str(VALIDATE_REPOSITORY), str(REPO)],
-        "experiment": ["python3", str(VALIDATE_EXPERIMENT), contract["experiment_root"]],
+def validation_check(script: Path, target: str) -> dict:
+    try:
+        completed = run_process([sys.executable, str(script), target], timeout=180)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return {"exit_code": None, "valid": False, "error": type(error).__name__}
+    try:
+        payload = json.loads(completed.stdout)
+        if not isinstance(payload, dict):
+            raise ValueError("校验结果必须是 JSON 对象")
+    except ValueError:
+        # 只保留末行诊断，避免把完整 traceback 或环境凭据写入评测日志。
+        detail = (completed.stderr.strip().splitlines() or ["校验器未返回有效 JSON 对象"])[-1]
+        for name, value in os.environ.items():
+            if value and re.search(r"KEY|TOKEN|PASSWORD|SECRET", name, re.IGNORECASE):
+                detail = detail.replace(value, "<redacted>")
+        detail = re.sub(r"(?i)(Bearer\s+|(?:api[_-]?key|token|password|secret)[\"']?\s*[:=]\s*[\"']?)[^\s\"'&]+",
+                        r"\1<redacted>", detail)
+        return {"exit_code": completed.returncode, "valid": False, "error": detail[:500]}
+    return {
+        "exit_code": completed.returncode,
+        "valid": completed.returncode == 0 and payload.get("valid") is True,
+        "error_codes": [item.get("code") for item in payload.get("errors", [])],
     }
-    for name, command in commands.items():
-        try:
-            completed = run_process(command, timeout=180)
-            payload = json.loads(completed.stdout)
-            checks[name] = {
-                "exit_code": completed.returncode,
-                "valid": completed.returncode == 0 and payload.get("valid") is True,
-                "error_codes": [item.get("code") for item in payload.get("errors", [])],
-            }
-        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as error:
-            checks[name] = {"exit_code": None, "valid": False, "error": type(error).__name__}
-    return checks
+
+
+def validate_before_run(contract: dict) -> dict:
+    return {
+        "repository": validation_check(VALIDATE_REPOSITORY, str(REPO)),
+        "experiment": validation_check(VALIDATE_EXPERIMENT, contract["experiment_root"]),
+    }
 
 
 def validate_after_run(contract: dict) -> None:
-    try:
-        completed = run_process(
-            ["python3", str(VALIDATE_EXPERIMENT), contract["experiment_root"]], timeout=180,
-        )
-        payload = json.loads(completed.stdout)
-    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as error:
-        raise EvaluationError("post-run-validation-error") from error
-    if completed.returncode != 0 or payload.get("valid") is not True:
-        raise EvaluationError("post-run-validation-failed")
+    check = validation_check(VALIDATE_EXPERIMENT, contract["experiment_root"])
+    if not check["valid"]:
+        detail = check.get("error") or ", ".join(str(code) for code in check.get("error_codes", []))
+        raise EvaluationError(f"post-run-validation-failed（退出码 {check['exit_code']}）：{detail}")
 
 
 def initialize_run(source: str, cases: list[dict], executor: str, selection_mode: str, review_mode: str,
                    model: str | None = None, compare_to: str | None = None) -> str:
     command = [
-        "python3", str(RUN_RECORD), "--repo", str(REPO), "init",
+        sys.executable, str(RUN_RECORD), "--repo", str(REPO), "init",
         "--source", source, "--kind", "research", "--executor", executor,
         "--selection-mode", selection_mode, "--review-mode", review_mode,
     ]
@@ -184,7 +191,7 @@ def record_trial(run_id: str, case_id: str, result: dict) -> None:
     if result.get("failure_reason"):
         row["failure_reason"] = result["failure_reason"]
     checked_process(
-        ["python3", str(RUN_RECORD), "--repo", str(REPO), "record", "--run", run_id, "-"],
+        [sys.executable, str(RUN_RECORD), "--repo", str(REPO), "record", "--run", run_id, "-"],
         label=f"记录 {case_id}", timeout=60,
         input_text=json.dumps(row, ensure_ascii=False),
     )
@@ -193,7 +200,7 @@ def record_trial(run_id: str, case_id: str, result: dict) -> None:
 def finalize_run(run_id: str, status: str) -> None:
     checked_process(
         [
-            "python3", str(RUN_RECORD), "--repo", str(REPO), "finalize",
+            sys.executable, str(RUN_RECORD), "--repo", str(REPO), "finalize",
             "--run", run_id, "--status", status,
         ],
         label="封存 Run", timeout=60,
@@ -334,13 +341,14 @@ def exported_tool_markdown(run_dir: Path, case_id: str):
     return selected
 
 
-def dsh_dev_path() -> str:
-    return os.environ.get("DSH_EVAL_DSH_DEV", str(DSH_DEV))
+def dsh_dev_command() -> list[str]:
+    override = os.environ.get("DSH_EVAL_DSH_DEV")
+    return [override] if override is not None else [sys.executable, str(DSH_DEV)]
 
 
 def start_instance(source: str, name: str) -> dict:
     completed = checked_process(
-        [dsh_dev_path(), "up", "--source", source, "--mode", "eval", "--name", name],
+        [*dsh_dev_command(), "up", "--source", source, "--mode", "eval", "--name", name],
         label="启动 DSH 评测实例", timeout=240, env=os.environ.copy(),
     )
     try:
@@ -361,7 +369,7 @@ def start_instance(source: str, name: str) -> dict:
 
 def authentication_url(name: str) -> str:
     completed = checked_process(
-        [dsh_dev_path(), "url", name, "--non-interactive"],
+        [*dsh_dev_command(), "url", name, "--non-interactive"],
         label="取得 DSH 认证入口", timeout=90, env=os.environ.copy(),
     )
     url = completed.stdout.strip()
@@ -382,7 +390,7 @@ def authentication_url(name: str) -> str:
 def stop_instance(name: str) -> bool:
     try:
         completed = run_process(
-            [dsh_dev_path(), "down", name], timeout=180, env=os.environ.copy(),
+            [*dsh_dev_command(), "down", name], timeout=180, env=os.environ.copy(),
         )
     except (OSError, subprocess.TimeoutExpired, KeyboardInterrupt):
         return False
@@ -626,6 +634,10 @@ def execute(args: argparse.Namespace) -> int:
     invalid = [name for name, check in checks.items() if check.get("valid") is not True]
     if invalid:
         progress("前置校验未通过：" + "、".join(invalid))
+        for name in invalid:
+            check = checks[name]
+            detail = check.get("error") or ", ".join(str(code) for code in check.get("error_codes", []))
+            progress(f"{name}（退出码 {check.get('exit_code')}）：{detail}")
         emit_result(contract["experiment_id"], len(cases), executor=args.executor)
         return 2
 

@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import test from 'node:test'
 import { build } from 'esbuild'
-import { BUILD_PLACEHOLDER, HOME_SUBTITLE, PLATFORM_SLOGAN, homeTaskRequest } from '../src/home-entry.ts'
+import { GENERAL_PLACEHOLDER, HOME_SUBTITLE, PLATFORM_SLOGAN, homeTaskRequest } from '../src/home-entry.ts'
 import { createPlatformUpdates } from '../src/realtime/client.ts'
 
 const require = createRequire(import.meta.url)
@@ -52,19 +52,19 @@ function home({ example = false, exampleCase = true, exampleExtra = false, examp
   return { settle, nodes, text, calls, tasks, navigations, button, label, change, click, submit, invalidate: updates.invalidate, cleanup: () => cleanups.forEach(cleanup => cleanup?.()) }
 }
 
-test('首页准确展示业务标题、副标题、构建示例，登录承接品牌口号', async () => {
+test('首页准确展示业务标题、副标题、通用任务提示，登录承接品牌口号', async () => {
   const ui = home()
-  try { await ui.settle(); assert.match(ui.text(), /让AI帮您管理、评测和改进智能体/); assert.ok(ui.text().includes(HOME_SUBTITLE)); assert.equal(ui.label('业务任务').props.placeholder, BUILD_PLACEHOLDER); assert.equal(ui.label('业务任务').props.rows, 1); assert.equal(ui.button('开始任务').props.disabled, true); assert.equal(ui.text().includes(PLATFORM_SLOGAN), false) } finally { ui.cleanup() }
+  try { await ui.settle(); assert.match(ui.text(), /让AI帮您管理、评测和改进智能体/); assert.ok(ui.text().includes(HOME_SUBTITLE)); assert.equal(ui.label('业务任务').props.placeholder, GENERAL_PLACEHOLDER); assert.equal(ui.label('业务任务').props.rows, 1); assert.equal(ui.button('开始任务').props.disabled, true); assert.equal(ui.text().includes(PLATFORM_SLOGAN), false) } finally { ui.cleanup() }
   const module = { exports: {} }; vm.runInNewContext(loginSource, { module, exports: module.exports, require })
   assert.match(module.exports.loginPage('/hep/login'), /让智能体真正可用，持续变好。/)
 })
 
-test('构建入口保留需求原文并绑定task-builder，空输入和会话失败不假跳转', async () => {
+test('通用入口保留需求原文且不预设构建流程，空输入和会话失败不假跳转', async () => {
   const ui = home()
   try {
     await ui.submit(); assert.equal(ui.tasks.length, 0); assert.match(ui.text(), /请先描述/)
-    ui.change('业务任务', '构建每天生成行业情报简报的智能体。'); await ui.submit()
-    assert.equal(ui.tasks[0].prompt, '构建每天生成行业情报简报的智能体。'); assert.equal(ui.tasks[0].context.skill, 'task-builder'); assert.equal(ui.tasks[0].context.entry_intent, 'build'); assert.deepEqual(ui.navigations, ['conversations'])
+    ui.change('业务任务', '请帮我查看当前运行的实例。'); await ui.submit()
+    assert.equal(ui.tasks[0].prompt, '请帮我查看当前运行的实例。'); assert.deepEqual({ ...ui.tasks[0].context }, { page: 'home', entry_intent: 'general' }); assert.deepEqual(ui.navigations, ['conversations'])
   } finally { ui.cleanup() }
   const failed = home({ failStart: true })
   try { failed.change('业务任务', '构建报告助手'); await failed.submit(); assert.match(failed.text(), /会话服务暂不可用/); assert.equal(failed.navigations.length, 0) } finally { failed.cleanup() }
@@ -72,7 +72,7 @@ test('构建入口保留需求原文并绑定task-builder，空输入和会话�
 
 test('三种首页模式仅凭描述开始，不依赖预先选择智能体、版本或运行记录', async () => {
   const cases = [
-    { label: '构建业务智能体', action: '开始任务', mode: 'build', skill: 'task-builder', workflow: 'build', prompt: '构建每天生成行业情报简报的智能体。' },
+    { label: '与助手对话', action: '开始任务', mode: 'general', skill: undefined, workflow: undefined, prompt: '构建每天生成行业情报简报的智能体。' },
     { label: '评测已有智能体', action: '开始评测', mode: 'evaluate', skill: 'agent-maintenance', workflow: 'evaluation', prompt: '评测行业简报助手当前启用版本的来源准确性。' },
     { label: '改进优化任务', action: '开始改进', mode: 'improve', skill: 'task-builder', workflow: 'improvement', prompt: '根据最近一次运行，改进行业简报助手遗漏来源的问题。' },
   ]
@@ -121,7 +121,7 @@ test('首页按实际业务域刷新摘要，助手事件及模式切换不触�
     await ui.settle()
     const count = method => ui.calls.filter(call => call.method === method).length
     const initial = count('home')
-    for (const label of ['评测已有智能体', '改进优化任务', '构建业务智能体']) await ui.click(label)
+    for (const label of ['评测已有智能体', '改进优化任务', '与助手对话']) await ui.click(label)
     for (let index = 0; index < 5; index++) { ui.invalidate(['assistant']); await ui.settle() }
     assert.equal(count('home'), initial)
     for (const domain of ['instances', 'mcp', 'agents', 'catalog']) { ui.invalidate([domain]); await ui.settle() }
@@ -204,10 +204,10 @@ test('首页输入时保持换行与IME行为，Ctrl+Enter仍提交当前模式�
 test('三种模式各自保留任务草稿，体验示例的精确来源不带入首页评测', async () => {
   const ui = home({ example: true })
   try {
-    for (const [label, prompt] of [['构建业务智能体', '构建草稿'], ['评测已有智能体', '评测草稿'], ['改进优化任务', '改进草稿']]) {
+    for (const [label, prompt] of [['与助手对话', '构建草稿'], ['评测已有智能体', '评测草稿'], ['改进优化任务', '改进草稿']]) {
       await ui.click(label); ui.change('业务任务', prompt)
     }
-    for (const [label, prompt] of [['构建业务智能体', '构建草稿'], ['评测已有智能体', '评测草稿'], ['改进优化任务', '改进草稿']]) {
+    for (const [label, prompt] of [['与助手对话', '构建草稿'], ['评测已有智能体', '评测草稿'], ['改进优化任务', '改进草稿']]) {
       await ui.click(label); assert.equal(ui.label('业务任务').props.value, prompt)
     }
     await ui.click('体验示例'); await ui.click('开始体验')

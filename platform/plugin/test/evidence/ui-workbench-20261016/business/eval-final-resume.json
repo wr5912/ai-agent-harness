@@ -1,0 +1,474 @@
+{
+  "at": "2026-10-16T12:16:34.820Z",
+  "base": "http://127.0.0.1:3120/hep/",
+  "scope": "隔离3120工作区真实React UI操作、标准DSH镜像及真实模型，外部业务来源为基础Mock资产台账",
+  "checks": [
+    "接续GUI已启动的单Case真实评测，不重复创建Run",
+    "真实Run报告在GUI显示并下载"
+  ],
+  "errors": [],
+  "job_id": "bca41ca7-4d24-41cd-a6ab-16e13119f9dc",
+  "eval_status": {
+    "job_id": "bca41ca7-4d24-41cd-a6ab-16e13119f9dc",
+    "workspace_id": "workspace-ui-9eabdd08-0c22-4c38-b7c7-020051598ea9",
+    "asset_root": "/tmp/hep-ui-workbench-20261016/data",
+    "source": "experiment:EXP-daily-inspection-assistant-004-r965bc66e4614",
+    "cases": [
+      "U-ASSET-PAGES-001"
+    ],
+    "status": "completed",
+    "started_at": "2026-10-16T12:14:55.101Z",
+    "updated_at": "2026-10-16T12:15:24.816Z",
+    "stdout": "{\"run_id\":\"run-b48e0885-3e17-4310-82db-48e1177a9a99\",\"experiment_id\":\"EXP-daily-inspection-assistant-004-r965bc66e4614\",\"executor\":\"api\",\"verdict\":\"passed\",\"cases\":{\"total\":1,\"passed\":1,\"failed\":0,\"inconclusive\":0},\"review_status\":\"not_requested\",\"reviewed_cases\":null,\"summary\":\"evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/summary.json\",\"report\":\"evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/report.md\",\"instance_stopped\":true,\"cancelled\":false}\n",
+    "stderr": "执行仓库与 Experiment 前置校验\n创建并锁定 Research Run\nResearch Run: run-b48e0885-3e17-4310-82db-48e1177a9a99\n启动独立 DSH 评测实例\n执行 Experiment 后置校验\n",
+    "pid": 3197901,
+    "process_start": "38342605",
+    "run_id": "run-b48e0885-3e17-4310-82db-48e1177a9a99",
+    "exit_code": 0,
+    "result": {
+      "run_id": "run-b48e0885-3e17-4310-82db-48e1177a9a99",
+      "experiment_id": "EXP-daily-inspection-assistant-004-r965bc66e4614",
+      "executor": "api",
+      "verdict": "passed",
+      "cases": [
+        "U-ASSET-PAGES-001"
+      ],
+      "review_status": "not_requested",
+      "reviewed_cases": null,
+      "summary": {
+        "schema_version": "3.0",
+        "run_id": "run-b48e0885-3e17-4310-82db-48e1177a9a99",
+        "trial_count": 1,
+        "execution_status_counts": {
+          "completed": 1,
+          "error": 0,
+          "skipped": 0
+        },
+        "machine_trial_verdict_counts": {
+          "passed": 1,
+          "failed": 0,
+          "inconclusive": 0
+        },
+        "machine_overall_verdict": "passed",
+        "review_status": "not_requested",
+        "reviewed_case_count": 0,
+        "reviewed_case_verdict_counts": null,
+        "reviewed_overall_verdict": null,
+        "effective_verdict": "passed",
+        "source_verification": {
+          "status": "matched",
+          "reason": null,
+          "checks": [
+            {
+              "component": "candidate",
+              "status": "matched",
+              "expected_sha256": "e2726fda68b4c9fe9a5583acc56f7d15cc3cd7a47fc75feedad717f81c6d9d7a",
+              "actual_sha256": "e2726fda68b4c9fe9a5583acc56f7d15cc3cd7a47fc75feedad717f81c6d9d7a"
+            },
+            {
+              "component": "workspace",
+              "status": "matched",
+              "expected_sha256": "6e060403d65f01c6ba0efd47660407a949db02b287aff3aab248d9c1a7a0e858",
+              "actual_sha256": "6e060403d65f01c6ba0efd47660407a949db02b287aff3aab248d9c1a7a0e858"
+            },
+            {
+              "component": "presets",
+              "status": "matched",
+              "expected_sha256": "dbc1c87a1b0faf5aca95214bbe001c0ef87417d59c4996cac3337cdd38665a5b",
+              "actual_sha256": "dbc1c87a1b0faf5aca95214bbe001c0ef87417d59c4996cac3337cdd38665a5b"
+            },
+            {
+              "component": "managed",
+              "status": "matched",
+              "expected_sha256": "5fdcf91837a73be5ff0be4927b01e55997d7dc539e326a18b71c6659fc15741f",
+              "actual_sha256": "5fdcf91837a73be5ff0be4927b01e55997d7dc539e326a18b71c6659fc15741f"
+            },
+            {
+              "component": "evaluation_implementation",
+              "status": "matched",
+              "expected_sha256": "d5f43be0b37eb7a253841738cbe72b8f0816a66c13a7d055836ea0b5e3e45290",
+              "actual_sha256": "d5f43be0b37eb7a253841738cbe72b8f0816a66c13a7d055836ea0b5e3e45290"
+            }
+          ]
+        }
+      },
+      "report": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/report.md",
+      "instance_stopped": true,
+      "cancelled": false,
+      "job_id": "bca41ca7-4d24-41cd-a6ab-16e13119f9dc",
+      "source": "experiment:EXP-daily-inspection-assistant-004-r965bc66e4614",
+      "actual_model_calls": 7,
+      "token_usage": {
+        "input_tokens": 25721,
+        "output_tokens": 910,
+        "total_tokens": 26631
+      },
+      "observed_token_usage": {
+        "input_tokens": 25721,
+        "output_tokens": 910,
+        "total_tokens": 26631
+      },
+      "token_usage_complete": true,
+      "token_usage_note": "当前已采集请求的供应商 Token 用量；未核算实际费用。",
+      "hard_cap_supported": false,
+      "model_calls_complete": true,
+      "model_calls_basis": "锁定 DSH 的主请求尝试/retry、llmStreamCall 压缩及成功结算的辅助标题请求；按 Session ID 与 seq 去重，未结算标题保留未知。",
+      "run_status": "completed",
+      "candidate_sha256": "e2726fda68b4c9fe9a5583acc56f7d15cc3cd7a47fc75feedad717f81c6d9d7a",
+      "evaluation_sha256": "feaf909e98cab13683fc1a775c55a335bf60b2938aa8fbb124b1e9a97f087a09",
+      "program_origin": {
+        "commit": "06f7f782a6819dd5c464d08119447c9d757bcbe1",
+        "dirty": false,
+        "changed_path_count": 0,
+        "root": "/home/admin/work/ai-agent-harness"
+      },
+      "evaluation_implementation": {
+        "dsh-eval": "6692d8464aa768cde414971720e3e3d60a395aca41a74e98beb1d50406593620",
+        "dsh-eval-api.mjs": "b8a8a46451bda79478f09d0084156de02c2dc98e9e5a6d726acc3af6a00e1472",
+        "dsh-eval-browser.mjs": "85ce49fcac79d07e8e26f28d04c59266aff76a46a898450c80398f7dab913eb9",
+        "dsh-eval-common.mjs": "d49e1421d58d31e4e803c15ff7359dd1e9a37bf9738f12437612eca79ca76b3f",
+        "run_record.py": "2ef27e8de9a38418bcce06b6b599caf8e27c00a1108f22d4aa0415453c793239",
+        "scenario_analysis.py": "266df661347ca7e9e8f86e0d6ae5103a01baf54524801b7a121cb6e8c5617762",
+        "evaluation-judge-guard.mjs": "ad46cdd4c8264d3023bf0ea33327fdb60869209a3463f32f6cf30a347483219d",
+        "scenario-analysis-guard.mjs": "21c9b85f5400fefadbb39145d97409bd158a050941e076da249a504c8f24d541",
+        "evaluation-presets/evaluation-judge/agent.cordis.yml": "6c0c0c93018b318942d7334026e43b12124fa0fcabe166076d6e3d49f9e24f59",
+        "evaluation-presets/evaluation-judge/preset.yml": "df22cd2de4f05a31a21a2f041f44b2de57a48140797602ed4bf068e216a62a5e",
+        "evaluation-presets/scenario-analysis/agent.cordis.yml": "43786861869c364c343ea2fffd87a2b85a0756b8947cebf2233bb5d5bc830cbc",
+        "evaluation-presets/scenario-analysis/preset.yml": "b9ca918a58de3bb8b043ec0847937950e06bc27c1cc7b155dd0823ee1076be03"
+      },
+      "sessions": [
+        "session-295083f5-d1e6-4294-be01-ec9dff52506e",
+        "session-2d0681d3-f20b-459f-8354-af12e5198ae3"
+      ],
+      "instance_name": "daily-inspection-assistant-eval-c74a3e50",
+      "deadline_at": null,
+      "observed_model_calls": 7,
+      "failed_model_calls": 0,
+      "observed_failed_model_calls": 0,
+      "auxiliary_model_calls": 0,
+      "auxiliary_requests_observed": 0,
+      "model_calls_by_role": {
+        "target": 6,
+        "judge": 1,
+        "analysis": 0
+      },
+      "model_calls_unknown_reasons": []
+    },
+    "actual_model_calls": 7,
+    "token_usage": {
+      "input_tokens": 25721,
+      "output_tokens": 910,
+      "total_tokens": 26631
+    },
+    "observed_token_usage": {
+      "input_tokens": 25721,
+      "output_tokens": 910,
+      "total_tokens": 26631
+    },
+    "token_usage_complete": true,
+    "token_usage_note": "当前已采集请求的供应商 Token 用量；未核算实际费用。",
+    "hard_cap_supported": false,
+    "model_calls_complete": true,
+    "model_calls_basis": "锁定 DSH 的主请求尝试/retry、llmStreamCall 压缩及成功结算的辅助标题请求；按 Session ID 与 seq 去重，未结算标题保留未知。",
+    "run_status": "completed",
+    "candidate_sha256": "e2726fda68b4c9fe9a5583acc56f7d15cc3cd7a47fc75feedad717f81c6d9d7a",
+    "evaluation_sha256": "feaf909e98cab13683fc1a775c55a335bf60b2938aa8fbb124b1e9a97f087a09",
+    "program_origin": {
+      "commit": "06f7f782a6819dd5c464d08119447c9d757bcbe1",
+      "dirty": false,
+      "changed_path_count": 0,
+      "root": "/home/admin/work/ai-agent-harness"
+    },
+    "evaluation_implementation": {
+      "dsh-eval": "6692d8464aa768cde414971720e3e3d60a395aca41a74e98beb1d50406593620",
+      "dsh-eval-api.mjs": "b8a8a46451bda79478f09d0084156de02c2dc98e9e5a6d726acc3af6a00e1472",
+      "dsh-eval-browser.mjs": "85ce49fcac79d07e8e26f28d04c59266aff76a46a898450c80398f7dab913eb9",
+      "dsh-eval-common.mjs": "d49e1421d58d31e4e803c15ff7359dd1e9a37bf9738f12437612eca79ca76b3f",
+      "run_record.py": "2ef27e8de9a38418bcce06b6b599caf8e27c00a1108f22d4aa0415453c793239",
+      "scenario_analysis.py": "266df661347ca7e9e8f86e0d6ae5103a01baf54524801b7a121cb6e8c5617762",
+      "evaluation-judge-guard.mjs": "ad46cdd4c8264d3023bf0ea33327fdb60869209a3463f32f6cf30a347483219d",
+      "scenario-analysis-guard.mjs": "21c9b85f5400fefadbb39145d97409bd158a050941e076da249a504c8f24d541",
+      "evaluation-presets/evaluation-judge/agent.cordis.yml": "6c0c0c93018b318942d7334026e43b12124fa0fcabe166076d6e3d49f9e24f59",
+      "evaluation-presets/evaluation-judge/preset.yml": "df22cd2de4f05a31a21a2f041f44b2de57a48140797602ed4bf068e216a62a5e",
+      "evaluation-presets/scenario-analysis/agent.cordis.yml": "43786861869c364c343ea2fffd87a2b85a0756b8947cebf2233bb5d5bc830cbc",
+      "evaluation-presets/scenario-analysis/preset.yml": "b9ca918a58de3bb8b043ec0847937950e06bc27c1cc7b155dd0823ee1076be03"
+    },
+    "sessions": [
+      "session-295083f5-d1e6-4294-be01-ec9dff52506e",
+      "session-2d0681d3-f20b-459f-8354-af12e5198ae3"
+    ],
+    "instance_name": "daily-inspection-assistant-eval-c74a3e50",
+    "instance_stopped": true,
+    "deadline_at": null,
+    "observed_model_calls": 7,
+    "failed_model_calls": 0,
+    "observed_failed_model_calls": 0,
+    "auxiliary_model_calls": 0,
+    "auxiliary_requests_observed": 0,
+    "model_calls_by_role": {
+      "target": 6,
+      "judge": 1,
+      "analysis": 0
+    },
+    "model_calls_unknown_reasons": [],
+    "summary": {
+      "schema_version": "3.0",
+      "run_id": "run-b48e0885-3e17-4310-82db-48e1177a9a99",
+      "trial_count": 1,
+      "execution_status_counts": {
+        "completed": 1,
+        "error": 0,
+        "skipped": 0
+      },
+      "machine_trial_verdict_counts": {
+        "passed": 1,
+        "failed": 0,
+        "inconclusive": 0
+      },
+      "machine_overall_verdict": "passed",
+      "review_status": "not_requested",
+      "reviewed_case_count": 0,
+      "reviewed_case_verdict_counts": null,
+      "reviewed_overall_verdict": null,
+      "effective_verdict": "passed",
+      "source_verification": {
+        "status": "matched",
+        "reason": null,
+        "checks": [
+          {
+            "component": "candidate",
+            "status": "matched",
+            "expected_sha256": "e2726fda68b4c9fe9a5583acc56f7d15cc3cd7a47fc75feedad717f81c6d9d7a",
+            "actual_sha256": "e2726fda68b4c9fe9a5583acc56f7d15cc3cd7a47fc75feedad717f81c6d9d7a"
+          },
+          {
+            "component": "workspace",
+            "status": "matched",
+            "expected_sha256": "6e060403d65f01c6ba0efd47660407a949db02b287aff3aab248d9c1a7a0e858",
+            "actual_sha256": "6e060403d65f01c6ba0efd47660407a949db02b287aff3aab248d9c1a7a0e858"
+          },
+          {
+            "component": "presets",
+            "status": "matched",
+            "expected_sha256": "dbc1c87a1b0faf5aca95214bbe001c0ef87417d59c4996cac3337cdd38665a5b",
+            "actual_sha256": "dbc1c87a1b0faf5aca95214bbe001c0ef87417d59c4996cac3337cdd38665a5b"
+          },
+          {
+            "component": "managed",
+            "status": "matched",
+            "expected_sha256": "5fdcf91837a73be5ff0be4927b01e55997d7dc539e326a18b71c6659fc15741f",
+            "actual_sha256": "5fdcf91837a73be5ff0be4927b01e55997d7dc539e326a18b71c6659fc15741f"
+          },
+          {
+            "component": "evaluation_implementation",
+            "status": "matched",
+            "expected_sha256": "d5f43be0b37eb7a253841738cbe72b8f0816a66c13a7d055836ea0b5e3e45290",
+            "actual_sha256": "d5f43be0b37eb7a253841738cbe72b8f0816a66c13a7d055836ea0b5e3e45290"
+          }
+        ]
+      }
+    },
+    "log_note": "日志为截断显示；Case、来源和 Session 从 Run 回读；模型请求按持久尝试结算核对，轨迹不完整时总数保持未知。"
+  },
+  "run_id": "run-b48e0885-3e17-4310-82db-48e1177a9a99",
+  "run": {
+    "manifest": {
+      "schema_version": "2.0",
+      "run_id": "run-b48e0885-3e17-4310-82db-48e1177a9a99",
+      "experiment_id": "EXP-daily-inspection-assistant-004-r965bc66e4614",
+      "agent_id": "daily-inspection-assistant",
+      "kind": "research",
+      "status": "completed",
+      "created_at": "2026-10-16T12:14:57Z",
+      "source_id": "experiment:EXP-daily-inspection-assistant-004-r965bc66e4614",
+      "baseline_ref": "git:432dd8d1ed2feeb6b9e4b7e42622253c33b6fe7a",
+      "evaluation_ref": "agents/daily-inspection-assistant/evaluation.md",
+      "finished_at": "2026-10-16T12:15:24Z",
+      "results_sha256": "d426b19ec1ba26dda2442ba2ac921440dce707ce4fdbae06e4408f682e9ec03b",
+      "summary_sha256": "ea4c9c1bf597738a8fc0d11d42937208cb843bbb001ebce3ffb273a2fee587ab",
+      "report_sha256": "dfba16ce946b95f72c09565be2c915d09ceeb7645b71b68603621a9e581ac16d",
+      "analysis_sha256": "f79c030fd7904af1c218fb04f9425170181a0cf38ecec75895785a989ed84d53"
+    },
+    "summary": {
+      "schema_version": "3.0",
+      "run_id": "run-b48e0885-3e17-4310-82db-48e1177a9a99",
+      "trial_count": 1,
+      "execution_status_counts": {
+        "completed": 1,
+        "error": 0,
+        "skipped": 0
+      },
+      "machine_trial_verdict_counts": {
+        "passed": 1,
+        "failed": 0,
+        "inconclusive": 0
+      },
+      "machine_overall_verdict": "passed",
+      "review_status": "not_requested",
+      "reviewed_case_count": 0,
+      "reviewed_case_verdict_counts": null,
+      "reviewed_overall_verdict": null,
+      "effective_verdict": "passed",
+      "source_verification": {
+        "status": "matched",
+        "reason": null,
+        "checks": [
+          {
+            "component": "candidate",
+            "status": "matched",
+            "expected_sha256": "e2726fda68b4c9fe9a5583acc56f7d15cc3cd7a47fc75feedad717f81c6d9d7a",
+            "actual_sha256": "e2726fda68b4c9fe9a5583acc56f7d15cc3cd7a47fc75feedad717f81c6d9d7a"
+          },
+          {
+            "component": "workspace",
+            "status": "matched",
+            "expected_sha256": "6e060403d65f01c6ba0efd47660407a949db02b287aff3aab248d9c1a7a0e858",
+            "actual_sha256": "6e060403d65f01c6ba0efd47660407a949db02b287aff3aab248d9c1a7a0e858"
+          },
+          {
+            "component": "presets",
+            "status": "matched",
+            "expected_sha256": "dbc1c87a1b0faf5aca95214bbe001c0ef87417d59c4996cac3337cdd38665a5b",
+            "actual_sha256": "dbc1c87a1b0faf5aca95214bbe001c0ef87417d59c4996cac3337cdd38665a5b"
+          },
+          {
+            "component": "managed",
+            "status": "matched",
+            "expected_sha256": "5fdcf91837a73be5ff0be4927b01e55997d7dc539e326a18b71c6659fc15741f",
+            "actual_sha256": "5fdcf91837a73be5ff0be4927b01e55997d7dc539e326a18b71c6659fc15741f"
+          },
+          {
+            "component": "evaluation_implementation",
+            "status": "matched",
+            "expected_sha256": "d5f43be0b37eb7a253841738cbe72b8f0816a66c13a7d055836ea0b5e3e45290",
+            "actual_sha256": "d5f43be0b37eb7a253841738cbe72b8f0816a66c13a7d055836ea0b5e3e45290"
+          }
+        ]
+      }
+    },
+    "cases": [
+      {
+        "case_id": "U-ASSET-PAGES-001",
+        "frozen": {
+          "case_id": "U-ASSET-PAGES-001",
+          "title": "完整分页和报告",
+          "inputs": [
+            "请对当前指定的五台基础资产执行一次只读台账巡检，处理所有分页，并提供完整的Markdown和CSV报告下载链接。明确这是不是实际设备健康检测。"
+          ],
+          "expected_behavior": "实际调用task_inspection的start、page和report；使用同一个run_id，分页从0按返回cursor到null，共读取asset-0001至asset-0005五台，报告数量为5，包含实际可下载Markdown和CSV。明确基础模拟台账、未检测真实设备。不能只给职责或用户提供数据摘要。"
+        },
+        "current": {
+          "case_id": "U-ASSET-PAGES-001",
+          "title": "完整分页和报告",
+          "inputs": [
+            "请对当前指定的五台基础资产执行一次只读台账巡检，处理所有分页，并提供完整的Markdown和CSV报告下载链接。明确这是不是实际设备健康检测。"
+          ],
+          "expected_behavior": "实际调用task_inspection的start、page和report；使用同一个run_id，分页从0按返回cursor到null，共读取asset-0001至asset-0005五台，报告数量为5，包含实际可下载Markdown和CSV。明确基础模拟台账、未检测真实设备。不能只给职责或用户提供数据摘要。"
+        },
+        "contract_changed": false,
+        "trials": [
+          {
+            "run_id": "run-b48e0885-3e17-4310-82db-48e1177a9a99",
+            "trial_id": "trial-e514886b-a996-42ae-b4fb-a16019c3c6ab",
+            "input_id": "U-ASSET-PAGES-001",
+            "execution_status": "completed",
+            "verdict": "passed",
+            "observation": "语义判定：同一被测 Session 实际调用了 task_inspection 的 start、page（cursor 0→2→4）与 report，全程使用同一 run_id task-96f0750d-9957-49ea-a6fe-2e648b7b3af2，next_cursor 最终为 null，完整读取 asset-0001 至 asset-0005 共 5 台，report 回执 device_count=5 且如回答所述；回答给出了真实工具回执中的 Markdown 与 CSV 下载链接（download_url、csv_url），明确说明数据来自基础模拟接口、非实际设备健康检测，未以职责说明或用户提供的数据替代工具结果，满足全部预期。 同一路由自评，仅作研究辅助。",
+            "evidence_ref": "evidence/U-ASSET-PAGES-001"
+          }
+        ],
+        "output": [
+          "巡检完成，5 台资产的分页已全部读完（cursor 0 → 2 → 4 → 结束），报告已生成。\n\n**下载链接**\n- Markdown 报告：[report.md](/assistant/api/task-examples/artifact?run_id=task-96f0750d-9957-49ea-a6fe-2e648b7b3af2&file=report.md)\n- CSV 明细：[devices.csv](/assistant/api/task-examples/artifact?run_id=task-96f0750d-9957-49ea-a6fe-2e648b7b3af2&file=devices.csv)\n\n**台账内容（共 5 台）**\n\n| 设备ID | 名称 | 类型 | 台账风险分值 |\n| --- | --- | --- | --- |\n| asset-0001 | vpn-01 | server | 53 |\n| asset-0002 | waf-edge-02 | workstation | 64 |\n| asset-0003 | edr-gateway-03 | firewall | 33 |\n| asset-0004 | prod-web-04 | server | 27 |\n| asset-0005 | edr-gateway-05 | kubernetes | 97 |\n\n**明确说明：这不是实际设备健康检测。** 数据来自基础模拟接口，全程只读，没有连接、探测或检测任何真实设备；表中的“风险分值”只是台账字段，不代表设备当前的运行或健康状态，不能作为处置依据。"
+        ],
+        "actual_routes": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off",
+            "maxTokens": 256000
+          }
+        ],
+        "registered_tools": [
+          [
+            "task_inspection"
+          ]
+        ],
+        "tool_calls": [
+          {
+            "name": "task_inspection",
+            "status": "ok",
+            "error_code": null
+          },
+          {
+            "name": "task_inspection",
+            "status": "ok",
+            "error_code": null
+          },
+          {
+            "name": "task_inspection",
+            "status": "ok",
+            "error_code": null
+          },
+          {
+            "name": "task_inspection",
+            "status": "ok",
+            "error_code": null
+          },
+          {
+            "name": "task_inspection",
+            "status": "ok",
+            "error_code": null
+          }
+        ],
+        "review": null,
+        "findings": [],
+        "load_observation": {
+          "session_id": "session-295083f5-d1e6-4294-be01-ec9dff52506e",
+          "session_preset": "daily-inspection-assistant",
+          "session_workspace": "/work/harness/workspace",
+          "preset_matches": true,
+          "workspace_matches": true,
+          "guard": {
+            "declared": null,
+            "status": "not-declared"
+          }
+        },
+        "session_created_at": "2026-10-16T12:15:11.270000+00:00",
+        "raw_evidence": {
+          "response.json": {
+            "path": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/evidence/U-ASSET-PAGES-001/response.json",
+            "present": true
+          },
+          "trace.jsonl": {
+            "path": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/evidence/U-ASSET-PAGES-001/trace.jsonl",
+            "present": true
+          },
+          "tools.jsonl": {
+            "path": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/evidence/U-ASSET-PAGES-001/tools.jsonl",
+            "present": true
+          },
+          "judge.json": {
+            "path": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/evidence/U-ASSET-PAGES-001/judge.json",
+            "present": true
+          },
+          "judge-trace.jsonl": {
+            "path": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/evidence/U-ASSET-PAGES-001/judge-trace.jsonl",
+            "present": true
+          },
+          "checks.json": {
+            "path": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/evidence/U-ASSET-PAGES-001/checks.json",
+            "present": true
+          }
+        },
+        "evidence": [
+          {
+            "path": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/evidence/U-ASSET-PAGES-001",
+            "present": true
+          }
+        ]
+      }
+    ]
+  },
+  "reportBytes": 3378,
+  "ok": true
+}

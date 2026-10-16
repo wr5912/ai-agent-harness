@@ -1,0 +1,1728 @@
+{
+  "started_at": "2026-10-16T12:14:15.765Z",
+  "url": "http://10.0.160.32:3090/hep/",
+  "source_commit": "06f7f78",
+  "boundary": "正式部署复验，不注入CSS；只查看现有资产/Run/编排并验证本地输入草稿与按钮trial，不提交任务、不保存设置或资产。原生DSH可能自动建立空会话并更新助手上下文。",
+  "checks": [
+    {
+      "scope": "home-general-entry",
+      "width": 360,
+      "modes": [
+        "与助手对话",
+        "评测已有智能体",
+        "改进优化任务"
+      ],
+      "placeholder": "描述你的问题或任务，例如查询运行中的实例、接入工具，或构建一个业务智能体。",
+      "initial_height": 39.09375,
+      "expanded_height": 85,
+      "eval_action": "开始评测",
+      "preserves_local_draft": true,
+      "geometry": {
+        "document": {
+          "scroll": 360,
+          "client": 360
+        },
+        "content": {
+          "scroll": 360,
+          "client": 360
+        }
+      },
+      "ok": true
+    },
+    {
+      "scope": "home-general-entry",
+      "width": 390,
+      "modes": [
+        "与助手对话",
+        "评测已有智能体",
+        "改进优化任务"
+      ],
+      "placeholder": "描述你的问题或任务，例如查询运行中的实例、接入工具，或构建一个业务智能体。",
+      "initial_height": 39.09375,
+      "expanded_height": 85,
+      "eval_action": "开始评测",
+      "preserves_local_draft": true,
+      "geometry": {
+        "document": {
+          "scroll": 390,
+          "client": 390
+        },
+        "content": {
+          "scroll": 390,
+          "client": 390
+        }
+      },
+      "ok": true
+    },
+    {
+      "scope": "home-general-entry",
+      "width": 900,
+      "modes": [
+        "与助手对话",
+        "评测已有智能体",
+        "改进优化任务"
+      ],
+      "placeholder": "描述你的问题或任务，例如查询运行中的实例、接入工具，或构建一个业务智能体。",
+      "initial_height": 39.09375,
+      "expanded_height": 85,
+      "eval_action": "开始评测",
+      "preserves_local_draft": true,
+      "geometry": {
+        "document": {
+          "scroll": 900,
+          "client": 900
+        },
+        "content": {
+          "scroll": 900,
+          "client": 900
+        }
+      },
+      "ok": true
+    },
+    {
+      "scope": "home-general-entry",
+      "width": 1440,
+      "modes": [
+        "与助手对话",
+        "评测已有智能体",
+        "改进优化任务"
+      ],
+      "placeholder": "描述你的问题或任务，例如查询运行中的实例、接入工具，或构建一个业务智能体。",
+      "initial_height": 39.09375,
+      "expanded_height": 85,
+      "eval_action": "开始评测",
+      "preserves_local_draft": true,
+      "geometry": {
+        "document": {
+          "scroll": 1440,
+          "client": 1440
+        },
+        "content": {
+          "scroll": 1440,
+          "client": 1440
+        }
+      },
+      "ok": true
+    },
+    {
+      "scope": "home-general-entry",
+      "width": 1920,
+      "modes": [
+        "与助手对话",
+        "评测已有智能体",
+        "改进优化任务"
+      ],
+      "placeholder": "描述你的问题或任务，例如查询运行中的实例、接入工具，或构建一个业务智能体。",
+      "initial_height": 39.09375,
+      "expanded_height": 85,
+      "eval_action": "开始评测",
+      "preserves_local_draft": true,
+      "geometry": {
+        "document": {
+          "scroll": 1920,
+          "client": 1920
+        },
+        "content": {
+          "scroll": 1920,
+          "client": 1920
+        }
+      },
+      "ok": true
+    },
+    {
+      "scope": "mcp-one-composition-list",
+      "width": 360,
+      "sections": 1,
+      "entries": [
+        {
+          "title": "资产相关告警只读查询",
+          "tool": "query_asset_related_alerts",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：取证与快判",
+          "tool": "threat_collect",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：完整研判",
+          "tool": "threat_infer",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：结果回写",
+          "tool": "threat_writeback",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：报告保存与交付",
+          "tool": "threat_report",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：组合流程",
+          "tool": "analyze_threat_incident",
+          "states": [
+            "published"
+          ]
+        }
+      ],
+      "unique": true,
+      "geometry": {
+        "document": {
+          "scroll": 360,
+          "client": 360
+        },
+        "content": {
+          "scroll": 360,
+          "client": 360
+        }
+      },
+      "ok": true
+    },
+    {
+      "scope": "mcp-one-composition-list",
+      "width": 390,
+      "sections": 1,
+      "entries": [
+        {
+          "title": "资产相关告警只读查询",
+          "tool": "query_asset_related_alerts",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：取证与快判",
+          "tool": "threat_collect",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：完整研判",
+          "tool": "threat_infer",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：结果回写",
+          "tool": "threat_writeback",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：报告保存与交付",
+          "tool": "threat_report",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：组合流程",
+          "tool": "analyze_threat_incident",
+          "states": [
+            "published"
+          ]
+        }
+      ],
+      "unique": true,
+      "geometry": {
+        "document": {
+          "scroll": 390,
+          "client": 390
+        },
+        "content": {
+          "scroll": 390,
+          "client": 390
+        }
+      },
+      "ok": true
+    },
+    {
+      "scope": "mcp-one-composition-list",
+      "width": 900,
+      "sections": 1,
+      "entries": [
+        {
+          "title": "资产相关告警只读查询",
+          "tool": "query_asset_related_alerts",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：取证与快判",
+          "tool": "threat_collect",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：完整研判",
+          "tool": "threat_infer",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：结果回写",
+          "tool": "threat_writeback",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：报告保存与交付",
+          "tool": "threat_report",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：组合流程",
+          "tool": "analyze_threat_incident",
+          "states": [
+            "published"
+          ]
+        }
+      ],
+      "unique": true,
+      "geometry": {
+        "document": {
+          "scroll": 900,
+          "client": 900
+        },
+        "content": {
+          "scroll": 900,
+          "client": 900
+        }
+      },
+      "ok": true
+    },
+    {
+      "scope": "mcp-one-composition-list",
+      "width": 1440,
+      "sections": 1,
+      "entries": [
+        {
+          "title": "资产相关告警只读查询",
+          "tool": "query_asset_related_alerts",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：取证与快判",
+          "tool": "threat_collect",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：完整研判",
+          "tool": "threat_infer",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：结果回写",
+          "tool": "threat_writeback",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：报告保存与交付",
+          "tool": "threat_report",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：组合流程",
+          "tool": "analyze_threat_incident",
+          "states": [
+            "published"
+          ]
+        }
+      ],
+      "unique": true,
+      "geometry": {
+        "document": {
+          "scroll": 1440,
+          "client": 1440
+        },
+        "content": {
+          "scroll": 1440,
+          "client": 1440
+        }
+      },
+      "ok": true
+    },
+    {
+      "scope": "mcp-one-composition-list",
+      "width": 1920,
+      "sections": 1,
+      "entries": [
+        {
+          "title": "资产相关告警只读查询",
+          "tool": "query_asset_related_alerts",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：取证与快判",
+          "tool": "threat_collect",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：完整研判",
+          "tool": "threat_infer",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：结果回写",
+          "tool": "threat_writeback",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：报告保存与交付",
+          "tool": "threat_report",
+          "states": [
+            "published"
+          ]
+        },
+        {
+          "title": "威胁分析：组合流程",
+          "tool": "analyze_threat_incident",
+          "states": [
+            "published"
+          ]
+        }
+      ],
+      "unique": true,
+      "geometry": {
+        "document": {
+          "scroll": 1920,
+          "client": 1920
+        },
+        "content": {
+          "scroll": 1920,
+          "client": 1920
+        }
+      },
+      "ok": true
+    },
+    {
+      "scope": "markdown-report-table",
+      "width": 360,
+      "tableDisplay": "table",
+      "tableWidth": 1771.4375,
+      "wrapperScroll": 1771,
+      "wrapperClient": 294,
+      "wrapperOverflow": "auto",
+      "longCellWidth": 320,
+      "rowHeight": 246,
+      "geometry": {
+        "document": {
+          "scroll": 360,
+          "client": 360
+        },
+        "content": {
+          "scroll": 360,
+          "client": 360
+        }
+      },
+      "ok": true
+    },
+    {
+      "scope": "markdown-report-table",
+      "width": 390,
+      "tableDisplay": "table",
+      "tableWidth": 1771.4375,
+      "wrapperScroll": 1771,
+      "wrapperClient": 324,
+      "wrapperOverflow": "auto",
+      "longCellWidth": 320,
+      "rowHeight": 246,
+      "geometry": {
+        "document": {
+          "scroll": 390,
+          "client": 390
+        },
+        "content": {
+          "scroll": 390,
+          "client": 390
+        }
+      },
+      "ok": true
+    },
+    {
+      "scope": "markdown-report-table",
+      "width": 900,
+      "tableDisplay": "table",
+      "tableWidth": 1771.4375,
+      "wrapperScroll": 1771,
+      "wrapperClient": 802,
+      "wrapperOverflow": "auto",
+      "longCellWidth": 320,
+      "rowHeight": 246,
+      "geometry": {
+        "document": {
+          "scroll": 900,
+          "client": 900
+        },
+        "content": {
+          "scroll": 900,
+          "client": 900
+        }
+      },
+      "ok": true
+    },
+    {
+      "scope": "markdown-report-table",
+      "width": 1440,
+      "tableDisplay": "table",
+      "tableWidth": 1771.4375,
+      "wrapperScroll": 1771,
+      "wrapperClient": 1326,
+      "wrapperOverflow": "auto",
+      "longCellWidth": 320,
+      "rowHeight": 246,
+      "geometry": {
+        "document": {
+          "scroll": 1440,
+          "client": 1440
+        },
+        "content": {
+          "scroll": 1440,
+          "client": 1440
+        }
+      },
+      "ok": true
+    },
+    {
+      "scope": "markdown-report-table",
+      "width": 1920,
+      "tableDisplay": "table",
+      "tableWidth": 1771.4375,
+      "wrapperScroll": 1806,
+      "wrapperClient": 1806,
+      "wrapperOverflow": "auto",
+      "longCellWidth": 320,
+      "rowHeight": 246,
+      "geometry": {
+        "document": {
+          "scroll": 1920,
+          "client": 1920
+        },
+        "content": {
+          "scroll": 1920,
+          "client": 1920
+        }
+      },
+      "ok": true
+    }
+  ],
+  "screenshots": [
+    "/tmp/hep-ui-formal-20261016/final-page-home-390.png",
+    "/tmp/hep-ui-formal-20261016/final-page-home-1440.png",
+    "/tmp/hep-ui-formal-20261016/final-page-agents-390.png",
+    "/tmp/hep-ui-formal-20261016/final-page-agents-1440.png",
+    "/tmp/hep-ui-formal-20261016/final-page-evaluation-390.png",
+    "/tmp/hep-ui-formal-20261016/final-page-evaluation-1440.png",
+    "/tmp/hep-ui-formal-20261016/final-page-instances-390.png",
+    "/tmp/hep-ui-formal-20261016/final-page-instances-1440.png",
+    "/tmp/hep-ui-formal-20261016/final-page-mcp-390.png",
+    "/tmp/hep-ui-formal-20261016/final-page-mcp-1440.png",
+    "/tmp/hep-ui-formal-20261016/final-page-conversations-390.png",
+    "/tmp/hep-ui-formal-20261016/final-page-conversations-1440.png",
+    "/tmp/hep-ui-formal-20261016/final-home-390.png",
+    "/tmp/hep-ui-formal-20261016/final-home-1440.png",
+    "/tmp/hep-ui-formal-20261016/final-mcp-composition-390.png",
+    "/tmp/hep-ui-formal-20261016/final-mcp-composition-1440.png",
+    "/tmp/hep-ui-formal-20261016/final-evaluation-run-detail-390.png",
+    "/tmp/hep-ui-formal-20261016/final-evaluation-report-table-390.png",
+    "/tmp/hep-ui-formal-20261016/final-evaluation-report-table-end-390.png",
+    "/tmp/hep-ui-formal-20261016/final-evaluation-run-detail-1440.png",
+    "/tmp/hep-ui-formal-20261016/final-evaluation-report-table-1440.png",
+    "/tmp/hep-ui-formal-20261016/final-evaluation-report-table-end-1440.png"
+  ],
+  "pageerrors": [],
+  "http_errors": [],
+  "automatic_session_creates": 1,
+  "grid_checks": [
+    {
+      "id": "home",
+      "width": 360,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 360,
+          "client": 360
+        },
+        "content": {
+          "scroll": 360,
+          "client": 360
+        }
+      },
+      "controls": [
+        {
+          "label": "业务任务",
+          "left": 29,
+          "right": 331
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "home",
+      "width": 390,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 390,
+          "client": 390
+        },
+        "content": {
+          "scroll": 390,
+          "client": 390
+        }
+      },
+      "controls": [
+        {
+          "label": "业务任务",
+          "left": 29,
+          "right": 361
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "home",
+      "width": 900,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 900,
+          "client": 900
+        },
+        "content": {
+          "scroll": 900,
+          "client": 900
+        }
+      },
+      "controls": [
+        {
+          "label": "业务任务",
+          "left": 87,
+          "right": 813
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "home",
+      "width": 1440,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 1440,
+          "client": 1440
+        },
+        "content": {
+          "scroll": 1440,
+          "client": 1440
+        }
+      },
+      "controls": [
+        {
+          "label": "业务任务",
+          "left": 357,
+          "right": 1083
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "home",
+      "width": 1920,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 1920,
+          "client": 1920
+        },
+        "content": {
+          "scroll": 1920,
+          "client": 1920
+        }
+      },
+      "controls": [
+        {
+          "label": "业务任务",
+          "left": 597,
+          "right": 1323
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "agents",
+      "width": 360,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 360,
+          "client": 360
+        },
+        "content": {
+          "scroll": 360,
+          "client": 360
+        }
+      },
+      "controls": [
+        {
+          "label": "search",
+          "left": 33,
+          "right": 327
+        },
+        {
+          "label": "版本",
+          "left": 33,
+          "right": 327
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "agents",
+      "width": 390,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 390,
+          "client": 390
+        },
+        "content": {
+          "scroll": 390,
+          "client": 390
+        }
+      },
+      "controls": [
+        {
+          "label": "search",
+          "left": 33,
+          "right": 357
+        },
+        {
+          "label": "版本",
+          "left": 33,
+          "right": 357
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "agents",
+      "width": 900,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 900,
+          "client": 900
+        },
+        "content": {
+          "scroll": 900,
+          "client": 900
+        }
+      },
+      "controls": [
+        {
+          "label": "search",
+          "left": 41,
+          "right": 227
+        },
+        {
+          "label": "版本",
+          "left": 289,
+          "right": 851
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "agents",
+      "width": 1440,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 1440,
+          "client": 1440
+        },
+        "content": {
+          "scroll": 1440,
+          "client": 1440
+        }
+      },
+      "controls": [
+        {
+          "label": "search",
+          "left": 49,
+          "right": 295
+        },
+        {
+          "label": "版本",
+          "left": 361,
+          "right": 1029
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "agents",
+      "width": 1920,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 1920,
+          "client": 1920
+        },
+        "content": {
+          "scroll": 1920,
+          "client": 1920
+        }
+      },
+      "controls": [
+        {
+          "label": "search",
+          "left": 49,
+          "right": 295
+        },
+        {
+          "label": "版本",
+          "left": 361,
+          "right": 1349
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "evaluation",
+      "width": 360,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 360,
+          "client": 360
+        },
+        "content": {
+          "scroll": 360,
+          "client": 360
+        }
+      },
+      "controls": [
+        {
+          "label": "评测智能体",
+          "left": 33,
+          "right": 327
+        },
+        {
+          "label": "评测研究版本",
+          "left": 33,
+          "right": 327
+        },
+        {
+          "label": "搜索评测运行",
+          "left": 33,
+          "right": 327
+        },
+        {
+          "label": "筛选运行状态",
+          "left": 33,
+          "right": 327
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "evaluation",
+      "width": 390,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 390,
+          "client": 390
+        },
+        "content": {
+          "scroll": 390,
+          "client": 390
+        }
+      },
+      "controls": [
+        {
+          "label": "评测智能体",
+          "left": 33,
+          "right": 357
+        },
+        {
+          "label": "评测研究版本",
+          "left": 33,
+          "right": 357
+        },
+        {
+          "label": "搜索评测运行",
+          "left": 33,
+          "right": 357
+        },
+        {
+          "label": "筛选运行状态",
+          "left": 33,
+          "right": 357
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "evaluation",
+      "width": 900,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 900,
+          "client": 900
+        },
+        "content": {
+          "scroll": 900,
+          "client": 900
+        }
+      },
+      "controls": [
+        {
+          "label": "评测智能体",
+          "left": 49,
+          "right": 442
+        },
+        {
+          "label": "评测研究版本",
+          "left": 458,
+          "right": 851
+        },
+        {
+          "label": "搜索评测运行",
+          "left": 49,
+          "right": 635
+        },
+        {
+          "label": "筛选运行状态",
+          "left": 651,
+          "right": 851
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "evaluation",
+      "width": 1440,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 1440,
+          "client": 1440
+        },
+        "content": {
+          "scroll": 1440,
+          "client": 1440
+        }
+      },
+      "controls": [
+        {
+          "label": "评测智能体",
+          "left": 57,
+          "right": 617
+        },
+        {
+          "label": "评测研究版本",
+          "left": 633,
+          "right": 1193
+        },
+        {
+          "label": "搜索评测运行",
+          "left": 57,
+          "right": 1167
+        },
+        {
+          "label": "筛选运行状态",
+          "left": 1183,
+          "right": 1383
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "evaluation",
+      "width": 1920,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 1920,
+          "client": 1920
+        },
+        "content": {
+          "scroll": 1920,
+          "client": 1920
+        }
+      },
+      "controls": [
+        {
+          "label": "评测智能体",
+          "left": 57,
+          "right": 617
+        },
+        {
+          "label": "评测研究版本",
+          "left": 633,
+          "right": 1193
+        },
+        {
+          "label": "搜索评测运行",
+          "left": 57,
+          "right": 1647
+        },
+        {
+          "label": "筛选运行状态",
+          "left": 1663,
+          "right": 1863
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "instances",
+      "width": 360,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 360,
+          "client": 360
+        },
+        "content": {
+          "scroll": 360,
+          "client": 360
+        }
+      },
+      "controls": [
+        {
+          "label": "状态筛选",
+          "left": 33,
+          "right": 327
+        },
+        {
+          "label": "搜索实例",
+          "left": 33,
+          "right": 327
+        },
+        {
+          "label": "全选当前列表实例",
+          "left": 37,
+          "right": 53
+        },
+        {
+          "label": "选择实例 hep-inspection-delivery",
+          "left": 37,
+          "right": 53
+        },
+        {
+          "label": "选择实例 security-operations-expert-eval",
+          "left": 37,
+          "right": 53
+        },
+        {
+          "label": "选择实例 test01-002-64212",
+          "left": 37,
+          "right": 53
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "instances",
+      "width": 390,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 390,
+          "client": 390
+        },
+        "content": {
+          "scroll": 390,
+          "client": 390
+        }
+      },
+      "controls": [
+        {
+          "label": "状态筛选",
+          "left": 33,
+          "right": 357
+        },
+        {
+          "label": "搜索实例",
+          "left": 33,
+          "right": 357
+        },
+        {
+          "label": "全选当前列表实例",
+          "left": 37,
+          "right": 53
+        },
+        {
+          "label": "选择实例 hep-inspection-delivery",
+          "left": 37,
+          "right": 53
+        },
+        {
+          "label": "选择实例 security-operations-expert-eval",
+          "left": 37,
+          "right": 53
+        },
+        {
+          "label": "选择实例 test01-002-64212",
+          "left": 37,
+          "right": 53
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "instances",
+      "width": 900,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 900,
+          "client": 900
+        },
+        "content": {
+          "scroll": 900,
+          "client": 900
+        }
+      },
+      "controls": [
+        {
+          "label": "状态筛选",
+          "left": 45,
+          "right": 205
+        },
+        {
+          "label": "搜索实例",
+          "left": 217,
+          "right": 789
+        },
+        {
+          "label": "全选当前列表实例",
+          "left": 45,
+          "right": 61
+        },
+        {
+          "label": "选择实例 hep-inspection-delivery",
+          "left": 45,
+          "right": 61
+        },
+        {
+          "label": "选择实例 security-operations-expert-eval",
+          "left": 45,
+          "right": 61
+        },
+        {
+          "label": "选择实例 test01-002-64212",
+          "left": 45,
+          "right": 61
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "instances",
+      "width": 1440,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 1440,
+          "client": 1440
+        },
+        "content": {
+          "scroll": 1440,
+          "client": 1440
+        }
+      },
+      "controls": [
+        {
+          "label": "状态筛选",
+          "left": 53,
+          "right": 213
+        },
+        {
+          "label": "搜索实例",
+          "left": 225,
+          "right": 1321
+        },
+        {
+          "label": "全选当前列表实例",
+          "left": 53,
+          "right": 69
+        },
+        {
+          "label": "选择实例 hep-inspection-delivery",
+          "left": 53,
+          "right": 69
+        },
+        {
+          "label": "选择实例 security-operations-expert-eval",
+          "left": 53,
+          "right": 69
+        },
+        {
+          "label": "选择实例 test01-002-64212",
+          "left": 53,
+          "right": 69
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "instances",
+      "width": 1920,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 1920,
+          "client": 1920
+        },
+        "content": {
+          "scroll": 1920,
+          "client": 1920
+        }
+      },
+      "controls": [
+        {
+          "label": "状态筛选",
+          "left": 53,
+          "right": 213
+        },
+        {
+          "label": "搜索实例",
+          "left": 225,
+          "right": 1801
+        },
+        {
+          "label": "全选当前列表实例",
+          "left": 53,
+          "right": 69
+        },
+        {
+          "label": "选择实例 hep-inspection-delivery",
+          "left": 53,
+          "right": 69
+        },
+        {
+          "label": "选择实例 security-operations-expert-eval",
+          "left": 53,
+          "right": 69
+        },
+        {
+          "label": "选择实例 test01-002-64212",
+          "left": 53,
+          "right": 69
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "mcp",
+      "width": 360,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 360,
+          "client": 360
+        },
+        "content": {
+          "scroll": 360,
+          "client": 360
+        }
+      },
+      "controls": [
+        {
+          "label": "checkbox",
+          "left": 270,
+          "right": 286
+        },
+        {
+          "label": "text",
+          "left": 33,
+          "right": 327
+        },
+        {
+          "label": "text",
+          "left": 33,
+          "right": 327
+        },
+        {
+          "label": "select-one",
+          "left": 33,
+          "right": 327
+        },
+        {
+          "label": "text",
+          "left": 33,
+          "right": 327
+        },
+        {
+          "label": "select-one",
+          "left": 33,
+          "right": 327
+        },
+        {
+          "label": "select-one",
+          "left": 33,
+          "right": 327
+        },
+        {
+          "label": "password",
+          "left": 33,
+          "right": 327
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "mcp",
+      "width": 390,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 390,
+          "client": 390
+        },
+        "content": {
+          "scroll": 390,
+          "client": 390
+        }
+      },
+      "controls": [
+        {
+          "label": "checkbox",
+          "left": 300,
+          "right": 316
+        },
+        {
+          "label": "text",
+          "left": 33,
+          "right": 357
+        },
+        {
+          "label": "text",
+          "left": 33,
+          "right": 357
+        },
+        {
+          "label": "select-one",
+          "left": 33,
+          "right": 357
+        },
+        {
+          "label": "text",
+          "left": 33,
+          "right": 357
+        },
+        {
+          "label": "select-one",
+          "left": 33,
+          "right": 357
+        },
+        {
+          "label": "select-one",
+          "left": 33,
+          "right": 357
+        },
+        {
+          "label": "password",
+          "left": 33,
+          "right": 357
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "mcp",
+      "width": 900,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 900,
+          "client": 900
+        },
+        "content": {
+          "scroll": 900,
+          "client": 900
+        }
+      },
+      "controls": [
+        {
+          "label": "checkbox",
+          "left": 794,
+          "right": 810
+        },
+        {
+          "label": "text",
+          "left": 269,
+          "right": 548
+        },
+        {
+          "label": "text",
+          "left": 572,
+          "right": 851
+        },
+        {
+          "label": "select-one",
+          "left": 269,
+          "right": 548
+        },
+        {
+          "label": "text",
+          "left": 269,
+          "right": 851
+        },
+        {
+          "label": "select-one",
+          "left": 269,
+          "right": 548
+        },
+        {
+          "label": "select-one",
+          "left": 572,
+          "right": 851
+        },
+        {
+          "label": "password",
+          "left": 269,
+          "right": 851
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "mcp",
+      "width": 1440,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 1440,
+          "client": 1440
+        },
+        "content": {
+          "scroll": 1440,
+          "client": 1440
+        }
+      },
+      "controls": [
+        {
+          "label": "checkbox",
+          "left": 1326,
+          "right": 1342
+        },
+        {
+          "label": "text",
+          "left": 321,
+          "right": 840
+        },
+        {
+          "label": "text",
+          "left": 864,
+          "right": 1383
+        },
+        {
+          "label": "select-one",
+          "left": 321,
+          "right": 840
+        },
+        {
+          "label": "text",
+          "left": 321,
+          "right": 1383
+        },
+        {
+          "label": "select-one",
+          "left": 321,
+          "right": 840
+        },
+        {
+          "label": "select-one",
+          "left": 864,
+          "right": 1383
+        },
+        {
+          "label": "password",
+          "left": 321,
+          "right": 1383
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "mcp",
+      "width": 1920,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 1920,
+          "client": 1920
+        },
+        "content": {
+          "scroll": 1920,
+          "client": 1920
+        }
+      },
+      "controls": [
+        {
+          "label": "checkbox",
+          "left": 1806,
+          "right": 1822
+        },
+        {
+          "label": "text",
+          "left": 321,
+          "right": 1080
+        },
+        {
+          "label": "text",
+          "left": 1104,
+          "right": 1863
+        },
+        {
+          "label": "select-one",
+          "left": 321,
+          "right": 1080
+        },
+        {
+          "label": "text",
+          "left": 321,
+          "right": 1863
+        },
+        {
+          "label": "select-one",
+          "left": 321,
+          "right": 1080
+        },
+        {
+          "label": "select-one",
+          "left": 1104,
+          "right": 1863
+        },
+        {
+          "label": "password",
+          "left": 321,
+          "right": 1863
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "conversations",
+      "width": 360,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 360,
+          "client": 360
+        },
+        "content": {
+          "scroll": 360,
+          "client": 360
+        }
+      },
+      "controls": [
+        {
+          "label": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+          "left": 72,
+          "right": 333
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "conversations",
+      "width": 390,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 390,
+          "client": 390
+        },
+        "content": {
+          "scroll": 390,
+          "client": 390
+        }
+      },
+      "controls": [
+        {
+          "label": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+          "left": 72,
+          "right": 363
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "conversations",
+      "width": 900,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 900,
+          "client": 900
+        },
+        "content": {
+          "scroll": 900,
+          "client": 900
+        }
+      },
+      "controls": [
+        {
+          "label": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+          "left": 118.5,
+          "right": 826.5
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "conversations",
+      "width": 1440,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 1440,
+          "client": 1440
+        },
+        "content": {
+          "scroll": 1440,
+          "client": 1440
+        }
+      },
+      "controls": [
+        {
+          "label": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+          "left": 285.625,
+          "right": 1199.375
+        }
+      ],
+      "ok": true
+    },
+    {
+      "id": "conversations",
+      "width": 1920,
+      "ready": true,
+      "geometry": {
+        "document": {
+          "scroll": 1920,
+          "client": 1920
+        },
+        "content": {
+          "scroll": 1920,
+          "client": 1920
+        }
+      },
+      "controls": [
+        {
+          "label": "描述你想要构建的内容, / 调用指令, @ 文件或对话",
+          "left": 508.5,
+          "right": 1456.5
+        }
+      ],
+      "ok": true
+    }
+  ],
+  "selection_checks": [
+    {
+      "tool": "query_asset_related_alerts",
+      "title": "资产相关告警只读查询",
+      "versionButtons": [
+        "已发布版本"
+      ],
+      "ok": true
+    },
+    {
+      "tool": "threat_collect",
+      "title": "威胁分析：取证与快判",
+      "versionButtons": [
+        "已发布版本"
+      ],
+      "ok": true
+    },
+    {
+      "tool": "threat_infer",
+      "title": "威胁分析：完整研判",
+      "versionButtons": [
+        "已发布版本"
+      ],
+      "ok": true
+    },
+    {
+      "tool": "threat_writeback",
+      "title": "威胁分析：结果回写",
+      "versionButtons": [
+        "已发布版本"
+      ],
+      "ok": true
+    },
+    {
+      "tool": "threat_report",
+      "title": "威胁分析：报告保存与交付",
+      "versionButtons": [
+        "已发布版本"
+      ],
+      "ok": true
+    },
+    {
+      "tool": "analyze_threat_incident",
+      "title": "威胁分析：组合流程",
+      "versionButtons": [
+        "已发布版本"
+      ],
+      "ok": true
+    }
+  ],
+  "mcp_versions_boundary": "正式目录当前只有已发布版本，已逐项读取并点击已发布版本；草稿与已发布并存由组件回归测试覆盖，正式数据未造样本。",
+  "table_keyboard_scroll": {
+    "scrollLeft": 40,
+    "focused": true
+  },
+  "reduced_motion": {
+    "matches": true,
+    "motion": "0ms"
+  },
+  "ok": true,
+  "completed_at": "2026-10-16T12:14:48.390Z"
+}

@@ -1,0 +1,8 @@
+{
+  "reference_commit": "2a58cd8846f9c86f18c56aa22875d198c40340ff",
+  "path": "platform/plugin/src/assistant/style.ts",
+  "base_sha256": "08bb01c2c8412623f034039ffccc7c92ec8a20d3d6d8b3374c92947dcd78cc0d",
+  "final_sha256": "3aa385580919f05d6db16e46153a4b9c954e73264669421eebda7f1d18ff3a0b",
+  "base_restored_with_only_scoped_link_and_hit_target_isolation": true,
+  "deleted_unreferenced_program_module": "platform/plugin/src/assistant/native-compat.ts"
+}

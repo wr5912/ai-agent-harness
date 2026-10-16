@@ -1,0 +1,198 @@
+{
+  "manifest": {
+    "schema_version": "2.0",
+    "run_id": "run-b48e0885-3e17-4310-82db-48e1177a9a99",
+    "experiment_id": "EXP-daily-inspection-assistant-004-r965bc66e4614",
+    "agent_id": "daily-inspection-assistant",
+    "kind": "research",
+    "status": "completed",
+    "created_at": "2026-10-16T12:14:57Z",
+    "source_id": "experiment:EXP-daily-inspection-assistant-004-r965bc66e4614",
+    "baseline_ref": "git:432dd8d1ed2feeb6b9e4b7e42622253c33b6fe7a",
+    "evaluation_ref": "agents/daily-inspection-assistant/evaluation.md",
+    "finished_at": "2026-10-16T12:15:24Z",
+    "results_sha256": "d426b19ec1ba26dda2442ba2ac921440dce707ce4fdbae06e4408f682e9ec03b",
+    "summary_sha256": "ea4c9c1bf597738a8fc0d11d42937208cb843bbb001ebce3ffb273a2fee587ab",
+    "report_sha256": "dfba16ce946b95f72c09565be2c915d09ceeb7645b71b68603621a9e581ac16d",
+    "analysis_sha256": "f79c030fd7904af1c218fb04f9425170181a0cf38ecec75895785a989ed84d53"
+  },
+  "summary": {
+    "schema_version": "3.0",
+    "run_id": "run-b48e0885-3e17-4310-82db-48e1177a9a99",
+    "trial_count": 1,
+    "execution_status_counts": {
+      "completed": 1,
+      "error": 0,
+      "skipped": 0
+    },
+    "machine_trial_verdict_counts": {
+      "passed": 1,
+      "failed": 0,
+      "inconclusive": 0
+    },
+    "machine_overall_verdict": "passed",
+    "review_status": "not_requested",
+    "reviewed_case_count": 0,
+    "reviewed_case_verdict_counts": null,
+    "reviewed_overall_verdict": null,
+    "effective_verdict": "passed",
+    "source_verification": {
+      "status": "matched",
+      "reason": null,
+      "checks": [
+        {
+          "component": "candidate",
+          "status": "matched",
+          "expected_sha256": "e2726fda68b4c9fe9a5583acc56f7d15cc3cd7a47fc75feedad717f81c6d9d7a",
+          "actual_sha256": "e2726fda68b4c9fe9a5583acc56f7d15cc3cd7a47fc75feedad717f81c6d9d7a"
+        },
+        {
+          "component": "workspace",
+          "status": "matched",
+          "expected_sha256": "6e060403d65f01c6ba0efd47660407a949db02b287aff3aab248d9c1a7a0e858",
+          "actual_sha256": "6e060403d65f01c6ba0efd47660407a949db02b287aff3aab248d9c1a7a0e858"
+        },
+        {
+          "component": "presets",
+          "status": "matched",
+          "expected_sha256": "dbc1c87a1b0faf5aca95214bbe001c0ef87417d59c4996cac3337cdd38665a5b",
+          "actual_sha256": "dbc1c87a1b0faf5aca95214bbe001c0ef87417d59c4996cac3337cdd38665a5b"
+        },
+        {
+          "component": "managed",
+          "status": "matched",
+          "expected_sha256": "5fdcf91837a73be5ff0be4927b01e55997d7dc539e326a18b71c6659fc15741f",
+          "actual_sha256": "5fdcf91837a73be5ff0be4927b01e55997d7dc539e326a18b71c6659fc15741f"
+        },
+        {
+          "component": "evaluation_implementation",
+          "status": "matched",
+          "expected_sha256": "d5f43be0b37eb7a253841738cbe72b8f0816a66c13a7d055836ea0b5e3e45290",
+          "actual_sha256": "d5f43be0b37eb7a253841738cbe72b8f0816a66c13a7d055836ea0b5e3e45290"
+        }
+      ]
+    }
+  },
+  "cases": [
+    {
+      "case_id": "U-ASSET-PAGES-001",
+      "frozen": {
+        "case_id": "U-ASSET-PAGES-001",
+        "title": "完整分页和报告",
+        "inputs": [
+          "请对当前指定的五台基础资产执行一次只读台账巡检，处理所有分页，并提供完整的Markdown和CSV报告下载链接。明确这是不是实际设备健康检测。"
+        ],
+        "expected_behavior": "实际调用task_inspection的start、page和report；使用同一个run_id，分页从0按返回cursor到null，共读取asset-0001至asset-0005五台，报告数量为5，包含实际可下载Markdown和CSV。明确基础模拟台账、未检测真实设备。不能只给职责或用户提供数据摘要。"
+      },
+      "current": {
+        "case_id": "U-ASSET-PAGES-001",
+        "title": "完整分页和报告",
+        "inputs": [
+          "请对当前指定的五台基础资产执行一次只读台账巡检，处理所有分页，并提供完整的Markdown和CSV报告下载链接。明确这是不是实际设备健康检测。"
+        ],
+        "expected_behavior": "实际调用task_inspection的start、page和report；使用同一个run_id，分页从0按返回cursor到null，共读取asset-0001至asset-0005五台，报告数量为5，包含实际可下载Markdown和CSV。明确基础模拟台账、未检测真实设备。不能只给职责或用户提供数据摘要。"
+      },
+      "contract_changed": false,
+      "trials": [
+        {
+          "run_id": "run-b48e0885-3e17-4310-82db-48e1177a9a99",
+          "trial_id": "trial-e514886b-a996-42ae-b4fb-a16019c3c6ab",
+          "input_id": "U-ASSET-PAGES-001",
+          "execution_status": "completed",
+          "verdict": "passed",
+          "observation": "语义判定：同一被测 Session 实际调用了 task_inspection 的 start、page（cursor 0→2→4）与 report，全程使用同一 run_id task-96f0750d-9957-49ea-a6fe-2e648b7b3af2，next_cursor 最终为 null，完整读取 asset-0001 至 asset-0005 共 5 台，report 回执 device_count=5 且如回答所述；回答给出了真实工具回执中的 Markdown 与 CSV 下载链接（download_url、csv_url），明确说明数据来自基础模拟接口、非实际设备健康检测，未以职责说明或用户提供的数据替代工具结果，满足全部预期。 同一路由自评，仅作研究辅助。",
+          "evidence_ref": "evidence/U-ASSET-PAGES-001"
+        }
+      ],
+      "output": [
+        "巡检完成，5 台资产的分页已全部读完（cursor 0 → 2 → 4 → 结束），报告已生成。\n\n**下载链接**\n- Markdown 报告：[report.md](/assistant/api/task-examples/artifact?run_id=task-96f0750d-9957-49ea-a6fe-2e648b7b3af2&file=report.md)\n- CSV 明细：[devices.csv](/assistant/api/task-examples/artifact?run_id=task-96f0750d-9957-49ea-a6fe-2e648b7b3af2&file=devices.csv)\n\n**台账内容（共 5 台）**\n\n| 设备ID | 名称 | 类型 | 台账风险分值 |\n| --- | --- | --- | --- |\n| asset-0001 | vpn-01 | server | 53 |\n| asset-0002 | waf-edge-02 | workstation | 64 |\n| asset-0003 | edr-gateway-03 | firewall | 33 |\n| asset-0004 | prod-web-04 | server | 27 |\n| asset-0005 | edr-gateway-05 | kubernetes | 97 |\n\n**明确说明：这不是实际设备健康检测。** 数据来自基础模拟接口，全程只读，没有连接、探测或检测任何真实设备；表中的“风险分值”只是台账字段，不代表设备当前的运行或健康状态，不能作为处置依据。"
+      ],
+      "actual_routes": [
+        {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "off",
+          "maxTokens": 256000
+        }
+      ],
+      "registered_tools": [
+        [
+          "task_inspection"
+        ]
+      ],
+      "tool_calls": [
+        {
+          "name": "task_inspection",
+          "status": "ok",
+          "error_code": null
+        },
+        {
+          "name": "task_inspection",
+          "status": "ok",
+          "error_code": null
+        },
+        {
+          "name": "task_inspection",
+          "status": "ok",
+          "error_code": null
+        },
+        {
+          "name": "task_inspection",
+          "status": "ok",
+          "error_code": null
+        },
+        {
+          "name": "task_inspection",
+          "status": "ok",
+          "error_code": null
+        }
+      ],
+      "review": null,
+      "findings": [],
+      "load_observation": {
+        "session_id": "session-295083f5-d1e6-4294-be01-ec9dff52506e",
+        "session_preset": "daily-inspection-assistant",
+        "session_workspace": "/work/harness/workspace",
+        "preset_matches": true,
+        "workspace_matches": true,
+        "guard": {
+          "declared": null,
+          "status": "not-declared"
+        }
+      },
+      "session_created_at": "2026-10-16T12:15:11.270000+00:00",
+      "raw_evidence": {
+        "response.json": {
+          "path": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/evidence/U-ASSET-PAGES-001/response.json",
+          "present": true
+        },
+        "trace.jsonl": {
+          "path": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/evidence/U-ASSET-PAGES-001/trace.jsonl",
+          "present": true
+        },
+        "tools.jsonl": {
+          "path": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/evidence/U-ASSET-PAGES-001/tools.jsonl",
+          "present": true
+        },
+        "judge.json": {
+          "path": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/evidence/U-ASSET-PAGES-001/judge.json",
+          "present": true
+        },
+        "judge-trace.jsonl": {
+          "path": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/evidence/U-ASSET-PAGES-001/judge-trace.jsonl",
+          "present": true
+        },
+        "checks.json": {
+          "path": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/evidence/U-ASSET-PAGES-001/checks.json",
+          "present": true
+        }
+      },
+      "evidence": [
+        {
+          "path": "evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/runs/run-b48e0885-3e17-4310-82db-48e1177a9a99/evidence/U-ASSET-PAGES-001",
+          "present": true
+        }
+      ]
+    }
+  ]
+}

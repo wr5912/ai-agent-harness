@@ -1,0 +1,28 @@
+{
+  "base": "http://10.0.160.32:3090/hep/",
+  "source": "92f7db9",
+  "at": "2026-10-16T12:28:56.595Z",
+  "errors": [],
+  "entry": "与助手对话",
+  "linkColor": "#0075ca",
+  "compositions": 6,
+  "sections": 1,
+  "running_instances": [
+    {
+      "name": "hep-inspection-delivery",
+      "port": 3114,
+      "source": "experiment:EXP-inspection-delivery-demo-001-rf841e4415364"
+    },
+    {
+      "name": "security-operations-expert-eval",
+      "port": 3081,
+      "source": "experiment:EXP-security-operations-expert-019-rc442472a242a"
+    },
+    {
+      "name": "test01-002-64212",
+      "port": 3089,
+      "source": "experiment:EXP-test01-002"
+    }
+  ],
+  "ok": true
+}
