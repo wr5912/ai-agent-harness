@@ -1,6 +1,6 @@
 # 管理助手业务资产验收 · 2026-10-16
 
-本记录来自隔离的平台与数据工作区，覆盖管理助手从数据根装载业务规则、Skill，以及研究工具的实际使用。[摘要](summary.json)保留结果、摘要和运行编号；本文仅记录隔离验收，正式部署验证另附。
+本记录来自隔离的平台与数据工作区，覆盖管理助手从数据根装载业务规则、Skill，以及研究工具的实际使用。[摘要](summary.json)保留结果、摘要和运行编号；隔离环境核对研究流程，正式环境的部署与回归见[正式验收摘要](formal-summary.json)。
 
 | 验证范围 | 实际结果 |
 | --- | --- |
@@ -21,3 +21,9 @@ Decision 为 `completed/inconclusive`：父版本来已经通过，本轮不证�
 | 缺少业务 Skill 提示 | [查看](missing-business-assets.png) |
 
 完整研究证据保存在本机 `/home/admin/.local/state/hep-management-assets-20261016-221733/acceptance/research-evidence.tar.gz`，校验摘要见 `summary.json`。程序仓库仅保存上述摘要和截图，不存放原始 Session、完整 Run 或凭据。
+
+正式平台 `http://10.0.160.32:3090/hep/` 已加载数据仓库 `AGENTS.md` 与12项 Skill；旧工作目录会话、原决策数据集和研究方法可读。新管理会话完成并确认实际注入当前业务与表达规则，路由为 `deepseek-flash/max`。已发布资产关联告警组合对资产9106执行两个只读 GET，返回匹配资产与查询摘要。见[首页](formal-pages/home.png)、[实际管理对话](formal-assistant-conversation.png)。
+
+正式部署沿用原已准备的扩展产物，扩展摘要、原生用户设置及229个既有未提交文件均保持不变。标准 `prepare/start` 仍受原工作区未提交的安全运营扩展依赖限制：它引用另一开发目录尚未合入的 `model-attempts.ts`。本次独立构建平台、仅更新 Profile 的技能目录，并以原生启动参数重启；不代表这组在研扩展源码已经构建验收。平台366项测试、启动器27项、研究校验15项及适配器7项均通过。
+
+正式首页、智能体管理、评测中心、实例管理与MCP管理均加载真实数据，无页面错误、失败HTTP或整页横向溢出；[五页验收与截图](formal-pages/acceptance.json)保留各图摘要。
