@@ -9,18 +9,28 @@ import test from 'node:test'
 import { DEFAULT_LIMITS, decodeMountPath, fileSnapshot } from './tree-digest.mjs'
 
 const adapter = fileURLToPath(new URL('.', import.meta.url))
-const repo = fileURLToPath(new URL('../../../', import.meta.url))
-const candidate = `${repo}/evolution/experiments/EXP-security-operations-expert-001/candidate/dsh`
-
 test('Node and Python produce the same exact mount tree digest', () => {
-  for (const name of ['workspace', 'presets', 'managed']) {
-    const root = `${candidate}/${name}`
-    const nodeDigest = fileSnapshot(root).tree_sha256
-    const pythonDigest = execFileSync('python3', [`${adapter}/mutation-receipt.py`, 'digest', root], {
-      encoding: 'utf8',
-    }).trim()
-    assert.equal(nodeDigest, pythonDigest)
-  }
+  const candidate = mkdtempSync(join(tmpdir(), 'dsh-mount-identity-'))
+  try {
+    for (const name of ['workspace', 'presets', 'managed']) {
+      const root = join(candidate, name)
+      mkdirSync(join(root, '中文 子目录'), { recursive: true })
+      writeFileSync(join(root, 'z.txt'), '基础模拟数据\n')
+      writeFileSync(join(root, '中文 子目录', 'a.bin'), Buffer.from([0, 1, 127, 255]))
+      chmodSync(join(root, 'z.txt'), 0o755)
+      const nodeDigest = fileSnapshot(root).tree_sha256
+      const pythonDigest = execFileSync('python3', ['-c', [
+        'import runpy,sys', 'from pathlib import Path',
+        'sys.path.insert(0,sys.argv[1])',
+        'module=runpy.run_path(str(Path(sys.argv[1])/"mutation-receipt.py"))',
+        'root=Path(sys.argv[2])',
+        'print(module["snapshot"](root,allowed_roots={root})["tree_sha256"])',
+      ].join('\n'), adapter, root], {
+        encoding: 'utf8',
+      }).trim()
+      assert.equal(nodeDigest, pythonDigest)
+    }
+  } finally { rmSync(candidate, { recursive: true, force: true }) }
 })
 
 test('Linux mountinfo escapes are decoded before exact target matching', () => {
