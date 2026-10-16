@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { Catalog } from './catalog.ts'
 import type { PageId, PlatformNavigation, PlatformPageProps } from './protocol.ts'
 import type { RecentRun } from './dashboard.ts'
@@ -36,6 +36,23 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
   const [mode, setMode] = useState<HomeMode>('build')
   const [drafts, setDrafts] = useState<Record<HomeMode, string>>({ build: '', evaluate: '', improve: '' })
   const prompt = drafts[mode]
+  const promptRef = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const input = promptRef.current
+    if (!input) return
+    const resize = () => {
+      input.style.height = 'auto'
+      if (input.value) input.style.height = `${input.scrollHeight}px`
+    }
+    resize()
+    let width = input.getBoundingClientRect().width
+    const observer = new ResizeObserver(() => {
+      const current = input.getBoundingClientRect().width
+      if (current !== width) { width = current; resize() }
+    })
+    observer.observe(input)
+    return () => observer.disconnect()
+  }, [mode, prompt])
   const [agentOptions, setAgentOptions] = useState<{ id: string; name?: string }[]>([])
   const [selectedAgent, setSelectedAgent] = useState('')
   const [selectedVersion, setSelectedVersion] = useState('')
@@ -150,7 +167,7 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
   return <main className="harness-home">
     <section className="harness-hero">
       <HeroArt side="left"/><HeroArt side="right"/>
-      <h1>把业务需求，<span>变成真正可用的智能体。</span></h1>
+      <h1>让AI帮您管理、评测和改进智能体</h1>
       <p>{HOME_SUBTITLE}</p>
       <div className="harness-task-composer">
         <div className="harness-entry-modes" role="group" aria-label="任务类型">{HOME_MODES.map(item => <button key={item.id} type="button" aria-pressed={mode === item.id} disabled={sending} onClick={() => { setMode(item.id); setEntryError(''); setSelectionError('') }}>{item.label}</button>)}</div>
@@ -160,7 +177,7 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
             <label>版本<select aria-label="要评测的版本" value={selectedVersion} disabled={sending || !selectedAgent || selectionLoading} onChange={event => setSelectedVersion(event.target.value)}><option value="">选择要评测的版本</option>{detail?.versions?.map((version: any) => <option key={version.id} value={version.id}>{versionName(version.id)}{detail?.agent?.manifest?.active_experiment === version.id ? ' · 当前启用' : ''}</option>)}</select></label>
           </div>}
           {mode === 'improve' && <label className="harness-entry-run">失败运行<select aria-label="需要改进的失败运行" value={selectedRun} disabled={sending} onChange={event => setSelectedRun(event.target.value)}><option value="">选择最近一次失败或未能判定的运行</option>{failedRuns.map(run => <option key={run.id} value={run.id}>{agentName(run.agent_id)} · {runLabel(run)} · {run.created_at ? new Date(run.created_at).toLocaleString() : run.id}</option>)}</select></label>}
-          <textarea rows={3} aria-label="业务任务" placeholder={mode === 'build' ? BUILD_PLACEHOLDER : mode === 'evaluate' ? '可补充你希望重点验证的业务能力；留空将评测所选版本的现有用例。' : '可补充你观察到的问题，例如报告漏统计设备；平台先读取原始失败证据。'} value={prompt} disabled={sending}
+          <textarea ref={promptRef} rows={1} aria-label="业务任务" placeholder={mode === 'build' ? BUILD_PLACEHOLDER : mode === 'evaluate' ? '可补充你希望重点验证的业务能力；留空将评测所选版本的现有用例。' : '可补充你观察到的问题，例如报告漏统计设备；平台先读取原始失败证据。'} value={prompt} disabled={sending}
             onChange={event => setDrafts(value => ({ ...value, [mode]: event.target.value }))} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); void submitTask() } }}/>
           <div className="harness-entry-footer"><span>{mode === 'build' ? '先理解任务和复用能力，再确认执行范围。' : mode === 'evaluate' ? '使用真实版本和已有测试，运行前确认范围。' : '保留失败证据与评判口径，最多修复 3 轮。'}</span><button className="harness-primary" type="submit" disabled={sending || !assets || mode === 'build' && !prompt.trim() || mode === 'evaluate' && (!selectedVersion || selectionLoading) || mode === 'improve' && !failedRun}>{sending ? '正在进入…' : HOME_MODES.find(item => item.id === mode)!.action}</button></div>
         </form>

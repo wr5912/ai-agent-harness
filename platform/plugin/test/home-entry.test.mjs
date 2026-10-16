@@ -14,10 +14,12 @@ function home({ example = false, exampleCase = true, exampleExtra = false, examp
   const states = [], dependencies = [], cleanups = [], calls = [], tasks = [], navigations = []
   let cursor = 0, effects = [], changed = false, tree
   const react = { ...require('react'),
+    useRef(initial) { const key = cursor++; if (!(key in states)) states[key] = { current: initial }; return states[key] },
     useState(initial) { const key = cursor++; if (!(key in states)) states[key] = initial; return [states[key], next => { const value = typeof next === 'function' ? next(states[key]) : next; if (!Object.is(states[key], value)) { states[key] = value; changed = true } }] },
     useEffect(effect, values) { const key = cursor++; if (!dependencies[key] || values.some((value, at) => value !== dependencies[key][at])) { dependencies[key] = values; effects.push(() => { cleanups[key]?.(); cleanups[key] = effect() }) } },
     useSyncExternalStore(_subscribe, get) { return get() },
   }
+  react.useLayoutEffect = react.useEffect
   const module = { exports: {} }
   vm.runInNewContext(homeSource, { module, exports: module.exports, Error, require: name => name === 'react' ? react : require(name) })
   const inventory = { root: '/test-assets', observed_at: '2026-10-16T00:00:00Z', agents: [{ id: 'alpha' }, ...(example ? [{ id: 'daily-inspection-assistant' }] : [])], experiments: [], runs: [] }
@@ -48,7 +50,7 @@ function home({ example = false, exampleCase = true, exampleExtra = false, examp
 
 test('首页准确展示业务标题、副标题、构建示例，登录承接品牌口号', async () => {
   const ui = home()
-  try { await ui.settle(); assert.match(ui.text(), /把业务需求，变成真正可用的智能体。/); assert.ok(ui.text().includes(HOME_SUBTITLE)); assert.equal(ui.label('业务任务').props.placeholder, BUILD_PLACEHOLDER); assert.equal(ui.button('开始任务').props.disabled, true); assert.equal(ui.text().includes(PLATFORM_SLOGAN), false) } finally { ui.cleanup() }
+  try { await ui.settle(); assert.match(ui.text(), /让AI帮您管理、评测和改进智能体/); assert.ok(ui.text().includes(HOME_SUBTITLE)); assert.equal(ui.label('业务任务').props.placeholder, BUILD_PLACEHOLDER); assert.equal(ui.label('业务任务').props.rows, 1); assert.equal(ui.button('开始任务').props.disabled, true); assert.equal(ui.text().includes(PLATFORM_SLOGAN), false) } finally { ui.cleanup() }
   const module = { exports: {} }; vm.runInNewContext(loginSource, { module, exports: module.exports, require })
   assert.match(module.exports.loginPage('/hep/login'), /让智能体真正可用，持续变好。/)
 })
@@ -117,5 +119,20 @@ test('多版本示例默认使用具工具和Case的启用来源，版本切换�
   try {
     await ui.click('体验示例'); ui.change('巡检示例版本', 'experiment:EXP-daily-inspection-assistant-002-r222222222222')
     await ui.click('开始体验'); assert.equal(ui.tasks[0].context.experiment_id, 'EXP-daily-inspection-assistant-002-r222222222222')
+  } finally { ui.cleanup() }
+})
+
+
+test('首页输入时保持换行与IME行为，Ctrl+Enter仍提交当前模式草稿', async () => {
+  const ui = home()
+  try {
+    await ui.settle(); ui.change('业务任务', '第一行\n第二行')
+    let prevented = 0
+    const event = (ctrlKey, composing) => ({ key: 'Enter', ctrlKey, nativeEvent: { isComposing: composing }, preventDefault() { prevented++ } })
+    ui.label('业务任务').props.onKeyDown(event(false, false)); await ui.settle()
+    ui.label('业务任务').props.onKeyDown(event(true, true)); await ui.settle()
+    assert.equal(prevented, 0); assert.equal(ui.tasks.length, 0)
+    ui.label('业务任务').props.onKeyDown(event(true, false)); await ui.settle()
+    assert.equal(prevented, 1); assert.equal(ui.tasks.length, 1); assert.equal(ui.tasks[0].prompt, '第一行\n第二行')
   } finally { ui.cleanup() }
 })
