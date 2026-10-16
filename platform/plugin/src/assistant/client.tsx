@@ -394,7 +394,7 @@ function TaskCard({ task, assistant, rpc, sessionId }: { task: TaskExecution; as
     {task.operations.some(item => ['running', 'unknown'].includes(item.state)) && <button disabled={busy} onClick={() => void act('checkpoint')}>核对运行状态</button>}
     {task.state === 'running' && <button disabled={busy} onClick={() => void act('pause')}>暂停任务</button>}
     {task.state === 'paused' && <button disabled={busy} onClick={() => void act('resume')}>恢复任务</button>}
-    {task.source_ref && task.operations.some(item => item.action === 'edit/apply' && item.state === 'completed') && task.state !== 'completed' && <button disabled={busy} onClick={() => void act('rollback')}>恢复任务前版本</button>}
+    {task.source_ref && task.operations.some(item => ['edit/apply', 'tasks/assembly-apply'].includes(item.action) && item.state === 'completed') && task.state !== 'completed' && <button disabled={busy} onClick={() => void act('rollback')}>恢复本任务资产修改</button>}
     {!['completed', 'cancelled'].includes(task.state) && <button disabled={busy} onClick={() => void act('cancel')}>取消任务</button>}
     {task.delivery && <><p>业务测试、目标实例及产物已核验。</p>
       {task.delivery.entry && <p><a href={instanceWebUrl(task.delivery.entry, window.location.hostname)} target="_blank" rel="noreferrer">打开智能体</a></p>}

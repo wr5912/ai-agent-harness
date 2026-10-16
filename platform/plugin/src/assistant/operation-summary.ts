@@ -57,7 +57,7 @@ export function operationSummary(meta: OperationMeta, phase = 'result') {
   if (phase !== 'result') return { title, outcome: phase === 'preparing' ? '正在准备参数' : '正在执行', failed: false }
   let outcome = '已收到回执，可展开查看'
   if (action === 'context' && value?.workspace) outcome = '已读取当前工作区与固定任务目标'
-  else if (meta.domain === 'task') outcome = action === 'begin-repair' && Number.isFinite(value?.repair_rounds) ? `已预留第 ${value.repair_rounds} 轮修复` : taskStates[value?.state] ?? (action === 'preview' && value?.plan ? '方案已校验，执行前将请求整体确认' : outcome)
+  else if (meta.domain === 'task') outcome = action === 'begin-repair' && Number.isFinite(value?.repair_rounds) ? `已预留第 ${value.repair_rounds} 轮修复` : action === 'rollback' && Array.isArray(value?.restored) && Array.isArray(value?.deleted) ? `已恢复 ${value.restored.length} 份原文件、移除 ${value.deleted.length} 份本任务新增文件；预算与记录保留` : taskStates[value?.state] ?? (action === 'preview' && value?.plan ? '方案已校验，执行前将请求整体确认' : outcome)
   else if (meta.domain === 'instances' && action === 'preview' && instanceReceipt) {
     const plan = instanceReceipt.plan ?? instanceReceipt
     const source = /-(\d{3})(?:-r[0-9a-f]{12})?$/.exec(plan.source_id ?? '')?.[1]

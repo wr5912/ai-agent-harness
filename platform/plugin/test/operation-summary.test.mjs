@@ -40,4 +40,5 @@ test('真实嵌套CLI回执保留实例预览、容器观察及分组运行数�
   assert.equal(operationSummary(meta({ action: 'edit/preview', result: wrapped({ dry_run: true, edits: [{}] }) })).outcome, '已核对 1 份文件修改；尚未写入')
   assert.equal(operationSummary(meta({ domain: 'task', action: 'context', result: { workspace: {}, task_context: {} } })).outcome, '已读取当前工作区与固定任务目标')
   assert.match(operationSummary(meta({ domain: 'task', action: 'status', result: { state: 'not_started' } })).outcome, /任务还未开始/)
+  assert.match(operationSummary(meta({ domain: 'task', action: 'rollback', result: { state: 'rolled_back', result: { ok: true, value: { restored: [{}, {}], deleted: [{}] } } } })).outcome, /恢复 2 份原文件.*移除 1 份.*预算与记录保留/)
 })

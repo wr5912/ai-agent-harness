@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { setImmediate } from 'node:timers/promises'
@@ -8,8 +9,11 @@ import { Context } from '@deepseek-ai/cordis'
 import { SessionStore, appendPluginRecord } from '@deepseek-ai/dsh-session'
 import { SessionProjectionRegistry } from '@deepseek-ai/dsh-session-projection'
 import { SystemPrompt } from '@deepseek-ai/dsh-system-prompt'
+import { build } from 'esbuild'
 import { createAssistant, redactAssistant } from '../src/assistant/index.ts'
 import { assistantMcp } from '../src/assistant/mcp.ts'
+import { applyTaskAssembly } from '../src/tasks/assembly.ts'
+import { candidateDigest, sha256 } from '../src/tasks/files.ts'
 
 function fixture(t, responder, root = '/project') {
   const ctx = new Context()
@@ -785,29 +789,78 @@ test('MCP 草稿复用真实结构校验，无效包装在提案前拒绝', asyn
   assert.equal(f.calls.filter(call => call.endpoint === 'mcp/saveCompositionDraft').length, 1)
 })
 
-test('回退只恢复本任务实际修改文件，固定来源与当前摘要不匹配时拒绝覆盖', async t => {
+test('真实Git回退覆盖本任务编辑与装配，恢复配置和模式、删除新文件，拒绝并行覆盖且不重置耗尽预算', async t => {
   const original = '# 已固定的设备巡检\n', edited = '# 本轮修改\n'
-  let content = original
-  const sha = async text => (await import('node:crypto')).createHash('sha256').update(text).digest('hex')
+  const root = mkdtempSync(join(tmpdir(), 'harness-task-rollback-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const experiment = 'EXP-test-agent-001', donor = 'EXP-test-agent-002'
+  const base = `evolution/experiments/${experiment}/candidate/`, donorBase = `evolution/experiments/${donor}/candidate/`
+  const agentFile = 'dsh/workspace/AGENTS.md', preset = 'dsh/presets/test-agent/agent.cordis.yml', script = 'dsh/workspace/bin/check.txt'
+  const added = ['dsh/managed/added.mjs', 'dsh/workspace/.agents/skills/inspection/SKILL.md']
+  const write = (path, content) => { mkdirSync(dirname(join(root, path)), { recursive: true }); writeFileSync(join(root, path), content) }
+  write(base + agentFile, original); write(base + preset, '[]\n'); write(base + 'dsh/managed/test.patch.yml', '[]\n')
+  write(base + script, 'original executable asset\n'); chmodSync(join(root, base, script), 0o755)
+  write(`evolution/experiments/${experiment}/change.yaml`, `experiment_id: ${experiment}\nagent_id: test-agent\nbaseline_ref: none:first-experiment\n`)
+  const sources = Object.fromEntries([experiment, donor].map(id => [id, { agent_id: 'test-agent', candidate_root: `evolution/experiments/${id}/candidate/dsh`, patch: 'test.patch.yml', preset: 'test-agent/agent.cordis.yml' }]))
+  write('config/sources.json', JSON.stringify({ sources }))
+  const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  git('init'); git('add', '.'); git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-m', '固定回退父版')
+  const sourceRef = `git:${git('rev-parse', 'HEAD')}`
+  const fixedReader = join(root, '.local/read-fixed.mjs')
+  await build({ entryPoints: [new URL('../src/agents/asset-diff.ts', import.meta.url).pathname], outfile: fixedReader, bundle: true, platform: 'node', format: 'esm' })
+  const { readFixedAsset } = await import(`file://${fixedReader}`)
+  for (const path of [...added, script]) write(donorBase + path, path.endsWith('SKILL.md') ? '# 只读巡检\n' : 'assembled asset\n')
   const f = fixture(t, async (endpoint, input) => {
-    if (endpoint === 'agents/edit/read') return { ok: true, value: { content, sha256: await sha(content) } }
-    if (endpoint === 'agents/assets/read-fixed') return { ok: true, value: { selected: { kind: 'text', content: original, sha256: await sha(original), truncated: false } } }
-    if (endpoint === 'agents/edit/apply') { content = input.edits[0].content; return { ok: true, value: { written: [{ path: input.edits[0].path, sha256: await sha(content) }] } } }
+    if (endpoint === 'agents/detail') return { ok: true, value: { ...taskResponder(endpoint, input).value, derivation: { parent_ref: sourceRef } } }
+    if (endpoint === 'agents/assets/read-fixed') return readFixedAsset(root, input)
+    if (endpoint === 'agents/tasks/assembly-apply') return { ok: true, value: await applyTaskAssembly(root, input) }
+    if (endpoint === 'agents/edit/apply') {
+      const written = input.edits.map(edit => {
+        const path = `evolution/experiments/${input.experiment_id}/${edit.path}`
+        assert.equal(sha256(readFileSync(join(root, path))), edit.expected_sha256)
+        write(path, edit.content)
+        return { path, sha256: sha256(edit.content) }
+      })
+      return { ok: true, value: { written } }
+    }
     return taskResponder(endpoint, input)
-  })
+  }, root)
   installTaskGoals(f)
   const id = (await f.rpc('session', { task: '改进巡检' })).value.session_id
-  await beginTask(f, id)
-  await f.execute(id, 'agents', 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'evolution/experiments/EXP-test-agent-001/candidate/dsh/workspace/AGENTS.md', content: edited, expected_sha256: await sha(original) }] })
+  await beginTask(f, id, taskPlan({ budget: { max_model_calls: 3, timeout_minutes: 30, max_repair_rounds: 3 }, allowed_actions: [{ domain: 'agents', action: 'edit/apply' }, { domain: 'agents', action: 'tasks/assembly-apply' }] }))
+  await f.execute(id, 'agents', 'edit/apply', { experiment_id: experiment, edits: [{ path: base + agentFile, content: edited, expected_sha256: sha256(original) }] })
   assert.equal((await f.status(id)).execution.operations[0].input.edits[0].path, 'candidate/dsh/workspace/AGENTS.md')
-  content = '# 用户并行修改\n'
+  const configured = '- name: cordis:include\n  config:\n    path: /opt/dsh-managed/added.mjs\n'
+  await f.execute(id, 'agents', 'tasks/assembly-apply', { target_source: `experiment:${experiment}`, expected_candidate_sha256: candidateDigest(join(root, base)), files: [...added, script].map(path => ({ source: `experiment:${donor}`, path, expected_source_sha256: sha256(readFileSync(join(root, donorBase, path))), expected_target_sha256: existsSync(join(root, base, path)) ? sha256(readFileSync(join(root, base, path))) : null })), configuration_edits: [{ path: preset, content: configured, expected_target_sha256: sha256('[]\n') }] })
+  await f.execute(id, 'agents', 'edit/apply', { experiment_id: experiment, edits: [{ path: `candidate/${preset}`, content: configured + '# 后续编辑\n', expected_sha256: sha256(configured) }] })
+  assert.equal(statSync(join(root, base, script)).mode & 0o777, 0o644)
+  write(base + 'notes/user.md', '并行新增但不属于本任务的文件\n')
+  write(base + agentFile, '# 用户并行修改\n')
+  const concurrentDigest = candidateDigest(join(root, base))
   await assert.rejects(() => f.execute(id, 'task', 'rollback'), /并行改动/)
-  assert.equal(content, '# 用户并行修改\n')
-  content = edited
+  assert.equal(candidateDigest(join(root, base)), concurrentDigest, '预检发现一个冲突时整批文件都不能改写')
+  write(base + agentFile, edited)
+  write('.local/unrelated.txt', '不属于本任务的文件\n')
+  symlinkSync(join(root, '.local/unrelated.txt'), join(root, base, 'notes/user-link'))
+  for (let count = 0; count < 3; count++) await f.beforeModelCall(id)
+  await assert.rejects(() => f.beforeModelCall(id), /额度已耗尽/)
+  const before = (await f.status(id)).execution
   const restored = await f.execute(id, 'task', 'rollback')
   assert.equal(restored.state, 'rolled_back')
-  assert.equal(content, original)
-  assert.equal((await f.status(id)).execution.state, 'paused')
+  assert.equal(readFileSync(join(root, base, agentFile), 'utf8'), original)
+  assert.equal(readFileSync(join(root, base, preset), 'utf8'), '[]\n')
+  assert.equal(readFileSync(join(root, base, script), 'utf8'), 'original executable asset\n')
+  assert.equal(statSync(join(root, base, script)).mode & 0o777, 0o755)
+  for (const path of added) assert.equal(existsSync(join(root, base, path)), false)
+  assert.equal(existsSync(join(root, base, 'dsh/workspace/.agents')), false, '只清理由删除形成的空祖先目录')
+  assert.match(readFileSync(join(root, base, 'notes/user.md'), 'utf8'), /不属于本任务/)
+  assert.equal(lstatSync(join(root, base, 'notes/user-link')).isSymbolicLink(), true, '不扫描或改写无关用户文件，不能先写完再因全树摘要失败而抛错')
+  assert.equal(readFileSync(join(root, '.local/unrelated.txt'), 'utf8'), '不属于本任务的文件\n')
+  assert.equal((await f.status(id)).execution.state, 'budget_exhausted')
+  assert.equal((await f.status(id)).execution.model_calls, before.model_calls)
+  assert.equal((await f.status(id)).execution.deadline_at, before.deadline_at)
+  assert.equal((await f.status(id)).execution.repair_rounds, before.repair_rounds)
+  assert.equal((await f.status(id)).execution.operations.filter(operation => operation.state === 'rolled_back').length, 3)
   assert.equal((await f.status(id)).execution.operations[0].state, 'rolled_back')
 })
 
@@ -819,6 +872,18 @@ test('装配与编辑共用修复轮次守卫，不能通过assembly跳过初测
   await f.execute(id, 'agents', 'eval/start', { source: 'experiment:EXP-test-agent-001', cases: ['U-BUSINESS-001'] })
   await assert.rejects(() => f.execute(id, 'agents', 'tasks/assembly-apply', { target_source: 'experiment:EXP-test-agent-001', files: [] }), /预留/)
   assert.equal(f.calls.filter(row => row.endpoint === 'agents/tasks/assembly-apply').length, 0)
+})
+
+test('首次新建无固定父版时拒绝回退，不把未验证资产覆盖成其他来源', async t => {
+  const f = fixture(t, (endpoint, input) => endpoint === 'agents/new' ? { ok: true, value: { source_id: 'experiment:EXP-test-agent-001' } } : taskResponder(endpoint, input))
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '新建只读巡检助手' })).value.session_id
+  await beginTask(f, id, taskPlan({ source: undefined, new_agent: { name: '巡检助手', description: '只读设备数据', role: '核对实际台账', evaluation_cases: [{ id: 'U-BUSINESS-001', title: '设备完整', inputs: '检查三台设备', expected_behavior: '输出完整设备集合' }] }, allowed_actions: [{ domain: 'agents', action: 'new' }, { domain: 'agents', action: 'tasks/assembly-apply' }] }))
+  await f.execute(id, 'agents', 'new', { agent_id: 'test-agent' })
+  const before = (await f.status(id)).execution
+  await assert.rejects(() => f.execute(id, 'task', 'rollback'), /首次创建.*固定可恢复父版/)
+  assert.deepEqual((await f.status(id)).execution, before)
+  assert.equal(f.calls.some(call => call.endpoint === 'agents/assets/read-fixed'), false)
 })
 
 test('确认前固定父版变化时拒绝开始，不能静默换成新HEAD', async t => {

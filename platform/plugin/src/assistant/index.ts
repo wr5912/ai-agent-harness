@@ -11,6 +11,7 @@ import type { SystemPrompt } from '@deepseek-ai/dsh-system-prompt'
 import { z } from 'zod'
 import { COMPOSITION_SERVICE_ID, compositionConfig } from '../mcp/compositions.ts'
 import { assertTaskBudget, parseTaskPlan, taskAllows, taskCandidatePath, type TaskExecution } from './task.ts'
+import { rollbackTaskAssets } from '../tasks/assembly.ts'
 
 type MapValue = Record<string, any>
 type Domain = 'agents' | 'instances' | 'mcp' | 'task'
@@ -366,30 +367,26 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
         return { ...task, unresolved_operations: operations.filter(item => ['running', 'unknown'].includes(item.state)).map(item => ({ id: item.id, action: item.action })) }
       }
       if (action === 'rollback') {
-        if (!task.plan.allowed_actions.some(item => item.domain === 'agents' && item.action === 'edit/apply')) throw new Error('当前方案未授权资产回退')
+        if (!task.plan.allowed_actions.some(item => item.domain === 'agents' && ['edit/apply', 'tasks/assembly-apply'].includes(item.action))) throw new Error('当前方案未授权资产回退')
         if (!task.source_ref || !task.target_source) throw new Error('首次创建的版本尚无固定可恢复父版，保持未交付并保留失败记录')
         if (task.operations.some(item => ['running', 'unknown'].includes(item.state))) throw new Error('有操作回执未知，不能覆盖可能仍在变化的文件')
-        const changed = task.operations.filter(item => item.action === 'edit/apply' && item.state === 'completed')
+        const changed = task.operations.filter(item => item.domain === 'agents' && ['edit/apply', 'tasks/assembly-apply'].includes(item.action) && item.state === 'completed')
         const files = new Map<string, string>()
-        for (const operation of changed) for (const file of operation.receipt?.value?.written ?? []) {
-          const prefix = `evolution/experiments/${task.target_source.slice(11)}/`
-          const path = String(file.path).startsWith(prefix) ? String(file.path).slice(prefix.length) : String(file.path)
-          if (!path.startsWith('candidate/') || path.includes('..') || !/^[a-f0-9]{64}$/.test(file.sha256)) throw new Error('原修改回执缺少可核验文件摘要，不能自动回退')
-          files.set(path, file.sha256)
+        for (const operation of changed) {
+          const written = operation.action === 'edit/apply' ? operation.receipt?.value?.written : operation.receipt?.value?.files
+          if (!Array.isArray(written) || !written.length) throw new Error('原修改回执缺少可核验文件清单，不能自动回退')
+          for (const file of written) {
+            const path = taskCandidatePath(task, operation.action === 'tasks/assembly-apply' ? `candidate/${file.path}` : file.path)
+            if (!path || !/^[a-f0-9]{64}$/.test(file.sha256)) throw new Error('原修改回执缺少可核验文件摘要，不能自动回退')
+            files.set(path.slice(10), file.sha256)
+          }
         }
         if (!files.size) throw new Error('本任务没有可回退的已完成文件修改')
-        const edits: MapValue[] = []
-        for (const [path, expected] of files) {
-          const read = await dispatch('agents', 'edit/read', { experiment_id: task.target_source.slice(11), path }, signal)
-          if (!read.ok || read.value?.sha256 !== expected) throw new Error('文件已被其他操作修改，回退已拒绝；请保留并核对并行改动')
-          const fixed = await dispatch('agents', 'assets/read-fixed', { agent_id: task.plan.agent_id, experiment_id: (task.plan.source ?? task.target_source).slice(11), ref: task.source_ref, path: path.slice(10) }, signal)
-          const selected = fixed.value?.selected
-          if (!fixed.ok || selected?.kind !== 'text' || selected.truncated || typeof selected.content !== 'string' || createHash('sha256').update(selected.content).digest('hex') !== selected.sha256) throw new Error('固定来源不能提供完整、未改写的原文件；没有覆盖当前资产')
-          edits.push({ path, content: selected.content, expected_sha256: expected })
-        }
-        const receipt = await dispatch('agents', 'edit/apply', { experiment_id: task.target_source.slice(11), edits, confirmed: true }, signal)
-        if (receiptFailed(receipt)) return { state: 'rollback_failed', result: receipt }
-        task = { ...task, state: 'paused', reason: '已恢复任务开始前的固定版本；失败与修复记录均保留，尚未交付', operations: task.operations.map(item => changed.includes(item) ? { ...item, state: 'rolled_back' } : item) }
+        const fixed = await dispatch('agents', 'assets/read-fixed', { agent_id: task.plan.agent_id, experiment_id: (task.plan.source ?? task.target_source).slice(11), ref: task.source_ref }, signal)
+        if (!fixed.ok || !Array.isArray(fixed.value?.files) || !fixed.value.files.length) throw new Error('固定来源不能提供完整文件清单；没有覆盖当前资产')
+        const result = rollbackTaskAssets(root, task.target_source, [...files].map(([path, expected_sha256]) => ({ path, expected_sha256, original: fixed.value.files.find((file: any) => file.path === path) })), signal)
+        const receipt = { ok: true, value: result }
+        task = { ...task, state: ['budget_exhausted', 'cancelled'].includes(task.state) ? task.state : 'paused', reason: '已恢复本任务编辑和装配文件到固定父版；失败与修复记录保留，预算不重置，尚未交付', operations: task.operations.map(item => changed.includes(item) ? { ...item, state: 'rolled_back' } : item) }
         await saveTask(id, task)
         armedTasks.delete(id); clearTaskTimer(id); await changeGoal(id, 'pause')
         return { state: 'rolled_back', result: receipt }
