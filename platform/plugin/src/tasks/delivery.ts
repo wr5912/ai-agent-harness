@@ -15,8 +15,39 @@ export interface TaskDeliveryInput {
   artifacts: (string | { path: string; sha256?: string })[]
   expected_device_ids?: string[]
   required_case_ids?: string[]
+  required_tool_names?: string[]
 }
 export interface DeliveryCheck { name: string; ok: boolean; message: string }
+
+function decodedObjects(value: unknown): Record<string, any>[] {
+  if (typeof value === 'string') {
+    try { return decodedObjects(JSON.parse(value)) } catch { return [] }
+  }
+  if (Array.isArray(value)) return value.flatMap(decodedObjects)
+  if (!value || typeof value !== 'object') return []
+  return [value as Record<string, any>, ...Object.values(value).flatMap(decodedObjects)]
+}
+function successfulTools(root: string, prefix: string, caseInfo: any) {
+  const path = dataPath(root, `${prefix}evidence/${caseInfo.case_id}/trace.jsonl`)
+  if (!existsSync(path) || lstatSync(path).size > 10 * 1024 * 1024) return []
+  const rows = readFileSync(path, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line))
+  const sessionLogs = new Set(rows.filter(row => (row.event ?? row).type === 'session' && (row.event ?? row).id === caseInfo.load_observation?.session_id).map(row => row.session_log ?? 'root'))
+  const calls = new Map<string, { name: string; log: string }>()
+  const results: { name: string; call_id: string; value: Record<string, any> }[] = []
+  for (const row of rows) {
+    const event = row.event ?? row, data = event.data ?? {}, log = row.session_log ?? 'root'
+    if (!sessionLogs.has(log)) continue
+    if (event.type === 'tool/call') calls.set(data.callId, { name: data.name, log })
+    if (event.type === 'tool/result') {
+      const message = data.message, id = message?.toolCallId ?? message?.source?.callId
+      const call = calls.get(id)
+      if (!call || call.log !== log || message.isError === true) continue
+      const values = decodedObjects(message.content)
+      for (const value of values.length ? values : [{}]) results.push({ name: call.name, call_id: id, value })
+    }
+  }
+  return results
+}
 
 const runEvidenceScript = [
   'import json,sys', 'from pathlib import Path', 'sys.path.insert(0,sys.argv[1])',
@@ -37,6 +68,7 @@ export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput,
   const checks: DeliveryCheck[] = []
   const record = (name: string, ok: unknown, message: string) => checks.push({ name, ok: Boolean(ok), message })
   let run: any
+  const businessTools: ReturnType<typeof successfulTools> = []
   try {
     const result = await execFile(process.env.HARNESS_PYTHON || 'python3', ['-c', runEvidenceScript,
       join(programRoot(), 'runtime/adapters/dsh-container'), resolve(root), input.run_id], {
@@ -55,6 +87,13 @@ export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput,
       && run.summary?.effective_verdict === 'passed', '固定验收项全部执行通过，且评判口径未变化')
     record('session_evidence', cases.length && cases.every((item: any) => item?.trace_present
       && item.load_observation?.session_id && item.load_observation.preset_matches === true && item.load_observation.workspace_matches === true), '业务 Session 有实际轨迹，Preset 和工作目录装载吻合')
+    const requiredTools = input.required_tool_names ?? []
+    if (input.expected_device_ids?.length) record('business_tools_declared', requiredTools.length > 0, '巡检交付要求固定业务工具，不能只根据回复中的设备列表判断完成')
+    for (const item of cases.filter(Boolean)) {
+      const tools = successfulTools(root, `evolution/experiments/${info.id}/runs/${input.run_id}/`, item)
+      businessTools.push(...tools.filter(tool => requiredTools.includes(tool.name)))
+      if (requiredTools.length) record(`business_tools:${item.case_id}`, requiredTools.every(name => tools.some(tool => tool.name === name)), '固定 Case 的同一业务 Session 中存在实际业务工具调用及匹配成功回执')
+    }
   } catch {
     signal?.throwIfAborted()
     record('run_evidence', false, 'Run 不存在、摘要不匹配或证据无法核验，请查看原始运行记录')
@@ -114,13 +153,26 @@ export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput,
           if (!existsSync(evidence) || lstatSync(evidence).size > 10 * 1024 * 1024) return false
           const raw = readFileSync(evidence, 'utf8')
           function contains(value: unknown): boolean {
-            if (typeof value === 'string') return value.includes(text)
+            if (typeof value === 'string') { if (value.includes(text)) return true; try { return contains(JSON.parse(value)) } catch { return false } }
             if (Array.isArray(value)) return value.some(contains)
             return Boolean(value && typeof value === 'object' && Object.values(value).some(contains))
           }
           try { return name.endsWith('.jsonl') ? raw.split('\n').filter(Boolean).some(line => contains(JSON.parse(line))) : contains(JSON.parse(raw)) } catch { return false }
         }))
         record(`artifact_origin:${ref.path}`, evidenceLinked, '巡检报告正文可在本次业务 Session 的输出或工具轨迹中回读')
+        const actualReport = businessTools.find(tool => tool.value.completed === true && typeof tool.value.markdown === 'string'
+          && sha256(tool.value.markdown) === tool.value.report_sha256 && tool.value.report_sha256 === digest)
+        record(`business_artifact:${ref.path}`, actualReport, '报告内容摘要与已声明业务工具的真实完成回执一致')
+        let downloaded = false
+        if (actualReport && instance?.port && typeof actualReport.value.download_url === 'string') {
+          const url = new URL(actualReport.value.download_url, `http://127.0.0.1:${instance.port}`)
+          if (url.origin === `http://127.0.0.1:${instance.port}` && url.pathname.startsWith('/assistant/api/')) {
+            const response = await fetch(url, { signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) })
+            const body = Buffer.from(await response.arrayBuffer())
+            downloaded = response.ok && sha256(body) === digest
+          }
+        }
+        record(`artifact_download:${ref.path}`, downloaded, '从实际交付实例下载的报告与本次业务工具和封存产物摘要相同')
         inspection = verifyInspectionReport(content.toString('utf8'), extension === '.csv' ? 'csv' : 'markdown', { expected_device_ids: input.expected_device_ids })
         record(`inspection:${ref.path}`, inspection.ok, inspection.ok ? '设备集合、逐行状态及报告统计一致' : `报告校验失败：漏项 ${inspection.missing.length}，重复 ${inspection.duplicates.length}，异常 ${inspection.errors.length}`)
       }

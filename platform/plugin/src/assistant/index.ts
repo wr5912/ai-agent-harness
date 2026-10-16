@@ -24,6 +24,7 @@ export interface AssistantServices {
   projections: SessionProjectionRegistry
   systemPrompt: SystemPrompt
   running?: (id: string) => boolean
+  liveAgent?: (id: string) => any
   scopeExtraction?(agent: any): void
   scopeComputeVariants?(agent: any): void
   scopeFeatures?(agent: any): void
@@ -140,6 +141,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
   const armedTasks = new Set<string>()
   const taskTimers = new Map<string, ReturnType<typeof setTimeout>>()
   const taskLocks = new Map<string, Promise<unknown>>()
+  const taskOperations = new Map<string, AbortController>()
   const pending = new Map<string, { sessionId: string; signal: AbortSignal; executing: boolean; resolve(value: any): void; detach(): void }>()
   const unregisterProjection = services.projections.register(assistantProjection)
   function promptState(agent: any) {
@@ -211,15 +213,19 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     await saveTask(id, { ...task, state, reason })
     await changeGoal(id, 'pause')
     // 已创建的评测按真实 job_id 取消；不猜测或重发外部动作。
-    for (const operation of task.operations.filter(item => item.action === 'eval/start' && item.receipt?.value?.job_id)) {
-      try { await dispatch('agents', 'eval/cancel', { job_id: operation.receipt!.value.job_id }, new AbortController().signal) } catch { /* 原始回执保留，恢复时再查状态。 */ }
+    for (const operation of task.operations.filter(item => item.action === 'eval/start')) {
+      try { await dispatch('agents', 'eval/cancel', { job_id: operation.receipt?.value?.job_id ?? operation.id }, new AbortController().signal) } catch { /* 原始回执保留，恢复时再查状态。 */ }
     }
     await services.controller.cancel({ sessionId: id })
   }
   function armTask(id: string, task: TaskExecution) {
     clearTaskTimer(id)
     armedTasks.add(id)
-    const timer = setTimeout(() => { void locked(id, () => stopTask(id, 'budget_exhausted', '任务总时限已耗尽')).catch(() => {}) }, Math.max(1, Date.parse(task.deadline_at) - Date.now()))
+    const timer = setTimeout(() => {
+      const operation = taskOperations.get(id)
+      operation?.abort(new Error('任务总时限已耗尽'))
+      void (operation ? stopTask(id, 'budget_exhausted', '任务总时限已耗尽') : locked(id, () => stopTask(id, 'budget_exhausted', '任务总时限已耗尽'))).catch(() => {})
+    }, Math.max(1, Date.parse(task.deadline_at) - Date.now()))
     timer.unref?.()
     taskTimers.set(id, timer)
   }
@@ -233,6 +239,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     if (plan.allowed_actions.some(item => item.domain === 'agents' && item.action === 'create') && !detail.value.derivation?.parent_ref) throw new Error('派生任务需要可恢复的固定父版，请先固定完整来源')
     if (plan.allowed_actions.some(item => item.domain === 'agents' && item.action === 'edit/apply') && !plan.allowed_actions.some(item => item.domain === 'agents' && item.action === 'create') && detail.value.agent?.manifest?.active_experiment === detail.value.experiment.id) throw new Error('不能在任务中直接修改已启用版本，请在方案中允许从固定父版派生')
     return { plan: { ...plan, source: plan.source ?? `experiment:${detail.value.experiment.id}` }, evaluation_sha256: detail.value.evaluation.sha256,
+      candidate_sha256: detail.value.candidate_sha256,
       source_ref: detail.value.derivation?.parent_ref ?? null, note: '确认后在此范围内连续办理；修复最多三轮。模型额度对管理助手逐次拦截，外部评测消耗回读后计入总额，外部执行器是否硬封顶以其回执为准。' }
   }
   async function startTask(id: string, input: MapValue, signal: AbortSignal) {
@@ -242,6 +249,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
       if (!services.goals) throw new Error('当前 Runtime 未装载原生 Goal，无法开始连续任务')
       const preview = await taskPreview(id, input, signal)
       if (input.evaluation_sha256 !== ('evaluation_sha256' in preview ? preview.evaluation_sha256 : undefined)) throw new Error('确认前评判口径已变化，请重新预览任务')
+      if (input.source_ref !== ('source_ref' in preview ? preview.source_ref : undefined) || input.candidate_sha256 !== ('candidate_sha256' in preview ? preview.candidate_sha256 : undefined)) throw new Error('确认前固定父版或 Candidate 已变化，请重新预览任务')
       const found = await services.controller.resolveAgent(id)
       if (found.error) throw found.error
       const now = new Date()
@@ -265,12 +273,50 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     }
     if (action === 'pause' || action === 'cancel') {
       if (!fromUi) throw new Error('暂停和取消请使用任务卡')
+      const operation = taskOperations.get(id)
+      if (operation) {
+        armedTasks.delete(id); clearTaskTimer(id)
+        const task = (await inspect(id)).state.execution!
+        await saveTask(id, { ...task, state: action === 'cancel' ? 'cancelled' : 'paused', reason: '已发起停止，正在核对活动操作回执' })
+        operation.abort(new Error('用户停止任务'))
+        await changeGoal(id, 'pause')
+        await services.controller.cancel({ sessionId: id })
+        return (await inspect(id)).state.execution
+      }
       return locked(id, async () => { await stopTask(id, action === 'cancel' ? 'cancelled' : 'paused', action === 'cancel' ? '用户取消任务' : '用户暂停任务'); return (await inspect(id)).state.execution })
     }
     if (action === 'status') return (await inspect(id)).state.execution ?? null
     return locked(id, async () => {
       let task = (await inspect(id)).state.execution
       if (!task || task.owner_session_id !== id) throw new Error('本会话没有已确认任务；fork 不继承授权')
+      if (action === 'checkpoint') {
+        const operations = []
+        for (const operation of task.operations) {
+          if (!['running', 'unknown'].includes(operation.state)) { operations.push(operation); continue }
+          if (operation.action === 'eval/start') {
+            const observed = await dispatch('agents', 'eval/status', { job_id: operation.receipt?.value?.job_id ?? operation.id }, signal)
+            const job = observed.value
+            if (observed.ok && job?.source === task.target_source && Array.isArray(job.cases)
+              && job.cases.length === task.plan.evaluation_case_ids.length && task.plan.evaluation_case_ids.every(id => job.cases.includes(id))) {
+              operations.push({ ...operation, state: 'completed', receipt: { ok: true, value: { job_id: job.job_id, run_id: job.run_id, status: job.status } } })
+              continue
+            }
+          }
+          if (operation.action === 'edit/apply') {
+            const written = []
+            for (const edit of operation.input.edits ?? []) {
+              const observed = await dispatch('agents', 'edit/read', { experiment_id: task.target_source?.slice(11), path: edit.path }, signal)
+              if (observed.ok && observed.value?.sha256 === edit.target_sha256) written.push({ path: edit.path, sha256: edit.target_sha256 })
+            }
+            if (written.length && written.length === operation.input.edits.length) { operations.push({ ...operation, state: 'completed', receipt: { ok: true, value: { written } } }); continue }
+          }
+          operations.push(operation)
+        }
+        const unresolved = operations.some(item => ['running', 'unknown'].includes(item.state))
+        task = { ...task, operations, ...(task.state === 'unknown' && !unresolved ? { state: 'paused', reason: '已从真实回执核对操作，等待显式恢复；没有重复执行' } : {}) }
+        await saveTask(id, task)
+        return { ...task, unresolved_operations: operations.filter(item => ['running', 'unknown'].includes(item.state)).map(item => ({ id: item.id, action: item.action })) }
+      }
       if (action === 'rollback') {
         if (!task.plan.allowed_actions.some(item => item.domain === 'agents' && item.action === 'edit/apply')) throw new Error('当前方案未授权资产回退')
         if (!task.source_ref || !task.target_source) throw new Error('首次创建的版本尚无固定可恢复父版，保持未交付并保留失败记录')
@@ -327,7 +373,6 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
         await saveTask(id, task)
         return task
       }
-      if (action === 'checkpoint') return task
       if (action === 'deliver') {
         const artifactPrefix = `evolution/experiments/${task.target_source?.slice(11)}/runs/${input.run_id}/`
         const artifactRefs = Array.isArray(input.artifacts) ? input.artifacts.map((item: any) => {
@@ -344,7 +389,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
         }
         if (!matched) throw new Error('交付必须引用本任务实际启动的评测 Run，不能用无关历史结果代替')
         const receipt = await dispatch('agents', 'tasks/delivery', { ...input, artifacts: artifactRefs, agent_id: task.plan.agent_id, source: task.target_source,
-          instance_name: task.plan.instance_name, required_case_ids: task.plan.evaluation_case_ids, expected_device_ids: task.plan.inspection?.expected_device_ids }, signal)
+          instance_name: task.plan.instance_name, required_case_ids: task.plan.evaluation_case_ids, expected_device_ids: task.plan.inspection?.expected_device_ids, required_tool_names: task.plan.required_tool_names }, signal)
         if (!receipt.ok || !receipt.value?.ready) return { state: 'verification_failed', result: receipt }
         const entry = await dispatch('instances', 'url', { name: task.plan.instance_name }, signal)
         task = { ...task, state: 'completed', delivery: { ...receipt.value, ...(entry.ok ? { entry: entry.value } : {}) } }
@@ -402,11 +447,11 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
       if (!taskAllows(task, domain, action, input)) return undefined
       if (!armedTasks.has(id)) throw new Error('任务已暂停或原进程中断，请先在任务卡恢复')
       assertTaskBudget(task)
-      if (domain === 'agents' && ['edit/apply', 'eval/start'].includes(action)) {
+      if (domain === 'agents' && ['edit/apply', 'tasks/assembly-apply', 'eval/start'].includes(action)) {
         const detail = await dispatch('agents', 'detail', { agent_id: task.plan.agent_id, experiment_id: task.target_source!.slice(11) }, signal)
         if (!detail.ok || detail.value.evaluation?.sha256 !== task.evaluation_sha256) throw new Error('评判口径已变化，不能继续本次比较')
       }
-      if (action === 'edit/apply') {
+      if (action === 'edit/apply' || action === 'tasks/assembly-apply') {
         const latestEvaluation = [...task.operations].reverse().find(item => item.action === 'eval/start')
         if (latestEvaluation && !task.operations.some(item => item.action === 'begin-repair' && item.input.evaluation_job_id === latestEvaluation.receipt?.value?.job_id)) throw new Error('初测后修改须先调用 begin-repair 持久预留一轮修复')
       }
@@ -415,23 +460,27 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
       if (domain === 'agents' && action === 'new') actualInput = { ...task.plan.new_agent, agent_id: task.plan.agent_id, confirmed: true }
       if (domain === 'agents' && action === 'create') actualInput = { agent_id: task.plan.agent_id, parent_experiment_id: task.plan.source?.slice(11), parent_ref: task.source_ref, research_question: task.plan.goal, confirmed: true }
       if (action === 'eval/start') actualInput = { ...actualInput, task_budget: { deadline_at: task.deadline_at, remaining_model_calls: task.plan.budget.max_model_calls - task.model_calls, assistant_session_id: id } }
-      const loggedInput = action === 'edit/apply' ? { experiment_id: input.experiment_id, edits: (input.edits ?? []).map((edit: any) => ({ path: edit.path, expected_sha256: edit.expected_sha256 })) }
-        : action === 'new' ? { agent_id: task.plan.agent_id } : input
+      const loggedInput = action === 'edit/apply' ? { experiment_id: input.experiment_id, edits: (input.edits ?? []).map((edit: any) => ({ path: edit.path, expected_sha256: edit.expected_sha256, target_sha256: createHash('sha256').update(edit.content).digest('hex') })) }
+        : action === 'new' ? { agent_id: task.plan.agent_id }
+        : action === 'tasks/assembly-apply' ? { ...input, configuration_edits: (input.configuration_edits ?? []).map((edit: any) => ({ path: edit.path, expected_target_sha256: edit.expected_target_sha256 })) } : input
       const operation = { id: randomUUID(), domain, action, state: 'running', input: redactAssistant(loggedInput) }
+      if (action === 'eval/start') actualInput.task_budget = { ...actualInput.task_budget, operation_id: operation.id }
       task = { ...task, operations: [...task.operations, operation] }
       // 预留先于副作用；中断后保留该边界，不重新投递。
       await saveTask(id, task)
       let receipt: any
+      const operationController = new AbortController()
+      taskOperations.set(id, operationController)
       try {
         const timeout = AbortSignal.timeout(Math.max(1, Date.parse(task.deadline_at) - Date.now()))
-        receipt = await dispatch(domain, action, actualInput, AbortSignal.any([signal, timeout]))
+        receipt = await dispatch(domain, action, actualInput, AbortSignal.any([signal, timeout, operationController.signal]))
       } catch (error) {
         const fresh = (await inspect(id)).state.execution!
-        await saveTask(id, { ...fresh, state: 'unknown', reason: '操作执行后未取得完整回执，请核对实际状态', operations: fresh.operations.map(item => item.id === operation.id ? { ...item, state: 'unknown' } : item) })
+        await saveTask(id, { ...fresh, state: ['paused', 'cancelled'].includes(fresh.state) ? fresh.state : 'unknown', reason: '操作执行后未取得完整回执，请核对实际状态', operations: fresh.operations.map(item => item.id === operation.id ? { ...item, state: 'unknown' } : item) })
         armedTasks.delete(id); clearTaskTimer(id)
         await changeGoal(id, 'pause')
         throw error
-      }
+      } finally { if (taskOperations.get(id) === operationController) taskOperations.delete(id) }
       const fresh = (await inspect(id)).state.execution!
       const target = receipt.ok && ['new', 'create'].includes(action) ? receipt.value?.source ?? receipt.value?.source_id ?? (receipt.value?.experiment_id ? `experiment:${receipt.value.experiment_id}` : undefined) : undefined
       let evaluation = fresh.evaluation_sha256
@@ -643,7 +692,9 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
   return { handler, registerTools,
     isTaskSession(agent: any) { return Boolean(promptState(agent)?.execution || promptState(agent)?.task_context?.skill === 'task-builder') },
     async beforeModelCall(id: string) {
-      const resolved = await services.controller.resolveAgent(id)
+      const live = services.liveAgent?.(id)
+      if (services.liveAgent && !live) return
+      const resolved = live ? { agent: live, error: undefined } : await services.controller.resolveAgent(id)
       if (resolved.error || !workspaceOwnsCwd(root, resolved.agent?.session?.header?.cwd)) return
       const current = services.projections.stateOf(resolved.agent.session, projectionKey)
       if (!current?.active) return
@@ -657,6 +708,8 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
       })
     }, async dispose() {
     for (const id of taskTimers.keys()) clearTaskTimer(id)
+    for (const operation of taskOperations.values()) operation.abort(new Error('平台插件已卸载，需重新核对任务状态'))
+    taskOperations.clear()
     armedTasks.clear()
     unregisterOutput()
     unregisterPrompt()

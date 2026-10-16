@@ -414,7 +414,7 @@ test('融合必须有封存 Run 的目标来源、资产 hash 与实际 Session 
   } finally { await rm(fx.root, { recursive: true, force: true }) }
 })
 
-test('agents detail defaults to newest version while preserving explicit selection and manifest', async () => {
+test('agents detail prefers active version while preserving explicit selection and newest fallback', async () => {
   const { createAgentsHandler } = await loadServer()
   const fx = fixture()
   try {
@@ -424,7 +424,8 @@ test('agents detail defaults to newest version while preserving explicit selecti
     write(join(fx.root, 'evolution/experiments/EXP-test-agent-010-r123456789abc/change.yaml'), 'experiment_id: EXP-test-agent-010-r123456789abc\nagent_id: test-agent\nbaseline_ref: none:first-experiment\nstatus: active\n')
     const handler = createAgentsHandler(fx.root)
     const latest = await rpc(handler, 'detail', { agent_id: 'test-agent' })
-    assert.equal(latest.experiment.id, 'EXP-test-agent-010-r123456789abc')
+    assert.equal(latest.experiment.id, 'EXP-test-agent-001')
+    assert.equal(latest.selection.basis, 'active_experiment')
     assert.deepEqual(latest.versions.map(version => version.id), ['EXP-test-agent-010-r123456789abc', 'EXP-test-agent-001'])
     const older = await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: 'EXP-test-agent-001' })
     assert.equal(older.experiment.id, 'EXP-test-agent-001')
@@ -1090,20 +1091,5 @@ test('详情派生引用绑定所选版本的可恢复提交，未提交版本�
     const changed = await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: 'EXP-test-agent-001' })
     assert.equal(changed.derivation.parent_ref, null)
     assert.match(changed.derivation.note, /未提交改动/)
-  } finally { await rm(fx.root, { recursive: true, force: true }) }
-})
-
-test('默认详情优先manifest启用版本，新实验编号更大也不自动切换', async () => {
-  const { createAgentsHandler } = await loadServer()
-  const fx = fixture()
-  try {
-    addVersion(fx.root, 'EXP-test-agent-002', 'status: active\n')
-    const handler = createAgentsHandler(fx.root)
-    const active = await rpc(handler, 'detail', { agent_id: 'test-agent' })
-    assert.equal(active.experiment.id, 'EXP-test-agent-001')
-    assert.equal(active.selection.basis, 'active_experiment')
-    const explicit = await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: 'EXP-test-agent-002' })
-    assert.equal(explicit.experiment.id, 'EXP-test-agent-002')
-    assert.equal(explicit.selection.basis, 'explicit')
   } finally { await rm(fx.root, { recursive: true, force: true }) }
 })

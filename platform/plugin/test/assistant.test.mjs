@@ -755,3 +755,74 @@ test('回退只恢复本任务实际修改文件，固定来源与当前摘要�
   assert.equal((await f.status(id)).execution.state, 'paused')
   assert.equal((await f.status(id)).execution.operations[0].state, 'rolled_back')
 })
+
+test('装配与编辑共用修复轮次守卫，不能通过assembly跳过初测后的预留', async t => {
+  const f = fixture(t, taskResponder)
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '装配巡检' })).value.session_id
+  await beginTask(f, id, taskPlan({ allowed_actions: [{ domain: 'agents', action: 'tasks/assembly-apply' }, { domain: 'agents', action: 'eval/start' }] }))
+  await f.execute(id, 'agents', 'eval/start', { source: 'experiment:EXP-test-agent-001', cases: ['U-BUSINESS-001'] })
+  await assert.rejects(() => f.execute(id, 'agents', 'tasks/assembly-apply', { target_source: 'experiment:EXP-test-agent-001', files: [] }), /预留/)
+  assert.equal(f.calls.filter(row => row.endpoint === 'agents/tasks/assembly-apply').length, 0)
+})
+
+test('确认前固定父版变化时拒绝开始，不能静默换成新HEAD', async t => {
+  let parent = 'a'.repeat(40)
+  const f = fixture(t, (endpoint, input) => {
+    const value = taskResponder(endpoint, input)
+    if (endpoint === 'agents/detail') value.value.derivation.parent_ref = `git:${parent}`
+    return value
+  })
+  const goals = installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '从固定版本改进' })).value.session_id
+  const waiting = f.execute(id, 'task', 'start', { plan: taskPlan() })
+  const proposal = await f.proposal(id)
+  parent = 'b'.repeat(40)
+  const confirmed = await f.rpc('confirm', { session_id: id, proposal_id: proposal.id })
+  assert.equal(confirmed.ok, false)
+  assert.match(confirmed.error.message, /固定父版/)
+  await waiting
+  assert.equal((await f.status(id)).execution, undefined)
+  assert.equal(goals.size, 0)
+})
+
+test('未知评测回执从预留operation_id读取真实Job后可显式恢复，不重复启动', async t => {
+  let jobId
+  const f = fixture(t, (endpoint, input) => {
+    if (endpoint === 'agents/eval/start') { jobId = input.task_budget.operation_id; throw new Error('外部连接在Job启动后断开') }
+    if (endpoint === 'agents/eval/status') return { ok: true, value: { job_id: jobId, source: 'experiment:EXP-test-agent-001', cases: ['U-BUSINESS-001'], status: 'completed', run_id: 'run-own' } }
+    return taskResponder(endpoint, input)
+  })
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '可恢复巡检' })).value.session_id
+  await beginTask(f, id)
+  await assert.rejects(() => f.execute(id, 'agents', 'eval/start', { source: 'experiment:EXP-test-agent-001', cases: ['U-BUSINESS-001'] }), /断开/)
+  assert.equal((await f.status(id)).execution.state, 'unknown')
+  assert.equal((await f.rpc('task/resume', { session_id: id })).ok, false)
+  assert.equal((await f.rpc('task/checkpoint', { session_id: id })).ok, true)
+  assert.equal((await f.status(id)).execution.state, 'paused')
+  assert.equal((await f.rpc('task/resume', { session_id: id })).ok, true)
+  assert.equal(f.calls.filter(row => row.endpoint === 'agents/eval/start').length, 1)
+})
+
+test('长操作仍在等待时暂停立即取消其信号，晚到成功回执保持已暂停且不重发', async t => {
+  let release, operationSignal
+  const f = fixture(t, (endpoint, input, signal) => {
+    if (endpoint === 'agents/tasks/assembly-apply') { operationSignal = signal; return new Promise(resolve => { release = resolve }) }
+    return taskResponder(endpoint, input)
+  })
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '装配后评测' })).value.session_id
+  await beginTask(f, id, taskPlan({ allowed_actions: [{ domain: 'agents', action: 'tasks/assembly-apply' }] }))
+  const operation = f.execute(id, 'agents', 'tasks/assembly-apply', { target_source: 'experiment:EXP-test-agent-001', files: [] })
+  while (!release) await setImmediate()
+  const paused = await Promise.race([f.rpc('task/pause', { session_id: id }), new Promise(resolve => setTimeout(() => resolve({ timeout: true }), 150))])
+  assert.equal(paused.ok, true)
+  assert.equal(operationSignal.aborted, true)
+  assert.equal((await f.status(id)).execution.state, 'paused')
+  release({ ok: true, value: { source: 'experiment:EXP-test-agent-001' } })
+  await operation
+  assert.equal((await f.status(id)).execution.state, 'paused')
+  assert.equal((await f.status(id)).execution.operations[0].state, 'completed')
+  assert.equal(f.calls.filter(row => row.endpoint === 'agents/tasks/assembly-apply').length, 1)
+})

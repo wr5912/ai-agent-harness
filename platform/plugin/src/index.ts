@@ -161,6 +161,7 @@ export function applyTools(ctx: Context) {
     scopeFeatures: agent => featureScope.apply(agent),
     scopeTaskBuilder: agent => builderScope.apply(agent),
     running: id => services.agents.get(id)?.status === 'running',
+    liveAgent: id => services.agents.get(id),
     record: async (session, type, value) => { const records = await runtimeModule('@deepseek-ai/dsh-session'); records.appendPluginRecord(session, type, value) },
     projections: services.sessionProjections, systemPrompt: services.systemPrompt,
     notify, mcp: manager ? assistantMcp(services.settingsController, manager) : undefined,

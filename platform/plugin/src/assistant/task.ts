@@ -15,6 +15,7 @@ export const taskPlanSchema = z.object({
   instance_name: z.string().regex(/^[a-z0-9][a-z0-9_.-]*$/).optional(),
   deliverables: z.array(z.string().min(1)).min(1),
   artifact_paths: z.array(z.string().regex(/^artifacts\/[a-zA-Z0-9_./-]+$/).refine(path => !path.split('/').includes('..'))).min(1).optional(),
+  required_tool_names: z.array(z.string().min(1)).default([]),
   kind: z.enum(['inspection', 'training', 'business']).default('business'),
   inspection: z.object({ expected_device_ids: z.array(z.string().min(1)).min(1) }).strict().optional(),
   new_agent: z.object({ name: z.string().min(1), description: z.string().min(1), role: z.string().min(1), evaluation_cases: z.array(taskCaseSchema).min(1) }).strict().optional(),
@@ -46,6 +47,8 @@ export function parseTaskPlan(value: unknown): TaskPlan {
   if (plan.new_agent && (new Set(plan.new_agent.evaluation_cases.map(item => item.id)).size !== plan.new_agent.evaluation_cases.length || plan.evaluation_case_ids.some(id => !plan.new_agent!.evaluation_cases.some(item => item.id === id)))) throw new Error('首次业务测试 ID 重复或与约定范围不一致')
   if (plan.kind !== 'training' && plan.budget.timeout_minutes > 30) throw new Error('普通任务总时限最多 30 分钟')
   if (plan.kind === 'inspection' && !plan.inspection?.expected_device_ids.length) throw new Error('巡检任务必须固定预期设备集合，不能在交付时缩小范围')
+  if (new Set(plan.evaluation_case_ids).size !== plan.evaluation_case_ids.length) throw new Error('任务评测用例 ID 不得重复')
+  if (plan.kind === 'inspection' && !plan.required_tool_names.length) throw new Error('巡检任务必须指定实际业务工具，不能只凭文字报告交付')
   if (plan.allowed_actions.some(item => !continuousActions.has(`${item.domain}:${item.action}`))) throw new Error('任务授权包含不支持连续执行的动作；配置工具、改评判口径或删除实例需单独确认')
   return plan
 }

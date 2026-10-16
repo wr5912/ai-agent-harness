@@ -834,6 +834,7 @@ async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
   return ok({
     agent: { id: agentId, name: agentDisplayName(root, experimentId) ?? agentId, manifest, path: `agents/${agentId}` },
     experiment: exp,
+    candidate_sha256: candidateDigest(root, experimentId),
     selection: { basis: explicitExperiment ? 'explicit' : activeExperiment ? 'active_experiment' : 'latest_experiment', experiment_id: experimentId },
     versions: versions.map(item => ({ id: item.id, status: item.status, baseline_ref: item.baseline_ref })),
     baseline: { ref: exp.baseline_ref, parent_experiment_id: exp.change.parent_experiment_id ?? null, source: exp.baseline_ref ? 'change.yaml' : 'unknown' },

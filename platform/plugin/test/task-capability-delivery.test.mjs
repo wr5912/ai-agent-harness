@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
+import { createServer } from 'node:http'
 import { discoverTaskCapabilities } from '../src/tasks/capabilities.ts'
 import { applyTaskAssembly, previewTaskAssembly } from '../src/tasks/assembly.ts'
 import { candidateDigest, sha256 } from '../src/tasks/files.ts'
@@ -86,7 +87,12 @@ function sealedRun(root) {
   const run = cli('init', '--source', `experiment:${sourceId}`, '--case', 'U-INS-001', '--kind', 'technical'), prefix = `evolution/experiments/${sourceId}/runs/${run}`
   const report = 'device_id,status\nD-1,正常\nD-2,正常\n'
   write(root, `${prefix}/evidence/U-INS-001/response.json`, JSON.stringify({ assistant_texts: [report] }))
-  write(root, `${prefix}/evidence/U-INS-001/trace.jsonl`, JSON.stringify({ event: { type: 'session/created', createdAt: Date.now() } }) + '\n')
+  const toolReport = { completed: true, markdown: report, report_sha256: sha256(report), download_url: '/assistant/api/task-examples/artifact?run_id=task-test&file=report.md' }
+  write(root, `${prefix}/evidence/U-INS-001/trace.jsonl`, [
+    { type: 'session', id: 'session-test-1' },
+    { type: 'tool/call', data: { callId: 'inspection-call', name: 'task_inspection', arguments: '{}' } },
+    { type: 'tool/result', data: { message: { toolCallId: 'inspection-call', isError: false, content: [{ type: 'text', text: JSON.stringify(toolReport) }] } } },
+  ].map(event => JSON.stringify({ session_log: 'session.v4.jsonl', event })).join('\n') + '\n')
   write(root, `${prefix}/evidence/U-INS-001/checks.json`, JSON.stringify({ session_id: 'session-test-1', session_preset: 'inspection-task', session_workspace: '/work/harness/workspace', preset_matches: true, workspace_matches: true }))
   write(root, `${prefix}/results.jsonl`, JSON.stringify({ run_id: run, trial_id: 'trial-test', input_id: 'U-INS-001', execution_status: 'completed', verdict: 'passed', observation: '确定性设备清单通过。', evidence_ref: 'evidence/U-INS-001' }) + '\n')
   const contract = JSON.parse(execFileSync(python, [join(adapter, 'source_contract.py'), '--repo', root, '--source', `experiment:${sourceId}`], { env, encoding: 'utf8' })), image = 'sha256:' + '1'.repeat(64)
@@ -101,13 +107,18 @@ function sealedRun(root) {
 
 test('交付检查执行真实封存与来源校验，仅隔离 Docker 边界；不能只凭 running 通过', async t => {
   const root = fixture(t), { run, artifact, observed } = sealedRun(root)
+  const server = createServer((_request, response) => { response.writeHead(200, { 'content-type': 'text/csv' }); response.end('device_id,status\nD-1,正常\nD-2,正常\n') })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => new Promise(resolve => server.close(resolve)))
+  const manifestPath = join(root, '.local/instances/delivery-test/instance.json')
+  writeFileSync(manifestPath, JSON.stringify({ ...JSON.parse(readFileSync(manifestPath, 'utf8')), port: server.address().port }))
   const bin = join(root, 'bin'); write(root, 'observation.json', JSON.stringify(observed))
   const script = write(root, 'bin/docker', '#!/usr/bin/env node\nconst fs=require("fs");const o=JSON.parse(fs.readFileSync(process.env.HEP_DELIVERY_TEST_OBSERVATION));process.stdout.write(JSON.stringify(process.argv[2]==="image"?o.image:o.container));\n'); chmodSync(script, 0o700)
   const before = Object.fromEntries(['PATH', 'HARNESS_PYTHON', 'HARNESS_PROGRAM_ROOT', 'HEP_DELIVERY_TEST_OBSERVATION'].map(key => [key, process.env[key]]))
   Object.assign(process.env, { PATH: `${bin}:${process.env.PATH}`, HARNESS_PYTHON: python, HARNESS_PROGRAM_ROOT: program, HEP_DELIVERY_TEST_OBSERVATION: join(root, 'observation.json') })
   t.after(() => { for (const [key, value] of Object.entries(before)) if (value === undefined) delete process.env[key]; else process.env[key] = value })
-  const input = { agent_id: 'inspection-task', source: `experiment:${sourceId}`, run_id: run, instance_name: 'delivery-test', artifacts: [artifact], expected_device_ids: ['D-1', 'D-2'], required_case_ids: ['U-INS-001'] }
+  const input = { agent_id: 'inspection-task', source: `experiment:${sourceId}`, run_id: run, instance_name: 'delivery-test', artifacts: [artifact], expected_device_ids: ['D-1', 'D-2'], required_case_ids: ['U-INS-001'], required_tool_names: ['task_inspection'] }
   const passed = await verifyTaskDelivery(root, input); assert.equal(passed.ready, true, JSON.stringify(passed.checks))
+  assert.equal((await verifyTaskDelivery(root, { ...input, required_tool_names: ['unrelated_business_tool'] })).ready, false)
   assert.equal((await verifyTaskDelivery(root, { ...input, ready: true, artifacts: ['agents/inspection-task/evaluation.md'] })).ready, false)
   observed.container[0].Mounts[0].RW = true; write(root, 'observation.json', JSON.stringify(observed)); assert.equal((await verifyTaskDelivery(root, input)).ready, false)
   observed.container[0].Mounts[0].RW = false; write(root, 'observation.json', JSON.stringify(observed)); write(root, artifact, 'device_id,status\nD-1,正常\n')

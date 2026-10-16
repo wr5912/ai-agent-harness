@@ -353,6 +353,7 @@ function TaskCard({ task, assistant, rpc, sessionId }: { task: TaskExecution; as
     <p>修复 {task.repair_rounds}/{task.plan.budget.max_repair_rounds} 轮 · 助手模型调用 {task.model_calls}/{task.plan.budget.max_model_calls} 次 · 截止 {new Date(task.deadline_at).toLocaleTimeString()}</p>
     <small>外部评测、工具和训练消耗另见实际运行记录；缺失的费用或调用统计不按零计。</small>
     {task.reason && <p role="status">{task.reason}</p>}
+    {task.operations.some(item => ['running', 'unknown'].includes(item.state)) && <button disabled={busy} onClick={() => void act('checkpoint')}>核对运行状态</button>}
     {task.state === 'running' && <button disabled={busy} onClick={() => void act('pause')}>暂停任务</button>}
     {task.state === 'paused' && <button disabled={busy} onClick={() => void act('resume')}>恢复任务</button>}
     {task.source_ref && task.operations.some(item => item.action === 'edit/apply' && item.state === 'completed') && task.state !== 'completed' && <button disabled={busy} onClick={() => void act('rollback')}>恢复任务前版本</button>}
