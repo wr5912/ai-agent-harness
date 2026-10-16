@@ -3,7 +3,6 @@ import { CHANNEL, type PlatformPageProps } from '../protocol.ts'
 import type { AssetDiffView } from './asset-diff.ts'
 
 type Result = { ok: true; value: AssetDiffView } | { ok: false; error: { code: string; message: string } }
-const field = { display: 'grid', minWidth: 0, gap: 4 } as const
 const statusText = { added: '新增', removed: '删除', modified: '修改' }
 
 export function AssetDiffPanel({ rpc, experimentId, versions, baseline, onClose }: PlatformPageProps & {
@@ -28,14 +27,14 @@ export function AssetDiffPanel({ rpc, experimentId, versions, baseline, onClose 
     } catch (error) { if (current === request.current) setError((error as Error).message) }
     finally { if (current === request.current) setBusy(false) }
   }
-  return <section className="agent-asset-diff" aria-label="资产差异" style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
+  return <section className="agent-asset-diff" aria-label="资产差异">
     <div className="agent-section-heading"><h3>资产差异</h3><button type="button" onClick={() => { request.current++; onClose() }}>关闭差异</button></div>
-    <div style={{ display: 'flex', alignItems: 'end', flexWrap: 'wrap', gap: 12 }}>
-      <label style={field}>对比来源<select value={against} onChange={event => { reset(); setAgainst(event.target.value) }}>
+    <div className="agent-diff-controls">
+      <label className="agent-field">对比来源<select value={against} onChange={event => { reset(); setAgainst(event.target.value) }}>
         <option value="baseline">固定 Baseline</option>
         {versions.filter(item => item.id !== experimentId).map(item => <option key={item.id} value={item.id}>{item.id}（工作树）</option>)}
       </select></label>
-      {against === 'baseline' && baseline.ref?.startsWith('git:') && <label style={field}>Baseline 中的研究版本<select value={baselineExperiment} onChange={event => { reset(); setBaselineExperiment(event.target.value) }}>{versions.map(item => <option key={item.id} value={item.id}>{item.id}</option>)}</select></label>}
+      {against === 'baseline' && baseline.ref?.startsWith('git:') && <label className="agent-field">Baseline 中的研究版本<select value={baselineExperiment} onChange={event => { reset(); setBaselineExperiment(event.target.value) }}>{versions.map(item => <option key={item.id} value={item.id}>{item.id}</option>)}</select></label>}
       <button type="button" disabled={busy} onClick={() => void compare()}>{busy ? '正在比较…' : '比较资产'}</button>
     </div>
     {against === 'baseline' && <p className="agent-muted">Baseline：{baseline.ref || '未记录'}。有固定 Git 引用时读取该提交中的父版本；首版与空来源比较。</p>}
