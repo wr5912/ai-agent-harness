@@ -7,7 +7,7 @@ export const baseTheme = `${visualTokens}
 /* :where 降低公共控件权重；原生对话控件继续由 DSH 管理。 */
 .harness-platform :where(button,input,select,textarea):not(:where(.harness-assistant-chat *)){font:inherit}
 .harness-platform :where(button):not(:where(.harness-assistant-chat *)){border:1px solid var(--hep-border);border-radius:var(--hep-control-radius);background:var(--hep-surface);color:var(--hep-text);padding:7px 12px;min-height:max(38px,var(--hep-hit-target));cursor:pointer;transition:background-color var(--hep-motion-fast),border-color var(--hep-motion-fast),box-shadow var(--hep-motion-fast),transform var(--hep-motion-fast)}
-.harness-platform :where(button):not(:where(.harness-assistant-chat *)):hover:enabled{border-color:var(--hep-primary);background:var(--hep-primary-soft);color:var(--hep-primary)}
+.harness-platform :where(button):not(:where(.harness-assistant-chat *)):hover:enabled{border-color:var(--hep-primary);background:var(--hep-primary-soft);color:var(--hep-link)}
 .harness-platform :where(button):not(:where(.harness-assistant-chat *)):active:enabled{transform:translateY(1px)}
 .harness-platform :where(button):not(:where(.harness-assistant-chat *)):disabled{opacity:.45;cursor:default}
 .harness-platform :where(button,a,input,select,textarea,summary):not(:where(.harness-assistant-chat *)):focus-visible{outline:2px solid var(--hep-primary);outline-offset:3px}
@@ -31,9 +31,9 @@ export const baseTheme = `${visualTokens}
 .harness-nav{display:flex;gap:4px;min-width:0;overflow-x:auto;scrollbar-width:thin}
 .harness-topbar>.harness-nav{flex:1}
 .harness-nav button{flex-shrink:0;white-space:nowrap;border:0;background:transparent;padding:9px 12px;color:var(--hep-muted)}
-.harness-nav button[aria-current=page]{color:var(--hep-primary);background:var(--hep-primary-soft);font-weight:600}
+.harness-nav button[aria-current=page]{color:var(--hep-link);background:var(--hep-primary-soft);font-weight:600}
 .harness-account{margin-left:auto;display:flex;align-items:center;gap:10px;color:var(--hep-muted);flex-shrink:0}
-.harness-avatar{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--hep-primary-soft);color:var(--hep-primary)}
+.harness-avatar{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--hep-primary-soft);color:var(--hep-link)}
 .harness-body{display:flex;flex:1;min-width:0;min-height:0}
 .harness-content{position:relative;flex:1;min-width:0;min-height:0;overflow:auto;scrollbar-width:thin}
 .harness-breadcrumb{padding:18px var(--hep-page-padding) 0;color:var(--hep-muted);font-size:12px}
@@ -44,12 +44,12 @@ export const baseTheme = `${visualTokens}
 .harness-platform .harness-primary:hover:enabled{background:var(--hep-primary-hover);border-color:var(--hep-primary-hover);color:#fff;box-shadow:0 3px 10px #0075ca20}
 .harness-section-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
 .harness-section-heading h2{margin:0}
-.harness-section-heading button{border:0;font-size:12px;color:var(--hep-primary);background:transparent}
+.harness-section-heading button{border:0;font-size:12px;color:var(--hep-link);background:transparent}
 .harness-run-row{display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid var(--hep-border)}
 .harness-run-row>div{min-width:0;flex:1}
 .harness-run-row strong{display:block;font-size:14px;overflow-wrap:anywhere}
 .harness-run-row small{display:block;color:var(--hep-muted);font-size:12px;margin-top:4px}
-.harness-run-state{font-size:12px;background:var(--hep-primary-soft);color:var(--hep-primary);border-radius:6px;padding:4px 8px;flex-shrink:0}
+.harness-run-state{font-size:12px;background:var(--hep-primary-soft);color:var(--hep-link);border-radius:6px;padding:4px 8px;flex-shrink:0}
 .harness-guide{color:var(--hep-muted);background:var(--hep-surface-muted);padding:16px;border-radius:8px;margin-top:16px;line-height:1.8;font-size:12px}
 .harness-source{font-size:12px;color:var(--hep-muted);margin-top:18px;overflow-wrap:anywhere}
 .harness-fields{margin:8px 0;overflow-wrap:anywhere}.harness-fields>div{margin:10px 0}.harness-fields dt{font-size:12px;color:var(--hep-muted)}.harness-fields dd{margin:4px 0 0}

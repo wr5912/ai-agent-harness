@@ -5,7 +5,7 @@ export const mcpPageTheme = `
 .harness-mcp-toolbar>.harness-mcp-actions{margin-left:auto;flex-shrink:0}
 .harness-mcp-tabs{display:flex;gap:24px;flex-wrap:wrap;min-width:0}
 .harness-platform .harness-mcp-tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;padding:12px 0;background:transparent;color:var(--hep-muted)}
-.harness-platform .harness-mcp-tabs [aria-current=page]{color:var(--hep-primary);border-bottom-color:var(--hep-primary);font-weight:600}
+.harness-platform .harness-mcp-tabs [aria-current=page]{color:var(--hep-link);border-bottom-color:var(--hep-primary);font-weight:600}
 .harness-mcp-page .mcp-manager{max-width:none;width:100%;margin:0;overflow-wrap:anywhere}
 .harness-mcp-page .mcp-manager .mcp-tabs{display:none}
 .harness-mcp-page .mcp-manager .mcp-content{padding:0;min-height:0}
@@ -15,7 +15,7 @@ export const mcpPageTheme = `
 .harness-composition-sidebar ul{list-style:none;padding:0;margin:0}
 .harness-composition-sidebar li{margin:4px 0}
 .harness-composition-sidebar li button{display:block;width:100%;text-align:left;overflow-wrap:anywhere;padding:12px;border-color:transparent;background:transparent}
-.harness-composition-sidebar li button[aria-current=true]{background:var(--hep-surface);border-color:var(--hep-border);color:var(--hep-primary);box-shadow:0 2px 8px #16395908}
+.harness-composition-sidebar li button[aria-current=true]{background:var(--hep-surface);border-color:var(--hep-border);color:var(--hep-link);box-shadow:0 2px 8px #16395908}
 .harness-composition-sidebar small{display:block;margin-top:6px;font-size:12px;color:var(--hep-muted);line-height:1.5}
 .harness-composition-status{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font-size:12px;line-height:1.5;color:var(--hep-muted)}
 .harness-composition-status>span{display:inline-flex;align-items:center;gap:6px}
@@ -30,7 +30,7 @@ export const mcpPageTheme = `
 .harness-composition-detail>.harness-mcp-actions{margin:12px 0}
 .harness-composition-detail [aria-label="编排版本"]{padding:4px;background:var(--hep-surface-muted);width:fit-content;border-radius:var(--hep-control-radius)}
 .harness-composition-detail [aria-label="编排版本"] button{border-color:transparent;background:transparent;min-height:max(36px,var(--hep-hit-target));padding:6px 12px}
-.harness-composition-detail [aria-label="编排版本"] button[aria-pressed=true]{background:var(--hep-surface);border-color:var(--hep-border);color:var(--hep-primary)}
+.harness-composition-detail [aria-label="编排版本"] button[aria-pressed=true]{background:var(--hep-surface);border-color:var(--hep-border);color:var(--hep-link)}
 .harness-composition-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px}
 .harness-composition-editor>p,.harness-composition-editor>.harness-mcp-actions,.harness-composition-editor>.harness-threat-editor,.harness-composition-editor>.harness-mcp-wide{grid-column:1/-1}
 .harness-composition-editor label,.harness-composition-test>label{display:grid;gap:8px;min-width:0}
@@ -43,11 +43,11 @@ export const mcpPageTheme = `
 .harness-composition-layout ul{padding-left:20px;font-size:13px;color:var(--hep-muted)}
 .harness-mcp-flow{display:grid;gap:24px}
 .harness-mcp-flow article{position:relative;min-width:0;padding:16px;border:1px solid var(--hep-border);border-radius:var(--hep-control-radius);background:var(--hep-surface-muted)}
-.harness-mcp-flow article:not(:last-child)::after{content:'↓';position:absolute;left:24px;bottom:-23px;color:var(--hep-primary);line-height:22px}
+.harness-mcp-flow article:not(:last-child)::after{content:'↓';position:absolute;left:24px;bottom:-23px;color:var(--hep-link);line-height:22px}
 .harness-mcp-flow small{color:var(--hep-muted);font-size:12px}
 .harness-mcp-flow h3{margin:8px 0}
 .harness-mcp-flow h3 button{width:100%;text-align:left;background:var(--hep-surface);font-size:14px}
-.harness-mcp-flow button[aria-pressed=true]{background:var(--hep-primary-soft);border-color:var(--hep-primary);color:var(--hep-primary)}
+.harness-mcp-flow button[aria-pressed=true]{background:var(--hep-primary-soft);border-color:var(--hep-primary);color:var(--hep-link)}
 .harness-mcp-flow code{font-size:12px;overflow-wrap:anywhere}
 .harness-composition-test{padding-top:24px;margin-top:24px;border-top:1px solid var(--hep-border)}
 .harness-composition-test>label{max-width:640px;margin:16px 0}

@@ -49,7 +49,7 @@ export const instanceTheme = `
 .instance-detail-notice{margin:0 24px 16px;color:var(--dsw-alias-danger-text,#c24140)}
 .instance-detail-tabs{display:flex;gap:24px;padding:0 24px;border-bottom:1px solid var(--hep-border);overflow-x:auto}
 .harness-instances-page .instance-detail-tab{border:0;border-bottom:2px solid transparent;border-radius:0;padding:12px 0;background:transparent;color:var(--hep-muted);white-space:nowrap}
-.harness-instances-page .instance-detail-tab[aria-selected=true]{border-bottom-color:var(--hep-primary);color:var(--hep-primary);font-weight:600}
+.harness-instances-page .instance-detail-tab[aria-selected=true]{border-bottom-color:var(--hep-primary);color:var(--hep-link);font-weight:600}
 .instance-detail-body{padding:24px;min-width:0}
 .instance-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:20px 24px;margin:0}
 .instance-fact{min-width:0;padding-bottom:16px;border-bottom:1px solid var(--hep-border)}
@@ -64,7 +64,7 @@ export const instanceTheme = `
 .instance-run-list{list-style:none;padding:0;margin:12px 0 0}
 .instance-run-item{display:grid;gap:4px;padding:12px 0;overflow-wrap:anywhere}
 .instance-run-item+li{border-top:1px solid var(--hep-border)}
-.harness-instances-page .instance-run-link{border:0;padding:0;min-height:max(32px,var(--hep-hit-target));text-align:left;color:var(--hep-primary);background:transparent;overflow-wrap:anywhere;justify-self:start}
+.harness-instances-page .instance-run-link{border:0;padding:0;min-height:max(32px,var(--hep-hit-target));text-align:left;color:var(--hep-link);background:transparent;overflow-wrap:anywhere;justify-self:start}
 .instance-path{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
 .instance-embed-heading{align-items:start}
 .instance-section-title{font-size:16px;margin:0}
