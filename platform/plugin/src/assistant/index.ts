@@ -498,7 +498,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
         receipt = await dispatch(domain, action, actualInput, AbortSignal.any([signal, timeout, operationController.signal]))
       } catch (error) {
         const fresh = (await inspect(id)).state.execution!
-        await saveTask(id, { ...fresh, state: ['paused', 'cancelled'].includes(fresh.state) ? fresh.state : 'unknown', reason: '操作执行后未取得完整回执，请核对实际状态', operations: fresh.operations.map(item => item.id === operation.id ? { ...item, state: 'unknown' } : item) })
+        await saveTask(id, { ...fresh, state: ['paused', 'cancelled', 'budget_exhausted'].includes(fresh.state) ? fresh.state : 'unknown', reason: '操作执行后未取得完整回执，请核对实际状态', operations: fresh.operations.map(item => item.id === operation.id ? { ...item, state: 'unknown' } : item) })
         armedTasks.delete(id); clearTaskTimer(id)
         await changeGoal(id, 'pause')
         throw error
