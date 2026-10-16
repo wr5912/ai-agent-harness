@@ -137,26 +137,22 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
     finally { setBusy(false) }
   }
   const selectedPayload = { compositionId: entry?.id, version: selection?.version, revision: data?.revision, input: compositionTestInput(config || undefined, asset) }
-  const groups = [
-    { title: '全部编排', entries, version: undefined },
-    { title: '正在编辑', entries: entries.filter(item => item.draft), version: 'draft' as const },
-    { title: '已发布', entries: entries.filter(item => item.published), version: 'published' as const },
-  ]
   return <div className="harness-composition-workspace">
     <style>{threatEditorStyle}</style>
     <nav className="harness-card harness-composition-sidebar" aria-label="工具编排列表">
       <h2>工具组合编排</h2><div className="harness-mcp-actions"><button type="button" disabled={busy || !!editor || seeding || !data} onClick={() => setEditor({ revision: data.revision, value: { toolName: '', title: '资产相关告警查询', description: '查询资产后查询相关告警的两步只读组合', connectionId: connections[0]?.id ?? '' } })}>新建编排</button>
         {data?.extension?.seed && <button type="button" disabled={busy || !!editor || seeding || !data} onClick={() => { setSeeding(true); setResult(null); setError('') }}>威胁分析样例</button>}
         <button type="button" disabled={busy || !!editor || seeding} onClick={() => void action('list', {})}>刷新</button></div>
-      {groups.map(group => <section key={group.title} aria-label={group.title}><h3>{group.title}（{group.entries.length}）</h3>
-        {group.entries.length ? <ul>{group.entries.map(item => {
-          const version = group.version ?? (item.draft ? 'draft' : 'published')
+      <section aria-label="全部编排"><h3>全部编排（{entries.length}）</h3>
+        {entries.length ? <ul>{entries.map(item => {
+          const version = item.draft ? 'draft' : 'published'
           const value = item[version]!
-          return <li key={item.id}><button type="button" disabled={busy || !!editor || seeding} aria-current={selection?.id === item.id && selection.version === version ? 'true' : undefined} onClick={() => select(item, version)}>
-            <span>{value.title}</span><small>{value.toolName} · {group.version ? (version === 'draft' ? '草稿' : '已发布') : [item.draft && '正在编辑', item.published && '已发布'].filter(Boolean).join(' / ')}</small>
+          return <li key={item.id}><button type="button" disabled={busy || !!editor || seeding} aria-current={selection?.id === item.id ? 'true' : undefined} onClick={() => select(item, version)}>
+            <span>{value.title}</span><small>{value.toolName}</small>
+            <span className="harness-composition-status">{item.published && <span data-state="published">已发布</span>}{item.draft && <span data-state="draft">正在编辑</span>}</span>
           </button></li>
-        })}</ul> : <p>暂无{group.title === '全部编排' ? '编排' : group.title === '正在编辑' ? '草稿' : '已发布工具'}</p>}
-      </section>)}
+        })}</ul> : <p>暂无编排</p>}
+      </section>
     </nav>
     <section className="harness-card harness-composition-detail" aria-label="组合编排详情">
       {error && <p role="alert">{error}</p>}
