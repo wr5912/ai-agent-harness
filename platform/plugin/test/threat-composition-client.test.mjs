@@ -50,19 +50,15 @@ async function page(rpc) {
   return ui
 }
 
-test('页面以目录版本创建五个草稿，阶段测试使用run_id并显示服务端编译节点', async t => {
+test('页面读取已有编排，阶段测试使用run_id并显示服务端编译节点', async t => {
   const calls = []
   const ui = await page({ call: async (channel, endpoint, payload) => {
     calls.push({ channel, endpoint, payload })
     return { ok: true, value: endpoint === 'mcp/dryRunComposition' ? { mode: 'dry', graph, checks: [], unverified: [], upstreamRequests: 0 } : state }
   } })
   t.after(ui.dispose)
-  ui.button('威胁分析样例').props.onClick(); ui.render()
-  const form = ui.nodes().find(node => typeof node.type === 'function' && node.type.name === 'ThreatSeedForm')
-  assert.ok(form.props.connections.some(connection => connection.id === 'report'))
-  form.props.create({ socConnectionId: 'soc', reportConnectionId: 'report' })
-  await tick(); ui.render()
-  assert.deepEqual(JSON.parse(JSON.stringify(calls.find(call => call.endpoint === 'mcp/seedThreatCompositions'))), { channel: '/harness-platform', endpoint: 'mcp/seedThreatCompositions', payload: { revision: 'r1', bindings: { socConnectionId: 'soc', reportConnectionId: 'report' } } })
+  assert.equal(ui.button('威胁分析样例'), undefined)
+  assert.equal(calls.some(call => call.endpoint === 'mcp/seedThreatCompositions'), false)
   assert.ok(ui.nodes().some(node => node.props?.['aria-label'] === '组合事件 ID'))
   ui.nodes().find(node => node.type === 'button' && ui.text(node).startsWith('threat-inferthreat-infer')).props.onClick(); ui.render()
   const input = ui.nodes().find(node => node.props?.['aria-label'] === '组合运行 ID')

@@ -57,15 +57,6 @@ function BindingsFields({ value, change, connections, model = true }: { value: T
   </div> : <p>首次模型研判时解析平台当前默认模型及推理强度，随后冻结；模型凭据由平台原生配置提供。</p>}</>}</fieldset>
 }
 
-export function ThreatSeedForm({ connections, busy, create, cancel }: { connections: RegisteredConnection[]; busy: boolean; create(bindings: ThreatBindings): void; cancel(): void }) {
-  const [bindings, setBindings] = useState<ThreatBindings>({ socConnectionId: '', reportConnectionId: '' })
-  return <form className="harness-threat-editor" onSubmit={event => { event.preventDefault(); create(bindings) }}>
-    <h3>创建威胁分析样例草稿</h3><p>创建取证、研判、回写、报告四个子组合和一个总组合。先分别发布子组合，再为总组合选择固定的发布版本；本操作不会执行业务调用。模型设置仅用于研判子组合。</p>
-    <BindingsFields value={bindings} change={setBindings} connections={connections}/>
-    <div className="harness-mcp-actions"><button type="submit" disabled={busy}>创建五个草稿</button><button type="button" disabled={busy} onClick={cancel}>取消</button></div>
-  </form>
-}
-
 function InputMapping({ value, change }: { value: Record<string, unknown>; change(value: Record<string, unknown>): void }) {
   const [text, setText] = useState(JSON.stringify(value, null, 2))
   const [error, setError] = useState('')

@@ -4,7 +4,7 @@ import { Manager } from 'harness-mcp-manager-client'
 import { CHANNEL, type PlatformPageProps } from '../protocol.ts'
 import type { CompositionConfig, CompositionEntry } from './compositions.ts'
 import type { PlatformUpdates } from '../realtime/client.ts'
-import { compositionTestInput, isThreatComposition, ThreatConfigurationFields, ThreatRunResult, ThreatSeedForm, threatEditorStyle } from './threat-editor.tsx'
+import { compositionTestInput, isThreatComposition, ThreatConfigurationFields, ThreatRunResult, threatEditorStyle } from './threat-editor.tsx'
 
 type LivePageProps = { updates?: PlatformUpdates; onContext?(context: Record<string, unknown>): void }
 
@@ -58,7 +58,6 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
   const [data, setData] = useState<any>(null)
   const [selection, setSelection] = useState<{ id: string; version: 'draft' | 'published' } | null>(null)
   const [editor, setEditor] = useState<{ id?: string; revision: string; value: CompositionConfig } | null>(null)
-  const [seeding, setSeeding] = useState(false)
   const [asset, setAsset] = useState('')
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState('')
@@ -120,10 +119,6 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
       if (!response.ok) { setError(response.error.message); return }
       const value = response.value as any
       if (endpoint === 'list') accept(value)
-      else if (endpoint === 'seedThreatCompositions') {
-        requestId.current++
-        accept(value); setSelection({ id: 'threat-analysis', version: 'draft' }); setSeeding(false); setAsset('')
-      }
       else if (endpoint === 'saveCompositionDraft') {
         requestId.current++
         const saved = editor?.id ? value.compositions.find((item: CompositionEntry) => item.id === editor.id) : value.compositions.at(-1)
@@ -132,7 +127,7 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
         requestId.current++
         accept(value); setSelection({ id: payload.compositionId, version: 'published' }); setResult(value.dry)
       } else setResult(value)
-      if (['seedThreatCompositions', 'saveCompositionDraft', 'publishComposition'].includes(endpoint)) updates?.invalidate(['mcp'])
+      if (['saveCompositionDraft', 'publishComposition'].includes(endpoint)) updates?.invalidate(['mcp'])
     } catch { if (id === actionId.current) setError('操作失败，请检查连接并重试。') }
     finally { setBusy(false) }
   }
@@ -140,14 +135,13 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
   return <div className="harness-composition-workspace">
     <style>{threatEditorStyle}</style>
     <nav className="harness-card harness-composition-sidebar" aria-label="工具编排列表">
-      <h2>工具组合编排</h2><div className="harness-mcp-actions"><button type="button" disabled={busy || !!editor || seeding || !data} onClick={() => setEditor({ revision: data.revision, value: { toolName: '', title: '资产相关告警查询', description: '查询资产后查询相关告警的两步只读组合', connectionId: connections[0]?.id ?? '' } })}>新建编排</button>
-        {data?.extension?.seed && <button type="button" disabled={busy || !!editor || seeding || !data} onClick={() => { setSeeding(true); setResult(null); setError('') }}>威胁分析样例</button>}
-        <button type="button" disabled={busy || !!editor || seeding} onClick={() => void action('list', {})}>刷新</button></div>
+      <h2>工具组合编排</h2><div className="harness-mcp-actions"><button type="button" disabled={busy || !!editor || !data} onClick={() => setEditor({ revision: data.revision, value: { toolName: '', title: '资产相关告警查询', description: '查询资产后查询相关告警的两步只读组合', connectionId: connections[0]?.id ?? '' } })}>新建编排</button>
+        <button type="button" disabled={busy || !!editor} onClick={() => void action('list', {})}>刷新</button></div>
       <section aria-label="全部编排"><h3>全部编排（{entries.length}）</h3>
         {entries.length ? <ul>{entries.map(item => {
           const version = item.draft ? 'draft' : 'published'
           const value = item[version]!
-          return <li key={item.id}><button type="button" disabled={busy || !!editor || seeding} aria-current={selection?.id === item.id ? 'true' : undefined} onClick={() => select(item, version)}>
+          return <li key={item.id}><button type="button" disabled={busy || !!editor} aria-current={selection?.id === item.id ? 'true' : undefined} onClick={() => select(item, version)}>
             <span>{value.title}</span><small>{value.toolName}</small>
             <span className="harness-composition-status">{item.published && <span data-state="published">已发布</span>}{item.draft && <span data-state="draft">正在编辑</span>}</span>
           </button></li>
@@ -159,7 +153,7 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
       {busy && <p role="status">正在处理…</p>}
       {config && !extensionReady && <p role="alert">此编排依赖的业务扩展尚未装载。已有目录保持可读，请先启用工作区的 DSH 扩展。</p>}
       {editor && data && editor.revision !== data.revision && <p role="alert">编排目录已在其他位置更新，当前草稿已保留。请先复制需要保留的内容，取消编辑后重新读取；旧版本草稿不会覆盖新数据。</p>}
-      {seeding ? <ThreatSeedForm connections={registeredConnections} busy={busy} create={bindings => void action('seedThreatCompositions', { revision: data.revision, bindings })} cancel={() => setSeeding(false)}/> : !config && !editor ? <p>{data ? selection ? `所选编排 ${selection.id} 的${selection.version === 'draft' ? '草稿' : '已发布版本'}已不存在，请重新选择。` : '选择一个编排查看，或新建编排。' : '正在读取编排目录…'}</p> : <>
+      {!config && !editor ? <p>{data ? selection ? `所选编排 ${selection.id} 的${selection.version === 'draft' ? '草稿' : '已发布版本'}已不存在，请重新选择。` : '选择一个编排查看，或新建编排。' : '正在读取编排目录…'}</p> : <>
         <h2>{editor ? (editor.id ? '编辑草稿' : '新建编排') : config?.title}</h2>
         {editor ? <form onSubmit={event => { event.preventDefault(); void action('saveCompositionDraft', { compositionId: editor.id, revision: editor.revision, draft: editor.value }) }} className="harness-composition-editor">
           <p>{isThreatComposition(editor.value) ? '编辑阶段连接或固定子版本，保存草稿后进行 dry 校验和发布。' : '复用当前 LangGraph 两步只读流程：查询资产 → 查询相关告警。保存草稿后进行 dry 测试和发布。'}</p>
