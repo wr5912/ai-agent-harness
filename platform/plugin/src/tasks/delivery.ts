@@ -1,10 +1,15 @@
 import { execFile as execFileCallback } from 'node:child_process'
-import { existsSync, lstatSync, readFileSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { extname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { instanceStateRoot, programRoot, workspaceOwnsInstance } from '../workspace.ts'
-import { dataPath, RUN, sha256, sourceInfo } from './files.ts'
+import { dataPath, RUN, sha256, sourceInfo, candidateDigest } from './files.ts'
 import { verifyInspectionReport } from './inspection-report.ts'
+import { randomUUID } from 'node:crypto'
+import { unzipSync, strFromU8 } from 'fflate'
+import { runDeliverySession } from '../../../../runtime/adapters/dsh-container/dsh-eval-api.mjs'
+import { workspaceLocalPath } from '../workspace.ts'
+import { measureModelUsage } from '../evaluation/model-usage.ts'
 
 const execFile = promisify(execFileCallback)
 export interface TaskDeliveryInput {
@@ -16,7 +21,9 @@ export interface TaskDeliveryInput {
   expected_device_ids?: string[]
   required_case_ids?: string[]
   required_tool_names?: string[]
+  deadline_at?: string
 }
+interface DeliveryServices { instanceUrl?: () => Promise<string> }
 export interface DeliveryCheck { name: string; ok: boolean; message: string }
 
 function decodedObjects(value: unknown): Record<string, any>[] {
@@ -27,8 +34,8 @@ function decodedObjects(value: unknown): Record<string, any>[] {
   if (!value || typeof value !== 'object') return []
   return [value as Record<string, any>, ...Object.values(value).flatMap(decodedObjects)]
 }
-function successfulTools(root: string, prefix: string, caseInfo: any) {
-  const path = dataPath(root, `${prefix}evidence/${caseInfo.case_id}/trace.jsonl`)
+function successfulTools(root: string, prefix: string, caseInfo: any, actualPath?: string) {
+  const path = actualPath ?? dataPath(root, `${prefix}evidence/${caseInfo.case_id}/trace.jsonl`)
   if (!existsSync(path) || lstatSync(path).size > 10 * 1024 * 1024) return []
   const rows = readFileSync(path, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line))
   const sessionLogs = new Set(rows.filter(row => (row.event ?? row).type === 'session' && (row.event ?? row).id === caseInfo.load_observation?.session_id).map(row => row.session_log ?? 'root'))
@@ -61,9 +68,10 @@ const runEvidenceScript = [
 ].join('\n')
 
 /** 成功由服务器回读封存 Run、真实容器及产物共同决定；不采纳请求中的完成自报。 */
-export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput, signal?: AbortSignal) {
+export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput, signal?: AbortSignal, services: DeliveryServices = {}) {
   if (!RUN.test(input.run_id ?? '') || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(input.instance_name ?? '')) throw new Error('Run 或实例身份无效')
   const info = sourceInfo(root, input.source)
+  const initialCandidate = candidateDigest(info.candidate)
   if (info.agent_id !== input.agent_id) throw new Error('Agent 与来源身份不一致')
   const checks: DeliveryCheck[] = []
   const record = (name: string, ok: unknown, message: string) => checks.push({ name, ok: Boolean(ok), message })
@@ -143,6 +151,8 @@ export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput,
       const digest = sha256(content)
       if (ref.sha256 && ref.sha256 !== digest) throw new Error('产物摘要不匹配')
       record(`artifact:${ref.path}`, true, '已回读本次 Run 的非空产物并计算摘要')
+      if (input.required_tool_names?.length) record(`business_artifact:${ref.path}`, businessTools.some(tool => tool.value.completed === true
+        && typeof tool.value.markdown === 'string' && sha256(tool.value.markdown) === tool.value.report_sha256 && tool.value.report_sha256 === digest), '报告内容摘要与已声明业务工具的真实完成回执一致')
       let inspection
       if (input.expected_device_ids?.length) {
         const extension = extname(ref.path).toLowerCase()
@@ -160,19 +170,6 @@ export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput,
           try { return name.endsWith('.jsonl') ? raw.split('\n').filter(Boolean).some(line => contains(JSON.parse(line))) : contains(JSON.parse(raw)) } catch { return false }
         }))
         record(`artifact_origin:${ref.path}`, evidenceLinked, '巡检报告正文可在本次业务 Session 的输出或工具轨迹中回读')
-        const actualReport = businessTools.find(tool => tool.value.completed === true && typeof tool.value.markdown === 'string'
-          && sha256(tool.value.markdown) === tool.value.report_sha256 && tool.value.report_sha256 === digest)
-        record(`business_artifact:${ref.path}`, actualReport, '报告内容摘要与已声明业务工具的真实完成回执一致')
-        let downloaded = false
-        if (actualReport && instance?.port && typeof actualReport.value.download_url === 'string') {
-          const url = new URL(actualReport.value.download_url, `http://127.0.0.1:${instance.port}`)
-          if (url.origin === `http://127.0.0.1:${instance.port}` && url.pathname.startsWith('/assistant/api/')) {
-            const response = await fetch(url, { signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) })
-            const body = Buffer.from(await response.arrayBuffer())
-            downloaded = response.ok && sha256(body) === digest
-          }
-        }
-        record(`artifact_download:${ref.path}`, downloaded, '从实际交付实例下载的报告与本次业务工具和封存产物摘要相同')
         inspection = verifyInspectionReport(content.toString('utf8'), extension === '.csv' ? 'csv' : 'markdown', { expected_device_ids: input.expected_device_ids })
         record(`inspection:${ref.path}`, inspection.ok, inspection.ok ? '设备集合、逐行状态及报告统计一致' : `报告校验失败：漏项 ${inspection.missing.length}，重复 ${inspection.duplicates.length}，异常 ${inspection.errors.length}`)
       }
@@ -181,6 +178,52 @@ export async function verifyTaskDelivery(root: string, input: TaskDeliveryInput,
       record(`artifact:${String(ref?.path ?? '')}`, false, '产物不可读取、来源不符或格式校验失败')
     }
   }
-  return { ready: checks.every(check => check.ok), checks, instance, artifacts, run_id: input.run_id,
+  let probe: Record<string, any> | undefined
+  if (input.required_tool_names?.length && checks.every(check => check.ok)) {
+    const id = randomUUID(), directory = workspaceLocalPath(root, 'delivery-probes', id)
+    mkdirSync(directory, { recursive: true })
+    probe = { id, path: directory, status: 'failed' }
+    try {
+      if (!services.instanceUrl || !instance?.port) throw new Error('缺少实际交付实例访问能力')
+      const authUrl = await services.instanceUrl()
+      const parsed = new URL(authUrl)
+      if (parsed.protocol !== 'http:' || parsed.hostname !== '127.0.0.1' || Number(parsed.port) !== instance.port) throw new Error('交付实例访问地址不匹配')
+      const frozen = JSON.parse(readFileSync(dataPath(root, `evolution/experiments/${info.id}/runs/${input.run_id}/inputs.lock.json`), 'utf8'))
+      const representative = frozen.evaluation_cases.find((item: any) => (!input.required_case_ids || input.required_case_ids.includes(item.case_id)) && !/IDENTITY|ROLE/.test(item.case_id))
+      if (!representative) throw new Error('冻结业务输入不存在')
+      probe.case_id = representative.case_id
+      const remaining = input.deadline_at ? Date.parse(input.deadline_at) - Date.now() : 120000
+      if (remaining <= 0) throw new Error('任务总时限已耗尽')
+      const timeout = Math.min(120000, remaining), timeoutSignal = AbortSignal.timeout(timeout)
+      const probeSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal
+      const observed = await runDeliverySession({ auth_url: authUrl, workspace: '/work/harness/workspace', preset_id: run.contract.preset_id,
+        timeout_ms: timeout, evidence_root: join(directory, 'evidence') }, representative, probeSignal, { unzipSync, strFromU8 })
+      probe.session_id = observed.session_id
+      probe.model_usage = measureModelUsage([{ path: join(directory, 'evidence', representative.case_id, 'trace.jsonl'), rows: observed.trace }])
+      probe.case_id = representative.case_id
+      const sessionCheck = observed.checks.completed && observed.checks.preset_matches && observed.checks.workspace_matches
+      record('delivery_session', sessionCheck, '交付实例的新业务 Session 实际完成，Preset 与工作目录吻合')
+      const tools = successfulTools(root, '', { case_id: representative.case_id, load_observation: { session_id: observed.session_id } }, join(directory, 'evidence', representative.case_id, 'trace.jsonl'))
+      record('delivery_business_tools', input.required_tool_names.every(name => tools.some(tool => tool.name === name)), '交付实例实际成功调用约定业务工具')
+      const report = tools.find(tool => input.required_tool_names!.includes(tool.name) && tool.value.completed === true && typeof tool.value.markdown === 'string'
+        && sha256(tool.value.markdown) === tool.value.report_sha256)
+      if (input.expected_device_ids?.length) {
+        record('delivery_report', report && verifyInspectionReport(report.value.markdown, 'markdown', { expected_device_ids: input.expected_device_ids }).ok, '交付实例新报告的设备集合、状态及汇总完整一致')
+        const downloaded = report && typeof report.value.download_url === 'string' ? await observed.download(report.value.download_url) : null
+        record('delivery_download', downloaded && report && sha256(Buffer.from(downloaded)) === report.value.report_sha256, '从交付实例实际下载的新报告与该实例业务工具回执摘要一致')
+        if (report) { writeFileSync(join(directory, 'report.md'), report.value.markdown); probe.report_sha256 = report.value.report_sha256 }
+      }
+      probe.status = checks.every(check => check.ok) ? 'completed' : 'failed'
+    } catch {
+      if (probe.case_id) {
+        const tracePath = join(directory, 'evidence', probe.case_id, 'trace.jsonl')
+        if (existsSync(tracePath)) try { probe.model_usage = measureModelUsage([{ path: tracePath, rows: readFileSync(tracePath, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)) }]) } catch { /* 原始失败证据保留，统计不完备不当作零消耗。 */ }
+      }
+      record('delivery_probe', false, '交付实例代表业务未通过；已保留新 Session 或失败采集证据，评测实例产物不能代替交付实例验收')
+    }
+    writeFileSync(join(directory, 'probe.json'), JSON.stringify(probe, null, 2) + '\n')
+  }
+  record('delivery_candidate_unchanged', candidateDigest(info.candidate) === initialCandidate, '交付检查期间目标 Candidate 未发生并行变化')
+  return { ready: checks.every(check => check.ok), checks, instance, artifacts, probe, run_id: input.run_id,
     note: '结论仅覆盖所选 Case、实际工具环境和已回读产物。模拟服务通过不代表真实业务上游已验收。' }
 }

@@ -6,6 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import { createServer } from 'node:http'
+import { zipSync, strToU8 } from 'fflate'
 import { discoverTaskCapabilities } from '../src/tasks/capabilities.ts'
 import { applyTaskAssembly, previewTaskAssembly } from '../src/tasks/assembly.ts'
 import { candidateDigest, sha256 } from '../src/tasks/files.ts'
@@ -85,7 +86,7 @@ function sealedRun(root) {
   const cli = (...args) => execFileSync(python, [join(adapter, 'run_record.py'), '--repo', root, ...args], { env, encoding: 'utf8' }).trim()
   write(root, 'agents/inspection-task/evaluation.md', '# 巡检\n\n#### U-INS-001 报告设备完整\n\n**用户输入**\n\n> 查询 D-1、D-2 并生成 CSV。\n\n**预期**\n\nCSV 含两台设备，设备清单完整。\n')
   const run = cli('init', '--source', `experiment:${sourceId}`, '--case', 'U-INS-001', '--kind', 'technical'), prefix = `evolution/experiments/${sourceId}/runs/${run}`
-  const report = 'device_id,status\nD-1,正常\nD-2,正常\n'
+  const report = '# 巡检\n\n| device_id | status |\n| --- | --- |\n| D-1 | 正常 |\n| D-2 | 正常 |\n\n设备总数：2\n'
   write(root, `${prefix}/evidence/U-INS-001/response.json`, JSON.stringify({ assistant_texts: [report] }))
   const toolReport = { completed: true, markdown: report, report_sha256: sha256(report), download_url: '/assistant/api/task-examples/artifact?run_id=task-test&file=report.md' }
   write(root, `${prefix}/evidence/U-INS-001/trace.jsonl`, [
@@ -98,7 +99,7 @@ function sealedRun(root) {
   const contract = JSON.parse(execFileSync(python, [join(adapter, 'source_contract.py'), '--repo', root, '--source', `experiment:${sourceId}`], { env, encoding: 'utf8' })), image = 'sha256:' + '1'.repeat(64)
   write(root, `${prefix}/evidence/dsh-image.json`, JSON.stringify({ local_image_id: image, local_image_tag: contract.image.local_image_tag, image_build_fingerprint: contract.image.build_fingerprint }))
   cli('finalize', '--run', run, '--status', 'completed')
-  const artifact = `${prefix}/artifacts/report.csv`; write(root, artifact, report)
+  const artifact = `${prefix}/artifacts/report.md`; write(root, artifact, report)
   const directory = join(root, '.local/instances/delivery-test')
   write(root, '.local/instances/delivery-test/instance.json', JSON.stringify({ name: 'delivery-test', workspace_id: 'workspace-task-test', asset_root: root, source_id: `experiment:${sourceId}`, agent_id: 'inspection-task', container_name: 'delivery-test-container', image_id: image, image_tag: contract.image.local_image_tag, port: 3184 }))
   const observed = { container: [{ Image: image, State: { Running: true }, Config: { Labels: { 'com.docker.compose.project.working_dir': directory, 'com.docker.compose.project.config_files': join(directory, 'compose.yaml') } }, Mounts: ['workspace', 'presets', 'managed'].map((key, index) => ({ Destination: ['/work/harness/workspace', '/opt/dsh-presets', '/opt/dsh-managed'][index], Source: contract[key], RW: false })) }], image: [{ Config: { Labels: { 'org.ai-agent-harness.dsh.image-build-fingerprint': contract.image.build_fingerprint } } }] }
@@ -107,7 +108,28 @@ function sealedRun(root) {
 
 test('交付检查执行真实封存与来源校验，仅隔离 Docker 边界；不能只凭 running 通过', async t => {
   const root = fixture(t), { run, artifact, observed } = sealedRun(root)
-  const server = createServer((_request, response) => { response.writeHead(200, { 'content-type': 'text/csv' }); response.end('device_id,status\nD-1,正常\nD-2,正常\n') })
+  const report = readFileSync(join(root, artifact), 'utf8')
+  let probeInput = ''
+  const server = createServer(async (request, response) => {
+    if (request.url === '/assistant/') { response.end('ready'); return }
+    if (request.url.startsWith('/assistant/api/task-examples/artifact')) { response.end(report); return }
+    const chunks = []; for await (const chunk of request) chunks.push(chunk)
+    const args = chunks.length ? JSON.parse(Buffer.concat(chunks)).payload.args : null
+    const method = new URL(request.url, 'http://localhost').pathname.slice('/assistant/api/'.length)
+    const reply = value => { response.setHeader('content-type', 'application/json'); response.end(JSON.stringify({ result: { ok: true, value } })) }
+    if (method === 'workspace/create') return reply({ workspace: { workspaceId: 'workspace-probe', path: '/work/harness/workspace' } })
+    if (method === 'session/create') return reply({ sessionId: 'session-probe', agentPreset: 'inspection-task' })
+    if (method === 'session/list') return reply({ items: [{ sessionId: 'session-probe', cwd: '/work/harness/workspace', projections: { values: { agentPreset: 'inspection-task' } } }] })
+    if (method === 'session/prompt') { probeInput = args.request.content[0].text; return reply({ accepted: true }) }
+    if (method === 'session.export') {
+      const events = [{ type: 'session', id: 'session-probe' }, { type: 'user/message', data: { id: 'probe-message', source: { kind: 'user' }, content: [{ type: 'text', text: probeInput }] } },
+        { type: 'tool/call', data: { callId: 'probe-call', name: 'task_inspection', arguments: '{}' } },
+        { type: 'tool/result', data: { message: { toolCallId: 'probe-call', isError: false, content: [{ type: 'text', text: JSON.stringify({ completed: true, markdown: report, report_sha256: sha256(report), download_url: '/assistant/api/task-examples/artifact?run_id=new-delivery-report&file=report.md' }) }] } } },
+        { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '报告已生成。' }] } } }, { type: 'turn/end', data: { reason: { kind: 'completed' }, turn: 1 } }]
+      response.end(Buffer.from(zipSync({ 'session.jsonl': strToU8(events.map(event => JSON.stringify(event)).join('\n') + '\n') }))); return
+    }
+    response.writeHead(404); response.end()
+  })
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => new Promise(resolve => server.close(resolve)))
   const manifestPath = join(root, '.local/instances/delivery-test/instance.json')
   writeFileSync(manifestPath, JSON.stringify({ ...JSON.parse(readFileSync(manifestPath, 'utf8')), port: server.address().port }))
@@ -117,8 +139,10 @@ test('交付检查执行真实封存与来源校验，仅隔离 Docker 边界；
   Object.assign(process.env, { PATH: `${bin}:${process.env.PATH}`, HARNESS_PYTHON: python, HARNESS_PROGRAM_ROOT: program, HEP_DELIVERY_TEST_OBSERVATION: join(root, 'observation.json') })
   t.after(() => { for (const [key, value] of Object.entries(before)) if (value === undefined) delete process.env[key]; else process.env[key] = value })
   const input = { agent_id: 'inspection-task', source: `experiment:${sourceId}`, run_id: run, instance_name: 'delivery-test', artifacts: [artifact], expected_device_ids: ['D-1', 'D-2'], required_case_ids: ['U-INS-001'], required_tool_names: ['task_inspection'] }
-  const passed = await verifyTaskDelivery(root, input); assert.equal(passed.ready, true, JSON.stringify(passed.checks))
-  assert.equal((await verifyTaskDelivery(root, { ...input, required_tool_names: ['unrelated_business_tool'] })).ready, false)
+  const verify = value => verifyTaskDelivery(root, value, undefined, { instanceUrl: async () => `http://127.0.0.1:${server.address().port}/assistant/` })
+  const passed = await verify(input); assert.equal(passed.ready, true, JSON.stringify(passed.checks))
+  assert.equal(passed.probe.session_id, 'session-probe')
+  assert.equal((await verify({ ...input, required_tool_names: ['unrelated_business_tool'] })).ready, false)
   assert.equal((await verifyTaskDelivery(root, { ...input, ready: true, artifacts: ['agents/inspection-task/evaluation.md'] })).ready, false)
   observed.container[0].Mounts[0].RW = true; write(root, 'observation.json', JSON.stringify(observed)); assert.equal((await verifyTaskDelivery(root, input)).ready, false)
   observed.container[0].Mounts[0].RW = false; write(root, 'observation.json', JSON.stringify(observed)); write(root, artifact, 'device_id,status\nD-1,正常\n')

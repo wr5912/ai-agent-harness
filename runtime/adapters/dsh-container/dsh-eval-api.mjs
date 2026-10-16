@@ -2,6 +2,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import {
   SAFETY_STOP_REASONS,
   assertSessionIdentity,
@@ -86,11 +87,11 @@ async function poll(action, accept, timeoutMs, signal) {
   })
 }
 
-async function authenticate(authUrl) {
+async function authenticate(authUrl, signal) {
   const baseUrl = new URL(authUrl)
   baseUrl.search = ''
   baseUrl.hash = ''
-  const response = await fetch(authUrl, { redirect: 'manual' })
+  const response = await fetch(authUrl, { redirect: 'manual', signal })
   if (response.status === 200 && !new URL(authUrl).searchParams.has('token')) {
     return { baseUrl, cookie: '' }
   }
@@ -133,7 +134,7 @@ async function exportSession(connection, sessionId, signal) {
   if (!response.ok) throw Object.assign(new Error('session-export-failed'), {
     rpc_method: 'session.export', http_status: response.status,
   })
-  return parseArchive(new Uint8Array(await response.arrayBuffer()))
+  return parseArchive(new Uint8Array(await response.arrayBuffer()), connection.archiveCodec)
 }
 
 async function listSessions(connection, signal) {
@@ -384,6 +385,37 @@ async function runCase(connection, payload, item, workspace, signal, traceState)
     `语义判定：${judge.response.reason}${limitation}`)
 }
 
+/** 交付实例的新业务 Session 使用同一 API 传输、身份检查与轨迹导出；不运行评审模型。 */
+export async function runDeliverySession(payload, item, signal, archiveCodec) {
+  const connection = await authenticate(payload.auth_url, signal)
+  connection.archiveCodec = archiveCodec
+  const workspace = await createWorkspace(connection, payload.workspace, signal)
+  const session = await createSession(connection, payload, workspace, payload.preset_id, signal, created => saveEvidence(payload.evidence_root, item,
+    { inputs: item.inputs, assistant_texts: [], session_id: created.session_id }, null, { ...created, completed: false, stage: 'delivery-session-created' }))
+  let completed, lastArchive
+  try {
+    for (let index = 0; index < item.inputs.length; index++) {
+      completed = await promptSession(connection, session.session_id, item.inputs[index], item.inputs.slice(0, index + 1), payload.timeout_ms, signal, archive => { lastArchive = archive })
+    }
+  } finally {
+    const turns = lastArchive ? turnsFromTrace(lastArchive, item.inputs) ?? [] : []
+    if (!completed) try { await rpc(connection, 'session/cancel', { request: { sessionId: session.session_id } }, AbortSignal.timeout(5000)) } catch { /* 采集失败不覆盖原始证据，交付检查仍按失败处理。 */ }
+    await saveEvidence(payload.evidence_root, item, { inputs: item.inputs, assistant_texts: turns.map(turn => turn.assistant_text), session_id: session.session_id }, lastArchive ?? null,
+      { ...session, completed: Boolean(completed), root_session_log: lastArchive?.rootName ?? null })
+  }
+  const { archive, turns } = completed
+  const checks = { ...session, completed: turns.every(turn => turn.turn_reason === 'completed'), root_session_log: archive.rootName }
+  await saveEvidence(payload.evidence_root, item, { inputs: item.inputs, assistant_texts: turns.map(turn => turn.assistant_text), session_id: session.session_id }, archive, checks)
+  return { checks, session_id: session.session_id, trace: archive.trace,
+    async download(relative) {
+      const url = new URL(relative, connection.baseUrl)
+      if (url.origin !== connection.baseUrl.origin || !url.pathname.startsWith(connection.baseUrl.pathname + 'api/')) throw new Error('delivery-artifact-origin-mismatch')
+      const response = await fetch(url, { headers: { cookie: connection.cookie }, signal })
+      if (!response.ok) throw new Error('delivery-artifact-download-failed')
+      return new Uint8Array(await response.arrayBuffer())
+    } }
+}
+
 async function main() {
   const payload = await readInput()
   const connection = await authenticate(payload.auth_url)
@@ -492,7 +524,7 @@ async function main() {
   })}\n`)
 }
 
-main().catch(error => {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch(error => {
   const reason = /^[a-z0-9-]+$/.test(error?.message ?? '') ? error.message : (error?.name ?? 'Error')
   process.stderr.write(`dsh-eval-api failed: ${reason}\n`)
   process.exitCode = 2

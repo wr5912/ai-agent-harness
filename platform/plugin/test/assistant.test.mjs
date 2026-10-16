@@ -826,3 +826,18 @@ test('长操作仍在等待时暂停立即取消其信号，晚到成功回执�
   assert.equal((await f.status(id)).execution.operations[0].state, 'completed')
   assert.equal(f.calls.filter(row => row.endpoint === 'agents/tasks/assembly-apply').length, 1)
 })
+
+test('业务与评审请求按job去重累计预算，同一status重复查询不重复计费', async t => {
+  const f = fixture(t, (endpoint, input) => endpoint === 'agents/eval/status' ? { ok: true, value: { status: 'completed', run_id: 'run-own', actual_model_calls: 7, observed_model_calls: 7, model_calls_complete: true } } : taskResponder(endpoint, input))
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '预算内巡检' })).value.session_id
+  await f.beforeModelCall(id)
+  await beginTask(f, id)
+  const started = await f.execute(id, 'agents', 'eval/start', { source: 'experiment:EXP-test-agent-001', cases: ['U-BUSINESS-001'] })
+  const job = started.result.value.job_id
+  await f.execute(id, 'agents', 'eval/status', { job_id: job })
+  await f.execute(id, 'agents', 'eval/status', { job_id: job })
+  assert.equal((await f.status(id)).execution.model_calls, 8)
+  assert.equal((await f.status(id)).execution.assistant_model_calls, 1)
+  assert.equal((await f.status(id)).execution.evaluation_usage[job].complete, true)
+})

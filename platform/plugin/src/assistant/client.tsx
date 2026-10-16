@@ -350,8 +350,8 @@ function TaskCard({ task, assistant, rpc, sessionId }: { task: TaskExecution; as
   return <section className="harness-operation-card" aria-label="智能体交付任务">
     <header><strong>{statuses[task.state]}</strong><span>{task.plan.new_agent?.name ?? task.plan.agent_id}</span></header>
     <p>{task.plan.goal}</p>
-    <p>修复 {task.repair_rounds}/{task.plan.budget.max_repair_rounds} 轮 · 助手模型调用 {task.model_calls}/{task.plan.budget.max_model_calls} 次 · 截止 {new Date(task.deadline_at).toLocaleTimeString()}</p>
-    <small>外部评测、工具和训练消耗另见实际运行记录；缺失的费用或调用统计不按零计。</small>
+    <p>修复 {task.repair_rounds}/{task.plan.budget.max_repair_rounds} 轮 · 已观测模型调用 {task.model_calls}/{task.plan.budget.max_model_calls} 次 · 截止 {new Date(task.deadline_at).toLocaleTimeString()}</p>
+    <small>含助手 {task.assistant_model_calls ?? task.model_calls} 次，业务、评审与重试按实际轨迹累计；在途或缺失统计不按零计。外部容器调用不能实时硬封顶。</small>
     {task.reason && <p role="status">{task.reason}</p>}
     {task.operations.some(item => ['running', 'unknown'].includes(item.state)) && <button disabled={busy} onClick={() => void act('checkpoint')}>核对运行状态</button>}
     {task.state === 'running' && <button disabled={busy} onClick={() => void act('pause')}>暂停任务</button>}

@@ -33,6 +33,7 @@ import { programRoot, workspaceConfigPath } from '../workspace.ts'
 import { discoverTaskCapabilities, type CapabilityOptions } from '../tasks/capabilities.ts'
 import { previewTaskAssembly, applyTaskAssembly, type TaskAssemblyInput } from '../tasks/assembly.ts'
 import { verifyTaskDelivery, type TaskDeliveryInput } from '../tasks/delivery.ts'
+import { createInstancesHandler } from '../instances/index.ts'
 
 type JsonMap = Record<string, unknown>
 type SourceCatalog = { schema_version?: string; sources?: Record<string, JsonMap> }
@@ -831,10 +832,13 @@ async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
     if (fixedDigest && fixedDigest === candidateDigest(root, experimentId)) derivation = { parent_experiment_id: experimentId, parent_ref: `git:${commit}`, note: '所选 Candidate 与固定提交一致，派生前用 assets/read-fixed 核对；baseline_ref/experiment.change.parent_ref 指向该版本的祖先。' }
     else if (fixedDigest) derivation.note = '所选 Candidate 有未提交改动，请先固定当前 Candidate；不能用 HEAD 的旧资产或祖先提交冒充当前版本。'
   } catch { /* 新建但尚未提交的版本不能冒用其祖先提交派生。 */ }
+  let readableCandidateDigest: string | null = null
+  try { readableCandidateDigest = candidateDigest(root, experimentId) }
+  catch (error) { if (!(error instanceof RpcError && error.code === 'path_rejected')) throw error }
   return ok({
     agent: { id: agentId, name: agentDisplayName(root, experimentId) ?? agentId, manifest, path: `agents/${agentId}` },
     experiment: exp,
-    candidate_sha256: candidateDigest(root, experimentId),
+    candidate_sha256: readableCandidateDigest,
     selection: { basis: explicitExperiment ? 'explicit' : activeExperiment ? 'active_experiment' : 'latest_experiment', experiment_id: experimentId },
     versions: versions.map(item => ({ id: item.id, status: item.status, baseline_ref: item.baseline_ref })),
     baseline: { ref: exp.baseline_ref, parent_experiment_id: exp.change.parent_experiment_id ?? null, source: exp.baseline_ref ? 'change.yaml' : 'unknown' },
@@ -1390,13 +1394,17 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void, ca
         return result.ok ? ok(result.value) : failure(new RpcError(result.error.code, result.error.message))
       }
       switch (endpoint) {
-        case 'tasks/capabilities': return ok(await discoverTaskCapabilities(root, { ...capabilityOptions, signal }))
+        case 'tasks/capabilities': return ok(await discoverTaskCapabilities(root, { ...capabilityOptions, signal, agent_id: optionalString(body, 'agent_id'), source: optionalString(body, 'source') }))
         case 'tasks/assembly-preview': return ok(await previewTaskAssembly(root, body as unknown as TaskAssemblyInput))
         case 'tasks/assembly-apply': {
           if (body.confirmed !== true) throw new RpcError('confirmation_required', '请先确认资产装配方案')
           return ok(await applyTaskAssembly(root, body as unknown as TaskAssemblyInput))
         }
-        case 'tasks/delivery': return ok(await verifyTaskDelivery(root, body as unknown as TaskDeliveryInput, signal))
+        case 'tasks/delivery': return ok(await verifyTaskDelivery(root, body as unknown as TaskDeliveryInput, signal, { instanceUrl: async () => {
+          const entry = await createInstancesHandler(root)('url', { name: body.instance_name }, signal, peer)
+          if (!entry.ok) throw new RpcError(entry.error.code, entry.error.message)
+          return (entry.value as { url: string }).url
+        } }))
         case 'list': return list(root)
         case 'detail': return await detail(root, body, signal)
         case 'create': return await createExperiment(root, body)

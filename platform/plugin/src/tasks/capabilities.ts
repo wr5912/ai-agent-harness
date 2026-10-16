@@ -7,6 +7,8 @@ import { workspaceConfigPath } from '../workspace.ts'
 export interface CapabilityOptions {
   nativeServers?: () => any[]
   signal?: AbortSignal
+  agent_id?: string
+  source?: string
 }
 
 /** 动态读取当前资产及原生 MCP 配置，只报告已发现事实，不把配置等同于可用性。 */
@@ -16,6 +18,7 @@ export async function discoverTaskCapabilities(assetRoot: string, options: Capab
   const sources = []
   const unavailable = []
   for (const id of Object.keys(catalog.sources ?? {}).sort()) {
+    if (options.agent_id && catalog.sources[id].agent_id !== options.agent_id || options.source && options.source.replace(/^experiment:/, '') !== id) continue
     options.signal?.throwIfAborted()
     try {
       const info = sourceInfo(assetRoot, id)

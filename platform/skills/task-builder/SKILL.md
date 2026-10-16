@@ -21,7 +21,7 @@ description: 根据用户任务复用能力、装配 DSH 智能体，通过固�
 
 ## 装配、验证和限额修复
 
-能力发现用 `platform_agents {action:"tasks/capabilities",input:{}}`，返回真实 source、Candidate 摘要、Skill/Plugin 路径和原生 MCP 配置。先用 `detail`、`assets/read-fixed` 读取所选来源与文件摘要；目标已有文件用 `edit/read` 取得当前摘要。装配调用的最小结构为：
+能力发现用 `platform_agents {action:"tasks/capabilities",input:{agent_id:"<已知智能体ID>"}}`，也可用 `source:"experiment:<ID>"` 限定单一来源；首次确需跨智能体查找时才用空 input 广搜。返回真实 source、Candidate 摘要、Skill/Plugin 路径和原生 MCP 配置。先用 `detail`、`assets/read-fixed` 读取所选来源与文件摘要；目标已有文件用 `edit/read` 取得当前摘要。装配调用的最小结构为：
 
 ```json
 {"action":"tasks/assembly-preview","input":{"target_source":"experiment:<实际目标ID>","expected_candidate_sha256":"<目录返回的目标摘要>","files":[{"source":"experiment:<实际复用来源ID>","path":"dsh/workspace/.agents/skills/<实际技能>/SKILL.md","expected_source_sha256":"<已回读的原文件摘要>","expected_target_sha256":null}],"configuration_edits":[]}}
@@ -39,6 +39,6 @@ description: 根据用户任务复用能力、装配 DSH 智能体，通过固�
 
 ## 交付
 
-使用约定来源创建或启动目标实例。通过实际新 Session 验证业务，读取实际报告或其他产物。调用 `platform_task deliver {run_id,artifacts:["当前Run内真实路径"]}`；服务端核验本任务 Run、冻结 Case、当前 Candidate、真实实例和可读取产物，返回 completed 后才能宣布已交付。
+使用约定来源创建或启动目标实例。调用 `platform_task deliver {run_id,artifacts:["artifacts/<case_id>/inspection-report.md"]}`；服务端核验本任务 Run、冻结 Case、当前 Candidate、真实实例和可读取产物。有固定业务工具时，还会在交付实例新建 Session 执行代表业务输入，核对实际工具与报告下载；评测容器和交付实例 HOME 不同，各自产物 ID 可以不同，不能拿评测报告的临时下载地址拼到交付实例。此探针最长 120 秒且受任务截止时间约束，失败证据保存在运行状态根，消耗计入总额。返回 completed 后才能宣布已交付。
 
 默认只告诉用户结果、实例入口、产物入口及影响使用的限制；失败告诉用户缺少什么、已保存什么、需要何种介入。Mock 明确标注模拟边界，真实训练缺算力或真实外部系统未验时单列待验收，不能用模拟结果代替。

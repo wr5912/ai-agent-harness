@@ -30,6 +30,8 @@ export interface TaskExecution {
   deadline_at: string
   repair_rounds: number
   model_calls: number
+  assistant_model_calls?: number
+  evaluation_usage?: Record<string, { observed_model_calls: number; complete: boolean }>
   evaluation_sha256?: string
   source_ref?: string
   target_source?: string

@@ -84,7 +84,7 @@ export const assistantProjection: ProjectionDefinition<typeof projectionKey> = {
     }
     if (data.kind === 'model-call' && data.owner_session_id === state.session_id && pluginRecord.seq >= state.inherited_event_count) return { ...state,
       model_calls_observed: (state.model_calls_observed ?? 0) + 1,
-      ...(state.execution && data.task_id === state.execution.id ? { execution: { ...state.execution, model_calls: state.execution.model_calls + 1 } } : {}) }
+      ...(state.execution && data.task_id === state.execution.id ? { execution: { ...state.execution, model_calls: state.execution.model_calls + 1, assistant_model_calls: (state.execution.assistant_model_calls ?? state.execution.model_calls) + 1 } } : {}) }
     if (data.kind === 'proposal') {
       // fork 只继承上下文，不继承父会话的写操作授权；兼容旧记录时检查继承前缀。
       if (data.owner_session_id ? data.owner_session_id !== state.session_id : pluginRecord.seq < state.inherited_event_count) return state
@@ -191,6 +191,13 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
   async function saveTask(id: string, task: TaskExecution) {
     await record(id, { kind: 'execution', owner_session_id: id, execution: task })
   }
+  function accountUsage(task: TaskExecution, key: string, usage: any): TaskExecution {
+    const observed = usage?.observed_model_calls ?? usage?.actual_model_calls
+    if (!Number.isSafeInteger(observed) || observed < 0) return task
+    const previous = task.evaluation_usage?.[key]?.observed_model_calls ?? 0
+    return { ...task, model_calls: task.model_calls + Math.max(0, observed - previous), evaluation_usage: { ...task.evaluation_usage,
+      [key]: { observed_model_calls: Math.max(previous, observed), complete: usage.model_calls_complete === true } } }
+  }
   function clearTaskTimer(id: string) {
     const timer = taskTimers.get(id)
     if (timer) clearTimeout(timer)
@@ -234,6 +241,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     if (plan.new_agent) return { plan, note: '确认创建、首次业务测试、装配、评测与目标实例；创建回执后一次绑定目标并冻结测试。' }
     const detail = await dispatch('agents', 'detail', { agent_id: plan.agent_id, ...(plan.source ? { experiment_id: plan.source.slice(11) } : {}) }, signal)
     if (!detail.ok) throw new Error('请先确定可恢复的目标资产和业务用例，再授权执行任务')
+    if (detail.value.candidate_sha256 === null) throw new Error('目标含无法固定摘要的资产，请先核对符号链接或来源问题')
     const actualCases = detail.value?.evaluation?.cases ?? []
     if (plan.evaluation_case_ids.some(caseId => !actualCases.some((item: any) => item.id === caseId || item.case_id === caseId))) throw new Error('任务评测用例不存在；请先依据需求保存业务测试')
     if (plan.allowed_actions.some(item => item.domain === 'agents' && item.action === 'create') && !detail.value.derivation?.parent_ref) throw new Error('派生任务需要可恢复的固定父版，请先固定完整来源')
@@ -257,7 +265,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
       if (callsBeforeStart >= preview.plan.budget.max_model_calls) throw new Error('本会话规划阶段已耗尽所设模型额度，请调整任务预算或开始新任务')
       const goal = services.goals.create(found.agent, { objective: preview.plan.goal, maxGoalRounds: 60 })
       const task: TaskExecution = { id: randomUUID(), owner_session_id: id, plan: preview.plan, state: 'running', started_at: now.toISOString(),
-        deadline_at: new Date(now.getTime() + preview.plan.budget.timeout_minutes * 60_000).toISOString(), repair_rounds: 0, model_calls: callsBeforeStart,
+        deadline_at: new Date(now.getTime() + preview.plan.budget.timeout_minutes * 60_000).toISOString(), repair_rounds: 0, model_calls: callsBeforeStart, assistant_model_calls: callsBeforeStart,
         source_ref: ('source_ref' in preview ? preview.source_ref : undefined) ?? undefined, evaluation_sha256: 'evaluation_sha256' in preview ? preview.evaluation_sha256 : undefined,
         target_source: preview.plan.allowed_actions.some(item => item.domain === 'agents' && item.action === 'create') ? undefined : preview.plan.source, goal_id: goal.id, operations: [] }
       await saveTask(id, task)
@@ -298,6 +306,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
             const job = observed.value
             if (observed.ok && job?.source === task.target_source && Array.isArray(job.cases)
               && job.cases.length === task.plan.evaluation_case_ids.length && task.plan.evaluation_case_ids.every(id => job.cases.includes(id))) {
+              task = accountUsage(task, job.job_id, job)
               operations.push({ ...operation, state: 'completed', receipt: { ok: true, value: { job_id: job.job_id, run_id: job.run_id, status: job.status } } })
               continue
             }
@@ -366,6 +375,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
         const latest = evaluations.at(-1)!
         const observed = await dispatch('agents', 'eval/status', { job_id: latest.receipt!.value.job_id }, signal)
         const job = observed.value
+        if (observed.ok) { task = accountUsage(task, latest.receipt!.value.job_id, job); await saveTask(id, task); assertTaskBudget(task) }
         if (!observed.ok || !['completed', 'failed', 'cancelled', 'error', 'interrupted'].includes(job?.status)) throw new Error('上一轮评测仍在运行或状态未知，请先查询实际回执')
         if (task.repair_rounds >= task.plan.budget.max_repair_rounds) throw new Error('已达到最多三轮修复限制，保留当前失败证据')
         if (task.operations.some(item => item.action === 'begin-repair' && item.input.evaluation_job_id === latest.receipt!.value.job_id)) throw new Error('本次评测已预留修复轮，请完成修改和复测')
@@ -385,11 +395,16 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
         let matched = false
         for (const operation of started) {
           const observed = await dispatch('agents', 'eval/status', { job_id: operation.receipt!.value.job_id }, signal)
+          if (observed.ok) task = accountUsage(task, operation.receipt!.value.job_id, observed.value)
           if (observed.ok && observed.value?.run_id === input.run_id) matched = true
         }
         if (!matched) throw new Error('交付必须引用本任务实际启动的评测 Run，不能用无关历史结果代替')
+        await saveTask(id, task)
+        assertTaskBudget(task)
         const receipt = await dispatch('agents', 'tasks/delivery', { ...input, artifacts: artifactRefs, agent_id: task.plan.agent_id, source: task.target_source,
-          instance_name: task.plan.instance_name, required_case_ids: task.plan.evaluation_case_ids, expected_device_ids: task.plan.inspection?.expected_device_ids, required_tool_names: task.plan.required_tool_names }, signal)
+          instance_name: task.plan.instance_name, required_case_ids: task.plan.evaluation_case_ids, expected_device_ids: task.plan.inspection?.expected_device_ids, required_tool_names: task.plan.required_tool_names, deadline_at: task.deadline_at }, signal)
+        if (receipt.value?.probe?.model_usage) { task = accountUsage(task, `delivery:${receipt.value.probe.id}`, receipt.value.probe.model_usage); await saveTask(id, task) }
+        if (task.model_calls > task.plan.budget.max_model_calls) { await stopTask(id, 'budget_exhausted', '实际已观测总模型调用超出预算，保留交付检查证据'); return { state: 'budget_exhausted', result: receipt } }
         if (!receipt.ok || !receipt.value?.ready) return { state: 'verification_failed', result: receipt }
         const entry = await dispatch('instances', 'url', { name: task.plan.instance_name }, signal)
         task = { ...task, state: 'completed', delivery: { ...receipt.value, ...(entry.ok ? { entry: entry.value } : {}) } }
@@ -682,6 +697,14 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
           return propose(id, domain, args.action, input, exec.signal)
         }
         const receipt = await dispatch(domain, args.action, input, exec.signal)
+        if (domain === 'agents' && args.action === 'eval/status' && receipt.ok) await locked(id, async () => {
+          let task = (await inspect(id)).state.execution
+          if (task?.operations.some(item => item.action === 'eval/start' && (item.receipt?.value?.job_id === input.job_id || item.id === input.job_id))) {
+            task = accountUsage(task, input.job_id, receipt.value)
+            await saveTask(id, task)
+            if (task.model_calls >= task.plan.budget.max_model_calls && task.state === 'running') await stopTask(id, 'budget_exhausted', '已达到总模型调用预算，助手和后续评测已停止')
+          }
+        })
         if (domain === 'agents' && receipt.ok && receipt.value?.preview_id && (args.action === 'datasets/preview' || args.action === 'features/preview' || args.action === 'fusion/preview' && receipt.value.plan_ready)) {
           return propose(id, domain, args.action === 'datasets/preview' ? 'datasets/apply' : args.action === 'features/preview' ? 'features/apply' : 'fusion/confirm', { preview_id: receipt.value.preview_id, ...(args.action === 'datasets/preview' ? { assistant_session_id: id } : {}) }, exec.signal, receipt.value)
         }

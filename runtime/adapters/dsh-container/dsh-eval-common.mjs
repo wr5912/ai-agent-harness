@@ -5,8 +5,8 @@ export const SAFETY_STOP_REASONS = new Set([
   'identity-drift', 'evidence-cross-turn', 'case-hard-timeout',
 ])
 
-export async function parseArchive(bytes) {
-  const { strFromU8, unzipSync } = await import('fflate')
+export async function parseArchive(bytes, codec) {
+  const { strFromU8, unzipSync } = codec ?? await import('fflate')
   const files = unzipSync(bytes)
   const names = Object.keys(files).filter(name => name.endsWith('.jsonl')).sort()
   const rootName = names.find(name => !name.includes('/'))
