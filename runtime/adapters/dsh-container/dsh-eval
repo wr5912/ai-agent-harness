@@ -18,8 +18,10 @@ from urllib.parse import urlsplit
 
 
 ADAPTER = Path(__file__).resolve().parent
-REPO = ADAPTER.parents[2]
-EVALUATION_SCRIPTS = REPO / ".agents/skills/research-eval/scripts"
+sys.path.insert(0, str(ADAPTER))
+from workspace_paths import PROGRAM_ROOT, asset_root, sites_config
+REPO = asset_root()
+EVALUATION_SCRIPTS = PROGRAM_ROOT / ".agents/skills/research-eval/scripts"
 for import_root in (ADAPTER, EVALUATION_SCRIPTS):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
@@ -34,8 +36,8 @@ DSH_DEV = ADAPTER / "dsh-dev"
 API_DRIVER = ADAPTER / "dsh-eval-api.mjs"
 BROWSER_DRIVER = ADAPTER / "dsh-eval-browser.mjs"
 COMMON_DRIVER = ADAPTER / "dsh-eval-common.mjs"
-VALIDATE_REPOSITORY = REPO / ".agents/skills/harness-evolution/scripts/validate_repository.py"
-VALIDATE_EXPERIMENT = REPO / ".agents/skills/research-eval/scripts/validate_experiment.py"
+VALIDATE_REPOSITORY = PROGRAM_ROOT / ".agents/skills/harness-evolution/scripts/validate_repository.py"
+VALIDATE_EXPERIMENT = PROGRAM_ROOT / ".agents/skills/research-eval/scripts/validate_experiment.py"
 RUNTIME_STOP_REASONS = {"identity-drift", "evidence-cross-turn", "case-hard-timeout"}
 
 
@@ -266,7 +268,7 @@ def authentication_url(name: str) -> str:
         valid = (parsed.scheme == "http" and parsed.hostname == "127.0.0.1"
                  and parsed.port is not None and 1 <= parsed.port <= 65535
                  and parsed.username is None and parsed.password is None
-                 and parsed.path in ("/", strict_json(ADAPTER.parent / "dsh-web/sites.json")["assistant"])
+                 and parsed.path in ("/", strict_json(sites_config(REPO))["assistant"])
                  and not parsed.fragment)
     except ValueError:
         valid = False
@@ -651,8 +653,9 @@ def execute_owned_run(args: argparse.Namespace, contract: dict, cases: list[dict
 
 
 def main() -> None:
-    global _cancel_requested
+    global _cancel_requested, REPO
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo", type=Path, default=REPO, help="用户数据工作区根目录")
     parser.add_argument("--source", required=True, help="experiment:<id> 或已登记 Experiment ID")
     parser.add_argument("--mode", choices=("fast", "full"), default="fast", help="评测档位；默认 fast")
     parser.add_argument(
@@ -666,6 +669,8 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true", help="只解析计划，不写 Run、不启动进程")
     parser.add_argument("--timeout-seconds", type=int, default=300, help="每轮等待上限（秒）")
     args = parser.parse_args()
+    REPO = args.repo.expanduser().resolve()
+    os.environ["HARNESS_ASSET_ROOT"] = str(REPO)
     if args.timeout_seconds < 10:
         parser.error("--timeout-seconds 不能小于 10")
     _cancel_requested = False

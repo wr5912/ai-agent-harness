@@ -1,5 +1,5 @@
 import { execFile, spawn, spawnSync } from 'node:child_process'
-import { promisify } from 'node:util'
+import { isDeepStrictEqual, promisify } from 'node:util'
 import { DEFAULT_SCHEMA, Type, load as loadYaml, dump as dumpYaml } from 'js-yaml'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import {
@@ -25,8 +25,10 @@ import { RunFileError, readRunReport, listRunFiles, previewRunFile } from './run
 import { readRunTrace } from '../evaluation/trace.ts'
 import { createDecisionDatasetHandler } from '../evaluation/datasets.ts'
 import { caseSourceReferences, createCaseManagementHandler, type RunCaseSource } from '../evaluation/cases.ts'
-import { readAssetDiff } from './asset-diff.ts'
+import { readAssetDiff, readFixedAsset } from './asset-diff.ts'
 import { createAgent } from './create-agent.ts'
+import { createComputeVariantsHandler } from './compute-variants.ts'
+import { programRoot, workspaceConfigPath } from '../workspace.ts'
 
 type JsonMap = Record<string, unknown>
 type SourceCatalog = { schema_version?: string; sources?: Record<string, JsonMap> }
@@ -35,7 +37,8 @@ type RpcValue = JsonMap | JsonMap[] | string | number | boolean | null
 const EXP_ID = /^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-(\d{3})(?:-r[0-9a-f]{12})?$/
 const RUN_ID = /^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const AGENT_ID = /^[a-z0-9][a-z0-9-]*$/
-const SOURCE_CATALOG = 'runtime/adapters/dsh-container/sources.json'
+const SOURCE_CATALOG = 'config/sources.json'
+const LEGACY_SOURCE_CATALOG = 'runtime/adapters/dsh-container/sources.json'
 const DSH_EVAL = 'runtime/adapters/dsh-container/dsh-eval'
 const RUN_RECORD = 'runtime/adapters/dsh-container/run_record.py'
 const VALIDATE_EXPERIMENT = '.agents/skills/research-eval/scripts/validate_experiment.py'
@@ -133,8 +136,15 @@ function readJson(file: string): unknown {
   return JSON.parse(readText(file))
 }
 
+function programArgs(args: string[]) {
+  return args[0]?.startsWith('runtime/') || args[0]?.startsWith('.agents/') ? [join(programRoot(), args[0]), ...args.slice(1)] : args
+}
+function programEnvironment(root: string) {
+  return { ...process.env, HARNESS_ASSET_ROOT: root, HARNESS_PROGRAM_ROOT: programRoot() }
+}
+
 function parseJsonCommand(root: string, args: string[], message = '命令执行失败') {
-  const run = spawnSync('python3', args, { cwd: root, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 })
+  const run = spawnSync(process.env.HARNESS_PYTHON || 'python3', programArgs(args), { cwd: root, env: programEnvironment(root), encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 })
   if (run.status !== 0) throw new RpcError('command_failed', message, { status: run.status, stderr: redact(run.stderr), stdout: redact(run.stdout) })
   try {
     return JSON.parse(run.stdout) as JsonMap
@@ -146,8 +156,8 @@ function parseJsonCommand(root: string, args: string[], message = '命令执行�
 async function parseJsonCommandAsync(root: string, args: string[], message = '命令执行失败', signal?: AbortSignal, input?: string) {
   let stdout: string
   try {
-    const pending = promisify(execFile)('python3', args, {
-      cwd: root, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, timeout: 20_000, signal,
+    const pending = promisify(execFile)(process.env.HARNESS_PYTHON || 'python3', programArgs(args), {
+      cwd: root, env: programEnvironment(root), encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, timeout: 20_000, signal,
     })
     if (input !== undefined) pending.child.stdin?.end(input)
     stdout = (await pending).stdout
@@ -182,7 +192,7 @@ function redact(text: string, limit = 4000): string {
 }
 
 function catalog(root: string) {
-  const file = repoPath(root, SOURCE_CATALOG)
+  const file = workspaceConfigPath(root, 'sources.json')
   const text = readText(file)
   const parsed = JSON.parse(text) as SourceCatalog
   if (!parsed.sources || typeof parsed.sources !== 'object') throw new RpcError('asset_read_failed', 'sources.json 缺少 sources')
@@ -331,7 +341,7 @@ function list(root: string) {
     agents: listAgents(root, experiments),
     experiments,
     releases: listDirs(join(root, 'releases')).map(id => ({ id, path: `releases/${id}` })),
-    source_catalog: { path: SOURCE_CATALOG, schema_version: source.parsed.schema_version ?? null, sha256: source.hash, count: Object.keys(source.parsed.sources ?? {}).length },
+    source_catalog: { path: repoRelative(root, source.file), schema_version: source.parsed.schema_version ?? null, sha256: source.hash, count: Object.keys(source.parsed.sources ?? {}).length },
   })
 }
 
@@ -427,7 +437,7 @@ function runEvidenceDigest(root: string, experimentId: string, runId: string) {
 function featureSnapshot(root: string, id: string) { return sha256(`${readText(changePath(root, id))}\n${candidateDigest(root, id)}`) }
 
 function evaluationDigest(root: string, agentId: string, caseIds: string[]): string {
-  const python = ['import json,sys', 'from pathlib import Path', `sys.path.insert(0, ${JSON.stringify(join(root, dirname(EVALUATION_CONTRACT)))})`, 'from evaluation_contract import evaluation_digest', 'print(json.dumps({"digest":evaluation_digest(Path(sys.argv[1]),json.loads(sys.argv[2]))}))'].join('\n')
+  const python = ['import json,sys', 'from pathlib import Path', `sys.path.insert(0, ${JSON.stringify(join(programRoot(), dirname(EVALUATION_CONTRACT)))})`, 'from evaluation_contract import evaluation_digest', 'print(json.dumps({"digest":evaluation_digest(Path(sys.argv[1]),json.loads(sys.argv[2]))}))'].join('\n')
   return String(parseJsonCommand(root, ['-c', python, `agents/${agentId}/evaluation.md`, JSON.stringify(caseIds)], '无法锁定约定评测口径').digest)
 }
 
@@ -523,7 +533,7 @@ function fusionInventory(root: string, agentId: string, parentId: string, parent
     const show = (path: string) => spawnSync('git', ['show', `${ref.slice(4)}:${path}`], { cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
     try {
       const shown = show(`evolution/experiments/${id}/change.yaml`)
-      const sources = show(SOURCE_CATALOG)
+      const sources = historicalCatalog(root, ref.slice(4))
       if (shown.status !== 0 || sources.status !== 0) return null
       const change = requireObject(loadYaml(shown.stdout))
       const source = (JSON.parse(sources.stdout) as SourceCatalog).sources?.[id]
@@ -577,7 +587,14 @@ function fusionInventory(root: string, agentId: string, parentId: string, parent
     }
     const resourceRefs = Array.isArray(change.resource_evidence_refs) ? change.resource_evidence_refs : []
     const hasEvidence = (values: unknown[]) => values.length > 0 && values.every(ref => typeof ref === 'string' && !ref.startsWith('/') && !ref.split('/').includes('..') && existsSync(join(root, ref)) && lstatSync(join(root, ref)).isFile() && readText(join(root, ref)).trim())
-    const endVerified = end && fixedEndParent && currentFixed.get(version.id) && change.end_confirmed === true && hasEvidence(refs) && hasEvidence(resourceRefs)
+    const computeDecision = change.compute_variant_decision as JsonMap | undefined
+    const confirmedVariant = change.compute_variant && typeof computeDecision?.variant_ref === 'string'
+      ? snapshot(version.id, computeDecision.variant_ref) : null
+    // 算力变体的结论只适用于确认时的计划与 Candidate；后续编辑需要重新比较。
+    const computeEndCurrent = !change.compute_variant || Boolean(confirmedVariant
+      && confirmedVariant.digest === currentDigests.get(version.id)
+      && isDeepStrictEqual(confirmedVariant.change.compute_variant, change.compute_variant))
+    const endVerified = end && fixedEndParent && currentFixed.get(version.id) && computeEndCurrent && change.end_confirmed === true && hasEvidence(refs) && hasEvidence(resourceRefs)
     const decision = change.outcome ?? change.decision
     const excluded = endVerified || decision === 'reject'
     const uncertain = !excluded && (end || decision !== 'adopt' || !currentFixed.get(version.id))
@@ -699,7 +716,7 @@ async function fusionVerify(root: string, body: JsonMap, signal?: AbortSignal) {
       const file = repoPath(root, `${String(run.run_path)}/${name}.${name === 'results' ? 'jsonl' : name === 'report' ? 'md' : 'json'}`)
       if (typeof manifest[`${name}_sha256`] !== 'string' || !existsSync(file) || sha256(readFileSync(file)) !== manifest[`${name}_sha256`]) throw new RpcError('verification_failed', 'Run 封存摘要缺失或记录已变化', { artifact: name })
     }
-    const python = ['import json,sys', 'from pathlib import Path', `sys.path.insert(0, ${JSON.stringify(join(root, 'runtime/adapters/dsh-container'))})`, 'from run_record import tree_digest', 'from source_contract import resolve', 'r=Path.cwd()', 'c=resolve(sys.argv[1],repo=r)', 'print(json.dumps({k:tree_digest(r,Path(c[k]))["tree_sha256"] for k in ("workspace","presets","managed")}))'].join('\n')
+    const python = ['import json,sys', 'from pathlib import Path', `sys.path.insert(0, ${JSON.stringify(join(programRoot(), 'runtime/adapters/dsh-container'))})`, 'from run_record import tree_digest', 'from source_contract import resolve', 'r=Path.cwd()', 'c=resolve(sys.argv[1],repo=r)', 'print(json.dumps({k:tree_digest(r,Path(c[k]))["tree_sha256"] for k in ("workspace","presets","managed")}))'].join('\n')
     const currentTrees = await parseJsonCommandAsync(root, ['-c', python, `experiment:${id}`], '无法核对 Run 来源', signal)
     const lockedTrees = requireObject(source.candidate_trees)
     if (Object.entries(currentTrees).some(([name, digest]) => requireObject(lockedTrees[name]).tree_sha256 !== digest)) throw new RpcError('verification_failed', 'Run 未指向当前 Candidate 三棵资产树')
@@ -778,13 +795,19 @@ async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
   })
 }
 
+function historicalCatalog(root: string, commit: string) {
+  let result = spawnSync('git', ['show', `${commit}:${SOURCE_CATALOG}`], { cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
+  if (result.status !== 0) result = spawnSync('git', ['show', `${commit}:${LEGACY_SOURCE_CATALOG}`], { cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
+  return result
+}
+
 function validateGitParent(root: string, agentId: string, parentRef: string, parentExperiment: string) {
   if (!/^git:[0-9a-f]{40}$/i.test(parentRef)) throw new RpcError('invalid_request', '父版本必须是 git:<40位提交>')
   const commit = parentRef.slice('git:'.length)
   if (!/^[0-9a-f]{40}$/i.test(commit)) throw new RpcError('invalid_request', 'git 父版本必须是固定 40 位提交')
   const check = spawnSync('git', ['cat-file', '-e', `${commit}^{commit}`], { cwd: root, encoding: 'utf8' })
   if (check.status !== 0) throw new RpcError('invalid_request', '父提交不存在', { parent_ref: parentRef })
-  const show = spawnSync('git', ['show', `${commit}:${SOURCE_CATALOG}`], { cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
+  const show = historicalCatalog(root, commit)
   if (show.status !== 0) throw new RpcError('invalid_request', '父提交缺少 sources.json', { parent_ref: parentRef, stderr: redact(show.stderr) })
   const parsed = JSON.parse(show.stdout) as SourceCatalog
   const source = parsed.sources?.[parentExperiment]
@@ -1033,8 +1056,7 @@ async function validateDraft(root: string, payload: JsonMap, drafts: { rel: stri
   try {
     copy(candidate, true)
     copy(`agents/${exp.agent_id}/evaluation.md`)
-    for (const rel of [DSH_EVAL, SOURCE_CATALOG, SOURCE_CONTRACT, EVALUATION_CONTRACT,
-      ...['scenario_analysis.py', 'source.lock.json', 'Dockerfile', 'apt-mirror.sh', 'build-image.sh', 'dsh-cli.sh', 'remote-host-settings.patch'].map(name => `runtime/adapters/dsh-container/${name}`)]) copy(rel)
+    atomicWrite(join(temp, SOURCE_CATALOG), catalog(root).text)
     for (const draft of drafts) atomicWrite(join(temp, draft.rel), draft.content)
     const result = await parseJsonCommandAsync(temp, [DSH_EVAL, '--source', `experiment:${experimentId}`, '--dry-run', '--mode', 'full', '--executor', 'api', '--review', 'none'], '草稿 dry 校验失败', signal)
     return { mode: 'dry', checks: ['草稿格式', '来源合同', '评测计划'], case_ids: result.case_ids,
@@ -1061,7 +1083,7 @@ function evaluationPreviewCode(root: string) {
   return [
     'import json, sys, tempfile',
     'from pathlib import Path',
-    `sys.path.insert(0, ${JSON.stringify(join(root, dirname(EVALUATION_CONTRACT)))})`,
+    `sys.path.insert(0, ${JSON.stringify(join(programRoot(), dirname(EVALUATION_CONTRACT)))})`,
     'from evaluation_contract import load_evaluation',
     'with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".md", delete=False) as handle:',
     '    handle.write(sys.stdin.read())',
@@ -1074,7 +1096,7 @@ function evaluationPreviewCode(root: string) {
 }
 
 function loadEvaluationPreview(root: string, content: string) {
-  const run = spawnSync('python3', ['-c', evaluationPreviewCode(root)], { cwd: root, input: content, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
+  const run = spawnSync(process.env.HARNESS_PYTHON || 'python3', ['-c', evaluationPreviewCode(root)], { cwd: root, env: programEnvironment(root), input: content, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 })
   if (run.status !== 0) throw new RpcError('invalid_request', 'evaluation.md 合同无效', { stderr: redact(run.stderr) })
   return JSON.parse(run.stdout) as JsonMap
 }
@@ -1186,7 +1208,7 @@ function commandJson(root: string, args: string[]) {
 }
 
 async function evalPreview(root: string, payload: JsonMap, signal?: AbortSignal) {
-  return ok({ command: ['python3', ...evalArgs(payload, true)], result: await parseJsonCommandAsync(root, evalArgs(payload, true), '评测预览失败', signal) })
+  return ok({ command: [process.env.HARNESS_PYTHON || 'python3', ...programArgs(evalArgs(payload, true))], result: await parseJsonCommandAsync(root, evalArgs(payload, true), '评测预览失败', signal) })
 }
 
 type Job = { status: 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled'; started_at: string; updated_at: string; stdout: string; stderr: string; process?: ReturnType<typeof spawn>; result?: unknown; run_id?: string; exit_code?: number | null; error?: string }
@@ -1198,7 +1220,7 @@ function appendLog(current: string, chunk: unknown) {
 function startEval(root: string, payload: JsonMap, jobs: Map<string, Job>, onChange?: () => void) {
   const jobId = randomUUID()
   const args = evalArgs(payload, false)
-  const proc = spawn('python3', args, { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] })
+  const proc = spawn(process.env.HARNESS_PYTHON || 'python3', programArgs(args), { cwd: root, env: programEnvironment(root), stdio: ['ignore', 'pipe', 'pipe'] })
   const job: Job = { status: 'running', started_at: new Date().toISOString(), updated_at: new Date().toISOString(), stdout: '', stderr: '', process: proc }
   jobs.set(jobId, job)
   proc.stdout.setEncoding('utf8')
@@ -1267,8 +1289,8 @@ async function runRecord(root: string, op: 'index' | 'show' | 'compare', payload
   }
   let stdout: string
   try {
-    ({ stdout } = await promisify(execFile)('python3', args, {
-      cwd: root, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, timeout: 20_000, signal,
+    ({ stdout } = await promisify(execFile)(process.env.HARNESS_PYTHON || 'python3', programArgs(args), {
+      cwd: root, env: programEnvironment(root), encoding: 'utf8', maxBuffer: 20 * 1024 * 1024, timeout: 20_000, signal,
     }))
   } catch (error) {
     const failed = error as Error & { stderr?: string; stdout?: string }
@@ -1326,6 +1348,16 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void): C
   const jobs = new Map<string, Job>()
   const previews = new Map<string, VersionPreview>()
   const datasets = createDecisionDatasetHandler(root)
+  const computeVariants = createComputeVariantsHandler(root, {
+    createExperiment: payload => createExperiment(root, payload),
+    candidateDigest: id => candidateDigest(root, id),
+    gitCandidateDigest: (id, ref) => gitCandidateDigest(root, id, ref),
+    readRun: async (runId, signal) => {
+      const result = await runRecord(root, 'show', { run_id: runId }, signal)
+      if (!result.ok) throw new RpcError(result.error.code, result.error.message)
+      return result.value
+    },
+  })
   const caseManagement = createCaseManagementHandler(root, {
     applyEvaluation: async (id, content, hash, signal) => {
       const result = await applyEdit(root, { experiment_id: id, edits: [{ path: 'evaluation.md', content, expected_sha256: hash }] }, signal)
@@ -1343,12 +1375,17 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void): C
     try {
       const body = payload === undefined ? {} : requireObject(payload)
       if (endpoint.startsWith('datasets/')) return ok(await datasets(endpoint, body, signal))
+      if (endpoint.startsWith('compute-variants/')) {
+        const result = await computeVariants(endpoint.slice('compute-variants/'.length), body, signal)
+        return result.ok ? ok(result.value) : failure(new RpcError(result.error.code, result.error.message))
+      }
       switch (endpoint) {
         case 'list': return list(root)
         case 'detail': return await detail(root, body, signal)
         case 'create': return await createExperiment(root, body)
         case 'new': return await createAgent(root, body, signal)
         case 'assets/diff': return await readAssetDiff(root, body, signal)
+        case 'assets/read-fixed': return await readFixedAsset(root, body, signal)
         case 'features/preview': return featurePreview(root, body, previews)
         case 'features/proposal': return latestProposal(body, previews, 'features')
         case 'features/apply': return featureApply(root, body, previews)

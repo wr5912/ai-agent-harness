@@ -1,6 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-020-r9d6dc03aa1bb
-agent_id: security-operations-expert
-baseline_ref: git:0ae67c84fb6f53a04a99f33ac25561d067684504
-status: active
-research_question: 在保留新版 EXP-019 的 MCP 工具与资源分组能力和复合研判边界的前提下，威胁研判固定流程能否改用网页 MCP 配置管理中的 SOC 与报告连接

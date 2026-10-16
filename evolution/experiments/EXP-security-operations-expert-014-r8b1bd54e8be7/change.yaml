@@ -1,6 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-014-r8b1bd54e8be7
-agent_id: security-operations-expert
-baseline_ref: git:bc9410a95a26806cfa4b7d975eda6b862bd9ffeb
-status: active
-research_question: 合并最新运行概览与 Web MCP 管理后，能否从单一 Candidate 装载智能对话、委派状态和支持凭据及登录授权的 MCP 配置管理

@@ -11,7 +11,7 @@ const repo = new URL('../../../', import.meta.url).pathname
 const plugin = new URL('../', import.meta.url).pathname
 const temporaryBuild = mkdtempSync(join(tmpdir(), 'agent-assets-build-'))
 for (const entry of ['asset-diff', 'create-agent']) await build({ entryPoints: [join(plugin, `src/agents/${entry}.ts`)], outfile: join(temporaryBuild, `${entry}.mjs`), bundle: true, platform: 'node', format: 'esm', external: ['@deepseek-ai/dsh-client-connection'] })
-const { readAssetDiff } = await import(`file://${temporaryBuild}/asset-diff.mjs`)
+const { readAssetDiff, readFixedAsset } = await import(`file://${temporaryBuild}/asset-diff.mjs`)
 const { createAgent } = await import(`file://${temporaryBuild}/create-agent.mjs`)
 const first = 'EXP-first-agent-001-r111111111111', second = 'EXP-first-agent-002-r222222222222'
 function write(file, body) { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, body) }
@@ -111,9 +111,66 @@ test('中文与 emoji 按 UTF-8 字节预算完整截断，截断标记依据脱
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 
+test('固定资产读取核对来源身份并保持只读，不受后续工作树变更影响', async () => {
+  const { root, commit } = fixture()
+  try {
+    const payload = { agent_id: 'first-agent', experiment_id: first, ref: `git:${commit}` }
+    write(join(root, `evolution/experiments/${first}/candidate/change.md`), 'dirty working tree\n')
+    const before = git(root, ['status', '--porcelain'])
+    const listing = success(await readFixedAsset(root, payload))
+    assert.equal(listing.commit, commit); assert.equal(listing.files.length, 3)
+    assert.match(listing.candidate_digest, /^[a-f0-9]{64}$/)
+    const value = success(await readFixedAsset(root, { ...payload, path: 'change.md' }))
+    assert.equal(value.selected.content, 'old\n'); assert.equal(value.selected.kind, 'text')
+    assert.match(value.selected.sha256, /^[a-f0-9]{64}$/)
+    assert.equal(value.candidate_digest, listing.candidate_digest)
+    assert.equal(git(root, ['status', '--porcelain']), before)
+    for (const input of [{ agent_id: 'other-agent' }, { ref: 'HEAD' }, { path: '../change.yaml' }, { path: '/etc/passwd' }, { path: 'a/../change.md' }, { path: 'a\\b' }]) {
+      assert.equal((await readFixedAsset(root, { ...payload, ...input })).error.code, 'invalid_request')
+    }
+    assert.equal((await readFixedAsset(root, { ...payload, path: 'missing.md' })).error.code, 'not_found')
+    assert.equal((await readFixedAsset(root, { ...payload, ref: `git:${'f'.repeat(40)}` })).error.code, 'baseline_unavailable')
+    assert.equal((await readFixedAsset(root, payload, AbortSignal.abort())).error.code, 'aborted')
+    write(join(root, `evolution/experiments/${first}/change.yaml`), 'agent_id: other-agent\n')
+    git(root, ['add', '.']); git(root, ['commit', '-m', 'mismatched identity'])
+    assert.equal((await readFixedAsset(root, { ...payload, ref: `git:${git(root, ['rev-parse', 'HEAD'])}` })).error.code, 'invalid_request')
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('固定资产排除凭据并明确二进制、过大和截断文本，不跟随符号链接', async () => {
+  const { root } = fixture()
+  try {
+    const candidate = join(root, `evolution/experiments/${first}/candidate`)
+    const secret = ['sk', 'c'.repeat(32)].join('-')
+    for (const path of ['.env', '.env.local', 'local.llm-api-key', 'node_modules/ignored.js']) write(join(candidate, path), 'excluded')
+    write(join(candidate, 'token.txt'), `API_KEY=${secret}\n`)
+    write(join(candidate, 'binary.bin'), Buffer.from([0, 1, 2]))
+    write(join(candidate, 'text.txt'), '中文🙂'.repeat(30000))
+    write(join(candidate, 'large.txt'), 'x'.repeat(1024 * 1024 + 1))
+    git(root, ['add', '.']); git(root, ['commit', '-m', 'bounded assets'])
+    const payload = { agent_id: 'first-agent', experiment_id: first, ref: `git:${git(root, ['rev-parse', 'HEAD'])}` }
+    const listing = success(await readFixedAsset(root, payload))
+    assert.equal(listing.files.some(file => /\.env|llm-api-key|node_modules/.test(file.path)), false)
+    assert.equal((await readFixedAsset(root, { ...payload, path: '.env' })).error.code, 'invalid_request')
+    assert.equal(JSON.stringify(success(await readFixedAsset(root, { ...payload, path: 'token.txt' }))).includes(secret), false)
+    const binary = success(await readFixedAsset(root, { ...payload, path: 'binary.bin' })).selected
+    assert.equal(binary.kind, 'binary'); assert.equal(binary.content, null)
+    const large = success(await readFixedAsset(root, { ...payload, path: 'large.txt' })).selected
+    assert.equal(large.kind, 'oversize'); assert.equal(large.content, null); assert.equal(large.truncated, true)
+    const text = success(await readFixedAsset(root, { ...payload, path: 'text.txt' })).selected
+    assert.equal(text.kind, 'text'); assert.equal(text.truncated, true)
+    assert.ok(Buffer.byteLength(text.content, 'utf8') <= 128 * 1024); assert.equal(text.content.includes('\uFFFD'), false)
+    symlinkSync('/etc/passwd', join(candidate, 'link.txt'))
+    git(root, ['add', '.']); git(root, ['commit', '-m', 'reject links'])
+    assert.equal((await readFixedAsset(root, { ...payload, ref: `git:${git(root, ['rev-parse', 'HEAD'])}` })).error.code, 'path_rejected')
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
 function createFixture() {
   const root = mkdtempSync(join(tmpdir(), 'new-agent-fixture-'))
-  const files = ['runtime/adapters/dsh-container/dsh-dev', 'runtime/adapters/dsh-container/source_contract.py', 'runtime/adapters/dsh-container/scenario_analysis.py',
+  process.env.HARNESS_PROGRAM_ROOT = root
+  process.env.HARNESS_ASSET_ROOT = root
+  const files = ['runtime/adapters/dsh-container/dsh-dev', 'runtime/adapters/dsh-container/source_contract.py', 'runtime/adapters/dsh-container/workspace_paths.py', 'runtime/adapters/dsh-container/scenario_analysis.py',
     'runtime/adapters/dsh-container/source.lock.json', 'runtime/adapters/dsh-container/Dockerfile', 'runtime/adapters/dsh-container/apt-mirror.sh', 'runtime/adapters/dsh-container/build-image.sh', 'runtime/adapters/dsh-container/dsh-cli.sh', 'runtime/adapters/dsh-container/remote-host-settings.patch',
     'runtime/adapters/dsh-container/verification-home-controls/locked-bootstrap.env', 'runtime/adapters/dsh-container/verification-home-controls/web-profile.package.json',
     '.agents/skills/research-eval/scripts/validate_experiment.py', '.agents/skills/research-eval/scripts/evaluation_contract.py']

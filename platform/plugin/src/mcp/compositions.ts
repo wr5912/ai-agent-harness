@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import type { ThreatBindings, ThreatStage } from './threat/types.ts'
-export type { ThreatBindings, ThreatStage } from './threat/types.ts'
+import type { ThreatBindings, ThreatStage } from './extension.ts'
+export type { ThreatBindings, ThreatStage } from './extension.ts'
 
 export type CompositionStep = { id: string; compositionId: string; versionId: string; inputMap: Record<string, unknown>; when?: 'always' | 'five_source' | 'claimed' | 'completed' }
 export type CompositionConfig = {
@@ -14,9 +14,10 @@ export type CompositionEntry = { id: string; draft?: CompositionConfig; publishe
 export type Catalog = { schema_version: '1.0'; compositions: CompositionEntry[] }
 
 export const COMPOSITION_SERVICE_ID = 'platform-compositions'
-export function publishedCompositionService(catalog: Catalog) {
-  const publishedTools = catalog.compositions.flatMap(entry => entry.published ? [entry.published] : [])
-  if (!publishedTools.length) return undefined
+export function publishedCompositionService(catalog: Catalog, available: Catalog = catalog) {
+  // 已保存分组引用服务身份；扩展装载前可暂时没有可调用工具，不能让服务 ID 消失。
+  if (!catalog.compositions.some(entry => entry.published)) return undefined
+  const publishedTools = available.compositions.flatMap(entry => entry.published ? [entry.published] : [])
   return { id: COMPOSITION_SERVICE_ID, serverName: 'compositions', description: '工具组合编排（已发布）',
     enabled: true, platformComposition: true, publishedTools,
     tools: { mode: 'all', names: publishedTools.map(tool => tool.toolName) } }

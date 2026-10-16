@@ -24,9 +24,11 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
     else process.env.HARNESS_ASSET_ROOT = previous
   })
   mkdirSync(join(assetRoot, 'agents/auth-agent'), { recursive: true })
-  mkdirSync(join(assetRoot, 'platform/credentials'), { recursive: true })
-  copyFileSync(new URL('./fixtures/mcp-compositions.json', import.meta.url), join(assetRoot, 'platform/mcp-compositions.json'))
-  writeFileSync(join(assetRoot, 'platform/credentials/admin.json'), JSON.stringify({ username: 'admin', password: 'admin123' }))
+  mkdirSync(join(assetRoot, '.local/credentials'), { recursive: true })
+  mkdirSync(join(assetRoot, 'config'), { recursive: true })
+  writeFileSync(join(assetRoot, 'workspace.json'), JSON.stringify({ schemaVersion: 1, id: 'workspace-auth-test' }))
+  copyFileSync(new URL('./fixtures/mcp-compositions.json', import.meta.url), join(assetRoot, 'config/mcp-compositions.json'))
+  writeFileSync(join(assetRoot, '.local/credentials/admin.json'), JSON.stringify({ username: 'admin', password: 'admin123' }))
   const index = join(assetRoot, 'index.html')
   writeFileSync(index, '<html><head></head><body>index</body></html>')
   const originalDist = WebApp.internals.resolveDistIndex
@@ -56,7 +58,7 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
     ctx.provide('tools', { register() {} })
   } })
   const origin = `http://127.0.0.1:${root.webServer.port}`
-  const base = origin + '/hap'
+  const base = origin + '/hep'
   const runId = 'run-11111111-1111-4111-8111-111111111111'
   const run = join(assetRoot, 'evolution/experiments/EXP-auth-agent-001/runs', runId)
   mkdirSync(run, { recursive: true })
@@ -92,7 +94,7 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   assert.equal((await fetch(base + downloadPath)).status, 401)
   const anonymous = await fetch(oldUrl, { redirect: 'manual' })
   assert.equal(anonymous.status, 303)
-  assert.equal(anonymous.headers.get('location'), '/hap/login')
+  assert.equal(anonymous.headers.get('location'), '/hep/login')
   assert.equal(anonymous.headers.get('set-cookie'), null)
   assert.equal((await request('/harness-platform/inventory', envelope('inventory'), oldCookie)).status, 401)
   assert.equal(root.connection.authenticatedUrl(base + '/?token=discard'), base + '/')
@@ -100,11 +102,11 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
     headers: { 'content-type': 'application/x-www-form-urlencoded', origin }, body })
   const loginPage = await fetch(base + '/login')
   assert.equal(loginPage.headers.get('referrer-policy'), 'same-origin')
-  assert.match(await loginPage.text(), /action="\/hap\/login"/)
-  for (const path of ['/', '/hap']) {
+  assert.match(await loginPage.text(), /action="\/hep\/login"/)
+  for (const path of ['/', '/hep']) {
     const redirect = await fetch(origin + path + '?from=entry', { redirect: 'manual' })
     assert.equal(redirect.status, 302)
-    assert.equal(redirect.headers.get('location'), '/hap/?from=entry')
+    assert.equal(redirect.headers.get('location'), '/hep/?from=entry')
   }
   for (const path of ['/login', '/api', gateway, '/harness-platform/inventory', downloadPath]) {
     assert.equal((await fetch(origin + path, { redirect: 'manual' })).status, 404)
@@ -115,7 +117,7 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   assert.equal(wrong.headers.get('set-cookie'), null)
   const signedIn = await login('username=admin&password=admin123')
   assert.equal(signedIn.status, 303)
-  assert.equal(signedIn.headers.get('location'), '/hap/')
+  assert.equal(signedIn.headers.get('location'), '/hep/')
   assert.equal(signedIn.headers.get('referrer-policy'), 'same-origin')
   const setCookie = signedIn.headers.get('set-cookie')
   assert.match(setCookie, /Path=\/; HttpOnly; SameSite=Strict; Max-Age=2592000/)
@@ -177,7 +179,7 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   assert.ok(failed.error || failed.result?.isError)
   const logout = await fetch(base + '/logout', { method: 'POST', headers: { cookie, origin }, redirect: 'manual' })
   assert.equal(logout.status, 303)
-  assert.equal(logout.headers.get('location'), '/hap/login')
+  assert.equal(logout.headers.get('location'), '/hep/login')
   assert.match(logout.headers.get('set-cookie'), /Max-Age=0/)
   assert.equal((await request('/harness-platform/inventory', envelope('inventory'), cookie)).status, 401)
   assert.equal((await fetch(base + downloadPath, { headers: { cookie } })).status, 401)
@@ -192,7 +194,7 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   assert.equal(reloaded.state, 2)
   assert.equal((await request('/harness-platform/inventory', envelope('inventory'), secondCookie)).status, 200)
   await reloaded.dispose()
-  writeFileSync(join(assetRoot, 'platform/credentials/admin.json'), JSON.stringify({ username: 'admin', password: 'changed' }))
+  writeFileSync(join(assetRoot, '.local/credentials/admin.json'), JSON.stringify({ username: 'admin', password: 'changed' }))
   const changed = root.plugin(plugin, { openBrowser: false, printUrl: false, surfaceContext: false })
   await changed
   assert.equal(changed.state, 2)
@@ -215,7 +217,7 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
   assert.equal(corrupt.state, 3)
   assert.equal((await fetch(base + '/api', { method: 'POST', headers: { cookie: oldCookie }, body: '{}' })).status, 401)
   await corrupt.dispose()
-  writeFileSync(join(assetRoot, 'platform/credentials/admin.json'), '{invalid')
+  writeFileSync(join(assetRoot, '.local/credentials/admin.json'), '{invalid')
   const invalid = root.plugin(plugin, { openBrowser: false, printUrl: false, surfaceContext: false })
   await assert.rejects(async () => { await invalid }, /无法读取平台账号配置/)
   assert.equal(invalid.state, 3)

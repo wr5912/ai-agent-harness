@@ -1,6 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-018-rfbf7fd53a340
-agent_id: security-operations-expert
-baseline_ref: git:5e1447d14a9c202aae05144034100a1ce685dee0
-status: active
-research_question: 明确材料整理路由与输出格式优先级后，能否重复返回完整可解析的 JSON，同时保留巡检续查和问答边界

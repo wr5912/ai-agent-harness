@@ -1,1 +1,0 @@
-{"run_id":"run-1d3814b5-b1b1-4812-90a0-74f464ac8218","trial_id":"trial-ae71f2f4-fe18-4c0d-a98c-ddf9b236d89f","input_id":"U-INS-002","execution_status":"completed","verdict":"inconclusive","observation":"浏览器冒烟通过：目标会话完成且页面显示回答；业务语义需由 API Run 判定。","evidence_ref":"evidence/U-INS-002"}

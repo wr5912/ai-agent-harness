@@ -61,7 +61,7 @@ def stop():
     if mode.endswith("failed"): raise RuntimeError("fixture-stop-failed")
     return ""
 if mode.startswith("analysis"):
-    m._locked_harness=lambda *_: []
+    m._locked_harness=lambda *args,**kwargs: []
     m._target_route=lambda *_: {"provider":"fixture","model":"fixture"}
     m._review_driver=lambda *_: {"results":[]}
     def external(command,*,stage,**kwargs):
@@ -70,7 +70,9 @@ if mode.startswith("analysis"):
         if stage=="instance-stop": return stop()
         raise AssertionError(stage)
     m._run=external
-    invoke=lambda: m.review_full(base,[],{"run_id":"run-fixture","source_id":"experiment:EXP-basic-001","evaluation_cases":[],"case_catalog":[]})
+    run_dir=base/"evolution/experiments/EXP-basic-001/runs/run-fixture"
+    run_dir.mkdir(parents=True)
+    invoke=lambda: m.review_full(run_dir,[],{"run_id":"run-fixture","source_id":"experiment:EXP-basic-001","evaluation_cases":[],"case_catalog":[]})
 else:
     original=m.subprocess.Popen
     def external_spawn(command,**kwargs):

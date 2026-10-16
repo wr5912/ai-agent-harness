@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -8,6 +8,7 @@ import test from 'node:test'
 import { build } from 'esbuild'
 
 const repo = new URL('../../../', import.meta.url).pathname
+process.env.HARNESS_PROGRAM_ROOT = repo
 const buildRoot = mkdtempSync(join(tmpdir(), 'evaluation-cases-build-'))
 await build({ entryPoints: [new URL('../src/evaluation/cases.ts', import.meta.url).pathname], outfile: join(buildRoot, 'cases.mjs'), bundle: true, platform: 'node', format: 'esm', external: ['@deepseek-ai/dsh-client-connection'] })
 const { createCaseManagementHandler, parseEvaluationDocument } = await import(`file://${join(buildRoot, 'cases.mjs')}`)
@@ -21,8 +22,6 @@ function fixture() {
   const initial = '# 业务评测\n\n## 基础\n\n#### U-CASE-001 原用例\n\n**用户输入**\n\n> ping\n\n**预期**\n\n返回 pong。\n\n## 其他\n\n#### U-CASE-002 其他用例\n\n**用户输入**\n\n> 查询目录\n\n**预期**\n\n返回目录。\n'
   write(evaluation, initial)
   write(join(root, `evolution/experiments/${experiment}/change.yaml`), `experiment_id: ${experiment}\nagent_id: alpha\n`)
-  const contract = '.agents/skills/research-eval/scripts/evaluation_contract.py'
-  mkdirSync(dirname(join(root, contract)), { recursive: true }); copyFileSync(join(repo, contract), join(root, contract))
   const reads = [], writes = []
   let source = { run_id: runId, manifest: { agent_id: 'alpha', experiment_id: 'EXP-alpha-001', status: 'completed' }, cases: [{ case_id: 'U-CASE-001', frozen: { title: '原失败输入', inputs: ['原运行输入'], expected_behavior: '旧预期不自动采纳' }, trials: [{ verdict: 'failed' }], output: ['实际失败回答绝不作为预期'] }] }
   const handler = createCaseManagementHandler(root, {

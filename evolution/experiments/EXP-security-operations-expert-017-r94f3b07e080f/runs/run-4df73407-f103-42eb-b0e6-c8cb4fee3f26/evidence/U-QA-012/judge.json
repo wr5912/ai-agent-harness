@@ -1,7 +1,0 @@
-{
-  "response": null,
-  "checks": {
-    "session_id": "session-84b36773-facc-484f-83f7-9511bbf20387",
-    "unavailable_reason": "judge-output-not-json"
-  }
-}

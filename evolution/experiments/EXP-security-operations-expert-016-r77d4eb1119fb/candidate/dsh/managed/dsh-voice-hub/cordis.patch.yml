@@ -1,5 +1,0 @@
-# dsh-voice-hub bundle: host voice engine + client voice UI.
-# 主模型正文完成后独立生成摘要，语音事件与原生会话共用 remote.mux 连接。
-- insert:
-    - id: voice-mode
-      name: '@aisoc/dsh-voice-hub'

@@ -9,7 +9,7 @@ const require = createRequire(new URL('../../../../platform/plugin/package.json'
 const { Context } = await import(pathToFileURL(require.resolve('@deepseek-ai/cordis')).href)
 const { default: NativeWebServer } = await import(pathToFileURL(require.resolve('@deepseek-ai/dsh-host-webserver')).href)
 
-for (const basePath of ['/assistant/', '/hap/']) test(`${basePath} 原生 HTTP、插件资源、SSE 和 upgrade 共同挂载且旧入口拒绝`, async t => {
+for (const basePath of ['/assistant/', '/hep/']) test(`${basePath} 原生 HTTP、插件资源、SSE 和 upgrade 共同挂载且旧入口拒绝`, async t => {
   const root = new Context()
   t.after(() => root.fiber.dispose())
   await root.plugin(createMountedWebServer(NativeWebServer, basePath), { host: '127.0.0.1', port: 0, compression: 'gzip', compressionThresholdBytes: 0 })

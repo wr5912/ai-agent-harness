@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import vm from 'node:vm'
 import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join, resolve } from 'node:path'
 import test from 'node:test'
 import { transformClientUrls } from '../lib/index.mjs'
 
@@ -17,7 +19,7 @@ function execute(source, basePath = '/assistant/') {
   return calls
 }
 
-for (const base of ['/assistant/', '/hap/']) test(`${base} 统一处理最终请求、Worker 和 Worklet，保留外部地址和请求属性`, async () => {
+for (const base of ['/assistant/', '/hep/']) test(`${base} 统一处理最终请求、Worker 和 Worklet，保留外部地址和请求属性`, async () => {
   const calls = execute(`
     fetch('/api/overview?limit=2', {method:'POST',body:'payload'});
     fetch(new URL('/voice-mode/config','http://fixture.local'));
@@ -83,9 +85,10 @@ test('保留原脚本严格模式，URL helper 不受原脚本局部变量遮蔽
 })
 
 test('当前三个业务客户端制品可转换并作为浏览器脚本解析', () => {
-  const root = new URL('../../../../evolution/experiments/EXP-security-operations-expert-019-rc442472a242a/candidate/dsh/managed/', import.meta.url)
+  const assetRoot = resolve(process.env.HARNESS_ASSET_ROOT || join(homedir(), 'harness-engineering-platform-data'))
+  const root = join(assetRoot, 'evolution/experiments/EXP-security-operations-expert-019-rc442472a242a/candidate/dsh/managed')
   for (const file of ['security-operations-ui/client.js', 'mcp-manager/client.js', 'dsh-voice-hub/lib/client.js']) {
-    const source = readFileSync(new URL(file, root), 'utf8')
+    const source = readFileSync(join(root, file), 'utf8')
     const transformed = transformClientUrls(source)
     assert.notEqual(transformed, source)
     new vm.Script(transformed, { filename: file })

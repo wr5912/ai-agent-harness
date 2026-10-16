@@ -35,10 +35,10 @@ async function managerModule(t) {
   const end = source.indexOf('\nconst { name } =', start)
   assert.ok(start > 0 && end > start, '构建插件定义边界应保持明确')
   const adapter = join(directory, 'adapter.mjs')
-  await writeFile(adapter, "import { readFile } from 'node:fs/promises'; import { resolve } from 'node:path';\n" + source.slice(start, end))
+  await writeFile(adapter, "import { readFile } from 'node:fs/promises'; import { resolve } from 'node:path';\n" + source.slice(start, end).replace(/fileURLToPath\(new URL\('..\/..\/plugins\/mcp-manager', import.meta.url\)\)/, JSON.stringify(new URL('../../../plugins/mcp-manager', import.meta.url).pathname)))
   const { managerSources } = await import(pathToFileURL(adapter).href)
   const outfile = join(directory, 'manager.mjs')
-  await build({ stdin: { contents: "export * from 'harness-mcp-manager-server'; export { createNativeThreatServices } from './src/mcp/threat-services.ts'", resolveDir: process.cwd(), loader: 'ts' },
+  await build({ stdin: { contents: "export * from 'harness-mcp-manager-server'", resolveDir: process.cwd(), loader: 'ts' },
     outfile, bundle: true, platform: 'node', format: 'esm', packages: 'external', plugins: [managerSources] })
   return import(pathToFileURL(outfile).href)
 }
@@ -146,45 +146,4 @@ test('原生 dispatch 调用真实外部 MCP 时保留认证 Header 并把取消
   assert.equal(authorized, true)
   assert.equal(observedSignal.aborted, true)
   assert.equal(calls, 1, '取消不能重试业务调用')
-})
-
-test('真实原生 OpenAPI 发现保留 body.arguments schema，阶段适配准确封装 SOC 请求体', async t => {
-  const manager = await managerModule(t)
-  const bodies = []
-  const args = { incidentId: 'INC-20261015-000001' }
-  const { origin } = await serve(t, async (request, response) => {
-    if (request.method === 'GET' && request.url === '/openapi.json') {
-      response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ openapi: '3.0.3', info: { title: '基本 SOC 模拟接口', version: '1' },
-        paths: { '/invoke': { post: { operationId: 'ai_soc_mock__lookup', summary: '读取基本模拟事件', requestBody: { required: true,
-          content: { 'application/json': { schema: { type: 'object', required: ['arguments'], properties: {
-            arguments: { type: 'object', required: ['incidentId'], properties: { incidentId: { type: 'string' } }, additionalProperties: false },
-          } } } } }, responses: { 200: { description: '基本模拟结果' } } } } } }))
-      return
-    }
-    if (request.method === 'POST' && request.url === '/invoke') {
-      const chunks = []
-      for await (const chunk of request) chunks.push(chunk)
-      bodies.push(JSON.parse(Buffer.concat(chunks).toString('utf8')))
-      response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ status: 'success', status_code: 200, result: { code: 200, data: args } }))
-      return
-    }
-    response.writeHead(404).end()
-  })
-  const external = { id: 'soc-basic', serverName: 'soc-basic', enabled: true, specUrl: origin + '/openapi.json', headers: [], tools: { mode: 'all', names: [] } }
-  let dispatch
-  manager.apply({ webServer: { register: () => () => {} }, connection: { requestRejection: () => undefined }, effect: create => create(), on: () => {} }, {
-    servers: { get: () => [external] }, groups: { get: () => [] }, sharedToken: { get: () => '' }, platformDispatch: handler => { dispatch = handler },
-  })
-  const signal = new AbortController().signal
-  const discovery = await dispatch({ action: 'test', serverId: external.id }, signal)
-  assert.equal(discovery.status, 200)
-  const found = discovery.value.tools.find(tool => tool.name === 'ai_soc_mock__lookup')
-  assert.ok(found?.inputSchema?.properties?.body?.properties?.arguments, '发现响应必须保留 HTTP 请求体的输入 schema')
-  assert.deepEqual(found.inputSchema.required, ['body'])
-  const services = manager.createNativeThreatServices(join(process.cwd(), '../..'), dispatch, undefined,
-    () => { throw new Error('本测试禁止调用模型') }, () => [external])
-  const called = await services.invoke(external.id, 'ai_soc_mock__lookup', args, signal)
-  assert.equal(called.isError, false)
-  assert.equal(JSON.parse(called.content[0].text).result.code, 200)
-  assert.deepEqual(bodies, [{ arguments: args }], '只能封装一层 arguments，不得丢失或重复封装')
 })

@@ -1,3 +1,6 @@
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import { setTimeout as delay } from 'node:timers/promises'
 import test from 'node:test'
@@ -115,4 +118,35 @@ test('服务端通知仅含领域与稳定 ID，请求取消后释放 SSE 监听
   assert.doesNotThrow(() => t.mock.timers.tick(100))
   reader.releaseLock()
   assert.equal(response.body.locked, false)
+})
+
+
+test('独立工作区同一config目录的来源和组合变更均通知，忽略原生HOME内容', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'workspace events '))
+  for (const folder of ['config', '.local/instances/basic/dsh-home']) mkdirSync(join(root, folder), { recursive: true })
+  writeFileSync(join(root, 'workspace.json'), JSON.stringify({ schemaVersion: 1, id: 'workspace-events', legacyRoots: [] }))
+  writeFileSync(join(root, 'config/sources.json'), '{}')
+  writeFileSync(join(root, 'config/mcp-compositions.json'), '{}')
+  const events = createPlatformEvents(root, { docker: false, stateRoot: join(root, '.local/instances') })
+  events.start()
+  t.after(() => { events.dispose(); rmSync(root, { recursive: true, force: true }) })
+  const abort = new AbortController()
+  const response = await events.fetch(new Request('http://fixture.local/events', { signal: abort.signal }))
+  const reader = response.body.getReader()
+  t.after(() => { abort.abort(); reader.releaseLock() })
+  await reader.read()
+  const readChange = async path => {
+    writeFileSync(join(root, path), JSON.stringify({ changed: path }))
+    const data = await Promise.race([reader.read(), delay(3000).then(() => { throw new Error('工作区配置变更通知超时') })])
+    return JSON.parse(new TextDecoder().decode(data.value).match(/^data: (.*)$/m)[1])
+  }
+  assert.ok((await readChange('config/mcp-compositions.json')).domains.includes('mcp'))
+  assert.ok((await readChange('config/sources.json')).domains.includes('catalog'))
+  writeFileSync(join(root, '.local/instances/basic/dsh-home/session.json'), '{}')
+  let notified = false
+  const pending = reader.read().then(() => { notified = true })
+  await delay(200)
+  assert.equal(notified, false)
+  abort.abort()
+  await pending
 })

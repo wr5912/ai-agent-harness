@@ -1,7 +1,0 @@
-{
-  "schema_version": "1.0",
-  "case_id": "U-SUMMARY-002",
-  "completed": false,
-  "expected_behavior": "输出一行表格，保留 TEST-ASSET-01、正常、给定时间，并说明数据由用户提供且未实际查询服务。不新增工具调用或检查结论。",
-  "failure_reason": "evaluation-interrupted"
-}

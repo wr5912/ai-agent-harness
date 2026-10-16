@@ -24,6 +24,12 @@ export type AssetDiffView = {
   selected?: { path: string; kind: 'text' | 'binary'; before: string | null; after: string | null; diff: string; truncated: boolean }
   notes: string[]
 }
+export type FixedAssetView = {
+  agent_id: string; experiment_id: string; ref: string; commit: string; candidate_digest: string
+  files: Array<Omit<Entry, 'file'>>
+  selected?: { path: string; object: string; size: number; kind: 'text' | 'binary' | 'oversize'; content: string | null; truncated: boolean; sha256?: string }
+  notes: string[]
+}
 
 class DiffError extends Error { constructor(readonly code: string, message: string) { super(message) } }
 function fail(message: string): never { throw new DiffError('invalid_request', message) }
@@ -120,6 +126,45 @@ function textPreview(text: string) {
   if (data.length <= PREVIEW_BYTES) return { content: clean, truncated: false }
   // 流式解码保留末尾未完成字节，截断预览不会引入半个 UTF-8 字符。
   return { content: new TextDecoder('utf-8', { fatal: true }).decode(data.subarray(0, PREVIEW_BYTES), { stream: true }), truncated: true }
+}
+
+/** 读取固定提交中的 Candidate，不 checkout、不生成可编辑源码副本。 */
+export async function readFixedAsset(rootPath: string, payload: JsonMap, signal?: AbortSignal): Promise<ConnectionRpcResult<FixedAssetView>> {
+  try {
+    cancelled(signal)
+    const root = resolve(rootPath), id = experimentId(payload.experiment_id)
+    const agentId = EXPERIMENT.exec(id)![1]
+    if (payload.agent_id !== agentId) fail('固定来源的 Experiment 不属于请求的 Agent')
+    if (typeof payload.ref !== 'string' || !/^git:[a-f0-9]{40}$/i.test(payload.ref)) fail('ref 必须是 git:<40 位固定提交>')
+    if (payload.path !== undefined && (typeof payload.path !== 'string' || payload.path.includes('\\') || payload.path.split('/').some(part => !part || part === '.' || part === '..') || excluded(payload.path))) fail('path 必须是 Candidate 内未被排除的相对文件路径')
+    const commit = payload.ref.slice(4).toLowerCase()
+    const rawChange = await git(root, ['show', `${commit}:evolution/experiments/${id}/change.yaml`], signal)
+    const fixedChange = loadYaml(rawChange.toString('utf8')) as JsonMap
+    if (!fixedChange || fixedChange.agent_id !== agentId || fixedChange.experiment_id !== undefined && fixedChange.experiment_id !== id) fail('固定提交的 Agent 或 Experiment 身份不一致')
+    const files = await fixedFiles(root, commit, id, signal)
+    if (files.length > 10_000) throw new DiffError('limit_exceeded', '固定 Candidate 超出 10000 文件读取范围')
+    const value: FixedAssetView = {
+      agent_id: agentId, experiment_id: id, ref: `git:${commit}`, commit, candidate_digest: digest(files), files,
+      notes: ['只读固定提交中的 Candidate；不读取环境凭据、Session、Run、缓存或依赖目录。', '文本预览脱敏且最多 128 KiB；超过 1 MiB 的文件仅返回 Git 对象摘要与大小。预览不构成另一份可编辑来源。'],
+    }
+    if (payload.path !== undefined) {
+      const entry = files.find(item => item.path === payload.path)
+      if (!entry) throw new DiffError('not_found', '固定 Candidate 中不存在指定文件')
+      const selected = { path: entry.path, object: entry.object, size: entry.size }
+      if (entry.size > 1024 * 1024) value.selected = { ...selected, kind: 'oversize', content: null, truncated: true }
+      else {
+        const data = await git(root, ['cat-file', 'blob', entry.object], signal), text = decode(data)
+        value.selected = text === null
+          ? { ...selected, kind: 'binary', content: null, truncated: false, sha256: hash(data) }
+          : { ...selected, kind: 'text', ...textPreview(text), sha256: hash(data) }
+      }
+    }
+    cancelled(signal)
+    return { ok: true, value }
+  } catch (error) {
+    if (error instanceof DiffError) return { ok: false, error: { code: error.code, message: error.message, details: {} } }
+    return { ok: false, error: { code: 'asset_read_failed', message: '固定来源读取失败，请核对来源元数据', details: {} } }
+  }
 }
 async function previewDiff(before: string, after: string, path: string, signal?: AbortSignal) {
   const temporary = mkdtempSync(join(tmpdir(), 'harness-asset-diff-'))

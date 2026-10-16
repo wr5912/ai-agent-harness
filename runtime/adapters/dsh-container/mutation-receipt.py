@@ -18,7 +18,8 @@ from pathlib import Path
 from source_contract import DEFAULT_SOURCE, resolve, strict_json
 
 
-REPO = Path(__file__).resolve().parents[3]
+from workspace_paths import asset_root
+REPO = asset_root()
 EXPERIMENT = REPO / "evolution/experiments/EXP-security-operations-expert-001"
 DSH_ROOT = EXPERIMENT / "candidate/dsh"
 WORKSPACE = DSH_ROOT / "workspace"

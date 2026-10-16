@@ -1,7 +1,0 @@
-{
-  "schema_version": "1.0",
-  "case_id": "U-INS-007",
-  "completed": false,
-  "expected_behavior": "第二轮复用同一 Session 中的 `runId` 调用 `get_inspection_result`，不重新调用 `start_inspection`。运行中只报告状态且不提供下载链接；结束且报告就绪后才原样提供服务返回的 `reportDownloadUrl`。",
-  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
-}

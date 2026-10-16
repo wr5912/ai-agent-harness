@@ -1,7 +1,0 @@
-schema_version: '1.0'
-experiment_id: EXP-security-operations-expert-016-r77d4eb1119fb
-agent_id: security-operations-expert
-baseline_ref: git:047bb6a0202864a58755f84c22e5a01e2021d209
-status: completed
-outcome: continue
-research_question: 按每次主 LLM Call 的已完成正文生成可配置口语摘要，并通过 DSH 共用连接播报，能否减少冗长朗读且正确处理串行、打断和重连

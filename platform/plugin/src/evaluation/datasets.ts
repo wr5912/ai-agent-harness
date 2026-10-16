@@ -1,3 +1,4 @@
+import { programRoot } from '../workspace.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -141,7 +142,7 @@ export function createDecisionDatasetHandler(root: string) {
           limitations: slice.limitations, label_status: 'suggested', label_basis: text(draft.label_basis, 'label_basis'), split: 'unassigned', decision_time_reviewed: false,
         } })
       }
-      const skill = readFileSync(join(root, 'platform/skills/decision-sample-extraction/SKILL.md'), 'utf8')
+      const skill = readFileSync(join(programRoot(), 'platform/skills/decision-sample-extraction/SKILL.md'), 'utf8')
       const owner = text(body.assistant_session_id, 'assistant_session_id')
       const dataset: Dataset = { id: `decision-dataset-${randomUUID()}`, run_id: body.run_id, path: loaded.source.path, source_sha256: loaded.source_sha256, created_at: new Date().toISOString(), extractor: { session_id: owner, model: clean(body.assistant_model ?? null), skill: 'decision-sample-extraction', skill_sha256: digest(skill), format: 'kev@85ccf56a0afb952323c621055b02876e8498d60c' }, records, skipped }
       for (const [key, value] of previews) if (Date.now() - value.created > 30 * 60_000) previews.delete(key)

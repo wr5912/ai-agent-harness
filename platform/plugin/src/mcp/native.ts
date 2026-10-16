@@ -1,12 +1,13 @@
 import { createMcpHandler } from './index.ts'
 import { digestOf, redacted } from './openapi.ts'
 import { loadOpenApi, execute } from 'harness-mcp-manager-openapi'
-import type { ThreatRuntime } from './threat/types.ts'
+import type { ThreatRuntime, CompositionExtension } from './extension.ts'
 
-export function createManagedMcpHandler(assetRoot: string, servers: () => any[], options: { threat?: ThreatRuntime } = {}) {
+export function createManagedMcpHandler(assetRoot: string, servers: () => any[], options: { threat?: ThreatRuntime; extension?: CompositionExtension } = {}) {
   return createMcpHandler(assetRoot, {
     servers,
     threat: options.threat,
+    extension: options.extension,
     native: {
       async load(connection, signal) {
         const server = servers().find(item => item.id === connection.id && item.enabled !== false)

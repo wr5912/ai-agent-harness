@@ -1,1 +1,0 @@
-{"gap_id":"gap-b780a80c-eabe-41c8-a582-fd5e871f99d4","run_id":"run-36bf0c84-678c-45c2-9e40-f5876e2c4586","classification":"environment","title":"真实模型无可见正文且真实 TTS 不可达","observed":"18 次 DeepSeek 调用均 HTTP 200，但在原版 45 秒和整改版 15 秒期限内均无正文；Qwen 按用户要求不连接。","next_step":"模型服务可用后按冻结用例重跑，并在真实 TTS 与浏览器输出设备上补测首声和听感。","evidence_ref":"evidence/deepseek-summary.json"}

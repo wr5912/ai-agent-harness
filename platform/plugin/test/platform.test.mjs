@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import { createPlatformHandler } from '../lib/index.js'
 
@@ -28,8 +27,6 @@ test('首页按冻结 Run 创建时间排序，保留失败状态，不以目录
   const root = mkdtempSync(join(tmpdir(), 'harness-home-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   mkdirSync(join(root, 'agents/test-agent'), { recursive: true })
-  mkdirSync(join(root, 'runtime/adapters'), { recursive: true })
-  symlinkSync(fileURLToPath(new URL('../../../runtime/adapters/dsh-container', import.meta.url)), join(root, 'runtime/adapters/dsh-container'))
   const records = [
     ['EXP-test-agent-001', 'run-00000000-0000-4000-8000-000000000001', '2026-10-13T01:00:00Z', 'failed'],
     ['EXP-test-agent-099', 'run-00000000-0000-4000-8000-000000000099', '2026-10-12T01:00:00Z', 'completed'],

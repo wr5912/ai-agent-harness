@@ -1,6 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-013-r26ecd1295ab4
-agent_id: security-operations-expert
-baseline_ref: git:5367853cb32dfc2a5ae79fe992f906a9079941b4
-status: active
-research_question: 基于 EXP-011 的智能对话 Candidate 并入 EXP-012 巡检合同后，能否通过 DSH 插件采集当前网络安全运营专家及三个委派子智能体的运行状态，并在专用运行概览中如实呈现

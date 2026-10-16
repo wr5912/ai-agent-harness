@@ -8,21 +8,14 @@
 # 项目技能、仓库合同和 Research Run
 python3 -m unittest discover -s tests -v
 
-# MCP 桩的 owning tests
-python3 -B evolution/experiments/EXP-security-operations-expert-001/evaluation/tools/test_derive_mcp_stub_tools.py
-
 # DSH 适配层
 python3 -m unittest discover -s runtime/adapters/dsh-container -p 'test_*.py' -v
 node --test runtime/adapters/dsh-container/test_startup_vector.mjs \
   runtime/adapters/dsh-container/test_tree_identity.mjs \
   runtime/adapters/dsh-container/test_module_boundary.mjs
-node tests/experiments/test_security_guard.mjs
-
-# 威胁研判原算法、摘要/报告投影与 DSH 直接交付
-python3 -m unittest discover -s tests/experiments/threat-analysis -p 'test_*.py'
-python3 -m unittest discover -s tests/experiments -p 'test_threat_*.py'
-node --test tests/experiments/test_threat_subagent.mjs
 ```
+
+业务 Harness 的测试随资产保存在数据仓库 `agents/security-operations-expert/tests/`，运行方式见该仓库 README。
 
 `test_home_submounts.mjs` 读取容器内 `/proc/self/mountinfo`，只在核验容器中执行，不加入宿主机的 Node 批量测试。
 

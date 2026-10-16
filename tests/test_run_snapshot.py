@@ -74,6 +74,19 @@ def recorded_run(module, repo: Path) -> tuple[Path, dict]:
 
 
 class FrozenRunSnapshotTests(unittest.TestCase):
+    def test_run_records_program_and_asset_versions_separately(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repo = Path(temporary)
+            (repo / "workspace.json").write_text(json.dumps({"schemaVersion": 1, "id": "workspace-fixture"}))
+            module = load_module(fixtures.RUN_RECORD, "run_origins")
+            run_dir, _ = recorded_run(module, repo)
+            inputs = json.loads((run_dir / "inputs.lock.json").read_text())
+            self.assertEqual(inputs["asset_origin"]["workspace_id"], "workspace-fixture")
+            self.assertEqual(inputs["asset_origin"]["commit"], inputs["git_version"]["commit"])
+            self.assertEqual(inputs["asset_origin"]["candidate_sha256"], inputs["candidate_sha256"])
+            self.assertEqual(inputs["program_origin"]["root"], str(module.PROGRAM_ROOT))
+            self.assertNotEqual(str(repo), inputs["program_origin"]["root"])
+
     def test_finalize_verifies_frozen_source_and_preserves_real_case_results(self) -> None:
         for mutation in ("unchanged", "content", "directory_permission", "unresolvable"):
             with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as temporary:
@@ -182,7 +195,8 @@ class FrozenRunSnapshotTests(unittest.TestCase):
             root = Path(temporary)
             helper = fixtures.DshEvalTests()
             repo, env, _ = helper.runtime_fixture(root)
-            module = load_module(repo / "runtime/adapters/dsh-container/dsh-eval", "dsh_eval_snapshot")
+            with mock.patch.dict(os.environ, env, clear=True):
+                module = load_module(repo / "runtime/adapters/dsh-container/dsh-eval", "dsh_eval_snapshot")
             evaluation = repo / "agents/security-operations-expert/evaluation.md"
             case_id = "U-INS-001"
             planning_cases = module.execution_for(evaluation, [case_id])

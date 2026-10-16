@@ -1,1 +1,0 @@
-{"gap_id":"gap-9ffa52af-51b9-4e9a-ab91-3f15a4468647","run_id":"run-7a091380-a7d6-4381-947b-2f6c5c876892","classification":"method","title":"受控链路不能判断真实播报效果","observed":"模型仅返回固定摘要，TTS 输出测试音调；真实语义、字数偏差、生成延迟和费用未测。取消在摘要生成阶段触发，真实长音频停止及本地语音引擎未重验。","next_step":"在目标模型和语音服务上运行同一口径的新 Session，观察否定与未完成状态保留、字数偏差、延迟、听感和实际音频取消；保留新的 Run。","evidence_ref":"evidence/scope.md"}

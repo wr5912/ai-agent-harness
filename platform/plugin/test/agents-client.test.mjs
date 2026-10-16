@@ -52,10 +52,10 @@ function page({ active = true, target, intercept } = {}) {
   return { render, settle, nodes, text, button, calls, contexts, navigations, history, assistantTasks, props, listeners, setConfirm: value => { confirm = value } }
 }
 
-test('智能体四个任务页签、搜索与默认最新版本保持登记版本独立', async () => {
+test('智能体五个任务页签、搜索与默认最新版本保持登记版本独立', async () => {
   const ui = page()
   await ui.settle()
-  assert.deepEqual(ui.nodes().filter(node => node.props?.role === 'tab').map(node => ui.text(node)), ['概览', 'Harness 资产', '能力状态', '运行情况'])
+  assert.deepEqual(ui.nodes().filter(node => node.props?.role === 'tab').map(node => ui.text(node)), ['概览', 'Harness 资产', '能力状态', '算力变体', '运行情况'])
   assert.ok(ui.calls.some(call => call.endpoint === 'agents/detail' && call.payload.agent_id === 'first-agent' && call.payload.experiment_id === undefined))
   assert.match(ui.text(ui.render()), /EXP-first-agent-002/)
   assert.match(ui.text(ui.render()), /登记版本EXP-first-agent-001/)
@@ -199,4 +199,18 @@ test('后退或深链接切换遭草稿保护拒绝时恢复旧地址，确认�
   assert.equal(ui.contexts.at(-1).experiment_id, 'EXP-second-agent-001')
   assert.equal(ui.contexts.at(-1).tab, 'runtime')
   assert.deepEqual(JSON.parse(JSON.stringify(ui.props.target)), deepTarget)
+})
+
+test('整理特性入口携带选定版本及维护Skill，后续页面变化不改发起上下文', async () => {
+  const ui = page({ target: { page: 'agents', agent_id: 'second-agent', experiment_id: 'EXP-second-agent-001' } })
+  await ui.settle()
+  await ui.button('请 AI 整理特性').props.onClick()
+  const request = ui.assistantTasks[0]
+  assert.equal(request.context.agent_id, 'second-agent')
+  assert.equal(request.context.experiment_id, 'EXP-second-agent-001')
+  assert.equal(request.context.skill, 'agent-maintenance')
+  assert.equal(request.context.workflow, 'features')
+  ui.props.target = { page: 'agents', agent_id: 'first-agent', experiment_id: 'EXP-first-agent-002' }
+  await ui.settle()
+  assert.equal(request.context.experiment_id, 'EXP-second-agent-001')
 })

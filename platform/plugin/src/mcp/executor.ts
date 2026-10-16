@@ -1,13 +1,13 @@
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph'
 import { compositionDefinition, compositionInputSchema, compositionOutputSchema, INCIDENT_ID_PATTERN, RUN_ID_PATTERN } from './definition.ts'
 import { compositionVersionId, readCompositions, type Catalog, type CompositionConfig } from './compositions.ts'
-import type { ThreatRuntime } from './threat/types.ts'
+import type { ThreatRuntime, CompositionExtension } from './extension.ts'
 import { executeNested, nestedStructure, validateNested } from './nested.ts'
+import { programRoot, workspaceConfigPath, workspaceLocalPath } from '../workspace.ts'
 import { callOpenApiOperation, loadOpenApi, type OpenApiConnection } from './openapi.ts'
 
 export type ConnectionStatus = {
@@ -23,6 +23,7 @@ export type McpRegistry = {
   status: Map<string, ConnectionStatus>
   stateFile?: string
   threat?: ThreatRuntime
+  extension?: CompositionExtension
   native?: {
     load(connection: OpenApiConnection, signal?: AbortSignal): Promise<any>
     call(source: any, operationId: string, args: Record<string, any>, signal?: AbortSignal): Promise<any>
@@ -32,9 +33,7 @@ export type McpRegistry = {
 type PersistedState = { openapi?: OpenApiConnection[]; mcp?: any[] }
 
 function defaultStateFile(assetRoot: string): string {
-  const rootKey = createHash('sha256').update(assetRoot).digest('hex').slice(0, 16)
-  const stateRoot = process.env.XDG_STATE_HOME || join(homedir(), '.local', 'state')
-  return join(stateRoot, 'ai-agent-harness', 'platform', 'mcp', rootKey, 'connections.json')
+  return workspaceLocalPath(assetRoot, 'state', 'mcp-connections.json')
 }
 
 export function createRegistry(assetRoot?: string, stateFile = assetRoot ? defaultStateFile(assetRoot) : undefined): McpRegistry {
@@ -76,29 +75,31 @@ function gitDirtyOf(assetRoot: string): boolean | 'unknown' {
   }
 }
 
-function sourceDigestOf(assetRoot: string): string {
-  const files = ['client.tsx', 'definition.ts', 'compositions.ts', 'executor.ts', 'index.ts', 'openapi.ts', 'manager.ts', 'native.ts', 'nested.ts', 'templates.ts', 'threat-services.ts', 'threat-editor.tsx']
+function sourceDigestOf(): string {
+  const files = ['client.tsx', 'definition.ts', 'compositions.ts', 'executor.ts', 'index.ts', 'openapi.ts', 'manager.ts', 'native.ts', 'nested.ts', 'extension.ts', 'threat-editor.tsx']
     .map(file => `platform/plugin/src/mcp/${file}`)
     .concat(['platform/plugin/build.mjs', 'platform/plugin/package.json', 'platform/plugin/pnpm-lock.yaml', 'platform/plugin/src/index.ts',
-      ...['index.ts', 'runtime.ts', 'types.ts', 'bridge.ts', 'python.ts', 'source.ts'].map(file => `platform/plugin/src/mcp/threat/${file}`),
-      ...['index.ts', 'openapi.ts'].map(file => `evolution/experiments/EXP-security-operations-expert-018-rfbf7fd53a340/candidate/dsh/managed/mcp-manager/${file}`)])
+      ...['index.ts', 'openapi.ts'].map(file => `plugins/mcp-manager/${file}`)])
   try {
     const hash = createHash('sha256')
-    for (const file of files) hash.update(file).update('\0').update(readFileSync(join(assetRoot, file)))
+    for (const file of files) hash.update(file).update('\0').update(readFileSync(join(programRoot(), file)))
     return hash.digest('hex')
   } catch {
     return 'unknown'
   }
 }
 
-export function compositionVersion(assetRoot: string, config?: CompositionConfig) {
+export function compositionVersion(assetRoot: string, config?: CompositionConfig, extension?: CompositionExtension) {
   const gitCommit = gitCommitOf(assetRoot)
+  const programCommit = gitCommitOf(programRoot())
+  const programDirty = gitDirtyOf(programRoot())
   const gitDirty = gitDirtyOf(assetRoot)
-  const sourceDigest = sourceDigestOf(assetRoot)
+  const sourceDigest = sourceDigestOf()
   const definition = { ...compositionDefinition, ...config, readonly: !config?.kind, inputSchema: compositionInputSchema(config), outputSchema: compositionOutputSchema(config),
-    upstream: config?.kind ? { kind: config.kind, ...(config.kind === 'composite' ? { steps: config.steps } : { stage: config.stage, bindings: config.bindings }) } : { kind: 'openapi', steps: compositionSteps(config) } }
-  const digest = createHash('sha256').update(JSON.stringify({ gitCommit, gitDirty, sourceDigest, definition })).digest('hex')
-  return { gitCommit, gitDirty, sourceDigest, digest, definition, ...(config?.kind ? { versionId: compositionVersionId(config) } : {}) }
+    upstream: config?.kind ? { kind: config.kind, ...(config.kind === 'composite' ? { steps: config.steps } : { stage: config.stage, bindings: config.bindings }) } : { kind: 'openapi', steps: config?.flow ? [] : compositionSteps(config) } }
+  const businessExtension = extension?.id ? { id: extension.id, sourceDigest: extension.sourceDigest ?? 'unknown' } : undefined
+  const digest = createHash('sha256').update(JSON.stringify({ gitCommit, gitDirty, programCommit, programDirty, sourceDigest, businessExtension, definition })).digest('hex')
+  return { gitCommit, gitDirty, programCommit, programDirty, sourceDigest, businessExtension, digest, definition, ...(config?.kind ? { versionId: compositionVersionId(config) } : {}) }
 }
 
 function statusFor(registry: McpRegistry, id: string): ConnectionStatus {
@@ -136,16 +137,14 @@ function compositionInput(input: Record<string, any>, config?: CompositionConfig
   return { asset, limit: inputLimit(input.limit) }
 }
 
-function compositionSteps(config?: CompositionConfig) {
-  const soc = config?.flow === 'soc-asset-alerts'
+function compositionSteps(config?: CompositionConfig, extension?: CompositionExtension) {
+  if (config?.flow) {
+    if (!extension?.flow) throw new Error('业务组合扩展尚未装载')
+    return extension.flow.steps(config)
+  }
   return [
-    { step: 'asset', title: '查询资产', connectionId: config?.connectionId,
-      operationId: soc ? 'get_soc_asset_by_asset_id' : 'get_asset',
-      input: soc ? { assetId: '$input.asset' } : { asset: '$input.asset' }, output: 'asset' },
-    { step: 'alerts', title: soc ? '查询近 30 天关联告警分组' : '查询相关告警', connectionId: soc ? config?.alertsConnectionId : config?.connectionId,
-      operationId: soc ? 'list_detect_alert' : 'list_alerts',
-      input: soc ? { 'req.assetId': '$state.assetId', 'req.pageNum': 1, 'req.pageSize': '$input.limit', 'req.windowSeconds': 2592000 }
-        : { assetId: '$state.assetId', limit: '$input.limit' }, output: 'alerts' },
+    { step: 'asset', title: '查询资产', connectionId: config?.connectionId, operationId: 'get_asset', input: { asset: '$input.asset' }, output: 'asset' },
+    { step: 'alerts', title: '查询相关告警', connectionId: config?.connectionId, operationId: 'list_alerts', input: { assetId: '$state.assetId', limit: '$input.limit' }, output: 'alerts' },
   ]
 }
 
@@ -160,35 +159,33 @@ const CompositionState = Annotation.Root({
   error: Annotation<{ code: string; message: string } | undefined>(),
 })
 
-function compositionGraph(config: CompositionConfig | undefined, call: (step: ReturnType<typeof compositionSteps>[number], args: Record<string, any>) => Promise<any>) {
-  const [assetStep, alertsStep] = compositionSteps(config)
-  const soc = config?.flow === 'soc-asset-alerts'
+function compositionGraph(config: CompositionConfig | undefined, call: (step: ReturnType<typeof compositionSteps>[number], args: Record<string, any>) => Promise<any>, extension?: CompositionExtension) {
+  const [assetStep, alertsStep] = compositionSteps(config, extension)
+  const flow = config?.flow ? extension!.flow! : undefined
   return new StateGraph(CompositionState)
     .addNode('getAsset', async state => {
       const started = Date.now()
-      const args = soc ? { assetId: Number(state.input.asset) } : { asset: state.input.asset }
+      const args = flow ? flow.assetArguments(state.input) : { asset: state.input.asset }
       const first = await call(assetStep, args)
-      const asset = soc ? first.json?.data : first.json
-      const assetId = soc ? asset?.assetId : asset?.id ?? asset?.asset?.id
+      const decoded = flow?.assetResult(first, state.input)
+      const asset = decoded ? decoded.asset : first.json
+      const assetId = decoded ? decoded.assetId : asset?.id ?? asset?.asset?.id
       const error = !first.ok ? { code: 'step_failed', message: `查询资产失败：HTTP ${first.status}` }
-        : soc && first.json?.code !== 200 ? { code: 'business_failed', message: `查询资产业务失败：code ${first.json?.code ?? '缺失'}` }
-        : soc ? (!Number.isSafeInteger(assetId) || assetId !== Number(state.input.asset) ? { code: 'mapping_failed', message: '第一步结果缺少或不匹配所查询的资产 ID' } : undefined)
-        : typeof assetId !== 'string' || !assetId ? { code: 'mapping_failed', message: '第一步结果缺少资产 ID' } : undefined
+        : decoded ? decoded.error : typeof assetId !== 'string' || !assetId ? { code: 'mapping_failed', message: '第一步结果缺少资产 ID' } : undefined
       const trace: any[] = [{ ...assetStep, status: error ? 'failed' : 'succeeded', httpStatus: first.status, durationMs: Date.now() - started, mappedArguments: args }]
       if (error) trace.push({ ...alertsStep, status: 'skipped', reason: error.message })
       return { asset: bounded(asset), assetId, receipts: [first.receipt], trace, error }
     }, { metadata: assetStep })
     .addNode('listAlerts', async state => {
       const started = Date.now()
-      const args = soc ? { req: { assetId: String(state.assetId), pageNum: 1, pageSize: state.input.limit, windowSeconds: 2592000 } }
-        : { assetId: state.assetId, limit: state.input.limit }
+      const args = flow ? flow.alertsArguments(state.input, state.assetId) : { assetId: state.assetId, limit: state.input.limit }
       const second = await call(alertsStep, args)
-      const items = soc ? second.json?.data?.groups : second.json?.alerts ?? second.json
+      const decoded = flow?.alertsResult(second)
+      const items = decoded ? decoded.items : second.json?.alerts ?? second.json
       const error = !second.ok ? { code: 'step_failed', message: `查询告警失败：HTTP ${second.status}` }
-        : soc && second.json?.code !== 200 ? { code: 'business_failed', message: `查询告警业务失败：code ${second.json?.code ?? '缺失'}` }
-        : !Array.isArray(items) ? { code: 'mapping_failed', message: '第二步结果缺少告警列表' } : undefined
-      const alerts = error ? [] : items.slice(0, state.input.limit)
-      const alertSummary = soc && !error ? Object.fromEntries(['totalGroups', 'totalAlerts', 'truncated', 'from', 'to', 'pageNum', 'pageSize'].map(key => [key, second.json.data[key]])) : undefined
+        : decoded?.error ?? (!Array.isArray(items) ? { code: 'mapping_failed', message: '第二步结果缺少告警列表' } : undefined)
+      const alerts = error ? [] : (items as any[]).slice(0, state.input.limit)
+      const alertSummary = !error ? decoded?.summary : undefined
       return {
         alerts, alertSummary, receipts: [...state.receipts, second.receipt],
         trace: [...state.trace, { ...alertsStep, status: error ? 'failed' : 'succeeded', httpStatus: second.status, durationMs: Date.now() - started, mappedArguments: args }], error,
@@ -200,13 +197,14 @@ function compositionGraph(config: CompositionConfig | undefined, call: (step: Re
     .compile({ checkpointer: false })
 }
 
-export async function compositionStructure(config?: CompositionConfig, catalog?: Catalog) {
+export async function compositionStructure(config?: CompositionConfig, catalog?: Catalog, extension?: CompositionExtension, allowUnavailable = false) {
+  if (config?.flow && !extension?.flow && allowUnavailable) return { nodes: [], edges: [], unavailable: '业务组合扩展尚未装载' }
   if (config?.kind === 'composite') return nestedStructure(config, catalog ?? { schema_version: '1.0', compositions: [] })
   if (config?.kind === 'threat-stage') {
     const graph = await threatStageGraph(config, async () => { throw new Error('结构查询不可执行节点') }).getGraphAsync()
     return { nodes: Object.values(graph.nodes).map(node => ({ id: node.id, ...node.metadata })), edges: graph.edges }
   }
-  const graph = await compositionGraph(config, async () => { throw new Error('结构查询不可执行节点') }).getGraphAsync()
+  const graph = await compositionGraph(config, async () => { throw new Error('结构查询不可执行节点') }, extension).getGraphAsync()
   return { nodes: Object.values(graph.nodes).map(node => ({ id: node.id, ...node.metadata })), edges: graph.edges }
 }
 
@@ -227,17 +225,18 @@ export async function dryRunComposition(registry: McpRegistry, config: Compositi
       if (child.kind === 'composite') {
         for (const step of child.steps ?? []) check(resolved.compositions.find(entry => entry.id === step.compositionId)!.versions!.find(version => version.versionId === step.versionId)!.config)
       } else if (child.kind === 'threat-stage') {
+        if (!registry.threat) throw new Error('业务组合扩展尚未装载')
         for (const id of [child.bindings!.socConnectionId, child.bindings!.reportConnectionId]) if (!registry.openapi.has(id) && !registry.mcp.has(id)) throw new Error(`未注册组合依赖连接：${id}`)
-      } else for (const step of compositionSteps(child)) if (!registry.openapi.has(step.connectionId!)) throw new Error(`未注册组合依赖连接：${step.connectionId}`)
+      } else for (const step of compositionSteps(child, registry.extension)) if (!registry.openapi.has(step.connectionId!)) throw new Error(`未注册组合依赖连接：${step.connectionId}`)
     }
     check(config)
-    return { ok: true, mode: 'dry', input: validated, graph: await compositionStructure(config, resolved), upstreamRequests: 0,
+    return { ok: true, mode: 'dry', input: validated, graph: await compositionStructure(config, resolved, registry.extension), upstreamRequests: 0,
       checks: ['输入有效', '子组合版本与参数映射有效', '依赖连接已登记', 'LangGraph 图已编译'], unverified: ['SOC 认领与业务接口', '模型实际调用', '回写与报告保存'] }
   }
-  for (const step of compositionSteps(config)) {
+  for (const step of compositionSteps(config, registry.extension)) {
     if (!step.connectionId || !registry.openapi.has(step.connectionId)) throw new Error(`未注册组合依赖连接：${step.connectionId ?? '未选择'}`)
   }
-  return { ok: true, mode: 'dry', input: validated, graph: await compositionStructure(config), upstreamRequests: 0,
+  return { ok: true, mode: 'dry', input: validated, graph: await compositionStructure(config, undefined, registry.extension), upstreamRequests: 0,
     checks: ['输入有效', 'LangGraph 图已编译', '依赖连接已登记'],
     unverified: ['上游规格及工具可用性', '实际参数映射与工具执行结果'] }
 }
@@ -254,7 +253,7 @@ function assertReadonlyOperation(source: Awaited<ReturnType<typeof loadOpenApi>>
 }
 
 export async function executeComposition(registry: McpRegistry, assetRoot: string, config: CompositionConfig, input: Record<string, any>, signal?: AbortSignal, catalog?: Catalog, nested = false): Promise<any> {
-  const version = compositionVersion(assetRoot, config)
+  const version = compositionVersion(assetRoot, config, registry.extension)
   const validated = compositionInput(input, config)
   if (config.kind) {
     const runSignal = nested && signal ? signal : signal ? AbortSignal.any([signal, AbortSignal.timeout(36 * 60_000)]) : AbortSignal.timeout(36 * 60_000)
@@ -268,13 +267,13 @@ export async function executeComposition(registry: McpRegistry, assetRoot: strin
           message: state.result.status === 'claim_failed' ? 'SOC 事件认领失败' : state.result.phase_status === 'unknown' ? '威胁分析阶段状态尚未确认' : '威胁分析阶段执行失败' } } : {}) }
     }
     runSignal.throwIfAborted()
-    const resolved = catalog ?? readCompositions(join(assetRoot, 'platform/mcp-compositions.json')).catalog
+    const resolved = catalog ?? readCompositions(workspaceConfigPath(assetRoot, 'mcp-compositions.json')).catalog
     const result = await executeNested(config, resolved, validated, (child, args) => executeComposition(registry, assetRoot, child, args, runSignal, resolved, true))
     return { ...result, version }
   }
   const runSignal = totalSignal(signal)
   const sources = new Map<string, any>()
-  for (const step of compositionSteps(config)) {
+  for (const step of compositionSteps(config, registry.extension)) {
     const connection = registry.openapi.get(step.connectionId ?? '')
     if (!connection) throw new Error(`未注册组合依赖连接：${step.connectionId ?? '未选择'}`)
     if (!sources.has(connection.id)) sources.set(connection.id, await (registry.native?.load ?? loadOpenApi)(connection, runSignal))
@@ -285,9 +284,9 @@ export async function executeComposition(registry: McpRegistry, assetRoot: strin
   const call = registry.native?.call ?? callOpenApiOperation
   const result = await compositionGraph(config, async (step, args) => {
     const value = await call(sources.get(step.connectionId!), step.operationId, args, runSignal)
-    statusFor(registry, step.connectionId!).toolCallSucceeded = value.ok && (!config.flow || value.json?.code === 200)
+    statusFor(registry, step.connectionId!).toolCallSucceeded = config.flow ? registry.extension!.flow!.succeeded(value) : value.ok
     return value
-  })
+  }, registry.extension)
     .invoke({ input: validated as { asset: string; limit: number }, alerts: [], receipts: [], trace: [] }, { signal: runSignal })
   return {
     ok: !result.error,

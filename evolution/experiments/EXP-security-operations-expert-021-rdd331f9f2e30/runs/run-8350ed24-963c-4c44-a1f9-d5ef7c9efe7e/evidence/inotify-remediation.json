@@ -1,8 +1,0 @@
-{
-  "before": 65536,
-  "after": 131072,
-  "persistent": false,
-  "cause": "当前用户的桌面同步进程占用57395个watch，编辑器占用7029个，DSH HMR触及65536总额",
-  "change": "仅提高当前内核限额，未结束其他进程、未修改Runtime、未写持久化sysctl配置",
-  "restore": "sudo sysctl -w fs.inotify.max_user_watches=65536"
-}

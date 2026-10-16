@@ -30,10 +30,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from source_contract import IMAGE_LABEL_KEY, REPO, SOURCES, resolve, strict_json  # noqa: E402
+from workspace_paths import instance_belongs_to_workspace, instances_root, sites_config, source_catalog, workspace_descriptor, workspace_id
 
 ADAPTER = Path(__file__).resolve().parent
 WEB_ADAPTER = ADAPTER.parent / "dsh-web"
-STATE_ROOT = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "dsh-dev"
+STATE_ROOT = instances_root(REPO)
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 RUN_ID_RE = re.compile(r"^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 TOKEN_URL_RE = re.compile(r"dsh web: (http://127\.0\.0\.1:(\d+)/[A-Za-z0-9/_-]*\?token=[^\s()]+)")
@@ -64,13 +65,13 @@ CONTAINER_REFERENCE = "/work/reference"
 # 2.5：记录 Web Profile、LAN 开关与实际监听地址。
 # 2.6：归因实例只装载专用 Harness 与只读 Run，不装载业务 Candidate。
 # 2.7：整站 Web 基址与只读适配器挂载写入实例状态。
-INSTANCE_SCHEMA_VERSION = "2.7"
+INSTANCE_SCHEMA_VERSION = "2.8"
 ANALYSIS_PRESET = "scenario-analysis"
 
 
 def current_web_base_path() -> str:
     """新进程的整站基址由公共适配器配置维护。"""
-    return strict_json(WEB_ADAPTER / "sites.json")["assistant"]
+    return strict_json(sites_config(REPO))["assistant"]
 
 
 def instance_base_url(manifest: dict) -> str:
@@ -108,12 +109,13 @@ def _atomic_replace(path: Path, data: bytes) -> None:
         raise
 
 
-def create_harness(agent_id: str, *, repo: Path = REPO, sources: Path = SOURCES,
+def create_harness(agent_id: str, *, repo: Path = REPO, sources: Path | None = None,
                    lock_path: Path = ADAPTER / "source.lock.json") -> dict:
     """创建最小 Agent、首次 Experiment 与可解析的 DSH 来源登记。"""
     if not NAME_RE.fullmatch(agent_id):
         raise ValueError("agent-id 必须是小写 kebab-case")
 
+    sources = sources if sources is not None else source_catalog(repo)
     agent_dir = repo / "agents" / agent_id
     original_catalog = sources.read_bytes()
     catalog = strict_json(sources)
@@ -278,6 +280,8 @@ order: 10
                     path = root / relative
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_text(content, encoding="utf-8")
+            agent_dir.parent.mkdir(parents=True, exist_ok=True)
+            experiment_dir.parent.mkdir(parents=True, exist_ok=True)
             staged_agent.replace(agent_dir)
             moved.append(agent_dir)
             staged_experiment.replace(experiment_dir)
@@ -309,7 +313,7 @@ order: 10
 
 def command_init(args: argparse.Namespace) -> None:
     try:
-        result = create_harness(args.agent_id)
+        result = create_harness(args.agent_id, repo=REPO, sources=SOURCES)
     except (OSError, ValueError, RuntimeError) as exc:
         fail(str(exc))
     print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -395,6 +399,8 @@ def compose_env(contract: dict, mode: str, port: int, name: str,
     environment.update({
         "DSH_IMAGE_TAG": image_reference(contract["image"]["local_image_tag"], image_id),
         "DSH_ADAPTER_HOST": str(ADAPTER),
+        "DSH_HOME_HOST": str(instance_dir(name) / "dsh-home"),
+        "DSH_SITES_CONFIG_HOST": str(sites_config(REPO)),
         "DSH_WEB_ADAPTER_HOST": str(WEB_ADAPTER),
         "DSH_EVAL_TARGET_PRESET": ANALYSIS_PRESET if analysis_workspace else target_preset(contract),
         "DSH_EVALUATION_PATCH": contract["evaluation_patch"],
@@ -441,6 +447,7 @@ def existing_runtime_environment(args: argparse.Namespace, contract: dict,
     missing = set(names) - os.environ.keys()
     if not missing:
         return {}
+    require_docker_registration(args.name, current[1])
     listing = run(
         ["docker", "ps", "-a", "--filter", f"label=com.docker.compose.project={project_name(args.name)}",
          "--filter", "label=com.docker.compose.service=dsh", "--format", "{{.ID}}"],
@@ -490,7 +497,7 @@ def render_compose(template: str, *, mode: str, name: str, project: str, port: i
                    runtime_env_names: list[str] = (), lan_access: bool = False,
                    analysis_workspace: bool = False, trusted_host: str | None = None,
                    unsafe_no_auth: bool = False, skip_testing_notice: bool = False,
-                   plugin_node_modules: bool = False) -> str:
+                   plugin_node_modules: bool = False, bind_home: bool = False) -> str:
     """把受控 Compose 模板渲染为隔离的业务或归因实例配置。"""
     if mode not in MODES:
         fail("mode 只能是 verification")
@@ -513,10 +520,22 @@ def render_compose(template: str, *, mode: str, name: str, project: str, port: i
         if text.count(old) < 1:
             fail(f"Compose 模板缺少预期锚点：{old}")
         text = text.replace(old, new)
+    if bind_home:
+        volume = f"      - type: volume\n        source: {project}-home\n        target: /var/lib/dsh\n"
+        if text.count(volume) != 2:
+            fail("Compose 模板缺少两个 HOME 挂载锚点")
+        text = text.replace(volume, "      - type: bind\n"
+                            "        source: ${DSH_HOME_HOST:?实例 HOME 路径由启动器注入}\n"
+                            "        target: /var/lib/dsh\n")
+        text = text.replace(f"  {project}-home:\n", "")
     dsh_service = "  dsh:\n"
     if text.count(dsh_service) != 1:
         fail("Compose 模板缺少唯一的 dsh 服务锚点")
     text = text.replace(dsh_service, dsh_service + f"    container_name: {name}\n")
+    web_mount = "        target: /opt/dsh-web\n        read_only: true\n"
+    text = text.replace(web_mount, web_mount + "      - type: bind\n"
+                        "        source: ${DSH_SITES_CONFIG_HOST:?站点路径由工作区配置注入}\n"
+                        "        target: /opt/harness-config/sites.json\n        read_only: true\n")
     working_dir = "    working_dir: /work/harness/workspace\n"
     if text.count(working_dir) != 1:
         fail("Compose 模板缺少唯一的 working_dir 锚点")
@@ -623,6 +642,8 @@ def render_compose(template: str, *, mode: str, name: str, project: str, port: i
         fail("Compose 模板缺少唯一的 environment 锚点")
     passthrough = "".join(f"      - {name}\n" for name in dict.fromkeys(runtime_env_names))
     text = text.replace(environment_anchor, environment_anchor + passthrough)
+    text = text.replace(environment_anchor, environment_anchor
+                        + "      - HARNESS_SITES_CONFIG=/opt/harness-config/sites.json\n")
     return text
 
 
@@ -664,7 +685,7 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
                    analysis_workspace: str | None = None,
                    trusted_host: str | None = None, unsafe_no_auth: bool = False,
                    skip_testing_notice: bool = False,
-                   plugin_node_modules: str | None = None) -> Path:
+                   plugin_node_modules: str | None = None, migrate_home: bool = False) -> Path:
     if lan_access and analysis_workspace:
         fail("归因实例只允许监听 127.0.0.1，不能启用 --lan-access")
     target = instance_dir(name)
@@ -673,7 +694,10 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         _, manifest = current
         validate_existing_identity(name, manifest, contract, mode, analysis_workspace)
     else:
-        target.mkdir(parents=True, exist_ok=False)
+        target.mkdir(parents=True, exist_ok=True)
+    home_directory = selected_home_directory(name, current, migrate_home=migrate_home)
+    if home_directory:
+        Path(home_directory).mkdir(exist_ok=True)
     template = (ADAPTER / f"{mode}.compose.yaml").read_text(encoding="utf-8")
     rendered = render_compose(
         template,
@@ -688,10 +712,14 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         unsafe_no_auth=unsafe_no_auth,
         skip_testing_notice=skip_testing_notice,
         plugin_node_modules=plugin_node_modules is not None,
+        bind_home=home_directory is not None,
     )
     (target / "compose.yaml").write_text(rendered, encoding="utf-8")
     manifest = {
         "schema_version": INSTANCE_SCHEMA_VERSION,
+        "asset_root": str(REPO),
+        "workspace_id": workspace_id(REPO),
+        **({"home_directory": home_directory} if home_directory else {}),
         "name": name,
         "container_name": name,
         "project": project_name(name),
@@ -715,6 +743,7 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         "adapter_root": str(ADAPTER),
         "web_adapter_root": str(WEB_ADAPTER),
         "web_base_path": current_web_base_path(),
+        "sites_config_file": str(sites_config(REPO)),
         "web_profile_manifest": (
             str(ADAPTER / "verification-home-controls/web-profile.package.json")
             if analysis_workspace else contract.get("profile_manifest", str(ADAPTER / "verification-home-controls/web-profile.package.json"))
@@ -757,6 +786,8 @@ def instance_compose_env(manifest: dict) -> dict:
     values = {
         "DSH_IMAGE_TAG": image_reference(manifest.get("image_tag"), manifest.get("image_id")),
         "DSH_ADAPTER_HOST": manifest.get("adapter_root") or str(ADAPTER),
+        "DSH_HOME_HOST": manifest.get("home_directory"),
+        "DSH_SITES_CONFIG_HOST": manifest.get("sites_config_file"),
         "DSH_WEB_ADAPTER_HOST": manifest.get("web_adapter_root"),
         "DSH_WEB_PROFILE_MANIFEST_HOST": manifest.get("web_profile_manifest"),
         "DSH_WEB_PROFILE_SEED_DIR_HOST": (
@@ -800,7 +831,14 @@ def load_instance(name: str) -> tuple[Path, dict]:
     manifest_path = target / "instance.json"
     if not manifest_path.is_file():
         fail(f"未找到实例 {name} 的状态文件；先执行 dsh-dev up")
-    return target, json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    require_instance_workspace(name, manifest)
+    return target, manifest
+
+
+def require_instance_workspace(name: str, manifest: dict) -> None:
+    if not instance_belongs_to_workspace(REPO, manifest):
+        fail(f"实例 {name} 不属于当前工作区或缺少可确认的迁移来源；未执行实例操作")
 
 
 def port_in_use(port: int) -> bool:
@@ -861,7 +899,7 @@ def first_available_port(name: str) -> int:
 def prepare_up(args: argparse.Namespace) -> tuple[dict, tuple[Path, dict] | None]:
     """解析来源并补齐确定性的实例名与端口，不修改状态。"""
     require_up_arguments(args)
-    args.analysis_workspace = validate_analysis_workspace(getattr(args, "analysis_workspace", None))
+    args.analysis_workspace = validate_analysis_workspace(getattr(args, "analysis_workspace", None), repo=REPO)
     plugin_node_modules = getattr(args, "plugin_node_modules", None)
     if plugin_node_modules:
         path = Path(plugin_node_modules)
@@ -1054,6 +1092,10 @@ def _command_up(args: argparse.Namespace, contract: dict,
     if getattr(args, "dry_run", False):
         print(json.dumps(build_plan(args, contract), ensure_ascii=False, indent=2, sort_keys=True))
         return
+    if current is None:
+        require_unused_docker_name(args.name)
+    else:
+        require_docker_registration(args.name, current[1])
     if getattr(args, "allow_missing_env", False):
         missing = [name for name in required_env_names(contract, args.analysis_workspace)
                    if not os.environ.get(name)]
@@ -1082,6 +1124,7 @@ def _command_up(args: argparse.Namespace, contract: dict,
         trusted_host=getattr(args, "trusted_host", None),
         unsafe_no_auth=bool(getattr(args, "unsafe_no_auth", False)),
         skip_testing_notice=bool(getattr(args, "skip_testing_notice", False)),
+        migrate_home=bool(getattr(args, "migrate_home", False)),
     )
     environment = compose_env(
         contract, args.mode, args.port, args.name,
@@ -1149,6 +1192,8 @@ def command_ps(args: argparse.Namespace) -> None:
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
                 if not isinstance(manifest, dict):
                     raise ValueError("状态文件根必须是 JSON 对象")
+                if not instance_belongs_to_workspace(REPO, manifest):
+                    continue
                 entry = instance_entry(target, manifest, observation)
             except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as error:
                 entry = {
@@ -1230,6 +1275,7 @@ def instance_entry(target: Path, manifest: dict, observation: dict | None = None
     port = manifest.get("port")
     project = manifest.get("project") or project_name(name)
     if observation is None:
+        require_docker_registration(name, manifest)
         listing = run(compose_command(target, name, "ps", "--all", "--format", "json"),
                       check=False, env=instance_compose_env(manifest))
     else:
@@ -1247,12 +1293,15 @@ def instance_entry(target: Path, manifest: dict, observation: dict | None = None
         ps_detail = (listing.stdout or "").strip() or "not running"
         containers = compose_ps_containers(listing.stdout)
         state = normalized_instance_state(containers)
+        if observation is not None and not docker_registration_matches(name, projects.get(project, [])):
+            ps_state, state, containers = "unknown", "unknown", None
+            ps_detail = "同名 Docker 项目来自另一实例登记或无法确认归属；未认领该容器"
     observed_dsh = next(
         (item.get("name") for item in containers or []
          if item.get("service") == "dsh" and item.get("name")),
         None,
     )
-    if observation is None:
+    if observation is None or manifest.get("home_directory"):
         resolved_volume, home_preserved = home_volume(manifest)
     else:
         homes = observation.get("homes")
@@ -1286,6 +1335,7 @@ def instance_entry(target: Path, manifest: dict, observation: dict | None = None
         "mounts": manifest.get("mounts") or {},
         "mount_modes": manifest.get("mount_modes") or {},
         "home_volume": resolved_volume,
+        "home_directory": manifest.get("home_directory"),
         "home_preserved": home_preserved,
         "state_dir": str(target),
         "context_mounts": [item.get("container") for item in manifest.get("context_mounts") or []],
@@ -1321,6 +1371,7 @@ def running_container(name: str) -> tuple[str, str]:
 
 def command_url(args: argparse.Namespace) -> None:
     _, manifest = load_instance(args.name)
+    require_docker_registration(args.name, manifest)
     if manifest.get("profile") == "web-lan":
         running_container(args.name)
         deadline = time.monotonic() + 30.0
@@ -1457,6 +1508,7 @@ def probe_url(url: str, port: int) -> dict:
 
 def command_logs(args: argparse.Namespace) -> None:
     target, manifest = load_instance(args.name)
+    require_docker_registration(args.name, manifest)
     logs = run(compose_command(target, args.name, "logs", "--no-color", "--tail", str(args.tail), "dsh"),
                env=instance_compose_env(manifest)).stdout or ""
     sys.stdout.write(redact_secrets(logs))
@@ -1483,6 +1535,50 @@ def project_containers(name: str) -> list[dict] | None:
     return containers
 
 
+def require_unused_docker_name(name: str) -> None:
+    """独立登记目录不隔离 Docker 名称；新建不能接管已有的全局资源。"""
+    containers = project_containers(name)
+    exact = run(["docker", "ps", "-a", "--filter", f"name=^/{name}$", "--format", "{{.ID}}"], check=False)
+    if containers is None or exact.returncode != 0:
+        fail("无法确认同名 Docker 项目或容器是否存在；未创建实例")
+    if containers or (exact.stdout or "").strip():
+        fail(f"Docker 中已存在同名项目或容器 {name}，但当前工作区没有对应登记；请使用新的实例名")
+
+
+def docker_registration_matches(name: str, containers: list[dict]) -> bool:
+    """Compose 自身记录的配置路径确定登记来源，避免停止后被其它工作区复用的同名项目。"""
+    target = (instance_dir(name) / "compose.yaml").resolve()
+    admitted = {target}
+    if target.is_relative_to(REPO.resolve()):
+        relative = target.relative_to(REPO.resolve())
+        admitted.update(Path(root).resolve() / relative
+                        for root in (workspace_descriptor(REPO) or {}).get("legacyRoots", []))
+    for container in containers:
+        if not isinstance(container, dict):
+            return False
+        config, working = container.get("ConfigFiles"), container.get("WorkingDir")
+        if not isinstance(config, str) or not isinstance(working, str) \
+                or not Path(config).is_absolute() or not Path(working).is_absolute():
+            return False
+        path = Path(config).resolve()
+        if path not in admitted or Path(working).resolve() != path.parent:
+            return False
+    return True
+
+
+def require_docker_registration(name: str, manifest: dict) -> None:
+    require_instance_workspace(name, manifest)
+    listed = run(["docker", "ps", "-a", "--filter", f"label=com.docker.compose.project={project_name(name)}",
+                  "--format", '{"ConfigFiles":{{json (.Label "com.docker.compose.project.config_files")}},"WorkingDir":{{json (.Label "com.docker.compose.project.working_dir")}}}'], check=False)
+    try:
+        containers = [json.loads(line) for line in (listed.stdout or "").splitlines() if line.strip()]
+        matched = listed.returncode == 0 and docker_registration_matches(name, containers)
+    except (ValueError, TypeError):
+        matched = False
+    if not matched:
+        fail(f"同名 Docker 项目 {name} 不属于当前实例登记或无法确认归属；未读取或变更该容器")
+
+
 def wait_for_service(name: str, service: str, timeout: float = 20.0) -> list[dict] | None:
     """等待指定服务进入运行状态；超时返回最后一次观测，无法查询返回 None。"""
     deadline = time.monotonic() + timeout
@@ -1503,6 +1599,9 @@ def home_volume(manifest: dict) -> tuple[str | None, bool | None]:
     Compose 会把项目名前缀加到卷名上，因此不能按模板里的声明名或 `<project>-home` 猜测；
     查询失败返回 (None, None)，由调用方按未知处理。
     """
+    if manifest.get("home_directory"):
+        directory = Path(manifest["home_directory"])
+        return None, directory.is_dir() and not directory.is_symlink()
     project = manifest.get("project") or project_name(str(manifest.get("name")))
     declared = f"{project}-home"
     listing = run(["docker", "volume", "ls",
@@ -1523,6 +1622,7 @@ def stop_instance(name: str, manifest: dict) -> dict:
     命令失败、仍有容器运行或状态未知都不报告停止成功。`down` 与 `up --replace` 共用本函数，
     因此旧状态实例走的是同一条路径：先按它自己的 compose 停掉，再按新版本重建。
     """
+    require_docker_registration(name, manifest)
     target = instance_dir(name)
     completed = run(compose_command(target, name, "down", "--remove-orphans"),
                     check=False, env=instance_compose_env(manifest))
@@ -1554,15 +1654,13 @@ def stop_instance(name: str, manifest: dict) -> dict:
 
 def command_down(args: argparse.Namespace) -> None:
     """停止实例并如实报告结果：命令失败、仍有容器运行或状态未知都不报告停止成功。"""
-    target = instance_dir(args.name)
-    if not (target / "instance.json").is_file():
-        fail(f"未找到实例 {args.name}")
-    manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+    _, manifest = load_instance(args.name)
     print(json.dumps(stop_instance(args.name, manifest), ensure_ascii=False))
 
 
 def delete_instance(name: str, manifest: dict) -> dict:
     """删除已停止实例的容器与本地登记，保留 HOME 卷和研究资产。"""
+    require_docker_registration(name, manifest)
     target = instance_dir(name)
     containers = project_containers(name)
     report = {
@@ -1615,7 +1713,12 @@ def delete_instance(name: str, manifest: dict) -> dict:
         report["detail"] = "删除后 HOME 卷未保留；拒绝删除登记"
         print(json.dumps(report, ensure_ascii=False), file=sys.stderr)
         raise SystemExit(1)
-    shutil.rmtree(target)
+    if manifest.get("home_directory"):
+        # HOME 位于登记目录之下；删除实例不能同时删除 Session 和原生 MCP 设置。
+        (target / "instance.json").unlink()
+        (target / "compose.yaml").unlink(missing_ok=True)
+    else:
+        shutil.rmtree(target)
     report["deleted"] = True
     report["registration_deleted"] = True
     return report
@@ -1623,16 +1726,14 @@ def delete_instance(name: str, manifest: dict) -> dict:
 
 def command_delete(args: argparse.Namespace) -> None:
     """删除已停止实例的容器和登记；不删除 HOME、Session、Agent/source 或历史 Run。"""
-    target = instance_dir(args.name)
-    if not (target / "instance.json").is_file():
-        fail(f"未找到实例 {args.name}")
-    manifest = json.loads((target / "instance.json").read_text(encoding="utf-8"))
+    _, manifest = load_instance(args.name)
     print(json.dumps(delete_instance(args.name, manifest), ensure_ascii=False))
 
 
 def validate_existing_identity(name: str, manifest: dict, contract: dict, mode: str,
                                analysis_workspace: str | None = None) -> None:
     """在任何停止或改写动作之前，核对同名实例能否被本次命令替换。"""
+    require_instance_workspace(name, manifest)
     existing_source = manifest.get("source_id")
     existing_mode = manifest.get("mode")
     existing_analysis = (manifest.get("mounts") or {}).get("analysis_workspace")
@@ -1650,13 +1751,34 @@ def existing_instance(name: str) -> tuple[Path, dict] | None:
         return None
     manifest_path = target / "instance.json"
     if not manifest_path.is_file():
+        if set(path.name for path in target.iterdir()) <= {"dsh-home"}:
+            return None
         fail(f"实例目录已存在但缺少 instance.json：{target}")
-    return target, json.loads(manifest_path.read_text(encoding="utf-8"))
+    return load_instance(name)
+
+
+def selected_home_directory(name: str, current: tuple[Path, dict] | None,
+                            *, migrate_home: bool = False) -> str | None:
+    directory = instance_dir(name) / "dsh-home"
+    if current and current[1].get("home_directory"):
+        recorded = Path(current[1]["home_directory"])
+        if recorded != directory or not recorded.is_dir() or recorded.is_symlink():
+            fail("实例 HOME 目录缺失或与登记目录不一致；拒绝创建空 HOME 替代")
+        return str(directory)
+    if current and not migrate_home:
+        return None
+    if migrate_home and (not directory.is_dir() or directory.is_symlink() or not any(directory.iterdir())):
+        fail("迁移 HOME 前必须先完整复制原数据至实例 dsh-home/；拒绝使用空 HOME")
+    if directory.is_symlink():
+        fail("实例 HOME 必须是实体目录")
+    return str(directory)
 
 
 def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
     """在停旧实例前校验新 Compose 可展开，不写入实例目录。"""
     analysis_workspace = getattr(args, "analysis_workspace", None)
+    home_directory = selected_home_directory(args.name, existing_instance(args.name),
+                                              migrate_home=bool(getattr(args, "migrate_home", False)))
     run(["node", str(WEB_ADAPTER / "build.mjs")])
     for filename in ("container-webserver.mjs", "container-web-app.mjs"):
         if not (WEB_ADAPTER / "lib" / filename).is_file():
@@ -1678,6 +1800,7 @@ def preflight_new_instance(args: argparse.Namespace, contract: dict) -> None:
             unsafe_no_auth=bool(getattr(args, "unsafe_no_auth", False)),
             skip_testing_notice=bool(getattr(args, "skip_testing_notice", False)),
             plugin_node_modules=bool(getattr(args, "plugin_node_modules", None)),
+            bind_home=home_directory is not None,
         )
         compose = root / "compose.yaml"
         compose.write_text(rendered, encoding="utf-8")
@@ -1741,11 +1864,12 @@ def command_mcp_promote(args: argparse.Namespace) -> None:
     source_id = manifest.get("source_id", "")
     if not source_id.startswith("experiment:"):
         fail("MCP 配置定稿只支持 Experiment 来源")
-    contract = resolve(source_id)
+    contract = resolve(source_id, repo=REPO)
     managed = Path(contract["managed"])
     seed = managed / "web-profile.seed.patch.yml"
     if manifest.get("mounts", {}).get("managed") != str(managed) or not seed.is_file():
         fail("实例来源与 Candidate MCP 种子不一致")
+    require_docker_registration(args.name, manifest)
     container, _ = running_container(args.name)
     script = r'''
 const fs = require('node:fs');
@@ -1809,7 +1933,9 @@ process.stdout.write(result);
 
 
 def main() -> None:
+    global REPO, SOURCES, STATE_ROOT
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo", type=Path, default=REPO, help="用户数据工作区根目录")
     commands = parser.add_subparsers(dest="command", required=True)
 
     init = commands.add_parser("init", help="创建最小 Harness Agent 与首次 Experiment")
@@ -1831,6 +1957,8 @@ def main() -> None:
     up.add_argument("--dry-run", action="store_true", help="只输出实例计划，不写状态、不调用 Docker")
     up.add_argument("--replace", action="store_true",
                     help="先停止同名实例自身的容器（保留 HOME 数据卷）再启动；用于重载配置或迁移旧状态")
+    up.add_argument("--migrate-home", action="store_true",
+                    help="将已复制到登记目录 dsh-home/ 的原 HOME 切换为 bind 挂载；旧数据卷保留")
     up.add_argument("--allow-missing-env", action="store_true",
                     help="显式允许缺少运行时环境变量，仅用于技术装载核验")
     up.add_argument("--lan-access", action="store_true",
@@ -1875,6 +2003,10 @@ def main() -> None:
     promote_parser.set_defaults(handler=command_mcp_promote)
 
     args = parser.parse_args()
+    REPO = args.repo.expanduser().resolve()
+    SOURCES = source_catalog(REPO)
+    STATE_ROOT = instances_root(REPO)
+    os.environ["HARNESS_ASSET_ROOT"] = str(REPO)
     args.handler(args)
 
 

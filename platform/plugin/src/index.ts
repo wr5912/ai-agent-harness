@@ -10,8 +10,9 @@ import { CHANNEL } from './protocol.ts'
 import type { Inventory, RunAsset } from './protocol.ts'
 import { DOMAIN_PREFIXES } from './protocol.ts'
 import { recentRuns } from './dashboard.ts'
+import { workspaceIdentity } from './workspace.ts'
 import { createAgentsHandler } from './agents/index.ts'
-import { createExtractionScope, isDecisionExtraction } from './assistant/extraction-scope.ts'
+import { createExtractionScope, createComputeVariantScope, isDecisionExtraction, isComputeVariantResearch } from './assistant/extraction-scope.ts'
 import { createRunDownloadHandler } from './agents/run-files.ts'
 import { createInstancesHandler } from './instances/index.ts'
 import { applyMcpGateway, createMcpHandler } from './mcp/index.ts'
@@ -53,6 +54,7 @@ export function inventory(assetRoot: string): Inventory {
   return {
     schema_version: '1.0',
     root,
+    workspace: workspaceIdentity(root),
     observed_at: new Date().toISOString(),
     agents: assets.agents.map(id => ({ id, path: `agents/${id}` })),
     experiments: assets.experiments.map(id => ({ id, path: `evolution/experiments/${id}` })),
@@ -134,7 +136,7 @@ export function applyTools(ctx: Context) {
   const wrap = (domain: 'agents' | 'instances' | 'mcp', handler: ConnectionRpcHandler): ConnectionRpcHandler => async (endpoint, payload, signal, peer) => {
     try { return await handler(endpoint, payload, signal, peer) }
     finally {
-      if (!['list', 'detail', 'url', 'logs', 'edit/read', 'cases/list', 'cases/read', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'runs/trace', 'assets/diff', 'datasets/source', 'datasets/list', 'datasets/read', 'datasets/export', 'cases/create-context', 'cases/from-run', 'cases/create-preview', 'fusion/status', 'fusion/proposal', 'features/proposal'].includes(endpoint)) notify([domain, 'catalog'])
+      if (!['list', 'detail', 'url', 'logs', 'edit/read', 'cases/list', 'cases/read', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'runs/trace', 'assets/diff', 'assets/read-fixed', 'compute-variants/context', 'compute-variants/preview', 'compute-variants/compare', 'datasets/source', 'datasets/list', 'datasets/read', 'datasets/export', 'cases/create-context', 'cases/from-run', 'cases/create-preview', 'fusion/status', 'fusion/proposal', 'features/proposal'].includes(endpoint)) notify([domain, 'catalog'])
     }
   }
   const domains = {
@@ -145,9 +147,13 @@ export function applyTools(ctx: Context) {
   const handler = createPlatformHandler(assetRoot, domains)
   const services = ctx as any
   const extractionScope = createExtractionScope()
+  const computeVariantScope = createComputeVariantScope()
+  const taskScope = (agent: any, state: any) => isDecisionExtraction(assetRoot, agent, state) ? extractionScope
+    : isComputeVariantResearch(assetRoot, agent, state) ? computeVariantScope : undefined
   const assistant = createAssistant(assetRoot, handler, {
     controller: services.sessionController,
     scopeExtraction: agent => extractionScope.apply(agent),
+    scopeComputeVariants: agent => computeVariantScope.apply(agent),
     running: id => services.agents.get(id)?.status === 'running',
     record: async (session, type, value) => { const records = await runtimeModule('@deepseek-ai/dsh-session'); records.appendPluginRecord(session, type, value) },
     projections: services.sessionProjections, systemPrompt: services.systemPrompt,
@@ -157,18 +163,20 @@ export function applyTools(ctx: Context) {
   assistant.registerTools(services.tools)
   ctx.on('agent/created' as any, (({ agent }: any) => {
     const state = services.sessionProjections.stateOf(agent.session, 'harnessPlatformAssistant')
-    if (isDecisionExtraction(assetRoot, agent, state)) extractionScope.apply(agent)
+    taskScope(agent, state)?.apply(agent)
   }) as any)
-  ctx.on('agent/disposed' as any, (({ agent }: any) => extractionScope.release(agent)) as any)
+  ctx.on('agent/disposed' as any, (({ agent }: any) => { extractionScope.release(agent); computeVariantScope.release(agent) }) as any)
   ctx.on('system-prompt/assemble' as any, (async (_assembly: any, context: any, next: any) => {
     const assembly = await next()
     const agent = context.agent
     const state = agent && services.sessionProjections.stateOf(agent.session, 'harnessPlatformAssistant')
-    if (!isDecisionExtraction(assetRoot, agent, state)) return assembly
-    extractionScope.apply(agent)
+    const scope = taskScope(agent, state)
+    if (!scope) return assembly
+    scope.apply(agent)
     return { ...assembly, tools: assembly.tools.filter((tool: any) => ['skill', 'platform_agents'].includes(tool.name)) }
   }) as any)
   ctx.effect(() => () => extractionScope.dispose())
+  ctx.effect(() => () => computeVariantScope.dispose())
   ctx.effect(() => () => assistant.dispose())
   ctx.on('session/event' as any, ((session: any) => notify(['assistant'], [session.id])) as any)
   ctx.on('agent/status' as any, ((event: any) => notify(['assistant'], [event.agent.id])) as any)

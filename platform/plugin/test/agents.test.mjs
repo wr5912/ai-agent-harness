@@ -44,9 +44,12 @@ function copyFixtureFile(root, rel) {
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'agents-fixture-'))
+  process.env.HARNESS_PROGRAM_ROOT = root
+  process.env.HARNESS_ASSET_ROOT = root
   for (const rel of [
     'runtime/adapters/dsh-container/dsh-eval',
     'runtime/adapters/dsh-container/source_contract.py',
+    'runtime/adapters/dsh-container/workspace_paths.py',
     'runtime/adapters/dsh-container/scenario_analysis.py',
     'runtime/adapters/dsh-container/run_record.py',
     'runtime/adapters/dsh-container/mutation-receipt.py',
@@ -205,6 +208,48 @@ function commitFixture(root, message) {
   run(root, 'git', ['commit', '-m', message])
   return run(root, 'git', ['rev-parse', 'HEAD'])
 }
+
+test('算力变体通过统一智能体路由预览和派生，原父版保持不变', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const context = await rpc(handler, 'compute-variants/context', { experiment_id: 'EXP-test-agent-001' })
+    assert.ok(context.cases.some(item => item.case_id === 'U-CASE-001'))
+    const input = { ...versionRequest(fx.commit), strategy: '减少重复查询，保留任务结果', case_ids: ['U-CASE-001'], critical_case_ids: ['U-CASE-001'], resource_metric: 'model_calls', min_resource_reduction_pct: 10 }
+    const before = readFileSync(join(fx.root, 'evolution/experiments/EXP-test-agent-001/change.yaml'), 'utf8')
+    const preview = await rpc(handler, 'compute-variants/preview', input)
+    assert.equal(preview.plan.min_runs_per_case, 2)
+    assert.equal(preview.plan.model_change, null)
+    const created = await rpc(handler, 'compute-variants/create', { ...input, expected_preview_sha256: preview.preview_sha256 })
+    const variant = await rpc(handler, 'compute-variants/context', { experiment_id: created.experiment_id })
+    assert.equal(variant.parent_experiment_id, 'EXP-test-agent-001')
+    assert.equal(variant.fixed_parent_ref, `git:${fx.commit}`)
+    assert.equal(variant.variant_kind, 'exploratory')
+    assert.deepEqual(variant.plan.case_hashes, preview.plan.case_hashes)
+    assert.equal(readFileSync(join(fx.root, 'evolution/experiments/EXP-test-agent-001/change.yaml'), 'utf8'), before)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('算力 end 只在确认的 Candidate 和计划未改变时排除融合', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const id = 'EXP-test-agent-002'
+    const fields = `status: completed\noutcome: adopt\nvariant_kind: end\nparent_experiment_id: EXP-test-agent-001\nbaseline_ref: git:${fx.commit}\nend_confirmed: true\nequivalence_evidence_refs: [agents/test-agent/evaluation.md]\nresource_evidence_refs: [agents/test-agent/evaluation.md]\ncompute_variant:\n  strategy: 保留效果并减少重复调用\n`
+    addVersion(fx.root, id, fields)
+    const confirmed = commitFixture(fx.root, 'fixed compute candidate')
+    const changeFile = join(fx.root, `evolution/experiments/${id}/change.yaml`)
+    write(changeFile, readFileSync(changeFile, 'utf8') + `compute_variant_decision:\n  variant_ref: git:${confirmed}\n`)
+    commitFixture(fx.root, 'confirm observed compute variant')
+    const handler = createAgentsHandler(fx.root)
+    const status = async () => (await rpc(handler, 'fusion/preview', versionRequest(fx.commit))).inventory.sources.find(row => row.experiment_id === id).status
+    assert.equal(await status(), 'excluded')
+    write(join(fx.root, `evolution/experiments/${id}/candidate/dsh/workspace/later.md`), '确认后新增行为\n')
+    commitFixture(fx.root, 'changed candidate requires review')
+    assert.equal(await status(), 'needs_review')
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
 
 test('特性确认使用嵌套 YAML 唯一来源，Run index 与新 Run 仍能读取，过时草稿不覆盖资产', async () => {
   const { createAgentsHandler } = await loadServer()

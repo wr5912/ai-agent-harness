@@ -12,7 +12,7 @@ async function listing(args: string[]) {
   }
 }
 const [containers, volumes] = await Promise.all([
-  listing(['ps', '--all', '--format', '{"ID":{{json .ID}},"Name":{{json .Names}},"Service":{{json (.Label "com.docker.compose.service")}},"Project":{{json (.Label "com.docker.compose.project")}},"State":{{json .State}},"Status":{{json .Status}}}']),
+  listing(['ps', '--all', '--format', '{"ID":{{json .ID}},"Name":{{json .Names}},"Service":{{json (.Label "com.docker.compose.service")}},"Project":{{json (.Label "com.docker.compose.project")}},"State":{{json .State}},"Status":{{json .Status}},"ConfigFiles":{{json (.Label "com.docker.compose.project.config_files")}},"WorkingDir":{{json (.Label "com.docker.compose.project.working_dir")}}}']),
   listing(['volume', 'ls', '--format', '{"name":{{json .Name}},"project":{{json (.Label "com.docker.compose.project")}},"volume":{{json (.Label "com.docker.compose.volume")}}}']),
 ])
 const projects: Record<string, unknown[]> = {}

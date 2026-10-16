@@ -1,6 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-001
-agent_id: security-operations-expert
-baseline_ref: none:first-experiment
-status: active
-research_question: 能否把旧 Harness 的可用业务语义迁入 DSH，并建立可重复的本地修改与观察闭环

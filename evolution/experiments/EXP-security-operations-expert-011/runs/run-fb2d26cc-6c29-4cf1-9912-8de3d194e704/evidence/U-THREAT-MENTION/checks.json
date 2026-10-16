@@ -1,7 +1,0 @@
-{
-  "schema_version": "1.0",
-  "case_id": "U-THREAT-MENTION",
-  "completed": false,
-  "expected_behavior": "按威胁研判路由调用 `delegate_threat_analysis`，原样传递事件 ID；回复和工具轨迹满足 `U-THREAT-FAST` 的证据要求。委派不可用时如实说明，不改走故障排查或编造研判结果。",
-  "failure_reason": "evidence-cross-turn"
-}

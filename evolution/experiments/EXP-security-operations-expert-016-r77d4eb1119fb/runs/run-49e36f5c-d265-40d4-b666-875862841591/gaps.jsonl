@@ -1,1 +1,0 @@
-{"gap_id":"gap-02104a1a-7668-48d2-87cf-04b48b8fe5d7","run_id":"run-49e36f5c-d265-40d4-b666-875862841591","classification":"method","title":"迭代源码与初始输入不一致","observed":"运行中修复远程命名空间注入与显式取消，测试夹具也有调整，初始快照不代表最终输入。","next_step":"保留失败并创建新 Run 冻结最终源码，按原评估口径重跑。","evidence_ref":"evidence/source-drift.md"}

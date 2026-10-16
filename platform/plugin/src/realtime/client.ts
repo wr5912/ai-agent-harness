@@ -33,7 +33,7 @@ export function createPlatformUpdates(connection: UpdateConnection = {}, options
     while (!signal.aborted) {
       let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
       try {
-        // 相对 URL 由当前站点的 <base> 保留 /hap/ 等挂载前缀。
+        // 相对 URL 由当前站点的 <base> 保留 /hep/ 等挂载前缀。
         const response = await (options.fetch ?? globalThis.fetch)('api/harness-platform/events', {
           credentials: 'same-origin', headers: { accept: 'text/event-stream' }, signal,
         })

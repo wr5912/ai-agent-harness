@@ -9,6 +9,7 @@ import posixpath
 import re
 import signal
 import subprocess
+import sys
 from contextlib import contextmanager
 import uuid
 from collections import defaultdict
@@ -16,7 +17,9 @@ from pathlib import Path
 
 
 ADAPTER = Path(__file__).resolve().parent
-REPO = ADAPTER.parents[2]
+if str(ADAPTER) not in sys.path:
+    sys.path.insert(0, str(ADAPTER))
+from workspace_paths import asset_root
 CATEGORIES = {
     "evaluation_method", "environment", "external_tool_data",
     "domain_knowledge", "harness_mechanism", "unknown",
@@ -298,10 +301,10 @@ def _write_readable_views(run_dir: Path, groups: dict[str, list[str]]) -> dict[s
     return result
 
 
-def _locked_harness(inputs: dict) -> list[dict]:
+def _locked_harness(inputs: dict, *, repo: Path | None = None) -> list[dict]:
     from source_contract import resolve
 
-    contract = resolve(inputs["source_id"], repo=REPO)
+    contract = resolve(inputs["source_id"], repo=repo if repo is not None else asset_root())
     result = []
     for tree_name in ("workspace", "presets", "managed"):
         root = Path(contract[tree_name])
@@ -681,7 +684,7 @@ def review_full(run_dir: Path, rows: list[dict], inputs: dict, *, timeout_second
         harness_path.write_text(json.dumps({
             "schema_version": "1.0",
             "source_id": inputs["source_id"],
-            "files": _locked_harness(inputs),
+            "files": _locked_harness(inputs, repo=run_dir.resolve().parents[4]),
         }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         model_route = _target_route(run_dir, list(selected.values()))
         common_sources = ["inputs.lock.json", "results.jsonl", "evidence/analysis/harness.json"]

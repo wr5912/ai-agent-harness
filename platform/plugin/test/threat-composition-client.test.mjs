@@ -28,7 +28,7 @@ function client() {
     useEffect(effect, next = []) { const index = cursor++; if (!deps[index] || next.some((value, at) => value !== deps[index][at])) { deps[index] = next; effects.push(() => { cleanups[index]?.(); cleanups[index] = effect() }) } },
   }
   const module = { exports: {} }
-  vm.runInNewContext(compiled.outputFiles[0].text, { module, exports: module.exports, require: name => name === 'react' ? react : require(name), URL, Blob, document: { baseURI: 'http://127.0.0.1:3090/hap/' } })
+  vm.runInNewContext(compiled.outputFiles[0].text, { module, exports: module.exports, require: name => name === 'react' ? react : require(name), URL, Blob, document: { baseURI: 'http://127.0.0.1:3090/hep/' } })
   // 子组件通过实际页面元素传出，保持与生产引用相同的函数。
   function mount(component, value) { cleanups.forEach(cleanup => cleanup?.()); states.length = deps.length = cleanups.length = 0; Component = component; props = value; return render() }
   function render() { for (let i = 0; i < 20; i++) { cursor = 0; effects = []; changed = false; tree = Component(props); effects.forEach(effect => effect()); if (!changed) return tree } throw new Error('render did not settle') }
@@ -41,7 +41,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve))
 const graph = { nodes: [{ id: 'compiled-stage', title: '实际编译阶段', operationId: 'infer', input: { run_id: '$input.run_id' }, output: 'run' }], edges: [{ source: '__start__', target: 'compiled-stage' }, { source: 'compiled-stage', target: '__end__' }] }
 const stage = (id, phase) => ({ id, draft: { kind: 'threat-stage', stage: phase, toolName: id, title: id, description: '', connectionId: 'platform-compositions', bindings: { socConnectionId: 'soc', reportConnectionId: 'report' } }, graphs: { draft: graph } })
 const parent = { id: 'threat-analysis', draft: { kind: 'composite', toolName: 'threat-analysis', title: '总组合', description: '', connectionId: 'platform-compositions', steps: [{ id: 'collect', compositionId: 'threat-collect', versionId: '', inputMap: { incident_id: '$input.incident_id' } }] }, graphs: { draft: graph } }
-const state = { revision: 'r1', connections: [{ id: 'soc', kind: 'openapi' }, { id: 'report', kind: 'mcp-http' }], compositions: [parent, ...['collect', 'infer', 'writeback', 'report'].map(phase => stage(`threat-${phase}`, phase))] }
+const state = { extension: { id: 'fixture-security', seed: true, flow: true, stages: true }, revision: 'r1', connections: [{ id: 'soc', kind: 'openapi' }, { id: 'report', kind: 'mcp-http' }], compositions: [parent, ...['collect', 'infer', 'writeback', 'report'].map(phase => stage(`threat-${phase}`, phase))] }
 
 async function page(rpc) {
   const ui = client()

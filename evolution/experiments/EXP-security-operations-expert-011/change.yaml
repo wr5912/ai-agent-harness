@@ -1,6 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-011
-agent_id: security-operations-expert
-baseline_ref: git:97236e16ebca8e49623959ec9afdfe77002bbdb9
-status: active
-research_question: 现有 DSH Web 插件能否用本地保存的参照页图片复刻智能对话首页，并使推荐任务与两个真实子智能体从同一输入框进入正确会话路由

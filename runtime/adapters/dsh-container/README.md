@@ -1,10 +1,22 @@
 # DSH 容器薄适配层
 
-本目录固定官方 DeepSeek Harness（DSH）源码构建身份和卷装载方式；不开发、不复制 DSH Runtime 源码到本仓库，也不把宿主机 Codex 项目协作配置交给 DSH。`source.lock.json` 是全仓唯一的当前 DSH 版本声明；`sources.json` 声明可选择的 Experiment Candidate。新增来源须提供自己的 Candidate 资产，不能只改卷路径。
+本目录固定官方 DeepSeek Harness（DSH）源码构建身份和卷装载方式；不开发、不复制 DSH Runtime 源码到本仓库，也不把宿主机 Codex 项目协作配置交给 DSH。`source.lock.json` 是全仓唯一的当前 DSH 版本声明；数据工作区的 `config/sources.json` 声明可选择的 Experiment Candidate。新增来源须提供自己的 Candidate 资产，不能只改卷路径。
+
+## 程序目录与数据工作区
+
+命令在程序仓库执行，业务资产和记录位于独立的数据工作区，默认 `~/harness-engineering-platform-data`。`HARNESS_ASSET_ROOT` 可显式选择数据工作区；`HARNESS_PROGRAM_ROOT` 由程序位置确定，平台启动器会显式传入。来源解析、评测和实例命令也支持 `--repo <数据根>`；`dsh-dev` 的该参数放在子命令之前。
+
+```bash
+export HARNESS_ASSET_ROOT="$HOME/harness-engineering-platform-data"
+/usr/bin/python3 runtime/adapters/dsh-container/source_contract.py --source experiment:EXP-security-operations-expert-001
+/usr/bin/python3 runtime/adapters/dsh-container/dsh-dev --repo "$HARNESS_ASSET_ROOT" ps --all
+```
+
+程序保留 `source.lock.json`、运行适配器与校验 Skill；数据工作区保留 `workspace.json`、`config/`、`agents/` 和 `evolution/`。初始化工作区只读取 `config/sources.json`，缺失时明确失败；没有 `workspace.json` 的历史 Git 树和隔离 fixture 才兼容旧的 `runtime/adapters/dsh-container/sources.json`。校验器从程序侧读取规范与实现，不要求把程序文档复制到数据仓库。评测工具使用 Python 3.10 或更新版本，TypeScript 入口需要 Node.js 24；检查 PATH 时应同时核对这两个版本。
 
 ## 源码与镜像身份
 
-`source.lock.json` 锁定官方仓库提交、Git tree、`pnpm-lock.yaml` 摘要、包管理器版本、Node 基础镜像 OCI index digest 和目标平台；当前提交包含 EXP-007 所需的 Schedule Bundle。所有 Experiment 共用这份锁。实际本地镜像标签在锁定标签后追加构建指纹前 12 位，允许不同构建输入在同一宿主机并行构建而不覆盖彼此。`build-image.sh` 新建临时源码工作树，在宿主侧核对提交、tree 和锁摘要后用 BuildKit named context 构建。官方构建脚本支持显式 `DSH_CLIENT_COMMIT_HASH`；构建器不依赖 named context 是否携带 `.git`，只安装本地 C 编译及 musl 工具，最终镜像不保留这些构建工具或 `.git`。本仓库没有 DSH 源码副本。
+`source.lock.json` 锁定官方仓库提交、Git tree、`pnpm-lock.yaml` 摘要、包管理器版本、Node 基础镜像 OCI index digest 和目标平台；当前提交包含 EXP-007 所需的 Schedule Bundle。所有 Experiment 共用这份锁。宿主来源解析脚本不进入 Runtime 镜像，因此不参与镜像构建指纹。实际本地镜像标签在锁定标签后追加构建指纹前 12 位，允许不同构建输入在同一宿主机并行构建而不覆盖彼此。`build-image.sh` 新建临时源码工作树，在宿主侧核对提交、tree 和锁摘要后用 BuildKit named context 构建。官方构建脚本支持显式 `DSH_CLIENT_COMMIT_HASH`；构建器不依赖 named context 是否携带 `.git`，只安装本地 C 编译及 musl 工具，最终镜像不保留这些构建工具或 `.git`。本仓库没有 DSH 源码副本。
 
 ```bash
 bash runtime/adapters/dsh-container/build-image.sh
@@ -26,7 +38,8 @@ APT 索引使用 `Error-Mode=any`、单次重试、30 秒 HTTP 连接超时和 I
 | `/opt/dsh-managed` | `candidate/dsh/managed` | 只读 |
 | `/work/reference` | `agents/<agent-id>` | 不挂载 |
 | `/work/eval-input` | 显式声明的被测输入根 | 仅在显式声明时只读 |
-| `/var/lib/dsh` | 实例独立 DSH_HOME 数据卷 | 运行状态可写 |
+| `/var/lib/dsh` | `<数据根>/.local/instances/<name>/dsh-home` | 运行状态可写 |
+| `/opt/harness-config/sites.json` | `<数据根>/config/sites.json` | 只读 |
 
 评测实例不挂载 `evaluation.md` 或其他判分材料；`verify-load.mjs` 与 `test_home_submounts.mjs` 对此做负向断言。Harness 修改由宿主开发会话完成，容器只负责装载和评测。
 
@@ -48,7 +61,7 @@ Web Profile manifest 与本地 module 路径由受控文件和空的 deny-layer 
 docker compose -f runtime/adapters/dsh-container/verification.compose.yaml config --quiet
 ```
 
-直接运行 Compose 只用于模板级检查；启动业务实例应使用 `dsh-dev --source`，由它从 `sources.json` 解析镜像、Patch、三棵卷和 `required_env_names`，为每个来源生成独立 HOME 与环境变量透传清单。Compose 的变量覆盖不是独立的来源授权接口，不能仅靠替换路径后宣称完成另一 Agent 的装载验收。
+直接运行 Compose 只用于模板级检查；启动业务实例应使用 `dsh-dev up --source`，由它从 `config/sources.json` 解析镜像、Patch、三棵卷和 `required_env_names`，为每个来源生成独立 HOME 与环境变量透传清单。Compose 的变量覆盖不是独立的来源授权接口，不能仅靠替换路径后宣称完成另一 Agent 的装载验收。
 
 实际 Agent 需要模型与 MCP 端点时，由调用环境提供相应配置。环境变量按名称传入，本适配器不读取或展开凭据值到 Compose。平台和实例凭据可以使用 Agent 的实例专用仓库文件；LLM API Key 只能来自被 Git 忽略的 `*.llm-api-key` 文件或其他受控运行时来源，不得进入 Git 历史或远端。不得把 `docker compose config` 的完整展开结果、启动 Token URL 或原始日志作为公开研究证据。当前 Candidate 声明为必需的 MCP 缺失时会启动失败，应如实记录依赖缺口。
 
@@ -58,7 +71,7 @@ docker compose -f runtime/adapters/dsh-container/verification.compose.yaml confi
 
 业务实例的局域网监听与 Web 设置由适配层 Patch 统一启用，访问规则见下文[实例访问规则](#实例访问规则)。标准镜像对锁定 DSH 来源应用 `remote-host-settings.patch`；适配层的 LAN Patch 注入启用标记。模型设置与使用设置表单的插件入口均依赖这条路径；升级 Runtime 时需重新核对补丁与浏览器行为。
 
-仅在受控反向代理保留外部 `Host`、后端仍监听本机回环时，`dsh-dev up` 可显式加 `--trusted-host HOST[:PORT]` 让 DSH 接受该代理地址；这不提供用户认证，也不允许把启动令牌写进菜单 URL。EXP-007 门户接入的实际拓扑、验证和限制见[联调记录](../../../docs/security-operations-expert门户联调记录.md)。
+仅在受控反向代理保留外部 `Host`、后端仍监听本机回环时，`dsh-dev up` 可显式加 `--trusted-host HOST[:PORT]` 让 DSH 接受该代理地址；这不提供用户认证，也不允许把启动令牌写进菜单 URL。EXP-007 门户接入的实际拓扑、验证和限制见数据工作区 `agents/security-operations-expert/docs/security-operations-expert门户联调记录.md`。
 
 ## 构建镜像
 
@@ -74,7 +87,7 @@ bash runtime/adapters/dsh-container/build-image.sh --build-network host
 
 `dsh-dev` 是宿主侧实例启动器（只依赖 Python 3 标准库、Docker CLI 和 Compose），把受控 Compose 渲染成仓库外实例。新实例只支持 `--mode eval`（内部模式 `verification`）：`session_preset` 与 `target_preset` 都来自所选来源，注册工作区固定为 `/work/harness/workspace`，三棵 Candidate 资产全部只读，且不挂载判分材料。
 
-目标 Preset 由 `sources.json` 的 `preset` 路径推出，适配层不内联业务 Agent 名。Harness 创建或修改由宿主开发会话通过项目技能完成，再启动新的评测实例观察结果。
+目标 Preset 由数据工作区 `config/sources.json` 的 `preset` 路径推出，适配层不内联业务 Agent 名。Harness 创建或修改由宿主开发会话通过项目技能完成，再启动新的评测实例观察结果。
 
 ```bash
 python3 runtime/adapters/dsh-container/dsh-dev init test01
@@ -86,7 +99,7 @@ python3 runtime/adapters/dsh-container/dsh-dev logs security-operations-expert-e
 python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-eval
 ```
 
-`init <agent-id>` 创建最小 Agent、`EXP-<agent-id>-001-r<12位随机十六进制>` Candidate，并把该 Experiment 登记到 `sources.json`；已有 Agent、Experiment 或来源登记时拒绝覆盖。旧编号 Experiment 继续可用。它只创建研究资产，不启动实例、不执行 Evaluation，也不创建 Research Release。
+`init <agent-id>` 创建最小 Agent、`EXP-<agent-id>-001-r<12位随机十六进制>` Candidate，并把该 Experiment 登记到数据工作区的 `config/sources.json`；已有 Agent、Experiment 或来源登记时拒绝覆盖。旧编号 Experiment 继续可用。它只创建研究资产，不启动实例、不执行 Evaluation，也不创建 Research Release。
 
 `--source` 和 `--mode` 始终由用户显式选择；缺失或无值时命令会列出当前可用值并以用法错误退出。`--name` 默认为 `<agent-id>-eval`。新实例未指定 `--port` 时从 `3081` 起选第一个未监听且未被有效实例记录占用的端口；已有同名实例复用记录端口。`--dry-run` 只给出建议，不写状态、不调用 Docker，也不要求运行时环境变量。
 
@@ -96,11 +109,20 @@ python3 runtime/adapters/dsh-container/dsh-dev down security-operations-expert-e
 
 `stopped` 表示仍存在已停止的 DSH 容器；`absent` 表示 Docker 查询成功，但仅有本地登记、没有 DSH 容器。`down` 移除容器后保留登记和 HOME，因此随后通常为 `absent`；Docker 查询失败则为 `unknown`，不能推断为已停止。`delete` 可删除 `stopped` 或 `absent` 实例，执行前重新核对该实例的 Docker 状态，移除容器和登记并保留 HOME 卷及研究记录。
 
+新实例的 HOME 使用上述目录的 bind 挂载；原生 Session、附件和 Web MCP 设置都保留在该 HOME。历史登记仍使用原 named volume，普通 `up --replace` 不会将其换成空 HOME。迁移时先停止实例并备份，再完整复制旧 HOME 到目标登记目录的 `dsh-home/`，校验文件与权限后执行：
+
+```bash
+/usr/bin/python3 runtime/adapters/dsh-container/dsh-dev up \
+  --source <原来源> --mode eval --name <原实例名> --replace --migrate-home
+```
+
+`--migrate-home` 拒绝缺失或空目录，只由 `dsh-dev` 更新 `instance.json` 和 Compose；旧数据卷保留以便回退。`delete` 仅删除已停止实例的容器与登记文件，保留同目录下的 `dsh-home/` 和其中的原生 MCP 配置。HOME 数据属于需要备份的持久化数据，不能当作构建缓存清理。
+
 两份启动器设计方案保留为历史设计记录；当前行为以本页、CLI `--help` 和测试为准。
 
 ## 受管评测
 
-`dsh-eval` 从 Agent 的 `evaluation.md` 读取业务 Case 的名称、用户输入和预期，并复用 `dsh-dev` 与 `run_record.py` 完成一次可封存评测。默认执行器通过 DSH Runtime Session API 运行业务 Case；显式选择 `browser` 时，才使用镜像中已有的 Playwright 依赖做 UI 冒烟：
+`dsh-eval` 从 Agent 的 `evaluation.md` 读取业务 Case 的名称、用户输入和预期，并复用 `dsh-dev` 与 `run_record.py` 完成一次可封存评测。新 Run 的 `inputs.lock.json` 分别记录 `program_origin`（程序提交与 dirty 状态）和 `asset_origin`（数据提交、dirty 状态、workspace ID 与 Candidate 摘要）；既有 `git_version` 继续表示资产来源。历史 Run 不重写，摘要与 dirty 标记本身不等于可还原的源文件包。默认执行器通过 DSH Runtime Session API 运行业务 Case；显式选择 `browser` 时，才使用镜像中已有的 Playwright 依赖做 UI 冒烟：
 
 本地 TypeScript 研究入口直接读取现有来源与 Run，不另存可编辑副本。`edit` 调用编辑器修改所选 Experiment 的 `candidate/`；`run` 默认对显式 Case 启用 AI 证据复核，完成后输出封存状态、工具调用与证据路径。真实业务判断仍需核对原始回答及工具记录。
 
@@ -153,27 +175,27 @@ API 通道退出码 `0` 表示锁定 Case 均得到 `passed`；`1` 表示运行�
 
 `dsh-dev url` 核验实例可访问后返回不带 Token 的本机 `/assistant/` 地址。平台表格的“访问 DSH Web”入口在新标签页打开它，并把局域网实例的主机名替换为当前平台主机名，保留站点路径；停止、无容器或未记录端口的实例需先启动。锁定版 DSH 的 `--host 0.0.0.0` 会被命令行拒绝，监听通过适配层 Patch 生效。免认证意味着能访问该端口的用户可操作整个共享 DSH 实例；平台登录不会隔离容器内的访问。
 
-两套站点的基址只在 [`dsh-web/sites.json`](../dsh-web/sites.json) 维护。平台和容器加载同一 TypeScript 适配器，业务容器只读挂载其 ESM 制品到 `/opt/dsh-web`。启动预检会构建适配器；首次需要 Node.js、pnpm 和依赖下载，之后复用锁定依赖。修改基址后，平台重新执行 `prepare` 并重启，容器执行 `up --replace` 重新构建适配器并加载；HOME 保留。基址变化通过原生 HTTP、WebSocket 和静态资源注册边界生效，不使用反向代理，不重建标准 Runtime 镜像。原生 Vite 相对资源保持不变；独立插件的浏览器请求、Worker 和 Worklet 目标在客户端资源出口统一转换，外部服务地址不变。转换资源不使用 immutable 缓存，修改后的代码不保留旧 sourcemap 引用。
+两套站点的基址只在数据工作区 `config/sites.json` 维护。平台和容器加载同一 TypeScript 适配器，业务容器只读挂载其 ESM 制品到 `/opt/dsh-web`。启动预检会构建适配器；首次需要 Node.js、pnpm 和依赖下载，之后复用锁定依赖。平台通过 `HARNESS_SITES_CONFIG` 读取该文件；业务容器将该文件单独只读挂载到 `/opt/harness-config/sites.json`，不会挂载整个数据根。修改基址后重启平台并对容器执行 `up --replace`；HOME 保留。基址变化通过原生 HTTP、WebSocket 和静态资源注册边界生效，不使用反向代理，不重建标准 Runtime 镜像。原生 Vite 相对资源保持不变；独立插件的浏览器请求、Worker 和 Worklet 目标在客户端资源出口统一转换，外部服务地址不变。转换资源不使用 immutable 缓存，修改后的代码不保留旧 sourcemap 引用。
 
 根页面 `/` 与缺少尾斜杠的基址返回 `302` 并保留查询参数；旧根路径的 API、MCP、插件资源和连接入口返回失败，不重定向协议请求。容器中的 MCP 管理及 MCP 端点随站点基址迁移，现有摸底插件暂时保留；以后由平台统一配置的功能不在本次实现范围。
 
-实例配置与 `instance.json` 写在 `${XDG_STATE_HOME:-~/.local/state}/dsh-dev/<name>/`，记录来源、模式、挂载路径、环境变量**名称**、镜像身份及 `web_base_path` 等非秘密元数据，不含 Token。渲染保留只读根文件系统、UID/GID 1000、能力裁剪和无端口发布，只把主 `dsh` 服务切到 host 网络。尚未重启的历史实例按登记的旧基址继续运维；历史 Token 入口只读取本次进程启动后的日志并做 Token→Cookie→站点页面探针。非交互标准输出必须显式加 `--non-interactive`，不把 Token 写进状态文件、普通日志或证据。API 评测执行器支持新站点地址与历史 Token 握手，并保留 URL 中的站点路径。
+实例配置与 `instance.json` 默认写在 `<数据根>/.local/instances/<name>/`。显式覆盖按 `HARNESS_INSTANCE_STATE_ROOT`、`$XDG_STATE_HOME/dsh-dev` 的顺序优先；未设置覆盖时始终使用数据工作区。实例状态记录来源、模式、挂载路径、环境变量**名称**、镜像身份及 `web_base_path` 等非秘密元数据，不含 Token。渲染保留只读根文件系统、UID/GID 1000、能力裁剪和无端口发布，只把主 `dsh` 服务切到 host 网络。尚未重启的历史实例按登记的旧基址继续运维；历史 Token 入口只读取本次进程启动后的日志并做 Token→Cookie→站点页面探针。非交互标准输出必须显式加 `--non-interactive`，不把 Token 写进状态文件、普通日志或证据。API 评测执行器支持新站点地址与历史 Token 握手，并保留 URL 中的站点路径。
 
 需要浏览器麦克风的插件在局域网使用时，页面还须由浏览器认可的 HTTPS 入口提供；局域网 IP 上的纯 HTTP 页面没有麦克风所需的安全上下文。本机 `localhost` 页面可以直接使用麦克风。
 
-EXP-007 早期局域网直连验证与门户试点边界见[联调记录](../../../docs/security-operations-expert门户联调记录.md)，其中历史访问设置不替代上述当前启动规则。
+EXP-007 早期局域网直连验证与门户试点边界见数据工作区 `agents/security-operations-expert/docs/security-operations-expert门户联调记录.md`，其中历史访问设置不替代上述当前启动规则。
 
 候选 Profile 以 fail-closed 方式声明三个 `streamable-http` MCP 客户端；缺少真实端点与凭据时容器会在启动阶段退出，使"装载是否成立"无法核验。为此适配层提供两个只用于受控技术装载核验的本地工具：
 
 ```bash
-python3 evolution/experiments/EXP-security-operations-expert-001/evaluation/tools/derive_mcp_stub_tools.py --check
-python3 evolution/experiments/EXP-security-operations-expert-001/evaluation/tools/derive_mcp_stub_tools.py --out "$STATE/tools.json"
+python3 "$HARNESS_ASSET_ROOT/evolution/experiments/EXP-security-operations-expert-001/evaluation/tools/derive_mcp_stub_tools.py" --check
+python3 "$HARNESS_ASSET_ROOT/evolution/experiments/EXP-security-operations-expert-001/evaluation/tools/derive_mcp_stub_tools.py" --out "$STATE/tools.json"
 node runtime/adapters/dsh-container/stub-mcp-streamable-http.mjs --port 3099 --tools "$STATE/tools.json" --log "$STATE/stub.log"
 ```
 
 派生脚本只从候选 `mcp-servers.yaml`、`mcp-tool-name-map.json`、`role-tool-matrix.yaml` 取工具原始名，无法解析到"服务名 + 原始名"的引用即非零退出；桩服务只实现 `initialize`、`notifications/initialized`、`tools/list` 的最小协议面，只监听回环、不校验凭据、无业务语义，并只记录"是否带鉴权头"而不记录凭据值；`tools/call` **默认返回 `isError: true` 并拒绝编造业务数据**（只有显式 `--stub-success` 才回显桩标记，供协议自测），因此用它补齐不可用的 MCP 分组时，相关工具调用会明确失败而不会产生假通过结果。它证明的是**受控 Profile 的 MCP 客户端配置、鉴权头注入与工具注册链路可装载**，不证明真实 MCP 服务集成、租户/对象授权、状态机、业务能力、评估结论或 Release 验收。真实业务核验必须在受信 Runtime 提供模型与 MCP 端点后进行。
 
-本轮候选的实例级装载证据见 [`dsh-dev-live-load-20260918.json`](../../../evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-live-load-20260918.json)：容器保持运行、三个 MCP 客户端完成握手、三棵只读资产树与受控 HOME 摘要通过容器内探针、Web Token 入口探针通过；同时记录未验证项（无模型凭据，未建立 Agent Session）。
+本轮候选的实例级装载证据见 数据工作区 `evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-live-load-20260918.json`：容器保持运行、三个 MCP 客户端完成握手、三棵只读资产树与受控 HOME 摘要通过容器内探针、Web Token 入口探针通过；同时记录未验证项（无模型凭据，未建立 Agent Session）。
 
 在上述装载核验开始前，脚本会核对镜像构建指纹、平台和 Image ID，并把 Compose 固定到 `tag@image-id`；无 OCI 指纹 label 或指纹过期的本地镜像会直接拒绝。
 

@@ -1,6 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-019-rc442472a242a
-agent_id: security-operations-expert
-baseline_ref: git:2407ed9a13712be9c1b31fa95ed4a1dd5993dbba
-status: active
-research_question: 复用 EXP018 的完整资产后，摘要配置能否从插件页访问，MCP 分组能否一致发现并按选择读取工具、资源及模板

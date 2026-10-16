@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 execFileSync(process.execPath, [fileURLToPath(new URL('../../runtime/adapters/dsh-web/build.mjs', import.meta.url))], { stdio: 'inherit' })
 
-export const managerSource = resolve('../../evolution/experiments/EXP-security-operations-expert-018-rfbf7fd53a340/candidate/dsh/managed/mcp-manager')
+export const managerSource = fileURLToPath(new URL('../../plugins/mcp-manager', import.meta.url))
 export const managerSources = {
   name: 'existing-mcp-manager',
   setup(build) {

@@ -16,10 +16,12 @@ import stat
 import sys
 from pathlib import Path
 
+from workspace_paths import PROGRAM_ROOT, asset_root, source_catalog, workspace_id
+
 
 ADAPTER = Path(__file__).resolve().parent
-REPO = ADAPTER.parents[2]
-SOURCES = ADAPTER / "sources.json"
+REPO = asset_root()
+SOURCES = source_catalog(REPO)
 LOCK = ADAPTER / "source.lock.json"
 DEFAULT_SOURCE = "EXP-security-operations-expert-001"
 NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -43,7 +45,8 @@ CONTAINER_REFERENCE = "/work/reference"
 CONTAINER_EVAL_INPUT = "/work/eval-input"
 IMAGE_FINGERPRINT_VERSION = "1"
 IMAGE_LABEL_KEY = "org.ai-agent-harness.dsh.image-build-fingerprint"
-IMAGE_BUILD_FILES = ("Dockerfile", "apt-mirror.sh", "build-image.sh", "dsh-cli.sh", "source_contract.py", "remote-host-settings.patch")
+# source_contract.py 只在宿主读取来源，不进入镜像；路径/目录调整不能改变 Runtime 镜像身份。
+IMAGE_BUILD_FILES = ("Dockerfile", "apt-mirror.sh", "build-image.sh", "dsh-cli.sh", "remote-host-settings.patch")
 
 
 def image_build_input_digests(*, lock_path: Path = LOCK, adapter: Path = ADAPTER) -> dict[str, str]:
@@ -186,6 +189,9 @@ def _experiment_contract(
         "profile": item["profile"],
         "profile_manifest": str(profile_manifest),
         "runtime_lock": str(lock_path),
+        "program_root": str(PROGRAM_ROOT),
+        "asset_root": str(repo),
+        "workspace_id": workspace_id(repo),
         "evaluation_patch": "/opt/dsh-adapter/evaluation-registry.patch.yml",
         "patch": "/opt/dsh-managed/" + item["patch"],
         "preset": "/opt/dsh-presets/" + item["preset"],
@@ -265,8 +271,10 @@ def _resolve_release(release_name: str, *, repo: Path) -> dict:
     raise ValueError("release sources resolve only after the first immutable Release is published and its container mapping is wired")
 
 
-def resolve(source_id: str = DEFAULT_SOURCE, *, repo: Path = REPO, sources: Path = SOURCES,
+def resolve(source_id: str = DEFAULT_SOURCE, *, repo: Path = REPO, sources: Path | None = None,
             lock_path: Path = LOCK, require_assets: bool = True) -> dict:
+    repo = repo.expanduser().resolve()
+    sources = sources if sources is not None else source_catalog(repo)
     if source_id.startswith("experiment:"):
         return _resolve_experiment(source_id[len("experiment:"):], repo=repo, sources=sources, lock_path=lock_path, require_assets=require_assets)
     if source_id.startswith("release:"):
@@ -316,6 +324,7 @@ def mount_plan(contract: dict, role: str, *, task_dir: str = None, output_dir: s
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", default=DEFAULT_SOURCE)
+    parser.add_argument("--repo", type=Path, default=REPO, help="用户数据工作区根目录")
     parser.add_argument("--field", help="print one top-level scalar field")
     parser.add_argument("--image-input-digests", action="store_true",
                         help="print image build input SHA-256 digests")
@@ -327,7 +336,7 @@ def main() -> None:
     parser.add_argument("--eval-input", help="已确认不含预期答案的被测输入根；只对 subject 角色有效")
     args = parser.parse_args()
     try:
-        contract = resolve(args.source, require_assets=not args.allow_missing_assets)
+        contract = resolve(args.source, repo=args.repo, require_assets=not args.allow_missing_assets)
         selected = sum(flag is not None and flag is not False
                        for flag in (args.field, args.image_input_digests, args.env_names, args.mount_plan))
         if selected > 1:

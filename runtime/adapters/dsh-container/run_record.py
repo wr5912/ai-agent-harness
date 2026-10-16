@@ -17,9 +17,11 @@ import yaml
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
 ADAPTER = Path(__file__).resolve().parent
-EVALUATION_SCRIPTS = REPO / ".agents/skills/research-eval/scripts"
+sys.path.insert(0, str(ADAPTER))
+from workspace_paths import PROGRAM_ROOT, asset_root, workspace_id
+REPO = asset_root()
+EVALUATION_SCRIPTS = PROGRAM_ROOT / ".agents/skills/research-eval/scripts"
 for import_root in (ADAPTER, EVALUATION_SCRIPTS):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
@@ -688,13 +690,14 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
     run_dir = experiment / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=False)
     try:
+        source_digest = candidate_digest(experiment / "candidate")
         inputs = {
             "schema_version": "2.0",
             "run_id": run_id,
             "source_id": contract["source_id"],
             "source_kind": contract["source_kind"],
             "baseline_ref": baseline_ref,
-            "candidate_sha256": candidate_digest(experiment / "candidate"),
+            "candidate_sha256": source_digest,
             "created_at": utc_now(),
             "harness_trees": {
                 "workspace": tree_digest(repo, Path(contract["workspace"])),
@@ -711,6 +714,9 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
             "dependency_env": {name: bool(os.environ.get(name)) for name in
                                contract["required_env_names"] + contract["optional_env_names"]},
             "git_version": version,
+            "program_origin": {**git_version(PROGRAM_ROOT), "root": str(PROGRAM_ROOT)},
+            "asset_origin": {**version, "workspace_id": workspace_id(repo),
+                             "candidate_sha256": source_digest},
         }
         if args.model:
             inputs["model"] = args.model

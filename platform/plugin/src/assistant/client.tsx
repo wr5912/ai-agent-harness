@@ -30,7 +30,7 @@ interface AssistantSnapshot {
 }
 
 /** 浏览器只保留当前会话引用，任务与业务结果由原生 Session 和后端维护。 */
-export function createAssistant(ctx: Pick<Context, 'sessions' | 'uiSession' | 'uiWorkspace' | 'workspaces'>, rpc: ClientConnectionRpc, getRoot: () => string | undefined) {
+export function createAssistant(ctx: Pick<Context, 'sessions' | 'uiSession' | 'uiWorkspace' | 'workspaces'>, rpc: ClientConnectionRpc, getRoot: () => string | undefined, getLegacyRoots: () => string[] = () => []) {
   let snapshot: AssistantSnapshot = { busy: false, error: '' }
   let context: AssistantContext = { page: 'home' }
   let generation = 0
@@ -46,7 +46,8 @@ export function createAssistant(ctx: Pick<Context, 'sessions' | 'uiSession' | 'u
   }
   const isProjectSession = (sessionId: SessionId) => {
     const root = getRoot()
-    return Boolean(root && ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd === root)
+    const cwd = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
+    return Boolean(root && cwd && [root, ...getLegacyRoots()].includes(cwd))
   }
   const refresh = async () => {
     const sessionId = snapshot.sessionId
@@ -125,10 +126,20 @@ export function createAssistant(ctx: Pick<Context, 'sessions' | 'uiSession' | 'u
         const sessionIdToResume = typeof taskContext.session_id === 'string' ? taskContext.session_id : undefined
         const root = getRoot()
         if (!root) throw new Error('项目工作区尚未就绪，请稍后重试。')
+        let resumeCwd: string | undefined
+        if (sessionIdToResume) {
+          resumeCwd = ctx.sessions.list.getSnapshot().byId[sessionIdToResume as SessionId]?.cwd
+          if (!resumeCwd) {
+            const status = await rpc.call(CHANNEL, 'assistant/status', { session_id: sessionIdToResume })
+            if (!status.ok) throw new Error(status.error.message)
+            resumeCwd = (status.value as { workspace?: { session_cwd?: string } }).workspace?.session_cwd
+          }
+          if (!resumeCwd || ![root, ...getLegacyRoots()].includes(resumeCwd)) throw new Error('助手会话不属于当前工作区')
+        }
         const workspace = sessionIdToResume ? undefined : await ctx.workspaces.create({ path: root })
         // 原生 create/adopt 会在返回前登记客户端身份，不依赖异步列表通知到达顺序。
         const preparedSessionId = await ctx.sessions.create(sessionIdToResume
-          ? { sessionId: sessionIdToResume as SessionId, cwd: root }
+          ? { sessionId: sessionIdToResume as SessionId, cwd: resumeCwd }
           : { workspaceId: workspace!.workspaceId })
         await ctx.sessions.using(preparedSessionId, { source: 'harnessAssistant' }, async () => {
           if (disposed) return

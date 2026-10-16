@@ -17,10 +17,10 @@ const [{ Context }, { SystemPrompt }, { ToolRuntime }, { createScope }] = await 
 ])
 const built = mkdtempSync(join(tmpdir(), 'extraction-scope-build-'))
 await build({ entryPoints: [new URL('../src/assistant/extraction-scope.ts', import.meta.url).pathname], outfile: join(built, 'scope.mjs'), bundle: true, platform: 'node', format: 'esm' })
-const { createExtractionScope, isDecisionExtraction } = await import(pathToFileURL(join(built, 'scope.mjs')).href)
+const { createExtractionScope, createComputeVariantScope, isDecisionExtraction, isComputeVariantResearch } = await import(pathToFileURL(join(built, 'scope.mjs')).href)
 test.after(() => rm(built, { recursive: true, force: true }))
 
-function fixture(t, { parentPtc = false } = {}) {
+function fixture(t, { parentPtc = false, computeResearch = false } = {}) {
   const ctx = new Context()
   new SystemPrompt(ctx, {})
   new ToolRuntime(ctx, { mode: 'native' })
@@ -30,14 +30,14 @@ function fixture(t, { parentPtc = false } = {}) {
     output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
     async execute(arguments_) { calls.push({ name, arguments: arguments_ }); return { basic: true } },
   })
-  for (const name of ['skill', 'platform_agents', 'bash', 'spawn_agent', 'run_in_background']) ctx.tools.register(definition(name))
+  for (const name of ['skill', 'platform_agents', 'bash', 'read', 'write', 'spawn_agent', 'run_in_background']) ctx.tools.register(definition(name))
   const parentKey = { id: 'preset' }
   const parent = parentPtc ? createScope(ctx, parentKey) : null
   if (parent) parent.ctx.tools.presentAs('ptc')
   const agent = { id: 'extraction-agent', session: {} }
   const agentScope = createScope(ctx, agent, parent ? { parent: parentKey } : undefined)
   agent.ctx = agentScope.ctx
-  const scope = createExtractionScope()
+  const scope = computeResearch ? createComputeVariantScope() : createExtractionScope()
   const other = { id: 'other-agent', session: {} }
   const otherScope = createScope(ctx, other)
   other.ctx = otherScope.ctx
@@ -127,4 +127,22 @@ test('继承抽取上下文到其他工作区不限制工具，当前项目的�
   assert.equal(isDecisionExtraction('/project', f.agent, { task_context: {} }), false)
   if (isDecisionExtraction('/project', f.agent, state)) f.scope.apply(f.agent)
   assert.deepEqual(await f.schemas(f.agent), ['platform_agents', 'skill'])
+})
+
+test('算力研究真实原生作用域阻止 shell、读写及其他技能，保留平台动作与普通会话', async t => {
+  const f = fixture(t, { computeResearch: true })
+  f.agent.session.header = { cwd: '/project' }
+  const state = { task_context: { skill: 'compute-variant-research' } }
+  assert.equal(isComputeVariantResearch('/other', f.agent, state), false)
+  assert.equal(isComputeVariantResearch('/project', f.agent, { task_context: {} }), false)
+  assert.equal(isComputeVariantResearch('/project', f.agent, state), true)
+  f.scope.apply(f.agent)
+  assert.deepEqual(await f.schemas(f.agent), ['platform_agents', 'skill'])
+  for (const name of ['bash', 'read', 'write', 'spawn_agent']) assert.equal((await f.execute(name, { command: '此测试命令不得执行' })).isError, true)
+  assert.equal((await f.execute('skill', { name: 'workspace-management' })).isError, true)
+  assert.equal((await f.execute('skill', { name: 'compute-variant-research' })).isError, false)
+  assert.equal((await f.execute('platform_agents', { action: 'compute-variants/preview' })).isError, false)
+  assert.deepEqual(f.calls.map(call => call.name), ['skill', 'platform_agents'])
+  assert.ok((await f.schemas(f.other)).includes('bash'))
+  assert.equal((await f.execute('bash', {}, f.other)).isError, false)
 })

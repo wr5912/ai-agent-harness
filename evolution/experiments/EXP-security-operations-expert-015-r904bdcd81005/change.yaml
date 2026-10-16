@@ -1,6 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-015-r904bdcd81005
-agent_id: security-operations-expert
-baseline_ref: git:b3bf78c530dc0af3840da2d8b5030f9691a6d94f
-status: active
-research_question: 能否由 Web MCP 管理插件接管四个模型可见的现成 MCP 连接，并按真实巡检三工具合同完成新会话业务验证及配置恢复

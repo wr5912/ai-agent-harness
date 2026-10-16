@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -7,6 +7,7 @@ import test from 'node:test'
 import { build } from 'esbuild'
 
 const repo = new URL('../../../', import.meta.url).pathname
+process.env.HARNESS_PROGRAM_ROOT = repo
 const buildRoot = mkdtempSync(join(tmpdir(), 'decision-dataset-build-'))
 await build({ entryPoints: [new URL('../src/evaluation/datasets.ts', import.meta.url).pathname], outfile: join(buildRoot, 'datasets.mjs'), bundle: true, platform: 'node', format: 'esm' })
 const { createDecisionDatasetHandler, validateDecisionQuestion } = await import(`file://${join(buildRoot, 'datasets.mjs')}`)
@@ -41,8 +42,6 @@ function fixture() {
     write(join(root, base(id), 'evidence/U-BASIC-001/trace.jsonl'), trace)
   }
   createRun(runId)
-  const skill = 'platform/skills/decision-sample-extraction/SKILL.md'
-  mkdirSync(dirname(join(root, skill)), { recursive: true }); copyFileSync(join(repo, skill), join(root, skill))
   const handle = createDecisionDatasetHandler(root)
   return { root, path, raw, handle, createRun, base }
 }

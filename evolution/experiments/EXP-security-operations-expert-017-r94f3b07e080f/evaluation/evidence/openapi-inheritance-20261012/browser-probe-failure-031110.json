@@ -1,8 +1,0 @@
-{
-  "passed": false,
-  "stage": "server-select",
-  "errorName": "TimeoutError",
-  "message": "locator.selectOption: Timeout 20000ms exceeded.\nCall log:\n  - waiting for getByLabel('服务器', { exact: true })\n",
-  "checkedAt": "2026-10-13T03:11:10.520389+00:00",
-  "instance": "security-operations-expert-exp017-browser-20261012"
-}

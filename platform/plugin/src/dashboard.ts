@@ -1,3 +1,4 @@
+import { programRoot } from './workspace.ts'
 import { execFile } from 'node:child_process'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -15,7 +16,7 @@ export interface RecentRun {
 
 export async function recentRuns(root: string, agentIds: string[], signal: AbortSignal): Promise<RecentRun[]> {
   const rows = await Promise.all(agentIds.map(async agentId => {
-    const { stdout } = await execute('python3', [join(root, 'runtime/adapters/dsh-container/run_record.py'),
+    const { stdout } = await execute(process.env.HARNESS_PYTHON || 'python3', [join(programRoot(), 'runtime/adapters/dsh-container/run_record.py'),
       '--repo', root, 'index', '--agent', agentId], { signal, timeout: 15000, maxBuffer: 2 * 1024 * 1024 })
     const index = JSON.parse(stdout) as { experiments: { experiment_id: string; runs: {
       run_id: string; status: string | null; created_at: string | null; finished_at: string | null

@@ -4,6 +4,8 @@ import importlib.util
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 import subprocess
+import tempfile
+import json
 import unittest
 from unittest import mock
 
@@ -13,6 +15,24 @@ spec.loader.exec_module(evaluation)
 
 
 class EvaluationAccessTest(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        (self.root / "config").mkdir()
+        (self.root / "config/sites.json").write_text(json.dumps({"platform": "/hep/", "assistant": "/assistant/"}))
+        self.repo_patch = mock.patch.object(evaluation, "REPO", self.root)
+        self.repo_patch.start()
+
+    def tearDown(self):
+        self.repo_patch.stop()
+        self.temporary.cleanup()
+
+    def test_external_workspace_site_configuration_is_used(self):
+        (self.root / "config/sites.json").write_text(json.dumps({"platform": "/platform/", "assistant": "/custom-agent/"}))
+        url = "http://127.0.0.1:3081/custom-agent/"
+        with mock.patch.object(evaluation, "checked_process", return_value=subprocess.CompletedProcess([], 0, url, "")):
+            self.assertEqual(evaluation.authentication_url("probe"), url)
+
     def test_local_plain_and_legacy_token_urls_are_accepted(self):
         for url in ("http://127.0.0.1:3081/", "http://127.0.0.1:3081/?token=test-only",
                     "http://127.0.0.1:3081/assistant/", "http://127.0.0.1:3081/assistant/?token=test-only"):

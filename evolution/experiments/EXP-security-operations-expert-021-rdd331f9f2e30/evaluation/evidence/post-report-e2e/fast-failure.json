@@ -1,4 +1,0 @@
-{
-  "session_id": "session-fec6d6f2-18db-468c-8009-399ecfb4d568",
-  "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'claim_failed'\n- 'completed'\n"
-}

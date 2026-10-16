@@ -1,8 +1,0 @@
-{
-  "passed": false,
-  "stage": "mcp-navigation",
-  "errorName": "TimeoutError",
-  "message": "locator.click: Timeout 20000ms exceeded.\nCall log:\n  - waiting for getByText('MCP 配置管理', { exact: true })\n",
-  "checkedAt": "2026-10-13T03:06:28.615953+00:00",
-  "instance": "security-operations-expert-exp017-browser-20261012"
-}

@@ -1,3 +1,4 @@
+import { programRoot, workspaceConfigPath } from '../workspace.ts'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { randomUUID } from 'node:crypto'
@@ -8,7 +9,7 @@ import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
 import { redactRunText } from './run-files.ts'
 
 const execute = promisify(execFile)
-const CATALOG = 'runtime/adapters/dsh-container/sources.json'
+const CATALOG = 'config/sources.json'
 const CLI = 'runtime/adapters/dsh-container/dsh-dev'
 type JsonMap = Record<string, unknown>
 export type NewAgentReceipt = { agent_id: string; experiment_id: string; source_id: string; name: string; status: 'created'; started: false; note: string }
@@ -23,7 +24,7 @@ function cancelled(signal?: AbortSignal) { if (signal?.aborted) throw new Creati
 function writeYaml(file: string, value: unknown) { writeFileSync(file, dumpYaml(value, { noRefs: true, lineWidth: -1 })) }
 function yamlMap(file: string) { return loadYaml(readFileSync(file, 'utf8')) as JsonMap }
 function catalog(root: string) {
-  const file = join(root, CATALOG)
+  const file = workspaceConfigPath(root, 'sources.json')
   if (lstatSync(file).isSymbolicLink()) throw new CreationError('path_rejected', '来源目录不能是符号链接')
   const value = JSON.parse(readFileSync(file, 'utf8')) as { schema_version: string; sources: Record<string, JsonMap> }
   if (value.schema_version !== '1.1' || !value.sources || typeof value.sources !== 'object') throw new CreationError('invalid_catalog', '来源目录格式无效')
@@ -40,7 +41,7 @@ export async function createAgent(rootPath: string, payload: JsonMap, signal?: A
     const root = resolve(rootPath), agentId = checkedText(payload, 'agent_id', 80)
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(agentId)) throw new CreationError('invalid_request', 'Agent ID 必须是小写 kebab-case')
     const name = checkedText(payload, 'name', 240), description = checkedText(payload, 'description', 4000), role = checkedText(payload, 'role', 60 * 1024)
-    for (const path of ['agents', 'evolution', 'evolution/experiments', 'runtime', 'runtime/adapters', 'runtime/adapters/dsh-container']) {
+    for (const path of ['agents', 'evolution', 'evolution/experiments']) {
       const stat = lstatSync(join(root, path))
       if (!stat.isDirectory() || stat.isSymbolicLink()) throw new CreationError('path_rejected', '资产目录必须是仓库内的实体目录')
     }
@@ -56,9 +57,9 @@ export async function createAgent(rootPath: string, payload: JsonMap, signal?: A
       'import json,runpy,sys', 'from pathlib import Path',
       'module=runpy.run_path(sys.argv[1])',
       'stage=Path(sys.argv[2])',
-      'print(json.dumps(module["create_harness"](sys.argv[3],repo=stage,sources=stage/"runtime/adapters/dsh-container/sources.json",lock_path=Path(sys.argv[4]))))',
+      'print(json.dumps(module["create_harness"](sys.argv[3],repo=stage,sources=stage/"config/sources.json",lock_path=Path(sys.argv[4]))))',
     ].join('\n')
-    const result = await execute('python3', ['-c', code, join(root, CLI), temporary, agentId, join(root, 'runtime/adapters/dsh-container/source.lock.json')], { cwd: root, signal, timeout: 30_000, maxBuffer: 1024 * 1024 })
+    const result = await execute(process.env.HARNESS_PYTHON || 'python3', ['-c', code, join(programRoot(), CLI), temporary, agentId, join(programRoot(), 'runtime/adapters/dsh-container/source.lock.json')], { cwd: root, env: { ...process.env, HARNESS_ASSET_ROOT: temporary, HARNESS_PROGRAM_ROOT: programRoot() }, signal, timeout: 30_000, maxBuffer: 1024 * 1024 })
     const created = JSON.parse(result.stdout) as { experiment_id: string; source_id: string }
     if (!new RegExp(`^EXP-${agentId}-001-r[0-9a-f]{12}$`).test(created.experiment_id) || created.source_id !== `experiment:${created.experiment_id}`) throw new CreationError('creation_failed', '创建工具返回的研究版本身份无效')
     const experiment = join(temporary, 'evolution/experiments', created.experiment_id), agent = join(temporary, 'agents', agentId)
@@ -89,16 +90,16 @@ export async function createAgent(rootPath: string, payload: JsonMap, signal?: A
     // 使用既有验证入口检查新角色后的完整来源；不执行 Candidate、模型或业务工具。
     const validate = [
       'import json,runpy,sys', 'from pathlib import Path',
-      `sys.path.insert(0,${JSON.stringify(join(root, 'runtime/adapters/dsh-container'))})`,
+      `sys.path.insert(0,${JSON.stringify(join(programRoot(), 'runtime/adapters/dsh-container'))})`,
       'from source_contract import resolve',
       'stage=Path(sys.argv[1])',
-      'resolve("experiment:"+sys.argv[2],repo=stage,sources=stage/"runtime/adapters/dsh-container/sources.json",lock_path=Path(sys.argv[3]))',
+      'resolve("experiment:"+sys.argv[2],repo=stage,sources=stage/"config/sources.json",lock_path=Path(sys.argv[3]))',
       'module=runpy.run_path(sys.argv[4])',
       'result,status=module["validate"](stage/"evolution/experiments"/sys.argv[2])',
       'if status: raise ValueError("Experiment 校验失败: "+json.dumps(result,ensure_ascii=False))',
       'print(json.dumps({"validated":True}))',
     ].join('\n')
-    await execute('python3', ['-c', validate, temporary, created.experiment_id, join(root, 'runtime/adapters/dsh-container/source.lock.json'), join(root, '.agents/skills/research-eval/scripts/validate_experiment.py')], { cwd: root, signal, timeout: 30_000, maxBuffer: 1024 * 1024 })
+    await execute(process.env.HARNESS_PYTHON || 'python3', ['-c', validate, temporary, created.experiment_id, join(programRoot(), 'runtime/adapters/dsh-container/source.lock.json'), join(programRoot(), '.agents/skills/research-eval/scripts/validate_experiment.py')], { cwd: root, env: { ...process.env, HARNESS_ASSET_ROOT: temporary, HARNESS_PROGRAM_ROOT: programRoot() }, signal, timeout: 30_000, maxBuffer: 1024 * 1024 })
     cancelled(signal)
     phase = 'publish'
     const current = catalog(root), source = catalog(temporary).sources[created.experiment_id]
@@ -108,10 +109,11 @@ export async function createAgent(rootPath: string, payload: JsonMap, signal?: A
     // 以下同步落盘不跨 await；读取最新目录后仅增加本条登记，不替换其他任务新增的来源。
     renameSync(agent, targetAgent); moved.push(targetAgent)
     renameSync(experiment, targetExperiment); moved.push(targetExperiment)
-    const catalogTemporary = join(root, `${CATALOG}.${randomUUID()}.tmp`)
+    const catalogFile = workspaceConfigPath(root, 'sources.json')
+    const catalogTemporary = `${catalogFile}.${randomUUID()}.tmp`
     try {
-      writeFileSync(catalogTemporary, JSON.stringify({ ...current, sources: { ...current.sources, [created.experiment_id]: source } }, null, 2) + '\n', { flag: 'wx', mode: lstatSync(join(root, CATALOG)).mode & 0o777 })
-      renameSync(catalogTemporary, join(root, CATALOG))
+      writeFileSync(catalogTemporary, JSON.stringify({ ...current, sources: { ...current.sources, [created.experiment_id]: source } }, null, 2) + '\n', { flag: 'wx', mode: lstatSync(catalogFile).mode & 0o777 })
+      renameSync(catalogTemporary, catalogFile)
     } finally { rmSync(catalogTemporary, { force: true }) }
     moved.length = 0
     return { ok: true, value: { agent_id: agentId, experiment_id: created.experiment_id, source_id: created.source_id, name, status: 'created', started: false, note: '角色和首次研究版本已创建，使用当前标准 Runtime 来源；尚未启动实例或完成业务评测。' } }

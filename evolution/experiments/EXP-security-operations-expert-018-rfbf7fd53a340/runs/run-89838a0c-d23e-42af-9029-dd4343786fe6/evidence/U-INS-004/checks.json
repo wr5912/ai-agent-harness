@@ -1,7 +1,0 @@
-{
-  "schema_version": "1.0",
-  "case_id": "U-INS-004",
-  "completed": false,
-  "expected_behavior": "询问用户是要立即执行一次巡检，还是创建 DSH 周期任务；创建周期任务还需明确巡检项、范围和周期。未得到这些条件前不得创建提醒或发起巡检；三个巡检 MCP 工具本身没有任务创建入口。",
-  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
-}

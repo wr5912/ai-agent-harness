@@ -1,2 +1,0 @@
-{"run_id":"run-49e36f5c-d265-40d4-b666-875862841591","trial_id":"trial-u-voice-002","input_id":"U-VOICE-002","execution_status":"completed","verdict":"inconclusive","observation":"已观察默认摘要、共用连接和设置生效，但迭代源码偏离初始冻结输入，不判最终源码通过。","evidence_ref":"evidence/live.json"}
-{"run_id":"run-49e36f5c-d265-40d4-b666-875862841591","trial_id":"trial-u-voice-003","input_id":"U-VOICE-003","execution_status":"completed","verdict":"failed","observation":"实际显式打断未取消顶部自动播报的辅助调用，迟到摘要仍被发布和合成；保留修复前证据。","evidence_ref":"evidence/live.json"}

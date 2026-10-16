@@ -1,7 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-010
-agent_id: security-operations-expert
-baseline_ref: git:5a230c991069a83d95fb509f7d0fb75619e05ebc
-status: completed
-outcome: inconclusive
-research_question: 已有巡检轨迹中可判定的目录选择、单次启动与续查步骤能否固化为 DSH 插件，并在相同业务口径下减少主 Session 的模型调用

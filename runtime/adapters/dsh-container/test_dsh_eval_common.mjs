@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
-import { judgeCase, turnsFromTrace } from './dsh-eval-common.mjs'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { judgeCase, turnsFromTrace, saveSessionTrace } from './dsh-eval-common.mjs'
 
 const user = (id, text) => ({
   type: 'user/message',
@@ -97,4 +100,17 @@ assert.equal(englishReply.response.verdict, 'failed')
 assert.equal(englishReply.checks.model_verdict, 'passed')
 assert.equal(englishReply.checks.deterministic_check, 'language-mismatch')
 
-console.log(JSON.stringify({ status: 'dsh-eval-common-tests-passed', cases: 6 }))
+const evidenceDirectory = await mkdtemp(join(tmpdir(), 'dsh-eval-common-trace-'))
+try {
+  const successChecks = { completed: true }
+  await saveSessionTrace(evidenceDirectory, targetArchive, successChecks)
+  assert.deepEqual(JSON.parse(await readFile(join(evidenceDirectory, 'checks.json'), 'utf8')), { completed: true, trace_available: true })
+  assert.equal(successChecks.trace_available, undefined, '持久化回执不修改调用方对象')
+  await saveSessionTrace(evidenceDirectory, archive([user('partial', '未完成输入')]), { completed: false })
+  assert.deepEqual(JSON.parse(await readFile(join(evidenceDirectory, 'checks.json'), 'utf8')), { completed: false, trace_available: true }, '有轨迹不等于执行完成')
+  await saveSessionTrace(evidenceDirectory, null, { completed: false, trace_available: true })
+  assert.equal(JSON.parse(await readFile(join(evidenceDirectory, 'checks.json'), 'utf8')).trace_available, false)
+  assert.equal(await readFile(join(evidenceDirectory, 'trace.jsonl'), 'utf8'), '')
+} finally { await rm(evidenceDirectory, { recursive: true, force: true }) }
+
+console.log(JSON.stringify({ status: 'dsh-eval-common-tests-passed', cases: 9 }))

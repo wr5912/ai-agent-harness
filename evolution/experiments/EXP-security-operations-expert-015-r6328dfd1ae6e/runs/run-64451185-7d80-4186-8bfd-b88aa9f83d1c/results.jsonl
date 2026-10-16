@@ -1,1 +1,0 @@
-{"run_id":"run-64451185-7d80-4186-8bfd-b88aa9f83d1c","trial_id":"trial-33e7dd91-9165-4619-ab36-4a2fbde6a796","input_id":"U-INS-002","execution_status":"error","verdict":"inconclusive","observation":"运行基础设施未完成该用例，未产生语义结论。","evidence_ref":"evidence/U-INS-002","failure_reason":"browser 评测 失败（退出码 2）"}

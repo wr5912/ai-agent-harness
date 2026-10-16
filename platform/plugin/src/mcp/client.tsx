@@ -38,9 +38,11 @@ export function McpPage({ rpc, form, updates, onContext }: PlatformPageProps & L
     }).catch(() => { if (active) setServiceError('无法读取已发布组合服务，请刷新重试。') })
     return () => { active = false }
   }, [state.revision, state.status, revision])
-  return <main className="harness-mcp-page">
-    <header className="harness-page-heading"><h1>MCP 管理</h1><div className="harness-mcp-actions" ref={setToolbarTarget} /></header>
-    <nav className="harness-mcp-tabs" aria-label="MCP 工作区">{tabs.map(tab => <button key={tab.id} type="button" aria-current={page === tab.id ? 'page' : undefined} onClick={() => setPage(tab.id)}>{tab.title}</button>)}</nav>
+  return <main className="harness-mcp-page" aria-label="MCP 管理">
+    <div className="harness-mcp-toolbar">
+      <nav className="harness-mcp-tabs" aria-label="MCP 工作区">{tabs.map(tab => <button key={tab.id} type="button" aria-current={page === tab.id ? 'page' : undefined} onClick={() => setPage(tab.id)}>{tab.title}</button>)}</nav>
+      <div className="harness-mcp-actions" ref={setToolbarTarget} />
+    </div>
     {state.status === 'unavailable' && <p role="alert">MCP 配置插件未装载，请检查平台启动日志。</p>}
     {serviceError && <p role="alert">{serviceError}</p>}
     <div hidden={page === 'composition'}><Manager view={page} onValidationError={() => setPage('servers')} publishedService={publishedService} toolbarTarget={page === 'composition' ? null : toolbarTarget} form={{ state }} write={async (ops, revision) => {
@@ -77,7 +79,8 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
   const threat = isThreatComposition(config)
   const registeredConnections = data?.connections ?? []
   const connections = data?.connections?.filter((item: any) => item.kind === 'openapi') ?? []
-  const upstream = config && (config.kind === 'threat-stage'
+  const extensionReady = config?.flow ? Boolean(data?.extension?.flow) : config?.kind ? Boolean(data?.extension?.stages) : true
+  const upstream = extensionReady && config && (config.kind === 'threat-stage'
     ? [config.bindings?.socConnectionId, config.bindings?.reportConnectionId].every(id => registeredConnections.some((item: any) => item.id === id))
     : config.kind === 'composite' ? config.steps?.every(step => entries.find(item => item.id === step.compositionId)?.versions?.some(version => version.versionId === step.versionId))
       : [config.connectionId, ...(config.flow ? [config.alertsConnectionId] : [])].every(id => connections.some((item: any) => item.id === id)))
@@ -143,7 +146,7 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
     <style>{threatEditorStyle}</style>
     <nav className="harness-card harness-composition-sidebar" aria-label="工具编排列表">
       <h2>工具组合编排</h2><div className="harness-mcp-actions"><button type="button" disabled={busy || !!editor || seeding || !data} onClick={() => setEditor({ revision: data.revision, value: { toolName: '', title: '资产相关告警查询', description: '查询资产后查询相关告警的两步只读组合', connectionId: connections[0]?.id ?? '' } })}>新建编排</button>
-        <button type="button" disabled={busy || !!editor || seeding || !data} onClick={() => { setSeeding(true); setResult(null); setError('') }}>威胁分析样例</button>
+        {data?.extension?.seed && <button type="button" disabled={busy || !!editor || seeding || !data} onClick={() => { setSeeding(true); setResult(null); setError('') }}>威胁分析样例</button>}
         <button type="button" disabled={busy || !!editor || seeding} onClick={() => void action('list', {})}>刷新</button></div>
       {groups.map(group => <section key={group.title} aria-label={group.title}><h3>{group.title}（{group.entries.length}）</h3>
         {group.entries.length ? <ul>{group.entries.map(item => {
@@ -158,6 +161,7 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
     <section className="harness-card harness-composition-detail" aria-label="组合编排详情">
       {error && <p role="alert">{error}</p>}
       {busy && <p role="status">正在处理…</p>}
+      {config && !extensionReady && <p role="alert">此编排依赖的业务扩展尚未装载。已有目录保持可读，请先启用工作区的 DSH 扩展。</p>}
       {editor && data && editor.revision !== data.revision && <p role="alert">编排目录已在其他位置更新，当前草稿已保留。请先复制需要保留的内容，取消编辑后重新读取；旧版本草稿不会覆盖新数据。</p>}
       {seeding ? <ThreatSeedForm connections={registeredConnections} busy={busy} create={bindings => void action('seedThreatCompositions', { revision: data.revision, bindings })} cancel={() => setSeeding(false)}/> : !config && !editor ? <p>{data ? selection ? `所选编排 ${selection.id} 的${selection.version === 'draft' ? '草稿' : '已发布版本'}已不存在，请重新选择。` : '选择一个编排查看，或新建编排。' : '正在读取编排目录…'}</p> : <>
         <h2>{editor ? (editor.id ? '编辑草稿' : '新建编排') : config?.title}</h2>
@@ -167,7 +171,7 @@ function CompositionPage({ rpc, configuration, onCatalogChange, updates, onConte
           <label>工具名称<input required maxLength={64} pattern="[A-Za-z0-9_.\-]+" value={editor.value.toolName} onChange={event => setEditor({ ...editor, value: { ...editor.value, toolName: event.target.value } })} /></label>
           <label>工具说明<textarea maxLength={500} value={editor.value.description} onChange={event => setEditor({ ...editor, value: { ...editor.value, description: event.target.value } })} /></label>
           {isThreatComposition(editor.value) ? <ThreatConfigurationFields value={editor.value} change={value => setEditor({ ...editor, value })} compositionId={editor.id} connections={registeredConnections} entries={entries}/> : <><label>接口流程<select value={editor.value.flow ?? ''} onChange={event => setEditor({ ...editor, value: { ...editor.value, flow: event.target.value === 'soc-asset-alerts' ? 'soc-asset-alerts' : undefined, alertsConnectionId: event.target.value ? editor.value.alertsConnectionId ?? connections[0]?.id ?? '' : undefined } })}>
-            <option value="">get_asset → list_alerts</option><option value="soc-asset-alerts">SOC 资产详情 → 近 30 天告警分组</option>
+            <option value="">get_asset → list_alerts</option>{(data?.extension?.flow || editor.value.flow) && <option value="soc-asset-alerts">SOC 资产详情 → 近 30 天告警分组</option>}
           </select></label>
           <label>{editor.value.flow ? '资产 OpenAPI 服务器' : 'OpenAPI 服务器'}<select required value={editor.value.connectionId} onChange={event => setEditor({ ...editor, value: { ...editor.value, connectionId: event.target.value } })}>
             <option value="">请选择服务器</option>{editor.value.connectionId && !connections.some((item: any) => item.id === editor.value.connectionId) && <option value={editor.value.connectionId}>{editor.value.connectionId}（尚未接入）</option>}

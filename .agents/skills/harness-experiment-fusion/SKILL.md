@@ -7,6 +7,8 @@ description: 在 Research Mode 中融合两个或多个并行 DSH Harness Experi
 
 沿用 `$harness-guided-workflow` 的任务入口、`$harness-evolution` 的单一 Baseline 和 `$research-eval` 的观察与 Decision。融合仍是一项新的 Experiment，不覆盖来源，也不增加第二套资产模型。
 
+程序与数据分离部署时，脚本和本技能从 `HARNESS_PROGRAM_ROOT` 定位，Agent、Experiment 与 Git 版本从 `HARNESS_ASSET_ROOT` 定位。下述相对脚本路径相对程序根；支持 `--repo` 的命令显式传入数据根。平台管理助手优先复用已暴露的 `fusion/*` 工具完成对应步骤，不因加载本技能切换为仓库开发身份。
+
 1. 创建前和 Decision 前用 `git ls-remote --heads` 核对远端分支最新提交，再盘点同 Agent 的本地 Git refs、工作树及 Experiment；版本编号不代表合并顺序。先区分主线、应融合的并行来源与算力 `end` 终端变体：后者须有同 Agent 完整、可恢复且来源固定的主线父版及等效证据，不进入后续主线融合清单；研究阶段优先选已发布父版，没有时可用固定 Git 提交或 Research Release。固定每个应保留来源的 Experiment ID 与可恢复的 Git 提交或 Research Release；选一份主来源作新 Candidate 的基础。在 `hypothesis.md` 记录其他来源、要保留的能力、版本引用和被替代能力的理由。未提交来源只可临时引用工作树，提交后重新核对。
 2. 对每个已提交来源运行 `node --experimental-strip-types .agents/skills/harness-evolution/scripts/check_inheritance.mts <来源 ID> <来源 commit> <目标 ID>`；未提交来源先用文件差异人工核对。比较缺失及共同修改的文件和装载链：源码与生成制品、Preset、插件注册及 Node 依赖、MCP 工具范围、Runtime 锁和镜像指纹、启动 patch、Web profile、卷挂载、实例设置。对冲突逐项写清保留、替换或舍弃的取舍；来源不固定或重复注册未解决时，不宣称融合完成。
 3. 建立独立、自包含的 Candidate；从源码重建受影响制品。运行 `validate_repository.py`、`validate_experiment.py`、`test_source_contract.py`、`test_dsh_dev.py` 及受影响插件的测试；复用 `dsh-dev` 启动前依赖检查和 `verify-load` 的 `config_markers`，把两边选定能力的关键注册项列入来源合同。无需为融合另造可编辑清单或通用生成器。

@@ -37,7 +37,7 @@ function workbench({ target, handler, onAssistant } = {}) {
   const module = { exports: {} }
   const beforeUnload = new Set()
   const window = { confirm: message => { confirmations.push(message); return confirmationAnswers.shift() ?? true }, addEventListener: (name, listener) => { if (name === 'beforeunload') beforeUnload.add(listener) }, removeEventListener: (name, listener) => beforeUnload.delete(listener), setInterval: () => 1, clearInterval: () => undefined }
-  vm.runInNewContext(compiled.outputFiles[0].text, { module, exports: module.exports, require: name => name === 'react' ? react : name === '@deepseek-ai/dsh-client-ui-primitives' ? { MarkdownText, MarkdownDelegateProvider } : require(name), window, document: { baseURI: 'http://localhost:3090/hap/', getElementById: () => ({ focus() {} }) }, URL })
+  vm.runInNewContext(compiled.outputFiles[0].text, { module, exports: module.exports, require: name => name === 'react' ? react : name === '@deepseek-ai/dsh-client-ui-primitives' ? { MarkdownText, MarkdownDelegateProvider } : require(name), window, document: { baseURI: 'http://localhost:3090/hep/', getElementById: () => ({ focus() {} }) }, URL })
   const { EvaluationPage } = module.exports
   const defaultHandler = async (action, payload) => {
     if (action === 'list') return { agents: [{ id: 'alpha' }, { id: 'beta' }] }
@@ -90,7 +90,7 @@ test('评测中心默认汇总全部智能体 Run，点击即读取报告并保�
   await ui.settle()
   assert.ok(ui.nodes().some(node => node.type === ui.MarkdownText && node.props.text.includes('完整报告正文')))
   const archive = ui.nodes().find(node => node.type === 'a' && ui.text(node) === '下载完整 Run ZIP')
-  assert.equal(new URL(archive.props.href).pathname, '/hap/api/harness-platform/runs/download')
+  assert.equal(new URL(archive.props.href).pathname, '/hep/api/harness-platform/runs/download')
   assert.equal(new URL(archive.props.href).searchParams.get('kind'), 'archive')
   assert.equal(ui.navigations.at(-1).run_id, runA)
   ui.cleanup()

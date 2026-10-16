@@ -1,6 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-012
-agent_id: security-operations-expert
-baseline_ref: git:97236e16ebca8e49623959ec9afdfe77002bbdb9
-status: active
-research_question: 对齐巡检服务现行四工具合同并保留原始报告，能否完成 U-INS-001 而不退化能力查询和同一运行续查

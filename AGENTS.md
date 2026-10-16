@@ -40,7 +40,7 @@
 - 平台围绕 Harness 资产与版本、评测与改进、DSH 实例及工具接入建设，支持 Harness 改进、资产演化、多 Variant 派生与比较。业务 Harness 资产供容器内 DSH Agent Runtime 装载，平台扩展供系统全局 DSH 装载。
 - 优先复用 DSH 现有能力和插件；只有扩展接口确实不足时，才考虑有记录、可回退的最小框架修改。DSH Runtime 源码不混入本仓库。
 - 不复制 Runtime 内部目录，不把 Session、缓存、附件或整个 `$DSH_HOME` 作为 Harness 资产；需入仓的平台和实例凭据只保存为专用文件，不通过复制 Runtime HOME 回流。
-- `agents/` 保存业务 Agent 的研究资料；`.agents/skills/` 保存维护本仓库的 Codex 项目技能，两者不得混用。
+- 独立数据根（`HARNESS_ASSET_ROOT`，默认 `~/harness-engineering-platform-data`）中的 `agents/` 保存业务 Agent 的研究资料；`.agents/skills/` 保存维护本仓库的 Codex 项目技能，两者不得混用。
 - `.codex/` 和根级 `AGENTS.md` 只约束仓库研发协作，不是 DSH Runtime 策略或业务 Harness 资产。
 - 平台使用本地 CLI，以及基于系统全局 DSH-Cordis 的界面，当前提供首页、管理对话、智能体管理、评测中心、实例管理及 MCP 管理，复用现有资产与运行记录，不另建事实副本。平台启动入口、Profile 与插件源码集中在 `platform/`，其中 `platform/plugin/` 是独立 DSH 插件包；接入合同集中维护在[平台设计方案](docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。后续能力按实际使用需求扩展，实际验证状态以项目验收矩阵为准。
 
@@ -75,6 +75,12 @@
 - **运行记录**：需要比较或复现的 Run 保存实际来源、Git 提交及 dirty 状态、镜像、模型、输入、观察和限制。结果不得静默覆盖；不值得保留的临时探针无需包装成正式 Run。
 
 开发过程中产生或修改的 Harness 资产，即使暂存在容器 HOME，也不得把容器内副本作为唯一事实源；完成任务或清理实例前，确认其已回流当前 Experiment 的 `candidate/`。不要回流 Session、缓存、附件或普通运行设置；平台和实例凭据按专用仓库文件管理，不从整个 `$DSH_HOME` 复制。
+
+## 程序与数据工作区
+
+本仓库保存平台程序、Runtime 适配器、通用 MCP 管理源码、平台管理助手的内置 Skill、开发技能和平台验收资料。业务 `agents/`、`evolution/`、实际 `config/`、业务 `extensions/` 和运行状态位于独立数据工作区；详细路径、历史恢复、原生 HOME 和备份边界只在[独立数据工作区合同](docs/platform-design/02_系统架构与部署设计.md#独立数据工作区)维护。下文业务资产的相对路径均相对数据根，程序脚本与开发规范相对程序根。
+
+平台管理助手保持管理身份，通过受信任工作区上下文和平台工具定位资产。它的运行 Harness 随平台维护，不把程序仓库的开发协作规则或业务 Agent 的角色指令作为自己的身份。当前工作目录不能替代程序根、数据根和工作区 ID；Session 的迁移归属不改写历史事件。
 
 ## 研究演进
 

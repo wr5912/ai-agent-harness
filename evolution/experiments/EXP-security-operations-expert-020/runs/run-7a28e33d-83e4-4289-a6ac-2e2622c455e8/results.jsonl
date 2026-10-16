@@ -1,2 +1,0 @@
-{"run_id":"run-7a28e33d-83e4-4289-a6ac-2e2622c455e8","trial_id":"U-VOICE-002","input_id":"U-VOICE-002","execution_status":"completed","verdict":"failed","observation":"浏览器收到正确 off/128 token 摘要，但 TTS 首段受 gzip 缓冲，响应未结束时未起播；真实首段探针确认 identity 立即收到 4800 字节。","evidence_ref":"evidence/browser/live/live.json"}
-{"run_id":"run-7a28e33d-83e4-4289-a6ac-2e2622c455e8","trial_id":"U-VOICE-003","input_id":"U-VOICE-003","execution_status":"skipped","verdict":"inconclusive","observation":"前一项流式起播失败后停止本次浏览器执行；保留失败现场，修复后新建 Run 重验。","evidence_ref":"evidence/browser/live/live.json"}

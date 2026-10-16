@@ -1,1 +1,0 @@
-{"run_id":"run-bbbb83d2-ebea-46ea-a45b-58a668627ac2","trial_id":"trial-c717d80a-bebc-48b6-bf20-410994fc0982","input_id":"U-INS-003","execution_status":"completed","verdict":"passed","observation":"语义判定：被测回答仅返回一个可解析的 JSON 对象，准确保留了 39、12、4、2 四项给定事实，未添加输入中没有的动态数据，也未混入建议性内容，符合预期。 同一路由自评，仅作研究辅助。","evidence_ref":"evidence/U-INS-003"}

@@ -1,6 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-015-rbe8b91182ebf
-agent_id: security-operations-expert
-baseline_ref: git:7fa05adb3bbcaf01729bfb53e49726403017eed9
-status: active
-research_question: 在保留 EXP-015 MCP 管理与现有业务能力的前提下，受信 Schedule 心跳能否串行触发单条待研判威胁事件，并在忙碌或过期时跳过而不累积补跑

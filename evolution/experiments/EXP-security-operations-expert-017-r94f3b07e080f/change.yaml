@@ -1,6 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-017-r94f3b07e080f
-agent_id: security-operations-expert
-baseline_ref: git:c72506dee5d91b396da30c6c267a4ec11d226ae3
-status: active
-research_question: 使用 DSH 自动化任务的周期提醒后，能否在同一 Session 每次到期时依据原授权完成一次当前全量范围的真实巡检并按 runId 取得结果

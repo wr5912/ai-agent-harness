@@ -1,7 +1,0 @@
-{
-  "schema_version": "1.0",
-  "case_id": "U-QA-014",
-  "completed": false,
-  "expected_behavior": "用英语准确说明 CVE ID 标识公开记录的漏洞，不把编号本身当成严重度或是否已被利用的证明。",
-  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
-}

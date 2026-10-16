@@ -3,10 +3,10 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionRpcHandler, ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import { join } from 'node:path'
 import { compositionInputSchema, compositionReadonly } from './definition.ts'
 import { compositionConfig, publishCompositionVersion, publishedCompositionService, readCompositions, selectedComposition, versionConfig, writeCompositions } from './compositions.ts'
-import { seedThreatCompositions } from './templates.ts'
+import { workspaceConfigPath } from '../workspace.ts'
+import { executableCatalog } from './extension.ts'
 import { createRegistry, executeComposition, dryRunComposition, compositionStructure, compositionVersion, saveRegistry, type McpRegistry } from './executor.ts'
 import { callOpenApiOperation, limitedText, loadOpenApi, normalizeConnection, publicConnection, validateSpecUrl, type CredentialRef } from './openapi.ts'
 
@@ -39,11 +39,12 @@ async function listState(registry: McpRegistry, assetRoot: string, compositionsF
       })),
     ],
     compositions: await Promise.all(catalog.compositions.map(async entry => ({ ...entry,
-      graphs: Object.fromEntries(await Promise.all((['draft', 'published'] as const).filter(key => entry[key]).map(async key => [key, await compositionStructure(entry[key], catalog)]))),
+      graphs: Object.fromEntries(await Promise.all((['draft', 'published'] as const).filter(key => entry[key]).map(async key => [key, await compositionStructure(entry[key], catalog, registry.extension, true)]))),
     }))),
-    publishedService: publishedCompositionService(catalog),
+    publishedService: publishedCompositionService(catalog, executableCatalog(catalog, registry.extension ?? (registry.threat ? { threat: registry.threat } : undefined))),
+    extension: registry.extension?.id ? { id: registry.extension.id, seed: Boolean(registry.extension.seed), flow: Boolean(registry.extension.flow), stages: Boolean(registry.extension.threat) } : null,
     revision,
-    implementation: compositionVersion(assetRoot),
+    implementation: compositionVersion(assetRoot, undefined, registry.extension),
   }
 }
 
@@ -165,13 +166,15 @@ async function callMcpTool(connection: any, name: string, args: any, signal?: Ab
   return await mcpJsonRpc(connection, { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name, arguments: args ?? {} } }, session, runSignal)
 }
 
-export function createMcpHandler(assetRoot: string, options: { stateFile?: string; compositionsFile?: string; servers?: () => any[]; native?: McpRegistry['native']; threat?: McpRegistry['threat'] } = {}): ConnectionRpcHandler {
+export function createMcpHandler(assetRoot: string, options: { stateFile?: string; compositionsFile?: string; servers?: () => any[]; native?: McpRegistry['native']; threat?: McpRegistry['threat']; extension?: McpRegistry['extension'] } = {}): ConnectionRpcHandler {
   const registry = options.servers ? createRegistry() : createRegistry(assetRoot, options.stateFile)
-  const compositionsFile = options.compositionsFile ?? join(assetRoot, 'platform/mcp-compositions.json')
+  const compositionsFile = options.compositionsFile ?? workspaceConfigPath(assetRoot, 'mcp-compositions.json')
   registry.native = options.native
   registry.threat = options.threat
+  registry.extension = options.extension
   return async (endpoint, payload, signal) => {
     try {
+      if (registry.extension) registry.threat = registry.extension.threat
       if (options.servers) {
         registry.openapi.clear()
         registry.mcp.clear()
@@ -193,11 +196,12 @@ export function createMcpHandler(assetRoot: string, options: { stateFile?: strin
         return success(await registry.threat.artifact(request.run_id, request.artifactId))
       }
       if (endpoint === 'seedThreatCompositions') {
+        if (!registry.extension?.seed) throw new Error('业务组合扩展尚未装载')
         const { catalog, revision } = readCompositions(compositionsFile)
         const request = (payload as any) ?? {}
         if (request.revision !== revision) throw new Error('编排目录已变化，请刷新后重试；当前草稿未覆盖')
         const validated = compositionConfig({ kind: 'threat-stage', stage: 'collect', toolName: 'threat_collect', title: '取证与快判', description: '', bindings: request.bindings })
-        seedThreatCompositions(catalog, validated.bindings!)
+        registry.extension.seed(catalog, validated.bindings!)
         writeCompositions(compositionsFile, catalog, revision)
         return success(await listState(registry, assetRoot, compositionsFile))
       }
@@ -235,7 +239,7 @@ export function createMcpHandler(assetRoot: string, options: { stateFile?: strin
           return success({ ...await listState(registry, assetRoot, compositionsFile), dry })
         }
         return success(endpoint === 'dryRunComposition'
-          ? { ...await dryRunComposition(registry, config, request.input ?? {}, catalog), version: compositionVersion(assetRoot, config) }
+          ? { ...await dryRunComposition(registry, config, request.input ?? {}, catalog), version: compositionVersion(assetRoot, config, registry.extension) }
           : await executeComposition(registry, assetRoot, config, request.input ?? {}, signal, catalog))
       }
       if (endpoint === 'registerOpenApi') {
@@ -325,11 +329,11 @@ async function handleMcpMessage(handler: ConnectionRpcHandler, assetRoot: string
   if (message.method === 'tools/list') {
     const listed = await handler('list', {}, signal ?? new AbortController().signal, undefined as never)
     if (!listed.ok) return rpcError(message.id, -32603, listed.error.message)
-    return rpcResult(message.id, { tools: (listed.value as any).compositions.filter((entry: any) => entry.published).map((entry: any) => ({
-      name: entry.published.toolName,
-      description: entry.published.description || entry.published.title,
-      inputSchema: compositionInputSchema(entry.published),
-      annotations: { readOnlyHint: compositionReadonly(entry.published) },
+    return rpcResult(message.id, { tools: ((listed.value as any).publishedService?.publishedTools ?? []).map((config: any) => ({
+      name: config.toolName,
+      description: config.description || config.title,
+      inputSchema: compositionInputSchema(config),
+      annotations: { readOnlyHint: compositionReadonly(config) },
     })) })
   }
   if (message.method === 'tools/call') {

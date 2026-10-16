@@ -1,6 +1,6 @@
+import { instanceStateRoot, programRoot, workspaceConfigPath, workspaceOwnsInstance } from '../workspace.ts'
 import { execFile as execFileCallback } from 'node:child_process'
 import { readFile, readdir } from 'node:fs/promises'
-import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import type { ConnectionRpcHandler, ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
@@ -81,12 +81,8 @@ function optionalBoolean(value: unknown, name: string): boolean | undefined {
   return value
 }
 
-function stateRoot(): string {
-  return join(process.env.XDG_STATE_HOME || join(homedir(), '.local', 'state'), 'dsh-dev')
-}
-
-function dshDev(assetRoot: string): string {
-  return join(resolve(assetRoot), 'runtime/adapters/dsh-container/dsh-dev')
+function dshDev(): string {
+  return join(programRoot(), 'runtime/adapters/dsh-container/dsh-dev')
 }
 
 function redact(text: string): string {
@@ -139,9 +135,9 @@ export function parseJsonObjects(text: string): unknown[] {
 
 async function runDsh(assetRoot: string, args: string[], signal?: AbortSignal) {
   try {
-    return await execFile(dshDev(assetRoot), args, {
+    return await execFile(process.env.HARNESS_PYTHON || 'python3', [dshDev(), ...args], {
       cwd: assetRoot,
-      env: process.env,
+      env: { ...process.env, HARNESS_ASSET_ROOT: resolve(assetRoot), HARNESS_PROGRAM_ROOT: programRoot() },
       encoding: 'utf8',
       maxBuffer: 1024 * 1024,
       signal,
@@ -166,14 +162,16 @@ async function readJson(path: string): Promise<Record<string, unknown> | null> {
 }
 
 async function ensureRealSource(assetRoot: string, source: string): Promise<void> {
-  const catalog = await readJson(join(assetRoot, 'runtime/adapters/dsh-container/sources.json'))
+  const catalog = await readJson(workspaceConfigPath(assetRoot, 'sources.json'))
   const sources = catalog?.sources
   const id = source.startsWith('experiment:') ? source.slice('experiment:'.length) : source
   if (!sources || typeof sources !== 'object' || !(id in sources)) throw new Error(`未找到真实来源：${source}`)
 }
 
-async function manifestFor(name: string): Promise<Record<string, unknown> | null> {
-  return readJson(join(stateRoot(), name, 'instance.json'))
+async function manifestFor(assetRoot: string, name: string): Promise<Record<string, unknown> | null> {
+  const manifest = await readJson(join(instanceStateRoot(assetRoot), name, 'instance.json'))
+  if (manifest && !workspaceOwnsInstance(assetRoot, manifest)) throw new Error(`实例 ${name} 不属于当前工作区或缺少可确认的迁移来源`)
+  return manifest
 }
 
 async function listInstances(assetRoot: string, signal?: AbortSignal): Promise<{
@@ -188,7 +186,7 @@ async function listInstances(assetRoot: string, signal?: AbortSignal): Promise<{
   return {
     schema_version: '1.0',
     observed_at: observedAt,
-    state_root: stateRoot(),
+    state_root: instanceStateRoot(assetRoot),
     instances: (parsed.instances || []).map(instance => ({ observed_at: observedAt, ...instance }) as InstanceRecord),
   }
 }
@@ -204,8 +202,8 @@ async function assertKnownForMutation(assetRoot: string, name: string, signal?: 
   if (state === 'unknown') throw new Error(`实例 ${name} 状态未知，拒绝执行生命周期操作`)
 }
 
-async function requestForUp(request: InstanceActionRequest): Promise<InstanceActionRequest & { manifest?: any }> {
-  const manifest = request.operation === 'create' ? undefined : await manifestFor(request.name)
+async function requestForUp(assetRoot: string, request: InstanceActionRequest): Promise<InstanceActionRequest & { manifest?: any }> {
+  const manifest = request.operation === 'create' ? undefined : await manifestFor(assetRoot, request.name)
   return {
     ...request, manifest,
     source: request.source || (manifest ? assertSource(manifest.source_id) : undefined),
@@ -238,14 +236,14 @@ function parseCommandOutput(stdout: string, stderr: string) {
 async function previewOne(assetRoot: string, request: InstanceActionRequest, signal?: AbortSignal) {
   const name = assertName(request.name)
   if (request.operation === 'create' || request.operation === 'start' || request.operation === 'restart') {
-    const prepared = await requestForUp(request)
+    const prepared = await requestForUp(assetRoot, request)
     const source = prepared.source
     if (!source) throw new Error('创建、启动或重启需要来源')
     await ensureRealSource(assetRoot, source)
     const result = await runDsh(assetRoot, upArgs({ ...prepared, name, source }, true), signal)
     return { operation: request.operation, name, plan: JSON.parse(result.stdout), retention: retention(request.operation) }
   }
-  const manifest = await manifestFor(name)
+  const manifest = await manifestFor(assetRoot, name)
   if (!manifest) throw new Error(`未找到实例 ${name}`)
   return {
     operation: request.operation,
@@ -292,13 +290,13 @@ async function runOne(assetRoot: string, request: InstanceActionRequest, signal?
   try {
     return await withInstanceLock([name], async () => {
       if (request.expected_source_id !== undefined) {
-        const current = await manifestFor(name)
+        const current = await manifestFor(assetRoot, name)
         if (current?.source_id !== request.expected_source_id) throw new Error('实例来源已变化，请刷新后重新预览；本次未执行。')
       }
       // delete 在 CLI 内按目标实例核验容器状态，避免逐项扫描整个实例列表。
       if (request.operation !== 'create' && request.operation !== 'delete') await assertKnownForMutation(assetRoot, name, signal)
       if (request.operation === 'create' || request.operation === 'start' || request.operation === 'restart') {
-        const prepared = await requestForUp(request)
+        const prepared = await requestForUp(assetRoot, request)
         const source = prepared.source
         if (!source) throw new Error('创建、启动或重启需要来源')
         await ensureRealSource(assetRoot, source)
@@ -389,7 +387,7 @@ export function createInstancesHandler(assetRoot: string): ConnectionRpcHandler 
       if (endpoint === 'list') return ok(await listInstances(assetRoot, signal))
       if (endpoint === 'url') {
         const name = assertName(payloadObject(payload).name)
-        const manifest = await manifestFor(name)
+        const manifest = await manifestFor(assetRoot, name)
         if (!manifest) throw new Error(`未找到实例 ${name}`)
         const port = optionalPort(manifest.port)
         if (!port) throw new Error('实例未记录有效 Web 端口')

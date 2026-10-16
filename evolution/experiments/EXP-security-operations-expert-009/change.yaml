@@ -1,7 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-009
-agent_id: security-operations-expert
-baseline_ref: git:81b8fa5d80c8e518579150c98feb98529e26d94c
-status: completed
-outcome: adopt
-research_question: 证据不足时能否明确说明结论时效及冲突取舍的核验方法，同时保持缺失漏洞证据时不臆测根因

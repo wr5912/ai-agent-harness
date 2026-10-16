@@ -1,7 +1,0 @@
-{
-  "schema_version": "1.0",
-  "case_id": "U-INS-002",
-  "completed": false,
-  "expected_behavior": "只调用 `list_executable_inspections`；回复列出本轮真实查询返回的已发布可执行模板及巡检项，不调用 `start_inspection`。查询失败或目录为空时如实说明，不编造目录内容。",
-  "failure_reason": "启动 DSH 评测实例 失败（退出码 1）"
-}

@@ -1,7 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-017-rb20b8c6b906f
-agent_id: security-operations-expert
-baseline_ref: git:b3f439cc65f0c8430d50d7599a0488d15fdb12c4
-status: completed
-outcome: adopt
-research_question: 先匿名读取公开 OpenAPI 规范并仅在 401/403 时使用已配置授权重试，能否恢复 tee 能力发现且保持业务接口鉴权

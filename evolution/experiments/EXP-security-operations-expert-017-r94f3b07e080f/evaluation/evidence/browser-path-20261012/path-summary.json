@@ -1,5 +1,0 @@
-{
-  "executor": "browser",
-  "exit_code": 2,
-  "error": "dsh-eval-browser failed: case-run: ReferenceError:uiPath is not defined\n"
-}

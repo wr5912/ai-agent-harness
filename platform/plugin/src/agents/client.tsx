@@ -5,6 +5,7 @@ import type { PlatformUpdates } from '../realtime/client.ts'
 import { instanceWebUrl } from '../instances/url.ts'
 import { AssetDiffPanel } from './asset-diff-client.tsx'
 import { CreateAgentDialog } from './create-agent-client.tsx'
+import { ComputeVariantsPanel } from './compute-variants.tsx'
 
 type RpcResult = { ok: true; value: any } | { ok: false; error: { code: string; message: string; details?: any } }
 type AgentRow = { id: string; name?: string; manifest?: Record<string, any>; active_experiment?: string | null; version_count?: number; latest_experiment_status?: string | null; instance_state?: string }
@@ -46,6 +47,7 @@ const tabs = [
   { id: 'overview', label: '概览' },
   { id: 'assets', label: 'Harness 资产' },
   { id: 'capabilities', label: '能力状态' },
+  { id: 'compute-variants', label: '算力变体' },
   { id: 'runtime', label: '运行情况' },
 ] as const
 
@@ -270,7 +272,7 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
 
   async function askVersionPlan() {
     if (!versionInventory || !onAssistant) return
-    await onAssistant(`为当前智能体创建新版本。改进目标：${versionGoal.trim()}`, { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id, fusion_request: versionInventory })
+    await onAssistant(`为当前智能体创建新版本。改进目标：${versionGoal.trim()}`, { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id, skill: 'agent-maintenance', workflow: 'research', fusion_request: versionInventory })
   }
 
   async function confirmVersion() {
@@ -438,10 +440,10 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
     onNavigate?.({ page: 'evaluation', agent_id: selected, experiment_id: detail?.experiment?.id, tab: nextTab, ...(runId ? { run_id: runId } : {}) })
   }
 
-  return <main className="harness-agents">
+  return <main className="harness-agents" aria-label="智能体管理">
     <div style={{ minWidth: 0, display: 'grid', gap: 16 }}>
       <header className="agent-page-heading">
-        <div><h1>智能体管理</h1><p>管理研究版本与 Harness 资产，查看能力证据和运行情况。</p></div>
+        <div><p>管理研究版本与 Harness 资产，查看能力证据和运行情况。</p></div>
         <div className="agent-actions"><button type="button" onClick={() => setCreateOpen(true)}>新建智能体</button><button type="button" onClick={() => { void refreshList(); void refreshDetail() }}>刷新</button></div>
       </header>
       {error && <p role="alert" className="agent-error">{error}</p>}
@@ -468,7 +470,7 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
               <div className="agent-actions"><button type="button" disabled={!onNavigate} onClick={() => openEvaluation()}>评测此版本</button><button type="button" onClick={() => { setVersionOpen(true); setVersionParent(detail.repo_commit ? `git:${detail.repo_commit}` : ''); resetVersionPreview() }}>新建研究版本</button><button type="button" className="agent-primary" disabled={launchBusy} onClick={() => void launchVersion()}>启动智能体</button></div>
             </div>
             <div className="agent-version-bar"><label>所选研究版本<select aria-label="版本" value={selectedExperiment || detail.experiment.id} onChange={event => selectVersion(selected, event.target.value)}>{detail.versions.map((version: any) => <option key={version.id} value={version.id}>{version.id}</option>)}</select></label><div><span>登记版本</span><strong>{selectedAgent?.active_experiment || '未登记'}</strong></div></div>
-            {detail.creation && <p role="status" className="agent-notice">{detail.creation.status === 'completed' ? '新版本创建成功' : '融合中：等待资产集成与约定验证'}{detail.creation.status !== 'completed' && <button type="button" disabled={!onAssistant} onClick={() => void onAssistant?.('继续完成当前版本的融合。', { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id, session_id: detail.creation.assistant_session_id })}>继续融合</button>}</p>}
+            {detail.creation && <p role="status" className="agent-notice">{detail.creation.status === 'completed' ? '新版本创建成功' : '融合中：等待资产集成与约定验证'}{detail.creation.status !== 'completed' && <button type="button" disabled={!onAssistant} onClick={() => void onAssistant?.('继续完成当前版本的融合。', { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id, skill: 'agent-maintenance', workflow: 'research', session_id: detail.creation.assistant_session_id })}>继续融合</button>}</p>}
           </section>}
           {versionOpen && detail && <section style={panel} aria-label="新建智能体版本">
             <h2>新建 {selected} 版本</h2>
@@ -510,7 +512,7 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
               onClick={() => selectTab(item.id)}>{item.label}</button>)}
           </div>}
           {detail && <section role="tabpanel" id="agent-panel-overview" aria-labelledby="agent-tab-overview" hidden={tab !== 'overview'} style={panel}>
-            <div className="agent-section-heading"><h2>智能体概览</h2><button type="button" disabled={!onAssistant} onClick={() => void onAssistant?.('整理当前版本的用途与特性。', { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id })}>请 AI 整理特性</button></div>
+            <div className="agent-section-heading"><h2>智能体概览</h2><button type="button" disabled={!onAssistant} onClick={() => void onAssistant?.('请使用 agent-maintenance Skill 整理固定目标版本的用途与特性，读取资产和已有证据后通过 features/preview 提交待确认清单。', { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id, skill: 'agent-maintenance', workflow: 'features' })}>请 AI 整理特性</button></div>
             <p>{detail.agent.manifest.description || detail.experiment.change.research_question || '用途尚未整理。'}</p>
             <div className="agent-stat-grid"><article><span>研究版本</span><strong>{detail.versions.length}</strong></article><article><span>所选版本 Run</span><strong>{versionRuns.length}</strong></article><article><span>所选版本实例</span><strong>{detail.loaded_instance.status === 'observed' ? instances.length : '—'}</strong><small>{detail.loaded_instance.status === 'observed' ? '最近一次实际观察' : '尚未取得实例观察'}</small></article></div>
             <h3>当前版本特性</h3>
@@ -531,6 +533,10 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
               ['Patch', detail.declared.catalog_source?.patch], ['Guard', detail.declared.catalog_source?.guard ?? '无'], ['Runtime 版本', detail.declared.source_contract.image?.cli_version],
               ['镜像', detail.declared.source_contract.image?.local_image_tag], ['环境变量名称', detail.declared.catalog_source?.required_env_names],
             ]} /></details>
+          </section>}
+          {detail && <section role="tabpanel" id="agent-panel-compute-variants" aria-labelledby="agent-tab-compute-variants" hidden={tab !== 'compute-variants'} style={panel}>
+            {tab === 'compute-variants' && <ComputeVariantsPanel key={detail.experiment.id} rpc={rpc} agentId={selected} experimentId={detail.experiment.id} versions={detail.versions} onAssistant={onAssistant}
+              onCreated={id => { void refreshList(); selectVersion(selected, id) }} onChanged={() => { void refreshDetail() }} />}
           </section>}
           {detail && <section role="tabpanel" id="agent-panel-runtime" aria-labelledby="agent-tab-runtime" hidden={tab !== 'runtime'} style={panel}>
             <div className="agent-section-heading"><h2>关联实例</h2><button type="button" disabled={!onNavigate} onClick={() => onNavigate?.({ page: 'instances', agent_id: selected, experiment_id: detail.experiment.id })}>实例管理</button></div>

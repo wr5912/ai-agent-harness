@@ -1,9 +1,0 @@
-{
-  "transport": "real-runtime-api-and-browser",
-  "instance": "secops-fusion-021",
-  "session_preset": "security-operations-expert",
-  "session_workspace": "/work/harness/workspace",
-  "mock_input_adaptation": false,
-  "formal_case_original_input_verdict": "passed",
-  "note": "真实观测使用基础Mock资产及安全输入；原Case输入未原样运行，不作为原Case通过或跨版比较。voice单独保留TTS失败。"
-}

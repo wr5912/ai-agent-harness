@@ -77,6 +77,7 @@ ADAPTER = Path(__file__).resolve().parents[4] / "runtime/adapters/dsh-container"
 if str(ADAPTER) not in sys.path:
     sys.path.insert(0, str(ADAPTER))
 from source_contract import EXPERIMENT as EXPERIMENT_RE
+from workspace_paths import PROGRAM_ROOT, source_catalog, workspace_id
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$")
 RELEASE_RE = re.compile(r"^([a-z0-9]+(?:-[a-z0-9]+)*)-v(.+)$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -382,7 +383,8 @@ def validate_agents(root: Path, errors: list[dict[str, str]]) -> None:
 
 
 def load_research_validator(root: Path):
-    path = root / ".agents/skills/research-eval/scripts/validate_experiment.py"
+    program = PROGRAM_ROOT if (root / "workspace.json").is_file() else root
+    path = program / ".agents/skills/research-eval/scripts/validate_experiment.py"
     spec = importlib.util.spec_from_file_location("research_eval_validator", path)
     if spec is None or spec.loader is None:
         raise RuntimeError("无法加载 research-eval 校验器")
@@ -527,7 +529,7 @@ def validate_retired_topology(root: Path, errors: list[dict[str, str]]) -> None:
 
 
 def validate_asset_nodes(root: Path, errors: list[dict[str, str]]) -> None:
-    for name in ("agents", "evolution", "plugins", "platform", "releases"):
+    for name in ("agents", "evolution", "extensions", "plugins", "platform", "releases"):
         base = root / name
         if not base.exists() or not base.is_dir():
             continue
@@ -557,10 +559,21 @@ def validate_asset_nodes(root: Path, errors: list[dict[str, str]]) -> None:
 def run(root: Path) -> tuple[dict[str, Any], int]:
     errors: list[dict[str, str]] = []
     warnings: list[dict[str, str]] = []
-    validate_required_files(root, errors)
-    validate_governance(root, errors)
-    validate_skills(root, errors)
-    validate_sources(root, errors)
+    split_workspace = (root / "workspace.json").exists()
+    program = PROGRAM_ROOT if split_workspace else root
+    validate_required_files(program, errors)
+    validate_governance(program, errors)
+    validate_skills(program, errors)
+    validate_sources(program, errors)
+    if split_workspace:
+        try:
+            workspace_id(root)
+            catalog = strict_json(source_catalog(root))
+            if not isinstance(catalog, dict) or catalog.get("schema_version") != "1.1" \
+                    or not isinstance(catalog.get("sources"), dict):
+                raise ValueError("config/sources.json 缺少有效的来源目录")
+        except (OSError, ValueError, TypeError) as exc:
+            errors.append(issue("WORKSPACE", str(exc), root / "workspace.json"))
     validate_retired_topology(root, errors)
     validate_asset_nodes(root, errors)
     validate_agents(root, errors)

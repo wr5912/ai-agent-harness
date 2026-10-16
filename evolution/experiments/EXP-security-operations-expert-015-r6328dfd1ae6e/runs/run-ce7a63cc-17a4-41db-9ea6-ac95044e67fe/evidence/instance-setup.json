@@ -1,8 +1,0 @@
-{
-  "schema_version": "1.0",
-  "instance_name": "security-operations-expert-inspection015",
-  "profile_inspection_enabled": true,
-  "profile_proxy_token_configured": true,
-  "runtime_config_scope": "local HOME volume only; no token value recorded",
-  "instance_reused": true
-}

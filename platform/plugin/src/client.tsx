@@ -222,7 +222,7 @@ export function apply(ctx: ClientContext) {
   ctx.effect(() => updates.start())
   const catalog = createCatalog(ctx.connection.rpc, updates)
   ctx.effect(() => () => catalog.dispose())
-  const assistant = createAssistant(ctx, ctx.connection.rpc, () => catalog.getSnapshot().inventory?.root)
+  const assistant = createAssistant(ctx, ctx.connection.rpc, () => catalog.getSnapshot().inventory?.root, () => catalog.getSnapshot().inventory?.workspace?.legacyRoots ?? [])
   ctx.effect(() => () => assistant.dispose())
   ctx.effect(() => updates.subscribe(() => { void assistant.refresh() }))
   ctx.on('connection/reset', () => { void catalog.refresh(); void assistant.reconnect() })

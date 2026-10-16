@@ -23,6 +23,7 @@ async function loadModule() {
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'harness-platform-instances-'))
+  process.env.HARNESS_PROGRAM_ROOT = root
   const state = join(root, 'state')
   const adapter = join(root, 'runtime/adapters/dsh-container')
   mkdirSync(adapter, { recursive: true })
@@ -45,9 +46,9 @@ function fixture() {
     image_tag: 'dsh:locked',
     port: 3182,
   }))
-  writeFileSync(join(adapter, 'dsh-dev'), `#!/usr/bin/env node
+  writeFileSync(join(adapter, 'dsh-dev-fixture.cjs'), `#!/usr/bin/env node
 const args = process.argv.slice(2)
-require('node:fs').appendFileSync(__filename + '.calls', JSON.stringify(args) + '\\n')
+require('node:fs').appendFileSync(require('node:path').join(__dirname, 'dsh-dev.calls'), JSON.stringify(args) + '\\n')
 const out = value => process.stdout.write(JSON.stringify(value, null, 2) + '\\n')
 if (args[0] === 'ps') {
   out({schema_version:'1.0', instances:[
@@ -81,6 +82,7 @@ if (args[0] === 'ps') {
   process.exit(2)
 }
 `)
+  writeFileSync(join(adapter, 'dsh-dev'), `#!/usr/bin/env python3\nimport os,sys\nos.execv(${JSON.stringify(process.execPath)}, [${JSON.stringify(process.execPath)}, ${JSON.stringify(join(adapter, 'dsh-dev-fixture.cjs'))}, *sys.argv[1:]])\n`)
   chmodSync(join(adapter, 'dsh-dev'), 0o755)
   return { root, state, cleanup: () => rmSync(root, { recursive: true, force: true }) }
 }
@@ -109,6 +111,28 @@ test('instances list keeps real observed state and detail run/session links', as
     fx.cleanup()
     cleanupModule()
   }
+})
+
+test('直接地址和操作预览在调用 CLI 前拒绝其它工作区的实例登记', async t => {
+  const { module, cleanup } = await loadModule()
+  const fx = fixture()
+  const previous = process.env.XDG_STATE_HOME
+  process.env.XDG_STATE_HOME = fx.state
+  t.after(() => {
+    if (previous === undefined) delete process.env.XDG_STATE_HOME
+    else process.env.XDG_STATE_HOME = previous
+    fx.cleanup()
+    cleanup()
+  })
+  writeFileSync(join(fx.root, 'workspace.json'), JSON.stringify({ schemaVersion: 1, id: 'workspace-selected' }))
+  writeFileSync(join(fx.state, 'dsh-dev/running-one/instance.json'), JSON.stringify({ name: 'running-one', workspace_id: 'workspace-other', asset_root: fx.root, port: 3181 }))
+  const handler = module.createInstancesHandler(fx.root)
+  for (const [endpoint, payload] of [['url', { name: 'running-one' }], ['preview', { operation: 'stop', name: 'running-one' }]]) {
+    const result = await handler(endpoint, payload, new AbortController().signal)
+    assert.equal(result.ok, false)
+    assert.match(result.error.message, /不属于当前工作区/)
+  }
+  assert.throws(() => readFileSync(join(fx.root, 'runtime/adapters/dsh-container/dsh-dev.calls')), /ENOENT/)
 })
 
 test('确认实例操作沿用预览来源，来源被替换时在任何CLI调用前拒绝', async t => {

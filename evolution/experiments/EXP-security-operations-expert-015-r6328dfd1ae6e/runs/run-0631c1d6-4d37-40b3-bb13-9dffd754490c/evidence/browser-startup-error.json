@@ -1,1 +1,0 @@
-{"stage":"workspace-connect","failure_detail":"TimeoutError:locator.click: Timeout 120000ms exceeded.\nCall log:\n  - waiting for getByRole('textbox', { name: /^(Choose workspace|选择工作区)$/ })\n"}

@@ -27,5 +27,4 @@
   disabled: false
   config:
     includeDefaultRoots: false
-    customSkillDirs:
-      - {{HARNESS_PLATFORM_SKILLS}}
+    customSkillDirs: {{HARNESS_PLATFORM_SKILL_DIRS}}

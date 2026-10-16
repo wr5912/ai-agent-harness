@@ -1,8 +1,0 @@
-schema_version: "1.0"
-experiment_id: EXP-security-operations-expert-020
-agent_id: security-operations-expert
-baseline_ref: git:8416a373f89ffeec4b611f5a1419513b41cee5bb
-parent_experiment_id: EXP-security-operations-expert-019-rc442472a242a
-status: completed
-outcome: continue
-research_question: 摘要专用关闭思考、有界生成与端到端 PCM 流播放能否缩短摘要播报等待并保持语义、顺序和取消行为

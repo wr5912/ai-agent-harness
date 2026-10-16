@@ -39,7 +39,7 @@ function fixture(call, selection, rows = {}, config = {}) {
       finally { reference.release() }
     } },
     uiWorkspace: { openSession: id => opened.push(id) },
-  }, { call }, () => '/repo')
+  }, { call }, () => '/repo', () => config.legacyRoots ?? [])
   return { assistant, retained, opened, references, nativeCreates, setSelection(id) { selection = id; selectionListeners.forEach(listener => listener()) } }
 }
 
@@ -268,4 +268,25 @@ test('组合确认卡片显示实际冻结版本与工具身份', async () => {
   assert.ok(text.includes(versionId))
   assert.ok(text.includes('composition-fixed') && text.includes('basic_status'))
   assert.match(text, /确认并执行/)
+})
+
+
+test('迁移前原生会话按服务端提供的旧根恢复平台上下文', async () => {
+  const calls = []
+  const f = fixture(async (_channel, endpoint, body) => { calls.push({ endpoint, body }); return { ok: true, value: { proposals: [] } } }, 'legacy', { legacy: { cwd: '/old-repo' } }, { legacyRoots: ['/old-repo'] })
+  f.assistant.restore()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  assert.equal(f.assistant.getSnapshot().platformContext, true)
+  assert.ok(calls.some(call => call.endpoint === 'assistant/status'))
+  f.assistant.dispose()
+})
+
+
+test('续接迁移旧会话时保留原 cwd，拒绝把外部会话收编为管理任务', async () => {
+  const f = fixture(async (_channel, endpoint, body) => ({ ok: true, value: endpoint === 'assistant/session' ? { session_id: body.session_id } : { proposals: [] } }), undefined, { legacy: { cwd: '/old-repo' }, foreign: { cwd: '/another-project' } }, { legacyRoots: ['/old-repo'] })
+  await f.assistant.create('继续任务', { session_id: 'legacy' })
+  assert.deepEqual(f.nativeCreates[0], { sessionId: 'legacy', cwd: '/old-repo' })
+  await assert.rejects(() => f.assistant.create('继续任务', { session_id: 'foreign' }), /不属于当前工作区/)
+  assert.equal(f.nativeCreates.length, 1)
+  f.assistant.dispose()
 })

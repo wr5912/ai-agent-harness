@@ -4,9 +4,13 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { defaultAssetRoot } from '../../../platform/plugin/src/workspace.ts';
 
 const adapter = dirname(new URL(import.meta.url).pathname);
-const repo = resolve(adapter, '../../..');
+const programRoot = resolve(process.env.HARNESS_PROGRAM_ROOT || resolve(adapter, '../../..'));
+const repo = defaultAssetRoot();
+process.env.HARNESS_PROGRAM_ROOT = programRoot;
+process.env.HARNESS_ASSET_ROOT = repo;
 const args = process.argv.slice(2);
 const command = args.shift();
 const option = (name: string) => {

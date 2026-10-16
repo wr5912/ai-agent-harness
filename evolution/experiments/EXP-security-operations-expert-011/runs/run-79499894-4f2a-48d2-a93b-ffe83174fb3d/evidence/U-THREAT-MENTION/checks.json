@@ -1,8 +1,0 @@
-{
-  "schema_version": "1.0",
-  "case_id": "U-THREAT-MENTION",
-  "transport": "browser",
-  "completed": false,
-  "failure_reason": "browser-case-error",
-  "failure_detail": "Error:apiRequestContext.post: connect ECONNREFUSED 127.0.0.1:3189\nCall log:\n  - → POST <redacted-url>\n    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36\n    - accept: */*\n    - accept-encoding: gzip,deflate,br\n    - content"
-}

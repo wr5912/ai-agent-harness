@@ -1,12 +1,12 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { credentialKey, type CredentialRecord } from '@deepseek-ai/dsh-credentials'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import { loginPage } from './login.tsx'
+import { workspaceLocalPath } from './workspace.ts'
 
 declare module '@deepseek-ai/dsh-host-webserver' {
   interface WebServer {
@@ -36,12 +36,12 @@ function stored(record: CredentialRecord | undefined, account: string): Sessions
 
 function accountAt(assetRoot: string): { username: string; password: string } {
   try {
-    const account = JSON.parse(readFileSync(join(assetRoot, 'platform/credentials/admin.json'), 'utf8'))
+    const account = JSON.parse(readFileSync(workspaceLocalPath(assetRoot, 'credentials', 'admin.json'), 'utf8'))
     if (typeof account.username !== 'string' || !account.username.trim() || account.username.length > 256
       || typeof account.password !== 'string' || !account.password || account.password.length > 1024) throw new Error()
     return account
   } catch {
-    throw new Error('无法读取平台账号配置，请检查 platform/credentials/admin.json。')
+    throw new Error('无法读取平台账号配置，请检查数据工作区 .local/credentials/admin.json。')
   }
 }
 

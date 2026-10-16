@@ -1,4 +1,0 @@
-
-> @aisoc/dsh-voice-hub@0.0.3 typecheck
-> node node_modules/typescript/bin/tsc -p tsconfig.json --noEmit && node node_modules/typescript/bin/tsc -p tsconfig.client.json --noEmit
-

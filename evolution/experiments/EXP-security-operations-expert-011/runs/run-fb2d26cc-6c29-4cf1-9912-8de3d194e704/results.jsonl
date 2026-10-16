@@ -1,2 +1,0 @@
-{"run_id":"run-fb2d26cc-6c29-4cf1-9912-8de3d194e704","trial_id":"trial-6786f07c-4919-4935-812c-629041fbe543","input_id":"U-FLT-MENTION","execution_status":"error","verdict":"inconclusive","observation":"评测身份或证据失配，已停止。","evidence_ref":"evidence/U-FLT-MENTION","failure_reason":"evidence-cross-turn"}
-{"run_id":"run-fb2d26cc-6c29-4cf1-9912-8de3d194e704","trial_id":"trial-cd948a1d-e3ea-4a3a-bdae-a81e396769cc","input_id":"U-THREAT-MENTION","execution_status":"skipped","verdict":"inconclusive","observation":"评测已停止，该用例未执行。","evidence_ref":"evidence/U-THREAT-MENTION"}

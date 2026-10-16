@@ -307,8 +307,8 @@ export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: P
   const unknownCount = instances.length - containerCount - absentCount
 
   return (
-    <main style={styles.page}>
-      <header className="harness-page-heading"><div><h1>智能体 DSH 容器实例</h1><p>管理智能体的 DSH 容器启停；删除容器及管理登记，保留 HOME 卷与研究记录。</p></div><span>{containerCount} 个容器实例 · {absentCount} 个无容器登记{unknownCount > 0 && ` · ${unknownCount} 个状态未知`}</span></header>
+    <main style={styles.page} aria-label="实例管理">
+      <header className="harness-page-heading"><div><p>管理智能体的 DSH 容器启停；删除容器及管理登记，保留 HOME 卷与研究记录。</p></div><span>{containerCount} 个容器实例 · {absentCount} 个无容器登记{unknownCount > 0 && ` · ${unknownCount} 个状态未知`}</span></header>
       <section style={styles.toolbar}>
         {sourceFilter && <p>关联来源：{sourceFilter} <button type="button" onClick={() => { setSourceFilter(''); onNavigate?.({ page: 'instances' }) }}>查看全部实例</button></p>}
         <div style={styles.form}>

@@ -30,7 +30,17 @@ TOKEN = "dsh web: http://127.0.0.1:3081/?token=secret-token-value\n"
 IMAGE_TAG = dev.resolve()["image"]["local_image_tag"]
 
 
+def isolate_registration_guard(test):
+    """非归属用例隔离新增前置检查；专项测试保留真实检查并仅模拟 Docker 查询。"""
+    patch = mock.patch.object(dev, "require_docker_registration")
+    patch.start()
+    test.addCleanup(patch.stop)
+
+
 class McpPromoteTest(unittest.TestCase):
+    def setUp(self):
+        isolate_registration_guard(self)
+
     def test_promote_writes_only_candidate_seed_from_matching_running_instance(self):
         with tempfile.TemporaryDirectory() as directory:
             managed = Path(directory)
@@ -684,7 +694,7 @@ class ImageIdentityAndPsStateTest(unittest.TestCase):
             for name in ("one", "two"):
                 target = root / name
                 target.mkdir()
-                (target / "instance.json").write_text(json.dumps({"name": name}), encoding="utf-8")
+                (target / "instance.json").write_text(json.dumps({"name": name, "asset_root": str(dev.REPO)}), encoding="utf-8")
             with mock.patch.object(dev, "STATE_ROOT", root), mock.patch.object(dev, "run",
                     return_value=subprocess.CompletedProcess([], 0, stdout='{"projects":null,"homes":null}', stderr="")) as query:
                 output = io.StringIO()
@@ -702,7 +712,7 @@ class ImageIdentityAndPsStateTest(unittest.TestCase):
             for name in states:
                 target = root / name
                 target.mkdir()
-                (target / "instance.json").write_text("{}\n", encoding="utf-8")
+                (target / "instance.json").write_text(json.dumps({"asset_root": str(dev.REPO)}), encoding="utf-8")
 
             def fake_entry(target, _manifest, _observation):
                 return {"name": target.name, "state": states[target.name]}
@@ -799,6 +809,7 @@ class DownCommandTest(unittest.TestCase):
     """`down` 必须报告真实状态：命令失败、仍有容器运行或无法确认都不能输出 stopped: true。"""
 
     def setUp(self):
+        isolate_registration_guard(self)
         self._temp = tempfile.TemporaryDirectory()
         dev.STATE_ROOT = Path(self._temp.name)
         dev.write_instance("soe-verify", mode="verification", contract={
@@ -812,6 +823,12 @@ class DownCommandTest(unittest.TestCase):
             "required_env_names": [],
             "image": {"local_image_tag": IMAGE_TAG},
         }, port=3081)
+        # 本组验证历史 named volume 生命周期；新 bind HOME 由独立用例覆盖。
+        path = dev.STATE_ROOT / "soe-verify" / "instance.json"
+        manifest = json.loads(path.read_text())
+        manifest.pop("home_directory", None)
+        path.write_text(json.dumps(manifest))
+        (path.parent / "dsh-home").rmdir()
 
     def tearDown(self):
         self._temp.cleanup()
@@ -892,6 +909,7 @@ class DeleteCommandTest(unittest.TestCase):
     """`delete` 只能删除已停止实例登记，不能把失败或未知状态当作可清理。"""
 
     def setUp(self):
+        isolate_registration_guard(self)
         self._temp = tempfile.TemporaryDirectory()
         dev.STATE_ROOT = Path(self._temp.name)
         dev.write_instance("delete-probe", mode="verification", contract={
@@ -905,6 +923,12 @@ class DeleteCommandTest(unittest.TestCase):
             "required_env_names": [],
             "image": {"local_image_tag": IMAGE_TAG},
         }, port=3081)
+        # 本组验证历史 named volume 生命周期；新 bind HOME 由独立用例覆盖。
+        path = dev.STATE_ROOT / "delete-probe" / "instance.json"
+        manifest = json.loads(path.read_text())
+        manifest.pop("home_directory", None)
+        path.write_text(json.dumps(manifest))
+        (path.parent / "dsh-home").rmdir()
 
     def tearDown(self):
         self._temp.cleanup()
@@ -1006,6 +1030,9 @@ class DeleteCommandTest(unittest.TestCase):
 class RuntimeEnvironmentRetentionTest(unittest.TestCase):
     """同来源重建保留运行配置；仅隔离 Docker 边界，不启动或检查真实容器。"""
 
+    def setUp(self):
+        isolate_registration_guard(self)
+
     @staticmethod
     def args(**values):
         return types.SimpleNamespace(**dict({
@@ -1021,7 +1048,7 @@ class RuntimeEnvironmentRetentionTest(unittest.TestCase):
 
     @staticmethod
     def current(contract, path=Path("/unused")):
-        return path, {"source_id": contract["source_id"], "mode": "verification", "mounts": {}}
+        return path, {"source_id": contract["source_id"], "mode": "verification", "mounts": {}, "asset_root": str(dev.REPO)}
 
     @staticmethod
     def inspected_environment():
@@ -1116,7 +1143,7 @@ class RuntimeEnvironmentRetentionTest(unittest.TestCase):
             self.assertTrue(all(value["DEEPSEEK_API_KEY"] == "explicit-model-fixture" and
                                 value["THREAT_ANALYSIS_MCP_TOKEN"] == "previous-group-fixture"
                                 for value in passed_environments))
-            persisted = "\n".join(path.read_text() for path in (Path(directory) / "environment-probe").iterdir())
+            persisted = "\n".join(path.read_text() for path in (Path(directory) / "environment-probe").iterdir() if path.is_file())
             self.assertIn("THREAT_ANALYSIS_MCP_TOKEN", persisted)
             for marker in ["previous-model-fixture", "explicit-model-fixture", "previous-group-fixture", "unrelated-fixture"]:
                 self.assertNotIn(marker, persisted + stdout.getvalue() + stderr.getvalue())
@@ -1142,6 +1169,7 @@ class UpCommandStateTest(unittest.TestCase):
     """`up` 必须核对服务真的在运行，而不是只看 `docker compose up -d` 的退出码。"""
 
     def setUp(self):
+        isolate_registration_guard(self)
         self._temp = tempfile.TemporaryDirectory()
         dev.STATE_ROOT = Path(self._temp.name)
         self._image_identity = mock.patch.object(dev, "validate_image_identity", return_value={
@@ -1248,8 +1276,11 @@ class LegacyInstanceStateTest(unittest.TestCase):
     }
 
     def setUp(self):
+        isolate_registration_guard(self)
         self._temp = tempfile.TemporaryDirectory()
         dev.STATE_ROOT = Path(self._temp.name)
+        self._repo = mock.patch.object(dev, "REPO", Path(self._temp.name))
+        self._repo.start()
         target = dev.STATE_ROOT / "legacy"
         target.mkdir(parents=True)
         (target / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
@@ -1257,6 +1288,7 @@ class LegacyInstanceStateTest(unittest.TestCase):
             json.dumps(self.LEGACY_1_0, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     def tearDown(self):
+        self._repo.stop()
         self._temp.cleanup()
 
     def test_legacy_state_builds_compose_env_without_guessing(self):
@@ -1284,7 +1316,8 @@ class LegacyInstanceStateTest(unittest.TestCase):
 
     def test_ps_marks_legacy_state_for_migration_and_keeps_listing(self):
         listed = subprocess.CompletedProcess([], 0, stdout=json.dumps({
-            "projects": {"dsh-dev-legacy": [{"Name": "dsh-dev-legacy-dsh-1", "Service": "dsh", "State": "exited", "Status": "Exited (0)"}]}, "homes": {},
+            "projects": {"dsh-dev-legacy": [{"Name": "dsh-dev-legacy-dsh-1", "Service": "dsh", "State": "exited", "Status": "Exited (0)",
+                "ConfigFiles": str(dev.STATE_ROOT / "legacy/compose.yaml"), "WorkingDir": str(dev.STATE_ROOT / "legacy")}]}, "homes": {},
         }), stderr="")
         stdout = io.StringIO()
         with mock.patch.object(dev, "run", return_value=listed), \
@@ -1317,6 +1350,7 @@ class UpPortOwnershipTest(unittest.TestCase):
     """端口归属决定出路：本实例自身占用可重载，其他占用者只能换端口。"""
 
     def setUp(self):
+        isolate_registration_guard(self)
         self._temp = tempfile.TemporaryDirectory()
         dev.STATE_ROOT = Path(self._temp.name)
         self._image_identity = mock.patch.object(dev, "validate_image_identity", return_value={
@@ -1356,7 +1390,7 @@ class UpPortOwnershipTest(unittest.TestCase):
         dev.STATE_ROOT.mkdir(parents=True, exist_ok=True)
         target = dev.STATE_ROOT / name
         target.mkdir(exist_ok=True)
-        manifest = dict(self.contract(), schema_version="1.2", name=name,
+        manifest = dict(self.contract(), schema_version="1.2", name=name, asset_root=str(dev.REPO),
                         project=dev.project_name(name), mode="verification", purpose="eval",
                         target_preset="security-operations-expert", port=3302,
                         image_tag=IMAGE_TAG,
@@ -1618,6 +1652,9 @@ class ImageBuildCommandTest(unittest.TestCase):
 class UrlCommandGuardTest(unittest.TestCase):
     """`url` 只在交互终端或显式 --non-interactive 下输出 Token URL。"""
 
+    def setUp(self):
+        isolate_registration_guard(self)
+
     def call(self, args, manifest=None):
         stdout = io.StringIO()
         with mock.patch.object(
@@ -1831,6 +1868,227 @@ class PasswordLoginProbeTest(unittest.TestCase):
             server.shutdown()
             server.server_close()
         self.assertTrue(probe["ok"], probe["reason"])
+
+
+class BindHomeMigrationTests(unittest.TestCase):
+    def setUp(self):
+        isolate_registration_guard(self)
+
+    def test_old_home_is_not_implicitly_replaced_by_empty_directory(self):
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(dev, "STATE_ROOT", Path(temporary)):
+            current = (Path(temporary) / "probe", {"name": "probe"})
+            self.assertIsNone(dev.selected_home_directory("probe", current))
+            with self.assertRaises(SystemExit):
+                dev.selected_home_directory("probe", current, migrate_home=True)
+            directory = current[0] / "dsh-home"
+            directory.mkdir(parents=True)
+            with self.assertRaises(SystemExit):
+                dev.selected_home_directory("probe", current, migrate_home=True)
+            (directory / "session-fixture.json").write_text('{}')
+            self.assertEqual(dev.selected_home_directory("probe", current, migrate_home=True), str(directory))
+
+    def test_new_instance_bind_home_survives_delete_and_can_be_registered_again(self):
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(dev, "STATE_ROOT", Path(temporary)):
+            contract = {
+                "source_id": "experiment:EXP-example-agent-001-r0123456789ab", "source_kind": "experiment",
+                "agent_id": "example-agent", "workspace": "/tmp/workspace", "presets": "/tmp/presets",
+                "managed": "/tmp/managed", "preset_id": "example-agent", "patch": "/opt/dsh-managed/example.patch.yml",
+                "evaluation_patch": "/opt/dsh-adapter/evaluation-registry.patch.yml", "required_env_names": [],
+                "image": {"local_image_tag": IMAGE_TAG},
+            }
+            target = dev.write_instance("probe", mode="verification", contract=contract, port=3081)
+            manifest = json.loads((target / "instance.json").read_text())
+            directory = Path(manifest["home_directory"])
+            session = directory / "session-fixture.json"
+            session.write_text('{"fixture":true}')
+            compose = (target / "compose.yaml").read_text()
+            self.assertEqual(compose.count("source: ${DSH_HOME_HOST:"), 2)
+            self.assertIn("HARNESS_SITES_CONFIG=/opt/harness-config/sites.json", compose)
+            self.assertNotIn("  dsh-dev-probe-home:", compose)
+            with mock.patch.object(dev, "project_containers", return_value=[]):
+                report = dev.delete_instance("probe", manifest)
+            self.assertTrue(report["home_preserved"])
+            self.assertFalse((target / "instance.json").exists())
+            self.assertEqual(session.read_text(), '{"fixture":true}')
+            self.assertIsNone(dev.existing_instance("probe"))
+            dev.write_instance("probe", mode="verification", contract=contract, port=3081)
+            self.assertEqual(session.read_text(), '{"fixture":true}')
+
+class WorkspaceInstanceOwnershipTest(unittest.TestCase):
+    """共享状态目录不能使一个工作区接管另一个工作区的同名实例。"""
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="instance ownership ")
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.state = self.root / "shared state"
+        self.state.mkdir()
+        (self.root / "workspace.json").write_text(json.dumps({"schemaVersion": 1, "id": "workspace-selected"}))
+        for key, value in (("REPO", self.root), ("STATE_ROOT", self.state)):
+            patch = mock.patch.object(dev, key, value)
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def register(self, name, owner):
+        manifest = {"name": name, "workspace_id": owner, "asset_root": str(self.root),
+                    "source_id": "experiment:EXP-fixture-001", "mode": "verification", "mounts": {}}
+        target = self.state / name
+        target.mkdir()
+        (target / "instance.json").write_text(json.dumps(manifest))
+        return target, manifest
+
+    def test_foreign_record_is_rejected_before_any_external_action(self):
+        current = self.register("shared-name", "workspace-foreign")
+        calls = [lambda: dev.load_instance("shared-name"), lambda: dev.existing_instance("shared-name"),
+                 lambda: dev.validate_existing_identity("shared-name", current[1], current[1], "verification", None),
+                 lambda: dev.command_down(types.SimpleNamespace(name="shared-name")),
+                 lambda: dev.command_delete(types.SimpleNamespace(name="shared-name")),
+                 lambda: dev.stop_instance("shared-name", current[1]),
+                 lambda: dev.delete_instance("shared-name", current[1])]
+        with mock.patch.object(dev, "run") as runner, contextlib.redirect_stderr(io.StringIO()):
+            for invoke in calls:
+                with self.subTest(invoke=invoke), self.assertRaises(SystemExit):
+                    invoke()
+            runner.assert_not_called()
+        self.assertTrue((current[0] / "instance.json").is_file())
+
+    def test_list_excludes_foreign_registration_and_keeps_owned(self):
+        self.register("owned", "workspace-selected")
+        self.register("foreign", "workspace-foreign")
+        output = io.StringIO()
+        with mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, '{"projects":{},"homes":{}}', "")), \
+                contextlib.redirect_stdout(output):
+            dev.command_ps(types.SimpleNamespace(all=True))
+        self.assertEqual([value["name"] for value in json.loads(output.getvalue())["instances"]], ["owned"])
+
+    def test_new_local_registration_cannot_reuse_global_docker_identity(self):
+        occupied = "abc\trunning\tUp\tshared-name\tdsh\n"
+        for project_output, name_output in ((occupied, ""), ("", "abc\n")):
+            with self.subTest(project=bool(project_output)), \
+                    mock.patch.object(dev, "run", side_effect=[subprocess.CompletedProcess([], 0, project_output, ""),
+                                                               subprocess.CompletedProcess([], 0, name_output, "")]) as runner, \
+                    mock.patch.object(dev, "write_instance") as write, contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit):
+                    dev._command_up(types.SimpleNamespace(name="shared-name"), {}, None)
+                write.assert_not_called()
+                self.assertTrue(all(call.args[0][:3] == ["docker", "ps", "-a"] for call in runner.call_args_list))
+                self.assertFalse((self.state / "shared-name").exists())
+
+
+class DockerRegistrationIdentityTest(unittest.TestCase):
+    """A 停止后 B 复用全局名称时，A 的合法旧登记不能认领 B 的真实容器。"""
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="docker registration ")
+        self.addCleanup(self.temporary.cleanup)
+        self.base = Path(self.temporary.name)
+        self.root, self.other = self.base / "workspace-a", self.base / "workspace-b"
+        self.root.mkdir()
+        self.state = self.root / ".local/instances"
+        self.name = "shared-name"
+        self.target = self.state / self.name
+        self.target.mkdir(parents=True)
+        self.managed = self.root / "candidate/dsh/managed"
+        self.managed.mkdir(parents=True)
+        (self.managed / "web-profile.seed.patch.yml").write_text("[]\n")
+        (self.root / "workspace.json").write_text(json.dumps({"schemaVersion": 1, "id": "workspace-a", "legacyRoots": []}))
+        (self.target / "compose.yaml").write_text("services: {}\n")
+        self.manifest = {"name": self.name, "workspace_id": "workspace-a", "asset_root": str(self.root),
+                         "source_id": "experiment:EXP-fixture-001", "mode": "verification", "mounts": {"managed": str(self.managed)}}
+        (self.target / "instance.json").write_text(json.dumps(self.manifest))
+        for key, value in (("REPO", self.root), ("STATE_ROOT", self.state)):
+            patch = mock.patch.object(dev, key, value)
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    @staticmethod
+    def labels(target):
+        return {"ConfigFiles": str(target / "compose.yaml"), "WorkingDir": str(target)}
+
+    def test_stale_owned_registration_rejects_foreign_container_before_reads_or_mutations(self):
+        # A 的登记仍合法，但 Docker 中的同名项目已经来自 B 的独立状态目录。
+        metadata = self.labels(self.other / ".local/instances" / self.name)
+        args = types.SimpleNamespace(name=self.name, dry_run=False, mode="verification", analysis_workspace=None,
+                                     tail=20, non_interactive=True)
+        contract = dict(self.manifest, required_env_names=["DEEPSEEK_API_KEY"], optional_env_names=[])
+        current = (self.target, self.manifest)
+        calls = [lambda: dev.stop_instance(self.name, self.manifest),
+                 lambda: dev.delete_instance(self.name, self.manifest),
+                 lambda: dev.command_down(args), lambda: dev.command_delete(args),
+                 lambda: dev.command_logs(args), lambda: dev.command_url(args),
+                 lambda: dev.command_mcp_promote(args),
+                 lambda: dev.existing_runtime_environment(args, contract, current),
+                 lambda: dev._command_up(args, contract, current)]
+        for invoke in calls:
+            with self.subTest(invoke=invoke), mock.patch.dict(os.environ, {}, clear=True), \
+                    mock.patch.object(dev, "resolve", return_value={"managed": str(self.managed)}), \
+                    mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, json.dumps(metadata), "")) as runner, \
+                    contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                invoke()
+            self.assertEqual(runner.call_count, 1)
+            command = runner.call_args.args[0]
+            self.assertEqual(command[:3], ["docker", "ps", "-a"])
+            self.assertIn("com.docker.compose.project.config_files", command[-1])
+            self.assertEqual(json.loads((self.target / "instance.json").read_text()), self.manifest)
+
+    def test_matching_registration_can_stop_with_only_mocked_docker_boundary(self):
+        home = self.target / "dsh-home"
+        home.mkdir()
+        manifest = dict(self.manifest, home_directory=str(home))
+        responses = [subprocess.CompletedProcess([], 0, json.dumps(self.labels(self.target)), ""),
+                     subprocess.CompletedProcess([], 0, "", ""), subprocess.CompletedProcess([], 0, "", "")]
+        with mock.patch.object(dev, "run", side_effect=responses) as runner:
+            report = dev.stop_instance(self.name, manifest)
+        self.assertTrue(report["stopped"])
+        self.assertTrue(report["home_preserved"])
+        self.assertIn("down", runner.call_args_list[1].args[0])
+        self.assertEqual(runner.call_count, 3)
+
+    def test_empty_project_is_allowed_but_unknown_or_partial_identity_is_rejected(self):
+        valid = self.labels(self.target)
+        replies = [subprocess.CompletedProcess([], 1, "", "fixture-sensitive-detail"),
+                   subprocess.CompletedProcess([], 0, "not-json", ""),
+                   subprocess.CompletedProcess([], 0, "{}", ""),
+                   subprocess.CompletedProcess([], 0, json.dumps(dict(valid, WorkingDir=str(self.other))), ""),
+                   subprocess.CompletedProcess([], 0, json.dumps(valid) + "\n{}", "")]
+        for response in replies:
+            errors = io.StringIO()
+            with self.subTest(response=response.stdout), mock.patch.object(dev, "run", return_value=response), \
+                    contextlib.redirect_stderr(errors), self.assertRaises(SystemExit):
+                dev.require_docker_registration(self.name, self.manifest)
+            self.assertNotIn("fixture-sensitive-detail", errors.getvalue())
+        with mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, "", "")):
+            self.assertIsNone(dev.require_docker_registration(self.name, self.manifest))
+
+    def test_explicit_legacy_root_maps_same_registration_path_only(self):
+        legacy = self.base / "old workspace"
+        (self.root / "workspace.json").write_text(json.dumps({"schemaVersion": 1, "id": "workspace-a", "legacyRoots": [str(legacy)]}))
+        old_target = legacy / ".local/instances" / self.name
+        self.assertTrue(dev.docker_registration_matches(self.name, [self.labels(old_target)]))
+        self.assertFalse(dev.docker_registration_matches(self.name, [self.labels(legacy / ".local/instances/another-name")]))
+        self.assertFalse(dev.docker_registration_matches(self.name, [self.labels(self.base / "old workspace-copy/.local/instances" / self.name)]))
+        (self.root / "workspace.json").write_text(json.dumps({"schemaVersion": 1, "id": "workspace-a", "legacyRoots": []}))
+        self.assertFalse(dev.docker_registration_matches(self.name, [self.labels(old_target)]))
+
+    def test_shared_external_state_matches_its_actual_compose_location(self):
+        shared = self.base / "shared state"
+        with mock.patch.object(dev, "STATE_ROOT", shared):
+            self.assertTrue(dev.docker_registration_matches(self.name, [self.labels(shared / self.name)]))
+            self.assertFalse(dev.docker_registration_matches(self.name, [self.labels(self.target)]))
+
+    def test_batch_list_does_not_report_other_registration_container_as_running(self):
+        foreign = dict(self.labels(self.other / ".local/instances" / self.name),
+                       Name=self.name, Service="dsh", State="running", Status="Up")
+        observation = {"projects": {dev.project_name(self.name): [foreign]}, "homes": {}}
+        output = io.StringIO()
+        with mock.patch.object(dev, "run", return_value=subprocess.CompletedProcess([], 0, json.dumps(observation), "")) as runner, \
+                contextlib.redirect_stdout(output):
+            dev.command_ps(types.SimpleNamespace(all=True))
+        entry = json.loads(output.getvalue())["instances"][0]
+        self.assertEqual(entry["state"], "unknown")
+        self.assertEqual(entry["ps_query"], "unknown")
+        self.assertIn("归属", entry["ps"])
+        self.assertEqual(runner.call_count, 1)
 
 
 if __name__ == "__main__":

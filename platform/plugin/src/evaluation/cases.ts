@@ -1,3 +1,4 @@
+import { programRoot } from '../workspace.ts'
 import { createHash } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import { lstat, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
@@ -66,7 +67,7 @@ export async function parseEvaluationDocument(root: string, content: string, sig
   try {
     await writeFile(file, content)
     const code = 'import json,sys\nfrom pathlib import Path\nsys.path.insert(0,sys.argv[1])\nfrom evaluation_contract import load_evaluation\nprint(json.dumps(load_evaluation(Path(sys.argv[2])),ensure_ascii=False))'
-    const { stdout } = await execute('python3', ['-c', code, join(root, CONTRACT, '..'), file], { cwd: root, signal, timeout: 15000, maxBuffer: 10 * 1024 * 1024 })
+    const { stdout } = await execute(process.env.HARNESS_PYTHON || 'python3', ['-c', code, join(programRoot(), CONTRACT, '..'), file], { cwd: root, signal, timeout: 15000, maxBuffer: 10 * 1024 * 1024 })
     return JSON.parse(stdout)
   } catch (error) {
     cancelled(signal)

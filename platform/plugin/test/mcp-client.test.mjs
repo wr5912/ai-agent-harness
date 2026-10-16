@@ -37,7 +37,7 @@ function editor() {
   vm.runInNewContext(source, {
     window: { __ModuleLoader__: { load: value => { registration = value } } },
     structuredClone, URL, location: { origin: 'http://127.0.0.1:3090' },
-    document: { baseURI: 'http://127.0.0.1:3090/hap/' },
+    document: { baseURI: 'http://127.0.0.1:3090/hep/' },
   })
   const { Manager } = registration.factory(name => name === '@deepseek-ai/dsh-client-ui-primitives' ? {} : name === 'react' ? react
     : name === 'react-dom' ? { ...require(name), createPortal: element => element } : require(name))
@@ -161,5 +161,5 @@ test('无修改时同步外部配置，未保存草稿保留输入和原版本�
 test('MCP 分组入口使用当前站点基址', () => {
   const ui = editor()
   ui.setView('groups')
-  assert.match(ui.text(ui.render()), /http:\/\/127\.0\.0\.1:3090\/hap\/mcp\/groups\/research/)
+  assert.match(ui.text(ui.render()), /http:\/\/127\.0\.0\.1:3090\/hep\/mcp\/groups\/research/)
 })

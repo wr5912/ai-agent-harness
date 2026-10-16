@@ -8,9 +8,12 @@ import os
 from pathlib import Path
 import re
 import shutil
+import secrets
 import socket
 import subprocess
 import sys
+import tempfile
+from urllib.parse import quote, unquote, urlparse
 
 REPO = Path(__file__).resolve().parent.parent
 PLUGIN = REPO / "platform" / "plugin"
@@ -21,22 +24,43 @@ WEB = REPO / "runtime" / "adapters" / "dsh-web"
 
 
 def base_path():
-    return json.loads((WEB / "sites.json").read_text(encoding="utf-8"))["platform"]
+    value = json.loads((asset_root() / "config" / "sites.json").read_text(encoding="utf-8"))["platform"]
+    if not re.fullmatch(r"/[a-z][a-z0-9-]*/", value):
+        raise PlatformError("工作区 config/sites.json 的 platform 基址无效。")
+    return value
 
 
 class PlatformError(Exception):
     pass
 
 
+def asset_root():
+    sys.path.insert(0, str(REPO / "runtime/adapters/dsh-container"))
+    from workspace_paths import asset_root as selected_asset_root
+    try:
+        return selected_asset_root()
+    except (OSError, ValueError):
+        raise PlatformError("无法读取部署定位文件 ~/.config/harness-engineering-platform/workspace.json。") from None
+
+
 def platform_home():
-    state = os.environ.get("XDG_STATE_HOME")
-    base = Path(state).expanduser() if state else Path.home() / ".local" / "state"
-    return (base / "ai-agent-harness" / "platform" / "dsh-home").resolve()
+    return (asset_root() / ".local" / "platform-home").resolve()
+
+
+def check_workspace():
+    descriptor = asset_root() / "workspace.json"
+    try:
+        value = json.loads(descriptor.read_text(encoding="utf-8"))
+        if value.get("schemaVersion") != 1 or not re.fullmatch(r"workspace-[a-zA-Z0-9-]+", value.get("id", "")):
+            raise ValueError()
+    except (OSError, ValueError, TypeError, AttributeError):
+        raise PlatformError(f"无法读取工作区身份：{descriptor}；请先准备独立数据工作区。") from None
+    return value
 
 
 def runtime_environment(home):
     environment = dict(os.environ)
-    credentials = REPO / "platform" / "credentials" / "models.llm-api-key"
+    credentials = asset_root() / ".local" / "credentials" / "models.llm-api-key"
     if credentials.exists():
         try:
             values = json.loads(credentials.read_text(encoding="utf-8"))
@@ -50,7 +74,10 @@ def runtime_environment(home):
             if not isinstance(values[name], str) or not values[name].strip():
                 raise PlatformError(f"本地模型凭据字段 {name} 必须是非空字符串。")
             environment[name] = values[name]
-    return {**environment, "DSH_HOME": str(home), "HARNESS_ASSET_ROOT": str(REPO)}
+    return {**environment, "DSH_HOME": str(home), "HARNESS_ASSET_ROOT": str(asset_root()),
+            "HARNESS_PROGRAM_ROOT": str(REPO),
+            "HARNESS_PYTHON": sys.executable,
+            "HARNESS_SITES_CONFIG": str(asset_root() / "config" / "sites.json")}
 
 
 def global_dsh(home):
@@ -88,6 +115,9 @@ def global_dsh(home):
 
 
 def rendered_profile():
+    skill_dirs = [REPO / "platform/skills", asset_root() / ".local/build-cache/management-skills"]
+    skill_dirs += [asset_root() / item["path"] / "skills" for item in workspace_extensions()
+                   if (asset_root() / item["path"] / "skills").is_dir()]
     result = {}
     for name in PROFILE_FILES:
         path = REPO / "platform" / "profile" / name
@@ -100,11 +130,67 @@ def rendered_profile():
         result[runtime_name] = source.replace(
             "{{HARNESS_PLATFORM_PLUGIN}}", json.dumps(str(PLUGIN / "lib" / "index.js"))
         ).replace(
-            "{{HARNESS_PLATFORM_SKILLS}}", json.dumps(str(REPO / "platform" / "skills"))
+            "{{HARNESS_PLATFORM_SKILL_DIRS}}", json.dumps([str(path) for path in skill_dirs])
         ).replace(
             "{{HARNESS_PLATFORM_WEBSERVER}}", json.dumps(str(WEB / "lib" / "platform-webserver.mjs"))
         )
+    for extension in workspace_extensions():
+        target = extension_output(extension, path_only=True)
+        result[PLATFORM_PATCH] += ("\n- insert:\n    - id: " + json.dumps(extension["id"])
+                                  + "\n      name: " + json.dumps(str(target / "plugin.js"))
+                                  + "\n      disabled: false\n")
     return result
+
+
+def workspace_extensions():
+    declared = check_workspace().get("extensions", [])
+    if not isinstance(declared, list):
+        raise PlatformError("workspace.json extensions 必须是列表。")
+    found = set()
+    for item in declared:
+        if not isinstance(item, dict) or not re.fullmatch(r"[a-z][a-z0-9-]*", item.get("id", "")) or item["id"] in found:
+            raise PlatformError("工作区扩展 ID 无效或重复。")
+        found.add(item["id"])
+        relative = item.get("path")
+        if not isinstance(relative, str) or not relative.startswith("extensions/") or ".." in Path(relative).parts:
+            raise PlatformError("工作区扩展必须位于数据根 extensions/。")
+        directory = (asset_root() / relative).resolve()
+        if not directory.is_relative_to(asset_root()) or not (directory / "build.mjs").is_file():
+            raise PlatformError("工作区扩展构建入口不存在或超出数据根。")
+    return declared
+
+
+def extension_output(extension, path_only=False):
+    command = ["node", str(asset_root() / extension["path"] / "build.mjs")]
+    if path_only:
+        command.append("--path")
+    try:
+        result = subprocess.run(command, env=runtime_environment(platform_home()),
+                                capture_output=True, text=True, check=True, timeout=120)
+        output = Path(result.stdout.strip()).resolve()
+        if not output.is_relative_to(asset_root() / ".local/build-cache"):
+            raise ValueError()
+        return output
+    except (OSError, ValueError, subprocess.SubprocessError):
+        raise PlatformError(f"扩展 {extension['id']} {'定位' if path_only else '构建'}失败；请检查对应构建入口。") from None
+
+
+RESEARCH_SKILLS = ("harness-experiment-fusion", "harness-guided-workflow", "harness-evolution", "research-eval", "legacy-asset-intake")
+
+
+def prepare_research_skills():
+    directory = asset_root() / ".local/build-cache/management-skills"
+    directory.mkdir(parents=True, exist_ok=True)
+    for name in RESEARCH_SKILLS:
+        source = REPO / ".agents/skills" / name
+        if not (source / "SKILL.md").is_file():
+            raise PlatformError(f"缺少平台复用的研究 Skill：{source}")
+        target = directory / name
+        if target.is_symlink() and target.resolve() == source:
+            continue
+        if target.exists() or target.is_symlink():
+            raise PlatformError(f"生成 Skill 位置已占用：{target}")
+        target.symlink_to(source, target_is_directory=True)
 
 
 def check_artifacts():
@@ -115,6 +201,13 @@ def check_artifacts():
     path = WEB / "lib" / "platform-webserver.mjs"
     if not path.is_file():
         raise PlatformError(f"缺少 Web 基址适配构建产物：{path}；请先运行 prepare。")
+    for extension in workspace_extensions():
+        if not (extension_output(extension, path_only=True) / "plugin.js").is_file():
+            raise PlatformError(f"扩展 {extension['id']} 尚未按当前来源构建；请运行 prepare。")
+    for name in RESEARCH_SKILLS:
+        target = asset_root() / ".local/build-cache/management-skills" / name
+        if not target.is_symlink() or target.resolve() != REPO / ".agents/skills" / name:
+            raise PlatformError("平台研究 Skill 未关联当前程序；请运行 prepare。")
 
 
 def check_profile(profile, rendered):
@@ -129,6 +222,62 @@ def check_profile(profile, rendered):
             raise PlatformError(f"平台 Profile 尚未准备：{path}；请先运行 prepare。") from exc
         if actual != content:
             raise PlatformError(f"平台 Profile 与仓库模板不一致：{path}；请重新运行 prepare。")
+    user_patch = profile / "cordis.patch.yml"
+    if user_patch.is_file() and normalized_mcp_patch(profile) != user_patch.read_bytes().decode("utf-8"):
+        raise PlatformError("原生 MCP 配置仍引用旧 Profile 路径；请运行 prepare 完成身份引用迁移。")
+
+
+def normalized_mcp_patch(profile):
+    """仅重定位原生保存的本平台 MCP 插件 name，保留其余配置的原始字节。"""
+    try:
+        import yaml
+    except ImportError:
+        raise PlatformError("检查原生 MCP 配置需要 Python 依赖 PyYAML；请为启动器使用的 Python 安装 PyYAML 后重试。") from None
+    patch = profile / "cordis.patch.yml"
+    source = patch.read_bytes().decode("utf-8")
+    target = profile / "node_modules/@ai-agent-harness/harness-platform/lib/mcp-manager.js"
+    # DSH 使用 Node 的 pathToFileURL；其包名中的 @ 保持原样，不能按 Path.as_uri 编码。
+    expected = "file://" + quote(str(target.absolute()), safe="/:@!$&'()*+,;=")
+    suffix = "/profiles/harness-platform/node_modules/@ai-agent-harness/harness-platform/lib/mcp-manager.js"
+    # 原生序列化器可能将长 URL 折为多行。仅组合 YAML 节点，不构造或执行配置标签；
+    # 用源码位置替换目标标量，避免重新序列化其余连接、组、凭据和注释。
+    try:
+        document = yaml.compose(source, Loader=yaml.SafeLoader)
+    except yaml.YAMLError:
+        raise PlatformError("原生 MCP Patch YAML 格式无效；保留原配置，请先修复。") from None
+    if document is None:
+        return source
+    if not isinstance(document, yaml.SequenceNode):
+        raise PlatformError("原生 MCP Patch 必须是 YAML 列表；保留原配置，请先修复。")
+    replacements = []
+    for row in document.value:
+        if not isinstance(row, yaml.MappingNode):
+            continue
+        fields = {key.value: value for key, value in row.value if isinstance(key, yaml.ScalarNode)}
+        identity = fields.get("id")
+        if not isinstance(identity, yaml.ScalarNode) or identity.value != "mcp-session-manager":
+            continue
+        field = fields.get("name")
+        if field is None:
+            continue
+        if not isinstance(field, yaml.ScalarNode) or field.tag != "tag:yaml.org,2002:str":
+            raise PlatformError("原生 MCP 插件 name 必须是字符串；保留原配置。")
+        name = field.value
+        if name == expected:
+            continue
+        uri = urlparse(name)
+        previous = Path(unquote(uri.path))
+        if uri.scheme != "file" or uri.netloc or not previous.is_absolute() or not str(previous).endswith(suffix):
+            raise PlatformError("原生 MCP 插件身份不属于已知平台 bundle；保留原配置，请核对其来源。")
+        if previous.exists() and previous.resolve() != target.resolve():
+            raise PlatformError("原生 MCP 插件引用另一份程序；保留原配置，请核对迁移来源。")
+        start, end = field.start_mark.index, field.end_mark.index
+        if not row.start_mark.index <= start < end <= row.end_mark.index or source[start:end].lstrip().startswith("&"):
+            raise PlatformError("原生 MCP 插件 name 使用共享 YAML 引用；保留原配置，请先改为独立字符串。")
+        replacements.append((start, end, json.dumps(expected)))
+    for start, end, replacement in sorted(replacements, reverse=True):
+        source = source[:start] + replacement + source[end:]
+    return source
 
 
 def link_bundle(profile):
@@ -172,6 +321,7 @@ def check_port(host, port):
 
 
 def prepare(home):
+    check_workspace()
     executable, version = global_dsh(home)
     rendered = rendered_profile()
     pnpm = shutil.which("pnpm")
@@ -181,9 +331,12 @@ def prepare(home):
         raise PlatformError(f"缺少插件依赖锁：{PLUGIN / 'pnpm-lock.yaml'}")
     try:
         subprocess.run([pnpm, "install", "--frozen-lockfile"], cwd=PLUGIN, check=True)
-        subprocess.run([pnpm, "run", "build"], cwd=PLUGIN, check=True)
+        subprocess.run([pnpm, "run", "build"], cwd=PLUGIN, env=runtime_environment(home), check=True)
     except (OSError, subprocess.CalledProcessError) as exc:
         raise PlatformError("插件依赖安装或构建失败；平台 Profile 未更新。") from exc
+    for extension in workspace_extensions():
+        extension_output(extension)
+    prepare_research_skills()
     check_artifacts()
     profile = home / "profiles" / PROFILE_NAME
     profile.mkdir(parents=True, exist_ok=True)
@@ -194,12 +347,67 @@ def prepare(home):
     user_patch = profile / "cordis.patch.yml"
     if not user_patch.exists():
         user_patch.write_text("[]\n", encoding="utf-8")
+    normalized = normalized_mcp_patch(profile)
+    if normalized != user_patch.read_bytes().decode("utf-8"):
+        temporary = user_patch.with_name(f".cordis.patch.{os.getpid()}.tmp")
+        with temporary.open("x", encoding="utf-8") as handle:
+            os.chmod(temporary, user_patch.stat().st_mode & 0o777)
+            handle.write(normalized)
+        temporary.replace(user_patch)
     print(f"平台准备完成：DSH {version} ({executable})")
     print(f"Profile：{profile}")
     print("启动：./platform/dsh-platform start")
 
 
+def bootstrap_state():
+    node = shutil.which("node")
+    if not node:
+        raise PlatformError("初始化检查需要 Node.js 24 或更新版本；请安装后将 node 加入 PATH。")
+    try:
+        result = subprocess.run([node, str(REPO / "platform/bootstrap/server.ts"), "--check", str(asset_root())],
+                                capture_output=True, text=True, check=True, timeout=15)
+        return json.loads(result.stdout)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        raise PlatformError("无法检查数据工作区；请核对 Node.js 24、Git 与数据目录读取权限。") from None
+
+
+def initialize_from_browser(host, port):
+    check_port(host, port)
+    with tempfile.TemporaryDirectory(prefix="harness-platform-initialize-") as temporary:
+        result_file = Path(temporary) / "result.json"
+        access_file = Path(temporary) / "access-url"
+        token = secrets.token_urlsafe(32)
+        url = f"http://{host}:{port}/hep/?bootstrap={token}"
+        access_file.write_text(url + "\n", encoding="utf-8")
+        access_file.chmod(0o600)
+        print("平台数据工作区尚未就绪，已进入初始化引导。", flush=True)
+        if sys.stdout.isatty():
+            print(f"一次性初始化入口：{url}", flush=True)
+        else:
+            print(f"一次性初始化入口已保存到仅当前用户可读的文件：{access_file}", flush=True)
+        options = {"root": str(asset_root()), "host": host, "port": port, "token": token,
+                   "resultFile": str(result_file), "programRoot": str(REPO), "python": sys.executable}
+        result = subprocess.run([shutil.which("node"), str(REPO / "platform/bootstrap/server.ts")],
+                                env={**os.environ, "HARNESS_BOOTSTRAP_OPTIONS": json.dumps(options)})
+        if result.returncode != 0 or not result_file.is_file():
+            raise PlatformError("初始化未完成；未启动平台，已创建的数据会保留供下次接续。")
+        selected = json.loads(result_file.read_text(encoding="utf-8"))["root"]
+        if not isinstance(selected, str) or not Path(selected).is_absolute():
+            raise PlatformError("初始化返回的数据根无效。")
+        os.environ["HARNESS_ASSET_ROOT"] = selected
+
+
 def start(home, host, port, dry_run):
+    state = bootstrap_state()
+    if not state["ready"]:
+        host = host or default_host()
+        if dry_run:
+            print(json.dumps({"mode": "initialization", "asset_root": str(asset_root()),
+                              "base_url": f"http://{host}:{port}/hep/", "checks": state["checks"]}, ensure_ascii=False, indent=2))
+            return
+        initialize_from_browser(host, port)
+        home = platform_home()
+    workspace = check_workspace()
     executable, version = global_dsh(home)
     rendered = rendered_profile()
     check_artifacts()
@@ -212,7 +420,8 @@ def start(home, host, port, dry_run):
                "--host", host, "--port", str(port), "--no-open"]
     if dry_run:
         print(json.dumps({
-            "repository": str(REPO), "dsh": executable, "dsh_version": version,
+            "repository": str(REPO), "asset_root": str(asset_root()), "workspace_id": workspace["id"],
+            "dsh": executable, "dsh_version": version,
             "home": str(home), "profile": str(profile),
             "patch": str(profile / PLATFORM_PATCH),
             "plugin": str(PLUGIN / "lib" / "index.js"),
@@ -224,6 +433,7 @@ def start(home, host, port, dry_run):
         return
     print(f"平台地址：http://{host}:{port}{base_path()}（打开页面登录）", flush=True)
     print("前台运行；Ctrl+C 停止，重启复用同一平台 HOME。", flush=True)
+    os.chdir(asset_root())
     os.execvpe(executable, command, {**runtime_environment(home),
                                   "HARNESS_DSH_ENTRY": str(Path(executable).resolve())})
 
@@ -239,6 +449,9 @@ def port_value(value):
 
 
 def main():
+    if sys.version_info < (3, 10):
+        print("dsh-platform: 需要 Python 3.10 或更新版本；请用兼容解释器运行本入口。", file=sys.stderr)
+        return 1
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare", help="安装插件构建依赖、构建并生成独立平台 Profile")

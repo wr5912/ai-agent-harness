@@ -1,13 +1,14 @@
-# 默认配置处于 bundle 层，原生配置编辑器可写入 Profile 用户 Patch。
+# 平台管理助手默认使用 DeepSeek-V4.1-Flash（API ID: deepseek-flash）。
+# 默认配置处于 bundle 层，原生配置编辑器可写入 Profile 用户 Patch；业务实例独立配置。
 - id: agent-default-model
   config:
     provider: deepseek-official
     model: deepseek-flash
-    reasoningEffort: 'off'
+    reasoningEffort: max
 - id: llm-deepseek
   config:
-    thinking: disabled
-    reasoningEffort: 'off'
+    thinking: enabled
+    reasoningEffort: max
 - insert:
     - id: mcp-session-manager
       name: ./lib/mcp-manager.js

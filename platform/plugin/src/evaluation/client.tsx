@@ -427,8 +427,8 @@ export function EvaluationPage({ rpc, updates, onAssistant, onContext, target, o
   const sealed = runFiles?.sealed ?? isFinal(runDetail?.manifest?.status)
   const versions: string[] = [...new Set([...(detail?.versions ?? []).map((version: any) => version.id), ...runExperiments])]
 
-  return <main className="harness-evaluation">
-    <header className="harness-page-heading"><div><h1>评测中心</h1><p>维护测试用例，运行评测，阅读报告与比较完整证据。</p></div><div className="harness-eval-actions"><button type="button" onClick={() => { void loadAgents(); void loadRuns(); if (agentId) void loadDetail(); if (runId) void loadRun() }}>刷新</button><button type="button" className="harness-primary" onClick={() => { setConfigOpen(true); clearPreview() }}>＋ 新建评测</button></div></header>
+  return <main className="harness-evaluation" aria-label="评测中心">
+    <header className="harness-page-heading"><div><p>维护测试用例，运行评测，阅读报告与比较完整证据。</p></div><div className="harness-eval-actions"><button type="button" onClick={() => { void loadAgents(); void loadRuns(); if (agentId) void loadDetail(); if (runId) void loadRun() }}>刷新</button><button type="button" className="harness-primary" onClick={() => { setConfigOpen(true); clearPreview() }}>＋ 新建评测</button></div></header>
     {agentsError && <p role="alert">{agentsError}</p>}
     <div role="tablist" aria-label="评测工作区" className="harness-eval-tabs" onKeyDown={event => {
       const index = tabs.findIndex(item => item.id === tab)

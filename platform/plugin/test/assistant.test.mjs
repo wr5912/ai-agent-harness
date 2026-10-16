@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { setImmediate } from 'node:timers/promises'
@@ -8,7 +11,7 @@ import { SystemPrompt } from '@deepseek-ai/dsh-system-prompt'
 import { createAssistant, redactAssistant } from '../src/assistant/index.ts'
 import { assistantMcp } from '../src/assistant/mcp.ts'
 
-function fixture(t, responder) {
+function fixture(t, responder, root = '/project') {
   const ctx = new Context()
   new SessionStore(ctx)
   new SessionProjectionRegistry(ctx)
@@ -16,14 +19,14 @@ function fixture(t, responder) {
   const sessions = new Map(), tools = new Map(), calls = [], prompts = []
   let count = 0
   ctx.on('session/event', (session, event) => sessions.get(session.id)?.events.push(event))
-  function addSession(id, cwd = '/project', seed = [], parentSession) {
+  function addSession(id, cwd = root, seed = [], parentSession) {
     const row = { events: [...seed], input: {}, session: undefined }
     sessions.set(id, row)
     row.session = ctx.sessions.create(id, { ...(seed.length ? { seed } : {}), ...(parentSession ? { inheritedEventCount: seed.length } : {}), meta: { cwd, ...(parentSession ? { parentSession, isSeeded: true } : {}) } })
     return row.session
   }
   const controller = {
-    async create(input) { assert.ok(!(input.cwd && input.workspaceId)); const id = `session-${++count}`; addSession(id, input.cwd ?? '/project'); sessions.get(id).input = input; return { sessionId: id } },
+    async create(input) { assert.ok(!(input.cwd && input.workspaceId)); const id = `session-${++count}`; addSession(id, input.cwd ?? root); sessions.get(id).input = input; return { sessionId: id } },
     async resolveAgent(id) { return { agent: { id, session: sessions.get(id).session } } },
     async prompt(request) { prompts.push(request); return { accepted: true } },
     cancel() { return { accepted: true } },
@@ -31,7 +34,7 @@ function fixture(t, responder) {
   const services = { controller, projections: ctx.sessionProjections, systemPrompt: ctx.systemPrompt,
     record(session, type, data) { appendPluginRecord(session, type, data) }, notify() {} }
   const platform = async (endpoint, input, signal) => { calls.push({ endpoint, input }); return await responder?.(endpoint, input, signal) ?? { ok: true, value: { ok: true, source: endpoint } } }
-  const create = () => { const assistant = createAssistant('/project', platform, services); assistant.registerTools({ register: tool => tools.set(tool.name, tool) }); return assistant }
+  const create = () => { const assistant = createAssistant(root, platform, services); assistant.registerTools({ register: tool => tools.set(tool.name, tool) }); return assistant }
   let assistant = create()
   t.after(async () => { await assistant.dispose(); await ctx.fiber.dispose() })
   const signal = new AbortController().signal
@@ -54,11 +57,12 @@ function fixture(t, responder) {
 test('真实 Session 投影隔离上下文、冷恢复固定任务，用户 prompt 保持原文', async t => {
   const f = fixture(t)
   const task = '你好\n保留原始空格  '
-  const first = (await f.rpc('session', { task, workspace_id: 'project-workspace', context: { experiment_id: 'EXP-a-001', literal: '{{secret}}' } })).value.session_id
+  assert.equal((await f.rpc('session', { workspace_id: 'foreign-workspace' })).ok, false)
+  const first = (await f.rpc('session', { task, context: { experiment_id: 'EXP-a-001', literal: '{{secret}}' } })).value.session_id
   const second = (await f.rpc('session', { context: { experiment_id: 'EXP-b-001' } })).value.session_id
   assert.notEqual(first, second)
-  assert.equal(f.sessions.get(first).input.workspaceId, 'project-workspace')
-  assert.equal(f.sessions.get(first).input.cwd, undefined)
+  assert.equal(f.sessions.get(first).input.workspaceId, undefined)
+  assert.equal(f.sessions.get(first).input.cwd, '/project')
   assert.deepEqual(f.prompts[0].content, [{ type: 'text', text: task }])
   await f.rpc('context', { session_id: first, context: { experiment_id: 'EXP-a-002' } })
   await f.reload()
@@ -354,4 +358,166 @@ test('AI 决策样本预览经原生确认后仅携原 owner 保存一次，取�
   assert.equal((await cancelled).state, 'cancelled')
   await f.rpc('confirm', { session_id: cancelId, proposal_id: cancelProposal.id })
   assert.equal(f.calls.filter(item => item.endpoint === 'agents/datasets/apply').length, 1)
+})
+
+
+test('独立工作区固化助手身份、迁移旧 Session 归属且不改写原始事件', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'assistant workspace '))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  writeFileSync(join(root, 'workspace.json'), JSON.stringify({ schemaVersion: 1, id: 'workspace-fixture', legacyRoots: ['/old-platform'] }))
+  const f = fixture(t, undefined, root)
+  f.addSession('legacy', '/old-platform')
+  appendPluginRecord(f.sessions.get('legacy').session, 'plugin:harness-platform/assistant', { kind: 'task', task: '读取旧任务', context: { agent_id: 'business-agent' } })
+  const before = [...f.sessions.get('legacy').events]
+  assert.equal((await f.rpc('status', { session_id: 'legacy' })).ok, true)
+  await f.reload()
+  assert.equal((await f.rpc('status', { session_id: 'legacy' })).ok, true)
+  assert.equal(f.sessions.get('legacy').session.header.cwd, '/old-platform')
+  assert.deepEqual(f.sessions.get('legacy').events, before)
+  const prompt = await f.assemble('legacy')
+  assert.ok(prompt.includes('workspace-fixture') && prompt.includes(root))
+  assert.ok(prompt.includes('business-agent') && prompt.includes('workspace-management'))
+  const created = await f.rpc('session', { task: '读取业务数据', context: { agent_id: 'business-agent' } })
+  assert.equal(f.sessions.get(created.value.session_id).input.cwd, root)
+  f.addSession('other', '/old-platform/unrelated')
+  assert.equal((await f.rpc('status', { session_id: 'other' })).ok, false)
+  assert.equal(await f.assemble('other'), '')
+})
+
+
+test('已绑定的管理 Session 不随路径复用而跨工作区身份接受工具调用', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'assistant bound workspace '))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const descriptor = join(root, 'workspace.json')
+  writeFileSync(descriptor, JSON.stringify({ schemaVersion: 1, id: 'workspace-first', legacyRoots: [] }))
+  const f = fixture(t, undefined, root)
+  const created = await f.rpc('session', { task: '读取任务' })
+  const id = created.value.session_id
+  assert.equal((await f.status(id)).workspace_id, 'workspace-first')
+  writeFileSync(descriptor, JSON.stringify({ schemaVersion: 1, id: 'workspace-second', legacyRoots: [] }))
+  assert.equal((await f.rpc('status', { session_id: id })).ok, false)
+  assert.equal(await f.assemble(id), '')
+  await assert.rejects(() => f.execute(id, 'agents', 'list'), /另一个工作区身份/)
+  assert.equal(f.calls.length, 0)
+})
+
+test('普通派生、用例更新与业务样例创建可达，写操作仍须确认且只执行一次', async t => {
+  const f = fixture(t)
+  const id = (await f.rpc('session', { context: { skill: 'agent-maintenance', workflow: 'research' } })).value.session_id
+  for (const [domain, action, input] of [
+    ['agents', 'create', { agent_id: 'basic', parent_experiment_id: 'EXP-basic-001', parent_ref: `git:${'a'.repeat(40)}`, research_question: '基本模拟数据摘要是否更清楚' }],
+    ['agents', 'cases/update', { experiment_id: 'EXP-basic-001', case_id: 'U-BASIC-001', expected_sha256: 'a'.repeat(64), title: '基本输入', inputs: ['读取基本状态'], expected_behavior: '引用实际状态', fast: true }],
+    ['mcp', 'seedThreatCompositions', { revision: 'fixture-revision', bindings: { socConnectionId: 'basic-soc', reportConnectionId: 'basic-report' } }],
+  ]) {
+    const operation = f.execute(id, domain, action, input)
+    const proposed = await f.proposal(id)
+    assert.equal(proposed.action, action)
+    assert.equal(f.calls.filter(call => call.endpoint === `${domain}/${action}`).length, 0)
+    await f.rpc('confirm', { session_id: id, proposal_id: proposed.id })
+    assert.equal((await operation).state, 'completed')
+    await f.rpc('confirm', { session_id: id, proposal_id: proposed.id })
+    assert.equal(f.calls.filter(call => call.endpoint === `${domain}/${action}`).length, 1)
+  }
+  assert.equal((await f.execute(id, 'agents', 'assets/read-fixed', { agent_id: 'basic', experiment_id: 'EXP-basic-001', ref: `git:${'a'.repeat(40)}` })).state, 'completed')
+  for (const action of ['compositionRun', 'compositionArtifact']) {
+    const response = await f.execute(id, 'mcp', action, { run_id: 'basic-run', artifactId: 'summary' })
+    assert.equal(response.state, 'completed')
+  }
+})
+
+test('整理特性锁定任务版本，页面导航不改变预览目标', async t => {
+  const f = fixture(t, endpoint => endpoint === 'agents/features/preview' ? { ok: true, value: { preview_id: 'features-fixed' } } : undefined)
+  const id = (await f.rpc('session', { task: '整理当前版本特性', context: { skill: 'agent-maintenance', workflow: 'features', experiment_id: 'EXP-basic-001' } })).value.session_id
+  await f.rpc('context', { session_id: id, context: { experiment_id: 'EXP-basic-002' } })
+  await assert.rejects(() => f.execute(id, 'agents', 'features/preview', { experiment_id: 'EXP-basic-002', features: [] }), /固定任务上下文/)
+  const operation = f.execute(id, 'agents', 'features/preview', { experiment_id: 'EXP-basic-001', features: [] })
+  const proposed = await f.proposal(id)
+  assert.equal(proposed.action, 'features/apply')
+  await f.rpc('confirm', { session_id: id, proposal_id: proposed.id })
+  assert.equal((await operation).state, 'completed')
+})
+
+test('融合继续评测只使用实际目标source和确认Case，混淆字段与扩大范围重新确认', async t => {
+  const f = fixture(t, (endpoint, input) => endpoint === 'agents/fusion/status'
+    ? { ok: true, value: { creation: { status: 'integrating', assistant_session_id: input.experiment_id === 'EXP-basic-002' ? 'session-1' : 'another-session', plan: { evaluation_case_ids: ['U-BASIC-001'] } } } }
+    : undefined)
+  const id = (await f.rpc('session', {})).value.session_id
+  const allowed = await f.execute(id, 'agents', 'eval/start', { source: 'experiment:EXP-basic-002' })
+  assert.equal(allowed.state, 'completed')
+  assert.deepEqual(f.calls.find(call => call.endpoint === 'agents/eval/start').input.cases, ['U-BASIC-001'])
+  for (const input of [
+    { source: 'experiment:EXP-other-001', experiment_id: 'EXP-basic-002', cases: ['U-BASIC-001'] },
+    { source: 'experiment:EXP-basic-002', cases: ['U-UNCONFIRMED-001'] },
+  ]) {
+    const operation = f.execute(id, 'agents', 'eval/start', input)
+    const proposed = await f.proposal(id)
+    assert.equal(proposed.action, 'eval/start')
+    assert.equal(f.calls.filter(call => call.endpoint === 'agents/eval/start').length, 1)
+    await f.rpc('cancel', { session_id: id })
+    await operation
+  }
+})
+
+test('普通资产写入与评测先使用真实preview失败时不生成确认或执行', async t => {
+  const f = fixture(t, endpoint => ['agents/edit/preview', 'agents/eval/preview'].includes(endpoint) ? { ok: false, error: { code: 'conflict', message: '固定来源已变化', details: {} } } : undefined)
+  const id = (await f.rpc('session', {})).value.session_id
+  for (const [action, input] of [['edit/apply', { experiment_id: 'EXP-basic-001', edits: [] }], ['eval/start', { source: 'experiment:EXP-basic-001' }]]) {
+    const response = await f.execute(id, 'agents', action, input)
+    assert.equal(response.ok, false)
+    assert.equal(f.calls.some(call => call.endpoint === `agents/${action}`), false)
+  }
+  assert.deepEqual((await f.status(id)).proposals, [])
+})
+
+test('算力变体先预览真实计划再确认创建，摘要和方案在等待期间固定', async t => {
+  const digest = 'c'.repeat(64)
+  const f = fixture(t, (endpoint, input) => endpoint === 'agents/compute-variants/preview'
+    ? { ok: true, value: { parent_experiment_id: input.parent_experiment_id, parent_ref: input.parent_ref, plan: { case_hashes: { 'U-BASIC-001': 'frozen-case' }, model_change: null }, model_configuration: 'inherited_from_fixed_parent', preview_sha256: digest } } : undefined)
+  const id = (await f.rpc('session', { task: '策划并创建探索性算力变体', context: { skill: 'agent-maintenance', workflow: 'compute-variants', experiment_id: 'EXP-basic-001' } })).value.session_id
+  const available = f.tools.get('platform_agents').parameters.properties.action.enum
+  for (const action of ['context', 'preview', 'create', 'compare']) assert.ok(available.includes(`compute-variants/${action}`))
+  assert.equal(available.includes('compute-variants/confirm'), false)
+  for (const action of ['context', 'compare']) assert.equal((await f.execute(id, 'agents', `compute-variants/${action}`, { experiment_id: 'EXP-basic-001' })).state, 'completed')
+  const input = { parent_experiment_id: 'EXP-basic-001', parent_ref: `git:${'a'.repeat(40)}`, strategy: '减少重复基本状态查询', case_ids: ['U-BASIC-001'], resource_metric: 'total_tokens', min_resource_reduction_pct: 10 }
+  const operation = f.execute(id, 'agents', 'compute-variants/create', input)
+  const proposed = await f.proposal(id)
+  assert.equal(proposed.preview.value.parent_experiment_id, input.parent_experiment_id)
+  assert.equal(proposed.preview.value.model_configuration, 'inherited_from_fixed_parent')
+  assert.equal(proposed.input.expected_preview_sha256, digest)
+  assert.equal(f.calls.filter(call => call.endpoint === 'agents/compute-variants/create').length, 0)
+  input.case_ids.push('U-OTHER-001')
+  await f.rpc('confirm', { session_id: id, proposal_id: proposed.id })
+  assert.equal((await operation).state, 'completed')
+  const actual = f.calls.find(call => call.endpoint === 'agents/compute-variants/create').input
+  assert.deepEqual(actual.case_ids, ['U-BASIC-001'])
+  assert.equal(actual.expected_preview_sha256, digest)
+  assert.equal(actual.human_confirmed, undefined)
+})
+
+test('算力变体预览失败或确认时配置已变，助手不宣称创建完成', async t => {
+  let invalidPreview = true
+  const f = fixture(t, endpoint => endpoint === 'agents/compute-variants/preview'
+    ? invalidPreview ? { ok: false, error: { code: 'invalid_request', message: '父版无法恢复' } } : { ok: true, value: { preview_sha256: 'b'.repeat(64) } }
+    : endpoint === 'agents/compute-variants/create' ? { ok: false, error: { code: 'conflict', message: '冻结Case已变化，请重新预览' } } : undefined)
+  const id = (await f.rpc('session', { task: '创建变体' })).value.session_id
+  const rejected = await f.execute(id, 'agents', 'compute-variants/create', { parent_experiment_id: 'EXP-basic-001' })
+  assert.equal(rejected.ok, false)
+  assert.equal((await f.status(id)).proposals.length, 0)
+  assert.equal(f.calls.some(call => call.endpoint === 'agents/compute-variants/create'), false)
+  invalidPreview = false
+  const operation = f.execute(id, 'agents', 'compute-variants/create', { parent_experiment_id: 'EXP-basic-001' })
+  const proposed = await f.proposal(id)
+  await f.rpc('confirm', { session_id: id, proposal_id: proposed.id })
+  const receipt = await operation
+  assert.equal(receipt.state, 'failed'); assert.equal(receipt.result.error.code, 'conflict')
+})
+
+test('助手不伪造变体人员复核，决策抽取会话也不能借新动作扩权', async t => {
+  const f = fixture(t)
+  const id = (await f.rpc('session', { task: '讨论变体' })).value.session_id
+  await assert.rejects(() => f.execute(id, 'agents', 'compute-variants/confirm', { human_confirmed: true }), /未知的领域操作/)
+  await assert.rejects(() => f.execute(id, 'agents', 'compute-variants/create', { human_confirmed: true }), /人员复核/)
+  const extraction = (await f.rpc('session', { task: '抽取决策', context: { skill: 'decision-sample-extraction', run_id: 'run-fixed' } })).value.session_id
+  for (const action of ['context', 'preview', 'compare', 'create']) await assert.rejects(() => f.execute(extraction, 'agents', `compute-variants/${action}`, { run_id: 'run-fixed' }), /决策样本任务仅允许/)
+  assert.equal(f.calls.length, 0)
 })

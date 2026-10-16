@@ -62,7 +62,7 @@ DSH 社区的 [dsh-jev-decide](https://github.com/nanami-0713/dsh-jev-decide) �
 
 若要验证这类 Variant，先在 `security-operations-expert` 中选择一个只读、选项明确的判断点，以现有任务路径为 Baseline。Jev 与 Laya 分别作为不同 Experiment 的 Candidate，避免一次改变决策模型、提示词和工具链。用相同输入与判断口径记录最终业务结果、误分流与不确定时的回退、中文及边界输入、主模型和决策模型调用、延迟、远端费用与本地资源占用。
 
-先用新 Session 验证插件与决策服务实际被调用，再以 Run 判断效果。[EXP-010 的结论](../evolution/experiments/EXP-security-operations-expert-010/decision.md) 仍是 `inconclusive`，不能据此声称业务等效或算力收益。一项[配对研究预印本](https://arxiv.org/abs/2610.02267)也显示 Jev 与 Laya 在不同决策点上的表现差异明显，不能把通用基准结果直接当成本项目结论。
+先用新 Session 验证插件与决策服务实际被调用，再以 Run 判断效果。[EXP-010 的结论](https://github.com/wr5912/harness-engineering-platform-data/blob/9afc8fd0047367deb9df5b51595f101835359044/evolution/experiments/EXP-security-operations-expert-010/decision.md) 仍是 `inconclusive`，不能据此声称业务等效或算力收益。一项[配对研究预印本](https://arxiv.org/abs/2610.02267)也显示 Jev 与 Laya 在不同决策点上的表现差异明显，不能把通用基准结果直接当成本项目结论。
 
 ## 5. 怎样比较
 

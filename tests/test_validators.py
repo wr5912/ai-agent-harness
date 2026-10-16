@@ -20,6 +20,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+ASSETS = Path(os.environ.get("HARNESS_ASSET_ROOT", Path.home() / "harness-engineering-platform-data")).expanduser().resolve()
 INSPECT_SOURCE = ROOT / ".agents/skills/legacy-asset-intake/scripts/inspect_source.py"
 VALIDATE_REPOSITORY = ROOT / ".agents/skills/harness-evolution/scripts/validate_repository.py"
 VALIDATE_EXPERIMENT = ROOT / ".agents/skills/research-eval/scripts/validate_experiment.py"
@@ -39,7 +40,8 @@ def run_json(script: Path, *args: object, cwd: Path = ROOT) -> tuple[subprocess.
         capture_output=True,
         check=False,
         timeout=180,
-        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1",
+             "HARNESS_PROGRAM_ROOT": str(cwd), "HARNESS_ASSET_ROOT": str(ASSETS if cwd == ROOT else cwd)},
     )
     try:
         payload = json.loads(completed.stdout)
@@ -59,6 +61,18 @@ def copy_repository(destination: Path) -> Path:
         target,
         ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".code-review-graph", "__pycache__", "*.pyc", "node_modules"),
     )
+    # 兼容历史同根 fixture；真实业务资料来自显式数据工作区，程序不再持有副本。
+    for name in ("agents", "evolution"):
+        if not (target / name).exists():
+            shutil.copytree(ASSETS / name, target / name,
+                            ignore=shutil.ignore_patterns("node_modules", "__pycache__", "*.pyc"))
+    catalog = target / "runtime/adapters/dsh-container/sources.json"
+    if not catalog.exists():
+        shutil.copyfile(ASSETS / "config/sources.json", catalog)
+    sites = target / "config/sites.json"
+    sites.parent.mkdir(parents=True, exist_ok=True)
+    if not sites.exists():
+        shutil.copyfile(ASSETS / "config/sites.json", sites)
     return target
 
 
@@ -209,6 +223,19 @@ class SourceInspectorTests(unittest.TestCase):
 
 
 class RepositoryValidatorTests(unittest.TestCase):
+    def test_data_workspace_validates_without_copied_program_or_standards(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            write_minimal_experiment(root)
+            (root / "agents/example-agent/manifest.yaml").write_text("agent_id: example-agent\n")
+            (root / "workspace.json").write_text(json.dumps({"schemaVersion": 1, "id": "workspace-fixture"}))
+            (root / "config").mkdir()
+            (root / "config/sources.json").write_text('{"schema_version":"1.1","sources":{}}')
+            completed, payload = run_json(VALIDATE_REPOSITORY, root)
+            self.assertEqual(completed.returncode, 0, payload)
+            self.assertFalse((root / ".agents").exists())
+            self.assertFalse((root / "docs").exists())
+
     def test_current_repository_passes_project_contract(self) -> None:
         completed, payload = run_json(VALIDATE_REPOSITORY, ROOT)
         self.assertEqual(completed.returncode, 0, json.dumps(payload, ensure_ascii=False, indent=2))
@@ -415,7 +442,7 @@ class ResearchEvalTests(unittest.TestCase):
     def test_historical_unsuffixed_experiment_keeps_original_identity(self) -> None:
         for identity in ("EXP-security-operations-expert-013", "EXP-security-operations-expert-020"):
             with self.subTest(identity=identity):
-                completed, payload = run_json(VALIDATE_EXPERIMENT, ROOT / "evolution/experiments" / identity)
+                completed, payload = run_json(VALIDATE_EXPERIMENT, ASSETS / "evolution/experiments" / identity)
                 self.assertEqual(completed.returncode, 0, json.dumps(payload, ensure_ascii=False))
 
     def test_nested_version_features_and_fixed_fusion_sources(self) -> None:
@@ -435,7 +462,7 @@ class ResearchEvalTests(unittest.TestCase):
             self.assertIn("FUSION_SOURCES", error_codes(payload))
 
     def test_current_experiment_passes(self) -> None:
-        experiment = ROOT / "evolution/experiments" / EXPERIMENT_ID
+        experiment = ASSETS / "evolution/experiments" / EXPERIMENT_ID
         completed, payload = run_json(VALIDATE_EXPERIMENT, experiment)
         self.assertEqual(completed.returncode, 0, json.dumps(payload, ensure_ascii=False, indent=2))
         self.assertTrue(payload["valid"])
@@ -692,14 +719,14 @@ class RunRecordTests(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("run_record_contract", RUN_RECORD)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        view = module.run_view(ROOT, "run-548ae419-80a4-47dc-9fd2-94d972f29010", "U-INS-001")
+        view = module.run_view(ASSETS, "run-548ae419-80a4-47dc-9fd2-94d972f29010", "U-INS-001")
         case = view["cases"][0]
         self.assertNotIn("mcp__inspection__list_executable_inspections", case["registered_tools"][0])
         self.assertEqual(case["tool_calls"][0], {
             "name": "mcp__inspection__list_executable_inspections",
             "status": "error", "error_code": "UNKNOWN_TOOL",
         })
-        successful = module.run_view(ROOT, "run-548ae419-80a4-47dc-9fd2-94d972f29010", "U-INS-003")
+        successful = module.run_view(ASSETS, "run-548ae419-80a4-47dc-9fd2-94d972f29010", "U-INS-003")
         self.assertEqual(successful["cases"][0]["tool_calls"][0]["status"], "ok")
 
     def test_flat_yaml_round_trip_preserves_escaped_strings(self) -> None:
@@ -1129,6 +1156,7 @@ class DshEvalTests(unittest.TestCase):
             [
                 "python3",
                 str(repository / "runtime/adapters/dsh-container/source_contract.py"),
+                "--repo", str(repository),
                 "--source",
                 "experiment:EXP-security-operations-expert-006",
                 "--field",
@@ -1344,6 +1372,8 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         env = {
             **os.environ,
             "PYTHONDONTWRITEBYTECODE": "1",
+            "HARNESS_ASSET_ROOT": str(repository),
+            "HARNESS_PROGRAM_ROOT": str(repository),
             "DSH_EVAL_DSH_DEV": str(fake_dsh),
             "DSH_EVAL_API_DRIVER": str(fake_browser),
             "DSH_EVAL_BROWSER_DRIVER": str(fake_browser),
@@ -1368,7 +1398,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         review: str | None = None,
     ) -> tuple[subprocess.CompletedProcess[str], dict]:
         command = [
-            "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
+            "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"), "--repo", str(repository),
             "--source", "experiment:EXP-security-operations-expert-006",
             "--executor", executor,
             "--timeout-seconds", "10",
@@ -1402,7 +1432,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
                 env.pop(name, None)
             completed = subprocess.run(
                 [
-                    "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
+                    "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"), "--repo", str(repository),
                     "--source", "experiment:EXP-security-operations-expert-006",
                     "--case", "U-INS-001", "--dry-run",
                 ],
@@ -1728,7 +1758,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             repository = copy_repository(Path(temp))
             expected_case_ids = evaluation_case_ids(repository)
             command = [
-                "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
+                "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"), "--repo", str(repository),
                 "--source", "experiment:EXP-security-operations-expert-006",
                 "--dry-run",
             ]
@@ -1787,7 +1817,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
         with tempfile.TemporaryDirectory() as temp:
             repository = copy_repository(Path(temp))
             command = [
-                "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
+                "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"), "--repo", str(repository),
                 "--source", "experiment:EXP-security-operations-expert-006", "--dry-run",
                 "--case", "U-INS-*", "--case", "U-INS-001",
             ]
@@ -1796,7 +1826,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             )
             unmatched = subprocess.run(
                 [
-                    "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
+                    "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"), "--repo", str(repository),
                     "--source", "experiment:EXP-security-operations-expert-006",
                     "--dry-run", "--case", "U-NOT-*",
                 ], cwd=repository, text=True,
@@ -1870,7 +1900,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             repository, env, command_log = self.runtime_fixture(root, mode="hang")
             process = subprocess.Popen(
                 [
-                    "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"),
+                    "python3", str(repository / "runtime/adapters/dsh-container/dsh-eval"), "--repo", str(repository),
                     "--source", "experiment:EXP-security-operations-expert-006",
                     "--case", "U-INS-001", "--timeout-seconds", "10",
                 ],
@@ -1915,7 +1945,7 @@ class EvaluationSourceTests(unittest.TestCase):
         return module
 
     def test_current_business_source_is_compact_and_complete(self) -> None:
-        agent = ROOT / "agents" / AGENT_ID
+        agent = ASSETS / "agents" / AGENT_ID
         evaluation = agent / "evaluation.md"
         text = evaluation.read_text(encoding="utf-8")
         loaded = self.load_contract().load_evaluation(evaluation)
@@ -1950,11 +1980,11 @@ class EvaluationSourceTests(unittest.TestCase):
             "T-MIGRATION-SOURCE", "T-DSH-LOAD-CYCLE", "T-CONTRACT-STATIC", "T-CONTRACT-LIVE",
         ):
             self.assertNotIn(retired, text)
-        self.assertFalse(list((ROOT / "evolution/experiments").glob("EXP-*/evaluation/plan.yaml")))
+        self.assertFalse(list((ASSETS / "evolution/experiments").glob("EXP-*/evaluation/plan.yaml")))
 
     def test_fast_marker_does_not_change_case_digest_and_malformed_marker_fails(self) -> None:
         contract = self.load_contract()
-        source = ROOT / "agents/test01/evaluation.md"
+        source = ASSETS / "agents/test01/evaluation.md"
         with tempfile.TemporaryDirectory() as temp:
             plain = Path(temp) / "evaluation.md"
             plain.write_text(source.read_text(encoding="utf-8").replace(
@@ -1993,7 +2023,7 @@ class EvaluationSourceTests(unittest.TestCase):
 
     def test_candidate_model_configuration_is_unchanged(self) -> None:
         profile_text = (
-            ROOT / "evolution/experiments/EXP-security-operations-expert-006"
+            ASSETS / "evolution/experiments/EXP-security-operations-expert-006"
             / "candidate/dsh/managed/security-operations-expert.patch.yml"
         ).read_text(encoding="utf-8")
         self.assertIn(
@@ -2004,7 +2034,7 @@ class EvaluationSourceTests(unittest.TestCase):
         self.assertIn("- id: llm-deepseek\n  config:\n    reasoningEffort: off", profile_text)
 
     def test_unknown_case_selection_is_rejected(self) -> None:
-        evaluation = ROOT / "agents" / AGENT_ID / "evaluation.md"
+        evaluation = ASSETS / "agents" / AGENT_ID / "evaluation.md"
         with self.assertRaisesRegex(ValueError, "未定义"):
             self.load_contract().execution_for(evaluation, ["U-NOT-DEFINED"])
 

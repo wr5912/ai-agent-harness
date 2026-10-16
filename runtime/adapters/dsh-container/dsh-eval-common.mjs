@@ -108,7 +108,9 @@ export async function saveSessionTrace(directory, archive, checks) {
   await mkdir(directory, { recursive: true })
   await writeFile(join(directory, 'trace.jsonl'), archive ? jsonl(archive.trace) : '')
   await writeFile(join(directory, 'tools.jsonl'), jsonl(toolEvents(archive)))
-  await writeFile(join(directory, 'checks.json'), `${JSON.stringify(checks, null, 2)}\n`)
+  // 这里只声明已实际保存非空轨迹；是否完成仍由 completed、turn/step 与证据消费者核对。
+  const persistedChecks = { ...checks, trace_available: Boolean(archive?.trace?.length) }
+  await writeFile(join(directory, 'checks.json'), `${JSON.stringify(persistedChecks, null, 2)}\n`)
 }
 
 export function result(item, executionStatus, verdict, observation, failureReason) {

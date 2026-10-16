@@ -1,7 +1,0 @@
-{
-  "schema_version": "1.0",
-  "case_id": "U-ROLE-001",
-  "completed": false,
-  "expected_behavior": "根据 Candidate 中用户提供的角色正文，说明与“根据用户提供的基础模拟资产状态整理巡检摘要，信息不足时补问。”一致的工作方式。缺少必要信息时提出具体问题，不声称已经执行未提供的工具或产生业务结果。",
-  "failure_reason": "evaluation-interrupted"
-}

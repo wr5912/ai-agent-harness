@@ -1,14 +1,14 @@
+import { instanceStateRoot, workspaceConfigPath } from '../workspace.ts'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, readdirSync, unwatchFile, watch, watchFile } from 'node:fs'
-import { homedir } from 'node:os'
-import { join, resolve, sep } from 'node:path'
+import { basename, dirname, join, resolve, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import { PLATFORM_DOMAINS, type PlatformDomain } from './client.ts'
 
 export type PlatformInvalidation = { revision: number; domains: PlatformDomain[]; ids: string[] }
 type Options = { docker?: boolean; stateRoot?: string }
-const IGNORED = new Set(['node_modules', '.git', '.venv', '__pycache__', 'lib', 'dist', '.cache', 'cache', 'history', 'RuntimeHOME', 'sessions', 'attachments'])
+const IGNORED = new Set(['node_modules', '.git', '.venv', '__pycache__', 'lib', 'dist', '.cache', 'cache', 'history', 'RuntimeHOME', 'dsh-home', 'sessions', 'attachments'])
 
 /** 观察已有事实源；通知只含稳定标识，不携带文件内容、配置或运行日志。 */
 export function createPlatformEvents(assetRoot: string, options: Options = {}) {
@@ -37,7 +37,7 @@ export function createPlatformEvents(assetRoot: string, options: Options = {}) {
       for (const listener of listeners) listener(event)
     }, 100)
   }
-  const stateRoot = resolve(options.stateRoot ?? join(process.env.XDG_STATE_HOME || join(homedir(), '.local', 'state'), 'dsh-dev'))
+  const stateRoot = instanceStateRoot(root, options.stateRoot)
   function relevant(path: string) {
     const parts = path.split(sep)
     return !parts.some(part => IGNORED.has(part) || part === 'credentials' || part.endsWith('.llm-api-key'))
@@ -112,12 +112,19 @@ export function createPlatformEvents(assetRoot: string, options: Options = {}) {
     observe(join(root, 'agents'), ['catalog', 'agents'], true)
     observe(join(root, 'evolution'), ['catalog', 'agents'], false)
     observe(join(root, 'evolution/experiments'), ['catalog', 'agents'], true)
+    observe(join(root, 'evolution/datasets'), ['agents'], true)
     observe(join(root, 'releases'), ['catalog', 'agents'], true)
-    observe(join(root, 'runtime/adapters/dsh-container'), ['catalog', 'agents', 'instances'], false, 'sources.json')
-    observe(join(root, 'platform'), ['mcp'], false, 'mcp-compositions.json')
+    const sourcesDirectory = dirname(workspaceConfigPath(root, 'sources.json'))
+    const compositionsDirectory = dirname(workspaceConfigPath(root, 'mcp-compositions.json'))
+    // 独立工作区将两份配置放在同一目录，只注册一个覆盖两种变化的观察器。
+    if (sourcesDirectory === compositionsDirectory) observe(sourcesDirectory, ['catalog', 'agents', 'instances', 'mcp'], false)
+    else {
+      observe(sourcesDirectory, ['catalog', 'agents', 'instances'], false, 'sources.json')
+      observe(compositionsDirectory, ['mcp'], false, 'mcp-compositions.json')
+    }
     observe(stateRoot, ['instances', 'agents'], true)
     // 尚无实例目录时，观察其既有父目录以捕获首次登记。
-    if (!existsSync(stateRoot)) observe(resolve(stateRoot, '..'), ['instances', 'agents'], false, 'dsh-dev')
+    if (!existsSync(stateRoot)) observe(resolve(stateRoot, '..'), ['instances', 'agents'], false, basename(stateRoot))
   }
   function followDocker() {
     if (disposed || options.docker === false) return

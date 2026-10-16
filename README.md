@@ -2,15 +2,15 @@
 
 ai-agent-harness 是正在持续建设的、基于 DSH 的 Harness 工程平台，提供智能体资产、评测、实例和工具管理能力，并将经过验证的技术研究成果持续融入平台。
 
-项目面向个人开发者，以平台建设和实际使用需求为主线。平台通过系统全局 DSH 装载 Cordis 插件，复用已有 CLI、Harness 资产和运行记录；业务智能体由独立的 DSH 容器实例执行。项目定位、开发边界和协作原则以 [`AGENTS.md`](./AGENTS.md) 为准。
+项目面向个人开发者，以平台建设和实际使用需求为主线。平台通过系统全局 DSH 装载 Cordis 插件，复用已有 CLI；程序保存在本仓库，用户资产和运行状态保存在独立数据工作区（默认 `~/harness-engineering-platform-data`）；业务智能体由独立的 DSH 容器实例执行。项目定位、开发边界和协作原则以 [`AGENTS.md`](./AGENTS.md) 为准。
 
 ## 当前能力
 
 | 页面 | 可以完成的操作 |
 |---|---|
 | 首页 | 查看真实资产数量、最近 Run 和实例观察，进入各管理页面 |
-| 管理对话 | 在当前项目工作区使用原生 DSH 会话，保留会话、草稿与模型设置入口 |
-| 智能体管理 | 新建智能体和首次研究版本；搜索并查看所选版本的概览、资产、能力和运行状态，比较固定 Baseline/指定版本差异；支持融合创建、AI 特性确认、资产校验编辑和实例启动 |
+| 管理对话 | 由平台管理助手在当前数据工作区使用原生 DSH 会话，保留会话、草稿与模型设置入口 |
+| 智能体管理 | 新建智能体和首次研究版本；搜索并查看所选版本的概览、资产、能力和运行状态，比较固定 Baseline/指定版本差异；支持融合创建、AI 特性确认、资产校验编辑、实例启动，以及固定父版派生与评测比较的算力变体 |
 | 评测中心 | 新增、编辑共享用例，从 Run 冻结输入整理新用例；运行评测，阅读结构化轨迹、比较真实来源与逐例结果，记录研究决策；通过 AI Skill 抽取、复核和导出决策样本，下载完整 Run 证据 |
 | 实例管理 | 创建、启停、重启、删除及批量操作 DSH 容器实例，查看逐项回执；获取 Web 访问入口和 iframe 嵌入说明 |
 | MCP 管理 | 管理 OpenAPI/MCP 服务、工具与资源分组及调试；维护资产告警只读查询、威胁分析阶段及父子组合的草稿与固定发布版，查看流程、执行 dry 或实际测试，将已发布组合服务加入分组 |
@@ -21,10 +21,13 @@ ai-agent-harness 是正在持续建设的、基于 DSH 的 Harness 工程平台�
 
 ## 快速启动
 
-准备系统全局 DSH、Node.js、pnpm 和 Python。DSH 版本须匹配平台插件的兼容声明；工具链已使用 Node.js 24 和 Python 3.10 验证，环境若默认使用旧版，应先调整 PATH 选择兼容解释器。
+准备系统全局 DSH、Node.js、pnpm，以及安装了 PyYAML 的 Python；PyYAML 用于读取原生 YAML 配置和 Run 记录。DSH 版本须匹配平台插件的兼容声明；工具链已使用 Node.js 24 和 Python 3.10 验证，环境若默认使用旧版，应先调整 PATH 选择兼容解释器。PyYAML 缺失不阻止打开初始化页，准备平台时会提示为启动器所用 Python 安装该依赖。
 
 ```bash
-# 首次使用及平台插件源码修改后执行
+# 首次使用：缺数据工作区时自动进入 /hep/ 初始化引导
+./platform/dsh-platform start
+
+# 已有完整工作区，平台插件源码修改后重新准备
 ./platform/dsh-platform prepare
 
 # 只预览来源、HOME、插件路径和监听参数
@@ -37,9 +40,11 @@ ai-agent-harness 是正在持续建设的、基于 DSH 的 Harness 工程平台�
 ./platform/dsh-platform start --host 192.168.1.10 --port 3091
 ```
 
-打开终端显示的 `/hap/` URL，使用 [`platform/credentials/admin.json`](./platform/credentials/admin.json) 中配置的账号登录。账号在该文件维护，修改后重启生效，旧登录会话失效。查询与编辑不需要 LLM API Key；使用管理对话前，在“设置 → 模型”配置所选模型。
+初始化页可以连接已有目录、克隆 Git 仓库或创建空白数据仓库，并配置首次登录账号；不会覆盖已有内容。私有仓库使用主机已有 Git 认证。终端提供一次性初始化入口；重定向日志时只输出该入口文件的位置，不将访问凭据写入普通日志。选定目录后会实际准备并接续启动平台。
 
-平台使用仓库外独立 HOME 保存 Session、设置及凭据，再次 `prepare` 和重启会保留用户设置。使用 `Ctrl+C` 停止，再次 `start` 复用同一 HOME；“退出登录”撤销当前会话。版本兼容、认证和装载的完整合同见[当前平台接入合同](./docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。
+打开终端显示的 `/hep/` URL，使用数据根 `.local/credentials/admin.json` 中配置的账号登录。账号在该文件维护，修改后重启生效，旧登录会话失效。查询与编辑不需要 LLM API Key；使用管理对话前，在“设置 → 模型”配置所选模型。
+
+平台使用数据根 `.local/platform-home/` 保存 Session、设置及凭据（`.local/` 不提交 Git，克隆后需从本地备份恢复或按部署说明准备），再次 `prepare` 和重启会保留用户设置。使用 `Ctrl+C` 停止，再次 `start` 复用同一 HOME；“退出登录”撤销当前会话。版本兼容、认证和装载的完整合同见[当前平台接入合同](./docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。
 
 业务实例还需要 Docker、标准 DSH Runtime 镜像及所选来源声明的运行环境。将示例中的 `<experiment-id>` 替换为已有 Experiment ID，先预览来源，再按需启动或评测：
 
@@ -90,34 +95,24 @@ AGENTS.md                                # 项目定位、协作规则与修改�
 .agents/skills/                          # 维护本仓库的开发技能
 .codex/                                  # Codex 开发配置，不是业务 Harness
 platform/                                # 平台启动入口、Profile、插件和运行时技能
-agents/<agent-id>/                       # 智能体入口与唯一 evaluation.md
-  manifest.yaml
-  evaluation.md
-evolution/experiments/<experiment-id>/   # 业务 Harness 的研究资产和记录
-  change.yaml                            # 来源、基线引用与状态
-  hypothesis.md                          # 研究问题与比较方法
-  candidate/                             # 可编辑 Harness 工作树
-  evaluation/                            # 按需保存观察与证据
-  runs/run-<UUIDv4>/                     # 不可改写的实际运行记录
-  decision.md                            # 研究结论与下一步
-evolution/history/imports/               # 历史导入来源与处置记录
 runtime/adapters/dsh-container/           # DSH 容器装载、评测与来源解析
-plugins/asset-query-cli/                 # 资产查询原型与复用的发现逻辑
-releases/<agent-id>-v<semver>/            # 可选 Research Release
+plugins/                                 # 通用资产查询与 MCP 管理源码
 docs/                                    # 设计、规范适用解释和验收证据入口
 tests/                                   # 可重复的合同测试
 AI纠错记录/                               # 按天追加的开发纠错记录
 ```
 
-每个 Agent 的业务 Case 只在其 `evaluation.md` 维护；Run 中的冻结输入是历史事实，不是第二份可编辑 Case。Git 和 Research Release 保存可恢复版本，不维护 `evolution/baselines/` 或 `agents/<agent-id>/current/`。Session、缓存、附件和整个 Runtime HOME 不作为 Harness 资产回流。
+数据工作区保存 `agents/`、`evolution/`、`config/`、业务 `extensions/` 及被 Git 忽略的 `.local/`。目录归属和备份边界见[独立工作区合同](docs/platform-design/02_系统架构与部署设计.md#独立数据工作区)。平台从程序位置解析脚本与内置 Skill，从 `HARNESS_ASSET_ROOT` 解析数据，不能通过启动目录切换数据源。
+
+每个 Agent 的业务 Case 只在数据根的 `agents/<agent-id>/evaluation.md` 维护；Run 中的冻结输入是历史事实，不是第二份可编辑 Case。Git 和 Research Release 保存可恢复版本，不维护 `evolution/baselines/` 或 `agents/<agent-id>/current/`。Session、缓存、附件和整个 Runtime HOME 不作为 Harness 资产回流。
 
 ## 验证与文档入口
 
 ```bash
 python3 -m pip install -r .agents/skills/harness-evolution/scripts/requirements.txt
-python3 .agents/skills/harness-evolution/scripts/validate_repository.py .
+python3 .agents/skills/harness-evolution/scripts/validate_repository.py ~/harness-engineering-platform-data
 python3 .agents/skills/research-eval/scripts/validate_experiment.py \
-  evolution/experiments/<experiment-id>
+  ~/harness-engineering-platform-data/evolution/experiments/<experiment-id>
 ```
 
 校验器输出 JSON：退出码 `0` 表示所覆盖的确定性合同通过，`1` 表示发现问题，`2` 表示输入或读取错误。项目与工具链验证、Experiment Evaluation、Research Release 复现各自需要对应证据，不能互相替代，也不等于生产部署验收。评测执行器、封存 Run 和比较输出的具体语义见[容器适配器说明](./runtime/adapters/dsh-container/README.md)。
@@ -130,4 +125,4 @@ python3 .agents/skills/research-eval/scripts/validate_experiment.py \
 | [项目审查原则](./docs/项目审查原则.md) | 项目与 Harness 的审查范围和方法 |
 | [VERSION.md](./VERSION.md) | 仓库治理版本，区别于 Harness Release 与 Git Tag |
 
-受控规范作为设计输入，按当前任务采用，不自动引入生产审批、固定 Case 数或发布门禁。历史实验、封存 Run、原始导入和既有摘要保留其原有身份与事实；历史容器内修改记录见 [dsh-dev-real-session-20260919.json](./evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json)，不代表当前实例支持容器内修改。
+受控规范作为设计输入，按当前任务采用，不自动引入生产审批、固定 Case 数或发布门禁。历史实验、封存 Run、原始导入和既有摘要保留其原有身份与事实；历史容器内修改记录见 [dsh-dev-real-session-20260919.json](https://github.com/wr5912/harness-engineering-platform-data/blob/9afc8fd0047367deb9df5b51595f101835359044/evolution/experiments/EXP-security-operations-expert-001/evaluation/evidence/dsh-dev-real-session-20260919.json)，不代表当前实例支持容器内修改。

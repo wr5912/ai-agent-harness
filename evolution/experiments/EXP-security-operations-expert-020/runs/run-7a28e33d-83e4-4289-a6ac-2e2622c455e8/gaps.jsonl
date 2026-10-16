@@ -1,1 +1,0 @@
-{"gap_id":"gap-87b5843c-b719-4921-a052-45b1a2a94dc0","run_id":"run-7a28e33d-83e4-4289-a6ac-2e2622c455e8","classification":"harness","title":"HTTP 压缩缓存 TTS 首段","observed":"HTTP 200 头部已到，但 gzip 未刷新首段，浏览器在响应未结束时无法起播。identity 首段约 4ms。","next_step":"远程 TTS 请求 identity，并用支持压缩的流式回归与真实浏览器重验。","evidence_ref":"evidence/compression-diagnosis.json"}
