@@ -1,8 +1,10 @@
-# ai-agent-harness
+# harness-engineering-platform
 
-ai-agent-harness 是正在持续建设的、基于 DSH 的 Harness 工程平台，提供智能体资产、评测、实例和工具管理能力，并将经过验证的技术研究成果持续融入平台。
+Harness 工程平台（Harness Engineering Platform，简称 HEP）基于 DSH，提供智能体资产、评测、实例和工具管理能力，并将经过验证的技术研究成果持续融入平台。
 
 项目面向个人开发者，以平台建设和实际使用需求为主线。平台通过系统全局 DSH 装载 Cordis 插件，复用已有 CLI；程序保存在本仓库，用户资产和运行状态保存在独立数据工作区（默认 `~/harness-engineering-platform-data`）；业务智能体由独立的 DSH 容器实例执行。项目定位、开发边界和协作原则以 [`AGENTS.md`](./AGENTS.md) 为准。
+
+程序仓库为 [wr5912/harness-engineering-platform](https://github.com/wr5912/harness-engineering-platform)，数据仓库为 [wr5912/harness-engineering-platform-data](https://github.com/wr5912/harness-engineering-platform-data)。已有部署可以继续使用原本地程序目录，数据根、插件包名和标准镜像名不随仓库更名而改变。
 
 ## 当前能力
 
@@ -24,6 +26,10 @@ ai-agent-harness 是正在持续建设的、基于 DSH 的 Harness 工程平台�
 准备系统全局 DSH、Node.js、pnpm，以及安装了 PyYAML 的 Python；PyYAML 用于读取原生 YAML 配置和 Run 记录。DSH 版本须匹配平台插件的兼容声明；工具链已使用 Node.js 24 和 Python 3.10 验证，环境若默认使用旧版，应先调整 PATH 选择兼容解释器。PyYAML 缺失不阻止打开初始化页，准备平台时会提示为启动器所用 Python 安装该依赖。
 
 ```bash
+# 首次获取程序
+git clone git@github.com:wr5912/harness-engineering-platform.git
+cd harness-engineering-platform
+
 # 首次使用：缺数据工作区时自动进入 /hep/ 初始化引导
 ./platform/dsh-platform start
 

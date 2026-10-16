@@ -1,8 +1,8 @@
-# ai-agent-harness 项目验收矩阵
+# Harness 工程平台项目验收矩阵
 
 更新日期：2026-10-16
 
-本文是 **ai-agent-harness 项目与工具链**验证路径、当前证据和缺口的唯一维护位置。它直接回答三个问题：总共有多少条路径、每条做到什么程度、哪些检查应该进入自动化测试。
+本文是 **Harness 工程平台项目与工具链**验证路径、当前证据和缺口的唯一维护位置。它直接回答三个问题：总共有多少条路径、每条做到什么程度、哪些检查应该进入自动化测试。
 
 ## 1. 直接答案：共有 12 条一级验证路径
 
@@ -193,6 +193,7 @@
 
 - **要回答**：研究者能否通过系统全局 DSH 装载平台插件，经平台密码登录使用首页、管理对话、智能体管理、评测中心、实例管理和 MCP 管理，并保持已有资产与 Run 的事实源连续。
 - **操作链**：`platform/dsh-platform prepare` → `start --dry-run` → `start` → 平台密码登录 → 六页真实操作 → 停止 → 重启并核对来源与会话 → 退出并拒绝旧 Cookie；入口与合同见[平台设计方案](platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。分工与完成标准见[四目录计划](platform-design/09_首轮实施Backlog与工作切片.md#6-已选第一阶段四目录并行计划)。
+- **程序仓库更名（2026-10-16）**：现有 GitHub 仓库更名为 `wr5912/harness-engineering-platform`，本地 origin 已更新；仓库 ID、默认分支及可见性未变，更名前后的 3 个分支与 5 个 Tag 引用完全一致。当前名称、仓库链接、克隆说明及开发技能引用已同步；本地程序目录、插件包名、标准镜像、数据工作区和历史记录保留。仓库合同校验零错误、零警告，变更文档的 195 个本地链接均存在。正式 `/hep/` 的浏览器登录、六页切换、工作区和实例及组合目录读取通过，无页面错误或失败 API；两个原有业务容器继续运行。本轮未重启服务、调用模型或执行实例生命周期操作。首次探针错误假定实例总数为 2，实际登记为 8，改为核对原有实例存在后通过；未修改实例状态。本机核对记录位于 `/tmp/hep-repository-rename-20261016/`。此项关联 `PA-01`、`PA-03` 的名称一致性，不改变业务 Evaluation 或 Research Release 结论。
 - **实例界面与导航（2026-10-16）**：[当前页面设计](platform-design/06_界面与前后端渐进建设.md#35-当前第一阶段页面)已在正式 `/hep/` 验证：六页仅保留顶部导航，390px 窄屏可切换；实例创建预览后取消、筛选外选择提示与取消、详情页签键盘切换、真实嵌入地址生成及复制、刷新保留与切换清理通过。平台回归 276 项及相关交互 10 项复验通过，构建通过；浏览器无页面错误或失败 API，未执行实例生命周期写入。本机记录为 `/tmp/hep-instance-detail-ui-20261016/acceptance.json` 及同目录截图。仅证明本轮界面与交互，不提升业务能力结论。
 - **历史证据（2026-10-12）**：本分支当时的启动器 10 项测试、插件 8 项测试、TypeScript 构建及仓库合同校验通过。查询识别 2 个 Agent、20 个 Experiment、61 个 Run。来源提交 `5c0f50a` 记录的全局 DSH 和浏览器证据来自其他仓库状态，不能替代当前分支的实机验收。
 - **当前机器合同（2026-10-13）**：四个功能分支已在 `feat/platform-stage1-foundation` 集成；本轮插件 51 项、启动器 13 项、容器适配层 94 项测试通过；评测访问合同另通过 2 项 Python 测试及 1 项 API 执行器测试（覆盖五种认证响应），评测通道共用合同 6 项检查通过，仓库合同校验无错误或警告。插件覆盖实际 Cordis 注册、RPC 分派与取消、首页真实 Run 排序、智能体版本/编辑/失败恢复、旧 Run 限制与轨迹脱敏、实例生命周期与批量回执、MCP Session Header/有限 SSE/错误回执/只读组合。密码认证检查覆盖原生 API、三个写入域及 MCP 网关、旧 Token/Cookie 拒绝、Host/Origin 限制、会话持久化与过期、退出撤销、账号变更失效，以及配置损坏与卸载后保持拒绝访问。业务容器的免认证访问与平台密码登录分别验证。
@@ -223,7 +224,7 @@
 - **平台助手、实时更新与版本流程（2026-10-15）**：管理助手复用原生 Session、投影与工具，写操作等待确认并保留失败回执；页面通过认证事件流接收领域与稳定 ID 后重读事实源，配置刷新保留未保存草稿并核对保存版本。版本特性与融合方案保存在 `change.yaml`，融合预览核对 Git HEAD 和 Candidate 摘要，缺少真实装载及能力验证时不能完成版本；Run 新增完整 Candidate 摘要，历史记录继续可读。平台 72 项、研究工具 65 项、适配器 133 项和启动器 14 项测试及类型检查、构建通过，相关检查集中在[平台测试](../platform/plugin/test/)与[研究工具测试](../tests/test_validators.py)。当前 3090 浏览器复查确认已发布 Mock 组合仍可查询资产 `9106`，页面错误为零。本次没有重启平台或新增真实融合 Run，新增助手及融合的模型业务行为仍需单独验证。
 - **自动化边界**：参数、路径、摘要、失败恢复、状态分派和平台密码认证进入测试；局域网地址监听已在本机浏览器验证，未从另一台局域网设备访问。真实 Docker 生命周期、浏览器操作、全局 DSH 装载及模型/外部业务调用分别保留证据，不互相替代。
 
-- **双站点基址与实际平台生效（2026-10-15）**：基址唯一配置在 当时的 [`sites.json`](https://github.com/wr5912/ai-agent-harness/blob/9afc8fd0047367deb9df5b51595f101835359044/runtime/adapters/dsh-web/sites.json)，共用 TypeScript WebServer 适配器通过原生注册接口挂载，未引入反向代理或修改系统全局 DSH。共享适配器 8 项、平台插件 64 项、平台启动器 14 项、容器 CLI/评测访问 101 项及来源合同 20 项测试通过；MCP 受控协议测试覆盖分组和 Agent 内部 loopback 的新基址。项目合同校验无错误或警告。[隔离平台浏览器检查](../platform/plugin/test/evidence/web-base-platform-20261015.json)完成登录、退出、四页、真实 RPC、双向 WebSocket 和窄屏布局；[实际 3090 平台检查](../platform/plugin/test/evidence/web-base-platform-live-20261015.json)确认 `/hap/` 已重启生效，原 HOME、账号、编排及用户配置保持原样，旧协议入口不可用。现有平台没有已保存的 MCP 分组，链接仅用未保存草稿验证；未发送模型消息、调用真实 SOC 服务或验证另一设备连通性。业务容器的观察及限制见 `PA-05`，不提升其他研究结论或 Release 状态。
+- **双站点基址与实际平台生效（2026-10-15）**：基址唯一配置在 当时的 [`sites.json`](https://github.com/wr5912/harness-engineering-platform/blob/9afc8fd0047367deb9df5b51595f101835359044/runtime/adapters/dsh-web/sites.json)，共用 TypeScript WebServer 适配器通过原生注册接口挂载，未引入反向代理或修改系统全局 DSH。共享适配器 8 项、平台插件 64 项、平台启动器 14 项、容器 CLI/评测访问 101 项及来源合同 20 项测试通过；MCP 受控协议测试覆盖分组和 Agent 内部 loopback 的新基址。项目合同校验无错误或警告。[隔离平台浏览器检查](../platform/plugin/test/evidence/web-base-platform-20261015.json)完成登录、退出、四页、真实 RPC、双向 WebSocket 和窄屏布局；[实际 3090 平台检查](../platform/plugin/test/evidence/web-base-platform-live-20261015.json)确认 `/hap/` 已重启生效，原 HOME、账号、编排及用户配置保持原样，旧协议入口不可用。现有平台没有已保存的 MCP 分组，链接仅用未保存草稿验证；未发送模型消息、调用真实 SOC 服务或验证另一设备连通性。业务容器的观察及限制见 `PA-05`，不提升其他研究结论或 Release 状态。
 
 - **AI 助手与版本融合机器合同（2026-10-15）**：`feat/PLATFORM-ai-assistant` 基于 `c6af2a4` 实施。插件 84 项测试、启动器 14 项、来源合同 20 项及 RunRecord/DshEval/ResearchEval 40 项相关 Python 测试通过，TypeScript 检查、构建和仓库合同校验通过。新增助手领域工具共用 GUI 业务实例，提案确认与回执保存于原生 Session；新版本确认来源、特性、冲突及所选 Case 口径后建立 Candidate，只有完整资产摘要、固定来源及真实封存 Run 验证匹配才完成。继承盘点读取固定提交中的关系，未完成、过时证据及后来修改的来源不抑制并行能力；`end` 仅在明确确认及固定来源、等效和资源证据引用齐全时排除。旧 Run 可读，但缺少新完整 Candidate 摘要的记录不充当新融合完成证明。Python 首轮暴露测试夹具复制活动分析缓存的竞争，排除该忽略缓存后定向复跑通过；既有记录未改写。
 - **AI 助手原生实机（2026-10-15）**：系统全局 DSH `0.2.1-alpha.2`、Node `v24.19.0`、本工作树构建及独立 HOME 下，[8 项浏览器检查](../platform/plugin/test/evidence/assistant-20261015-ui.json)验证首页无悬浮按钮、其他页入口、项目会话、单一原生编辑器、草稿保留、刷新恢复及 390/900/1440px 布局；[桌面](../platform/plugin/test/evidence/assistant-20261015-desktop.png)和[窄屏](../platform/plugin/test/evidence/assistant-20261015-mobile.png)保存实际画面。[真实工具与模型边界检查](../platform/plugin/test/evidence/assistant-tools-20261015.json)仅替换外部模型接口，原生 Agent 实际发现并调用三类平台工具，保存提案，经[可见卡片确认](../platform/plugin/test/evidence/assistant-20261015-card.json)修改临时 Profile 的非秘密描述，回读配置及持久回执；运行状态与标准 Session 的融合、研究技能目录均核实。[并发草稿检查](../platform/plugin/test/evidence/platform-realtime-drafts-20261015.json)使用真实 React 页面及受控 RPC/Settings 边界，覆盖草稿、过时响应、对象删除和进行中回执。保留[首次接入失败](../platform/plugin/test/evidence/assistant-20261015-ui-failures.json)：修正原生会话创建互斥参数、GET Fetch 请求体合同和未就绪引用后重跑通过。实际文件监听额度不足时降级一秒状态观察；未改宿主限制。此项隔离验证期间未切换原有 3090 平台、用户实例和业务资产；随后部署见下条。未运行真实业务融合或真实模型效果比较，不提升 Experiment 或 Research Release 状态。

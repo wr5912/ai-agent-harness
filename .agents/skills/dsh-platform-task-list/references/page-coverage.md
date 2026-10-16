@@ -2,7 +2,7 @@
 
 本参考用于梳理**基于 DSH 的 Harness 工程平台当前建设与后续能力**。使用前先核对目标仓库、DSH 锁定版本和用户最新要求；页面名称与数量可以随产品范围调整，不把某份历史清单的 112 项任务或本机路径当作固定合同。
 
-在当前 `ai-agent-harness` 仓库，优先从 `AGENTS.md`、`docs/standards/SOURCES.md`、`docs/standards/PROJECT-INTERPRETATION.md`、`docs/ai-agent-harness项目验收矩阵.md`、`runtime/adapters/dsh-container/source.lock.json`、`docs/platform-design/README.md` 和 `docs/智能体多形态Harness资产模型设计方案.md` 取证；现有任务清单通过文件搜索定位，不假设旧文件名仍在。换仓库时重新寻找对应来源。
+在当前 `harness-engineering-platform` 仓库，优先从 `AGENTS.md`、`docs/standards/SOURCES.md`、`docs/standards/PROJECT-INTERPRETATION.md`、`docs/ai-agent-harness项目验收矩阵.md`、`runtime/adapters/dsh-container/source.lock.json`、`docs/platform-design/README.md` 和 `docs/智能体多形态Harness资产模型设计方案.md` 取证；现有任务清单通过文件搜索定位，不假设旧文件名仍在。换仓库时重新寻找对应来源。
 
 建设顺序可用阶段标记表达，但阶段不是当前实现状态：`G1a` 为单 Agent、单操作者的实例—业务对话—Trace 闭环；`G1b` 增加 Harness 改进、Hub、评测、发布和变体；`G2` 承接长期业务用户、身份隔离、启用与回退；`G3` 只在工作量或收益有实测依据后考虑自动选版、自动候选和扩容。用户另定里程碑时以其定义为准。
 

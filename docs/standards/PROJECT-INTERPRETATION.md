@@ -1,6 +1,6 @@
 # 项目规范解释
 
-本文说明受控来源在 `ai-agent-harness` 平台开发与 Harness 研究中的适用范围，区分当前合同、设计输入与后续能力。来源版本和本地术语修订身份由 `SOURCES.md` 维护。
+本文说明受控来源在 `harness-engineering-platform` 平台开发与 Harness 研究中的适用范围，区分当前合同、设计输入与后续能力。来源版本和本地术语修订身份由 `SOURCES.md` 维护。
 
 ## 1. 当前权威顺序
 

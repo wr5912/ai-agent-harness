@@ -1,6 +1,6 @@
 ---
 name: continuous-dev-progress-vs-project-vision-gap-assessment
-description: 显式评估 ai-agent-harness 的持续开发进展与未来 Harness 工程平台目标的差距，生成任务拆分说明和架构进展 SVG；适用于阶段盘点及可比版本的变化分析，不用于普通代码审查或单个 Harness 行为评测。
+description: 显式评估 harness-engineering-platform 的持续开发进展与未来 Harness 工程平台目标的差距，生成任务拆分说明和架构进展 SVG；适用于阶段盘点及可比版本的变化分析，不用于普通代码审查或单个 Harness 行为评测。
 ---
 
 # 持续开发进展与远景差距评估

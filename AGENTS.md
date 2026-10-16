@@ -1,4 +1,4 @@
-# ai-agent-harness 项目协作说明
+# harness-engineering-platform 项目协作说明
 
 ## 语言
 

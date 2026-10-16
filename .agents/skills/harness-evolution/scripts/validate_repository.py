@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""校验 ai-agent-harness 的项目与 Harness 资产合同。"""
+"""校验 harness-engineering-platform 的项目与 Harness 资产合同。"""
 
 from __future__ import annotations
 
