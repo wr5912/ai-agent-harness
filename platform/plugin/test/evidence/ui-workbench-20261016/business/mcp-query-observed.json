@@ -1,0 +1,8 @@
+{
+  "status": [
+    "上游操作已返回；请检查下方结果和新会话。"
+  ],
+  "resultText": [
+    "{\n  \"content\": [\n    {\n      \"type\": \"text\",\n      \"text\": \"{\\\"detail\\\":\\\"告警查询参数无效\\\"}\"\n    }\n  ],\n  \"isError\": true\n}"
+  ]
+}

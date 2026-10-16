@@ -1,0 +1,135 @@
+{
+  "started_at": "2026-10-16T12:19:39.981Z",
+  "url": "http://10.0.160.32:3090/hep/",
+  "source_commit": "e2a69ac",
+  "boundary": "正式MCP页面只读验收；只展开并取消未保存的新建表单，不保存、发布或执行工具。",
+  "checks": [
+    {
+      "width": 1440,
+      "geometry": {
+        "document": {
+          "scroll": 1440,
+          "client": 1440
+        },
+        "content": {
+          "scroll": 1440,
+          "client": 1440
+        }
+      },
+      "sections": 1,
+      "items": 6,
+      "sample_button_count": 0,
+      "ok": true
+    },
+    {
+      "width": 390,
+      "geometry": {
+        "document": {
+          "scroll": 390,
+          "client": 390
+        },
+        "content": {
+          "scroll": 390,
+          "client": 390
+        }
+      },
+      "sections": 1,
+      "items": 6,
+      "sample_button_count": 0,
+      "ok": true
+    }
+  ],
+  "pageerrors": [],
+  "http_errors": [],
+  "mcp_requests": [
+    "mcp/list",
+    "mcp/list",
+    "mcp/list"
+  ],
+  "entries": [
+    {
+      "title": "资产相关告警只读查询",
+      "tool": "query_asset_related_alerts",
+      "states": [
+        "published"
+      ]
+    },
+    {
+      "title": "威胁分析：取证与快判",
+      "tool": "threat_collect",
+      "states": [
+        "published"
+      ]
+    },
+    {
+      "title": "威胁分析：完整研判",
+      "tool": "threat_infer",
+      "states": [
+        "published"
+      ]
+    },
+    {
+      "title": "威胁分析：结果回写",
+      "tool": "threat_writeback",
+      "states": [
+        "published"
+      ]
+    },
+    {
+      "title": "威胁分析：报告保存与交付",
+      "tool": "threat_report",
+      "states": [
+        "published"
+      ]
+    },
+    {
+      "title": "威胁分析：组合流程",
+      "tool": "analyze_threat_incident",
+      "states": [
+        "published"
+      ]
+    }
+  ],
+  "sections": 1,
+  "existing": [
+    {
+      "tool": "query_asset_related_alerts",
+      "title": "资产相关告警只读查询",
+      "ok": true
+    },
+    {
+      "tool": "threat_collect",
+      "title": "威胁分析：取证与快判",
+      "ok": true
+    },
+    {
+      "tool": "threat_infer",
+      "title": "威胁分析：完整研判",
+      "ok": true
+    },
+    {
+      "tool": "threat_writeback",
+      "title": "威胁分析：结果回写",
+      "ok": true
+    },
+    {
+      "tool": "threat_report",
+      "title": "威胁分析：报告保存与交付",
+      "ok": true
+    },
+    {
+      "tool": "analyze_threat_incident",
+      "title": "威胁分析：组合流程",
+      "ok": true
+    }
+  ],
+  "sample_button_count": 0,
+  "new_form": {
+    "sample_button_count": 0,
+    "sample_text": "复用当前 LangGraph 两步只读流程：查询资产 → 查询相关告警。保存草稿后进行 dry 测试和发布。\n\n编排标题\n工具名称\n工具说明\n接口流程\nget_asset → list_alerts\nSOC 资产详情 → 近 30 天告警分组\nOpenAPI 服务器\n请选择服务器\nmock-soc-readonly（mock-soc-readonly）\nmock-threat-soc（mock-threat-soc）\n保存草稿\n取消编辑\n\n草稿保存到仓库编排目录；已发布版本继续供 MCP 调用。",
+    "save_present": 1
+  },
+  "after_cancel_count": 6,
+  "ok": true,
+  "completed_at": "2026-10-16T12:19:48.715Z"
+}

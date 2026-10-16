@@ -1,0 +1,51 @@
+{
+  "base": "http://127.0.0.1:3120/hep/",
+  "at": "2026-10-16T12:14:35.561Z",
+  "errors": [],
+  "checks": [
+    "首页通用入口保留原文，不预设构建Skill",
+    "真实模型只读查询后返回现有智能体"
+  ],
+  "request": {
+    "task": "请只读查询当前工作区有哪些智能体，用简短中文列出名称。不要创建、修改、启动或停止任何对象。",
+    "context": {
+      "page": "home",
+      "entry_intent": "general"
+    },
+    "session_id": "session-cfafd6ba-2755-4349-9b7f-42e3e74e6c04"
+  },
+  "session_id": "session-cfafd6ba-2755-4349-9b7f-42e3e74e6c04",
+  "status": {
+    "session_id": "session-cfafd6ba-2755-4349-9b7f-42e3e74e6c04",
+    "inherited_event_count": 0,
+    "active": true,
+    "context": {
+      "page": "conversations"
+    },
+    "task_context": {
+      "page": "home",
+      "entry_intent": "general"
+    },
+    "proposals": [],
+    "running": false,
+    "model_calls_observed": 4,
+    "workspace_id": "workspace-ui-9eabdd08-0c22-4c38-b7c7-020051598ea9",
+    "task": "请只读查询当前工作区有哪些智能体，用简短中文列出名称。不要创建、修改、启动或停止任何对象。",
+    "model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoningEffort": "max"
+    },
+    "turn_reason": {
+      "kind": "completed"
+    },
+    "workspace": {
+      "id": "workspace-ui-9eabdd08-0c22-4c38-b7c7-020051598ea9",
+      "root": "/tmp/hep-ui-workbench-20261016/data",
+      "legacyRoots": [],
+      "session_cwd": "/tmp/hep-ui-workbench-20261016/data"
+    }
+  },
+  "visible": "查询工作区智能体名称\n标准模式\n对话\n轨迹\n请只读查询当前工作区有哪些智能体，用简短中文列出名称。不要创建、修改、启动或停止任何对象。\n20:14\n已完成\n已完成，用时 5秒\n\n当前工作区共有 6 个智能体：\n\n自主训练研究助手\n日常巡检整理助手\n基础台账巡检助手\n多步骤业务调研助手\n网络安全运营专家\ntest01\n\n本次仅做只读查询，未创建、修改或启停任何对象。\n\n用量 57.1K tok\n20:14\n发消息或创建任务, / 调用指令, @ 文件或对话\n工作区内修改\nDeepSeek-V4.1-Flash\nMax\n1 轮 3 步·240 tok/s\n57.1K tok·缓存命中 55%\n3%\nHarness工程平台\nHarness Engineering Platform\n首页\n管理对话\n智能体管理\n评测中心\n实例管理\nMCP 管理\nA\nadmin\n设置\n退出登录\n工作空间 / 管理对话",
+  "ok": true
+}

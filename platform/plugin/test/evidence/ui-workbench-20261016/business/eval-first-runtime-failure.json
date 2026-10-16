@@ -1,0 +1,34 @@
+{
+  "job_id": "96efeb12-33c7-4959-99c0-5a58c4159da5",
+  "workspace_id": "workspace-ui-9eabdd08-0c22-4c38-b7c7-020051598ea9",
+  "asset_root": "/tmp/hep-ui-workbench-20261016/data",
+  "source": "experiment:EXP-daily-inspection-assistant-004-r965bc66e4614",
+  "cases": [
+    "U-ASSET-PAGES-001"
+  ],
+  "status": "failed",
+  "started_at": "2026-10-16T11:54:11.535Z",
+  "updated_at": "2026-10-16T11:54:12.446Z",
+  "exit_code": 2,
+  "result": {
+    "run_id": null,
+    "experiment_id": "EXP-daily-inspection-assistant-004-r965bc66e4614",
+    "executor": "api",
+    "verdict": "inconclusive",
+    "cases": {
+      "total": 1,
+      "passed": 0,
+      "failed": 0,
+      "inconclusive": 1
+    },
+    "review_status": null,
+    "reviewed_cases": null,
+    "summary": null,
+    "report": null,
+    "instance_stopped": true,
+    "cancelled": false
+  },
+  "stdout": "{\"run_id\":null,\"experiment_id\":\"EXP-daily-inspection-assistant-004-r965bc66e4614\",\"executor\":\"api\",\"verdict\":\"inconclusive\",\"cases\":{\"total\":1,\"passed\":0,\"failed\":0,\"inconclusive\":1},\"review_status\":null,\"reviewed_cases\":null,\"summary\":null,\"report\":null,\"instance_stopped\":true,\"cancelled\":false}\n",
+  "stderr": "执行仓库与 Experiment 前置校验\n前置校验未通过：repository、experiment\n",
+  "diagnosis": "平台继承的PATH将python3解析为miniconda Python3.8.18；两个validator以/usr/bin/python3执行均valid=true；没有Run生成。"
+}

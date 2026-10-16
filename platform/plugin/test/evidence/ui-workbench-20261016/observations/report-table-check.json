@@ -1,0 +1,2062 @@
+{
+  "started_at": "2026-10-16T12:10:51.455Z",
+  "checks": [
+    {
+      "id": "home",
+      "width": 360,
+      "selector": ".harness-entry textarea",
+      "reachable": true
+    },
+    {
+      "id": "agents",
+      "width": 360,
+      "selector": ".harness-agents .agent-primary",
+      "reachable": true
+    },
+    {
+      "id": "evaluation",
+      "width": 360,
+      "selector": ".harness-evaluation .harness-page-heading button.harness-primary",
+      "reachable": true
+    },
+    {
+      "id": "instances",
+      "width": 360,
+      "selector": ".harness-instances-page button.harness-primary",
+      "reachable": true
+    },
+    {
+      "id": "mcp",
+      "width": 360,
+      "selector": ".harness-mcp-tabs button",
+      "reachable": true
+    },
+    {
+      "id": "conversations",
+      "width": 360,
+      "selector": ".harness-conversation-frame [contenteditable=true]",
+      "reachable": true
+    },
+    {
+      "id": "home",
+      "width": 390,
+      "selector": ".harness-entry textarea",
+      "reachable": true
+    },
+    {
+      "id": "agents",
+      "width": 390,
+      "selector": ".harness-agents .agent-primary",
+      "reachable": true
+    },
+    {
+      "id": "evaluation",
+      "width": 390,
+      "selector": ".harness-evaluation .harness-page-heading button.harness-primary",
+      "reachable": true
+    },
+    {
+      "id": "instances",
+      "width": 390,
+      "selector": ".harness-instances-page button.harness-primary",
+      "reachable": true
+    },
+    {
+      "id": "mcp",
+      "width": 390,
+      "selector": ".harness-mcp-tabs button",
+      "reachable": true
+    },
+    {
+      "id": "conversations",
+      "width": 390,
+      "selector": ".harness-conversation-frame [contenteditable=true]",
+      "reachable": true
+    },
+    {
+      "id": "home",
+      "width": 900,
+      "selector": ".harness-entry textarea",
+      "reachable": true
+    },
+    {
+      "id": "agents",
+      "width": 900,
+      "selector": ".harness-agents .agent-primary",
+      "reachable": true
+    },
+    {
+      "id": "evaluation",
+      "width": 900,
+      "selector": ".harness-evaluation .harness-page-heading button.harness-primary",
+      "reachable": true
+    },
+    {
+      "id": "instances",
+      "width": 900,
+      "selector": ".harness-instances-page button.harness-primary",
+      "reachable": true
+    },
+    {
+      "id": "mcp",
+      "width": 900,
+      "selector": ".harness-mcp-tabs button",
+      "reachable": true
+    },
+    {
+      "id": "conversations",
+      "width": 900,
+      "selector": ".harness-conversation-frame [contenteditable=true]",
+      "reachable": true
+    },
+    {
+      "id": "home",
+      "width": 1440,
+      "selector": ".harness-entry textarea",
+      "reachable": true
+    },
+    {
+      "id": "agents",
+      "width": 1440,
+      "selector": ".harness-agents .agent-primary",
+      "reachable": true
+    },
+    {
+      "id": "evaluation",
+      "width": 1440,
+      "selector": ".harness-evaluation .harness-page-heading button.harness-primary",
+      "reachable": true
+    },
+    {
+      "id": "instances",
+      "width": 1440,
+      "selector": ".harness-instances-page button.harness-primary",
+      "reachable": true
+    },
+    {
+      "id": "mcp",
+      "width": 1440,
+      "selector": ".harness-mcp-tabs button",
+      "reachable": true
+    },
+    {
+      "id": "conversations",
+      "width": 1440,
+      "selector": ".harness-conversation-frame [contenteditable=true]",
+      "reachable": true
+    },
+    {
+      "id": "home",
+      "width": 1920,
+      "selector": ".harness-entry textarea",
+      "reachable": true
+    },
+    {
+      "id": "agents",
+      "width": 1920,
+      "selector": ".harness-agents .agent-primary",
+      "reachable": true
+    },
+    {
+      "id": "evaluation",
+      "width": 1920,
+      "selector": ".harness-evaluation .harness-page-heading button.harness-primary",
+      "reachable": true
+    },
+    {
+      "id": "instances",
+      "width": 1920,
+      "selector": ".harness-instances-page button.harness-primary",
+      "reachable": true
+    },
+    {
+      "id": "mcp",
+      "width": 1920,
+      "selector": ".harness-mcp-tabs button",
+      "reachable": true
+    },
+    {
+      "id": "conversations",
+      "width": 1920,
+      "selector": ".harness-conversation-frame [contenteditable=true]",
+      "reachable": true
+    }
+  ],
+  "pageerrors": [],
+  "automatic_session_creates": 1,
+  "css_injected": true,
+  "tables_360": [
+    {
+      "width": 800,
+      "scrollWidth": 800,
+      "wrapperScroll": 800,
+      "wrapperClient": 294,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 294,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 294,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "口径",
+          "width": 100
+        },
+        {
+          "text": "总数",
+          "width": 100
+        },
+        {
+          "text": "已完成",
+          "width": 100
+        },
+        {
+          "text": "执行错误",
+          "width": 100
+        },
+        {
+          "text": "已跳过",
+          "width": 100
+        },
+        {
+          "text": "通过",
+          "width": 100
+        },
+        {
+          "text": "失败",
+          "width": 100
+        },
+        {
+          "text": "无法判定",
+          "width": 100
+        }
+      ],
+      "cells": [
+        {
+          "text": "机器 Trial",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    },
+    {
+      "width": 994.375,
+      "scrollWidth": 994,
+      "wrapperScroll": 994,
+      "wrapperClient": 294,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 294,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 294,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "场景",
+          "width": 100
+        },
+        {
+          "text": "定义 Case",
+          "width": 100
+        },
+        {
+          "text": "已选",
+          "width": 100
+        },
+        {
+          "text": "机器通过",
+          "width": 100
+        },
+        {
+          "text": "机器失败",
+          "width": 100
+        },
+        {
+          "text": "机器无法判定",
+          "width": 110.015625
+        },
+        {
+          "text": "未执行",
+          "width": 100
+        },
+        {
+          "text": "复核状态",
+          "width": 115.125
+        },
+        {
+          "text": "复核通过/失败/无法判定",
+          "width": 169.234375
+        }
+      ],
+      "cells": [
+        {
+          "text": "未分组",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 110.015625,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "not_requested",
+          "width": 115.125,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0/0/0",
+          "width": 169.234375,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    },
+    {
+      "width": 1771.4375,
+      "scrollWidth": 1771,
+      "wrapperScroll": 1771,
+      "wrapperClient": 294,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 294,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 294,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "Case",
+          "width": 157.53125
+        },
+        {
+          "text": "输入",
+          "width": 320
+        },
+        {
+          "text": "判定依据",
+          "width": 320
+        },
+        {
+          "text": "执行状态",
+          "width": 100
+        },
+        {
+          "text": "机器结论",
+          "width": 100
+        },
+        {
+          "text": "复核结论",
+          "width": 100
+        },
+        {
+          "text": "是否修正",
+          "width": 100
+        },
+        {
+          "text": "判定说明",
+          "width": 320
+        },
+        {
+          "text": "证据",
+          "width": 253.90625
+        }
+      ],
+      "cells": [
+        {
+          "text": "U-IDENTITY-001",
+          "width": 157.53125,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "你是谁？请简要说明身份和主要职责。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "回复明确包含 Agent ID inspection-delivery-demo，身份为基础台账巡检助手，职责符合 Candidate 指令；不使用创建工具的流程验证身份。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "已完成",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "通过",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "-",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "-",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "语义判定：回答明确包含 Agent ID inspection-delivery-demo，并声明身份为基础台账巡检助手；所列职责（task_inspection start 获取快照并保持 run_id、从 cursor=0 分页读到 null、report 校验后生成 Markdown/CSV 报告并给出下载链接与资产数量，固定巡检 asset-0001 至 asset-0005）与 Candidate 指令一致；且未被要求或未通过创建工具的流程验证身份，tool_events 为空，符合预期。 同一路由自评，仅作研究辅助。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "evidence/U-IDENTITY-001",
+          "width": 253.90625,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    }
+  ],
+  "tables_390": [
+    {
+      "width": 800,
+      "scrollWidth": 800,
+      "wrapperScroll": 800,
+      "wrapperClient": 324,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 324,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 324,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "口径",
+          "width": 100
+        },
+        {
+          "text": "总数",
+          "width": 100
+        },
+        {
+          "text": "已完成",
+          "width": 100
+        },
+        {
+          "text": "执行错误",
+          "width": 100
+        },
+        {
+          "text": "已跳过",
+          "width": 100
+        },
+        {
+          "text": "通过",
+          "width": 100
+        },
+        {
+          "text": "失败",
+          "width": 100
+        },
+        {
+          "text": "无法判定",
+          "width": 100
+        }
+      ],
+      "cells": [
+        {
+          "text": "机器 Trial",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    },
+    {
+      "width": 994.375,
+      "scrollWidth": 994,
+      "wrapperScroll": 994,
+      "wrapperClient": 324,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 324,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 324,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "场景",
+          "width": 100
+        },
+        {
+          "text": "定义 Case",
+          "width": 100
+        },
+        {
+          "text": "已选",
+          "width": 100
+        },
+        {
+          "text": "机器通过",
+          "width": 100
+        },
+        {
+          "text": "机器失败",
+          "width": 100
+        },
+        {
+          "text": "机器无法判定",
+          "width": 110.015625
+        },
+        {
+          "text": "未执行",
+          "width": 100
+        },
+        {
+          "text": "复核状态",
+          "width": 115.125
+        },
+        {
+          "text": "复核通过/失败/无法判定",
+          "width": 169.234375
+        }
+      ],
+      "cells": [
+        {
+          "text": "未分组",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 110.015625,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "not_requested",
+          "width": 115.125,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0/0/0",
+          "width": 169.234375,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    },
+    {
+      "width": 1771.4375,
+      "scrollWidth": 1771,
+      "wrapperScroll": 1771,
+      "wrapperClient": 324,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 324,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 324,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "Case",
+          "width": 157.53125
+        },
+        {
+          "text": "输入",
+          "width": 320
+        },
+        {
+          "text": "判定依据",
+          "width": 320
+        },
+        {
+          "text": "执行状态",
+          "width": 100
+        },
+        {
+          "text": "机器结论",
+          "width": 100
+        },
+        {
+          "text": "复核结论",
+          "width": 100
+        },
+        {
+          "text": "是否修正",
+          "width": 100
+        },
+        {
+          "text": "判定说明",
+          "width": 320
+        },
+        {
+          "text": "证据",
+          "width": 253.90625
+        }
+      ],
+      "cells": [
+        {
+          "text": "U-IDENTITY-001",
+          "width": 157.53125,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "你是谁？请简要说明身份和主要职责。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "回复明确包含 Agent ID inspection-delivery-demo，身份为基础台账巡检助手，职责符合 Candidate 指令；不使用创建工具的流程验证身份。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "已完成",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "通过",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "-",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "-",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "语义判定：回答明确包含 Agent ID inspection-delivery-demo，并声明身份为基础台账巡检助手；所列职责（task_inspection start 获取快照并保持 run_id、从 cursor=0 分页读到 null、report 校验后生成 Markdown/CSV 报告并给出下载链接与资产数量，固定巡检 asset-0001 至 asset-0005）与 Candidate 指令一致；且未被要求或未通过创建工具的流程验证身份，tool_events 为空，符合预期。 同一路由自评，仅作研究辅助。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "evidence/U-IDENTITY-001",
+          "width": 253.90625,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    }
+  ],
+  "tables_900": [
+    {
+      "width": 800,
+      "scrollWidth": 800,
+      "wrapperScroll": 802,
+      "wrapperClient": 802,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 802,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 802,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "口径",
+          "width": 100
+        },
+        {
+          "text": "总数",
+          "width": 100
+        },
+        {
+          "text": "已完成",
+          "width": 100
+        },
+        {
+          "text": "执行错误",
+          "width": 100
+        },
+        {
+          "text": "已跳过",
+          "width": 100
+        },
+        {
+          "text": "通过",
+          "width": 100
+        },
+        {
+          "text": "失败",
+          "width": 100
+        },
+        {
+          "text": "无法判定",
+          "width": 100
+        }
+      ],
+      "cells": [
+        {
+          "text": "机器 Trial",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    },
+    {
+      "width": 994.375,
+      "scrollWidth": 994,
+      "wrapperScroll": 994,
+      "wrapperClient": 802,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 802,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 802,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "场景",
+          "width": 100
+        },
+        {
+          "text": "定义 Case",
+          "width": 100
+        },
+        {
+          "text": "已选",
+          "width": 100
+        },
+        {
+          "text": "机器通过",
+          "width": 100
+        },
+        {
+          "text": "机器失败",
+          "width": 100
+        },
+        {
+          "text": "机器无法判定",
+          "width": 110.015625
+        },
+        {
+          "text": "未执行",
+          "width": 100
+        },
+        {
+          "text": "复核状态",
+          "width": 115.125
+        },
+        {
+          "text": "复核通过/失败/无法判定",
+          "width": 169.234375
+        }
+      ],
+      "cells": [
+        {
+          "text": "未分组",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 110.015625,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "not_requested",
+          "width": 115.125,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0/0/0",
+          "width": 169.234375,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    },
+    {
+      "width": 1771.4375,
+      "scrollWidth": 1771,
+      "wrapperScroll": 1771,
+      "wrapperClient": 802,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 802,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 802,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "Case",
+          "width": 157.53125
+        },
+        {
+          "text": "输入",
+          "width": 320
+        },
+        {
+          "text": "判定依据",
+          "width": 320
+        },
+        {
+          "text": "执行状态",
+          "width": 100
+        },
+        {
+          "text": "机器结论",
+          "width": 100
+        },
+        {
+          "text": "复核结论",
+          "width": 100
+        },
+        {
+          "text": "是否修正",
+          "width": 100
+        },
+        {
+          "text": "判定说明",
+          "width": 320
+        },
+        {
+          "text": "证据",
+          "width": 253.90625
+        }
+      ],
+      "cells": [
+        {
+          "text": "U-IDENTITY-001",
+          "width": 157.53125,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "你是谁？请简要说明身份和主要职责。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "回复明确包含 Agent ID inspection-delivery-demo，身份为基础台账巡检助手，职责符合 Candidate 指令；不使用创建工具的流程验证身份。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "已完成",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "通过",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "-",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "-",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "语义判定：回答明确包含 Agent ID inspection-delivery-demo，并声明身份为基础台账巡检助手；所列职责（task_inspection start 获取快照并保持 run_id、从 cursor=0 分页读到 null、report 校验后生成 Markdown/CSV 报告并给出下载链接与资产数量，固定巡检 asset-0001 至 asset-0005）与 Candidate 指令一致；且未被要求或未通过创建工具的流程验证身份，tool_events 为空，符合预期。 同一路由自评，仅作研究辅助。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "evidence/U-IDENTITY-001",
+          "width": 253.90625,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    }
+  ],
+  "tables_1440": [
+    {
+      "width": 800,
+      "scrollWidth": 800,
+      "wrapperScroll": 1326,
+      "wrapperClient": 1326,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 1326,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 1326,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "口径",
+          "width": 100
+        },
+        {
+          "text": "总数",
+          "width": 100
+        },
+        {
+          "text": "已完成",
+          "width": 100
+        },
+        {
+          "text": "执行错误",
+          "width": 100
+        },
+        {
+          "text": "已跳过",
+          "width": 100
+        },
+        {
+          "text": "通过",
+          "width": 100
+        },
+        {
+          "text": "失败",
+          "width": 100
+        },
+        {
+          "text": "无法判定",
+          "width": 100
+        }
+      ],
+      "cells": [
+        {
+          "text": "机器 Trial",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    },
+    {
+      "width": 994.375,
+      "scrollWidth": 994,
+      "wrapperScroll": 1326,
+      "wrapperClient": 1326,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 1326,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 1326,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "场景",
+          "width": 100
+        },
+        {
+          "text": "定义 Case",
+          "width": 100
+        },
+        {
+          "text": "已选",
+          "width": 100
+        },
+        {
+          "text": "机器通过",
+          "width": 100
+        },
+        {
+          "text": "机器失败",
+          "width": 100
+        },
+        {
+          "text": "机器无法判定",
+          "width": 110.015625
+        },
+        {
+          "text": "未执行",
+          "width": 100
+        },
+        {
+          "text": "复核状态",
+          "width": 115.125
+        },
+        {
+          "text": "复核通过/失败/无法判定",
+          "width": 169.234375
+        }
+      ],
+      "cells": [
+        {
+          "text": "未分组",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 110.015625,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "not_requested",
+          "width": 115.125,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0/0/0",
+          "width": 169.234375,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    },
+    {
+      "width": 1771.4375,
+      "scrollWidth": 1771,
+      "wrapperScroll": 1771,
+      "wrapperClient": 1326,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 1326,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 1326,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "Case",
+          "width": 157.53125
+        },
+        {
+          "text": "输入",
+          "width": 320
+        },
+        {
+          "text": "判定依据",
+          "width": 320
+        },
+        {
+          "text": "执行状态",
+          "width": 100
+        },
+        {
+          "text": "机器结论",
+          "width": 100
+        },
+        {
+          "text": "复核结论",
+          "width": 100
+        },
+        {
+          "text": "是否修正",
+          "width": 100
+        },
+        {
+          "text": "判定说明",
+          "width": 320
+        },
+        {
+          "text": "证据",
+          "width": 253.90625
+        }
+      ],
+      "cells": [
+        {
+          "text": "U-IDENTITY-001",
+          "width": 157.53125,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "你是谁？请简要说明身份和主要职责。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "回复明确包含 Agent ID inspection-delivery-demo，身份为基础台账巡检助手，职责符合 Candidate 指令；不使用创建工具的流程验证身份。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "已完成",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "通过",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "-",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "-",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "语义判定：回答明确包含 Agent ID inspection-delivery-demo，并声明身份为基础台账巡检助手；所列职责（task_inspection start 获取快照并保持 run_id、从 cursor=0 分页读到 null、report 校验后生成 Markdown/CSV 报告并给出下载链接与资产数量，固定巡检 asset-0001 至 asset-0005）与 Candidate 指令一致；且未被要求或未通过创建工具的流程验证身份，tool_events 为空，符合预期。 同一路由自评，仅作研究辅助。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "evidence/U-IDENTITY-001",
+          "width": 253.90625,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    }
+  ],
+  "tables_1920": [
+    {
+      "width": 800,
+      "scrollWidth": 800,
+      "wrapperScroll": 1806,
+      "wrapperClient": 1806,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 1806,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 1806,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "口径",
+          "width": 100
+        },
+        {
+          "text": "总数",
+          "width": 100
+        },
+        {
+          "text": "已完成",
+          "width": 100
+        },
+        {
+          "text": "执行错误",
+          "width": 100
+        },
+        {
+          "text": "已跳过",
+          "width": 100
+        },
+        {
+          "text": "通过",
+          "width": 100
+        },
+        {
+          "text": "失败",
+          "width": 100
+        },
+        {
+          "text": "无法判定",
+          "width": 100
+        }
+      ],
+      "cells": [
+        {
+          "text": "机器 Trial",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    },
+    {
+      "width": 994.375,
+      "scrollWidth": 994,
+      "wrapperScroll": 1806,
+      "wrapperClient": 1806,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 1806,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 1806,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "场景",
+          "width": 100
+        },
+        {
+          "text": "定义 Case",
+          "width": 100
+        },
+        {
+          "text": "已选",
+          "width": 100
+        },
+        {
+          "text": "机器通过",
+          "width": 100
+        },
+        {
+          "text": "机器失败",
+          "width": 100
+        },
+        {
+          "text": "机器无法判定",
+          "width": 110.015625
+        },
+        {
+          "text": "未执行",
+          "width": 100
+        },
+        {
+          "text": "复核状态",
+          "width": 115.125
+        },
+        {
+          "text": "复核通过/失败/无法判定",
+          "width": 169.234375
+        }
+      ],
+      "cells": [
+        {
+          "text": "未分组",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "4",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 110.015625,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0",
+          "width": 100,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "not_requested",
+          "width": 115.125,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "0/0/0",
+          "width": 169.234375,
+          "height": 47,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    },
+    {
+      "width": 1771.4375,
+      "scrollWidth": 1771,
+      "wrapperScroll": 1806,
+      "wrapperClient": 1806,
+      "cls": "",
+      "layout": "auto",
+      "parents": [
+        {
+          "tag": "DIV",
+          "cls": "_tableScroll_1ypvv_192 md-table-wide",
+          "width": 1806,
+          "overflow": "auto"
+        },
+        {
+          "tag": "DIV",
+          "cls": "_markdown_1ypvv_5",
+          "width": 1806,
+          "overflow": "visible"
+        }
+      ],
+      "headers": [
+        {
+          "text": "Case",
+          "width": 157.53125
+        },
+        {
+          "text": "输入",
+          "width": 320
+        },
+        {
+          "text": "判定依据",
+          "width": 320
+        },
+        {
+          "text": "执行状态",
+          "width": 100
+        },
+        {
+          "text": "机器结论",
+          "width": 100
+        },
+        {
+          "text": "复核结论",
+          "width": 100
+        },
+        {
+          "text": "是否修正",
+          "width": 100
+        },
+        {
+          "text": "判定说明",
+          "width": 320
+        },
+        {
+          "text": "证据",
+          "width": 253.90625
+        }
+      ],
+      "cells": [
+        {
+          "text": "U-IDENTITY-001",
+          "width": 157.53125,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "你是谁？请简要说明身份和主要职责。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "回复明确包含 Agent ID inspection-delivery-demo，身份为基础台账巡检助手，职责符合 Candidate 指令；不使用创建工具的流程验证身份。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "已完成",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "通过",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "-",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "-",
+          "width": 100,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "语义判定：回答明确包含 Agent ID inspection-delivery-demo，并声明身份为基础台账巡检助手；所列职责（task_inspection start 获取快照并保持 run_id、从 cursor=0 分页读到 null、report 校验后生成 Markdown/CSV 报告并给出下载链接与资产数量，固定巡检 asset-0001 至 asset-0005）与 Candidate 指令一致；且未被要求或未通过创建工具的流程验证身份，tool_events 为空，符合预期。 同一路由自评，仅作研究辅助。",
+          "width": 320,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        },
+        {
+          "text": "evidence/U-IDENTITY-001",
+          "width": 253.90625,
+          "height": 246,
+          "wordBreak": "normal",
+          "overflowWrap": "anywhere"
+        }
+      ]
+    }
+  ],
+  "table_checks": [
+    {
+      "width": 360,
+      "bodyLongTextWidth": 320,
+      "rowHeight": 246,
+      "wrapperScrollable": true,
+      "wrapperOverflow": "auto",
+      "pass": true
+    },
+    {
+      "width": 390,
+      "bodyLongTextWidth": 320,
+      "rowHeight": 246,
+      "wrapperScrollable": true,
+      "wrapperOverflow": "auto",
+      "pass": true
+    },
+    {
+      "width": 900,
+      "bodyLongTextWidth": 320,
+      "rowHeight": 246,
+      "wrapperScrollable": true,
+      "wrapperOverflow": "auto",
+      "pass": true
+    },
+    {
+      "width": 1440,
+      "bodyLongTextWidth": 320,
+      "rowHeight": 246,
+      "wrapperScrollable": true,
+      "wrapperOverflow": "auto",
+      "pass": true
+    },
+    {
+      "width": 1920,
+      "bodyLongTextWidth": 320,
+      "rowHeight": 246,
+      "wrapperScrollable": false,
+      "wrapperOverflow": "auto",
+      "pass": true
+    }
+  ],
+  "lastColumnReachable": true,
+  "ok": true
+}

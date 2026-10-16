@@ -1,0 +1,29 @@
+{
+  "at": "2026-10-16T12:04:01.382Z",
+  "base": "http://127.0.0.1:3120/hep/",
+  "scope": "隔离3120 GUI保存回读MCP配置，并通过平台真实桥接调用基础Mock只读资产API",
+  "checks": [
+    "GUI保存并刷新回读同一服务；未改动时保存禁用",
+    "通过已发现Resource模板实际读取模拟资产9106"
+  ],
+  "errors": [],
+  "tools": [
+    "list_detect_alert"
+  ],
+  "status": [
+    "上游操作已返回；请检查下方结果和新会话。"
+  ],
+  "resultText": [
+    "{\n  \"contents\": [\n    {\n      \"uri\": \"http://127.0.0.1:53001/api/v1/security-operations/readonly/assets/9106\",\n      \"mimeType\": \"application/json\",\n      \"text\": \"{\\\"code\\\":200,\\\"data\\\":{\\\"assetId\\\":9106,\\\"id\\\":9106,\\\"name\\\":\\\"测试应用服务器\\\",\\\"hostname\\\":\\\"mock-app\\\",\\\"ip\\\":\\\"192.0.2.10\\\",\\\"status\\\":\\\"ONLINE\\\",\\\"importance\\\":\\\"NORMAL\\\",\\\"type\\\":\\\"SERVER\\\"}}\"\n    }\n  ]\n}"
+  ],
+  "result": {
+    "contents": [
+      {
+        "uri": "http://127.0.0.1:53001/api/v1/security-operations/readonly/assets/9106",
+        "mimeType": "application/json",
+        "text": "{\"code\":200,\"data\":{\"assetId\":9106,\"id\":9106,\"name\":\"测试应用服务器\",\"hostname\":\"mock-app\",\"ip\":\"192.0.2.10\",\"status\":\"ONLINE\",\"importance\":\"NORMAL\",\"type\":\"SERVER\"}}"
+      }
+    ]
+  },
+  "ok": true
+}

@@ -1,0 +1,29 @@
+{
+  "at": "2026-10-16T12:14:03.827Z",
+  "base": "http://127.0.0.1:3120/hep/",
+  "scope": "隔离3120 GUI保存回读MCP配置，并通过平台真实桥接调用基础Mock只读资产API",
+  "checks": [
+    "GUI保存并刷新回读同一服务；未改动时保存禁用",
+    "发现只读告警工具并按模拟资产9106实际查询"
+  ],
+  "errors": [],
+  "tools": [
+    "list_detect_alert"
+  ],
+  "status": [
+    "上游操作已返回；请检查下方结果和新会话。"
+  ],
+  "resultText": [
+    "{\n  \"content\": [\n    {\n      \"type\": \"text\",\n      \"text\": \"{\\\"code\\\":200,\\\"data\\\":{\\\"groups\\\":[{\\\"groupId\\\":\\\"group-MOCK-ALERT-000001\\\",\\\"assetId\\\":9106,\\\"title\\\":\\\"正常运维测试告警\\\",\\\"severity\\\":\\\"LOW\\\",\\\"alertCount\\\":1,\\\"firstSeenTime\\\":\\\"2026-10-15T01:00:00Z\\\",\\\"lastSeenTime\\\":\\\"2026-10-15T01:00:00Z\\\",\\\"alerts\\\":[{\\\"alert_id\\\":\\\"MOCK-ALERT-000001\\\",\\\"id\\\":\\\"MOCK-ALERT-000001\\\",\\\"title\\\":\\\"正常运维测试告警\\\",\\\"description\\\":\\\"例行健康检查的基础测试数据。\\\",\\\"severity\\\":\\\"LOW\\\",\\\"rule_id\\\":1,\\\"affected_asset_id\\\":9106,\\\"affectedAssetId\\\":9106,\\\"created_at\\\":\\\"2026-10-15T01:00:00Z\\\",\\\"alert_type\\\":\\\"HEALTH_CHECK\\\",\\\"destination_ip\\\":\\\"192.0.2.10\\\",\\\"ocsf\\\":{\\\"activity_name\\\":\\\"例行健康检查\\\",\\\"class_name\\\":\\\"设备状态\\\",\\\"metadata\\\":{\\\"original_time\\\":\\\"2026-10-15T01:00:00Z\\\",\\\"product\\\":{\\\"name\\\":\\\"基础模拟服务\\\"}},\\\"device\\\":{\\\"uid\\\":\\\"9106\\\",\\\"ip\\\":\\\"192.0.2.10\\\",\\\"hostname\\\":\\\"mock-app\\\"}}}]}],\\\"totalGroups\\\":1,\\\"totalAlerts\\\":1,\\\"truncated\\\":false,\\\"from\\\":\\\"2026-09-15T01:00:00Z\\\",\\\"to\\\":\\\"2026-10-15T01:00:00Z\\\",\\\"pageNum\\\":1,\\\"pageSize\\\":5}}\"\n    }\n  ],\n  \"isError\": false\n}"
+  ],
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"code\":200,\"data\":{\"groups\":[{\"groupId\":\"group-MOCK-ALERT-000001\",\"assetId\":9106,\"title\":\"正常运维测试告警\",\"severity\":\"LOW\",\"alertCount\":1,\"firstSeenTime\":\"2026-10-15T01:00:00Z\",\"lastSeenTime\":\"2026-10-15T01:00:00Z\",\"alerts\":[{\"alert_id\":\"MOCK-ALERT-000001\",\"id\":\"MOCK-ALERT-000001\",\"title\":\"正常运维测试告警\",\"description\":\"例行健康检查的基础测试数据。\",\"severity\":\"LOW\",\"rule_id\":1,\"affected_asset_id\":9106,\"affectedAssetId\":9106,\"created_at\":\"2026-10-15T01:00:00Z\",\"alert_type\":\"HEALTH_CHECK\",\"destination_ip\":\"192.0.2.10\",\"ocsf\":{\"activity_name\":\"例行健康检查\",\"class_name\":\"设备状态\",\"metadata\":{\"original_time\":\"2026-10-15T01:00:00Z\",\"product\":{\"name\":\"基础模拟服务\"}},\"device\":{\"uid\":\"9106\",\"ip\":\"192.0.2.10\",\"hostname\":\"mock-app\"}}}]}],\"totalGroups\":1,\"totalAlerts\":1,\"truncated\":false,\"from\":\"2026-09-15T01:00:00Z\",\"to\":\"2026-10-15T01:00:00Z\",\"pageNum\":1,\"pageSize\":5}}"
+      }
+    ],
+    "isError": false
+  },
+  "ok": true
+}

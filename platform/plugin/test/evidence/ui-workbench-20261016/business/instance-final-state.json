@@ -1,0 +1,54 @@
+{
+  "ok": true,
+  "instance": {
+    "observed_at": "2026-10-16T12:19:13.452904Z",
+    "agent_id": "daily-inspection-assistant",
+    "base_url": "http://127.0.0.1:3121/assistant/",
+    "container_name": "hep-ui-acceptance",
+    "context_mounts": [],
+    "home_directory": "/tmp/hep-ui-workbench-20261016/data/.local/instances/hep-ui-acceptance/dsh-home",
+    "home_preserved": true,
+    "home_volume": null,
+    "image_build_fingerprint": "sha256:9b0b8da693145c791f3b040ef8f91e0a6a4dc67f4402ae390dae6f950fc01fc2",
+    "image_id": "sha256:060d338f4d4cfe18097d7c0ae72a4fb22d82c3fe8da11829bba0121686c458f8",
+    "image_tag": "ai-agent-harness/dsh:21638c563-9b0b8da69314",
+    "lan_access": true,
+    "listen_host": "0.0.0.0",
+    "mode": "verification",
+    "mount_modes": {
+      "managed": "ro",
+      "presets": "ro",
+      "workspace": "ro"
+    },
+    "mounts": {
+      "managed": "/tmp/hep-ui-workbench-20261016/data/evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/candidate/dsh/managed",
+      "presets": "/tmp/hep-ui-workbench-20261016/data/evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/candidate/dsh/presets",
+      "workspace": "/tmp/hep-ui-workbench-20261016/data/evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/candidate/dsh/workspace"
+    },
+    "name": "hep-ui-acceptance",
+    "needs_migration": false,
+    "port": 3121,
+    "profile": "web",
+    "project": "dsh-dev-hep-ui-acceptance",
+    "ps": "[]",
+    "ps_query": "reported",
+    "purpose": "eval",
+    "session_preset": "daily-inspection-assistant",
+    "skip_testing_notice": true,
+    "source_id": "experiment:EXP-daily-inspection-assistant-004-r965bc66e4614",
+    "source_kind": "experiment",
+    "state": "absent",
+    "state_dir": "/tmp/hep-ui-workbench-20261016/data/.local/instances/hep-ui-acceptance",
+    "state_schema": "2.8",
+    "target_preset": "daily-inspection-assistant",
+    "trusted_host": null,
+    "unsafe_no_auth": true,
+    "web_base_path": "/assistant/"
+  },
+  "checks": [
+    "GUI确认停止之后，真实容器已停止并移除；平台登记和3121配置保留",
+    "GUI切换全部状态后仍能查看登记并重新启动",
+    "隔离工作区无运行中实例"
+  ],
+  "receipt_observation": "确认后页面重装，未取得关闭按钮；随后重新登录和真实RPC回读确认最终状态"
+}

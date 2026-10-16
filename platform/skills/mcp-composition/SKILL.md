@@ -19,6 +19,6 @@ description: 平台管理助手通过原生 MCP 配置与工具组合编排维�
 
 保存草稿使用 `saveCompositionDraft {revision,compositionId?,draft}`，测试使用 `dryRunComposition {revision,compositionId,version:"draft"|"published",input}`，发布使用 `publishComposition` 的同一选择参数且 version 为 draft。revision 和 ID 必须来自最新 `list`，不要将字段改成 catalogRevision、versionId 或 arguments；draft 是扁平配置，直接复用 list.compositions 中的 draft 或 published（含 toolName、title、description、connectionId 及该类型的实际字段），再修改所需字段；不要增加 config 或 graph 包装。graphs 是只读结构视图，不能作为草稿提交。不要创造执行器未支持的任意步骤。发布后调用 `callPublishedComposition {toolName,input}`，平台提案会固定实际发布版本。
 
-当前界面只显示已装载执行器和业务扩展提供的模板与能力。安全运营扩展启用后，资产告警及威胁分析样例使用其 `security-operations-composition` Skill；未发现该技能或工具时说明能力缺口，不创建替代数据副本。
+当前界面只显示已装载执行器和业务扩展提供的能力，编排统一列在“全部编排”，草稿与发布状态随条目展示。样例初始化由助手在能力可用时调用已有 `seedThreatCompositions` 并经用户确认，页面不提供专用的样例创建按钮。安全运营扩展启用后，资产告警及威胁分析样例使用其 `security-operations-composition` Skill；未发现该技能或工具时说明能力缺口，不创建替代数据副本。
 
 只有用户任务需要修改平台实现时才进入程序根 `platform/plugin/` 开发和验证，使用程序根入口 `platform/dsh-platform prepare` 装载新构建。普通编排管理通过页面及平台工具完成；不改变业务 Agent 的 Harness，不以重启服务或模型结束代替真实调用验收。

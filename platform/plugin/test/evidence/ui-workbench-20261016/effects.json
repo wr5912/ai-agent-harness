@@ -1,0 +1,46 @@
+{
+  "base": "http://10.0.160.32:3090/hep/",
+  "at": "2026-10-16T12:18:54.102Z",
+  "checks": [
+    {
+      "name": "首页输入随内容增高",
+      "before": 39.09375,
+      "after": 85
+    },
+    {
+      "name": "主操作悬停保持实心",
+      "color": "rgb(0, 99, 171)"
+    },
+    {
+      "name": "组合页与助手浮窗展开收起",
+      "ok": true
+    },
+    {
+      "name": "原生设置三页加载",
+      "ok": true
+    },
+    {
+      "name": "减少动态效果",
+      "duration": "0ms"
+    }
+  ],
+  "errors": [],
+  "settings": [
+    {
+      "tab": "模型",
+      "ok": true,
+      "visibleText": "设置\n通用设置\n模型\n内置插件\nAgent 预设\n打开配置文件\n关闭\n模型\n\n填入各提供商的 API 密钥即可使用其模型。\n\nDeepSeek\n编辑\nLocal Qwen\n自定义\n编辑\n删除\n添加模型提供商"
+    },
+    {
+      "tab": "内置插件",
+      "ok": true,
+      "visibleText": "设置\n通用设置\n模型\n内置插件\nAgent 预设\n打开配置文件\n关闭\n内置插件\n\n查看内置部署的插件列表\n\n搜索插件\n会话插件\n标准模式（默认）\n\n由 Agent 预设按会话组成\n28 个\n\npersona\nComposition-authored deployment persona section for the DeepSeek Harness\nagent-instructions\nWorkspace context loader for AGENTS.md/CLAUDE.md instruction files\n时间感知\n每一步把当前时间、浏览器时区和距上一条消息的时长告诉模型。\ntime-context\ntool-bash\nModel-facing bash tool with optional generic background-job and sandbox-escalation support\ntool-pwsh\n已停用\nModel-facing pwsh tool over the bash executor seam\ntool-fs\nModel-facing filesystem tools (read, write, edit) over the DeepSeek Harness filesystem seam (ctx.fs)\ntool-fs-search\nModel-facing filesystem discovery tools (glob, grep) backed by the packaged ripgrep binary (@vscode/ripgrep)\ntool-jobs\nModel-facing background job control tools (job_output, job_list, job_kill) over the ctx.jobs registry\ntool-schedule\nModel-facing reminder management tools (schedule_create, schedule_list, schedule_update, schedule_delete) over the Host ctx.schedule service\nskill-filesystem\nLocal filesystem skill provider for the DeepSeek Harness\ntool-skill\nModel-facing skill loading tool for the DeepSeek Harness\ncommand-goal\nHuman-facing slash command for persisted same-session goals\ntool-goa"
+    },
+    {
+      "tab": "Agent 预设",
+      "ok": true,
+      "visibleText": "设置\n通用设置\n模型\n内置插件\nAgent 预设\n打开配置文件\n关闭\nAgent 预设\n\n选择 Agent 的工具和工作方式。日常任务用「标准模式」，扩展 DSH 的能力用「创造模式」。\n\n内置\n标准模式\n新任务默认\nstandard\n处理代码、文件和资料，适合大多数任务。Agent 会按需使用检索、编辑和终端等工具。\n模式说明\n如何使用\nPTC 模式\n内置\nptc\n包含标准模式的所有能力，更适合批量调用工具，并对结果进行筛选、整理、去重、统计或汇总的任务。\n模式说明\n如何使用\n极简模式\n内置\nminimal\nAgent 仅使用终端工具完成任务，适合测试和对比其基础表现。\n模式说明\n如何使用\n创造模式\n内置\ncordis\n用对话定制 DSH：让 Agent 编写插件，添加新功能或界面；也能组合工具和提示词，创建自己的模式。\n模式说明\n如何使用\n自定义\n让 Agent 帮我创建预设模式"
+    }
+  ],
+  "ok": true
+}
