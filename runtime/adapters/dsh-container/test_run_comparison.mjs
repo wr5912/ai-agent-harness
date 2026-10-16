@@ -9,7 +9,9 @@ function view(id, actualRoutes = [route]) {
     run_id: id, run_path: `runs/${id}`,
     manifest: { agent_id: 'basic', status: 'completed' },
     source: { executor: 'api', model: 'deepseek-flash', review_mode: 'none',
-      configured_capabilities: {}, dependency_env: {}, git_version: { commit: 'fixture', dirty: false } },
+      configured_capabilities: {}, dependency_env: {}, git_version: { commit: 'fixture', dirty: false },
+      program_origin: { commit: 'a'.repeat(40), dirty: false },
+      evaluation_implementation: { 'dsh-eval': 'b'.repeat(64), 'dsh-eval-api.mjs': 'c'.repeat(64) } },
     image: { image_build_fingerprint: 'fixture', local_image_id: 'fixture' },
     cases: [{ case_id: 'U-BASIC-001', frozen: { inputs: ['查询基础状态'] },
       trials: [{ execution_status: 'completed', verdict: 'passed', observation: '基础状态已展示' }],
@@ -67,5 +69,23 @@ test('逐轮缺失不能在过滤模型名后被折叠为相同路由', () => {
     const unknown = compare(view('old', routes), view('new', routes))
     assert.equal(unknown.causal_comparable, false)
     assert.equal(unknown.limits.filter(item => item.includes('缺少实际模型路由记录')).length, 2)
+  }
+})
+
+test('平台来源或执行评审实现缺失及变化保留归因限制，不因模型相同而忽略', () => {
+  for (const field of ['program_origin', 'evaluation_implementation']) {
+    const missing = view('missing')
+    delete missing.source[field]
+    const missingResult = compare(view('old'), missing)
+    assert.equal(missingResult.comparable, true)
+    assert.equal(missingResult.causal_comparable, false)
+    assert.ok(missingResult.limits.some(item => field === 'program_origin' ? item.includes('平台程序来源未记录') : item === 'evaluation_implementation: 未记录'))
+    const changed = view('changed')
+    if (field === 'program_origin') changed.source.program_origin.commit = 'd'.repeat(40)
+    else changed.source.evaluation_implementation['dsh-eval'] = 'e'.repeat(64)
+    const changedResult = compare(view('old'), changed)
+    assert.equal(changedResult.comparable, true)
+    assert.equal(changedResult.causal_comparable, false)
+    assert.ok(changedResult.limits.includes(field === 'program_origin' ? 'program_origin: 平台程序提交不同' : 'evaluation_implementation: 不同'))
   }
 })

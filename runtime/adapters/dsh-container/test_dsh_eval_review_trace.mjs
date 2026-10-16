@@ -82,6 +82,14 @@ async function fixture(t, scenario = () => ({})) {
         const id = `review-${sessions.size + 1}`
         sessions.set(id, { id, preset: args.request.agentPreset, prompts: [] })
         value = { sessionId: id, agentPreset: args.request.agentPreset }
+      } else if (method === 'session/rename') {
+        const session = sessions.get(args.request.sessionId)
+        assert.ok(session)
+        assert.equal(session.prompts.length, 0, '新评测 Session 必须在首条模型请求前固定标题')
+        assert.equal(typeof args.request.title, 'string')
+        assert.ok(args.request.title.trim())
+        session.title = args.request.title
+        value = { sessionId: session.id, title: session.title, seq: 1 }
       } else if (method === 'session/list') value = { items: [...sessions.values()].map(session => ({ sessionId: session.id, cwd: workspace, projections: { values: { agentPreset: session.preset } } })) }
       else if (method === 'session/selectModel') {
         const { sessionId, ...selected } = args.request
@@ -141,6 +149,8 @@ test('真实 review 驱动保存根与子 Session 轨迹，同 Session repair �
   const sessionId = first.results[0].session_id
   assert.equal(first.results[0].text, '归因结果 1')
   assert.equal(runtime.sessions.size, 1)
+  assert.equal(runtime.requests.filter(row => row.method === 'session/rename').length, 1)
+  assert.equal(runtime.sessions.get(sessionId).title, '复核 scene-1')
   const before = await runtime.evidence('scene-1')
   assert.deepEqual(before.checks, { operation: 'review', session_id: sessionId, attempt: 1, status: 'completed', failure_reason: null, trace_available: true })
   assert.ok(before.trace.some(row => row.session_log === `${sessionId}.jsonl`))
@@ -151,6 +161,7 @@ test('真实 review 驱动保存根与子 Session 轨迹，同 Session repair �
   assert.equal(repaired.results[0].session_id, sessionId)
   assert.equal(repaired.results[0].text, '归因结果 2')
   assert.equal(runtime.requests.filter(row => row.method === 'session/create').length, 1)
+  assert.equal(runtime.requests.filter(row => row.method === 'session/rename').length, 1, '同 Session repair 不重复建立或重命名会话')
   const after = await runtime.evidence('scene-1', 2)
   assert.equal(after.checks.attempt, 2)
   assert.equal(after.checks.status, 'completed')
