@@ -19,6 +19,8 @@ const titles: Record<string, string> = {
   'eval/preview': '核对评测范围', 'eval/start': '启动评测', 'eval/status': '查询评测进度', 'eval/cancel': '取消评测',
   'runs/index': '查询运行记录', 'runs/show': '读取运行详情', 'runs/report': '读取评测报告', 'runs/read-file': '读取运行文件', 'runs/trace': '读取执行轨迹',
   'tasks/assembly-preview': '核对能力装配', 'tasks/assembly-apply': '装配复用能力',
+  'compute-variants/context': '读取算力变体进度', 'compute-variants/preview': '核对算力变体计划', 'compute-variants/create': '创建探索性算力变体', 'compute-variants/rename': '修改变体名称',
+  'compute-variants/build-preview': '核对工作流构建', 'compute-variants/build': '构建工作流代码', 'compute-variants/freeze-preview': '预览本地数据冻结差异', 'compute-variants/freeze': '冻结本次数据差异', 'compute-variants/compare': '比较任务效果与资源',
   'datasets/source': '读取决策样本来源', 'datasets/preview': '核对待保存决策样本', 'datasets/apply': '保存待复核决策样本', 'datasets/list': '查询决策样本集',
   new: '创建智能体资产', create: '从固定父版派生', configuration: '读取 MCP 配置', saveConfiguration: '保存 MCP 配置',
   callTool: '调用 MCP 工具', callPublishedComposition: '执行工具组合', test: '测试工具连接',
@@ -47,8 +49,9 @@ export function operationSummary(meta: OperationMeta, phase = 'result') {
   const file = input.path ?? value?.selected?.path
   const agent = value?.agent?.name ?? value?.agent?.manifest?.name ?? input.agent_id
   const version = /-(\d{3})(?:-r[0-9a-f]{12})?$/.exec(input.experiment_id ?? value?.experiment?.id ?? '')?.[1]
-  const target = file ? String(file).split('/').at(-1) : input.name ?? input.toolName ?? (agent ? `${agent}${version ? ` · 版本 ${version}` : ''}` : version ? `版本 ${version}` : undefined)
+  const target = file ? String(file).split('/').at(-1) : input.variant_name ?? value?.variant_name ?? input.name ?? input.toolName ?? (agent ? `${agent}${version ? ` · 版本 ${version}` : ''}` : version ? `版本 ${version}` : undefined)
   if (target) title += `：${target}`
+  if (meta.domain === 'task' && value?.plan?.kind === 'compute-variant' && action === 'deliver') title = '核对代码变体与比较证据'
   if (meta.state === 'failed' || value?.ok === false || value?.isError === true) return { title, outcome: error || value?.checks?.find((check: any) => check.ok === false)?.message || '操作失败，请展开查看实际回执', failed: true }
   if (meta.state === 'unknown') return { title, outcome: error || '结果未知，请先核对实际状态', failed: true }
   if (meta.state === 'cancelled') return { title, outcome: '已取消', failed: false }
@@ -57,7 +60,7 @@ export function operationSummary(meta: OperationMeta, phase = 'result') {
   if (phase !== 'result') return { title, outcome: phase === 'preparing' ? '正在准备参数' : '正在执行', failed: false }
   let outcome = '已收到回执，可展开查看'
   if (action === 'context' && value?.workspace) outcome = '已读取当前工作区与固定任务目标'
-  else if (meta.domain === 'task') outcome = action === 'begin-repair' && Number.isFinite(value?.repair_rounds) ? `已预留第 ${value.repair_rounds} 轮修复` : action === 'rollback' && Array.isArray(value?.restored) && Array.isArray(value?.deleted) ? `已恢复 ${value.restored.length} 份原文件、移除 ${value.deleted.length} 份本任务新增文件；预算与记录保留` : taskStates[value?.state] ?? (action === 'preview' && value?.plan ? '方案已校验，执行前将请求整体确认' : outcome)
+  else if (meta.domain === 'task') outcome = value?.plan?.kind === 'compute-variant' && value?.state === 'completed' ? '生成与比较已核对，end 仍需用户复核' : action === 'begin-repair' && Number.isFinite(value?.repair_rounds) ? `已预留第 ${value.repair_rounds} 轮修复` : action === 'rollback' && Array.isArray(value?.restored) && Array.isArray(value?.deleted) ? `已恢复 ${value.restored.length} 份原文件、移除 ${value.deleted.length} 份本任务新增文件；预算与记录保留` : taskStates[value?.state] ?? (action === 'preview' && value?.plan ? '方案已校验，执行前将请求整体确认' : outcome)
   else if (meta.domain === 'instances' && action === 'preview' && instanceReceipt) {
     const plan = instanceReceipt.plan ?? instanceReceipt
     const source = /-(\d{3})(?:-r[0-9a-f]{12})?$/.exec(plan.source_id ?? '')?.[1]
@@ -75,6 +78,7 @@ export function operationSummary(meta: OperationMeta, phase = 'result') {
   else if (action === 'new' || action === 'create') outcome = value?.experiment_id ? '已创建研究版本，业务效果仍需评测' : outcome
   else if (action === 'edit/preview' && Array.isArray(value?.edits)) outcome = `已核对 ${value.edits.length} 份文件修改；尚未写入`
   else if (action === 'edit/apply' && value) outcome = '已保存资产修改'
+  else if (action === 'compute-variants/rename' && value?.variant_name) outcome = `已保存变体名称：${value.variant_name}`
   else if (action === 'assets/read-fixed' && value?.files) outcome = value.selected ? '已读取固定文件内容' : `已列出 ${value.files.length} 个固定版本文件`
   else if (action === 'context') outcome = '已读取当前工作区与固定任务目标'
   else if (action === 'runs/index' && Array.isArray(value?.experiments)) outcome = `查到 ${value.experiments.length} 个版本、${value.experiments.reduce((count: number, experiment: any) => count + (Array.isArray(experiment.runs) ? experiment.runs.length : 0), 0)} 条运行记录`

@@ -737,6 +737,20 @@ def command_init(repo: Path, args: argparse.Namespace) -> None:
             "asset_origin": {**version, "workspace_id": workspace_id(repo),
                              "candidate_sha256": source_digest},
         }
+        # 固定外部接口边界样本；两侧比较不能仅凭相同用户输入推定工具返回一致。
+        fixture = experiment / "candidate/dsh/managed/compute-workflow/fixtures.json"
+        if fixture.exists():
+            if fixture.is_symlink() or not fixture.is_file():
+                raise ValueError("外部输入样本必须是 Candidate 内普通文件")
+            frozen_fixture = fixture.read_bytes()
+            fixture_value = json.loads(frozen_fixture)
+            mode = fixture_value.get("mode")
+            if mode not in {"mock-replay", "replay"}:
+                raise ValueError("外部输入样本必须明确标记 mock-replay 或 replay")
+            inputs["external_inputs"] = {"mode": mode,
+                                         "fixture_sha256": hashlib.sha256(frozen_fixture).hexdigest()}
+            (run_dir / "evidence").mkdir(exist_ok=True)
+            (run_dir / "evidence/external-inputs.json").write_bytes(frozen_fixture)
         if args.model:
             inputs["model"] = args.model
         if args.executor:

@@ -6,6 +6,9 @@ import { createServer } from 'node:http'
 import { createHash } from 'node:crypto'
 import test from 'node:test'
 import { build } from 'esbuild'
+import { execFileSync } from 'node:child_process'
+import { publishCompositionVersion } from '../src/mcp/compositions.ts'
+import { registerFixedCompositionTools, withFixedCompositionExecution } from '../src/workflows/fixed-composition.ts'
 
 async function loadMcpModule(native = false) {
   process.env.HARNESS_PROGRAM_ROOT = new URL('../../../', import.meta.url).pathname
@@ -697,4 +700,158 @@ test('未装载业务扩展时目录可读、业务工具不暴露且种子不�
   delete extension.threat
   assert.deepEqual(await discover(), [])
   assert.equal(await readFile(compositionsFile, 'utf8'), original)
+})
+
+test('MCP元数据固定旧版本与实现，发布指针变化不换工具，连接或摘要变化在上游调用前拒绝', async () => {
+  const module = await loadMcpModule()
+  await withFixture(async ({ baseUrl, calls }) => {
+    const { rpc, handler } = await setup(module, baseUrl)
+    const listed = (await rpc('list', {})).value, entry = listed.compositions[0], binding = entry.binding
+    assert.match(binding.expectedImplementationDigest, /^[0-9a-f]{64}$/)
+    const gateway = module.createPublishedCompositionClient(process.cwd(), handler)
+    const discovered = await gateway.listTools()
+    assert.deepEqual(discovered.tools[0]._meta.harness, binding)
+    const saved = await rpc('saveCompositionDraft', { compositionId: entry.id, revision: listed.revision,
+      draft: { ...entry.published, toolName: 'query_new_version', title: '新的发布指针' } })
+    assert.equal((await rpc('publishComposition', { compositionId: entry.id, version: 'draft', revision: saved.value.revision, input: { asset: 'host-a' } })).ok, true)
+    const execution = { execution_id: 'fixed-execution', session_id: 'target-session', tool_call_id: 'call-1' }
+    const fixed = await gateway.callTool({ name: entry.published.toolName, arguments: { asset: 'host-a' }, _meta: { harness: { ...binding, execution } } })
+    const result = JSON.parse(fixed.content[0].text)
+    assert.equal(fixed.isError, false)
+    assert.equal(result.version.versionId, binding.versionId)
+    assert.equal(result.graph_execution.execution_id, execution.execution_id)
+    assert.equal(result.graph_execution.session_id, execution.session_id)
+    assert.equal(result.graph_execution.complete, true)
+    const before = calls.length
+    const conflict = await rpc('callPublishedComposition', { ...binding, toolName: entry.published.toolName, expectedImplementationDigest: '0'.repeat(64), input: { asset: 'host-a' } })
+    assert.equal(conflict.error.code, 'conflict'); assert.equal(calls.length, before)
+    await rpc('registerOpenApi', { id: 'security-readonly-api', specUrl: `${baseUrl}/changed-spec.json` })
+    const moved = await rpc('callPublishedComposition', { ...binding, toolName: entry.published.toolName, input: { asset: 'host-a' } })
+    assert.equal(moved.error.code, 'conflict'); assert.equal(calls.length, before)
+  })
+})
+
+test('实现摘要排除Git HEAD、dirty和发布时间，父组合递归锁子版本与扩展实现', async () => {
+  const module = await loadMcpModule(), root = await mkdtemp(join(tmpdir(), 'composition-binding-stable-'))
+  const child = { id: 'child' }, parent = { id: 'parent' }
+  const config = { toolName: 'child_old', title: '子组合', description: '', connectionId: 'platform-compositions', kind: 'threat-stage', stage: 'collect', bindings: { socConnectionId: 'soc', reportConnectionId: 'report' } }
+  publishCompositionVersion(child, config)
+  publishCompositionVersion(parent, { toolName: 'parent_tool', title: '父组合', description: '', connectionId: 'platform-compositions', kind: 'composite',
+    steps: [{ id: 'collect', compositionId: child.id, versionId: child.publishedVersionId, inputMap: { incident_id: '$input.incident_id' } }] })
+  const catalog = { schema_version: '1.0', compositions: [child, parent] }, compositionsFile = join(root, 'compositions.json')
+  await writeFile(compositionsFile, JSON.stringify(catalog))
+  const extension = { id: 'fixed-extension', sourceDigest: '1'.repeat(64), threat: { execute() { throw new Error('不得执行') } } }
+  const rpc = module.createMcpHandler(root, { compositionsFile, extension })
+  const binding = async () => (await rpc('list', {})).value.compositions.find(item => item.id === 'parent').binding
+  const first = await binding()
+  execFileSync('git', ['init', '-q'], { cwd: root })
+  execFileSync('git', ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'core.hooksPath=/dev/null', 'add', 'compositions.json'], { cwd: root })
+  execFileSync('git', ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'fixture'], { cwd: root })
+  await writeFile(join(root, 'unrelated.txt'), '无关工作区变化')
+  publishCompositionVersion(child, { ...config, toolName: 'child_new' })
+  parent.published.publishedAt = new Date(Date.now() + 1000).toISOString()
+  await writeFile(compositionsFile, JSON.stringify(catalog))
+  assert.deepEqual(await binding(), first)
+  extension.sourceDigest = '2'.repeat(64)
+  assert.notEqual((await binding()).expectedImplementationDigest, first.expectedImplementationDigest)
+})
+
+test('阶段模型观察上下文由执行器传递，父子图回执合并同一执行身份', async () => {
+  const module = await loadMcpModule(), root = await mkdtemp(join(tmpdir(), 'composition-observer-'))
+  const config = { toolName: 'infer_tool', title: '推理', description: '', connectionId: 'platform-compositions', kind: 'threat-stage', stage: 'infer', bindings: { socConnectionId: 'soc', reportConnectionId: 'report' } }
+  const entry = { id: 'infer' }; publishCompositionVersion(entry, config)
+  const compositionsFile = join(root, 'compositions.json')
+  await writeFile(compositionsFile, JSON.stringify({ schema_version: '1.0', compositions: [entry] }))
+  let failAfterModel = false
+  const extension = { id: 'observer', sourceDigest: 'a'.repeat(64), threat: { async execute(stage, bindings, input, signal, execution) {
+    assert.equal(execution.parent_run_id, 'run-parent')
+    const { recordAttempt, ...identity } = execution
+    await recordAttempt({ ...identity, attempt_id: 'attempt-one', status: 'started', time: 1 })
+    await recordAttempt({ ...identity, attempt_id: 'attempt-one', status: 'completed', time: 2, usage: { inputTokens: 4, outputTokens: 2, totalTokens: 6 } })
+    if (failAfterModel) throw new Error('阶段在模型完成后失败')
+    return { run_id: input.run_id, phase_status: 'completed', status: 'completed', llm_invoked: true }
+  } } }
+  const rpc = module.createMcpHandler(root, { compositionsFile, extension })
+  const binding = (await rpc('list', {})).value.compositions[0].binding
+  const result = await rpc('callPublishedComposition', { ...binding, toolName: config.toolName, input: { run_id: 'run-11111111-1111-4111-8111-111111111111' },
+    execution: { execution_id: 'test-graph', parent_run_id: 'run-parent', session_id: 'target', tool_call_id: 'call' } })
+  assert.equal(result.ok, true)
+  assert.equal(result.value.graph_execution.complete, true)
+  assert.equal(result.value.graph_execution.model_attempts.length, 2)
+  assert.equal(result.value.graph_execution.model_attempts[1].execution_id, 'test-graph')
+  failAfterModel = true
+  const failed = await rpc('callPublishedComposition', { ...binding, toolName: config.toolName, input: { run_id: 'run-11111111-1111-4111-8111-111111111111' },
+    execution: { execution_id: 'test-failed-graph', parent_run_id: 'run-parent', session_id: 'target', tool_call_id: 'failed-call' } })
+  assert.equal(failed.ok, true)
+  assert.equal(failed.value.ok, false)
+  assert.equal(failed.value.graph_execution.model_attempts.length, 2)
+  assert.equal(failed.value.graph_execution.complete, true)
+})
+
+test('Candidate固定工具复用原生组认证和官方MCP传输，发布后仍执行旧版并在实现冲突前阻止业务请求', async () => {
+  const module = await loadMcpModule()
+  await withFixture(async ({ baseUrl, calls }) => {
+    const { rpc, handler } = await setup(module, baseUrl), entry = (await rpc('list', {})).value.compositions[0]
+    const platform = module.createPublishedCompositionClient(process.cwd(), handler)
+    const tool = (await platform.listTools()).tools[0], groupDigest = 'f'.repeat(64), token = 'private-group-fixture-token'
+    const originalName = `mcp__compositions__${tool.name}`
+    const server = createServer(async (req, res) => {
+      if (req.headers.authorization !== `Bearer ${token}`) return res.writeHead(401).end()
+      if (req.method !== 'POST') return res.writeHead(405).end()
+      const chunks = []; for await (const chunk of req) chunks.push(chunk)
+      const request = JSON.parse(Buffer.concat(chunks).toString())
+      if (request.method === 'tools/call') {
+        assert.equal(request.params._meta['io.deepseek.dsh/mcp-group-target'].digest, groupDigest)
+        request.params.name = request.params.name.replace('mcp__compositions__', '')
+      }
+      const gateway = module.createMcpGatewayFetchHandler(process.cwd(), handler)
+      const response = await gateway(new Request('http://fixture.local', { method: 'POST', body: JSON.stringify(request) }))
+      let body = await response.text()
+      if (request.method === 'tools/list') {
+        const parsed = JSON.parse(body)
+        parsed.result.tools = parsed.result.tools.map(item => ({ ...item, name: `mcp__compositions__${item.name}` }))
+        parsed.result._meta = { 'io.deepseek.dsh/mcp-group-target': { digest: groupDigest } }
+        body = JSON.stringify(parsed)
+      }
+      res.writeHead(response.status, { 'content-type': 'application/json' }).end(body)
+    })
+    const port = await listen(server), previousAnchor = process.env.DSH_MCP_CLIENT_ANCHOR
+    process.env.DSH_MCP_CLIENT_ANCHOR = join(process.cwd(), 'package.json')
+    const definitions = new Map(), nativeTool = { name: originalName }
+    const ctx = { webServer: { port, publicPath: path => `/hep${path}` },
+      mcpSessionManager: { currentGroup: () => ({ token, targetDigest: groupDigest }) },
+      tools: { register: definition => definitions.set(definition.name, definition), get: name => name === originalName ? nativeTool : definitions.get(name) } }
+    try {
+      const fixed = { group_id: 'fixed', group_target_digest: groupDigest, tool_name: originalName, ...entry.binding, input_schema: tool.inputSchema }
+      const aliases = registerFixedCompositionTools(ctx, { [originalName]: fixed })
+      const selected = definitions.get(aliases.get(originalName))
+      const listed = (await rpc('list', {})).value
+      const saved = await rpc('saveCompositionDraft', { compositionId: entry.id, revision: listed.revision, draft: { ...entry.published, title: '当前发布的新版本' } })
+      await rpc('publishComposition', { compositionId: entry.id, version: 'draft', revision: saved.value.revision, input: { asset: 'host-a' } })
+      const exec = { callId: 'inner-call', agent: { session: { id: 'target-session' } }, signal: new AbortController().signal }
+      const value = await withFixedCompositionExecution({ execution_id: 'outer-workflow', parent_run_id: 'run-parent', case_id: 'U-ONE-001' },
+        () => selected.execute({ asset: 'host-a' }, exec))
+      assert.equal(value.isError, false)
+      const actual = JSON.parse(value.content[0].text)
+      assert.equal(actual.version.versionId, entry.binding.versionId)
+      assert.equal(actual.graph_execution.session_id, exec.agent.session.id)
+      assert.equal(actual.graph_execution.tool_call_id, exec.callId)
+      assert.equal(actual.graph_execution.parent_run_id, 'run-parent')
+      const before = calls.length
+      const badAlias = registerFixedCompositionTools(ctx, { [originalName]: { ...fixed, expectedImplementationDigest: '0'.repeat(64) } }).get(originalName)
+      assert.equal((await definitions.get(badAlias).execute({ asset: 'host-a' }, exec)).isError, true)
+      assert.equal(calls.length, before)
+      const lost = registerFixedCompositionTools(ctx, { [originalName]: fixed }, { clientFactory: async () => ({
+        async listTools() { return { tools: [{ name: originalName }], _meta: { 'io.deepseek.dsh/mcp-group-target': { digest: groupDigest } } } },
+        async callTool() { throw new Error('private-transport-detail') }, async close() {},
+      }) }).get(originalName)
+      const unknown = await definitions.get(lost).execute({ asset: 'host-a' }, exec)
+      assert.equal(unknown.isError, true)
+      assert.equal(JSON.parse(unknown.content[0].text).graph_execution.complete, false)
+      assert.doesNotMatch(JSON.stringify(unknown), /private-/)
+    } finally {
+      if (previousAnchor === undefined) delete process.env.DSH_MCP_CLIENT_ANCHOR; else process.env.DSH_MCP_CLIENT_ANCHOR = previousAnchor
+      await new Promise(resolve => server.close(resolve))
+    }
+  })
 })

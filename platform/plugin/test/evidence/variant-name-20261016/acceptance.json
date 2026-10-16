@@ -1,0 +1,351 @@
+{
+  "at": "2026-10-16T14:37:30.473Z",
+  "base": "http://10.0.160.32:3115/hep/",
+  "authorized_metadata_write": {
+    "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3",
+    "variant_name": "资产关联告警查询（LangGraph）"
+  },
+  "checks": [
+    "已保存独立名称在列表与详情一致展示，原无名状态保留于首轮实际证据",
+    "空名称阻止保存，重新核对保留草稿，取消改名保持已保存独立名称",
+    "列表标题、身份区、版本选择与detail/list回读共享同一独立名称",
+    "按独立变体名称及子串搜索筛选、无匹配空态和清空恢复，保持无下拉",
+    "浏览器刷新后独立名称从change.yaml恢复",
+    "改名后既有比较与生成装载证据恢复，名称与策略分别展示",
+    "创建表单独立名称必填，与策略输入分开；只填写、不创建Experiment",
+    "桌面与390px窄屏独立名称展示无整页横向溢出",
+    "只有variant_name元数据改变，研究问题/策略/Candidate/Decision/Run/比较回执摘要完全保留"
+  ],
+  "errors": [],
+  "failed_requests": [],
+  "rpc": [
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/edit/read",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "client.js,@deepseek-ai/dsh-client-ui-directory-picker-browse/client.js&rev=59c2b07e17af"
+    },
+    {
+      "method": "events"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/edit/read",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/compute-variants/context",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    }
+  ],
+  "layouts": [
+    {
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440
+    },
+    {
+      "width": 390,
+      "scroll": 390,
+      "client": 390
+    }
+  ],
+  "before": {
+    "variant_name": null,
+    "change_sha256": "b79361930c918f41adab428f850c93fdcb727072b274c8c59e1c830e93b6097e",
+    "other_change_sha256": "d4e6fdd0ec8d850850bcec15ea82311e95feae9be3060ffb73c61e3af0f1bdc6",
+    "research_question_sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "strategy_sha256": "627374bfb98d623b7cad6b2e4f2e0d8f45398c6b954e9f69519f9e70d0440021",
+    "protected": {
+      "candidate": {
+        "files": 1921,
+        "sha256": "24d178fc7fa17b100810ca519c4076c669cd0985a7834994d31ba213bf64ecfb"
+      },
+      "runs": {
+        "files": 206,
+        "sha256": "dcbbed087acb960341d71df4c9f324ef905cf48ebab623b034a7119f0c8606e6"
+      },
+      "evaluation": {
+        "files": 2,
+        "sha256": "ae228effcfa17746ac08d1a385632636c202cf7dd22a496cc5d963395ee1ccbc"
+      },
+      "decision.md": {
+        "files": 1,
+        "sha256": "32d915fcf0d16a8f460e1dbf1b6c67dc94775b4545af778210e0edbb4859a5ce"
+      }
+    }
+  },
+  "current_at_start": {
+    "variant_name": "资产关联告警查询（LangGraph）",
+    "change_sha256": "8bba18f101ce8034c29de991713d70add35dd3353e014f50fc601ef8c8f8d692",
+    "other_change_sha256": "d4e6fdd0ec8d850850bcec15ea82311e95feae9be3060ffb73c61e3af0f1bdc6",
+    "research_question_sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "strategy_sha256": "627374bfb98d623b7cad6b2e4f2e0d8f45398c6b954e9f69519f9e70d0440021",
+    "protected": {
+      "candidate": {
+        "files": 1921,
+        "sha256": "24d178fc7fa17b100810ca519c4076c669cd0985a7834994d31ba213bf64ecfb"
+      },
+      "runs": {
+        "files": 206,
+        "sha256": "dcbbed087acb960341d71df4c9f324ef905cf48ebab623b034a7119f0c8606e6"
+      },
+      "evaluation": {
+        "files": 2,
+        "sha256": "ae228effcfa17746ac08d1a385632636c202cf7dd22a496cc5d963395ee1ccbc"
+      },
+      "decision.md": {
+        "files": 1,
+        "sha256": "32d915fcf0d16a8f460e1dbf1b6c67dc94775b4545af778210e0edbb4859a5ce"
+      }
+    }
+  },
+  "previous_metadata_write_evidence": "attempt01-acceptance.json",
+  "after": {
+    "variant_name": "资产关联告警查询（LangGraph）",
+    "change_sha256": "8bba18f101ce8034c29de991713d70add35dd3353e014f50fc601ef8c8f8d692",
+    "other_change_sha256": "d4e6fdd0ec8d850850bcec15ea82311e95feae9be3060ffb73c61e3af0f1bdc6",
+    "research_question_sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "strategy_sha256": "627374bfb98d623b7cad6b2e4f2e0d8f45398c6b954e9f69519f9e70d0440021",
+    "protected": {
+      "candidate": {
+        "files": 1921,
+        "sha256": "24d178fc7fa17b100810ca519c4076c669cd0985a7834994d31ba213bf64ecfb"
+      },
+      "runs": {
+        "files": 206,
+        "sha256": "dcbbed087acb960341d71df4c9f324ef905cf48ebab623b034a7119f0c8606e6"
+      },
+      "evaluation": {
+        "files": 2,
+        "sha256": "ae228effcfa17746ac08d1a385632636c202cf7dd22a496cc5d963395ee1ccbc"
+      },
+      "decision.md": {
+        "files": 1,
+        "sha256": "32d915fcf0d16a8f460e1dbf1b6c67dc94775b4545af778210e0edbb4859a5ce"
+      }
+    }
+  },
+  "final_url": "http://10.0.160.32:3115/hep/#/agents?agent_id=security-operations-expert&experiment_id=EXP-security-operations-expert-024-r290c02339cb3&tab=overview&list_view=variants",
+  "ok": true
+}

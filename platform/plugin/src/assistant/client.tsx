@@ -233,10 +233,11 @@ function targetVersionLabel(value: unknown, data: any, input: Record<string, any
 }
 function confirmationAction(meta: OperationMeta) {
   const value = unwrap(meta.preview) as any
+  if (meta.domain === 'task' && meta.action === 'start' && value?.plan?.kind === 'compute-variant') return '开始生成并比较代码变体'
   if (meta.domain === 'task' && meta.action === 'start') return value?.plan?.new_agent || value?.plan?.allowed_actions?.some((item: any) => ['new', 'create', 'edit/apply', 'tasks/assembly-apply'].includes(item.action)) ? '开始构建并验证' : '开始验证并交付'
   if (meta.action === 'datasets/apply') return `保存 ${value?.count ?? value?.records?.length ?? ''} 条样本`
   if (meta.domain === 'instances' && meta.action === 'run') return ({ create: '创建实例', start: '启动实例', stop: '停止实例', restart: '重启实例', delete: '删除实例' } as Record<string, string>)[meta.input?.operation ?? value?.operation ?? value?.input?.operation] ?? '执行实例操作'
-  return ({ 'features/apply': '保存特性', saveConfiguration: '保存 MCP 配置', 'fusion/confirm': '创建融合版本', create: '创建研究版本', new: '创建智能体', 'edit/apply': '保存修改', 'eval/start': '开始评测', callPublishedComposition: '执行工具组合', callTool: '调用工具', publishComposition: '发布工具组合', saveCompositionDraft: '保存组合草稿', 'cases/update': '保存测试用例', 'cases/create': '保存测试用例', 'compute-variants/create': '创建算力变体' } as Record<string, string>)[meta.action] ?? actionLabels[meta.action] ?? '执行此操作'
+  return ({ 'features/apply': '保存特性', saveConfiguration: '保存 MCP 配置', 'fusion/confirm': '创建融合版本', create: '创建研究版本', new: '创建智能体', 'edit/apply': '保存修改', 'eval/start': '开始评测', callPublishedComposition: '执行工具组合', callTool: '调用工具', publishComposition: '发布工具组合', saveCompositionDraft: '保存组合草稿', 'cases/update': '保存测试用例', 'cases/create': '保存测试用例', 'compute-variants/create': '创建算力变体', 'compute-variants/build': '构建代码变体', 'compute-variants/freeze': '确认冻结本次数据差异' } as Record<string, string>)[meta.action] ?? actionLabels[meta.action] ?? '执行此操作'
 }
 
 /** 确认的是动作、对象及后果；完整证据与字段保留在可展开详情中。 */
@@ -253,10 +254,11 @@ function BusinessPreview({ value, meta }: { value: unknown; meta: OperationMeta 
     const lead = String(plan.goal).split(/[。；\n：]/)[0]
     summary = <>
       <p><strong>{lead}</strong></p>
-      <p>{plan.new_agent ? `新建“${plan.new_agent.name}”` : plan.allowed_actions.some((item: any) => item.action === 'create') ? `为“${name}”从${parent}派生新版本` : `${plan.allowed_actions.some((item: any) => ['edit/apply', 'tasks/assembly-apply'].includes(item.action)) ? '改进' : '验证'}“${name}”的${parent}`}，执行 {plan.evaluation_case_ids.length} 项测试。</p>
+      <p>{plan.kind === 'compute-variant' ? `为“${name}”的${parent}生成实际工作流代码，并与固定父版比较` : plan.new_agent ? `新建“${plan.new_agent.name}”` : plan.allowed_actions.some((item: any) => item.action === 'create') ? `为“${name}”从${parent}派生新版本` : `${plan.allowed_actions.some((item: any) => ['edit/apply', 'tasks/assembly-apply'].includes(item.action)) ? '改进' : '验证'}“${name}”的${parent}`}，执行 {plan.evaluation_case_ids.length} 项测试。</p>
       <p><strong>交付：</strong>{products.length ? products.join('、') : plan.deliverables.join('、')}。</p>
       <p className="harness-confirmation-budget"><strong>上限：</strong>{plan.budget.timeout_minutes} 分钟、初测后最多修复 {plan.budget.max_repair_rounds} 轮、模型调用 {plan.budget.max_model_calls} 次。<small>暂停和重启不重置。助手逐次控制调用额度；外部评测按实际轨迹累计，不能实时硬封顶。</small></p>
       <small>确认后在本方案内连续办理约定操作，范围详见完整方案。</small>
+      {plan.kind === 'compute-variant' && <p>数据 Git 提交会另行展示具体差异并确认；本任务完成不代表已确认近似等效或 end。</p>}
     </>
   } else if (data?.status === 'suggested' && Array.isArray(data.records)) summary = <>
     <p>将 <strong>{data.count ?? data.records.length} 条决策样本</strong>保存到本次运行的“决策样本”。</p>
@@ -275,6 +277,8 @@ function BusinessPreview({ value, meta }: { value: unknown; meta: OperationMeta 
     <p>从{versionLabel(data.parent_experiment_id)}为 <strong>{data.agent_id}</strong>创建独立融合版本。</p>
     <p>采用 {plan.sources?.filter((source: any) => source.decision === 'inherit').length ?? 0} 个来源，纳入 {plan.features?.length ?? 0} 项特性，约定 {plan.checks?.length ?? 0} 项验证。当前版本保留，新版本须完成验证后才可交付。</p>
   </>
+  else if (meta.action === 'compute-variants/freeze') summary = <><p>将预览列出的生成源码、构建产物和比较计划固定到<strong>本地数据 Git</strong>。</p><p>仅提交本次明确列出的文件；实际差异和固定来源见下方。保存提交不代表业务效果通过。</p>{typeof data?.diff === 'string' && <details open><summary>本次冻结差异</summary><pre>{data.diff}</pre></details>}</>
+  else if (meta.action === 'compute-variants/build') summary = <><p>构建当前目标的 TypeScript 工作流，并核对实际产物摘要。</p><p>构建通过后仍需在新 Session 核对装载和业务效果。</p></>
   else if (meta.action === 'new') summary = <><p>创建智能体 <strong>{data?.name ?? input.name ?? data?.agent_id ?? input.agent_id}</strong>及其首个研究版本。</p><p>先保存角色和资产；可用的业务能力仍需装配与评测。</p></>
   else if (meta.action === 'edit/apply') summary = <p>向{targetVersionLabel(input.experiment_id ?? data?.experiment_id, data, input)}保存 <strong>{input.edits?.length ?? data?.files?.length ?? data?.edits?.length ?? '约定'} 份文件修改</strong>。具体内容和差异见下方。</p>
   else if (meta.action === 'eval/start') summary = <><p>对{targetVersionLabel(input.source ?? data?.source, data, input)}执行 <strong>{input.cases?.length ?? data?.cases?.length ?? '约定'} 项测试</strong>，创建新的评测运行记录。</p><p>将调用已配置的模型；结果按实际执行保存。</p></>
@@ -392,7 +396,7 @@ function TaskCard({ task, assistant, rpc, sessionId }: { task: TaskExecution; as
     }
   }
   return <section className="harness-operation-card" aria-label="智能体交付任务">
-    <header><strong>{statuses[task.state]}</strong><span>{task.plan.new_agent?.name ?? task.plan.agent_id}</span></header>
+    <header><strong>{task.plan.kind === 'compute-variant' && task.state === 'completed' ? '生成与比较已完成' : statuses[task.state]}</strong><span>{task.plan.new_agent?.name ?? task.plan.agent_id}</span></header>
     <p>{task.plan.goal}</p>
     <p>修复 {task.repair_rounds}/{task.plan.budget.max_repair_rounds} 轮 · 已观测模型调用 {task.model_calls}/{task.plan.budget.max_model_calls} 次 · 截止 {new Date(task.deadline_at).toLocaleTimeString()}</p>
     <small>含助手 {task.assistant_model_calls ?? task.model_calls} 次，业务、评审与重试按实际轨迹累计；在途或缺失统计不按零计。外部容器调用不能实时硬封顶。</small>
@@ -402,7 +406,7 @@ function TaskCard({ task, assistant, rpc, sessionId }: { task: TaskExecution; as
     {task.state === 'paused' && <button disabled={busy} onClick={() => void act('resume')}>恢复任务</button>}
     {task.source_ref && task.operations.some(item => ['edit/apply', 'tasks/assembly-apply'].includes(item.action) && item.state === 'completed') && task.state !== 'completed' && <button disabled={busy} onClick={() => void act('rollback')}>恢复本任务资产修改</button>}
     {!['completed', 'cancelled'].includes(task.state) && <button disabled={busy} onClick={() => void act('cancel')}>取消任务</button>}
-    {task.delivery && <><p>业务测试、目标实例及产物已核验。</p>
+    {task.delivery && <><p>{task.plan.kind === 'compute-variant' ? '已核对本任务生成、装载和比较证据；具体效果与资源结果请查看比较，end 仍需用户复核。' : '业务测试、目标实例及产物已核验。'}</p>
       {task.delivery.entry && <p><a href={instanceWebUrl(task.delivery.entry, window.location.hostname)} target="_blank" rel="noreferrer">打开智能体</a></p>}
       {(task.delivery.artifacts ?? []).map((artifact: any) => <p key={artifact.path}><a href={(() => { const url = new URL('api/harness-platform/runs/download', document.baseURI); url.searchParams.set('run_id', task.delivery.run_id); url.searchParams.set('kind', 'file'); url.searchParams.set('path', artifact.run_path); return url.href })()} download>下载 {artifact.run_path?.split('/').at(-1) ?? '业务产物'}</a></p>)}
       {(task.delivery.probe?.downloads ?? []).map((artifact: any) => <p key={artifact.format}><a href={instanceWebUrl({ ...task.delivery.entry, url: artifact.url }, window.location.hostname)} target="_blank" rel="noreferrer" download>{artifact.format === 'csv' ? '下载设备 CSV' : '下载 Markdown'}</a></p>)}

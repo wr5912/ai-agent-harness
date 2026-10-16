@@ -348,6 +348,12 @@ test('确认首屏仅展示决策摘要、具体交付与重要预算，完整�
   assert.match(sample, /保存 1 条样本/); assert.match(sample, /人工复核/); assert.doesNotMatch(sample, /只在完整详情/)
   proposal = { id: 'mcp', domain: 'mcp', action: 'saveConfiguration', state: 'awaiting_confirmation', preview: { action: 'saveConfiguration', input: { ops: [{ op: 'set', path: ['servers', 'test', 'enabled'], value: false }] } } }
   assert.match(render(view()), /停用连接.*不可调用/)
+  const fullFreezeDiff = '冻结差异开始\n' + '+ compiled-esm-confirmation '.repeat(100000) + '\n冻结差异结束'
+  proposal = { id: 'freeze', domain: 'agents', action: 'compute-variants/freeze', state: 'awaiting_confirmation', input: { experiment_id: 'EXP-alpha-002' },
+    preview: { ok: true, value: { experiment_id: 'EXP-alpha-002', files: [{ path: 'candidate/dsh/managed/compute-workflow/index.mjs', sha256: 'd'.repeat(64) }], diff: fullFreezeDiff, preview_sha256: 'f'.repeat(64) } } }
+  const freezeDetails = render(view(), true)
+  assert.ok(freezeDetails.includes(fullFreezeDiff), '原生确认界面使用持久完整差异，不使用模型投影或截断版本')
+  assert.match(freezeDetails, /确认冻结本次数据差异/)
   proposal = undefined
   execution = { plan, state: 'paused', repair_rounds: 1, model_calls: 46, deadline_at: '2020-01-01T00:00:00Z', operations: [] }
   rpc.call = async () => { execution = { ...execution, state: 'budget_exhausted', reason: '任务总时限已耗尽' }; return { ok: false, error: { message: execution.reason } } }

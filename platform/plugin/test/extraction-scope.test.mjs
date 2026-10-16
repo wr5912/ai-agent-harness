@@ -30,7 +30,7 @@ function fixture(t, { parentPtc = false, computeResearch = false, featureOrganiz
     output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
     async execute(arguments_) { calls.push({ name, arguments: arguments_ }); return { basic: true } },
   })
-  for (const name of ['skill', 'platform_agents', ...(taskBuilding ? ['platform_task', 'platform_instances', 'platform_mcp'] : []), 'bash', 'read', 'write', 'spawn_agent', 'run_in_background']) ctx.tools.register(definition(name))
+  for (const name of ['skill', 'platform_agents', ...(taskBuilding ? ['platform_task', 'platform_instances', 'platform_mcp'] : computeResearch ? ['platform_task'] : []), 'bash', 'read', 'write', 'spawn_agent', 'run_in_background']) ctx.tools.register(definition(name))
   const parentKey = { id: 'preset' }
   const parent = parentPtc ? createScope(ctx, parentKey) : null
   if (parent) parent.ctx.tools.presentAs('ptc')
@@ -137,12 +137,13 @@ test('算力研究真实原生作用域阻止 shell、读写及其他技能，�
   assert.equal(isComputeVariantResearch('/project', f.agent, { task_context: {} }), false)
   assert.equal(isComputeVariantResearch('/project', f.agent, state), true)
   f.scope.apply(f.agent)
-  assert.deepEqual(await f.schemas(f.agent), ['platform_agents', 'skill'])
+  assert.deepEqual(await f.schemas(f.agent), ['platform_agents', 'platform_task', 'skill'])
   for (const name of ['bash', 'read', 'write', 'spawn_agent']) assert.equal((await f.execute(name, { command: '此测试命令不得执行' })).isError, true)
   assert.equal((await f.execute('skill', { name: 'workspace-management' })).isError, true)
   assert.equal((await f.execute('skill', { name: 'compute-variant-research' })).isError, false)
   assert.equal((await f.execute('platform_agents', { action: 'compute-variants/preview' })).isError, false)
-  assert.deepEqual(f.calls.map(call => call.name), ['skill', 'platform_agents'])
+  assert.equal((await f.execute('platform_task', { action: 'status' })).isError, false)
+  assert.deepEqual(f.calls.map(call => call.name), ['skill', 'platform_agents', 'platform_task'])
   assert.ok((await f.schemas(f.other)).includes('bash'))
   assert.equal((await f.execute('bash', {}, f.other)).isError, false)
 })

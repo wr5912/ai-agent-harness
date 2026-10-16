@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -216,9 +217,10 @@ test('算力变体通过统一智能体路由预览和派生，原父版保持�
     const handler = createAgentsHandler(fx.root)
     const context = await rpc(handler, 'compute-variants/context', { experiment_id: 'EXP-test-agent-001' })
     assert.ok(context.cases.some(item => item.case_id === 'U-CASE-001'))
-    const input = { ...versionRequest(fx.commit), strategy: '减少重复查询，保留任务结果', case_ids: ['U-CASE-001'], critical_case_ids: ['U-CASE-001'], resource_metric: 'model_calls', min_resource_reduction_pct: 10 }
+    const input = { ...versionRequest(fx.commit), variant_name: '只读查询精简版', strategy: '减少重复查询，保留任务结果', case_ids: ['U-CASE-001'], critical_case_ids: ['U-CASE-001'], resource_metric: 'model_calls', min_resource_reduction_pct: 10 }
     const before = readFileSync(join(fx.root, 'evolution/experiments/EXP-test-agent-001/change.yaml'), 'utf8')
     const preview = await rpc(handler, 'compute-variants/preview', input)
+    assert.equal(preview.variant_name, input.variant_name)
     assert.equal(preview.plan.min_runs_per_case, 2)
     assert.equal(preview.plan.model_change, null)
     const created = await rpc(handler, 'compute-variants/create', { ...input, expected_preview_sha256: preview.preview_sha256 })
@@ -226,8 +228,22 @@ test('算力变体通过统一智能体路由预览和派生，原父版保持�
     assert.equal(variant.parent_experiment_id, 'EXP-test-agent-001')
     assert.equal(variant.fixed_parent_ref, `git:${fx.commit}`)
     assert.equal(variant.variant_kind, 'exploratory')
+    assert.equal(variant.variant_name, input.variant_name)
     assert.deepEqual(variant.plan.case_hashes, preview.plan.case_hashes)
     assert.equal(readFileSync(join(fx.root, 'evolution/experiments/EXP-test-agent-001/change.yaml'), 'utf8'), before)
+    const changeFile = join(fx.root, `evolution/experiments/${created.experiment_id}/change.yaml`)
+    const digest = createHash('sha256').update(readFileSync(changeFile)).digest('hex')
+    const listed = (await rpc(handler, 'list')).experiments.find(item => item.id === created.experiment_id)
+    const detailed = (await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: created.experiment_id })).experiment
+    assert.equal(listed.change.variant_name, input.variant_name)
+    assert.equal(listed.change_sha256, digest)
+    assert.equal(detailed.change_sha256, digest)
+    const renamed = await rpc(handler, 'compute-variants/rename', { experiment_id: created.experiment_id, variant_name: '只读查询合并版', expected_change_sha256: digest })
+    assert.notEqual(renamed.change_sha256, digest)
+    assert.equal(renamed.variant_name, '只读查询合并版')
+    const refreshed = (await rpc(handler, 'list')).experiments.find(item => item.id === created.experiment_id)
+    assert.equal(refreshed.change.variant_name, renamed.variant_name)
+    assert.equal(refreshed.change_sha256, renamed.change_sha256)
   } finally { await rm(fx.root, { recursive: true, force: true }) }
 })
 
@@ -603,6 +619,67 @@ test('create copies fixed git parent candidate, validates source and dry-runs ds
   }
 })
 
+for (const changedLock of [false, true]) test(`固定父版派生${changedLock ? '不借用锁已变化的依赖' : '复用匹配锁的忽略依赖并保持相对链接'}`, async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const parent = 'evolution/experiments/EXP-test-agent-001/candidate', pluginPath = 'dsh/managed/local-plugin'
+    write(join(fx.root, '.gitignore'), 'node_modules/\n')
+    write(join(fx.root, parent, pluginPath, 'package.json'), JSON.stringify({ name: 'local-plugin', packageManager: 'npm@10.0.0', dependencies: { 'fixture-dependency': '1.0.0' } }))
+    write(join(fx.root, parent, pluginPath, 'package-lock.json'), JSON.stringify({ name: 'local-plugin', lockfileVersion: 3, packages: { '': { dependencies: { 'fixture-dependency': '1.0.0' } } } }))
+    run(fx.root, 'git', ['add', '.'])
+    run(fx.root, 'git', ['commit', '-m', 'fixed plugin dependency lock'])
+    const commit = run(fx.root, 'git', ['rev-parse', 'HEAD'])
+    const modules = join(fx.root, parent, pluginPath, 'node_modules')
+    write(join(modules, 'fixture-dependency/package.json'), JSON.stringify({ name: 'fixture-dependency', version: '1.0.0', main: 'index.cjs' }))
+    write(join(modules, 'fixture-dependency/index.cjs'), 'module.exports={value:"locked-parent"}\n')
+    mkdirSync(join(modules, '.bin'), { recursive: true })
+    symlinkSync('../fixture-dependency/index.cjs', join(modules, '.bin/fixture-cli'))
+    if (changedLock) write(join(fx.root, parent, pluginPath, 'package-lock.json'), JSON.stringify({ name: 'local-plugin', lockfileVersion: 3, packages: { '': { dependencies: { 'fixture-dependency': '2.0.0' } } } }))
+    const handler = createAgentsHandler(fx.root)
+    const created = await rpc(handler, 'create', { agent_id: 'test-agent', parent_experiment_id: 'EXP-test-agent-001', parent_ref: `git:${commit}`, research_question: '核验固定父版派生后的运行依赖' })
+    const child = `evolution/experiments/${created.experiment_id}/candidate`, destination = join(fx.root, child, pluginPath, 'node_modules')
+    assert.equal(existsSync(destination), !changedLock)
+    assert.equal(created.dependency_reuse.reused.length, changedLock ? 0 : 1)
+    if (!changedLock) {
+      assert.equal(readlinkSync(join(destination, '.bin/fixture-cli')), '../fixture-dependency/index.cjs')
+      assert.equal(run(fx.root, process.execPath, ['-e', "const r=require('node:module').createRequire(process.argv[1]);process.stdout.write(r('fixture-dependency').value)", join(fx.root, child, pluginPath, 'package.json')]), 'locked-parent')
+      const before = (await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: created.experiment_id })).candidate_sha256
+      write(join(destination, 'fixture-dependency/index.cjs'), 'module.exports={value:"local-only-change"}\n')
+      assert.equal((await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: created.experiment_id })).candidate_sha256, before)
+      assert.equal(run(fx.root, 'git', ['ls-files', '--others', '--exclude-standard', '--', `${child}/${pluginPath}/node_modules`]), '')
+      assert.equal(run(fx.root, 'git', ['ls-files', '--', `${child}/${pluginPath}/node_modules`]), '')
+    } else {
+      assert.equal(created.dependency_reuse.skipped.length, 1)
+      assert.equal(JSON.parse(readFileSync(join(fx.root, child, pluginPath, 'package-lock.json'))).packages[''].dependencies['fixture-dependency'], '1.0.0')
+    }
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('新建源码以 null 固定不存在状态，空文件并发创建后拒绝旧预览', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const path = 'candidate/dsh/managed/workflow.ts'
+    const missing = await rpc(handler, 'edit/read', { experiment_id: 'EXP-test-agent-001', path })
+    assert.equal(missing.exists, false)
+    assert.equal(missing.sha256, null)
+    const edits = [{ path, content: 'export const workflow = true\n', expected_sha256: null }]
+    const preview = await rpc(handler, 'edit/preview', { experiment_id: 'EXP-test-agent-001', edits })
+    assert.equal(preview.edits[0].before_sha256, null)
+    const actual = join(fx.root, 'evolution/experiments/EXP-test-agent-001', path)
+    mkdirSync(dirname(actual), { recursive: true })
+    writeFileSync(actual, '')
+    await assert.rejects(() => rpc(handler, 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits }), /conflict:/)
+    assert.equal(readFileSync(actual, 'utf8'), '')
+    const existing = await rpc(handler, 'edit/read', { experiment_id: 'EXP-test-agent-001', path })
+    assert.equal(existing.exists, true)
+    await rpc(handler, 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits: [{ ...edits[0], expected_sha256: existing.sha256 }] })
+    assert.equal(readFileSync(actual, 'utf8'), edits[0].content)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
 test('edit reads existing content, uses preview hash, rejects unsafe writes and preserves runs', async () => {
   const { createAgentsHandler } = await loadServer()
   const fx = fixture()
@@ -715,6 +792,71 @@ test('直接保存也执行草稿 dry；格式或来源失败不写入，缺失�
     assert.deepEqual(saved.dry_run.missing_env_names, ['HARNESS_DRAFT_TEST_MISSING_ENV'])
     assert.equal((await rpc(handler, 'edit/read', { experiment_id, path })).content, content)
     assert.equal(readFileSync(join(fx.root, 'evolution/experiments', experiment_id, 'runs/run-11111111-1111-4111-8111-111111111111/run.json'), 'utf8'), '{"status":"failed"}\n')
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('JS 草稿预览和直接保存拒绝真实 Guard 属性片段，同批资产保持原样', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const experiment_id = 'EXP-test-agent-001'
+    const harness = await rpc(handler, 'edit/read', { experiment_id, path: 'candidate/harness.yaml' })
+    // 真实生成失败形态：把完整 Guard 模块替换成一个对象属性片段。
+    const fragment = "  assetAlerts: Object.freeze([\n    'query_asset_related_alerts_readonly',\n    'get_soc_asset_by_asset_id',\n    'list_detect_alert',\n  ]),"
+    for (const extension of ['.js', '.mjs', '.cjs']) {
+      const path = `candidate/dsh/managed/security-operations-guard${extension}`
+      const original = extension === '.cjs' ? 'module.exports = {}\n' : 'export const guard = {}\n'
+      const file = join(fx.root, 'evolution/experiments', experiment_id, path)
+      write(file, original)
+      const read = await rpc(handler, 'edit/read', { experiment_id, path })
+      const edits = [
+        { path: 'candidate/harness.yaml', content: 'name: must-not-write\n', expected_sha256: harness.sha256 },
+        { path, content: fragment, expected_sha256: read.sha256 },
+      ]
+      for (const endpoint of ['edit/preview', 'edit/apply']) {
+        const result = await handler(endpoint, { experiment_id, edits }, new AbortController().signal)
+        assert.equal(result.ok, false)
+        assert.equal(result.error.code, 'invalid_request')
+        assert.match(result.error.message, /JavaScript 草稿语法校验失败/)
+        assert.match(result.error.details.reason, /^SyntaxError:/)
+        assert.equal(result.error.details.path, `evolution/experiments/${experiment_id}/${path}`)
+        assert.equal(result.error.details.checker, 'node --check')
+        assert.equal(JSON.stringify(result).includes('assetAlerts'), false, '错误摘要不回显源码行')
+        assert.equal(readFileSync(file, 'utf8'), original)
+        assert.equal((await rpc(handler, 'edit/read', { experiment_id, path: 'candidate/harness.yaml' })).content, harness.content)
+      }
+    }
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('JS 草稿只做语法检查，不执行顶层写入或解析未编辑 vendor 和历史模块', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const experiment_id = 'EXP-test-agent-001'
+    const base = join(fx.root, 'evolution/experiments', experiment_id, 'candidate')
+    const marker = join(fx.root, 'must-not-execute')
+    write(join(base, 'dsh/managed/vendor/bundle.mjs'), 'export const broken = ;\n')
+    write(join(base, 'dsh/managed/old-guard.js'), 'const broken = ;\n')
+    write(join(base, 'history/old-guard.cjs'), 'const broken = ;\n')
+    const edits = ['.js', '.mjs', '.cjs'].map(extension => ({
+      path: `candidate/dsh/managed/checked${extension}`,
+      content: extension === '.cjs'
+        ? `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'executed');\nmodule.exports = {};\n`
+        : `import { writeFileSync } from 'node:fs';\nimport './missing-never-resolved.mjs';\nwriteFileSync(${JSON.stringify(marker)}, 'executed');\nexport const guard = {};\n`,
+      expected_sha256: null,
+    }))
+    const preview = await rpc(handler, 'edit/preview', { experiment_id, edits })
+    assert.ok(preview.dry_run.checks.includes('JavaScript 语法（仅本次草稿）'))
+    assert.equal(existsSync(marker), false)
+    for (const edit of edits) assert.equal(existsSync(join(fx.root, 'evolution/experiments', experiment_id, edit.path)), false)
+    const saved = await rpc(handler, 'edit/apply', { experiment_id, edits })
+    assert.ok(saved.dry_run.checks.includes('JavaScript 语法（仅本次草稿）'))
+    assert.equal(existsSync(marker), false)
+    for (const edit of edits) assert.equal(readFileSync(join(fx.root, 'evolution/experiments', experiment_id, edit.path), 'utf8'), edit.content)
+    assert.equal(readFileSync(join(base, 'dsh/managed/vendor/bundle.mjs'), 'utf8'), 'export const broken = ;\n')
   } finally { await rm(fx.root, { recursive: true, force: true }) }
 })
 

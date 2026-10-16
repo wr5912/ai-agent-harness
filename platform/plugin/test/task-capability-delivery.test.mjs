@@ -49,6 +49,35 @@ test('能力目录读取实际来源和原生 MCP，区分发现与验证并过�
   assert.equal(result.sources[0].candidate_sha256_basis, 'run-content-path-mode')
 })
 
+test('能力目录等待实际工具发现与固定版本引用，不从配置名字猜schema', async t => {
+  const root = fixture(t), schema = { type: 'object', properties: { assetId: { type: 'integer' } }, required: ['assetId'] }
+  let requested
+  const result = await discoverTaskCapabilities(root, { server_id: 'soc-readonly', nativeServers: () => [{ id: 'soc-readonly', tools: { names: ['get_asset'] } }],
+    discoveredTools: async serverId => { requested = serverId; return [{ server_id: serverId, name: 'get_asset', inputSchema: schema, headers: { Authorization: 'secret-value' } }] },
+    compositionBindings: async () => [{ composition_id: 'asset-alerts', version_id: 'v-fixed', tool_name: 'query_asset_alerts', url: 'https://private.invalid' }],
+  })
+  assert.equal(requested, 'soc-readonly')
+  assert.deepEqual(result.mcp[0].tool_schemas, [{ name: 'get_asset', inputSchema: schema, verification: 'discovered' }])
+  assert.deepEqual(result.composition_bindings, [{ composition_id: 'asset-alerts', version_id: 'v-fixed', tool_name: 'query_asset_alerts', verification: 'published' }])
+  assert.doesNotMatch(JSON.stringify(result), /secret-value|private.invalid|Authorization/)
+})
+
+test('能力目录只保留来源一致且完整的原生分组固定绑定，不输出凭据或猜补分组', async t => {
+  const root = fixture(t), version = 'a'.repeat(64), implementation = 'b'.repeat(64)
+  const fixed = { group_id: 'research-tools', group_target_digest: 'c'.repeat(64), tool_name: 'mcp__compositions__query_asset_alerts', compositionId: 'asset-alerts', versionId: version, expectedImplementationDigest: implementation, input_schema: { type: 'object' } }
+  const entry = { composition_id: 'asset-alerts', version_id: version, tool_name: 'query_asset_alerts', source_digest: implementation }
+  const result = await discoverTaskCapabilities(root, { compositionBindings: async () => [
+    { ...entry, fixed_binding: { ...fixed, token: 'do-not-output' } },
+    { ...entry, fixed_binding: { ...fixed, versionId: 'd'.repeat(64) } },
+    { ...entry, fixed_binding: { ...fixed, group_target_digest: undefined } },
+    { ...entry, fixed_binding_unavailable: '尚无可核验原生分组' },
+  ] })
+  assert.deepEqual(result.composition_bindings[0].fixed_binding, fixed)
+  for (const binding of result.composition_bindings.slice(1)) assert.equal(binding.fixed_binding, undefined)
+  assert.equal(result.composition_bindings[3].fixed_binding_unavailable, '尚无可核验原生分组')
+  assert.doesNotMatch(JSON.stringify(result), /do-not-output|token/)
+})
+
 test('装配预览无写入，应用复制真实 Skill 并核对配置引用，拒绝重复应用和来源漂移', async t => {
   const root = fixture(t), input = assemblyInput(root), target = join(root, `evolution/experiments/${targetId}/candidate/${input.files[0].path}`)
   assert.equal((await previewTaskAssembly(root, input)).bindings.status, 'declared'); assert.equal(existsSync(target), false)

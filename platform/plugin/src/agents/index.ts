@@ -11,6 +11,7 @@ import {
   mkdtempSync,
   openSync,
   readFileSync,
+  readlinkSync,
   readSync,
   readdirSync,
   realpathSync,
@@ -29,10 +30,13 @@ import { caseSourceReferences, createCaseManagementHandler, type RunCaseSource }
 import { readAssetDiff, readFixedAsset } from './asset-diff.ts'
 import { createAgent } from './create-agent.ts'
 import { createComputeVariantsHandler } from './compute-variants.ts'
+import { createComputeBuildHandler } from './compute-build.ts'
+import { createComputeFreezeHandler } from './compute-freeze.ts'
 import { programRoot, workspaceConfigPath } from '../workspace.ts'
 import { discoverTaskCapabilities, type CapabilityOptions } from '../tasks/capabilities.ts'
 import { previewTaskAssembly, applyTaskAssembly, type TaskAssemblyInput } from '../tasks/assembly.ts'
 import { verifyTaskDelivery, type TaskDeliveryInput } from '../tasks/delivery.ts'
+import { containsLiteralLlmKey } from '../tasks/llm-key.ts'
 import { createInstancesHandler } from '../instances/index.ts'
 
 type JsonMap = Record<string, unknown>
@@ -174,9 +178,9 @@ async function parseJsonCommandAsync(root: string, args: string[], message = '�
   catch { throw new RpcError('command_failed', '命令没有返回合法 JSON', { stdout: redact(stdout) }) }
 }
 
-function readYamlMap(root: string, file: string): JsonMap {
+function readYamlMap(root: string, file: string, content?: string): JsonMap {
   try {
-    const value = loadYaml(readFileSync(file, 'utf8')) ?? {}
+    const value = loadYaml(content ?? readFileSync(file, 'utf8')) ?? {}
     if (typeof value !== 'object' || Array.isArray(value)) throw new Error('YAML 顶层必须是 object')
     return value as JsonMap
   } catch {
@@ -249,7 +253,11 @@ function listAgents(root: string, experiments = listExperiments(root)) {
 function experimentInfo(root: string, id: string) {
   experimentIdValue(id)
   const base = join(root, 'evolution/experiments', id)
-  const change = readYamlMap(root, join(base, 'change.yaml'))
+  const file = join(base, 'change.yaml')
+  let content: string
+  try { content = readFileSync(file, 'utf8') }
+  catch { throw new RpcError('asset_read_failed', 'YAML 解析失败', { path: repoRelative(root, file) }) }
+  const change = readYamlMap(root, file, content)
   const agentId = typeof change.agent_id === 'string' ? change.agent_id : id.replace(EXP_ID, '$1')
   if (!AGENT_ID.test(agentId)) throw new RpcError('invalid_request', 'change.yaml agent_id 格式无效', { experiment_id: id, agent_id: agentId })
   return {
@@ -259,6 +267,7 @@ function experimentInfo(root: string, id: string) {
     baseline_ref: change.baseline_ref ?? null,
     status: change.status ?? null,
     change,
+    change_sha256: sha256(content),
   }
 }
 
@@ -889,6 +898,66 @@ async function copyGitCandidate(root: string, commit: string, parentExperiment: 
   if (untar.status !== 0) throw new RpcError('asset_write_failed', '无法复制父 Candidate', { stderr: redact(untar.stderr) })
   if (!existsSync(join(targetExperimentRoot, 'candidate'))) throw new RpcError('asset_write_failed', '父 Candidate 复制结果缺失')
   for (const name of ['runs', 'history', 'RuntimeHOME', 'sessions', 'cache', '.git']) rmSync(join(targetExperimentRoot, 'candidate', name), { recursive: true, force: true })
+  return reuseParentDependencies(root, parentExperiment, join(targetExperimentRoot, 'candidate'))
+}
+
+function pluginLock(directory: string, manifest: JsonMap): string | null {
+  const manager = typeof manifest.packageManager === 'string' ? manifest.packageManager.split('@')[0] : null
+  const npm = ['npm-shrinkwrap.json', 'package-lock.json'].find(file => existsSync(join(directory, file)))
+  const options = [npm && { manager: 'npm', file: npm }, existsSync(join(directory, 'pnpm-lock.yaml')) && { manager: 'pnpm', file: 'pnpm-lock.yaml' },
+    existsSync(join(directory, 'yarn.lock')) && { manager: 'yarn', file: 'yarn.lock' }].filter((value): value is { manager: string; file: string } => Boolean(value))
+  return (manager ? options.find(option => option.manager === manager) : options.length === 1 ? options[0] : undefined)?.file ?? null
+}
+
+/** 依赖仍是被忽略的本地安装物；只复用与固定父版清单及锁逐字节一致的安装目录。 */
+function reuseParentDependencies(root: string, parentExperiment: string, candidate: string) {
+  const reused: JsonMap[] = [], skipped: JsonMap[] = []
+  const managed = join(candidate, 'dsh/managed')
+  if (!existsSync(managed)) return { reused, skipped }
+  for (const plugin of readdirSync(managed, { withFileTypes: true })) {
+    if (!plugin.isDirectory()) continue
+    const relativePlugin = `dsh/managed/${plugin.name}`, target = join(managed, plugin.name), manifestFile = join(target, 'package.json')
+    if (!existsSync(manifestFile) || !lstatSync(manifestFile).isFile()) continue
+    const manifest = JSON.parse(readFileSync(manifestFile, 'utf8')) as JsonMap
+    if (!Object.keys((manifest.dependencies as JsonMap | undefined) ?? {}).length) continue
+    const donor = join(root, 'evolution/experiments', parentExperiment, 'candidate', relativePlugin), modules = join(donor, 'node_modules'), destination = join(target, 'node_modules')
+    const unavailable = (reason: string) => skipped.push({ plugin: relativePlugin, reason })
+    if (existsSync(destination)) { unavailable('固定父版已有依赖目录，不覆盖来源资产'); continue }
+    try {
+      assertNoSymlinkPath(root, donor)
+      const donorManifest = join(donor, 'package.json'), selectedLock = pluginLock(target, manifest)
+      if (!selectedLock || !existsSync(donorManifest)) { unavailable('父版本地清单缺失、已变化或锁文件不明确'); continue }
+      assertNoSymlinkPath(root, donorManifest)
+      if (!readFileSync(donorManifest).equals(readFileSync(manifestFile))) { unavailable('父版本地清单缺失、已变化或锁文件不明确'); continue }
+      const donorLock = pluginLock(donor, JSON.parse(readFileSync(donorManifest, 'utf8'))), targetLock = join(target, selectedLock)
+      if (donorLock !== selectedLock || !existsSync(join(donor, selectedLock))) { unavailable('父版本地选定锁与固定父版不同'); continue }
+      assertNoSymlinkPath(root, targetLock); assertNoSymlinkPath(root, join(donor, selectedLock))
+      const manifestBytes = readFileSync(manifestFile), lockBytes = readFileSync(targetLock)
+      if (!readFileSync(join(donor, selectedLock)).equals(lockBytes) || !existsSync(modules)) { unavailable('父版本地锁已变化或依赖目录不可用'); continue }
+      const ignored = (path: string) => spawnSync('git', ['check-ignore', '-q', '--', relative(root, path).split(sep).join('/') + '/'], { cwd: root }).status === 0
+      if (!ignored(modules) || !ignored(destination)) { unavailable('本地依赖目录未被 Git 忽略'); continue }
+      const installed = realpathSync(modules)
+      if (!lstatSync(installed).isDirectory()) { unavailable('父版本地依赖不是可用目录'); continue }
+      const safeLinks = (directory: string): boolean => readdirSync(directory, { withFileTypes: true }).every(item => {
+        const path = join(directory, item.name)
+        if (item.isSymbolicLink()) {
+          const link = readlinkSync(path), resolved = relative(installed, realpathSync(path))
+          return !link.startsWith('/') && resolved !== '..' && !resolved.startsWith(`..${sep}`)
+        }
+        return !item.isDirectory() || safeLinks(path)
+      })
+      if (!safeLinks(installed)) { unavailable('依赖含无法随目录保持的外部链接'); continue }
+      cpSync(installed, destination, { recursive: true, dereference: false, verbatimSymlinks: true })
+      if (!readFileSync(donorManifest).equals(manifestBytes) || !readFileSync(join(donor, selectedLock)).equals(lockBytes)) {
+        rmSync(destination, { recursive: true, force: true }); unavailable('复制期间父版清单或锁发生变化'); continue
+      }
+      reused.push({ plugin: relativePlugin, lockfile: selectedLock, package_sha256: sha256(manifestBytes), lock_sha256: sha256(lockBytes), method: 'copy' })
+    } catch {
+      rmSync(destination, { recursive: true, force: true })
+      unavailable('父版本地依赖无法安全复用；仍需按既有依赖检查处理')
+    }
+  }
+  return { reused, skipped }
 }
 
 async function createExperiment(root: string, payload: JsonMap) {
@@ -908,13 +977,14 @@ async function createExperiment(root: string, payload: JsonMap) {
 
   const experimentRoot = repoPath(root, `evolution/experiments/${experimentId}`)
   let parentSource: JsonMap
+  let dependencyReuse: { reused: JsonMap[]; skipped: JsonMap[] } = { reused: [], skipped: [] }
   let wroteCatalogHash = ''
   try {
     mkdirSync(experimentRoot, { recursive: true })
     if (parentRef.startsWith('git:')) {
       const parent = validateGitParent(root, agentId, parentRef, parentExperiment)
       parentSource = parent.source
-      await copyGitCandidate(root, parent.commit, parentExperiment, experimentRoot)
+      dependencyReuse = await copyGitCandidate(root, parent.commit, parentExperiment, experimentRoot)
     } else if (parentRef.startsWith('release:')) {
       throw new RpcError('unsupported_parent', 'Release 来源尚未接入现有不可变 Release 装载格式')
     } else {
@@ -947,7 +1017,7 @@ async function createExperiment(root: string, payload: JsonMap) {
     const validation = commandJson(root, [VALIDATE_EXPERIMENT, `evolution/experiments/${experimentId}`])
     commandJson(root, [SOURCE_CONTRACT, '--source', `experiment:${experimentId}`])
     const dryRun = commandJson(root, [DSH_EVAL, '--source', `experiment:${experimentId}`, '--mode', 'fast', '--executor', 'api', '--review', 'none', '--dry-run'])
-    return ok({ experiment_id: experimentId, path: `evolution/experiments/${experimentId}`, source_catalog_sha256: catalog(root).hash, validation, dry_run: dryRun })
+    return ok({ experiment_id: experimentId, path: `evolution/experiments/${experimentId}`, source_catalog_sha256: catalog(root).hash, validation, dry_run: dryRun, dependency_reuse: dependencyReuse })
   } catch (error) {
     if (wroteCatalogHash) {
       try {
@@ -1060,23 +1130,26 @@ function edits(payload: JsonMap) {
     const normalized = path.replace(/\\/g, '/').replace(/^\/+/, '')
     if (seen.has(normalized)) throw new RpcError('invalid_request', '同一次写入不能包含重复路径', { path })
     seen.add(normalized)
-    return { path, content: textField(row, 'content'), expected: optionalString(row, 'expected_sha256') }
+    if (row.expected_sha256 !== undefined && row.expected_sha256 !== null && typeof row.expected_sha256 !== 'string') {
+      throw new RpcError('invalid_request', 'expected_sha256 必须是文件摘要或新文件的 null')
+    }
+    return { path, content: textField(row, 'content'), expected: row.expected_sha256 as string | null | undefined }
   })
 }
 
 function rejectsLlmApiKey(pathName: string, content: string) {
-  if (pathName.endsWith('.llm-api-key')) return true
-  return /(?:DEEPSEEK_API_KEY|OPENAI_API_KEY|LOCAL_LLM_API_KEY|LLM_API_KEY|api[_-]?key)\s*[:=]\s*["']?[^"'\s]+/i.test(content)
+  return containsLiteralLlmKey(pathName, content)
 }
 
 function readEditable(root: string, payload: JsonMap) {
   const path = optionalString(payload, 'path')
   if (!path) return ok({ files: editableFiles(assetTree(root, experimentIdField(payload))) })
   const target = editablePath(root, payload, path)
+  if (!existsSync(target.file)) return ok({ path: target.rel, exists: false, kind: 'missing', editable: true, content: '', sha256: null })
   const stat = lstatSync(target.file)
   if (stat.isDirectory()) return ok({ path: target.rel, kind: 'directory', editable: false })
   const value = readAssetText(target.file)
-  return ok({ path: target.rel, kind: value === null ? 'binary' : 'text', editable: value !== null, size: stat.size,
+  return ok({ path: target.rel, exists: true, kind: value === null ? 'binary' : 'text', editable: value !== null, size: stat.size,
     ...(value === null ? {} : { content: value, sha256: sha256(value) }) })
 }
 
@@ -1121,8 +1194,22 @@ async function validateDraft(root: string, payload: JsonMap, drafts: { rel: stri
     copy(`agents/${exp.agent_id}/evaluation.md`)
     atomicWrite(join(temp, SOURCE_CATALOG), catalog(root).text)
     for (const draft of drafts) atomicWrite(join(temp, draft.rel), draft.content)
+    const javascriptDrafts = drafts.filter(draft => ['.js', '.mjs', '.cjs'].includes(extname(draft.rel)))
+    for (const draft of javascriptDrafts) {
+      try {
+        // 只解析本次草稿，不导入模块；关闭环境预加载，避免 --check 执行额外代码。
+        await promisify(execFile)(process.execPath, ['--check', join(temp, draft.rel)], {
+          cwd: temp, env: { ...process.env, NODE_OPTIONS: '' }, encoding: 'utf8', maxBuffer: 1024 * 1024, timeout: 20_000, signal,
+        })
+      } catch (error) {
+        if (signal?.aborted) throw new RpcError('aborted', '草稿校验已取消')
+        const failed = error as Error & { stderr?: string }
+        const reason = failed.stderr?.match(/^(?:SyntaxError|Error)(?: \[[^\]]+\])?:[^\r\n]*/m)?.[0]
+        throw new RpcError('invalid_request', 'JavaScript 草稿语法校验失败', { path: draft.rel, checker: 'node --check', reason: redact(reason || 'Node 语法检查未通过') })
+      }
+    }
     const result = await parseJsonCommandAsync(temp, [DSH_EVAL, '--source', `experiment:${experimentId}`, '--dry-run', '--mode', 'full', '--executor', 'api', '--review', 'none'], '草稿 dry 校验失败', signal)
-    return { mode: 'dry', checks: ['草稿格式', '来源合同', '评测计划'], case_ids: result.case_ids,
+    return { mode: 'dry', checks: ['草稿格式', ...(javascriptDrafts.length ? ['JavaScript 语法（仅本次草稿）'] : []), '来源合同', '评测计划'], case_ids: result.case_ids,
       missing_env_names: result.missing_env_names, note: '未执行 Candidate 代码、模型或业务工具，未启动实例或创建 Run。' }
   } finally { rmSync(temp, { recursive: true, force: true }) }
 }
@@ -1133,10 +1220,11 @@ async function previewEdit(root: string, payload: JsonMap, signal?: AbortSignal)
   assertUniqueResolved(targets.map(item => item.target))
   const result = targets.map(({ edit, target }) => {
     const before = editableText(target.file)
-    if (edit.expected && sha256(before) !== edit.expected) throw new RpcError('conflict', '文件已被修改', { path: target.rel, expected_sha256: edit.expected, actual_sha256: sha256(before) })
+    const beforeHash = existsSync(target.file) ? sha256(before) : null
+    if (edit.expected !== undefined && beforeHash !== edit.expected) throw new RpcError('conflict', '文件或存在状态已被修改', { path: target.rel, expected_sha256: edit.expected, actual_sha256: beforeHash })
     if (rejectsLlmApiKey(target.rel, edit.content)) throw new RpcError('secret_rejected', '拒绝写入 LLM API Key')
     if (target.rel.endsWith('/evaluation.md')) loadEvaluationPreview(root, edit.content)
-    return { path: target.rel, before_sha256: sha256(before), after_sha256: sha256(edit.content), changed: before !== edit.content, diff: simpleDiff(target.rel, before, edit.content) }
+    return { path: target.rel, exists: beforeHash !== null, before_sha256: beforeHash, after_sha256: sha256(edit.content), changed: beforeHash === null || before !== edit.content, diff: simpleDiff(target.rel, before, edit.content) }
   })
   const dryRun = await validateDraft(root, payload, targets.map(({ edit, target }) => ({ rel: target.rel, content: edit.content })), signal)
   return ok({ edits: result, dry_run: dryRun })
@@ -1168,11 +1256,12 @@ async function applyEdit(root: string, payload: JsonMap, signal?: AbortSignal) {
   const resolved = edits(payload).map(edit => {
     const target = editablePath(root, payload, edit.path)
     const before = editableText(target.file)
-    if (!edit.expected) throw new RpcError('invalid_request', '写入必须提供 expected_sha256', { path: target.rel })
-    if (sha256(before) !== edit.expected) throw new RpcError('conflict', '文件已被修改', { path: target.rel, expected_sha256: edit.expected, actual_sha256: sha256(before) })
+    if (edit.expected === undefined) throw new RpcError('invalid_request', '写入必须提供 expected_sha256，新文件使用 null', { path: target.rel })
+    const beforeHash = existsSync(target.file) ? sha256(before) : null
+    if (beforeHash !== edit.expected) throw new RpcError('conflict', '文件或存在状态已被修改', { path: target.rel, expected_sha256: edit.expected, actual_sha256: beforeHash })
     if (rejectsLlmApiKey(target.rel, edit.content)) throw new RpcError('secret_rejected', '拒绝写入 LLM API Key')
     if (target.rel.endsWith('/evaluation.md')) loadEvaluationPreview(root, edit.content)
-    return { ...target, content: edit.content, expected: edit.expected }
+    return { ...target, content: edit.content, expected: edit.expected, before: beforeHash === null ? null : before }
   })
   assertUniqueResolved(resolved)
   const dryRun = await validateDraft(root, payload, resolved, signal)
@@ -1180,9 +1269,20 @@ async function applyEdit(root: string, payload: JsonMap, signal?: AbortSignal) {
   // dry 期间原文件可能变化；校验全部哈希后同步写入，避免异步交错。
   for (const item of resolved) {
     assertNoSymlinkPath(root, item.file)
-    if (sha256(editableText(item.file)) !== item.expected) throw new RpcError('conflict', '文件已被修改', { path: item.rel })
+    if ((existsSync(item.file) ? sha256(editableText(item.file)) : null) !== item.expected) throw new RpcError('conflict', '文件或存在状态已被修改', { path: item.rel })
   }
-  for (const item of resolved) atomicWrite(item.file, item.content)
+  const written: typeof resolved = []
+  try {
+    for (const item of resolved) { atomicWrite(item.file, item.content); written.push(item) }
+  } catch (error) {
+    for (const item of written.reverse()) {
+      // 仅恢复本次实际写入且未被并行修改的内容。
+      if (!existsSync(item.file) || sha256(editableText(item.file)) !== sha256(item.content)) continue
+      if (item.before === null) rmSync(item.file)
+      else atomicWrite(item.file, item.before)
+    }
+    throw error
+  }
   return ok({ written: resolved.map(item => ({ path: item.rel, sha256: sha256(item.content) })), dry_run: dryRun })
 }
 
@@ -1362,6 +1462,8 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void, ca
   })
   const previews = new Map<string, VersionPreview>()
   const datasets = createDecisionDatasetHandler(root)
+  const computeBuild = createComputeBuildHandler(root)
+  const computeFreeze = createComputeFreezeHandler(root)
   const computeVariants = createComputeVariantsHandler(root, {
     createExperiment: payload => createExperiment(root, payload),
     candidateDigest: id => candidateDigest(root, id),
@@ -1390,11 +1492,14 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void, ca
       const body = payload === undefined ? {} : requireObject(payload)
       if (endpoint.startsWith('datasets/')) return ok(await datasets(endpoint, body, signal))
       if (endpoint.startsWith('compute-variants/')) {
-        const result = await computeVariants(endpoint.slice('compute-variants/'.length), body, signal)
+        const method = endpoint.slice('compute-variants/'.length)
+        const result = ['build-preview', 'build'].includes(method) ? await computeBuild(method === 'build-preview' ? 'preview' : 'build', body, signal)
+          : ['freeze-preview', 'freeze'].includes(method) ? await computeFreeze(method === 'freeze-preview' ? 'preview' : 'freeze', body, signal)
+            : await computeVariants(method, body, signal)
         return result.ok ? ok(result.value) : failure(new RpcError(result.error.code, result.error.message))
       }
       switch (endpoint) {
-        case 'tasks/capabilities': return ok(await discoverTaskCapabilities(root, { ...capabilityOptions, signal, agent_id: optionalString(body, 'agent_id'), source: optionalString(body, 'source') }))
+        case 'tasks/capabilities': return ok(await discoverTaskCapabilities(root, { ...capabilityOptions, signal, agent_id: optionalString(body, 'agent_id'), source: optionalString(body, 'source'), server_id: optionalString(body, 'server_id') }))
         case 'tasks/assembly-preview': return ok(await previewTaskAssembly(root, body as unknown as TaskAssemblyInput))
         case 'tasks/assembly-apply': {
           if (body.confirmed !== true) throw new RpcError('confirmation_required', '请先确认资产装配方案')

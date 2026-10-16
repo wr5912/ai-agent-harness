@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
@@ -11,8 +11,8 @@ import { load, dump } from 'js-yaml'
 process.env.HARNESS_PROGRAM_ROOT = new URL('../../../', import.meta.url).pathname
 process.env.HARNESS_PYTHON ||= '/usr/bin/python3'
 const buildRoot = mkdtempSync(join(tmpdir(), 'compute-variants-build-'))
-await build({ entryPoints: [new URL('../src/agents/compute-variants.ts', import.meta.url).pathname], outfile: join(buildRoot, 'variants.mjs'), bundle: true, platform: 'node', format: 'esm', external: ['@deepseek-ai/dsh-client-connection'] })
-const { createComputeVariantsHandler, computeTraceMetrics } = await import(`file://${join(buildRoot, 'variants.mjs')}`)
+await build({ stdin: { contents: "export * from './src/agents/compute-variants.ts'; export { createComputeBuildHandler } from './src/agents/compute-build.ts'; export { candidateDigest } from './src/tasks/files.ts'", resolveDir: new URL('../', import.meta.url).pathname, loader: 'ts' }, outfile: join(buildRoot, 'variants.mjs'), bundle: true, platform: 'node', format: 'esm', external: ['@deepseek-ai/dsh-client-connection'] })
+const { createComputeVariantsHandler, computeTraceMetrics, createComputeBuildHandler, candidateDigest } = await import(`file://${join(buildRoot, 'variants.mjs')}`)
 const parent = 'EXP-alpha-001-r111111111111', variant = 'EXP-alpha-002-r222222222222'
 const parentRun = 'run-11111111-1111-4111-8111-111111111111', variantRun = 'run-22222222-2222-4222-8222-222222222222'
 const hash = value => createHash('sha256').update(value).digest('hex')
@@ -104,6 +104,239 @@ async function fixture(planOverrides = {}) {
 }
 async function withFixture(task, planOverrides = {}) { const fx = await fixture(planOverrides); try { await task(fx) } finally { rmSync(fx.root, { recursive: true, force: true }) } }
 
+function addOrdinaryGraphEvidence(fx, invalidAssociation = false) {
+  for (const side of [fx.left, fx.right]) {
+    const file = join(side.base, 'evidence/U-ONE-001/trace.jsonl')
+    let sequence = 0
+    const rows = readFileSync(file, 'utf8').split('\n').map(JSON.parse).map(row => row.event.type === 'session' ? row : { ...row, event: { ...row.event, seq: sequence++ } })
+    if (side === fx.right) {
+      const session = rows[0].event.id
+      const attempt = { execution_id: 'ordinary-mcp-graph', attempt_id: 'inner-model-attempt', role: 'target', session_id: session,
+        tool_call_id: invalidAssociation ? 'different-call' : 'call-1', provider: 'deepseek', model: 'deepseek-flash', reasoning_effort: 'off' }
+      rows.find(row => row.event.type === 'tool/result').event.data.meta = { graph_execution: {
+        execution_id: attempt.execution_id, session_id: session, tool_call_id: attempt.tool_call_id, complete: true, status: 'completed',
+        model_attempts: [{ ...attempt, status: 'started', time: 1 }, { ...attempt, status: 'completed', time: 2, usage: { inputTokens: 1000, outputTokens: 10, totalTokens: 1010 } }],
+      } }
+    }
+    write(file, rows.map(JSON.stringify).join('\n'))
+    write(join(side.base, 'evidence/U-ONE-001/tools.jsonl'), rows.filter(row => ['tool/call', 'tool/result'].includes(row.event.type)).map(JSON.stringify).join('\n'))
+  }
+}
+
+test('普通旧计划的token指标也包含关联MCP图内推理，不能以外层下降误报节省', () => withFixture(async fx => {
+  assert.equal(fx.created.plan.generation, undefined)
+  assert.equal(fx.created.plan.measurement_schema_version, undefined)
+  addOrdinaryGraphEvidence(fx)
+  const result = success(await fx.handler('compare', fx.body))
+  assert.deepEqual(result.comparability.limits, [])
+  assert.equal(result.resources.model_calls.variant, 1, '历史已记录响应次数保持原口径')
+  assert.equal(result.resources.actual_model_calls.variant, 2)
+  assert.equal(result.resources.input_tokens.variant, 1100)
+  assert.equal(result.resources.output_tokens.variant, 20)
+  assert.equal(result.resources.total_tokens.parent, 220)
+  assert.equal(result.resources.total_tokens.variant, 1120, '外层110与图内1010均计入')
+  assert.equal(result.resource_evidence.passed, false)
+  assert.equal(result.eligible_for_end, false)
+}))
+
+test('普通旧计划的图关联未知时token与实际调用保持未知，历史响应指标不能使比较成立', () => withFixture(async fx => {
+  addOrdinaryGraphEvidence(fx, true)
+  const result = success(await fx.handler('compare', fx.body))
+  assert.equal(result.resources.model_calls.variant, 1)
+  assert.equal(result.resources.actual_model_calls.variant, null)
+  for (const key of ['input_tokens', 'output_tokens', 'total_tokens']) assert.equal(result.resources[key].variant, null)
+  assert.ok(result.comparability.limits.some(message => message.includes('关联图或实际模型请求的完整性未知')))
+  assert.ok(result.resource_evidence.limits.some(message => message.includes('graph-execution-association-invalid')))
+  assert.equal(result.comparability.passed, false)
+  assert.equal(result.resource_evidence.passed, false)
+  assert.equal(result.eligible_for_end, false)
+}, { resource_metric: 'model_calls' }))
+
+test('变体独立名称在预览、创建及回读一致，名称不进入比较计划且绑定预览摘要', () => withFixture(async fx => {
+  const saved = load(readFileSync(join(fx.path(variant), 'change.yaml'), 'utf8'))
+  assert.equal(saved.variant_name, '资产告警流程固化')
+  assert.equal(fx.created.variant_name, saved.variant_name)
+  assert.equal(Object.hasOwn(saved.compute_variant, 'variant_name'), false)
+  assert.equal(success(await fx.handler('context', { experiment_id: variant })).variant_name, saved.variant_name)
+  const input = { parent_experiment_id: parent, parent_ref: `git:${fx.parentCommit}`, strategy: '保留结果并减少中间调度。', case_ids: ['U-ONE-001'], variant_name: '资产告警流程固化' }
+  const preview = success(await fx.handler('preview', input))
+  assert.equal(preview.variant_name, input.variant_name)
+  const changedName = success(await fx.handler('preview', { ...input, variant_name: '资产告警查询合并' }))
+  assert.notEqual(changedName.preview_sha256, preview.preview_sha256)
+  const stale = await fx.handler('create', { ...input, variant_name: '资产告警查询合并', expected_preview_sha256: preview.preview_sha256 })
+  assert.equal(stale.ok, false); assert.equal(stale.error.code, 'conflict')
+}, { variant_name: '  资产告警流程固化  ' }))
+
+test('旧API缺省生成独立默认名，显式空名及无效名称拒绝且不修改已有变体', () => withFixture(async fx => {
+  assert.equal(fx.created.variant_name, '算力变体')
+  const file = join(fx.path(variant), 'change.yaml'), before = readFileSync(file, 'utf8')
+  const input = { parent_experiment_id: parent, parent_ref: `git:${fx.parentCommit}`, strategy: '完整保留既有结果。', case_ids: ['U-ONE-001'] }
+  for (const name of ['', '   ', null, 9, '名'.repeat(81), '名称\n第二行']) {
+    for (const method of ['preview', 'create', 'rename']) {
+      const result = await fx.handler(method, { ...input, experiment_id: variant, variant_name: name, expected_change_sha256: hash(before) })
+      assert.equal(result.ok, false); assert.equal(result.error.code, 'invalid_request')
+    }
+  }
+  assert.equal(readFileSync(file, 'utf8'), before)
+}))
+
+test('改名只保存独立名称，额外结论字段不生效，原始事实及已有比较回执继续有效', () => withFixture(async fx => {
+  const comparison = success(await fx.handler('compare', fx.body))
+  const file = join(fx.path(variant), 'change.yaml'), before = readFileSync(file, 'utf8'), change = load(before)
+  const stableFiles = [join(fx.path(parent), 'change.yaml'), join(fx.path(variant), 'candidate/AGENTS.md'), join(fx.path(variant), 'decision.md'),
+    join(fx.root, 'agents/alpha/evaluation.md'), join(fx.left.base, 'run.yaml'), join(fx.right.base, 'run.yaml'), join(fx.left.base, 'inputs.lock.json'), join(fx.right.base, 'inputs.lock.json'),
+    join(fx.left.base, 'evidence/U-ONE-001/trace.jsonl'), join(fx.right.base, 'evidence/U-ONE-001/trace.jsonl'), join(fx.root, comparison.comparison_receipt.path)]
+  const bytes = stableFiles.map(path => readFileSync(path)), head = git(fx.root, ['rev-parse', 'HEAD'])
+  const renamed = success(await fx.handler('rename', { experiment_id: variant, variant_name: '查询流程固化版', expected_change_sha256: hash(before),
+    variant_kind: 'end', outcome: 'adopt', end_confirmed: true, human_confirmed: true, compute_variant: { strategy: '不应保存' } }))
+  const after = readFileSync(file, 'utf8')
+  assert.equal(renamed.variant_name, '查询流程固化版')
+  assert.equal(renamed.change_sha256, hash(after))
+  assert.deepEqual(load(after), { ...change, variant_name: '查询流程固化版' })
+  stableFiles.forEach((path, index) => assert.equal(readFileSync(path).equals(bytes[index]), true, path))
+  assert.equal(git(fx.root, ['rev-parse', 'HEAD']), head)
+  const restored = success(await fx.handler('context', { experiment_id: variant }))
+  assert.equal(restored.variant_name, '查询流程固化版')
+  assert.equal(restored.workflow_status.compared, true)
+  assert.deepEqual(restored.comparison.comparison_receipt, comparison.comparison_receipt)
+  assert.deepEqual(restored.comparison.resources, comparison.resources)
+  const unchanged = success(await fx.handler('rename', { experiment_id: variant, variant_name: renamed.variant_name, expected_change_sha256: renamed.change_sha256 }))
+  assert.equal(unchanged.change_sha256, renamed.change_sha256)
+  assert.equal(readFileSync(file, 'utf8'), after)
+}))
+
+test('改名拒绝陈旧change摘要，写入锁阻止与研究确认并发', () => withFixture(async fx => {
+  const file = join(fx.path(variant), 'change.yaml'), before = readFileSync(file, 'utf8')
+  const first = success(await fx.handler('rename', { experiment_id: variant, variant_name: '第一次命名', expected_change_sha256: hash(before) }))
+  const after = readFileSync(file, 'utf8')
+  const stale = await fx.handler('rename', { experiment_id: variant, variant_name: '陈旧改名', expected_change_sha256: hash(before) })
+  assert.equal(stale.ok, false); assert.equal(stale.error.code, 'conflict')
+  assert.equal(readFileSync(file, 'utf8'), after)
+  const compared = success(await fx.handler('compare', fx.body))
+  let release, entered, held = false
+  const waiting = new Promise(resolve => { entered = resolve })
+  fx.setReadHook(() => { if (!held) { held = true; entered(); return new Promise(resolve => { release = resolve }) } })
+  const confirming = fx.handler('confirm', { ...fx.body, decision: 'continue', human_confirmed: true, comparison_sha256: compared.comparison_sha256, reason: '继续研究。' })
+  await waiting
+  const conflict = await fx.handler('rename', { experiment_id: variant, variant_name: '并发改名', expected_change_sha256: first.change_sha256 })
+  assert.equal(conflict.ok, false); assert.equal(conflict.error.code, 'conflict')
+  release()
+  success(await confirming)
+  assert.equal(load(readFileSync(file, 'utf8')).variant_name, '第一次命名')
+}))
+
+test('代码生成预览读取固定父版真实轨迹，拒绝把其他版本Run当来源', () => withFixture(async fx => {
+  const input = { parent_experiment_id: parent, parent_ref: `git:${fx.parentCommit}`, strategy: '将固定查询顺序生成为 LangGraph 工具', case_ids: ['U-ONE-001'],
+    generation: { mode: 'langgraph-aot', source_run_ids: [parentRun] } }
+  const preview = success(await fx.handler('preview', input))
+  assert.equal(preview.variant_name, 'LangGraph 代码变体')
+  assert.equal(preview.plan.generation.entry_path, 'dsh/managed/compute-workflow/index.ts')
+  assert.equal(preview.plan.resource_metric, 'actual_model_calls')
+  assert.equal(preview.plan.measurement_schema_version, 2)
+  assert.equal(preview.plan.generation.source_evidence.length, 1)
+  assert.match(preview.plan.generation.source_evidence[0].sha256, /^[a-f0-9]{64}$/)
+  const rejected = await fx.handler('preview', { ...input, generation: { ...input.generation, source_run_ids: [variantRun] } })
+  assert.equal(rejected.ok, false)
+  assert.match(rejected.error.message, /固定父版/)
+}))
+
+test('新口径不能把缺少原生事件序号的旧响应统计当实际请求证据', () => withFixture(async fx => {
+  const result = success(await fx.handler('compare', fx.body))
+  assert.equal(result.resources.model_calls.parent, 2)
+  assert.equal(result.resources.actual_model_calls.parent, null)
+  const changePath = join(fx.path(variant), 'change.yaml')
+  const change = load(readFileSync(changePath, 'utf8'))
+  change.compute_variant.resource_metric = 'actual_model_calls'; change.compute_variant.measurement_schema_version = 2
+  write(changePath, dump(change))
+  const compared = success(await fx.handler('compare', fx.body))
+  assert.equal(compared.resources.actual_model_calls.variant, null)
+  assert.equal(compared.eligible_for_end, false)
+}))
+
+async function generatedNestedFixture(fx) {
+  const changePath = join(fx.path(variant), 'change.yaml'), change = load(readFileSync(changePath, 'utf8'))
+  change.compute_variant.generation = { mode: 'langgraph-aot', entry_path: 'dsh/managed/compute-workflow/index.ts', source_run_ids: [parentRun] }
+  change.compute_variant.measurement_schema_version = 2
+  change.compute_variant.resource_metric = 'actual_model_calls'
+  write(changePath, dump(change))
+  write(join(fx.root, 'config/sources.json'), JSON.stringify({ sources: { [variant]: { agent_id: 'alpha', candidate_root: `evolution/experiments/${variant}/candidate/dsh` } } }))
+  write(join(fx.path(variant), 'candidate/dsh/managed/compute-workflow/index.ts'), `import {defineWorkflow,registerWorkflowTool} from '@harness-platform/workflow-runtime';
+export const name='asset-query'; export const inject=['tools'];
+const workflow=defineWorkflow({id:'asset-query',toolName:'asset_query',description:'查询',inputSchema:{type:'object'},async run(context){return context.callTool('fixed_composition',context.input)}});
+export function apply(ctx:any){registerWorkflowTool(ctx,workflow)}\n`)
+  const buildHandler = createComputeBuildHandler(fx.root), digest = candidateDigest(join(fx.path(variant), 'candidate'))
+  const preview = success(await buildHandler('preview', { experiment_id: variant, expected_candidate_sha256: digest }))
+  const built = success(await buildHandler('build', { experiment_id: variant, expected_candidate_sha256: digest, expected_preview_sha256: preview.preview_sha256 }))
+  git(fx.root, ['add', `evolution/experiments/${variant}/candidate`, `evolution/experiments/${variant}/change.yaml`, 'config/sources.json'])
+  git(fx.root, ['commit', '-m', 'freeze generated workflow and comparison'])
+  const commit = git(fx.root, ['rev-parse', 'HEAD'])
+  for (const run of [fx.left, fx.right]) { run.lock.git_version.commit = commit; write(join(run.base, 'inputs.lock.json'), JSON.stringify(run.lock)) }
+  function save(run, body) {
+    const header = { session_log: 'root', event: { type: 'session', id: run.view.cases[0].load_observation.session_id, delegationDepth: 0, createdAt: Date.parse(run.lock.created_at) + 10 } }
+    const rows = [header, ...body.map((row, seq) => ({ ...row, event: { ...row.event, seq } }))]
+    write(join(run.base, 'evidence/U-ONE-001/trace.jsonl'), rows.map(JSON.stringify).join('\n'))
+    write(join(run.base, 'evidence/U-ONE-001/tools.jsonl'), rows.filter(row => row.event.type.startsWith('tool/')).map(JSON.stringify).join('\n'))
+  }
+  save(fx.left, trace(3))
+  const session = fx.right.view.cases[0].load_observation.session_id
+  const childIdentity = { execution_id: 'fixed-child', session_id: session, tool_call_id: 'nested-call', role: 'target' }
+  const child = { ...childIdentity, complete: true, source_digest: 'a'.repeat(64), build_digest: 'b'.repeat(64), model_attempts: [
+    { ...childIdentity, attempt_id: 'inner-attempt', status: 'preparing', provider: 'proposal-provider', model: 'proposal-model', reasoning_effort: 'off', time: 1 },
+    { ...childIdentity, attempt_id: 'inner-attempt', status: 'started', provider: 'deepseek', model: 'deepseek-flash', reasoning_effort: 'off', time: 2 },
+    { ...childIdentity, attempt_id: 'inner-attempt', status: 'completed', provider: 'deepseek', model: 'deepseek-flash', reasoning_effort: 'off', time: 3, usage: { inputTokens: 5, outputTokens: 2, totalTokens: 7 } },
+  ] }
+  const raw = { ok: true, version: { versionId: 'c'.repeat(64), implementationDigest: child.build_digest, sourceDigest: child.source_digest }, graph_execution: child }
+  const step = { call_id: child.tool_call_id, status: 'completed', meta: { graph_execution: child,
+    fixed_composition: { composition_id: 'asset-composition', version_id: raw.version.versionId, implementation_digest: raw.version.implementationDigest } }, result: {} }
+  const wrapper = { execution_id: 'workflow-wrapper', session_id: session, tool_call_id: 'call-1', workflow_id: 'asset-query',
+    complete: true, status: 'completed', esm_sha256: built.esm_sha256, build_digest: built.build_digest, model_attempts: [], trace: [step] }
+  function saveVariant() {
+    step.result = { isError: false, content: [{ type: 'text', text: JSON.stringify(raw) }] }
+    const body = trace(1)
+    body.find(row => row.event.type === 'tool/result').event.data.meta = { graph_execution: wrapper }
+    save(fx.right, body)
+  }
+  saveVariant()
+  return { built, child, raw, wrapper, saveVariant }
+}
+
+test('已构建wrapper嵌套固定MCP子图无需共享ESM，图内实际调用计入且可比/装载通过', () => withFixture(async fx => {
+  const nested = await generatedNestedFixture(fx)
+  const compared = success(await fx.handler('compare', fx.body))
+  assert.deepEqual(compared.comparability.limits, [])
+  assert.equal(compared.resources.actual_model_calls.parent, 3)
+  assert.equal(compared.resources.actual_model_calls.variant, 2)
+  assert.equal(compared.eligible_for_end, true)
+  assert.equal(success(await fx.handler('context', { experiment_id: variant })).loaded.verified, true)
+  nested.raw.version.implementationDigest = 'd'.repeat(64)
+  nested.saveVariant()
+  const drift = success(await fx.handler('compare', fx.body))
+  assert.ok(drift.comparability.limits.some(message => message.includes('子组合缺少一致的固定版本')))
+  assert.equal(success(await fx.handler('context', { experiment_id: variant })).loaded.verified, false)
+  nested.raw.version.implementationDigest = nested.child.build_digest
+  delete nested.wrapper.workflow_id
+  nested.saveVariant()
+  const missingWrapper = success(await fx.handler('compare', fx.body))
+  assert.ok(missingWrapper.comparability.limits.some(message => message.includes('缺少本次构建工作流')))
+  assert.equal(success(await fx.handler('context', { experiment_id: variant })).loaded.verified, false)
+  nested.wrapper.workflow_id = 'asset-query'
+  nested.wrapper.trace[0].meta.fixed_composition = {}
+  nested.raw.version = {}; delete nested.child.build_digest; delete nested.child.source_digest
+  nested.saveVariant()
+  assert.ok(success(await fx.handler('compare', fx.body)).comparability.limits.some(message => message.includes('子组合缺少一致的固定版本')))
+}))
+
+test('图内prepared实际换模型不能伪装成外层同模型，拟议路由不作为实际调用', () => withFixture(async fx => {
+  const nested = await generatedNestedFixture(fx)
+  assert.equal(success(await fx.handler('compare', fx.body)).comparability.passed, true)
+  for (const attempt of nested.child.model_attempts) if (attempt.status !== 'preparing') attempt.model = 'unplanned-inner-model'
+  nested.saveVariant()
+  const changed = success(await fx.handler('compare', fx.body))
+  assert.equal(changed.comparability.passed, false)
+  assert.ok(changed.comparability.limits.some(message => message.includes('未预先允许的模型路由差异')))
+  assert.equal(changed.eligible_for_end, false)
+}))
+
 test('固定完整父版、冻结范围、双Run比较和人工确认 end 闭环', () => withFixture(async fx => {
   assert.equal(readFileSync(join(fx.path(parent), 'candidate/AGENTS.md'), 'utf8'), readFileSync(join(fx.path(variant), 'candidate/AGENTS.md'), 'utf8'))
   assert.equal(fx.created.plan.model_change, null)
@@ -119,6 +352,76 @@ test('固定完整父版、冻结范围、双Run比较和人工确认 end 闭环
   assert.equal(change.end_confirmed, true); assert.equal(change.outcome, 'adopt')
   assert.equal(change.resource_evidence_refs.length, 2)
   assert.match(readFileSync(join(fx.path(variant), 'decision.md'), 'utf8'), /仅限冻结任务范围/)
+}))
+
+test('实际机器比较保存不可变回执，未作Decision也能从原始证据恢复，重复比较不覆盖', () => withFixture(async fx => {
+  const changeFile = join(fx.path(variant), 'change.yaml'), original = readFileSync(changeFile, 'utf8')
+  assert.equal(success(await fx.handler('context', { experiment_id: variant })).workflow_status.compared, false)
+  const result = success(await fx.handler('compare', fx.body)), descriptor = result.comparison_receipt
+  assert.match(descriptor.path, /\/evaluation\/compute-comparison-[0-9a-f]{64}\.json$/)
+  const bytes = readFileSync(join(fx.root, descriptor.path))
+  assert.equal(descriptor.sha256, hash(bytes))
+  assert.equal(readFileSync(changeFile, 'utf8'), original, '机器比较不修改研究决定或冻结计划')
+  const restored = success(await fx.handler('context', { experiment_id: variant }))
+  assert.equal(restored.workflow_status.compared, true)
+  assert.deepEqual(restored.comparison.comparison_receipt, descriptor)
+  assert.deepEqual(restored.comparison.resources, result.resources)
+  assert.deepEqual(restored.comparison.parent_run_ids, [parentRun])
+  assert.deepEqual(restored.comparison.variant_run_ids, [variantRun])
+  const repeated = success(await fx.handler('compare', fx.body))
+  assert.deepEqual(repeated.comparison_receipt, descriptor)
+  assert.equal(readFileSync(join(fx.root, descriptor.path)).equals(bytes), true)
+  assert.equal(readdirSync(join(fx.path(variant), 'evaluation')).filter(name => name.startsWith('compute-comparison-')).length, 1)
+}))
+
+test('Decision本身不使实际比较失效，单独的旧Decision不能代替比较回执', () => withFixture(async fx => {
+  const changeFile = join(fx.path(variant), 'change.yaml'), change = load(readFileSync(changeFile, 'utf8'))
+  change.compute_variant_decision = { candidate_sha256: hash(readFileSync(join(fx.path(variant), 'candidate/AGENTS.md'))) }
+  write(changeFile, dump(change))
+  assert.equal(success(await fx.handler('context', { experiment_id: variant })).workflow_status.compared, false)
+  const result = success(await fx.handler('compare', fx.body))
+  success(await fx.handler('confirm', { ...fx.body, decision: 'end', human_confirmed: true, comparison_sha256: result.comparison_sha256, reason: '核对实际业务及资源结果。' }))
+  const restored = success(await fx.handler('context', { experiment_id: variant }))
+  assert.equal(restored.workflow_status.compared, true)
+  assert.deepEqual(restored.comparison.comparison_receipt, result.comparison_receipt)
+  assert.notEqual(restored.comparison.comparison_sha256, result.comparison_sha256, '当次确认仍使用当前change并发摘要')
+  success(await fx.handler('confirm', { ...fx.body, decision: 'continue', human_confirmed: true, comparison_sha256: restored.comparison.comparison_sha256, reason: '继续扩大研究范围前保留已有比较。' }))
+  assert.equal(success(await fx.handler('context', { experiment_id: variant })).workflow_status.compared, true)
+}))
+
+test('当前Candidate、计划、原始证据或回执变化使已比较状态失效', async t => {
+  for (const [name, mutate] of [
+    ['Candidate', fx => write(join(fx.path(variant), 'candidate/AGENTS.md'), '新的未比较资产。')],
+    ['计划', fx => { const file = join(fx.path(variant), 'change.yaml'), change = load(readFileSync(file, 'utf8')); change.compute_variant.strategy = '已改变的研究方案'; write(file, dump(change)) }],
+    ['原始轨迹', fx => write(join(fx.right.base, 'evidence/U-ONE-001/trace.jsonl'), trace(2).map(JSON.stringify).join('\n'))],
+    ['原始报告', fx => write(join(fx.right.base, 'report.md'), '已经改变的报告。')],
+    ['回执', (fx, result) => { const file = join(fx.root, result.comparison_receipt.path); rmSync(file); write(file, '{}\n') }],
+  ]) await t.test(name, () => withFixture(async fx => {
+    const result = success(await fx.handler('compare', fx.body))
+    mutate(fx, result)
+    const current = success(await fx.handler('context', { experiment_id: variant }))
+    assert.equal(current.workflow_status.compared, false)
+    assert.equal(current.comparison, null)
+    if (name === '回执') {
+      const rejected = await fx.handler('compare', fx.body)
+      assert.equal(rejected.ok, false); assert.equal(rejected.error.code, 'conflict')
+      assert.equal(readFileSync(join(fx.root, result.comparison_receipt.path), 'utf8'), '{}\n')
+    }
+  }))
+})
+
+test('构建回执变化使比较失效，比较完成与质量或资源通过分别报告', () => withFixture(async fx => {
+  await generatedNestedFixture(fx)
+  fx.right.view.cases[0].review.reviewed_verdict = 'failed'
+  const result = success(await fx.handler('compare', fx.body))
+  assert.equal(result.quality.passed, false); assert.equal(result.eligible_for_end, false)
+  assert.equal(success(await fx.handler('context', { experiment_id: variant })).workflow_status.compared, true)
+  const file = join(fx.path(variant), 'change.yaml'), change = load(readFileSync(file, 'utf8'))
+  change.compute_variant_build.compiler.typescript = 'changed-compiler'
+  write(file, dump(change))
+  const current = success(await fx.handler('context', { experiment_id: variant }))
+  assert.equal(current.workflow_status.built, true, '即便已有构建核对未否定该字段，比较仍绑定完整构建回执')
+  assert.equal(current.workflow_status.compared, false)
 }))
 
 test('缺少 token 保持 unknown，质量通过不代表资源证据充分', () => withFixture(async fx => {

@@ -1,0 +1,184 @@
+{
+  "at": "2026-10-16T14:34:19.420Z",
+  "base": "http://10.0.160.32:3115/hep/",
+  "authorized_metadata_write": {
+    "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3",
+    "variant_name": "资产关联告警查询（LangGraph）"
+  },
+  "checks": [
+    "历史无独立名称显示未命名变体，列表与详情不从策略正文推导",
+    "实际UI保存独立名称，空名称阻止保存，重新核对保留草稿"
+  ],
+  "errors": [],
+  "failed_requests": [],
+  "rpc": [
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/edit/read",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/compute-variants/rename",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3",
+      "variant_name": "资产关联告警查询（LangGraph）",
+      "expected_change_sha256": "b79361930c918f41adab428f850c93fdcb727072b274c8c59e1c830e93b6097e"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal",
+      "experiment_id": "EXP-security-operations-expert-024-r290c02339cb3"
+    },
+    {
+      "method": "home"
+    }
+  ],
+  "layouts": [],
+  "before": {
+    "variant_name": null,
+    "change_sha256": "b79361930c918f41adab428f850c93fdcb727072b274c8c59e1c830e93b6097e",
+    "other_change_sha256": "d4e6fdd0ec8d850850bcec15ea82311e95feae9be3060ffb73c61e3af0f1bdc6",
+    "research_question_sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "strategy_sha256": "627374bfb98d623b7cad6b2e4f2e0d8f45398c6b954e9f69519f9e70d0440021",
+    "protected": {
+      "candidate": {
+        "files": 1921,
+        "sha256": "24d178fc7fa17b100810ca519c4076c669cd0985a7834994d31ba213bf64ecfb"
+      },
+      "runs": {
+        "files": 206,
+        "sha256": "dcbbed087acb960341d71df4c9f324ef905cf48ebab623b034a7119f0c8606e6"
+      },
+      "evaluation": {
+        "files": 2,
+        "sha256": "ae228effcfa17746ac08d1a385632636c202cf7dd22a496cc5d963395ee1ccbc"
+      },
+      "decision.md": {
+        "files": 1,
+        "sha256": "32d915fcf0d16a8f460e1dbf1b6c67dc94775b4545af778210e0edbb4859a5ce"
+      }
+    }
+  },
+  "ok": false,
+  "error": "AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:\n\n  assert.ok(option.includes(name)&&option.includes(id))\n\n    at file:///tmp/hep-variant-name-20261016/acceptance.mjs:23:172"
+}

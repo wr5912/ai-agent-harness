@@ -15,6 +15,7 @@ export interface ManagerConfig {
   dispatch?: (request: any, signal?: AbortSignal) => Promise<{ status: number; value: any }>
   compositionHandler?: ConnectionRpcHandler
   compositionExtension?: CompositionExtension
+  currentGroup?: (id: string) => { id: string; targetDigest: string } | undefined
 }
 declare module '@deepseek-ai/cordis' {
   interface Context { platformMcp: ManagerConfig }
@@ -33,7 +34,8 @@ export function apply(ctx: Context, config: ManagerConfig) {
     const service = publishedCompositionService(catalog, executableCatalog(catalog, compositionExtension))
     return service ? [...servers, service] : servers
   } } })
-  ctx.provide('platformMcp', { ...config, compositionHandler, compositionExtension, dispatch: (request, signal) => {
+  ctx.provide('platformMcp', { ...config, compositionHandler, compositionExtension,
+    currentGroup: id => (ctx as any).mcpSessionManager.currentGroup(id), dispatch: (request, signal) => {
     if (!dispatch) throw new Error('MCP 管理服务尚未就绪')
     return dispatch(request, signal)
   } })

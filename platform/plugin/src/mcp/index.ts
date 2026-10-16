@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
 import { compositionInputSchema, compositionReadonly } from './definition.ts'
 import { compositionConfig, publishCompositionVersion, publishedCompositionService, readCompositions, selectedComposition, versionConfig, writeCompositions } from './compositions.ts'
 import { workspaceConfigPath } from '../workspace.ts'
-import { executableCatalog } from './extension.ts'
+import { executableCatalog, type CompositionExecutionContext } from './extension.ts'
 import { createRegistry, executeComposition, dryRunComposition, compositionStructure, compositionVersion, saveRegistry, type McpRegistry } from './executor.ts'
 import { callOpenApiOperation, limitedText, loadOpenApi, normalizeConnection, publicConnection, validateSpecUrl, type CredentialRef } from './openapi.ts'
 
@@ -39,6 +39,10 @@ async function listState(registry: McpRegistry, assetRoot: string, compositionsF
       })),
     ],
     compositions: await Promise.all(catalog.compositions.map(async entry => ({ ...entry,
+      ...(entry.published ? { binding: { compositionId: entry.id, versionId: entry.publishedVersionId,
+        expectedImplementationDigest: compositionVersion(assetRoot, entry.published, registry.extension, catalog, registry).implementationDigest } } : {}),
+      versions: entry.versions?.map(version => ({ ...version, binding: { compositionId: entry.id, versionId: version.versionId,
+        expectedImplementationDigest: compositionVersion(assetRoot, version.config, registry.extension, catalog, registry).implementationDigest } })),
       graphs: Object.fromEntries(await Promise.all((['draft', 'published'] as const).filter(key => entry[key]).map(async key => [key, await compositionStructure(entry[key], catalog, registry.extension, true)]))),
     }))),
     publishedService: publishedCompositionService(catalog, executableCatalog(catalog, registry.extension ?? (registry.threat ? { threat: registry.threat } : undefined))),
@@ -46,6 +50,14 @@ async function listState(registry: McpRegistry, assetRoot: string, compositionsF
     revision,
     implementation: compositionVersion(assetRoot, undefined, registry.extension),
   }
+}
+
+function executionContext(value: any): CompositionExecutionContext | undefined {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('图执行关联信息无效')
+  const allowed = ['execution_id', 'parent_run_id', 'case_id', 'session_id', 'tool_call_id']
+  if (Object.keys(value).some(key => !allowed.includes(key)) || Object.values(value).some(item => typeof item !== 'string' || !/^[A-Za-z0-9_.:-]{1,160}$/.test(item))) throw new Error('图执行关联信息无效')
+  return { ...value, execution_id: value.execution_id ?? `graph-${randomUUID()}`, role: 'target' }
 }
 
 function totalSignal(signal?: AbortSignal) {
@@ -219,15 +231,21 @@ export function createMcpHandler(assetRoot: string, options: { stateFile?: strin
           return success(await listState(registry, assetRoot, compositionsFile))
         }
         if (endpoint === 'callPublishedComposition') {
+          const execution = executionContext(request.execution)
+          if (request.expectedImplementationDigest !== undefined && (typeof request.expectedImplementationDigest !== 'string' || !/^[0-9a-f]{64}$/.test(request.expectedImplementationDigest)
+            || !request.compositionId || !request.versionId)) return failure('invalid_request', '固定实现需要完整组合、版本和实现摘要')
           if (request.compositionId !== undefined || request.versionId !== undefined) {
             if (typeof request.compositionId !== 'string' || typeof request.versionId !== 'string' || !request.versionId) return failure('invalid_request', '执行固定组合需要完整的组合 ID 和版本 ID')
             const frozen = versionConfig(catalog, request.compositionId, request.versionId)
             if (frozen.toolName !== request.toolName) return failure('conflict', '固定组合版本与工具名称不一致，请重新生成预览')
-            return success(await executeComposition(registry, assetRoot, frozen, request.input ?? {}, signal, catalog))
+            const actual = compositionVersion(assetRoot, frozen, registry.extension, catalog, registry)
+            if (request.expectedImplementationDigest !== undefined && (actual.sourceDigest === 'unknown' || actual.businessExtension?.sourceDigest === 'unknown'
+              || actual.implementationDigest !== request.expectedImplementationDigest)) return failure('conflict', '固定组合实现已变化或来源不明，请恢复对应实现或重新预览')
+            return success(await executeComposition(registry, assetRoot, frozen, request.input ?? {}, signal, catalog, false, execution))
           }
           const entry = catalog.compositions.find(item => item.published?.toolName === request.toolName)
           if (!entry?.published) return failure('not_found', '已发布工具不存在')
-          return success(await executeComposition(registry, assetRoot, entry.published, request.input ?? {}, signal, catalog))
+          return success(await executeComposition(registry, assetRoot, entry.published, request.input ?? {}, signal, catalog, false, execution))
         }
         const config = selectedComposition(catalog, request)
         if (endpoint === 'publishComposition') {
@@ -239,7 +257,7 @@ export function createMcpHandler(assetRoot: string, options: { stateFile?: strin
           return success({ ...await listState(registry, assetRoot, compositionsFile), dry })
         }
         return success(endpoint === 'dryRunComposition'
-          ? { ...await dryRunComposition(registry, config, request.input ?? {}, catalog), version: compositionVersion(assetRoot, config, registry.extension) }
+          ? { ...await dryRunComposition(registry, config, request.input ?? {}, catalog), version: compositionVersion(assetRoot, config, registry.extension, catalog, registry) }
           : await executeComposition(registry, assetRoot, config, request.input ?? {}, signal, catalog))
       }
       if (endpoint === 'registerOpenApi') {
@@ -334,10 +352,14 @@ async function handleMcpMessage(handler: ConnectionRpcHandler, assetRoot: string
       description: config.description || config.title,
       inputSchema: compositionInputSchema(config),
       annotations: { readOnlyHint: compositionReadonly(config) },
+      _meta: { harness: (listed.value as any).compositions.find((entry: any) => entry.published?.toolName === config.toolName)?.binding },
     })) })
   }
   if (message.method === 'tools/call') {
-    const result = await handler('callPublishedComposition', { toolName: message.params?.name, input: message.params?.arguments ?? {} }, signal ?? new AbortController().signal, undefined as never)
+    const meta = message.params?._meta?.harness
+    if (meta !== undefined && (!meta || typeof meta !== 'object' || Array.isArray(meta)
+      || Object.keys(meta).some(key => !['compositionId', 'versionId', 'expectedImplementationDigest', 'execution'].includes(key)))) return rpcError(message.id, -32602, 'Invalid fixed composition metadata')
+    const result = await handler('callPublishedComposition', { ...meta, toolName: message.params?.name, input: message.params?.arguments ?? {} }, signal ?? new AbortController().signal, undefined as never)
     if (!result.ok && result.error.code === 'not_found') return rpcError(message.id, -32602, 'Unknown tool')
     if (!result.ok) return rpcResult(message.id, { content: [{ type: 'text', text: result.error.message }], isError: true })
     const value = result.value as { ok: boolean } & Record<string, unknown>

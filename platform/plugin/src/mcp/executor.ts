@@ -1,11 +1,12 @@
 import { execFileSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph'
 import { compositionDefinition, compositionInputSchema, compositionOutputSchema, INCIDENT_ID_PATTERN, RUN_ID_PATTERN } from './definition.ts'
-import { compositionVersionId, readCompositions, type Catalog, type CompositionConfig } from './compositions.ts'
-import type { ThreatRuntime, CompositionExtension } from './extension.ts'
+import { compositionConfig, compositionVersionId, readCompositions, versionConfig, type Catalog, type CompositionConfig } from './compositions.ts'
+import type { ThreatRuntime, CompositionExtension, CompositionExecutionContext, GraphExecution } from './extension.ts'
+import type { ModelAttempt } from '../evaluation/model-attempts.ts'
 import { executeNested, nestedStructure, validateNested } from './nested.ts'
 import { programRoot, workspaceConfigPath, workspaceLocalPath } from '../workspace.ts'
 import { callOpenApiOperation, loadOpenApi, type OpenApiConnection } from './openapi.ts'
@@ -75,31 +76,74 @@ function gitDirtyOf(assetRoot: string): boolean | 'unknown' {
   }
 }
 
+declare const __PLATFORM_MCP_IMPLEMENTATION_DIGEST__: string
+let developmentSourceDigest: string | undefined
 function sourceDigestOf(): string {
-  const files = ['client.tsx', 'definition.ts', 'compositions.ts', 'executor.ts', 'index.ts', 'openapi.ts', 'manager.ts', 'native.ts', 'nested.ts', 'extension.ts', 'threat-editor.tsx']
+  if (typeof __PLATFORM_MCP_IMPLEMENTATION_DIGEST__ !== 'undefined') return __PLATFORM_MCP_IMPLEMENTATION_DIGEST__
+  if (developmentSourceDigest !== undefined) return developmentSourceDigest
+  const files = ['definition.ts', 'compositions.ts', 'executor.ts', 'index.ts', 'openapi.ts', 'native.ts', 'nested.ts', 'extension.ts']
     .map(file => `platform/plugin/src/mcp/${file}`)
     .concat(['platform/plugin/build.mjs', 'platform/plugin/package.json', 'platform/plugin/pnpm-lock.yaml', 'platform/plugin/src/index.ts',
-      ...['index.ts', 'openapi.ts'].map(file => `plugins/mcp-manager/${file}`)])
+      'platform/plugin/src/evaluation/model-attempts.ts', 'platform/plugin/src/workflows/graph.ts', ...['index.ts', 'openapi.ts'].map(file => `plugins/mcp-manager/${file}`)])
   try {
     const hash = createHash('sha256')
     for (const file of files) hash.update(file).update('\0').update(readFileSync(join(programRoot(), file)))
-    return hash.digest('hex')
+    return developmentSourceDigest = hash.digest('hex')
   } catch {
-    return 'unknown'
+    return developmentSourceDigest = 'unknown'
   }
 }
 
-export function compositionVersion(assetRoot: string, config?: CompositionConfig, extension?: CompositionExtension) {
+function canonical(value: any): string {
+  return JSON.stringify(Array.isArray(value) ? value.map(item => JSON.parse(canonical(item))) : value && typeof value === 'object'
+    ? Object.fromEntries(Object.keys(value).sort().filter(key => value[key] !== undefined).map(key => [key, JSON.parse(canonical(value[key]))])) : value)
+}
+function dependencyDefinitions(config: CompositionConfig | undefined, catalog?: Catalog, path = new Set<string>()): any {
+  if (!config) return null
+  const normalized = compositionConfig(config)
+  if (normalized.kind !== 'composite') return normalized
+  return { ...normalized, dependencies: normalized.steps!.map(step => {
+    const key = `${step.compositionId}:${step.versionId}`
+    if (path.has(key)) throw new Error('组合版本存在循环引用')
+    if (!catalog) throw new Error('固定组合依赖需要完整版本目录')
+    return { compositionId: step.compositionId, versionId: step.versionId,
+      definition: dependencyDefinitions(versionConfig(catalog, step.compositionId, step.versionId), catalog, new Set([...path, key])) }
+  }) }
+}
+function connectionIdentities(definition: any, registry?: McpRegistry): any[] {
+  if (!definition || !registry) return []
+  const ids = new Set<string>()
+  function visit(config: any) {
+    if (!config) return
+    if (config.kind === 'composite') for (const child of config.dependencies) visit(child.definition)
+    else if (config.kind === 'threat-stage') { ids.add(config.bindings.socConnectionId); ids.add(config.bindings.reportConnectionId) }
+    else { ids.add(config.connectionId); if (config.alertsConnectionId) ids.add(config.alertsConnectionId) }
+  }
+  visit(definition)
+  return [...ids].sort().map(id => {
+    const connection = registry.openapi.get(id) ?? registry.mcp.get(id)
+    if (!connection) return { id, target: 'unavailable' }
+    const url = new URL(connection.specUrl ?? connection.endpointUrl)
+    url.username = ''; url.password = ''
+    for (const name of [...url.searchParams.keys()]) if (/token|secret|password|credential|authorization|api[-_]?key/i.test(name)) url.searchParams.delete(name)
+    url.searchParams.sort()
+    return { id, kind: connection.specUrl ? 'openapi' : 'mcp', targetDigest: createHash('sha256').update(url.href).digest('hex') }
+  })
+}
+export function compositionVersion(assetRoot: string, config?: CompositionConfig, extension?: CompositionExtension, catalog?: Catalog, registry?: McpRegistry) {
   const gitCommit = gitCommitOf(assetRoot)
   const programCommit = gitCommitOf(programRoot())
   const programDirty = gitDirtyOf(programRoot())
   const gitDirty = gitDirtyOf(assetRoot)
   const sourceDigest = sourceDigestOf()
-  const definition = { ...compositionDefinition, ...config, readonly: !config?.kind, inputSchema: compositionInputSchema(config), outputSchema: compositionOutputSchema(config),
+  const normalized = config ? compositionConfig(config) : undefined
+  const definition = { ...compositionDefinition, ...normalized, readonly: !config?.kind, inputSchema: compositionInputSchema(config), outputSchema: compositionOutputSchema(config),
     upstream: config?.kind ? { kind: config.kind, ...(config.kind === 'composite' ? { steps: config.steps } : { stage: config.stage, bindings: config.bindings }) } : { kind: 'openapi', steps: config?.flow ? [] : compositionSteps(config) } }
   const businessExtension = extension?.id ? { id: extension.id, sourceDigest: extension.sourceDigest ?? 'unknown' } : undefined
-  const digest = createHash('sha256').update(JSON.stringify({ gitCommit, gitDirty, programCommit, programDirty, sourceDigest, businessExtension, definition })).digest('hex')
-  return { gitCommit, gitDirty, programCommit, programDirty, sourceDigest, businessExtension, digest, definition, ...(config?.kind ? { versionId: compositionVersionId(config) } : {}) }
+  const dependencies = dependencyDefinitions(config, catalog)
+  const implementationDigest = createHash('sha256').update(canonical({ sourceDigest, businessExtension, definition, dependencies, connections: connectionIdentities(dependencies, registry) })).digest('hex')
+  return { gitCommit, gitDirty, programCommit, programDirty, sourceDigest, businessExtension, digest: implementationDigest, implementationDigest, definition,
+    ...(config ? { versionId: compositionVersionId(config) } : {}) }
 }
 
 function statusFor(registry: McpRegistry, id: string): ConnectionStatus {
@@ -252,24 +296,42 @@ function assertReadonlyOperation(source: Awaited<ReturnType<typeof loadOpenApi>>
   if (operation.method !== 'get') throw new Error(`只读组合拒绝非 GET 操作：${operationId}`)
 }
 
-export async function executeComposition(registry: McpRegistry, assetRoot: string, config: CompositionConfig, input: Record<string, any>, signal?: AbortSignal, catalog?: Catalog, nested = false): Promise<any> {
-  const version = compositionVersion(assetRoot, config, registry.extension)
+export async function executeComposition(registry: McpRegistry, assetRoot: string, config: CompositionConfig, input: Record<string, any>, signal?: AbortSignal, catalog?: Catalog, nested = false, execution?: CompositionExecutionContext): Promise<any> {
+  const resolvedCatalog = catalog ?? readCompositions(workspaceConfigPath(assetRoot, 'mcp-compositions.json')).catalog
+  const version = compositionVersion(assetRoot, config, registry.extension, resolvedCatalog, registry)
+  const attempts: ModelAttempt[] = []
+  const inheritedRecorder = execution?.recordAttempt
+  const runContext: CompositionExecutionContext = { execution_id: execution?.execution_id ?? `graph-${randomUUID()}`, role: execution?.role ?? 'target',
+    ...(execution ?? {}), recordAttempt: async attempt => { attempts.push(structuredClone(attempt)); await inheritedRecorder?.(attempt) } }
+  const graphExecution = (complete = true): GraphExecution => {
+    const { recordAttempt: _record, role: _role, model_invocation: _invocation, ...identity } = runContext
+    return { ...identity, source_digest: version.sourceDigest, build_digest: version.implementationDigest,
+      model_attempts: attempts, complete, ...(!complete ? { unknown_reasons: ['graph-model-attempts-unobserved'] } : {}) }
+  }
   const validated = compositionInput(input, config)
   if (config.kind) {
     const runSignal = nested && signal ? signal : signal ? AbortSignal.any([signal, AbortSignal.timeout(36 * 60_000)]) : AbortSignal.timeout(36 * 60_000)
     if (config.kind === 'threat-stage') {
       if (!registry.threat) throw new Error('威胁分析运行器尚未装载')
       const cleanup = nested && (config.stage === 'writeback' || config.stage === 'report')
-      const state = await threatStageGraph(config, args => registry.threat!.execute(config.stage!, config.bindings!, args, cleanup ? AbortSignal.timeout(120_000) : runSignal)).invoke({ input: validated })
+      let state: typeof ThreatStageState.State
+      try { state = await threatStageGraph(config, args => registry.threat!.execute(config.stage!, config.bindings!, args, cleanup ? AbortSignal.timeout(120_000) : runSignal, runContext)).invoke({ input: validated }) }
+      catch (error) {
+        if (nested) throw error
+        if (!attempts.length) throw error
+        // 已发出模型调用后失败也返回原始结算，避免RPC错误吞掉真实消耗。
+        return { ok: false, version, receipts: [], graph_execution: graphExecution(),
+          error: { code: runSignal.aborted ? 'aborted' : 'threat_stage_failed', message: '业务阶段执行失败，请核对原始模型与阶段记录' } }
+      }
       const ok = ['completed', 'skipped'].includes(state.result.phase_status) && state.result.status !== 'claim_failed'
-      return { ok, version, receipts: [], result: state.result,
+      const complete = state.result.replayed === true || config.stage !== 'infer' || state.result.llm_invoked === false || attempts.length > 0
+      return { ok, version, receipts: [], result: state.result, graph_execution: graphExecution(complete),
         ...(!ok ? { error: { code: state.result.status === 'claim_failed' ? 'claim_failed' : 'threat_stage_failed',
           message: state.result.status === 'claim_failed' ? 'SOC 事件认领失败' : state.result.phase_status === 'unknown' ? '威胁分析阶段状态尚未确认' : '威胁分析阶段执行失败' } } : {}) }
     }
     runSignal.throwIfAborted()
-    const resolved = catalog ?? readCompositions(workspaceConfigPath(assetRoot, 'mcp-compositions.json')).catalog
-    const result = await executeNested(config, resolved, validated, (child, args) => executeComposition(registry, assetRoot, child, args, runSignal, resolved, true))
-    return { ...result, version }
+    const result = await executeNested(config, resolvedCatalog, validated, (child, args) => executeComposition(registry, assetRoot, child, args, runSignal, resolvedCatalog, true, runContext))
+    return { ...result, version, graph_execution: graphExecution((result as any).graph_complete !== false) }
   }
   const runSignal = totalSignal(signal)
   const sources = new Map<string, any>()
@@ -291,6 +353,7 @@ export async function executeComposition(registry: McpRegistry, assetRoot: strin
   return {
     ok: !result.error,
     version,
+    graph_execution: graphExecution(),
     receipts: result.receipts,
     result: { asset: result.asset, alerts: result.alerts, trace: result.trace, ...(result.alertSummary ? { alertSummary: result.alertSummary } : {}) },
     ...(result.error ? { error: result.error } : {}),

@@ -31,6 +31,7 @@ export interface AssistantServices {
   scopeComputeVariants?(agent: any): void
   scopeFeatures?(agent: any): void
   scopeTaskBuilder?(agent: any): void
+  releaseTaskScope?(agent: any): void
   notify(domains: string[], ids?: string[]): void
   mcp?: (action: string, input: MapValue, signal: AbortSignal) => Promise<any>
   goals?: { get(agent: any): any; create(agent: any, request: any): any; pause(agent: any, ref: any): any; resume(agent: any, ref: any): any; complete(agent: any, ref: any): any }
@@ -38,11 +39,11 @@ export interface AssistantServices {
 
 const actions: Record<Domain, readonly string[]> = {
   task: ['preview', 'start', 'status', 'begin-repair', 'checkpoint', 'rollback', 'deliver'],
-  agents: ['list', 'detail', 'edit/read', 'edit/preview', 'edit/apply', 'cases/list', 'cases/read', 'cases/update', 'eval/preview', 'eval/start', 'eval/status', 'eval/cancel', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'runs/trace', 'assets/diff', 'assets/read-fixed', 'compute-variants/context', 'compute-variants/preview', 'compute-variants/create', 'compute-variants/compare', 'new', 'create', 'cases/create-context', 'cases/from-run', 'cases/create-preview', 'cases/create', 'datasets/source', 'datasets/preview', 'datasets/apply', 'datasets/list', 'datasets/read', 'datasets/export', 'decision/update', 'features/read-source', 'features/preview', 'features/proposal', 'features/apply', 'fusion/preview', 'fusion/proposal', 'fusion/confirm', 'fusion/status', 'fusion/verify', 'fusion/finalize', 'tasks/capabilities', 'tasks/assembly-preview', 'tasks/assembly-apply', 'tasks/delivery'],
+  agents: ['list', 'detail', 'edit/read', 'edit/preview', 'edit/apply', 'cases/list', 'cases/read', 'cases/update', 'eval/preview', 'eval/start', 'eval/status', 'eval/cancel', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'runs/trace', 'assets/diff', 'assets/read-fixed', 'compute-variants/context', 'compute-variants/preview', 'compute-variants/create', 'compute-variants/rename', 'compute-variants/build-preview', 'compute-variants/build', 'compute-variants/freeze-preview', 'compute-variants/freeze', 'compute-variants/compare', 'new', 'create', 'cases/create-context', 'cases/from-run', 'cases/create-preview', 'cases/create', 'datasets/source', 'datasets/preview', 'datasets/apply', 'datasets/list', 'datasets/read', 'datasets/export', 'decision/update', 'features/read-source', 'features/preview', 'features/proposal', 'features/apply', 'fusion/preview', 'fusion/proposal', 'fusion/confirm', 'fusion/status', 'fusion/verify', 'fusion/finalize', 'tasks/capabilities', 'tasks/assembly-preview', 'tasks/assembly-apply', 'tasks/delivery'],
   instances: ['list', 'detail', 'url', 'logs', 'preview', 'batch-preview', 'run', 'batch'],
   mcp: ['list', 'configuration', 'saveConfiguration', 'test', 'resources', 'resourceTemplates', 'readResource', 'callTool', 'sources/list', 'sources/create', 'sources/refresh', 'sources/toggle', 'sources/components', 'sources/logs', 'sources/preview', 'sources/invoke', 'saveCompositionDraft', 'publishComposition', 'executeComposition', 'dryRunComposition', 'callPublishedComposition', 'compositionRun', 'compositionArtifact', 'seedThreatCompositions'],
 }
-const readActions = new Set(['tasks/capabilities', 'tasks/assembly-preview', 'list', 'detail', 'edit/read', 'edit/preview', 'cases/list', 'cases/read', 'eval/preview', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'runs/trace', 'assets/diff', 'assets/read-fixed', 'compute-variants/context', 'compute-variants/preview', 'compute-variants/compare', 'cases/create-context', 'cases/from-run', 'cases/create-preview', 'datasets/source', 'datasets/preview', 'datasets/list', 'datasets/read', 'datasets/export', 'features/read-source', 'features/preview', 'features/proposal', 'fusion/preview', 'fusion/proposal', 'fusion/status', 'url', 'logs', 'preview', 'batch-preview', 'configuration', 'test', 'resources', 'resourceTemplates', 'readResource', 'sources/list', 'sources/components', 'sources/logs', 'sources/preview', 'dryRunComposition', 'compositionRun', 'compositionArtifact'])
+const readActions = new Set(['tasks/capabilities', 'tasks/assembly-preview', 'list', 'detail', 'edit/read', 'edit/preview', 'cases/list', 'cases/read', 'eval/preview', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'runs/trace', 'assets/diff', 'assets/read-fixed', 'compute-variants/context', 'compute-variants/preview', 'compute-variants/build-preview', 'compute-variants/freeze-preview', 'compute-variants/compare', 'cases/create-context', 'cases/from-run', 'cases/create-preview', 'datasets/source', 'datasets/preview', 'datasets/list', 'datasets/read', 'datasets/export', 'features/read-source', 'features/preview', 'features/proposal', 'fusion/preview', 'fusion/proposal', 'fusion/status', 'url', 'logs', 'preview', 'batch-preview', 'configuration', 'test', 'resources', 'resourceTemplates', 'readResource', 'sources/list', 'sources/components', 'sources/logs', 'sources/preview', 'dryRunComposition', 'compositionRun', 'compositionArtifact'])
 const recordType = 'plugin:harness-platform/assistant'
 const projectionKey = 'harnessPlatformAssistant'
 
@@ -128,6 +129,18 @@ export function redactAssistant(value: any): any {
   return value
 }
 function wireValue(value: any) { return JSON.parse(JSON.stringify(redactAssistant(value))) }
+/** 完整冻结差异留在持久提案和确认界面；模型按清单与摘要核对，不重复接收编译产物正文。 */
+function modelToolValue(domain: Domain, action: string, value: any) {
+  if (domain !== 'agents' || !['compute-variants/freeze-preview', 'compute-variants/freeze'].includes(action)) return value
+  const compact = (item: any): any => {
+    if (Array.isArray(item)) return item.map(compact)
+    if (!item || typeof item !== 'object') return item
+    const projected = Object.fromEntries(Object.entries(item).filter(([key]) => key !== 'diff').map(([key, entry]) => [key, compact(entry)]))
+    return typeof item.diff === 'string' ? { ...projected, diff_omitted: true,
+      diff_sha256: createHash('sha256').update(item.diff).digest('hex'), diff_bytes: Buffer.byteLength(item.diff) } : projected
+  }
+  return { ...compact(value), model_note: '模型回执省略完整 diff，仅保留真实文件清单与摘要；冻结时由原生确认卡展示完整实际差异，须由用户单独核对确认。' }
+}
 function receiptFailed(receipt: any) {
   return receipt.ok === false || receipt.value?.ok === false || receipt.value?.isError === true
     || (receipt.value?.results ?? receipt.value?.receipts ?? []).some((item: any) => item.ok === false || item.isError === true)
@@ -163,7 +176,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     name: 'harness-platform/assistant', order: 650, interpolate: false,
     text: ({ agent }: any) => {
       const state = promptState(agent)
-      return state ? `${assistantPolicy}\n受信任工作区定位：${JSON.stringify({ workspace: workspaceIdentity(root), program_root: programRoot(), asset_root: workspaceIdentity(root).root, local_state_root: workspaceLocalPath(root), skill_root: programRoot() + '/platform/skills' })}\n固定任务上下文：${JSON.stringify(redactAssistant(state.task_context))}\n最新页面上下文：${JSON.stringify(redactAssistant(state.context))}${state.execution ? `\n当前任务方案与实际进度：${JSON.stringify(redactAssistant(state.execution))}\n本任务读取 task-builder Skill。已确认范围内通过平台工具连续执行；初测失败后先 begin-repair 预留修复轮再修改，不得改评判口径。完成只用 platform_task deliver 引用实际 Run、目标实例和产物；不要自报完成。` : ''}` : ''
+      return state ? `${assistantPolicy}\n受信任工作区定位：${JSON.stringify({ workspace: workspaceIdentity(root), program_root: programRoot(), asset_root: workspaceIdentity(root).root, local_state_root: workspaceLocalPath(root), skill_root: programRoot() + '/platform/skills' })}\n固定任务上下文：${JSON.stringify(redactAssistant(state.task_context))}\n最新页面上下文：${JSON.stringify(redactAssistant(state.context))}${state.execution ? `\n当前任务方案与实际进度：${JSON.stringify(redactAssistant(state.execution))}\n本任务读取 ${state.execution.plan.kind === 'compute-variant' ? 'compute-variant-research' : 'task-builder'} Skill。已确认范围内通过平台工具连续执行；初测失败后先 begin-repair 预留修复轮再修改，不得改评判口径。${state.execution.plan.kind === 'compute-variant' ? '数据 Git 冻结必须展示实际差异并单独确认，不由任务授权代替。完成用 platform_task deliver 引用本任务两侧 Run，服务端核对构建、冻结、装载和比较；完成不代表 end。' : '完成只用 platform_task deliver 引用实际 Run、目标实例和产物；不要自报完成。'}` : ''}` : ''
     },
   })
   const unregisterOutput = services.systemPrompt.section({
@@ -181,9 +194,10 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     if (!state) throw new Error('助手会话投影尚未装载')
     if (state.workspace_id && state.workspace_id !== workspaceIdentity(root).id) throw new Error('助手会话属于另一个工作区身份')
     if (state.task_context.skill === 'decision-sample-extraction') services.scopeExtraction?.(found.agent)
-    if (state.task_context.skill === 'compute-variant-research') services.scopeComputeVariants?.(found.agent)
-    if (state.task_context.skill === 'agent-maintenance' && state.task_context.workflow === 'features') services.scopeFeatures?.(found.agent)
-    if (state.execution || state.task_context.skill === 'task-builder') services.scopeTaskBuilder?.(found.agent)
+    else if (state.task_context.skill === 'compute-variant-research') services.scopeComputeVariants?.(found.agent)
+    else if (state.task_context.skill === 'agent-maintenance' && state.task_context.workflow === 'features') services.scopeFeatures?.(found.agent)
+    else if (state.execution || state.task_context.skill === 'task-builder') services.scopeTaskBuilder?.(found.agent)
+    else services.releaseTaskScope?.(found.agent)
     return { session, state }
   }
   async function record(id: string, value: MapValue) {
@@ -282,6 +296,14 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     if (plan.evaluation_case_ids.some(caseId => !actualCases.some((item: any) => item.id === caseId || item.case_id === caseId))) throw new Error('任务评测用例不存在；请先依据需求保存业务测试')
     if (plan.allowed_actions.some(item => item.domain === 'agents' && item.action === 'create') && !detail.value.derivation?.parent_ref) throw new Error('派生任务需要可恢复的固定父版，请先固定完整来源')
     if (plan.allowed_actions.some(item => item.domain === 'agents' && item.action === 'edit/apply') && !plan.allowed_actions.some(item => item.domain === 'agents' && item.action === 'create') && detail.value.agent?.manifest?.active_experiment === detail.value.experiment.id) throw new Error('不能在任务中直接修改已启用版本，请在方案中允许从固定父版派生')
+    if (plan.kind === 'compute-variant') {
+      const variant = await dispatch('agents', 'compute-variants/context', { experiment_id: plan.source!.slice(11) }, signal)
+      const context = variant.value
+      if (!variant.ok || !context?.plan || context.agent_id !== plan.agent_id || context.parent_experiment_id !== plan.compute_variant!.parent_experiment_id || context.fixed_parent_ref !== plan.compute_variant!.parent_ref) throw new Error('代码变体目标与实际冻结父版不一致，请重新读取算力变体上下文')
+      if ((context.generation ?? context.plan.generation)?.mode !== 'langgraph-aot') throw new Error('当前目标尚未确认 LangGraph 生成计划，请先预览并派生代码变体')
+      const frozen = Object.keys(context.plan.case_hashes ?? {})
+      if (frozen.length !== plan.evaluation_case_ids.length || !frozen.every(id => plan.evaluation_case_ids.includes(id))) throw new Error('代码变体任务用例必须与已保存的比较计划一致')
+    }
     return { plan: { ...plan, source: plan.source ?? `experiment:${detail.value.experiment.id}` }, agent_name: detail.value.agent?.name ?? detail.value.agent?.manifest?.name ?? plan.agent_id, evaluation_sha256: detail.value.evaluation.sha256,
       candidate_sha256: detail.value.candidate_sha256,
       source_ref: detail.value.derivation?.parent_ref ?? null, note: '确认后在此范围内连续办理；修复最多三轮。模型额度对管理助手逐次拦截，外部评测消耗回读后计入总额，外部执行器是否硬封顶以其回执为准。' }
@@ -344,7 +366,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
           if (operation.action === 'eval/start') {
             const observed = await dispatch('agents', 'eval/status', { job_id: operation.receipt?.value?.job_id ?? operation.id }, signal)
             const job = observed.value
-            if (observed.ok && job?.source === task.target_source && Array.isArray(job.cases)
+            if (observed.ok && taskAllows(task, 'agents', 'eval/start', { source: job?.source, cases: job?.cases }) && Array.isArray(job.cases)
               && job.cases.length === task.plan.evaluation_case_ids.length && task.plan.evaluation_case_ids.every(id => job.cases.includes(id))) {
               task = accountUsage(task, job.job_id, job)
               operations.push({ ...operation, state: 'completed', receipt: { ok: true, value: { job_id: job.job_id, run_id: job.run_id, status: job.status } } })
@@ -407,7 +429,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
       if (!armedTasks.has(id)) throw new Error('任务尚未恢复，请在任务卡点击恢复；不会在重启后自动执行')
       assertTaskBudget(task)
       if (action === 'begin-repair') {
-        const evaluations = task.operations.filter(item => item.action === 'eval/start' && item.receipt?.value?.job_id)
+        const evaluations = task.operations.filter(item => item.action === 'eval/start' && item.receipt?.value?.job_id && (task!.plan.kind !== 'compute-variant' || item.input.source === task!.target_source))
         if (!evaluations.length) throw new Error('初次评测尚未开始，不应计入修复轮')
         const latest = evaluations.at(-1)!
         const observed = await dispatch('agents', 'eval/status', { job_id: latest.receipt!.value.job_id }, signal)
@@ -421,6 +443,29 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
         return task
       }
       if (action === 'deliver') {
+        if (task.plan.kind === 'compute-variant') {
+          const parentRuns = input.parent_run_ids, variantRuns = input.variant_run_ids
+          if (![parentRuns, variantRuns].every(ids => Array.isArray(ids) && ids.length && ids.every((id: unknown) => typeof id === 'string'))) throw new Error('代码变体交付必须选择本任务两侧实际运行')
+          const observedRuns = new Map<string, string>()
+          for (const operation of task.operations.filter(item => item.action === 'eval/start' && item.receipt?.value?.job_id)) {
+            const observed = await dispatch('agents', 'eval/status', { job_id: operation.receipt!.value.job_id }, signal)
+            if (observed.ok) task = accountUsage(task, operation.receipt!.value.job_id, observed.value)
+            if (observed.ok && observed.value?.run_id) observedRuns.set(observed.value.run_id, operation.input.source)
+          }
+          await saveTask(id, task)
+          assertTaskBudget(task)
+          const parentSource = `experiment:${task.plan.compute_variant!.parent_experiment_id}`, targetSource = task.target_source
+          if (parentRuns.some((run: string) => observedRuns.get(run) !== parentSource) || variantRuns.some((run: string) => observedRuns.get(run) !== targetSource)) throw new Error('比较必须引用本任务实际启动的固定父版与变体 Run')
+          const context = await dispatch('agents', 'compute-variants/context', { experiment_id: task.target_source!.slice(11) }, signal)
+          const status = context.value?.workflow_status
+          if (!context.ok || !status?.built || !status?.frozen || !status?.loaded) return { state: 'verification_failed', result: context, message: '构建、冻结或真实装载尚未通过' }
+          const comparison = await dispatch('agents', 'compute-variants/compare', { experiment_id: task.target_source!.slice(11), parent_run_ids: parentRuns, variant_run_ids: variantRuns }, signal)
+          if (!comparison.ok || !comparison.value?.comparability?.passed) return { state: 'verification_failed', result: comparison }
+          task = { ...task, state: 'completed', delivery: { comparison: comparison.value, end_confirmed: false, note: '生成与比较任务已完成；近似等效及 end 仍由用户在算力变体页面复核。' } }
+          await saveTask(id, task)
+          clearTaskTimer(id); armedTasks.delete(id); await changeGoal(id, 'complete')
+          return task
+        }
         const artifactPrefix = `evolution/experiments/${task.target_source?.slice(11)}/runs/${input.run_id}/`
         const artifactRefs = Array.isArray(input.artifacts) ? input.artifacts.map((item: any) => {
           const ref = typeof item === 'string' ? { path: item } : item
@@ -464,6 +509,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
   function settledToolResult(proposal: MapValue, settlement: MapValue) {
     // 历史预览留在 Session 提案供界面查看；模型只接收本次实际结果，避免把旧 requires_confirmation 当作当前状态。
     return wireValue({ kind: 'platform-operation', domain: proposal.domain, action: proposal.action, proposal_id: proposal.id,
+      ...(proposal.domain === 'agents' && proposal.action === 'compute-variants/freeze' ? { preview_sha256: proposal.preview?.value?.preview_sha256 } : {}),
       state: settlement.state, ...(settlement.result !== undefined ? { result: settlement.result } : {}), ...(settlement.error ? { error: settlement.error } : {}) })
   }
   function finish(id: string, proposal: MapValue, settlement: MapValue) {
@@ -502,22 +548,35 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
   async function continuous(id: string, domain: Domain, action: string, input: MapValue, signal: AbortSignal): Promise<any | undefined> {
     return locked(id, async () => {
       let task = (await inspect(id)).state.execution
-      if (!task) return undefined
+      if (!task || ['completed', 'cancelled'].includes(task.state)) return undefined
       if (domain === 'agents' && action === 'edit/apply' && Array.isArray(input.edits)) input = { ...input, edits: input.edits.map((edit: any) => ({ ...edit, path: taskCandidatePath(task!, edit.path) ?? edit.path })) }
       if (domain === 'agents' && ['cases/update', 'cases/create', 'decision/update'].includes(action)) throw new Error('任务运行期间评判口径已冻结，修改标准或结论需结束当前任务并重新确认')
-      if (!taskAllows(task, domain, action, input)) return undefined
+      if (!taskAllows(task, domain, action, input)) {
+        if (task.plan.kind === 'compute-variant' && !(domain === 'agents' && action === 'compute-variants/freeze' && `experiment:${input.experiment_id}` === task.target_source)) throw new Error('代码变体任务只允许约定目标和两侧固定 Case；其他写操作不在当前任务范围')
+        if (task.plan.kind === 'compute-variant') {
+          if (!armedTasks.has(id)) throw new Error('任务已暂停或原进程中断，请先在任务卡恢复')
+          assertTaskBudget(task)
+        }
+        return undefined
+      }
       if (!armedTasks.has(id)) throw new Error('任务已暂停或原进程中断，请先在任务卡恢复')
       assertTaskBudget(task)
-      if (domain === 'agents' && ['edit/apply', 'tasks/assembly-apply', 'eval/start'].includes(action)) {
+      if (domain === 'agents' && ['edit/apply', 'tasks/assembly-apply', 'compute-variants/build', 'eval/start'].includes(action)) {
         const detail = await dispatch('agents', 'detail', { agent_id: task.plan.agent_id, experiment_id: task.target_source!.slice(11) }, signal)
         if (!detail.ok || detail.value.evaluation?.sha256 !== task.evaluation_sha256) throw new Error('评判口径已变化，不能继续本次比较')
       }
       if (action === 'edit/apply' || action === 'tasks/assembly-apply') {
-        const latestEvaluation = [...task.operations].reverse().find(item => item.action === 'eval/start')
+        const latestEvaluation = [...task.operations].reverse().find(item => item.action === 'eval/start' && (task!.plan.kind !== 'compute-variant' || item.input.source === task!.target_source))
         if (latestEvaluation && !task.operations.some(item => item.action === 'begin-repair' && item.input.evaluation_job_id === latestEvaluation.receipt?.value?.job_id)) throw new Error('初测后修改须先调用 begin-repair 持久预留一轮修复')
       }
       assertNoCredentials(domain, action, input)
       let actualInput: MapValue = { ...input, confirmed: true }
+      if (domain === 'agents' && action === 'compute-variants/build') {
+        const preview = await dispatch('agents', 'compute-variants/build-preview', input, signal)
+        if (!preview.ok) return wireValue({ kind: 'platform-operation', domain, action, state: 'failed', result: preview })
+        if (!/^[a-f0-9]{64}$/.test(preview.value?.preview_sha256 ?? '')) throw new Error('构建预览缺少真实源码与产物摘要')
+        actualInput = { ...actualInput, expected_candidate_sha256: preview.value.candidate_sha256, expected_preview_sha256: preview.value.preview_sha256 }
+      }
       if (domain === 'agents' && action === 'new') actualInput = { ...task.plan.new_agent, agent_id: task.plan.agent_id, confirmed: true }
       if (domain === 'agents' && action === 'create') actualInput = { agent_id: task.plan.agent_id, parent_experiment_id: task.plan.source?.slice(11), parent_ref: task.source_ref, research_question: task.plan.goal, confirmed: true }
       if (action === 'eval/start') actualInput = { ...actualInput, task_budget: { deadline_at: task.deadline_at, remaining_model_calls: task.plan.budget.max_model_calls - task.model_calls, assistant_session_id: id } }
@@ -584,6 +643,20 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
       if (typeof hash !== 'string' || !/^[a-f0-9]{64}$/.test(hash)) throw new Error('算力变体预览缺少配置摘要，请重新读取')
       input = { ...input, expected_preview_sha256: hash }
     }
+    if (domain === 'agents' && ['compute-variants/build', 'compute-variants/freeze'].includes(action)) {
+      preview = await dispatch(domain, action === 'compute-variants/build' ? 'compute-variants/build-preview' : 'compute-variants/freeze-preview', input, signal)
+      if (!preview.ok) return wireValue(preview)
+      if (action === 'compute-variants/build') {
+        const hash = preview.value?.preview_sha256
+        if (typeof hash !== 'string' || !/^[a-f0-9]{64}$/.test(hash)) throw new Error('构建预览缺少真实源码与产物摘要')
+        input = { ...input, expected_candidate_sha256: preview.value.candidate_sha256, expected_preview_sha256: hash }
+      }
+      if (action === 'compute-variants/freeze') {
+        const hash = preview.value?.preview_sha256
+        if (typeof hash !== 'string' || !/^[a-f0-9]{64}$/.test(hash)) throw new Error('冻结预览缺少实际差异摘要，请重新读取')
+        input = { ...input, ...(preview.value?.freeze_input ?? {}), expected_preview_sha256: hash }
+      }
+    }
     if (domain === 'instances' && ['run', 'batch'].includes(action)) {
       preview = await dispatch(domain, action === 'run' ? 'preview' : 'batch-preview', input, signal)
       if (!preview.ok) return wireValue(preview)
@@ -640,6 +713,11 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     busy.add(proposalId)
     let started = false
     try {
+      if (proposal.domain === 'agents' && proposal.action === 'compute-variants/freeze' && state.execution?.plan.kind === 'compute-variant') {
+        if (!armedTasks.has(id)) throw new Error('任务尚未恢复，冻结尚未执行')
+        assertTaskBudget(state.execution)
+        if (`experiment:${proposal.input.experiment_id}` !== state.execution.target_source) throw new Error('冻结目标与当前任务不一致')
+      }
       await record(id, { ...proposal, kind: 'settlement', state: 'running' })
       operationSignal.throwIfAborted()
       started = true
@@ -666,7 +744,8 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
       const body = object(payload ?? {})
       if (endpoint === 'session') {
         let id = typeof body.session_id === 'string' ? body.session_id : ''
-        if (id) await inspect(id, signal)
+        let taskContext: MapValue = {}
+        if (id) taskContext = (await inspect(id, signal)).state.task_context
         else {
           // 工作区由已装载的平台固定；客户端字段不能将新会话指向其他目录。
           if (body.workspace_id) throw new Error('请使用平台当前工作区创建助手会话，不接受外部 workspace_id')
@@ -675,7 +754,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
         }
         if (body.context) await record(id, { kind: 'context', context: redactAssistant(object(body.context)) })
         if (body.task) {
-          await record(id, { kind: 'task', task: String(body.task), context: redactAssistant(body.context ?? {}) })
+          await record(id, { kind: 'task', task: String(body.task), context: redactAssistant(body.context ?? taskContext) })
           await inspect(id, signal)
           await services.controller.prompt({ sessionId: id, requestId: randomUUID(), mode: 'queue', content: [{ type: 'text', text: String(body.task) }] }, signal)
         }
@@ -713,15 +792,16 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
   function registerTools(registry: { register(tool: any): any }) {
     for (const domain of Object.keys(actions) as Domain[]) registry.register({
       name: `platform_${domain}`,
-      description: domain === 'task' ? '任务型智能体构建与交付。先读 task-builder Skill。preview/start input={plan:{goal,agent_id,source或new_agent,evaluation_case_ids,allowed_actions,budget,deliverables,instance_name,kind}}；start显示一次原生确认。status查询；begin-repair在初次评测失败后预留一轮；deliver input={run_id,artifacts}必须服务端验真，不能自报通过。暂停恢复取消由用户任务卡操作。' : `查询和办理平台${domain}业务。context 返回当前页面及固定任务上下文。需确认的操作会在界面显示提案，工具调用保持等待；用户确认并执行后才返回 state=completed 和 result，此时操作已执行，应回读实际结果，不能再次声称等待确认。cancelled/failed/unknown 按实际回执说明。${domain === 'agents' ? '日常管理与迭代读取 agent-maintenance Skill。new创建智能体，create从固定父版派生Experiment，cases/update修改用例且必须确认。算力变体先读取compute-variant-research，使用compute-variants/context、preview、create、compare；create先校验实际方案并等待确认，end只由用户在变体界面复核确认，助手不得伪造human_confirmed或修改结论字段绕过。assets/read-fixed input={agent_id,experiment_id,ref:"git:<40位commit>",path?}只读固定Candidate，path来自返回列表。features/read-source input={experiment_id,ref?}列出并只读研究说明、观察和Decision；ref是文件相对路径（如hypothesis.md、evaluation/observations.md），不接受git:<commit>，兼容历史Experiment相对引用。版本派生读取detail.derivation.parent_ref，baseline_ref是祖先而不是当前所选版本。features/preview input={experiment_id,features:[{id,title,description,source_refs?,evidence_refs?,change?}]}。fusion/preview input={agent_id,parent_experiment_id,parent_ref:"git:<40位commit>",research_question,plan?:{sources:[{experiment_id,ref,decision:"inherit"|"omit",reason}],features:[{id,title,description}],conflicts:[{description,resolution}],checks:[{id,kind:"build"|"load"|"capability",command?:string[],case_ids?:string[]}]}}。先不传plan盘点，随后提交完整plan等待用户确认。load/capability验证通过fusion/verify {experiment_id,expected_candidate_sha256,check_id,run_id}读取真实封存Run，不接受模型自报成功。' : domain === 'instances' ? 'run input={name,operation:"create"|"start"|"stop"|"restart"|"delete",source?,port?}，来源使用experiment:<ID>。' : 'MCP/API和组合任务先读取mcp-composition Skill，按其真实入参合同调用；只读或dry失败不能升级为实际执行提案。configuration读取原生Settings；saveConfiguration input={ops:[{op:"set"|"unset",path:string[],value?}],revision:number}，只修改非秘密字段，保留已有凭据；test/resources/resourceTemplates/readResource/callTool及sources/*均需serverId，调用工具需toolName与arguments。组合调用后用compositionRun {run_id}和compositionArtifact {run_id,artifactId}回读已启用扩展的结果；seedThreatCompositions仅在list.extension.seed为true时使用并经确认。'}`,
+      description: domain === 'task' ? '任务型智能体构建与交付。代码变体先读 compute-variant-research，其余任务先读 task-builder Skill。kind=compute-variant 时 source 为已派生目标、compute_variant={parent_experiment_id,parent_ref}，用例须与比较计划一致。build可按任务连续执行；freeze必须单独确认实际数据差异。preview/start input={plan:{goal,agent_id,source或new_agent,evaluation_case_ids,allowed_actions,budget,deliverables,instance_name,kind}}；start显示一次原生确认。status查询；begin-repair在初次评测失败后预留一轮；普通任务 deliver input={run_id,artifacts}；代码变体 deliver input={parent_run_ids,variant_run_ids}；两者必须服务端验真，不能自报通过。暂停恢复取消由用户任务卡操作。' : `查询和办理平台${domain}业务。context 返回当前页面及固定任务上下文。需确认的操作会在界面显示提案，工具调用保持等待；用户确认并执行后才返回 state=completed 和 result，此时操作已执行，应回读实际结果，不能再次声称等待确认。cancelled/failed/unknown 按实际回执说明。${domain === 'agents' ? '日常管理与迭代读取 agent-maintenance Skill。new创建智能体，create从固定父版派生Experiment，cases/update修改用例且必须确认。算力变体先读取compute-variant-research，使用compute-variants/context、preview、create、rename、build-preview、build、freeze-preview、freeze、compare。preview/create input中的variant_name是独立、简洁的变体名称，必须与strategy研究策略分别提供，不得截取strategy或research_question正文充当名称；实际生成时保留已确定的variant_name。rename input={experiment_id,variant_name,expected_change_sha256}只修改名称，expected_change_sha256取最近detail返回的experiment.change_sha256或compute-variants/context返回的change_sha256，等待普通写入确认；不得夹带human_confirmed、decision、variant_kind或end状态。实际生成TypeScript源码经edit/preview、edit/apply保存，edits[].content必须是修改后完整文件正文，不接受diff、patch或局部替换片段；先edit/read读取现有文件，新文件取得exists:false及sha256:null后传expected_sha256:null。build input={experiment_id,expected_candidate_sha256,entry_path?}，仅实际构建回执能证明通过。freeze先展示真实diff、固定preview_sha256并单独确认，不能自行Git提交；context的workflow_status及真实Run分别证明保存、构建、冻结、装载和比较。tasks/capabilities可传server_id读取实际工具schema及固定组合版本，未发现的schema不得猜测；create先校验实际方案并等待确认，end只由用户在变体界面复核确认，助手不得伪造human_confirmed或修改结论字段绕过。assets/read-fixed input={agent_id,experiment_id,ref:"git:<40位commit>",path?}只读固定Candidate，path来自返回列表。features/read-source input={experiment_id,ref?}列出并只读研究说明、观察和Decision；ref是文件相对路径（如hypothesis.md、evaluation/observations.md），不接受git:<commit>，兼容历史Experiment相对引用。版本派生读取detail.derivation.parent_ref，baseline_ref是祖先而不是当前所选版本。features/preview input={experiment_id,features:[{id,title,description,source_refs?,evidence_refs?,change?}]}。fusion/preview input={agent_id,parent_experiment_id,parent_ref:"git:<40位commit>",research_question,plan?:{sources:[{experiment_id,ref,decision:"inherit"|"omit",reason}],features:[{id,title,description}],conflicts:[{description,resolution}],checks:[{id,kind:"build"|"load"|"capability",command?:string[],case_ids?:string[]}]}}。先不传plan盘点，随后提交完整plan等待用户确认。load/capability验证通过fusion/verify {experiment_id,expected_candidate_sha256,check_id,run_id}读取真实封存Run，不接受模型自报成功。' : domain === 'instances' ? 'run input={name,operation:"create"|"start"|"stop"|"restart"|"delete",source?,port?}，来源使用experiment:<ID>。' : 'MCP/API和组合任务先读取mcp-composition Skill，按其真实入参合同调用；只读或dry失败不能升级为实际执行提案。configuration读取原生Settings；saveConfiguration input={ops:[{op:"set"|"unset",path:string[],value?}],revision:number}，只修改非秘密字段，保留已有凭据；test/resources/resourceTemplates/readResource/callTool及sources/*均需serverId，调用工具需toolName与arguments。组合调用后用compositionRun {run_id}和compositionArtifact {run_id,artifactId}回读已启用扩展的结果；seedThreatCompositions仅在list.extension.seed为true时使用并经确认。'}`,
       parameters: { type: 'object', properties: { action: { type: 'string', enum: ['context', ...actions[domain]] }, input: { type: 'object', additionalProperties: true } }, required: ['action', 'input'], additionalProperties: false },
-      output: { schema: { type: 'object', additionalProperties: true }, render: (_args: unknown, value: any) => [{ type: 'text', text: JSON.stringify(value) }], presentationMeta: (args: any, value: any) => {
+      output: { schema: { type: 'object', additionalProperties: true }, render: (args: any, value: any) => [{ type: 'text', text: JSON.stringify(modelToolValue(domain, args.action, value)) }], presentationMeta: (args: any, value: any) => {
+        const projected = modelToolValue(domain, args.action, value)
         const input = args.input ?? {}
-        const identity = Object.fromEntries(['agent_id', 'experiment_id', 'source', 'target_source', 'job_id', 'run_id', 'path', 'cases', 'name', 'operation', 'serverId', 'toolName', 'compositionId'].filter(key => input[key] !== undefined).map(key => [key, input[key]]))
+        const identity = Object.fromEntries(['agent_id', 'experiment_id', 'source', 'target_source', 'job_id', 'run_id', 'path', 'cases', 'name', 'variant_name', 'operation', 'serverId', 'toolName', 'compositionId'].filter(key => input[key] !== undefined).map(key => [key, input[key]]))
         if (Array.isArray(input.edits)) identity.edits = input.edits.map((edit: any) => ({ path: edit.path }))
         return wireValue({ kind: 'platform-operation', domain, action: args.action,
-          state: receiptFailed(value) || value?.state === 'verification_failed' ? 'failed' : 'completed', result: value,
-          ...value?.kind === 'platform-operation' ? value : {}, input: identity })
+          state: receiptFailed(value) || value?.state === 'verification_failed' ? 'failed' : 'completed', result: projected,
+          ...projected?.kind === 'platform-operation' ? projected : {}, input: identity })
       } },
       async execute(args: any, exec: any) {
         const id = String(exec.agent.id)
@@ -755,6 +835,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
           if (['detail', 'runs/index'].includes(args.action) && state.task_context.agent_id) input.agent_id = state.task_context.agent_id
         }
         if (domain === 'agents' && args.action.startsWith('compute-variants/') && input.human_confirmed !== undefined) throw new Error('人员复核只能在算力变体界面由用户完成，助手不得提供 human_confirmed')
+        if (domain === 'agents' && args.action === 'compute-variants/rename' && ['decision', 'variant_kind', 'end_confirmed', 'outcome', 'compute_variant_decision'].some(key => input[key] !== undefined)) throw new Error('变体改名只允许修改 variant_name，不能更改研究结论或 end 状态')
         if (domain === 'agents' && args.action === 'features/preview' && state.task_context.workflow === 'features' && input.experiment_id !== state.task_context.experiment_id) throw new Error('特性整理目标与固定任务上下文不一致')
         if (domain === 'agents' && args.action === 'datasets/preview') {
           if (state.task_context.run_id && input.run_id !== state.task_context.run_id) throw new Error('抽取 Run 与固定任务上下文不一致')

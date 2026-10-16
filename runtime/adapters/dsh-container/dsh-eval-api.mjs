@@ -84,6 +84,7 @@ async function poll(action, accept, timeoutMs, signal) {
   throw Object.assign(new Error('poll-timeout'), {
     rpc_method: lastError?.rpc_method, http_status: lastError?.http_status,
     error_code: lastError?.error_code ?? lastError?.message,
+    runtime_diagnostic: lastError?.runtime_diagnostic,
   })
 }
 
@@ -118,11 +119,16 @@ async function rpc(connection, method, args, signal) {
     rpc_method: method, http_status: response.status,
   })
   const body = await response.json()
-  if (!body?.result?.ok) throw Object.assign(new Error('runtime-rpc-failed'), {
-    rpc_method: method,
-    error_code: typeof body?.result?.error?.code === 'string' && /^[a-zA-Z0-9_-]+$/.test(body.result.error.code)
-      ? body.result.error.code : null,
-  })
+  if (!body?.result?.ok) {
+    const error = body?.result?.error
+    // 保留原生错误身份与已知的插件装载事实；不复制任意错误正文或配置。
+    const plugin = error?.code === 'agent-preset/invalid' && /^([a-z0-9-]+) \((\/opt\/dsh-managed\/[A-Za-z0-9_./-]+)\): never started$/.exec(error?.details?.reason ?? error?.message ?? '')
+    throw Object.assign(new Error('runtime-rpc-failed'), {
+      rpc_method: method, http_status: response.status,
+      error_code: typeof error?.code === 'string' && /^[a-zA-Z0-9_/-]{1,120}$/.test(error.code) ? error.code : null,
+      ...(plugin ? { runtime_diagnostic: { plugin: plugin[1], entrypoint: plugin[2], reason: 'never started' } } : {}),
+    })
+  }
   return body.result.value
 }
 
@@ -373,6 +379,7 @@ async function runCase(connection, payload, item, workspace, signal, traceState)
       error.evaluation_context = {
         failure_stage: traceState.stage, last_successful_step: traceState.last_successful_step ?? null,
         rpc_method: error?.rpc_method ?? null, http_status: error?.http_status ?? null,
+        error_code: error?.error_code ?? null, runtime_diagnostic: error?.runtime_diagnostic,
         request_id: traceState.request_id ?? null,
       }
       throw error
@@ -509,6 +516,7 @@ async function main() {
           request_id: traceState.request_id ?? null, input_index: traceState.input_index ?? null,
           rpc_method: error?.rpc_method ?? null, http_status: error?.http_status ?? null,
           error_code: error?.error_code ?? (/^[a-z0-9-]+$/.test(error?.message ?? '') ? error.message : error?.name ?? 'Error'),
+          runtime_diagnostic: error?.runtime_diagnostic,
           trace_available: Boolean(targetArchive) },
         traceState.judgeSession ? { response: null, archive: traceState.judgeArchive, checks: { ...traceState.judgeSession, unavailable_reason: reason, trace_available: Boolean(traceState.judgeArchive) } } : null)
       rows.push(result(item, 'error', 'inconclusive',

@@ -1,0 +1,147 @@
+import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import test from 'node:test'
+import { Context } from '@deepseek-ai/cordis'
+import { HostConnectionService } from '@deepseek-ai/dsh-client-connection'
+import WebServer from '@deepseek-ai/dsh-host-webserver'
+import { SessionStore, appendPluginRecord } from '@deepseek-ai/dsh-session'
+import { SessionProjectionRegistry } from '@deepseek-ai/dsh-session-projection'
+import { SystemPrompt } from '@deepseek-ai/dsh-system-prompt'
+import * as plugin from '../lib/index.js'
+
+const require = createRequire(import.meta.url)
+const sdkRequire = createRequire(require.resolve('@deepseek-ai/dsh-api-session-controller'))
+const [{ ToolRuntime }, { createScope }, { createUserMessage }] = await Promise.all([
+  import(pathToFileURL(sdkRequire.resolve('@deepseek-ai/dsh-tools')).href),
+  import(pathToFileURL(sdkRequire.resolve('@deepseek-ai/dsh-scope')).href),
+  import(pathToFileURL(sdkRequire.resolve('@deepseek-ai/dsh-llm')).href),
+])
+
+test('真实HTTP助手接口在compute与普通任务间排他切换，用户续话及重复组装不重复声明native', async t => {
+  const ctx = new Context()
+  const assetRoot = mkdtempSync(join(tmpdir(), 'assistant-scope-switch-'))
+  const previous = process.env.HARNESS_ASSET_ROOT
+  process.env.HARNESS_ASSET_ROOT = assetRoot
+  const agents = new Map(), scopes = [], calls = [], prompts = []
+  let loaded
+  t.after(async () => {
+    await loaded?.dispose()
+    for (const scope of scopes) await scope.dispose()
+    await ctx.fiber.dispose()
+    rmSync(assetRoot, { recursive: true, force: true })
+    if (previous === undefined) delete process.env.HARNESS_ASSET_ROOT
+    else process.env.HARNESS_ASSET_ROOT = previous
+  })
+  await ctx.plugin(WebServer, { host: '127.0.0.1', port: 0 })
+  await ctx.plugin({ name: 'scope-switch-services', apply(inner) {
+    new HostConnectionService(inner, [], { isAuthenticated: request => request.headers.authorization === 'Bearer fixture' })
+    new SessionStore(inner)
+    new SessionProjectionRegistry(inner)
+    new SystemPrompt(inner, {})
+    new ToolRuntime(inner, { mode: 'native' })
+    for (const name of ['skill', 'bash', 'read', 'write', 'spawn_agent']) inner.tools.register({
+      name, description: '作用域回归工具', parameters: { type: 'object', additionalProperties: true },
+      output: { schema: { type: 'object' }, render: () => [{ type: 'text', text: '{}' }] },
+      execute(args) { calls.push({ name, args }); return {} },
+    })
+    inner.provide('platformMcp', { servers: { get: () => [] }, groups: { get: () => [] } })
+    inner.provide('settingsController', {})
+    inner.provide('agents', { get: id => agents.get(id) })
+    inner.provide('goals', { get: () => undefined })
+    // 仅隔离会话调度与模型输入；HTTP、Session投影、插件入口和工具执行均使用真实实现。
+    inner.provide('sessionController', {
+      async create() {
+        const id = `scope-session-${agents.size + 1}`
+        const session = inner.sessions.create(id, { meta: { cwd: assetRoot } })
+        const agent = { id, session, status: 'idle' }
+        const scope = createScope(inner, agent)
+        agent.ctx = scope.ctx
+        agents.set(id, agent); scopes.push(scope)
+        ctx.emit('agent/created', { agent })
+        return { sessionId: id }
+      },
+      async resolveAgent(id) { return { agent: agents.get(id) } },
+      async prompt(request) {
+        prompts.push(request)
+        const agent = agents.get(request.sessionId)
+        agent.session.append('user/message', createUserMessage({ content: request.content, source: { kind: 'user' } }), { surfaceOp: 'append' })
+        await inner.systemPrompt.assemble({ scope: agent, agent })
+        return { accepted: true }
+      },
+      cancel() { return { accepted: true } },
+    })
+  } })
+  loaded = ctx.plugin({ ...plugin, inject: plugin.inject.filter(name => name !== 'credentials'), apply: plugin.applyTools })
+  await loaded
+  assert.equal(loaded.state, 2)
+  const rpc = async (method, payload) => {
+    const response = await fetch(`http://127.0.0.1:${ctx.webServer.port}/harness-platform/assistant/${method}`, {
+      method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer fixture' },
+      body: JSON.stringify({ type: 'client-request', rpcId: `scope-${method}`, method: `assistant/${method}`, payload }),
+    })
+    assert.equal(response.status, 200)
+    const envelope = await response.json()
+    assert.equal(envelope.result.ok, true, JSON.stringify(envelope.result))
+    return envelope.result.value
+  }
+  const created = await rpc('session', { task: '检查算力变体', context: { skill: 'compute-variant-research' } })
+  const id = created.session_id, agent = agents.get(id)
+  const schemas = async () => (await ctx.systemPrompt.assemble({ scope: agent, agent })).tools.map(tool => tool.name).sort()
+  let sequence = 0
+  const execute = (name, args = {}) => ctx.tools.execute({ name, arguments: args, callId: `scope-call-${++sequence}`, agent, signal: new AbortController().signal })
+  const assertCompute = async () => {
+    assert.deepEqual(await schemas(), ['platform_agents', 'platform_task', 'skill'])
+    assert.equal((await execute('skill', { name: 'compute-variant-research' })).isError, false)
+    assert.equal((await execute('skill', { name: 'task-builder' })).isError, true)
+    const status = await execute('platform_task', { action: 'status', input: {} })
+    assert.equal(status.isError, false, JSON.stringify(status))
+    for (const tool of ['platform_instances', 'platform_mcp', 'bash', 'read', 'write', 'spawn_agent']) assert.equal((await execute(tool)).isError, true)
+  }
+  await assertCompute()
+  await rpc('status', { session_id: id })
+  await assertCompute()
+  await rpc('session', { session_id: id, task: '继续固定任务，不重复发送context' })
+  assert.equal((await rpc('status', { session_id: id })).task_context.skill, 'compute-variant-research')
+  await assertCompute()
+
+  await rpc('session', { session_id: id, task: '明确结束专用任务', context: {} })
+  await rpc('status', { session_id: id })
+  assert.ok(ctx.tools.get('bash', agent), '显式普通会话在status入口立即释放旧scope')
+  assert.ok((await schemas()).includes('bash'))
+  await rpc('session', { session_id: id, task: '再次进入算力任务', context: { skill: 'compute-variant-research' } })
+  await assertCompute()
+
+  await rpc('session', { session_id: id, task: '切换普通构建任务', context: { skill: 'task-builder' } })
+  assert.deepEqual(await schemas(), ['platform_agents', 'platform_instances', 'platform_mcp', 'platform_task', 'skill'])
+  assert.equal((await execute('skill', { name: 'task-builder' })).isError, false)
+  assert.equal((await execute('skill', { name: 'compute-variant-research' })).isError, true)
+  await rpc('status', { session_id: id })
+  await schemas()
+
+  await rpc('session', { session_id: id, task: '返回算力任务', context: { skill: 'compute-variant-research' } })
+  await assertCompute()
+  // 兼容现场已存在的空task_context记录：剩余execution应切换到普通任务，不能遗留compute声明。
+  appendPluginRecord(agent.session, 'plugin:harness-platform/assistant', { kind: 'execution', owner_session_id: id,
+    execution: { id: 'previous-task', state: 'cancelled', model_calls: 0, plan: { kind: 'business', budget: { max_model_calls: 60 } } } })
+  appendPluginRecord(agent.session, 'plugin:harness-platform/assistant', { kind: 'task', task: '历史空上下文', context: {} })
+  await rpc('status', { session_id: id })
+  assert.deepEqual(await schemas(), ['platform_agents', 'platform_instances', 'platform_mcp', 'platform_task', 'skill'])
+  await rpc('session', { session_id: id, task: '重新选择算力任务', context: { skill: 'compute-variant-research' } })
+  await assertCompute()
+  assert.equal(calls.some(call => ['bash', 'read', 'write', 'spawn_agent'].includes(call.name)), false)
+  assert.equal(prompts.length, 7)
+  ctx.emit('agent/disposed', { agent })
+  assert.ok(ctx.tools.get('bash', agent), 'agent disposed释放所有平台限制')
+  const stop = agent.ctx.tools.presentAs('native')
+  stop()
+  await rpc('status', { session_id: id })
+  await assertCompute()
+  await loaded.dispose()
+  assert.ok(ctx.tools.get('bash', agent), '插件卸载释放重新安装的scope')
+  const stopAfterUnload = agent.ctx.tools.presentAs('native')
+  stopAfterUnload()
+})

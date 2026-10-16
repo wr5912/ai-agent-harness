@@ -23,6 +23,8 @@ Harness 工程平台（Harness Engineering Platform，简称 HEP）基于 DSH，
 
 完整能力状态、验证证据和缺口统一见[项目验收矩阵](./docs/ai-agent-harness项目验收矩阵.md)。当前 Preset 的 Web 创建、回流与选择闭环尚未完成（PA-09）；`release:<id>` 来源解析和实际装载尚未实现（PA-11）。MCP 组合的业务可用性还取决于上游接口和授权，dry 或工具发现成功不能替代真实业务验证。
 
+本轮固定轨迹生成算力变体的证据与未完成项见 [LangGraph 代码变体验收](./docs/platform-design/18_LangGraph代码变体验收.md)。
+
 ## 快速启动
 
 准备系统全局 DSH、Node.js、pnpm，以及安装了 PyYAML 的 Python；PyYAML 用于读取原生 YAML 配置和 Run 记录。DSH 版本须匹配平台插件的兼容声明；工具链已使用 Node.js 24 和 Python 3.10 验证，环境若默认使用旧版，应先调整 PATH 选择兼容解释器。PyYAML 缺失不阻止打开初始化页，准备平台时会提示为启动器所用 Python 安装该依赖。

@@ -4,6 +4,7 @@ import { dirname } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { load as yaml } from 'js-yaml'
 import { assertAssetPath, candidateDigest, dataPath, sha256, sourceInfo } from './files.ts'
+import { containsLiteralLlmKey } from './llm-key.ts'
 
 export interface TaskAssemblyInput {
   target_source: string
@@ -27,7 +28,7 @@ function prepare(root: string, input: TaskAssemblyInput) {
     if (!lstatSync(from).isFile() || lstatSync(from).size > 1024 * 1024) throw new Error('仅支持不超过 1 MiB 的普通资产文件')
     const content = readFileSync(from)
     if (sha256(content) !== item.expected_source_sha256) throw new Error('复用来源已变化，请重新选择')
-    if (/(?:DEEPSEEK_API_KEY|OPENAI_API_KEY|LOCAL_LLM_API_KEY|LLM_API_KEY)\s*[:=]\s*["']?[^\s"']+/i.test(content.toString('utf8'))) throw new Error('资产包含 LLM API Key 声明，不能装配')
+    if (containsLiteralLlmKey(item.path, content.toString('utf8'))) throw new Error('资产包含 LLM API Key 常量，不能装配')
     const before = existsSync(to) ? readFileSync(to) : null
     if ((before === null ? null : sha256(before)) !== item.expected_target_sha256) throw new Error('装配目标已变化，请重新预览')
     return { from, to, path: targetPath, content, before, mode: lstatSync(from).mode & 0o111 ? 0o755 : 0o644,
@@ -40,7 +41,7 @@ function prepare(root: string, input: TaskAssemblyInput) {
     if (seen.has(to)) throw new Error('装配目标路径重复')
     seen.add(to)
     if (typeof edit.content !== 'string' || Buffer.byteLength(edit.content) > 1024 * 1024) throw new Error('配置编辑内容无效或过大')
-    if (/(?:DEEPSEEK_API_KEY|OPENAI_API_KEY|LOCAL_LLM_API_KEY|LLM_API_KEY)\s*[:=]\s*["']?[^\s"']+/i.test(edit.content)) throw new Error('配置不能包含 LLM API Key 声明')
+    if (containsLiteralLlmKey(edit.path, edit.content)) throw new Error('配置不能包含 LLM API Key 常量')
     const before = existsSync(to) ? readFileSync(to) : null
     if ((before === null ? null : sha256(before)) !== edit.expected_target_sha256) throw new Error('装配配置已变化，请重新预览')
     if (/\.ya?ml$/.test(edit.path)) yaml(edit.content)

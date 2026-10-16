@@ -12,10 +12,11 @@ import { DOMAIN_PREFIXES } from './protocol.ts'
 import { recentRuns } from './dashboard.ts'
 import { workspaceIdentity } from './workspace.ts'
 import { createAgentsHandler } from './agents/index.ts'
-import { createExtractionScope, createComputeVariantScope, isDecisionExtraction, isComputeVariantResearch, createFeatureScope, isFeatureOrganization, createTaskBuilderScope } from './assistant/extraction-scope.ts'
+import { createExtractionScope, createComputeVariantScope, isDecisionExtraction, isComputeVariantResearch, createFeatureScope, isFeatureOrganization, createTaskBuilderScope, createExclusiveTaskScopes } from './assistant/extraction-scope.ts'
 import { createRunDownloadHandler } from './agents/run-files.ts'
 import { createInstancesHandler } from './instances/index.ts'
 import { applyMcpGateway, createMcpHandler } from './mcp/index.ts'
+import { compositionInputSchema } from './mcp/definition.ts'
 import type {} from './mcp/manager.ts'
 import { createManagedMcpHandler } from './mcp/native.ts'
 import { runtimeModule } from '../../../runtime/adapters/dsh-web/src/resolve-runtime.ts'
@@ -137,11 +138,41 @@ export function applyTools(ctx: Context) {
   const wrap = (domain: 'agents' | 'instances' | 'mcp', handler: ConnectionRpcHandler): ConnectionRpcHandler => async (endpoint, payload, signal, peer) => {
     try { return await handler(endpoint, payload, signal, peer) }
     finally {
-      if (!['list', 'detail', 'url', 'logs', 'edit/read', 'cases/list', 'cases/read', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'runs/trace', 'assets/diff', 'assets/read-fixed', 'compute-variants/context', 'compute-variants/preview', 'compute-variants/compare', 'datasets/source', 'datasets/list', 'datasets/read', 'datasets/export', 'cases/create-context', 'cases/from-run', 'cases/create-preview', 'fusion/status', 'fusion/proposal', 'features/proposal', 'features/read-source'].includes(endpoint)) notify([domain, 'catalog'])
+      if (!['list', 'detail', 'url', 'logs', 'edit/read', 'cases/list', 'cases/read', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'runs/trace', 'assets/diff', 'assets/read-fixed', 'compute-variants/context', 'compute-variants/preview', 'compute-variants/compare', 'compute-variants/build-preview', 'compute-variants/freeze-preview', 'tasks/capabilities', 'datasets/source', 'datasets/list', 'datasets/read', 'datasets/export', 'cases/create-context', 'cases/from-run', 'cases/create-preview', 'fusion/status', 'fusion/proposal', 'features/proposal', 'features/read-source'].includes(endpoint)) notify([domain, 'catalog'])
     }
   }
   const domains = {
-    agents: wrap('agents', createAgentsHandler(assetRoot, () => notify(['agents', 'catalog']), { nativeServers: () => manager?.servers.get() ?? [] })),
+    agents: wrap('agents', createAgentsHandler(assetRoot, () => notify(['agents', 'catalog']), {
+      nativeServers: () => manager?.servers.get() ?? [],
+      discoveredTools: async (serverId, signal) => {
+        // 仅在明确选择服务时取其真实契约，避免一次查询遍历所有外部连接。
+        if (!serverId || !manager?.dispatch) return []
+        const found = await manager.dispatch({ action: 'test', serverId }, signal)
+        if (found.status >= 400 || !Array.isArray(found.value?.tools)) throw new Error('无法读取所选 MCP 服务的工具契约')
+        return found.value.tools.map((tool: any) => ({ ...tool, server_id: serverId }))
+      },
+      compositionBindings: async signal => {
+        const listed = await mcp('list', {}, signal ?? new AbortController().signal, undefined as never)
+        if (!listed.ok) return []
+        const state = listed.value as any
+        const callable = new Set((state.publishedService?.publishedTools ?? []).map((tool: any) => tool.toolName))
+        return (state.compositions ?? []).filter((entry: any) => entry.published && entry.binding).flatMap((entry: any) => {
+          const base = { composition_id: entry.binding.compositionId, version_id: entry.binding.versionId,
+            tool_name: entry.published.toolName, source_digest: entry.binding.expectedImplementationDigest }
+          const groups = (manager?.groups.get() ?? []).filter(group => callable.has(entry.published.toolName)
+            && group.members?.some((member: any) => member.serverId === 'platform-compositions' && member.names?.includes(entry.published.toolName)))
+          const bindings = groups.flatMap(group => {
+            const actual = manager?.currentGroup?.(group.id)
+            return actual && /^[0-9a-f]{64}$/.test(actual.targetDigest) ? [{ ...base, fixed_binding: {
+              group_id: actual.id, group_target_digest: actual.targetDigest, tool_name: `mcp__compositions__${entry.published.toolName}`,
+              compositionId: entry.binding.compositionId, versionId: entry.binding.versionId,
+              expectedImplementationDigest: entry.binding.expectedImplementationDigest, input_schema: compositionInputSchema(entry.published),
+            } }] : []
+          })
+          return bindings.length ? bindings : [{ ...base, fixed_binding_unavailable: '尚无已登记且可核验目标身份的原生 MCP 分组包含该工具' }]
+        })
+      },
+    })),
     instances: wrap('instances', createInstancesHandler(assetRoot)), mcp: wrap('mcp', mcp),
     assistant: undefined as ConnectionRpcHandler | undefined,
   }
@@ -151,15 +182,17 @@ export function applyTools(ctx: Context) {
   const computeVariantScope = createComputeVariantScope()
   const featureScope = createFeatureScope()
   const builderScope = createTaskBuilderScope()
+  const taskScopes = createExclusiveTaskScopes([extractionScope, computeVariantScope, featureScope, builderScope])
   const taskScope = (agent: any, state: any) => isDecisionExtraction(assetRoot, agent, state) ? extractionScope
     : isComputeVariantResearch(assetRoot, agent, state) ? computeVariantScope
       : isFeatureOrganization(assetRoot, agent, state) ? featureScope : undefined
   const assistant = createAssistant(assetRoot, handler, {
     controller: services.sessionController,
-    scopeExtraction: agent => extractionScope.apply(agent),
-    scopeComputeVariants: agent => computeVariantScope.apply(agent),
-    scopeFeatures: agent => featureScope.apply(agent),
-    scopeTaskBuilder: agent => builderScope.apply(agent),
+    scopeExtraction: agent => taskScopes.apply(agent, extractionScope),
+    scopeComputeVariants: agent => taskScopes.apply(agent, computeVariantScope),
+    scopeFeatures: agent => taskScopes.apply(agent, featureScope),
+    scopeTaskBuilder: agent => taskScopes.apply(agent, builderScope),
+    releaseTaskScope: agent => taskScopes.release(agent),
     running: id => services.agents.get(id)?.status === 'running',
     liveAgent: id => services.agents.get(id),
     record: async (session, type, value) => { const records = await runtimeModule('@deepseek-ai/dsh-session'); records.appendPluginRecord(session, type, value) },
@@ -175,24 +208,22 @@ export function applyTools(ctx: Context) {
   }) as any)
   ctx.on('agent/created' as any, (({ agent }: any) => {
     const state = services.sessionProjections.stateOf(agent.session, 'harnessPlatformAssistant')
-    taskScope(agent, state)?.apply(agent)
-    if (assistant.isTaskSession(agent)) builderScope.apply(agent)
+    taskScopes.apply(agent, taskScope(agent, state) ?? (assistant.isTaskSession(agent) ? builderScope : undefined))
   }) as any)
-  ctx.on('agent/disposed' as any, (({ agent }: any) => { extractionScope.release(agent); computeVariantScope.release(agent); featureScope.release(agent); builderScope.release(agent) }) as any)
+  ctx.on('agent/disposed' as any, (({ agent }: any) => taskScopes.release(agent)) as any)
   ctx.on('system-prompt/assemble' as any, (async (_assembly: any, context: any, next: any) => {
-    const assembly = await next()
     const agent = context.agent
     const state = agent && services.sessionProjections.stateOf(agent.session, 'harnessPlatformAssistant')
-    if (assistant.isTaskSession(agent)) return { ...assembly, tools: assembly.tools.filter((tool: any) => ['skill', 'platform_task', 'platform_agents', 'platform_instances', 'platform_mcp'].includes(tool.name)) }
     const scope = taskScope(agent, state)
+    const builder = !scope && assistant.isTaskSession(agent)
+    if (agent) taskScopes.apply(agent, scope ?? (builder ? builderScope : undefined))
+    const assembly = await next()
+    if (builder) return { ...assembly, tools: assembly.tools.filter((tool: any) => ['skill', 'platform_task', 'platform_agents', 'platform_instances', 'platform_mcp'].includes(tool.name)) }
     if (!scope) return assembly
-    scope.apply(agent)
-    return { ...assembly, tools: assembly.tools.filter((tool: any) => ['skill', 'platform_agents'].includes(tool.name)) }
+    const names = isComputeVariantResearch(assetRoot, agent, state) ? ['skill', 'platform_agents', 'platform_task'] : ['skill', 'platform_agents']
+    return { ...assembly, tools: assembly.tools.filter((tool: any) => names.includes(tool.name)) }
   }) as any)
-  ctx.effect(() => () => extractionScope.dispose())
-  ctx.effect(() => () => computeVariantScope.dispose())
-  ctx.effect(() => () => featureScope.dispose())
-  ctx.effect(() => () => builderScope.dispose())
+  ctx.effect(() => () => taskScopes.dispose())
   ctx.effect(() => () => assistant.dispose())
   ctx.on('session/event' as any, ((session: any) => notify(['assistant'], [session.id])) as any)
   ctx.on('agent/status' as any, ((event: any) => notify(['assistant'], [event.agent.id])) as any)

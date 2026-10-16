@@ -5,6 +5,7 @@ import contextlib
 import importlib.machinery
 import importlib.util
 import io
+import hashlib
 import json
 import os
 import tempfile
@@ -43,8 +44,12 @@ def evaluation_text(case_id: str, stage: str) -> str:
 """
 
 
-def recorded_run(module, repo: Path) -> tuple[Path, dict]:
+def recorded_run(module, repo: Path, external_fixture: bytes | None = None) -> tuple[Path, dict]:
     experiment = fixtures.write_minimal_experiment(repo)
+    if external_fixture is not None:
+        fixture = experiment / "candidate/dsh/managed/compute-workflow/fixtures.json"
+        fixture.parent.mkdir(parents=True)
+        fixture.write_bytes(external_fixture)
     for name in ("workspace", "presets", "managed"):
         folder = experiment / "candidate" / name
         folder.mkdir()
@@ -62,7 +67,7 @@ def recorded_run(module, repo: Path) -> tuple[Path, dict]:
         module.command_init(repo, args)
     run_id = output.getvalue().strip()
     run_dir = experiment / "runs" / run_id
-    (run_dir / "evidence").mkdir()
+    (run_dir / "evidence").mkdir(exist_ok=True)
     (run_dir / "evidence/observation.txt").write_text("基本测试观察。", encoding="utf-8")
     trial = repo / "trial.json"
     trial.write_text(json.dumps({"run_id": run_id, "trial_id": "trial-" + str(uuid.uuid4()),
@@ -74,6 +79,42 @@ def recorded_run(module, repo: Path) -> tuple[Path, dict]:
 
 
 class FrozenRunSnapshotTests(unittest.TestCase):
+    def test_external_inputs_freeze_original_bytes_and_explicit_mode(self) -> None:
+        for mode in ("mock-replay", "replay"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
+                repo = Path(temporary)
+                module = load_module(fixtures.RUN_RECORD, "external_inputs_snapshot")
+                original = (f'{{ "mode" : "{mode}", "observations": ["原始样本"] }}\r\n').encode("utf-8")
+                run_dir, _ = recorded_run(module, repo, original)
+                locked = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+                self.assertEqual(locked["external_inputs"], {
+                    "mode": mode, "fixture_sha256": hashlib.sha256(original).hexdigest(),
+                })
+                frozen = run_dir / "evidence/external-inputs.json"
+                self.assertEqual(frozen.read_bytes(), original, "封存原始字节，不能重新序列化后冒充原摘要")
+                candidate_fixture = run_dir.parents[1] / "candidate/dsh/managed/compute-workflow/fixtures.json"
+                candidate_fixture.write_text('{"mode":"mock-replay","observations":["后续修改"]}', encoding="utf-8")
+                self.assertEqual(frozen.read_bytes(), original, "后续 Candidate 编辑不能改写本次封存输入")
+                self.assertEqual(json.loads((run_dir / "inputs.lock.json").read_text())["external_inputs"], locked["external_inputs"])
+
+    def test_external_inputs_reject_missing_or_invalid_mode_without_partial_run(self) -> None:
+        for value in ({}, {"mode": "live"}, {"mode": "mock"}, {"mode": None}, {"mode": ""}):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as temporary:
+                repo = Path(temporary)
+                module = load_module(fixtures.RUN_RECORD, "external_inputs_mode")
+                with self.assertRaisesRegex(ValueError, "mock-replay 或 replay"):
+                    recorded_run(module, repo, json.dumps(value).encode("utf-8"))
+                runs = next((repo / "evolution/experiments").iterdir()) / "runs"
+                self.assertEqual(list(runs.iterdir()), [], "拒绝无效输入后不留下部分 Run")
+
+    def test_run_without_external_fixture_does_not_claim_frozen_external_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            module = load_module(fixtures.RUN_RECORD, "external_inputs_absent")
+            run_dir, _ = recorded_run(module, Path(temporary))
+            locked = json.loads((run_dir / "inputs.lock.json").read_text(encoding="utf-8"))
+            self.assertNotIn("external_inputs", locked)
+            self.assertFalse((run_dir / "evidence/external-inputs.json").exists())
+
     def test_run_records_program_and_asset_versions_separately(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             repo = Path(temporary)

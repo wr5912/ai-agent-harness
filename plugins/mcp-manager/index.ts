@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { callOpenApiTool, loadOpenApi, readOpenApiResource, validateAuthHeader, validateSpecUrl } from './openapi.mjs'
 
@@ -167,6 +167,24 @@ function bearerAccepted(req: any, sharedToken: string): boolean {
 
 type Target = { kind: 'agent'; server: any } | { kind: 'group'; group: any; servers: any[] }
 
+export const GROUP_TARGET_META_KEY = 'io.deepseek.dsh/mcp-group-target'
+/** 与既有业务 MCP 桥使用同一身份合同，凭据轮换不改变目标摘要。 */
+export function groupTargetDigest(target: Extract<Target, { kind: 'group' }>): string {
+  const members = target.group.members.map((member: any) => {
+    const server = target.servers.find(item => item.id === member.serverId)
+    let endpoint = server?.specUrl || server?.url || ''
+    if (endpoint) {
+      const url = new URL(endpoint); url.username = ''; url.password = ''
+      for (const key of [...url.searchParams.keys()]) if (/token|secret|password|credential|authorization|api[-_]?key/i.test(key)) url.searchParams.delete(key)
+      url.searchParams.sort(); endpoint = url.href
+    }
+    return { serverId: member.serverId, serverName: server && serverName(server), enabled: server?.enabled,
+      kind: server?.specUrl ? 'openapi' : 'mcp', endpoint, names: [...member.names].sort(),
+      resourceUris: [...(member.resourceUris ?? [])].sort(), resourceTemplates: [...(member.resourceTemplates ?? [])].sort() }
+  }).sort((a: any, b: any) => a.serverId.localeCompare(b.serverId))
+  return createHash('sha256').update(JSON.stringify({ id: target.group.id, members })).digest('hex')
+}
+
 async function toolsFor(target: Target): Promise<any[]> {
   if (target.kind === 'agent') {
     const tools = await serverTools(target.server)
@@ -200,16 +218,29 @@ function toolOwner(target: Target, name: string): { server: any; rawName: string
   }
 }
 
-async function serveMcp(req: any, res: any, target: Target): Promise<void> {
+async function serveMcp(req: any, res: any, target: Target, currentGroup?: () => Extract<Target, { kind: 'group' }> | undefined): Promise<void> {
+  const digest = target.kind === 'group' ? groupTargetDigest(target) : undefined
+  const assertTarget = (request?: any) => {
+    const expected = request?.params?._meta?.[GROUP_TARGET_META_KEY]?.digest
+    const current = currentGroup?.()
+    if (digest && (expected !== undefined && expected !== digest || currentGroup && (!current || groupTargetDigest(current) !== digest))) throw new Error('MCP 分组目标已变化')
+  }
   const handler = createMcpHandler(() => {
     const mcp = new McpServer({ name: target.kind === 'group' ? target.group.id : serverName(target.server),
       version: '0.1.0' }, { capabilities: target.kind === 'agent' ? { tools: {}, resources: {} } : { tools: {} } })
-    mcp.server.setRequestHandler('tools/list', async () => ({ tools: await toolsFor(target) }))
+    mcp.server.setRequestHandler('tools/list', async () => {
+      const tools = await toolsFor(target); assertTarget()
+      return { tools, ...(digest ? { _meta: { [GROUP_TARGET_META_KEY]: { digest } } } : {}) }
+    })
     mcp.server.setRequestHandler('tools/call', async (request: any) => {
+      assertTarget(request)
       const owner = toolOwner(target, request.params.name)
       if (!owner) throw new Error('工具不属于当前 MCP 范围')
-      if (owner.server.specUrl) return callOpenApiTool(await loadOpenApi(owner.server), owner.rawName, request.params.arguments ?? {})
-      return withClient(owner.server, client => client.callTool({ ...request.params, name: owner.rawName }))
+      if (owner.server.specUrl) {
+        const source = await loadOpenApi(owner.server); assertTarget(request)
+        return callOpenApiTool(source, owner.rawName, request.params.arguments ?? {})
+      }
+      return withClient(owner.server, client => { assertTarget(request); return client.callTool({ ...request.params, name: owner.rawName }) })
     })
     if (target.kind === 'agent') {
       mcp.server.setRequestHandler('resources/list', async () => target.server.specUrl
@@ -277,6 +308,14 @@ export function apply(ctx: any, config: any): void {
   const agentToken = randomBytes(32).toString('hex')
   const mounted = new Map<object, { version: string; ready: Promise<any[]>; users: number }>()
   snapshot(config)
+  const currentGroup = (id: string): Extract<Target, { kind: 'group' }> | undefined => {
+    const current = snapshot(config), group = current.groups.find(item => item.id === id)
+    return group ? { kind: 'group', group, servers: current.servers } : undefined
+  }
+  ctx.provide('mcpSessionManager', { currentGroup(id: string) {
+    const target = currentGroup(id)
+    return target ? { id, token: config.sharedToken.get(), targetDigest: groupTargetDigest(target) } : undefined
+  } })
 
   ctx.effect(() => ctx.webServer.register({ kind: 'prefix', path: '/mcp/groups', handler: async (req: any, res: any) => {
     if (!bearerAccepted(req, config.sharedToken.get())) return send(res, 401, { error: 'Bearer token required' })
@@ -285,7 +324,7 @@ export function apply(ctx: any, config: any): void {
       const current = snapshot(config)
       const group = current.groups.find(item => item.id === id)
       if (!group) return send(res, 404, { error: 'group not found' })
-      await serveMcp(req, res, { kind: 'group', group, servers: current.servers })
+      await serveMcp(req, res, { kind: 'group', group, servers: current.servers }, () => currentGroup(id))
     } catch (error) { if (!res.headersSent) send(res, 502, { error: String(error) }); else res.destroy() }
   } }), 'mcp-manager.groups')
 
@@ -316,7 +355,7 @@ export function apply(ctx: any, config: any): void {
       if (request.action === 'test') {
         if (server.specUrl) {
           const source = await loadOpenApi(server)
-          return send(res, 200, { tools: source.tools.map(({ name, description }: any) => ({ name, description })),
+          return send(res, 200, { tools: source.tools.map(({ name, description, inputSchema, outputSchema }: any) => ({ name, description, inputSchema, ...(outputSchema ? { outputSchema } : {}) })),
             resources: { resources: source.resources }, resourceTemplates: { resourceTemplates: source.resourceTemplates } })
         }
         const result = await withClient(server, async client => ({

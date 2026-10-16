@@ -1,5 +1,6 @@
-import { Annotation, END, START, StateGraph } from '@langchain/langgraph'
+import { Annotation } from '@langchain/langgraph'
 import { versionConfig, type Catalog, type CompositionConfig, type CompositionStep } from './compositions.ts'
+import { compileSequence } from '../workflows/graph.ts'
 
 const safePart = (part: string) => /^[A-Za-z_][A-Za-z0-9_-]*$/.test(part) && !['__proto__', 'prototype', 'constructor'].includes(part)
 
@@ -68,33 +69,31 @@ function matches(step: CompositionStep, latest: any) {
   return latest?.route === 'five_source' && latest?.status !== 'claim_failed' && latest?.status !== 'evidence_failed'
 }
 
-const NestedState = Annotation.Root({ input: Annotation<Record<string, any>>(), stepValues: Annotation<Record<string, any>>(), latest: Annotation<any>(), trace: Annotation<any[]>(), receipts: Annotation<any[]>(), errors: Annotation<any[]>() })
-type ChildResult = { ok: boolean; result: any; receipts?: any[]; error?: any; version?: any }
+const NestedState = Annotation.Root({ input: Annotation<Record<string, any>>(), stepValues: Annotation<Record<string, any>>(), latest: Annotation<any>(), trace: Annotation<any[]>(), receipts: Annotation<any[]>(), errors: Annotation<any[]>(), graphComplete: Annotation<boolean>() })
+type ChildResult = { ok: boolean; result: any; receipts?: any[]; error?: any; version?: any; graph_execution?: { complete: boolean } }
 
 function graph(config: CompositionConfig, catalog: Catalog, call: (child: CompositionConfig, input: Record<string, any>, step: CompositionStep) => Promise<ChildResult>) {
-  let builder: any = new StateGraph(NestedState)
   const steps = config.steps ?? []
-  for (const step of steps) {
+  const nodes = steps.map(step => {
     const child = catalog.compositions.find(entry => entry.id === step.compositionId)?.versions?.find(version => version.versionId === step.versionId)?.config
     const metadata = { step: step.id, title: child?.title ?? step.compositionId, operationId: child?.toolName ?? '未选择已发布版本', input: step.inputMap, output: step.id,
       compositionId: step.compositionId, versionId: step.versionId, when: step.when ?? 'always' }
-    builder = builder.addNode(step.id, async (state: typeof NestedState.State) => {
+    return { id: step.id, metadata, run: async (state: typeof NestedState.State) => {
       const started = Date.now()
       if (!matches(step, state.latest)) return { trace: [...state.trace, { ...metadata, status: 'skipped', reason: '前置结果不满足执行条件' }] }
       try {
         const args = mappedInput(step.inputMap, state.input, state.stepValues)
         const value = await call(child!, args, step)
-        return { stepValues: { ...state.stepValues, [step.id]: value.result }, latest: value.result,
+        return { stepValues: { ...state.stepValues, [step.id]: value.result }, latest: value.result, graphComplete: state.graphComplete && value.graph_execution?.complete !== false,
           receipts: [...state.receipts, ...(value.receipts ?? [])], errors: value.ok ? state.errors : [...state.errors, value.error ?? { code: 'stage_failed' }],
           trace: [...state.trace, { ...metadata, mappedArguments: args, status: !value.ok || value.result?.phase_status === 'failed' ? 'failed' : ['skipped', 'unknown'].includes(value.result?.phase_status) ? value.result.phase_status : 'succeeded', durationMs: Date.now() - started, version: value.version }] }
       } catch (error) {
         // 保留前序运行，后续 claimed/completed 节点仍可执行一次收尾。
-        return { errors: [...state.errors, { code: 'stage_failed', message: error instanceof Error ? error.message : '子组合执行失败' }], trace: [...state.trace, { ...metadata, status: 'failed', durationMs: Date.now() - started }] }
+        return { graphComplete: false, errors: [...state.errors, { code: 'stage_failed', message: error instanceof Error ? error.message : '子组合执行失败' }], trace: [...state.trace, { ...metadata, status: 'failed', durationMs: Date.now() - started }] }
       }
-    }, { metadata })
-  }
-  for (let i = 0; i < steps.length; i++) builder = builder.addEdge(i ? steps[i - 1].id : START, steps[i].id)
-  return builder.addEdge(steps.at(-1)!.id, END).compile({ checkpointer: false })
+    } }
+  })
+  return compileSequence(NestedState, nodes)
 }
 
 export async function nestedStructure(config: CompositionConfig, catalog: Catalog) {
@@ -104,7 +103,7 @@ export async function nestedStructure(config: CompositionConfig, catalog: Catalo
 
 export async function executeNested(config: CompositionConfig, catalog: Catalog, input: Record<string, any>, call: Parameters<typeof graph>[2]) {
   validateNested(config, catalog)
-  const state = await graph(config, catalog, call).invoke({ input, stepValues: {}, latest: {}, trace: [], receipts: [], errors: [] })
+  const state = await graph(config, catalog, call).invoke({ input, stepValues: {}, latest: {}, trace: [], receipts: [], errors: [], graphComplete: true })
   const error = state.errors[0] ?? (!Object.keys(state.stepValues).length ? { code: 'composition_not_executed', message: '所有子步骤均被跳过，未产生运行结果' } : undefined)
-  return { ok: !error, receipts: state.receipts, result: { ...state.latest, stepValues: state.stepValues, trace: state.trace }, ...(error ? { error } : {}) }
+  return { ok: !error, receipts: state.receipts, graph_complete: state.graphComplete, result: { ...state.latest, stepValues: state.stepValues, trace: state.trace }, ...(error ? { error } : {}) }
 }

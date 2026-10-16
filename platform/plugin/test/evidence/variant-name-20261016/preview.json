@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "errors": [],
+  "agent": {
+    "x": 429,
+    "y": 219.15625,
+    "width": 222.9375,
+    "height": 30.796875
+  },
+  "variant": {
+    "x": 361,
+    "y": 455.90625,
+    "width": 290.8125,
+    "height": 28.796875
+  },
+  "narrowAgent": {
+    "x": 93,
+    "y": 172.046875,
+    "width": 222.9375,
+    "height": 28
+  },
+  "narrowVariant": {
+    "x": 33,
+    "y": 526.78125,
+    "width": 290.8125,
+    "height": 28.796875
+  },
+  "url": "http://10.0.160.32:3115/hep/#/agents?agent_id=security-operations-expert&experiment_id=EXP-security-operations-expert-024-r290c02339cb3&tab=overview&list_view=variants"
+}

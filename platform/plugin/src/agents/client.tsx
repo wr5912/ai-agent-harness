@@ -6,11 +6,28 @@ import { instanceWebUrl } from '../instances/url.ts'
 import { AssetDiffPanel } from './asset-diff-client.tsx'
 import { CreateAgentDialog } from './create-agent-client.tsx'
 import { ComputeVariantsPanel } from './compute-variants.tsx'
+import { VariantSourcePanel } from './variant-source.tsx'
 
 type RpcResult = { ok: true; value: any } | { ok: false; error: { code: string; message: string; details?: any } }
 type AgentRow = { id: string; name?: string; manifest?: Record<string, any>; active_experiment?: string | null; version_count?: number; latest_experiment_status?: string | null; instance_state?: string }
 type PreviewState = { path: string; body: string; before: string; diff: string; dry: any }
 type AssetNode = { name: string; path: string; kind: string; children?: AssetNode[] }
+type ExperimentRow = { id: string; agent_id: string; status?: string; change: Record<string, any> }
+type ListView = NonNullable<PlatformNavigation['list_view']>
+
+function isComputeVariant(experiment: ExperimentRow) {
+  return Boolean(experiment.change?.compute_variant) || ['exploratory', 'end'].includes(experiment.change?.variant_kind)
+}
+
+function generationLabel(experiment: ExperimentRow) {
+  const mode = experiment.change?.compute_variant?.generation?.mode
+  return mode === 'langgraph-aot' ? 'LangGraph 代码' : mode || '生成方式未记录'
+}
+
+function variantName(experiment: ExperimentRow) {
+  return typeof experiment.change?.variant_name === 'string' && experiment.change.variant_name.trim()
+    ? experiment.change.variant_name : '未命名变体'
+}
 
 function AssetTree({ nodes, selected, onSelect }: { nodes: AssetNode[]; selected: string; onSelect(path: string): void }) {
   return <ul className="harness-asset-tree">{nodes.map(node => <li key={node.path}>
@@ -32,12 +49,21 @@ const tabs = [
   { id: 'overview', label: '概览' },
   { id: 'assets', label: 'Harness 资产' },
   { id: 'capabilities', label: '能力状态' },
-  { id: 'compute-variants', label: '算力变体' },
+  { id: 'compute-variants', label: '生成与比较' },
   { id: 'runtime', label: '运行情况' },
 ] as const
 
 export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNavigate, active = true }: PlatformPageProps & { target?: PlatformNavigation; onNavigate?(target: PlatformNavigation): void; active?: boolean; updates?: PlatformUpdates; onContext?(context: Record<string, unknown>): void; onAssistant?(task: string, context: Record<string, unknown>): Promise<void> }) {
   const [agents, setAgents] = useState<AgentRow[]>([])
+  const [experiments, setExperiments] = useState<ExperimentRow[]>([])
+  const [listView, setListView] = useState<ListView>(target?.list_view ?? 'agents')
+  const [variantSearch, setVariantSearch] = useState('')
+  const [variantAgent, setVariantAgent] = useState('')
+  const [nameOpen, setNameOpen] = useState(false)
+  const [nameDraft, setNameDraft] = useState('')
+  const [nameHash, setNameHash] = useState('')
+  const [nameBusy, setNameBusy] = useState(false)
+  const [nameMessage, setNameMessage] = useState('')
   const [selected, setSelected] = useState('')
   const [search, setSearch] = useState('')
   const [selectedExperiment, setSelectedExperiment] = useState('')
@@ -67,6 +93,7 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
   const [createOpen, setCreateOpen] = useState(false)
   const [diffOpen, setDiffOpen] = useState(false)
   const detailRequest = useRef(0)
+  const listRequest = useRef(0)
   const selectionRequest = useRef(0)
   const versionPreviewRequest = useRef(0)
   const launchRequest = useRef(0)
@@ -74,15 +101,30 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
   const editRequest = useRef(0)
   const selectedAgent = useMemo(() => agents.find(agent => agent.id === selected), [agents, selected])
   const pendingSelectionNavigation = useRef(false)
-  const navigation = useRef({ active, target, onNavigate, tab })
-  navigation.current = { active, target, onNavigate, tab }
+  const navigation = useRef({ active, target, onNavigate, tab, listView })
+  navigation.current = { active, target, onNavigate, tab, listView }
 
-  function navigateSelection(agentId: string, experimentId: string | undefined, nextTab = tab, replace = false) {
+  function navigateSelection(agentId: string, experimentId: string | undefined, nextTab = tab, replace = false, nextListView = navigation.current.listView) {
     const current = navigation.current
     if (!current.active || !agentId || !experimentId) return
     if (current.target?.page === 'agents' && current.target.agent_id === agentId
-      && current.target.experiment_id === experimentId && current.target.tab === nextTab) return
-    current.onNavigate?.({ page: 'agents', agent_id: agentId, experiment_id: experimentId, tab: nextTab, ...(replace ? { replace: true } : {}) })
+      && current.target.experiment_id === experimentId && current.target.tab === nextTab
+      && (current.target.list_view ?? 'agents') === nextListView) return
+    current.onNavigate?.({ page: 'agents', agent_id: agentId, experiment_id: experimentId, tab: nextTab, ...(nextListView === 'variants' ? { list_view: nextListView } : {}), ...(replace ? { replace: true } : {}) })
+  }
+
+  function selectListView(next: ListView) {
+    setListView(next)
+    navigation.current.listView = next
+    const experimentId = detail?.experiment?.id || selectedExperiment
+    if (selected && experimentId) navigateSelection(selected, experimentId, tab, false, next)
+    else onNavigate?.({ page: 'agents', ...(selected ? { agent_id: selected } : {}), tab, ...(next === 'variants' ? { list_view: next } : {}) })
+  }
+
+  function showAgentVariants(agentId: string) {
+    setVariantAgent(agentId)
+    setVariantSearch('')
+    selectListView('variants')
   }
 
   function selectTab(nextTab: (typeof tabs)[number]['id']) {
@@ -90,9 +132,10 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
     navigateSelection(selected, detail?.experiment?.id, nextTab)
   }
 
-  function selectVersion(agentId: string, experimentId = '', notify = true) {
+  function selectVersion(agentId: string, experimentId = '', notify = true, detailTab?: (typeof tabs)[number]['id']) {
     if (agentId === selected && (!experimentId || experimentId === selectedExperiment)) {
-      if (notify) navigateSelection(agentId, detail?.experiment?.id)
+      if (detailTab) setTab(detailTab)
+      if (notify) navigateSelection(agentId, detail?.experiment?.id, detailTab ?? tab)
       return true
     }
     if (!discardAssetDraft()) return false
@@ -101,11 +144,14 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
     versionPreviewRequest.current++
     launchRequest.current++
     pendingSelectionNavigation.current = notify && !experimentId
-    const nextTab = agentId !== selected ? 'overview' : tab
+    const nextTab = detailTab ?? (agentId !== selected ? 'overview' : tab)
     setTab(nextTab)
     setSelected(agentId)
     setSelectedExperiment(experimentId)
     setDetail(null)
+    setNameOpen(false)
+    setNameBusy(false)
+    setNameMessage('')
     setVersionOpen(false)
     setVersionInventory(null)
     setVersionProposal(null)
@@ -138,13 +184,16 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
   }
 
   async function refreshList() {
+    const request = ++listRequest.current
     setError('')
     try {
       const value = await call('list')
+      if (request !== listRequest.current) return
       setAgents(value.agents ?? [])
+      setExperiments(value.experiments ?? [])
       setSelected(current => current || value.agents?.[0]?.id || '')
     } catch (err) {
-      setError((err as Error).message)
+      if (request === listRequest.current) setError((err as Error).message)
     }
   }
 
@@ -188,6 +237,39 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
     }
   }
 
+  function editVariantName() {
+    setNameDraft(detail.experiment.change.variant_name ?? '')
+    setNameHash(detail.experiment.change_sha256 ?? '')
+    setNameMessage('')
+    setNameOpen(true)
+  }
+
+  async function saveVariantName(recheck = false) {
+    if (!detail || nameBusy) return
+    const selection = selectionRequest.current
+    const experimentId = detail.experiment.id, agentId = selected
+    setNameBusy(true)
+    setNameMessage('')
+    try {
+      if (recheck) {
+        const value = await call('detail', { agent_id: agentId, experiment_id: experimentId })
+        if (selection !== selectionRequest.current) return
+        setNameHash(value.experiment.change_sha256)
+        setNameMessage(`当前保存的名称为“${variantName(value.experiment)}”；输入草稿已保留，请核对后保存。`)
+      } else {
+        await call('compute-variants/rename', { experiment_id: experimentId, variant_name: nameDraft.trim(), expected_change_sha256: nameHash })
+        await refreshList()
+        if (selection !== selectionRequest.current) return
+        await refreshDetail(agentId, experimentId)
+        if (selection !== selectionRequest.current) return
+        setNameOpen(false)
+        setNameMessage('变体名称已保存。')
+      }
+    } catch (err) {
+      if (selection === selectionRequest.current) setNameMessage(`${(err as Error).message}；名称草稿已保留，可重新核对后保存。`)
+    } finally { if (selection === selectionRequest.current) setNameBusy(false) }
+  }
+
   useEffect(() => { void refreshList() }, [])
   useEffect(() => { void refreshDetail(selected, selectedExperiment) }, [selected, selectedExperiment])
   useEffect(() => {
@@ -201,12 +283,15 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
       return
     }
     const nextTab = tabs.find(item => item.id === target.tab)?.id ?? 'overview'
+    const nextListView = target.list_view ?? 'agents'
     setTab(nextTab)
+    setListView(nextListView)
+    navigation.current.listView = nextListView
     if ((!target.agent_id || target.agent_id === selected)
       && (!target.experiment_id || target.experiment_id === selectedExperiment)) {
-      navigateSelection(selected, detail?.experiment?.id, nextTab, true)
+      navigateSelection(selected, detail?.experiment?.id, nextTab, true, nextListView)
     }
-  }, [active, target?.page, target?.agent_id, target?.experiment_id, target?.tab])
+  }, [active, target?.page, target?.agent_id, target?.experiment_id, target?.tab, target?.list_view])
   useEffect(() => {
     if (!editOpen || !assetDirty) return
     const guard = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
@@ -400,6 +485,13 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
 
   const assetDirty = assetInfo?.kind === 'text' && editBody !== assetInfo.content
   const visibleAgents = agents.filter(agent => `${agent.name ?? agent.manifest?.name ?? ''} ${agent.id}`.toLowerCase().includes(search.trim().toLowerCase()))
+  const variants = experiments.filter(isComputeVariant)
+  const visibleVariants = variants.filter(variant => {
+    const agent = agents.find(item => item.id === variant.agent_id)
+    const query = `${variantName(variant)} ${agent?.name ?? agent?.manifest?.name ?? ''} ${variant.agent_id} ${variant.id} ${variant.change.research_question ?? ''} ${variant.change.parent_experiment_id ?? ''}`.toLowerCase()
+    return (!variantAgent || variant.agent_id === variantAgent)
+      && query.includes(variantSearch.trim().toLowerCase())
+  })
   const instances = detail?.loaded_instance?.instances ?? []
   const versionRuns = detail?.verification?.runs ?? []
 
@@ -427,17 +519,48 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
       {error && <p role="alert" className="agent-error">{error}</p>}
       <section className="harness-agent-layout">
         <aside className="harness-agent-list">
+          <div role="tablist" aria-label="浏览列表" className="agent-list-tabs" onKeyDown={event => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+            event.preventDefault()
+            const next: ListView = event.key === 'Home' ? 'agents' : event.key === 'End' ? 'variants' : listView === 'agents' ? 'variants' : 'agents'
+            selectListView(next)
+            document.getElementById(`agent-list-tab-${next}`)?.focus()
+          }}>
+            {([{ id: 'agents', label: '智能体列表', count: agents.length }, { id: 'variants', label: '变体列表', count: variants.length }] as const).map(item => <button type="button" key={item.id} id={`agent-list-tab-${item.id}`} role="tab" aria-controls={`agent-list-panel-${item.id}`} aria-selected={listView === item.id} tabIndex={listView === item.id ? 0 : -1} onClick={() => selectListView(item.id)}>{item.label}<span aria-hidden="true"> {item.count}</span></button>)}
+          </div>
+          <div role="tabpanel" id="agent-list-panel-agents" aria-labelledby="agent-list-tab-agents" hidden={listView !== 'agents'}>
           <div className="agent-list-heading"><h2>智能体列表</h2><span>{agents.length}</span></div>
           <label className="agent-search"><span>搜索智能体</span><input type="search" placeholder="名称或 Agent ID" value={search} onChange={event => setSearch(event.target.value)} /></label>
           <div className="harness-agent-list-options">
-            {visibleAgents.map(agent => <button key={agent.id} type="button" className="agent-list-card" onClick={() => selectVersion(agent.id)} aria-pressed={agent.id === selected}>
+            {visibleAgents.map(agent => <div className="agent-list-entry" key={agent.id}><button type="button" className="agent-list-card" onClick={() => selectVersion(agent.id)} aria-pressed={agent.id === selected}>
               <span className="agent-list-card-title"><strong>{agent.name || agent.manifest?.name || agent.id}</strong><span className="agent-badge">{researchStatus(agent.latest_experiment_status)}</span></span>
               <span className="agent-id">{agent.id}</span>
               {agent.manifest?.description && <span className="agent-list-description" title={agent.manifest.description}>{agent.manifest.description}</span>}
               <span className="agent-list-meta">{typeof agent.version_count === 'number' ? `${agent.version_count} 个研究版本` : '版本数量未读取'} · {agent.instance_state || '实例未观察'}</span>
-            </button>)}
+            </button><button type="button" className="agent-variant-count" onClick={() => showAgentVariants(agent.id)} aria-label={`查看 ${agent.name || agent.id} 的变体`}>变体 {variants.filter(variant => variant.agent_id === agent.id).length}</button></div>)}
             {agents.length > 0 && !visibleAgents.length && <p className="agent-empty">没有匹配的智能体。</p>}
             {!agents.length && !error && <p className="agent-empty">尚无智能体资产。</p>}
+          </div>
+          </div>
+          <div role="tabpanel" id="agent-list-panel-variants" aria-labelledby="agent-list-tab-variants" hidden={listView !== 'variants'}>
+            <div className="agent-list-heading"><h2>变体列表</h2><span>{visibleVariants.length} / {variants.length}</span></div>
+            <label className="agent-search"><span>搜索变体</span><input type="search" placeholder="变体名称、版本或来源 ID" value={variantSearch} onChange={event => setVariantSearch(event.target.value)} /></label>
+            {variantAgent && <div className="agent-variant-scope"><span>{agents.find(agent => agent.id === variantAgent)?.name || variantAgent} 的变体</span><button type="button" onClick={() => { setVariantAgent(''); setVariantSearch('') }}>查看全部</button></div>}
+            <div className="harness-agent-list-options" aria-label="变体条目">
+              {visibleVariants.map(variant => {
+                const agent = agents.find(item => item.id === variant.agent_id)
+                const fixedRef = variant.change.parent_ref || (variant.change.parent_experiment_id ? variant.change.baseline_ref : '')
+                return <button type="button" className="agent-list-card agent-variant-card" key={variant.id} aria-pressed={selected === variant.agent_id && selectedExperiment === variant.id} onClick={() => selectVersion(variant.agent_id, variant.id, true, 'compute-variants')}>
+                  <span className="agent-list-card-title"><strong>{variantName(variant)}</strong><span className="agent-badge">{variant.change.variant_kind === 'end' ? 'end 已记录' : '探索性变体'}</span></span>
+                  <span className="agent-id">{variant.id}</span>
+                  <span className="agent-list-meta">{agent?.name || agent?.manifest?.name || variant.agent_id} · {generationLabel(variant)}</span>
+                  <span className="agent-list-meta">父版：{variant.change.parent_experiment_id || '未记录'}</span>
+                  {fixedRef && <span className="agent-id" title={fixedRef}>{String(fixedRef).startsWith('git:') ? `${String(fixedRef).slice(0, 16)}…` : fixedRef}</span>}
+                  <span className="agent-list-meta">{researchStatus(variant.status || variant.change.status)}</span>
+                </button>
+              })}
+              {!visibleVariants.length && <p className="agent-empty">{variants.length ? '没有匹配的变体。' : '尚无已记录的算力变体。'}</p>}
+            </div>
           </div>
         </aside>
         <section className="harness-agent-detail">
@@ -447,9 +570,24 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
               <div className="agent-identity-title"><span className="agent-avatar" aria-hidden="true">◇</span><div><h2>{detail.agent.name || detail.agent.manifest.name || selectedAgent?.name || selected}</h2><p className="agent-id">Agent ID · {selected}</p></div></div>
               <div className="agent-actions"><button type="button" disabled={!onNavigate} onClick={() => openEvaluation()}>评测此版本</button><button type="button" onClick={() => { setVersionOpen(true); setVersionParent(detail.repo_commit ? `git:${detail.repo_commit}` : ''); resetVersionPreview() }}>新建研究版本</button><button type="button" className="agent-primary" disabled={launchBusy} onClick={() => void launchVersion()}>启动智能体</button></div>
             </div>
-            <div className="agent-version-bar"><label>所选研究版本<select aria-label="版本" value={selectedExperiment || detail.experiment.id} onChange={event => selectVersion(selected, event.target.value)}>{detail.versions.map((version: any) => <option key={version.id} value={version.id}>{version.id}</option>)}</select></label><div><span>登记版本</span><strong>{selectedAgent?.active_experiment || '未登记'}</strong></div></div>
+            <div className="agent-version-bar"><label>所选研究版本<select aria-label="版本" value={selectedExperiment || detail.experiment.id} onChange={event => selectVersion(selected, event.target.value)}>{detail.versions.map((version: any) => {
+              const metadata = version.id === detail.experiment.id ? detail.experiment : experiments.find(item => item.id === version.id) ?? version
+              return <option key={version.id} value={version.id}>{isComputeVariant(metadata) ? `${variantName(metadata)} · ${version.id}` : version.id}</option>
+            })}</select></label><div><span>登记版本</span><strong>{selectedAgent?.active_experiment || '未登记'}</strong></div></div>
+            <p className="agent-identity-description">{detail.agent.manifest.description || '智能体用途尚未记录。'}</p>
+            {isComputeVariant(detail.experiment) && <div className="agent-variant-name"><h3>{variantName(detail.experiment)}</h3><button type="button" disabled={nameBusy || nameOpen} onClick={editVariantName}>修改变体名称</button></div>}
+            {nameOpen && <form className="agent-name-form" aria-label="修改变体名称" onSubmit={event => { event.preventDefault(); void saveVariantName() }}>
+              <label className="agent-field">变体名称<input aria-label="变体名称" value={nameDraft} disabled={nameBusy} onChange={event => setNameDraft(event.target.value)} required /></label>
+              <div className="agent-actions"><button type="submit" disabled={nameBusy || !nameDraft.trim() || !nameHash}>保存名称</button><button type="button" disabled={nameBusy} onClick={() => void saveVariantName(true)}>重新核对</button><button type="button" disabled={nameBusy} onClick={() => { setNameOpen(false); setNameMessage('') }}>取消改名</button></div>
+            </form>}
+            {nameMessage && <p role="status">{nameMessage}</p>}
+            <div className="agent-actions"><span className="agent-badge">{isComputeVariant(detail.experiment) ? generationLabel(detail.experiment) : '研究版本'}</span><button type="button" onClick={() => showAgentVariants(selected)}>查看此智能体的变体（{variants.filter(variant => variant.agent_id === selected).length}）</button></div>
             {detail.creation && <p role="status" className="agent-notice">{detail.creation.status === 'completed' ? '新版本创建成功' : '融合中：等待资产集成与约定验证'}{detail.creation.status !== 'completed' && <button type="button" disabled={!onAssistant} onClick={() => void onAssistant?.('继续完成当前版本的融合。', { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id, skill: 'agent-maintenance', workflow: 'research', session_id: detail.creation.assistant_session_id })}>继续融合</button>}</p>}
           </section>}
+          {detail && <VariantSourcePanel experiment={{ ...detail.experiment, agent_id: selected }} experiments={experiments}
+            onSelectSource={(agentId, experimentId) => selectVersion(agentId, experimentId, true, 'overview')}
+            onOpenRun={(runId, agentId, experimentId) => onNavigate?.({ page: 'evaluation', agent_id: agentId, experiment_id: experimentId, tab: 'runs', run_id: runId })}
+            onOpenCode={path => { if (discardAssetDraft()) { selectEditFile(path); selectTab('assets') } }} />}
           {versionOpen && detail && <section className="agent-inline-form" aria-label="新建智能体版本">
             <h2>新建 {selected} 版本</h2>
             <label className="agent-field">改进目标<textarea value={versionGoal} onChange={event => { setVersionGoal(event.target.value); resetVersionPreview() }} rows={3} /></label>
@@ -496,7 +634,7 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
             {detail.features?.length ? <div className="agent-feature-list">{detail.features.map((feature: any) => <article key={feature.id}><h4>{feature.title}</h4><p>{feature.description}</p>{feature.change && <p>本版本变化：{feature.change}</p>}<small>来源：{feature.source_refs.join('、') || '未记录'}</small></article>)}</div> : <p className="agent-empty">此版本尚未整理特性，可由 AI 根据当前资产和证据整理后确认保存。</p>}
             {featureProposal && featureProposal.experiment_id === detail.experiment.id && <section className="agent-notice" aria-label="确认智能体特性"><h3>待确认特性</h3><ul>{featureProposal.features.map((feature: any) => <li key={feature.id}><strong>{feature.title}</strong><p>{feature.description}</p><p>{feature.source_refs.join('、') || '未记录来源'} · {feature.evidence_refs.length ? feature.evidence_refs.join('、') : '尚无验证证据'}</p></li>)}</ul><button type="button" onClick={() => void confirmFeatures()}>确认并保存特性</button></section>}
             <h3>版本来源与继承</h3><Fields items={[
-              ['所选研究版本', detail.experiment.id], ['研究状态', researchStatus(detail.experiment.status)], ['Baseline', detail.baseline.ref || '未知'], ['主父版本', detail.baseline.parent_experiment_id || '无'],
+              ['所选研究版本', detail.experiment.id], ['研究状态', researchStatus(detail.experiment.status)], ['Baseline', detail.baseline.ref || '未知'], ['主父版本', detail.baseline.parent_experiment_id || (detail.baseline.ref === 'none:first-experiment' ? '首个版本' : '未记录')],
               ['融合来源', detail.fusion.experiments?.length ? detail.fusion.experiments : detail.fusion.status === 'unknown' ? '未声明融合来源' : detail.fusion.status], ['相关引用', detail.related_references ?? []],
             ]} />
           </section>}
@@ -512,7 +650,7 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
             ]} /></details>
           </section>}
           {detail && <section role="tabpanel" id="agent-panel-compute-variants" aria-labelledby="agent-tab-compute-variants" hidden={tab !== 'compute-variants'}>
-            {tab === 'compute-variants' && <ComputeVariantsPanel key={detail.experiment.id} rpc={rpc} agentId={selected} experimentId={detail.experiment.id} versions={detail.versions} onAssistant={onAssistant}
+            {tab === 'compute-variants' && <ComputeVariantsPanel key={detail.experiment.id} rpc={rpc} agentId={selected} experimentId={detail.experiment.id} versions={detail.versions} currentVariantName={detail.experiment.change.variant_name ?? null} onAssistant={onAssistant}
               onCreated={id => { void refreshList(); selectVersion(selected, id) }} onChanged={() => { void refreshDetail() }} />}
           </section>}
           {detail && <section role="tabpanel" id="agent-panel-runtime" aria-labelledby="agent-tab-runtime" hidden={tab !== 'runtime'}>

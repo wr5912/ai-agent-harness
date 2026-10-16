@@ -12,6 +12,7 @@ export interface PlatformNavigation {
   experiment_id?: string
   run_id?: string
   case_id?: string
+  list_view?: 'agents' | 'variants'
   tab?: string
 }
 export interface PlatformPageProps {

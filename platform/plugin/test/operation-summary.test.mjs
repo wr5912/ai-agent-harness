@@ -2,7 +2,24 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { operationSummary } from '../src/assistant/operation-summary.ts'
 
+test('代码变体完成回执只说明生成和比较已核对，不声称业务实例已交付或自动end', () => {
+  const value = operationSummary({ kind: 'platform-operation', domain: 'task', action: 'deliver', state: 'completed', result: { state: 'completed', plan: { kind: 'compute-variant' }, delivery: { end_confirmed: false } } })
+  assert.equal(value.title, '核对代码变体与比较证据')
+  assert.match(value.outcome, /end 仍需用户复核/)
+  assert.doesNotMatch(value.outcome, /实际实例与业务产物已核验/)
+})
+
 const meta = overrides => ({ kind: 'platform-operation', domain: 'agents', action: 'detail', state: 'completed', ...overrides })
+test('变体操作摘要使用独立名称，改名回执只说明名称保存', () => {
+  const input = { experiment_id: 'EXP-alpha-002', variant_name: '资产告警轻量版', strategy: '将资产查询和告警查询固化为固定工作流，并保留字段与异常语义' }
+  const value = operationSummary(meta({ action: 'compute-variants/rename', input, result: { ok: true, value: { experiment_id: input.experiment_id, variant_name: input.variant_name } } }))
+  assert.equal(value.title, '修改变体名称：资产告警轻量版')
+  assert.equal(value.outcome, '已保存变体名称：资产告警轻量版')
+  assert.equal(operationSummary(meta({ action: 'compute-variants/rename', input, state: 'awaiting_confirmation' })).outcome, '等待确认')
+  assert.equal(operationSummary(meta({ action: 'compute-variants/create', input, result: { ok: true, value: { experiment_id: input.experiment_id, variant_name: input.variant_name } } })).title, '创建探索性算力变体：资产告警轻量版')
+  assert.doesNotMatch(value.title + value.outcome, /工作流|end|等效|验证通过/)
+})
+
 test('回执使用真实对象、数量和阶段，不把返回或创建写成业务成功', () => {
   const result = operationSummary(meta({ input: { agent_id: 'daily-inspection-assistant', experiment_id: 'EXP-daily-inspection-assistant-003-r123456789abc' }, result: { ok: true, value: { agent: { name: '巡检助手' }, experiment: { id: 'EXP-daily-inspection-assistant-003-r123456789abc' }, evaluation: { cases: [{ id: 'A' }, { id: 'B' }] } } } }))
   assert.match(result.title, /巡检助手.*版本 003/); assert.match(result.outcome, /2 个测试用例/)

@@ -79,6 +79,12 @@ async function fixture(t, scenario = () => ({})) {
       let value
       if (method === 'workspace/create') value = { workspace: { workspaceId: 'review-workspace', path: args.request.path } }
       else if (method === 'session/create') {
+        const error = scenario(undefined, { preset: args.request.agentPreset, prompts: [] }).createError
+        if (error) {
+          response.writeHead(200, { 'content-type': 'application/json' })
+          response.end(JSON.stringify({ result: { ok: false, error } }))
+          return
+        }
         const id = `review-${sessions.size + 1}`
         sessions.set(id, { id, preset: args.request.agentPreset, prompts: [] })
         value = { sessionId: id, agentPreset: args.request.agentPreset }
@@ -142,6 +148,21 @@ async function fixture(t, scenario = () => ({})) {
   }
   return { run, runTarget: (cases, timeoutMs) => run(cases, timeoutMs, 'evaluate'), evidence, judgeEvidence, sessions, requests, exportCounts }
 }
+
+test('真实 session/create 失败保留原生错误码与插件定位，不把配置正文写入证据', async t => {
+  const reason = 'security-operations-guard (/opt/dsh-managed/security-operations-guard.mjs): never started'
+  const runtime = await fixture(t, () => ({ createError: { code: 'agent-preset/invalid', message: reason,
+    details: { reason, configuration: '不得复制此配置正文' } } }))
+  const response = await runtime.runTarget([{ case_id: 'U-LOAD-001', inputs: [firstPrompt], expected_behavior: '实际装载目标。' }])
+  assert.equal(response.rows[0].execution_status, 'error')
+  const saved = await runtime.evidence('U-LOAD-001', null)
+  assert.equal(saved.checks.error_code, 'agent-preset/invalid')
+  assert.equal(saved.checks.http_status, 200)
+  assert.deepEqual(saved.checks.runtime_diagnostic, { plugin: 'security-operations-guard', entrypoint: '/opt/dsh-managed/security-operations-guard.mjs', reason: 'never started' })
+  assert.equal(saved.checks.trace_available, false)
+  assert.equal(JSON.stringify(saved).includes('不得复制此配置正文'), false)
+  assert.equal(runtime.requests.some(request => request.method === 'session/prompt'), false)
+})
 
 test('真实 review 驱动保存根与子 Session 轨迹，同 Session repair 使用独立 attempt 且保留首次证据', async t => {
   const runtime = await fixture(t)

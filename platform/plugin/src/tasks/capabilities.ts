@@ -9,6 +9,9 @@ export interface CapabilityOptions {
   signal?: AbortSignal
   agent_id?: string
   source?: string
+  server_id?: string
+  discoveredTools?: (serverId: string | undefined, signal?: AbortSignal) => any[] | Promise<any[]>
+  compositionBindings?: (signal?: AbortSignal) => any[] | Promise<any[]>
 }
 
 /** 动态读取当前资产及原生 MCP 配置，只报告已发现事实，不把配置等同于可用性。 */
@@ -42,12 +45,36 @@ export async function discoverTaskCapabilities(assetRoot: string, options: Capab
         required_env_names: info.entry.required_env_names ?? [] })
     } catch { unavailable.push({ source: `experiment:${id}`, reason: '来源登记或资产不可读取' }) }
   }
-  const mcp = (options.nativeServers?.() ?? []).map(server => ({
+  const discovered = await options.discoveredTools?.(options.server_id, options.signal) ?? []
+  options.signal?.throwIfAborted()
+  const bindings = await options.compositionBindings?.(options.signal) ?? []
+  const mcp = (options.nativeServers?.() ?? []).filter(server => !options.server_id || server.id === options.server_id).map(server => ({
     id: String(server.id ?? ''), enabled: server.enabled !== false,
     transport: server.specUrl ? 'openapi' : String(server.transport ?? 'streamable-http'),
     tools: Array.isArray(server.tools?.names) ? server.tools.names.filter((value: unknown) => typeof value === 'string') : [],
+    tool_schemas: discovered.filter(tool => tool.server_id === server.id && typeof tool.name === 'string' && tool.inputSchema && typeof tool.inputSchema === 'object').map(tool => ({
+      name: tool.name, inputSchema: tool.inputSchema, ...(tool.outputSchema && typeof tool.outputSchema === 'object' ? { outputSchema: tool.outputSchema } : {}), verification: 'discovered' as const,
+    })),
     verification: 'configured' as const,
   }))
-  return { observed_at: new Date().toISOString(), sources, mcp, unavailable,
+  const composition_bindings = bindings.filter(binding => typeof binding.composition_id === 'string' && typeof binding.version_id === 'string' && typeof binding.tool_name === 'string').map(binding => {
+    const fixed = binding.fixed_binding
+    const verified = fixed && /^[A-Za-z0-9_-]{1,32}$/.test(fixed.group_id)
+      && /^[a-f0-9]{64}$/.test(fixed.group_target_digest) && /^[a-f0-9]{64}$/.test(fixed.versionId)
+      && /^[a-f0-9]{64}$/.test(fixed.expectedImplementationDigest) && /^[a-z0-9-]{1,80}$/.test(fixed.compositionId)
+      && typeof fixed.tool_name === 'string' && fixed.tool_name.startsWith('mcp__compositions__')
+      && fixed.input_schema && typeof fixed.input_schema === 'object' && !Array.isArray(fixed.input_schema)
+      && fixed.compositionId === binding.composition_id && fixed.versionId === binding.version_id
+      && fixed.expectedImplementationDigest === binding.source_digest
+    return { composition_id: binding.composition_id, version_id: binding.version_id, tool_name: binding.tool_name,
+      ...(typeof binding.source_digest === 'string' ? { source_digest: binding.source_digest } : {}),
+      ...(verified ? { fixed_binding: { group_id: fixed.group_id, group_target_digest: fixed.group_target_digest,
+        tool_name: fixed.tool_name, compositionId: fixed.compositionId, versionId: fixed.versionId,
+        expectedImplementationDigest: fixed.expectedImplementationDigest, input_schema: fixed.input_schema } } : {}),
+      ...(!verified && typeof binding.fixed_binding_unavailable === 'string' ? { fixed_binding_unavailable: binding.fixed_binding_unavailable } : {}),
+      verification: 'published' as const,
+    }
+  })
+  return { observed_at: new Date().toISOString(), sources, mcp, composition_bindings, unavailable,
     note: '已发现或已配置不表示已装载、已调用或通过当前任务验证。工具接入优先使用原生 MCP 配置管理。' }
 }

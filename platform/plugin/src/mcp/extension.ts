@@ -11,12 +11,12 @@ export type ThreatResult = Record<string, any> & {
 export interface ThreatServices {
   connectionFingerprint(connectionId: string): string | Promise<string>
   invoke(connectionId: string, toolName: string, args: Record<string, any>, signal: AbortSignal, expectedFingerprint?: string): Promise<any>
-  inferFrozen(payload: Record<string, any>, route: ThreatModelRoute | undefined, signal: AbortSignal): Promise<any>
+  inferFrozen(payload: Record<string, any>, route: ThreatModelRoute | undefined, signal: AbortSignal, execution?: CompositionExecutionContext): Promise<any>
   resolveModel?(route?: ThreatModelRoute): ThreatModelRoute | Promise<ThreatModelRoute>
 }
 export type ThreatRuntimeOptions = { stateRoot?: string; python?: string }
 export interface ThreatRuntime {
-  execute(stage: ThreatStage, bindings: ThreatBindings, input: Record<string, any>, signal: AbortSignal): Promise<ThreatResult>
+  execute(stage: ThreatStage, bindings: ThreatBindings, input: Record<string, any>, signal: AbortSignal, execution?: CompositionExecutionContext): Promise<ThreatResult>
   inspect(runId: string): Promise<ThreatResult>
   artifact(runId: string, artifactId: string): Promise<{ filename: string; contentType: string; body: string }>
 }
@@ -53,4 +53,13 @@ export function executableCatalog(catalog: Catalog, extension?: CompositionExten
     return !config.flow || Boolean(extension?.flow)
   }
   return { ...catalog, compositions: catalog.compositions.filter(entry => entry.published && available(entry.published)) }
+}
+import type { ModelAttempt, ModelAttemptContext, AttemptRecorder } from '../evaluation/model-attempts.ts'
+export { observeLlm } from '../evaluation/model-attempts.ts'
+export type { ModelAttempt } from '../evaluation/model-attempts.ts'
+export type CompositionExecutionContext = ModelAttemptContext & { recordAttempt?: AttemptRecorder }
+export type GraphExecution = {
+  execution_id: string; parent_run_id?: string; case_id?: string; session_id?: string; tool_call_id?: string
+  source_digest?: string; build_digest?: string
+  model_attempts: ModelAttempt[]; complete: boolean; unknown_reasons?: string[]
 }

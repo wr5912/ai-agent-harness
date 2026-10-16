@@ -65,10 +65,11 @@ function waitForAbort(signal, started, aborted) {
 test('真实原生 MCP 分组把 SDK 取消传入平台组合客户端，组合调用保持长超时', async t => {
   const manager = await managerModule(t)
   const started = deferred(), aborted = deferred()
-  let observed
+  let observed, forwarded
   const platformClient = {
     listTools: async () => ({ tools: [{ name: 'wait', description: '基本模拟等待', inputSchema: { type: 'object', properties: {} } }] }),
-    callTool: (_params, options) => {
+    callTool: (params, options) => {
+      forwarded = params
       observed = options
       return waitForAbort(options?.signal, started, aborted)
     },
@@ -83,7 +84,7 @@ test('真实原生 MCP 分组把 SDK 取消传入平台组合客户端，组合�
   const token = '0'.repeat(64)
   const service = { id: 'platform-compositions', serverName: 'compositions', platformComposition: true, enabled: true, tools: { mode: 'all', names: ['wait'] } }
   const context = { webServer: { port: server.address().port, register: route => { routes.push(route); return () => {} } },
-    connection: { requestRejection: () => undefined }, effect: create => create(), on: () => {} }
+    connection: { requestRejection: () => undefined }, effect: create => create(), on: () => {}, provide(name, value) { this[name] = value } }
   manager.apply(context, { servers: { get: () => [service] }, groups: { get: () => [{ id: 'composed', members: [{ serverId: service.id, names: ['wait'] }] }] },
     sharedToken: { get: () => token }, platformClient })
   // 与当前 DSH mcp-client 的 connectGeneration 相同，自动协商现代协议。
@@ -92,13 +93,21 @@ test('真实原生 MCP 分组把 SDK 取消传入平台组合客户端，组合�
   const transport = new StreamableHTTPClientTransport(new URL('/mcp/groups/composed', origin), { requestInit: { headers: { Authorization: `Bearer ${token}` } } })
   await client.connect(transport)
   assert.equal(transport.protocolVersion, '2026-07-28')
-  assert.deepEqual((await client.listTools()).tools.map(tool => tool.name), ['mcp__compositions__wait'])
+  const discovered = await client.listTools()
+  assert.deepEqual(discovered.tools.map(tool => tool.name), ['mcp__compositions__wait'])
+  const group = context.mcpSessionManager.currentGroup('composed')
+  assert.match(group.targetDigest, /^[0-9a-f]{64}$/)
+  assert.equal(discovered._meta['io.deepseek.dsh/mcp-group-target'].digest, group.targetDigest)
+  await assert.rejects(() => client.callTool({ name: 'mcp__compositions__wait', arguments: {}, _meta: { 'io.deepseek.dsh/mcp-group-target': { digest: 'f'.repeat(64) } } }))
+  assert.equal(observed, undefined, '目标身份不符在业务派发之前拒绝')
   const controller = new AbortController()
-  const pending = client.callTool({ name: 'mcp__compositions__wait', arguments: {} }, { signal: controller.signal, timeout: 5000 })
+  const pending = client.callTool({ name: 'mcp__compositions__wait', arguments: {}, _meta: { harness: { versionId: 'fixed-version' },
+    'io.deepseek.dsh/mcp-group-target': { digest: group.targetDigest } } }, { signal: controller.signal, timeout: 5000 })
   const rejected = assert.rejects(pending)
   await bounded(Promise.race([started.promise, pending.then(() => { throw new Error('平台调用未进入等待即结束') }, error => { throw error })]), '平台客户端进入')
   assert.equal(observed.signal.aborted, false)
   assert.equal(observed.timeout, 36 * 60_000)
+  assert.equal(forwarded._meta.harness.versionId, 'fixed-version')
   controller.abort()
   await rejected
   await bounded(aborted.promise, `平台客户端取消（协商协议 ${transport.protocolVersion}）`)
@@ -133,7 +142,7 @@ test('原生 dispatch 调用真实外部 MCP 时保留认证 Header 并把取消
   const external = { id: 'basic-mock', serverName: 'basic-mock', enabled: true, url: origin + '/mcp',
     headers: [{ name: 'X-Mock-Credential', value: 'basic-test-value' }], tools: { mode: 'all', names: [] } }
   let dispatch
-  manager.apply({ webServer: { register: () => () => {} }, connection: { requestRejection: () => undefined }, effect: create => create(), on: () => {} }, {
+  manager.apply({ webServer: { register: () => () => {} }, connection: { requestRejection: () => undefined }, effect: create => create(), on: () => {}, provide() {} }, {
     servers: { get: () => [external] }, groups: { get: () => [] }, sharedToken: { get: () => '' }, platformDispatch: handler => { dispatch = handler },
   })
   const controller = new AbortController()

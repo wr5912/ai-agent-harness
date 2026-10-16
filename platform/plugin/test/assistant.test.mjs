@@ -241,6 +241,29 @@ test('真实 Session 投影隔离上下文、冷恢复固定任务，用户 prom
   assert.equal((await f.rpc('status', { session_id: 'foreign' })).ok, false)
 })
 
+test('向已有专用会话追加无context指导保留固定skill与目标，不跟随最新页面', async t => {
+  const f = fixture(t), fixed = { skill: 'compute-variant-research', workflow: 'compute-variants', agent_id: 'alpha', experiment_id: 'EXP-alpha-002' }
+  let scoped = 0, released = 0
+  f.services.scopeComputeVariants = () => { scoped++ }
+  f.services.scopeTaskBuilder = () => assert.fail('无context指导不应切换专用任务作用域')
+  f.services.releaseTaskScope = () => { released++ }
+  const id = (await f.rpc('session', { task: '生成代码变体', context: fixed })).value.session_id
+  await f.rpc('context', { session_id: id, context: { page: 'instances', instance_name: 'latest-page-only' } })
+  assert.equal((await f.rpc('session', { session_id: id, task: '补充真实Guard探针事实' })).ok, true)
+  const status = await f.status(id)
+  assert.deepEqual(status.task_context, fixed)
+  assert.equal(status.context.instance_name, 'latest-page-only')
+  assert.equal(f.prompts.at(-1).sessionId, id)
+  assert.deepEqual(f.prompts.at(-1).content, [{ type: 'text', text: '补充真实Guard探针事实' }])
+  assert.ok(scoped > 0)
+  await f.reload()
+  assert.deepEqual((await f.status(id)).task_context, fixed, '保留的固定上下文必须可冷恢复')
+  const beforeRelease = released
+  assert.equal((await f.rpc('session', { session_id: id, task: '显式切换普通讨论', context: {} })).ok, true)
+  assert.deepEqual((await f.status(id)).task_context, {})
+  assert.ok(released > beforeRelease, '显式退出专用任务后，状态入口也应释放旧作用域')
+})
+
 test('各类平台任务只装载一份共用表达正文，不写入用户消息或会话事实', async t => {
   const principles = readFileSync(new URL('../../prompts/user-facing-output.md', import.meta.url), 'utf8').trim()
   assert.ok(principles, '共用表达来源必须有正文')
@@ -721,17 +744,18 @@ test('普通资产写入与评测先使用真实preview失败时不生成确认�
 test('算力变体先预览真实计划再确认创建，摘要和方案在等待期间固定', async t => {
   const digest = 'c'.repeat(64)
   const f = fixture(t, (endpoint, input) => endpoint === 'agents/compute-variants/preview'
-    ? { ok: true, value: { parent_experiment_id: input.parent_experiment_id, parent_ref: input.parent_ref, plan: { case_hashes: { 'U-BASIC-001': 'frozen-case' }, model_change: null }, model_configuration: 'inherited_from_fixed_parent', preview_sha256: digest } } : undefined)
+    ? { ok: true, value: { variant_name: input.variant_name, parent_experiment_id: input.parent_experiment_id, parent_ref: input.parent_ref, plan: { case_hashes: { 'U-BASIC-001': 'frozen-case' }, model_change: null }, model_configuration: 'inherited_from_fixed_parent', preview_sha256: digest } } : undefined)
   const id = (await f.rpc('session', { task: '策划并创建探索性算力变体', context: { skill: 'agent-maintenance', workflow: 'compute-variants', experiment_id: 'EXP-basic-001' } })).value.session_id
   const available = f.tools.get('platform_agents').parameters.properties.action.enum
-  for (const action of ['context', 'preview', 'create', 'compare']) assert.ok(available.includes(`compute-variants/${action}`))
+  for (const action of ['context', 'preview', 'create', 'compare', 'rename']) assert.ok(available.includes(`compute-variants/${action}`))
   assert.equal(available.includes('compute-variants/confirm'), false)
   for (const action of ['context', 'compare']) assert.equal((await f.execute(id, 'agents', `compute-variants/${action}`, { experiment_id: 'EXP-basic-001' })).state, 'completed')
-  const input = { parent_experiment_id: 'EXP-basic-001', parent_ref: `git:${'a'.repeat(40)}`, strategy: '减少重复基本状态查询', case_ids: ['U-BASIC-001'], resource_metric: 'total_tokens', min_resource_reduction_pct: 10 }
+  const input = { variant_name: '基本状态轻量版', parent_experiment_id: 'EXP-basic-001', parent_ref: `git:${'a'.repeat(40)}`, strategy: '减少重复基本状态查询', case_ids: ['U-BASIC-001'], resource_metric: 'total_tokens', min_resource_reduction_pct: 10 }
   const operation = f.execute(id, 'agents', 'compute-variants/create', input)
   const proposed = await f.proposal(id)
   assert.equal(proposed.preview.value.parent_experiment_id, input.parent_experiment_id)
   assert.equal(proposed.preview.value.model_configuration, 'inherited_from_fixed_parent')
+  assert.equal(proposed.preview.value.variant_name, '基本状态轻量版')
   assert.equal(proposed.input.expected_preview_sha256, digest)
   assert.equal(f.calls.filter(call => call.endpoint === 'agents/compute-variants/create').length, 0)
   input.case_ids.push('U-OTHER-001')
@@ -741,6 +765,37 @@ test('算力变体先预览真实计划再确认创建，摘要和方案在等�
   assert.deepEqual(actual.case_ids, ['U-BASIC-001'])
   assert.equal(actual.expected_preview_sha256, digest)
   assert.equal(actual.human_confirmed, undefined)
+  assert.equal(actual.variant_name, '基本状态轻量版')
+  assert.equal(actual.strategy, '减少重复基本状态查询')
+})
+
+test('变体改名经普通写入提案确认后调用唯一名称接口，不自动修改计划或结论', async t => {
+  const f = fixture(t, (endpoint, input) => endpoint === 'agents/compute-variants/rename'
+    ? { ok: true, value: { experiment_id: input.experiment_id, variant_name: input.variant_name, change_sha256: 'b'.repeat(64) } } : undefined)
+  const id = (await f.rpc('session', { task: '将当前变体命名为资产告警轻量版', context: { skill: 'compute-variant-research', experiment_id: 'EXP-basic-002' } })).value.session_id
+  const tool = f.tools.get('platform_agents')
+  assert.match(tool.description, /variant_name是独立、简洁的变体名称/)
+  assert.match(tool.description, /实际生成时保留已确定的variant_name/)
+  const input = { experiment_id: 'EXP-basic-002', variant_name: '资产告警轻量版', expected_change_sha256: 'a'.repeat(64) }
+  const operation = f.execute(id, 'agents', 'compute-variants/rename', input)
+  const proposed = await f.proposal(id)
+  assert.equal(proposed.action, 'compute-variants/rename')
+  assert.equal(proposed.input.variant_name, '资产告警轻量版')
+  assert.equal(f.calls.some(call => call.endpoint === 'agents/compute-variants/rename'), false)
+  await f.rpc('confirm', { session_id: id, proposal_id: proposed.id })
+  const receipt = await operation
+  assert.equal(receipt.state, 'completed')
+  const writes = f.calls.filter(call => call.endpoint === 'agents/compute-variants/rename')
+  assert.equal(writes.length, 1)
+  assert.equal(writes[0].input.variant_name, '资产告警轻量版')
+  assert.equal(writes[0].input.expected_change_sha256, input.expected_change_sha256)
+  assert.equal(writes[0].input.human_confirmed, undefined)
+  assert.equal(f.calls.some(call => /compute-variants\/(create|confirm)$/.test(call.endpoint)), false)
+  const meta = tool.output.presentationMeta({ action: 'compute-variants/rename', input }, receipt)
+  assert.equal(meta.input.variant_name, '资产告警轻量版')
+  for (const extra of [{ human_confirmed: true }, { decision: 'end' }, { variant_kind: 'end' }, { end_confirmed: true }, { outcome: 'adopt' }]) {
+    await assert.rejects(() => f.execute(id, 'agents', 'compute-variants/rename', { ...input, ...extra }), /人员复核|不能更改研究结论/)
+  }
 })
 
 test('算力变体预览失败或确认时配置已变，助手不宣称创建完成', async t => {
@@ -767,8 +822,66 @@ test('助手不伪造变体人员复核，决策抽取会话也不能借新动�
   await assert.rejects(() => f.execute(id, 'agents', 'compute-variants/confirm', { human_confirmed: true }), /未知的领域操作/)
   await assert.rejects(() => f.execute(id, 'agents', 'compute-variants/create', { human_confirmed: true }), /人员复核/)
   const extraction = (await f.rpc('session', { task: '抽取决策', context: { skill: 'decision-sample-extraction', run_id: 'run-fixed' } })).value.session_id
-  for (const action of ['context', 'preview', 'compare', 'create']) await assert.rejects(() => f.execute(extraction, 'agents', `compute-variants/${action}`, { run_id: 'run-fixed' }), /决策样本任务仅允许/)
+  for (const action of ['context', 'preview', 'compare', 'create', 'rename']) await assert.rejects(() => f.execute(extraction, 'agents', `compute-variants/${action}`, { run_id: 'run-fixed' }), /决策样本任务仅允许/)
   assert.equal(f.calls.length, 0)
+})
+
+test('代码变体连续任务固定两侧Case，实际构建后Git冻结仍单独确认，比较完成不标end', async t => {
+  const parent = 'EXP-alpha-001', target = 'EXP-alpha-002', parentRef = 'git:' + 'a'.repeat(40), jobs = new Map()
+  const freezeInput = { experiment_id: target, case_ids: ['U-ASSET-001'], evaluation_base_sha256: 'e'.repeat(64) }
+  let loaded = false
+  const f = fixture(t, (endpoint, input) => {
+    if (endpoint === 'agents/detail') return { ok: true, value: { experiment: { id: input.experiment_id }, candidate_sha256: 'c'.repeat(64), evaluation: { sha256: 'fixed-cases', cases: [{ id: 'U-ASSET-001' }] }, derivation: { parent_ref: parentRef } } }
+    if (endpoint === 'agents/compute-variants/context') return { ok: true, value: { agent_id: 'alpha', parent_experiment_id: parent, fixed_parent_ref: parentRef, plan: { case_hashes: { 'U-ASSET-001': 'fixed-case' }, generation: { mode: 'langgraph-aot' } }, workflow_status: { built: true, frozen: true, loaded } } }
+    if (endpoint === 'agents/compute-variants/freeze-preview') return { ok: true, value: { preview_sha256: 'f'.repeat(64), freeze_input: freezeInput, diff: '+ 实际工作流源码' } }
+    if (endpoint === 'agents/compute-variants/freeze') return { ok: true, value: { commit: 'b'.repeat(40) } }
+    if (endpoint === 'agents/compute-variants/build-preview') return { ok: true, value: { candidate_sha256: 'c'.repeat(64), preview_sha256: 'b'.repeat(64) } }
+    if (endpoint === 'agents/compute-variants/build') return { ok: true, value: { verified: true } }
+    if (endpoint === 'agents/eval/start') { const id = 'job-' + jobs.size; jobs.set(id, { source: input.source, cases: input.cases, status: 'completed', run_id: input.source.endsWith(target) ? 'variant-run' : 'parent-run' }); return { ok: true, value: { job_id: id } } }
+    if (endpoint === 'agents/eval/status') return { ok: true, value: jobs.get(input.job_id) }
+    if (endpoint === 'agents/compute-variants/compare') return { ok: true, value: { comparability: { passed: true }, quality: { passed: false }, eligible_for_end: false } }
+  })
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '生成资产告警代码变体', context: { skill: 'compute-variant-research', experiment_id: target, agent_id: 'alpha' } })).value.session_id
+  const plan = taskPlan({ goal: '生成资产告警代码变体', agent_id: 'alpha', source: `experiment:${target}`, kind: 'compute-variant', compute_variant: { parent_experiment_id: parent, parent_ref: parentRef }, evaluation_case_ids: ['U-ASSET-001'],
+    allowed_actions: [{ domain: 'agents', action: 'edit/apply' }, { domain: 'agents', action: 'compute-variants/build' }, { domain: 'agents', action: 'eval/start' }] })
+  const drift = await f.execute(id, 'task', 'preview', { plan: { ...plan, compute_variant: { parent_experiment_id: parent, parent_ref: 'git:' + 'b'.repeat(40) } } }).then(() => undefined, error => error)
+  assert.match(drift.message, /实际冻结父版/)
+  await beginTask(f, id, plan)
+  await f.beforeModelCall(id)
+  const beforeGuidance = (await f.status(id)).execution
+  const fixedContext = (await f.status(id)).task_context
+  assert.equal((await f.rpc('session', { session_id: id, task: '追加Guard验证事实，不改变已确认任务' })).ok, true)
+  const afterGuidance = await f.status(id)
+  assert.deepEqual(afterGuidance.task_context, fixedContext)
+  assert.deepEqual(afterGuidance.execution, beforeGuidance, '追加指导不能重置任务身份、预算、截止时间或执行记录')
+  assert.match(await f.assemble(id), /读取 compute-variant-research/)
+  await assert.rejects(f.execute(id, 'agents', 'compute-variants/build', { experiment_id: parent }), /当前任务范围/)
+  await assert.rejects(f.execute(id, 'agents', 'compute-variants/rename', { experiment_id: target, variant_name: '另一个名称', expected_change_sha256: 'a'.repeat(64) }), /当前任务范围/)
+  await assert.rejects(f.execute(id, 'agents', 'eval/start', { source: `experiment:${target}`, cases: ['U-OTHER-001'] }), /当前任务范围/)
+  assert.equal((await f.execute(id, 'agents', 'compute-variants/build', { experiment_id: target, expected_candidate_sha256: 'c'.repeat(64) })).state, 'completed')
+  assert.equal(f.calls.find(call => call.endpoint === 'agents/compute-variants/build').input.expected_preview_sha256, 'b'.repeat(64))
+  const freezing = f.execute(id, 'agents', 'compute-variants/freeze', { experiment_id: target })
+  const proposed = await f.proposal(id)
+  assert.equal(proposed.action, 'compute-variants/freeze'); assert.equal(proposed.preview.value.diff, '+ 实际工作流源码')
+  assert.deepEqual(proposed.input.case_ids, ['U-ASSET-001']); assert.equal(proposed.input.evaluation_base_sha256, freezeInput.evaluation_base_sha256)
+  assert.equal(f.calls.some(call => call.endpoint === 'agents/compute-variants/freeze'), false)
+  await f.rpc('confirm', { session_id: id, proposal_id: proposed.id }); await freezing
+  for (const source of [parent, target]) await f.execute(id, 'agents', 'eval/start', { source: `experiment:${source}`, cases: ['U-ASSET-001'] })
+  const delivery = { parent_run_ids: ['parent-run'], variant_run_ids: ['variant-run'] }
+  assert.equal((await f.execute(id, 'task', 'deliver', delivery)).state, 'verification_failed', '没有真实装载证据不能交付')
+  loaded = true
+  const result = await f.execute(id, 'task', 'deliver', delivery)
+  assert.equal(result.state, 'completed'); assert.equal(result.delivery.end_confirmed, false)
+  assert.equal(f.calls.some(call => call.endpoint === 'agents/compute-variants/confirm'), false)
+  const completed = (await f.status(id)).execution
+  const renaming = f.execute(id, 'agents', 'compute-variants/rename', { experiment_id: target, variant_name: '资产告警轻量版', expected_change_sha256: 'a'.repeat(64) })
+  const renameProposal = await f.proposal(id)
+  assert.equal(renameProposal.action, 'compute-variants/rename', '任务完成后同一管理会话可发起普通改名提案')
+  assert.equal(f.calls.some(call => call.endpoint === 'agents/compute-variants/rename'), false, '完成任务不等于自动授权后续改名')
+  await f.rpc('confirm', { session_id: id, proposal_id: renameProposal.id })
+  assert.equal((await renaming).state, 'completed')
+  assert.deepEqual((await f.status(id)).execution, completed, '后续普通写入不重启或改写已完成任务')
 })
 
 
@@ -819,7 +932,7 @@ test('真实Git回退覆盖本任务编辑与装配，恢复配置和模式、�
         const path = `evolution/experiments/${input.experiment_id}/${edit.path}`
         assert.equal(sha256(readFileSync(join(root, path))), edit.expected_sha256)
         write(path, edit.content)
-        return { path, sha256: sha256(edit.content) }
+        return { path: edit.path.slice('candidate/'.length), sha256: sha256(edit.content) }
       })
       return { ok: true, value: { written } }
     }
@@ -828,8 +941,9 @@ test('真实Git回退覆盖本任务编辑与装配，恢复配置和模式、�
   installTaskGoals(f)
   const id = (await f.rpc('session', { task: '改进巡检' })).value.session_id
   await beginTask(f, id, taskPlan({ budget: { max_model_calls: 3, timeout_minutes: 30, max_repair_rounds: 3 }, allowed_actions: [{ domain: 'agents', action: 'edit/apply' }, { domain: 'agents', action: 'tasks/assembly-apply' }] }))
-  await f.execute(id, 'agents', 'edit/apply', { experiment_id: experiment, edits: [{ path: base + agentFile, content: edited, expected_sha256: sha256(original) }] })
+  await f.execute(id, 'agents', 'edit/apply', { experiment_id: experiment, edits: [{ path: agentFile, content: edited, expected_sha256: sha256(original) }] })
   assert.equal((await f.status(id)).execution.operations[0].input.edits[0].path, 'candidate/dsh/workspace/AGENTS.md')
+  assert.equal((await f.status(id)).execution.operations[0].receipt.value.written[0].path, agentFile, '回退同时支持Candidate内相对路径回执')
   const configured = '- name: cordis:include\n  config:\n    path: /opt/dsh-managed/added.mjs\n'
   await f.execute(id, 'agents', 'tasks/assembly-apply', { target_source: `experiment:${experiment}`, expected_candidate_sha256: candidateDigest(join(root, base)), files: [...added, script].map(path => ({ source: `experiment:${donor}`, path, expected_source_sha256: sha256(readFileSync(join(root, donorBase, path))), expected_target_sha256: existsSync(join(root, base, path)) ? sha256(readFileSync(join(root, base, path))) : null })), configuration_edits: [{ path: preset, content: configured, expected_target_sha256: sha256('[]\n') }] })
   await f.execute(id, 'agents', 'edit/apply', { experiment_id: experiment, edits: [{ path: `candidate/${preset}`, content: configured + '# 后续编辑\n', expected_sha256: sha256(configured) }] })
@@ -1019,6 +1133,45 @@ test('所有平台工具回执元信息保留真实动作与定位字段，不�
   assert.equal(value.input.edits[0].content, undefined)
   const preview = f.tools.get('platform_task').output.presentationMeta({ action: 'preview', input: {} }, { plan: { goal: '基本任务' } })
   assert.equal(preview.domain, 'task'); assert.equal(preview.action, 'preview')
+  assert.match(f.tools.get('platform_agents').description, /content必须是修改后完整文件正文/)
+})
+
+test('冻结模型回执省略完整编译diff并保留真实摘要，持久提案和确认RPC保持全文', async t => {
+  const diff = '完整差异开始\n' + '+ compiled-esm-boundary '.repeat(120000) + '\n完整差异结束'
+  assert.ok(Buffer.byteLength(diff) > 2400000)
+  const files = [{ path: 'evolution/experiments/EXP-alpha-002/candidate/dsh/managed/compute-workflow/index.mjs', operation: 'create', sha256: sha256('compiled-esm') }]
+  const preview = { experiment_id: 'EXP-alpha-002', preview_sha256: 'a'.repeat(64), branch: 'refs/heads/test', head: 'b'.repeat(40), tree: 'c'.repeat(40), files, diff,
+    freeze_input: { experiment_id: 'EXP-alpha-002', case_ids: ['U-ASSET-001'], evaluation_base_sha256: 'e'.repeat(64), expected_preview_sha256: 'a'.repeat(64) } }
+  const f = fixture(t, endpoint => endpoint === 'agents/compute-variants/freeze-preview' ? { ok: true, value: preview }
+    : endpoint === 'agents/compute-variants/freeze' ? { ok: true, value: { experiment_id: preview.experiment_id, commit: 'd'.repeat(40), files } } : undefined)
+  const id = (await f.rpc('session', { task: '核对代码变体冻结' })).value.session_id
+  const output = f.tools.get('platform_agents').output, args = { action: 'compute-variants/freeze-preview', input: { experiment_id: preview.experiment_id } }
+  const raw = await f.execute(id, 'agents', args.action, args.input)
+  const rendered = JSON.parse(output.render(args, raw)[0].text), meta = output.presentationMeta(args, raw)
+  for (const projected of [rendered, meta]) {
+    assert.doesNotMatch(JSON.stringify(projected), /compiled-esm-boundary|完整差异开始|完整差异结束/)
+    assert.ok(JSON.stringify(projected).length < 5000, '模型输出应只包含清单与摘要，不截断保留编译正文')
+    assert.match(JSON.stringify(projected), /原生确认卡.*完整实际差异/)
+  }
+  assert.equal(rendered.result.value.diff, undefined)
+  assert.equal(rendered.result.value.diff_sha256, sha256(diff))
+  assert.equal(rendered.result.value.diff_bytes, Buffer.byteLength(diff))
+  assert.deepEqual(rendered.result.value.files, files)
+  assert.equal(raw.result.value.diff, diff, '模型投影不得修改原始RPC值')
+  const pending = f.execute(id, 'agents', 'compute-variants/freeze', args.input)
+  const proposal = await f.proposal(id)
+  assert.equal(proposal.preview.value.diff, diff, '原生确认卡读取的持久预览必须完整')
+  assert.equal(f.calls.some(row => row.endpoint === 'agents/compute-variants/freeze'), false)
+  const confirmation = await f.rpc('confirm', { session_id: id, proposal_id: proposal.id })
+  assert.equal(confirmation.value.preview.value.diff, diff, '确认RPC及历史原始回执保留完整预览')
+  const settled = await pending, settledArgs = { ...args, action: 'compute-variants/freeze' }
+  assert.equal(settled.preview_sha256, preview.preview_sha256)
+  assert.equal(settled.result.value.commit, 'd'.repeat(40))
+  for (const projected of [output.render(settledArgs, settled), output.presentationMeta(settledArgs, settled), output.render(settledArgs, confirmation.value), output.presentationMeta(settledArgs, confirmation.value)]) {
+    assert.doesNotMatch(JSON.stringify(projected), /compiled-esm-boundary/)
+    assert.ok(JSON.stringify(projected).length < 5000)
+  }
+  assert.equal((await f.status(id)).proposals[0].preview.value.diff, diff)
 })
 
 test('用户可仅拒绝当前未执行提案，结算原工具但不取消其他提案或执行写入', async t => {

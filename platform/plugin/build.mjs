@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { createHash } from 'node:crypto'
 
 execFileSync(process.execPath, [fileURLToPath(new URL('../../runtime/adapters/dsh-web/build.mjs', import.meta.url))], { stdio: 'inherit' })
 
@@ -121,6 +122,14 @@ export const managerSources = {
 }
 
 const { name } = JSON.parse(await readFile(new URL('./package.json', import.meta.url), 'utf8'))
+// 固定已打包执行代码的身份，不能用运行时工作树替代实际装载制品。
+const implementationFiles = ['definition.ts', 'compositions.ts', 'executor.ts', 'index.ts', 'openapi.ts', 'native.ts', 'nested.ts', 'extension.ts']
+  .map(file => `platform/plugin/src/mcp/${file}`)
+  .concat(['platform/plugin/build.mjs', 'platform/plugin/package.json', 'platform/plugin/pnpm-lock.yaml', 'platform/plugin/src/index.ts',
+    'platform/plugin/src/evaluation/model-attempts.ts', 'platform/plugin/src/workflows/graph.ts', ...['index.ts', 'openapi.ts'].map(file => `plugins/mcp-manager/${file}`)])
+const implementationHash = createHash('sha256')
+for (const file of implementationFiles) implementationHash.update(file).update('\0').update(await readFile(new URL('../../' + file, import.meta.url)))
+const implementationDefine = { __PLATFORM_MCP_IMPLEMENTATION_DIGEST__: JSON.stringify(implementationHash.digest('hex')) }
 await build({
   entryPoints: ['src/index.ts'],
   outfile: 'lib/index.js',
@@ -131,10 +140,11 @@ await build({
   packages: 'external',
   loader: { '.svg': 'dataurl' },
   legalComments: 'none',
+  define: implementationDefine,
   plugins: [managerSources],
 })
 await build({ entryPoints: ['src/mcp/manager.ts'], outfile: 'lib/mcp-manager.js', bundle: true,
-  platform: 'node', target: 'node24', format: 'esm', packages: 'external', plugins: [managerSources], legalComments: 'none' })
+  platform: 'node', target: 'node24', format: 'esm', packages: 'external', plugins: [managerSources], legalComments: 'none', define: implementationDefine })
 await build({
   entryPoints: ['src/client.tsx'],
   outfile: 'lib/client.js',
