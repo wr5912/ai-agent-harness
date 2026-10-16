@@ -3,19 +3,26 @@ import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import test from 'node:test'
 import { build } from 'esbuild'
-
 const require = createRequire(import.meta.url)
 const compiled = await build({ entryPoints: [new URL('../src/evaluation/dataset-view.tsx', import.meta.url).pathname], bundle: true, write: false, platform: 'node', format: 'cjs', external: ['react', 'react/jsx-runtime'] })
-const baseQuestion = { type: 'choice', instructions: '选择基本查询', criteria: { read: '读取基本状态', ask: '补充测试标识' }, label: 'read', src: 'basic' }
-const record = (id, instruction) => ({ state: { request: '查询基础测试资产' }, questions: { decision: { ...baseQuestion, instructions: instruction } }, _meta: { id, label_status: 'suggested', label_basis: '待核对的建议', group_id: 'task-basic', split: 'unassigned', cutoff: { line: 41, session_log: 'session.v4.jsonl' }, trace_path: 'evidence/C-1/trace.jsonl', observed_action: { name: 'get_inspection_result', arguments: { runId: 'basic-run' } } } })
+const baseQuestion = { type: 'choice', instructions: '选择基本查询', criteria: { read: '读取基本状态', ask: '补充测试标识' } }
+const target = label => ({ label, provenance: { kind: 'model_suggestion', model: 'test-model' }, basis: '待核对的建议', status: 'suggested', decision_time_reviewed: false })
+const record = (id, instruction) => ({ state: { request: '查询基础测试资产' }, workflow: '安全事件处置', task: { id: '资产查询', semantics: 'recommended_decision' }, questions: { action: { ...baseQuestion, instructions: instruction }, needs_review: { type: 'noul', instructions: '是否需要人工复核？' } }, targets: { action: target('read'), needs_review: target(true) }, _meta: { id, source_group_id: 'fixed-task-basic', group_id: 'task-basic', split: 'unassigned', cutoff: { line: 141, session_log: 'session.v4.jsonl' }, trace_path: 'evidence/C-1/trace.jsonl', observed_action: { name: 'get_inspection_result' } } })
+// 夹具返回服务端 DTO；页面应消费 counts/reasons，不根据本地字段重算资格。
+const eligibility = dataset => {
+  const counts = { candidates: dataset.records.length, training: 0, development: 0, calibration: 0, test: 0 }
+  if (dataset.schema_version === 2) for (const item of dataset.records) {
+    const mode = item._meta.split === 'train' ? 'training' : item._meta.split
+    if (Object.hasOwn(counts, mode) && mode !== 'candidates' && Object.values(item.targets).some(value => value.status === 'reviewed')) counts[mode]++
+  }
+  return { counts, records: dataset.records.map(item => ({ record_id: item._meta.id, legacy: dataset.schema_version !== 2, reasons: ['尚需核对来源和明确数据用途'], eligible_questions: [], question_reasons: { action: ['本题尚未合格'] }, export_modes: ['candidates'] })), blocked: [{ record_id: dataset.records[0]._meta.id, reasons: ['固定来源与另一个留出批次关联'] }] }
+}
 function workbench({ handler } = {}) {
-  const states = [], deps = [], cleanups = [], calls = [], downloads = [], blobs = [], dirty = [], confirms = [], answers = []
+  const states = [], deps = [], cleanups = [], calls = [], downloads = [], blobs = [], dirty = [], confirms = [], answers = [], sources = [], reextractions = []
   let cursor, effects, changed, tree, errorMessage = ''
-  const documents = new Map(['dataset-a', 'dataset-b'].map((id, index) => [id, { dataset: { id, run_id: 'run-a', records: [record(`${id}-1`, `第一题 ${index}`), record(`${id}-2`, `第二题 ${index}`)], extractor: {}, skipped: [] }, sha256: `${id}-v1` }]))
-  const updateListeners = new Set()
-  const updates = { subscribe: callback => { updateListeners.add(callback); return () => updateListeners.delete(callback) }, getSnapshot: () => ({ domains: ['agents'] }) }
-  const react = {
-    ...require('react'),
+  const documents = new Map(['dataset-a', 'dataset-b'].map((id, index) => [id, { dataset: { schema_version: 2, id, run_id: 'run-a', records: [record(`${id}-1`, `第一题 ${index}`), record(`${id}-2`, `第二题 ${index}`)], extractor: {}, skipped: [] }, sha256: `${id}-v1` }]))
+  const listeners = new Set(), updates = { subscribe: callback => { listeners.add(callback); return () => listeners.delete(callback) }, getSnapshot: () => ({ domains: ['agents'] }) }
+  const react = { ...require('react'),
     useState(initial) { const index = cursor++; if (!(index in states)) states[index] = initial; return [states[index], next => { const value = typeof next === 'function' ? next(states[index]) : next; if (!Object.is(value, states[index])) { states[index] = value; changed = true } }] },
     useRef(initial) { const index = cursor++; if (!(index in states)) states[index] = { current: initial }; return states[index] },
     useEffect(effect, dependencies) { const index = cursor++; if (!deps[index] || dependencies.some((value, at) => value !== deps[index][at])) { deps[index] = dependencies; effects.push(() => { cleanups[index]?.(); cleanups[index] = effect() }) } },
@@ -23,197 +30,174 @@ function workbench({ handler } = {}) {
   const window = { confirm: text => { confirms.push(text); return answers.shift() ?? true }, document: { createElement: () => { const link = { click: () => downloads.push({ href: link.href, filename: link.download }) }; return link } } }
   const module = { exports: {} }
   vm.runInNewContext(compiled.outputFiles[0].text, { module, exports: module.exports, require: name => name === 'react' ? react : require(name), window, Blob, URL: { createObjectURL: blob => { blobs.push(blob); return `blob:${blobs.length}` }, revokeObjectURL() {} }, setTimeout: callback => { callback(); return 1 } })
-  const defaultHandler = async (action, input) => {
-    if (action === 'list') return { datasets: [...documents.values()].map(value => ({ id: value.dataset.id, created_at: '2026-10-16', count: value.dataset.records.length, reviewed: value.dataset.records.filter(item => item._meta.label_status === 'reviewed').length })) }
-    if (action === 'read') return structuredClone(documents.get(input.dataset_id))
+  const result = value => ({ ...structuredClone(value), eligibility: eligibility(value.dataset) })
+  const original = async (action, input) => {
+    if (action === 'list') return { datasets: [...documents.values()].map(value => ({ id: value.dataset.id, created_at: '2026-10-16', count: value.dataset.records.length, reviewed: 0 })) }
+    if (action === 'read') return result(documents.get(input.dataset_id))
     if (action === 'update') {
       if (errorMessage) throw new Error(errorMessage)
       const value = documents.get(input.dataset_id), item = value.dataset.records.find(entry => entry._meta.id === input.record_id)
       assert.equal(input.expected_sha256, value.sha256)
-      item.questions.decision = structuredClone(input.question); item._meta = { ...item._meta, label_basis: input.label_basis, group_id: input.group_id, split: input.split, label_status: input.label_status, decision_time_reviewed: input.label_status === 'reviewed' && input.decision_time_reviewed === true }
-      value.sha256 += '-next'; return structuredClone(value)
+      item.workflow = input.workflow; item.task = structuredClone(input.task); item.questions = structuredClone(input.questions); item.targets = structuredClone(input.targets)
+      item._meta = { ...item._meta, group_id: input.group_id, split: input.split }; value.sha256 += '-next'; return result(value)
     }
-    if (action === 'export') return { filename: `${input.dataset_id}-${input.kind}.jsonl`, count: input.kind === 'candidates' ? 2 : 1, content: `${JSON.stringify({ kind: input.kind, saved: true })}\n` }
+    if (action === 'export') return { filename: `${input.dataset_id}-${input.kind}.jsonl`, count: input.kind === 'candidates' ? 2 : 1, question_count: input.kind === 'candidates' ? 4 : 1, omitted_question_count: input.kind === 'candidates' ? 0 : 3, content: `${JSON.stringify({ kind: input.kind, saved: true })}\n` }
     throw new Error(`unknown ${action}`)
   }
-  const props = { runId: 'run-a', active: true, updates, onDirty: value => dirty.push(value), rpc: { call: async (_channel, endpoint, input) => {
+  const props = { runId: 'run-a', active: true, updates, onDirty: value => dirty.push(value), onSource: source => sources.push(source), onReextract: () => reextractions.push(true), rpc: { call: async (_channel, endpoint, input) => {
     const action = endpoint.replace('agents/datasets/', ''); calls.push({ action, input })
-    try { return { ok: true, value: await (handler ? handler(action, input, defaultHandler) : defaultHandler(action, input)) } } catch (error) { const [code, ...message] = error.message.split(': '); return { ok: false, error: { code, message: message.join(': ') } } }
+    try { return { ok: true, value: await (handler ? handler(action, input, original) : original(action, input)) } } catch (error) { const [code, ...message] = error.message.split(': '); return { ok: false, error: { code, message: message.join(': ') } } }
   } } }
   function render() { let turns = 0; do { if (++turns > 60) throw new Error('render did not settle'); cursor = 0; effects = []; changed = false; tree = module.exports.DecisionDatasetView(props); effects.forEach(effect => effect()) } while (changed); return tree }
   async function settle() { for (let index = 0; index < 7; index++) { render(); await new Promise(resolve => setImmediate(resolve)) }; return render() }
   function nodes(value) { if (!arguments.length) value = tree; if (Array.isArray(value)) return value.flatMap(item => nodes(item)); if (!value || typeof value !== 'object') return []; return [value, ...(value.props?.children === undefined ? [] : nodes(value.props.children))] }
   function text(value) { if (!arguments.length) value = tree; return Array.isArray(value) ? value.map(item => text(item)).join('') : value && typeof value === 'object' ? text(value.props?.children) : String(value ?? '') }
-  const byLabel = label => nodes().find(node => node.props?.['aria-label'] === label)
-  const button = title => nodes().find(node => node.type === 'button' && text(node) === title)
+  const byLabel = label => nodes().find(node => node.props?.['aria-label'] === label), button = title => nodes().find(node => node.type === 'button' && text(node) === title), download = title => nodes().find(node => node.type === 'button' && text(node).startsWith(`下载${title} JSONL`))
   function change(label, value) { byLabel(label).props.onChange({ target: { value } }); render() }
-  function check(value = true) { byLabel('已核对决策时点与题目一致').props.onChange({ target: { checked: value } }); render() }
-  function review() { check(); button('确认标签并复核本条').props.onClick() }
+  function check(index = 1, value = true) { byLabel(`已核对第 ${index} 题输入与监督目标`).props.onChange({ target: { checked: value } }); render() }
+  function review(index = 1) { check(index); button(`确认第 ${index} 题已复核`).props.onClick(); render() }
+  async function save() { button('保存本条修改与复核').props.onClick(); await settle() }
   render()
-  return { settle, render, nodes, text, byLabel, button, change, check, review, calls, downloads, blobs, dirty, confirms, answers, documents, notify() { [...updateListeners].forEach(listener => listener()) }, setError(value) { errorMessage = value }, setRun(value) { props.runId = value; render() }, cleanup() { cleanups.forEach(cleanup => cleanup?.()) } }
+  return { settle, render, nodes, text, byLabel, button, download, change, check, review, save, calls, downloads, blobs, dirty, confirms, answers, documents, sources, reextractions, notify() { [...listeners].forEach(listener => listener()) }, setError(value) { errorMessage = value }, setRun(value) { props.runId = value; render() }, setActive(value) { props.active = value; render() }, cleanup() { cleanups.forEach(cleanup => cleanup?.()) } }
 }
 async function open(ui, id = 'dataset-a') { await ui.settle(); ui.change('样本批次', id); await ui.settle() }
 
-test('保存冲突保留问题、标签依据与分组草稿，未保存内容不冒充成功', async () => {
+test('多命名题分离输入与目标，显示业务语义、实际动作、逐题来源和服务端限制', async () => {
   const ui = workbench()
   try {
-    await open(ui); ui.change('决策问题 JSON', JSON.stringify({ ...baseQuestion, label: 'ask' })); ui.change('决策标签依据', '需要保留的人工依据'); ui.change('决策任务分组', 'task-revised'); ui.change('决策数据用途', 'development'); ui.setError('conflict: 样本已被其他任务修改')
-    ui.button('保存修改，待复核').props.onClick(); await ui.settle()
-    assert.match(ui.text(), /草稿已保留/); assert.equal(ui.byLabel('决策标签依据').props.value, '需要保留的人工依据'); assert.equal(ui.byLabel('决策任务分组').props.value, 'task-revised')
-    assert.equal(JSON.parse(ui.byLabel('决策问题 JSON').props.value).label, 'ask'); assert.equal(ui.dirty.at(-1), true)
-    assert.equal(ui.calls.find(item => item.action === 'update').input.expected_sha256, 'dataset-a-v1')
-    assert.equal(ui.documents.get('dataset-a').dataset.records[0]._meta.label_status, 'suggested')
+    await open(ui); assert.equal(ui.byLabel('决策业务流程').props.value, '安全事件处置'); assert.equal(ui.byLabel('第 1 题名称').props.value, 'action'); assert.equal(ui.byLabel('第 2 题名称').props.value, 'needs_review')
+    assert.equal(ui.byLabel('第 2 题题型').props.value, 'noul'); assert.equal(ui.byLabel('第 2 题标签 JSON').props.value, 'true')
+    assert.match(ui.text(), /实际动作只供对照.*model_suggestion/s); assert.match(ui.text(ui.byLabel('样本决策时点')), /第 141 行.*session.v4.jsonl.*get_inspection_result/s)
+    assert.match(ui.text(), /固定来源与另一个留出批次关联/); assert.match(ui.text(ui.byLabel('第 1 题导出限制')), /本题尚未合格/)
+    ui.change('决策监督语义', 'observed_action'); assert.match(ui.text(), /不能因此认定该行为正确或最佳/)
   } finally { ui.cleanup() }
 })
 
-test('人工复核仅改变当前样本，训练下载与候选下载使用不同保存结果', async () => {
+test('保存冲突保留逐题标签、依据、分组与用途草稿', async () => {
   const ui = workbench()
   try {
-    await open(ui); assert.equal(ui.button('下载已复核训练 JSONL').props.disabled, true)
-    ui.button('下载候选 JSONL').props.onClick(); await ui.settle()
-    ui.review(); await ui.settle()
-    const records = ui.documents.get('dataset-a').dataset.records
-    assert.equal(records[0]._meta.label_status, 'reviewed'); assert.equal(records[1]._meta.label_status, 'suggested')
-    assert.equal(ui.calls.find(item => item.action === 'update').input.record_id, 'dataset-a-1')
-    assert.equal(ui.button('下载已复核训练 JSONL').props.disabled, false)
-    ui.button('下载已复核训练 JSONL').props.onClick(); await ui.settle()
-    assert.deepEqual(ui.calls.filter(item => item.action === 'export').map(item => item.input.kind), ['candidates', 'training'])
-    assert.deepEqual(ui.downloads.map(item => item.filename), ['dataset-a-candidates.jsonl', 'dataset-a-training.jsonl'])
-    assert.equal(JSON.parse(await ui.blobs[1].text()).kind, 'training')
+    await open(ui); ui.change('第 1 题标签 JSON', '"ask"'); ui.change('第 1 题标签依据', '需要保留的人工依据'); ui.change('决策任务分组', 'task-revised'); ui.change('决策数据用途', 'development'); ui.setError('conflict: 样本已被其他任务修改'); await ui.save()
+    assert.match(ui.text(), /草稿已保留/); assert.equal(ui.byLabel('第 1 题标签依据').props.value, '需要保留的人工依据'); assert.equal(ui.byLabel('决策任务分组').props.value, 'task-revised'); assert.equal(ui.byLabel('第 1 题标签 JSON').props.value, '"ask"'); assert.equal(ui.dirty.at(-1), true)
+    assert.equal(ui.calls.find(item => item.action === 'update').input.expected_sha256, 'dataset-a-v1'); assert.equal(ui.documents.get('dataset-a').dataset.records[0].targets.action.status, 'suggested')
   } finally { ui.cleanup() }
 })
 
-test('非法 JSON 不发送更新，分组跨 split 错误直接显示且保留草稿', async () => {
+test('逐题复核需要保存，未分配不启用训练，导出仅含合格题目', async () => {
   const ui = workbench()
   try {
-    await open(ui); ui.change('决策问题 JSON', '{broken'); ui.review(); await ui.settle()
-    assert.match(ui.text(), /草稿已保留/); assert.equal(ui.calls.filter(item => item.action === 'update').length, 0)
-    ui.change('决策问题 JSON', JSON.stringify(baseQuestion)); ui.change('决策数据用途', 'test'); ui.setError('invalid_dataset: 同一任务分组不能跨训练、开发、校准与测试用途')
-    ui.review(); await ui.settle()
-    assert.match(ui.text(), /同一任务分组不能跨/); assert.equal(ui.byLabel('决策数据用途').props.value, 'test')
+    await open(ui); assert.equal(ui.download('已复核训练').props.disabled, true); ui.review(); assert.equal(ui.calls.some(item => item.action === 'update'), false); await ui.save(); assert.equal(ui.download('已复核训练').props.disabled, true)
+    ui.change('决策数据用途', 'train'); await ui.save()
+    const records = ui.documents.get('dataset-a').dataset.records; assert.equal(records[0].targets.action.status, 'reviewed'); assert.equal(records[0].targets.needs_review.status, 'suggested'); assert.equal(records[1].targets.action.status, 'suggested'); assert.equal(ui.download('已复核训练').props.disabled, false)
+    ui.download('候选').props.onClick(); await ui.settle(); ui.download('已复核训练').props.onClick(); await ui.settle()
+    assert.deepEqual(ui.calls.filter(item => item.action === 'export').map(item => item.input.kind), ['candidates', 'training']); assert.deepEqual(ui.downloads.map(item => item.filename), ['dataset-a-candidates.jsonl', 'dataset-a-training.jsonl']); assert.match(ui.text(), /含 1 题；3 题不满足该用途，未导出/)
   } finally { ui.cleanup() }
 })
 
-test('有草稿时拒绝切换保留当前样本，迟到的旧批次响应不覆盖新批次', async () => {
-  let release
-  const waiting = new Promise(resolve => { release = resolve })
+test('修改题目规则标签概率依据需先保存再复核，只撤销受影响题目', async () => {
+  const ui = workbench()
+  try {
+    await open(ui); ui.review(1); ui.review(2); await ui.save()
+    for (const [label, value] of [['第 1 题问题', '下一步选择哪种查询？'], ['第 1 题规则 JSON', '{"read":"查询资产","ask":"补充资料"}'], ['第 1 题标签 JSON', '"ask"'], ['第 1 题概率 JSON', '{"read":0.2,"ask":0.8}'], ['第 1 题标签依据', '新增可核对依据']]) {
+      ui.change(label, value); assert.equal(ui.byLabel('已核对第 1 题输入与监督目标').props.checked, false); assert.equal(ui.byLabel('已核对第 1 题输入与监督目标').props.disabled, true); assert.equal(ui.byLabel('已核对第 2 题输入与监督目标').props.checked, true); assert.match(ui.text(), /请先保存修改，再核对并复核本题/)
+      await ui.save(); assert.equal(ui.byLabel('已核对第 1 题输入与监督目标').props.disabled, false); ui.review(); await ui.save()
+    }
+    const update = ui.calls.filter(item => item.action === 'update').at(-1).input; assert.deepEqual(JSON.parse(JSON.stringify(update.targets.action.probabilities)), { read: 0.2, ask: 0.8 }); assert.equal(update.targets.action.status, 'reviewed'); assert.equal(update.targets.needs_review.status, 'reviewed')
+    ui.change('决策业务任务', '新的业务任务'); assert.equal(ui.byLabel('已核对第 2 题输入与监督目标').props.checked, false)
+  } finally { ui.cleanup() }
+})
+
+test('可选概率不补onehot，支持新增score命名题并保存、移除', async () => {
+  const ui = workbench()
+  try {
+    await open(ui); assert.equal(ui.byLabel('第 1 题概率 JSON').props.value, ''); ui.button('添加命名决策题').props.onClick(); ui.render()
+    ui.change('第 3 题名称', 'severity'); ui.change('第 3 题题型', 'score'); ui.change('第 3 题问题', '材料支持哪个风险等级？'); ui.change('第 3 题规则 JSON', '["低","中","高"]'); ui.change('第 3 题标签 JSON', '1'); ui.change('第 3 题标签依据', '材料支持中等风险'); await ui.save()
+    const input = ui.calls.filter(item => item.action === 'update').at(-1).input; assert.equal(Object.hasOwn(input.targets.action, 'probabilities'), false); assert.equal(input.questions.severity.type, 'score'); assert.equal(input.targets.severity.label, 1); assert.equal(Object.hasOwn(input.questions.action, 'label'), false)
+    ui.button('移除第 3 题').props.onClick(); ui.render(); await ui.save(); assert.equal(ui.byLabel('第 3 题名称'), undefined)
+  } finally { ui.cleanup() }
+})
+
+test('非法JSON不发送更新，服务端分组跨用途错误显示且保留草稿', async () => {
+  const ui = workbench()
+  try {
+    await open(ui); ui.change('第 1 题规则 JSON', '{broken'); await ui.save(); assert.match(ui.text(), /草稿已保留/); assert.equal(ui.calls.filter(item => item.action === 'update').length, 0)
+    ui.change('第 1 题规则 JSON', JSON.stringify(baseQuestion.criteria)); ui.change('决策数据用途', 'test'); ui.setError('invalid_dataset: 同源任务不能跨训练、开发、校准与测试用途'); await ui.save(); assert.match(ui.text(), /同源任务不能跨/); assert.equal(ui.byLabel('决策数据用途').props.value, 'test')
+  } finally { ui.cleanup() }
+})
+
+test('拒绝切换保留草稿，迟到旧批次响应不覆盖新批次', async () => {
+  let release; const waiting = new Promise(resolve => { release = resolve })
   const ui = workbench({ handler: async (action, input, original) => { if (action === 'read' && input.dataset_id === 'dataset-a') await waiting; return original(action, input) } })
   try {
-    await ui.settle(); ui.change('样本批次', 'dataset-a'); await ui.settle(); ui.change('样本批次', 'dataset-b'); await ui.settle(); release(); await ui.settle()
-    assert.equal(ui.byLabel('样本批次').props.value, 'dataset-b'); assert.equal(JSON.parse(ui.byLabel('决策问题 JSON').props.value).instructions, '第一题 1')
-    ui.change('决策标签依据', '保留草稿'); ui.answers.push(false); ui.change('样本批次', 'dataset-a'); await ui.settle()
-    assert.equal(ui.byLabel('样本批次').props.value, 'dataset-b'); assert.equal(ui.byLabel('决策标签依据').props.value, '保留草稿')
-    const other = ui.nodes().find(node => node.type === 'button' && ui.text(node).includes('第二题 1'))
-    ui.answers.push(false); other.props.onClick(); await ui.settle(); assert.equal(ui.byLabel('决策标签依据').props.value, '保留草稿')
+    await ui.settle(); ui.change('样本批次', 'dataset-a'); await ui.settle(); ui.change('样本批次', 'dataset-b'); await ui.settle(); release(); await ui.settle(); assert.equal(ui.byLabel('样本批次').props.value, 'dataset-b'); assert.equal(ui.byLabel('第 1 题问题').props.value, '第一题 1')
+    ui.change('第 1 题标签依据', '保留草稿'); ui.answers.push(false); ui.change('样本批次', 'dataset-a'); await ui.settle(); assert.equal(ui.byLabel('样本批次').props.value, 'dataset-b'); assert.equal(ui.byLabel('第 1 题标签依据').props.value, '保留草稿')
+    ui.answers.push(false); ui.nodes().find(node => node.type === 'button' && ui.text(node).includes('第二题 1')).props.onClick(); await ui.settle(); assert.equal(ui.byLabel('第 1 题标签依据').props.value, '保留草稿')
   } finally { ui.cleanup() }
 })
 
-test('切换 Run 后旧读取响应不回填原批次，迟到导出也不污染当前消息', async () => {
-  let release
-  const waiting = new Promise(resolve => { release = resolve })
+test('切换Run后的迟到导出不污染当前消息', async () => {
+  let release; const waiting = new Promise(resolve => { release = resolve })
   const ui = workbench({ handler: async (action, input, original) => { if (action === 'export') await waiting; return original(action, input) } })
-  try {
-    await open(ui); ui.button('下载候选 JSONL').props.onClick(); await ui.settle(); ui.setRun('run-b'); await ui.settle(); release(); await ui.settle()
-    assert.equal(ui.byLabel('样本批次').props.value, '')
-    assert.ok(!ui.text().includes('已下载 2 条候选样本'), '前一 Run 的迟到导出回执不能显示为当前操作结果')
-  } finally { ui.cleanup() }
+  try { await open(ui); ui.download('候选').props.onClick(); await ui.settle(); ui.setRun('run-b'); await ui.settle(); release(); await ui.settle(); assert.equal(ui.byLabel('样本批次').props.value, ''); assert.ok(!ui.text().includes('已下载 2 条候选样本')) } finally { ui.cleanup() }
 })
 
-test('刷新时干净记录更新，脏草稿收到冲突提示并可显式重读最新摘要', async () => {
+test('刷新更新干净记录，冲突保留草稿，显式重读后使用新摘要', async () => {
   const ui = workbench()
   try {
-    await open(ui)
-    const server = ui.documents.get('dataset-a')
-    server.dataset.records[0]._meta.label_basis = '另一窗口保存的新依据'; server.sha256 = 'dataset-a-v2'
-    ui.button('刷新样本').props.onClick(); await ui.settle()
-    assert.equal(ui.byLabel('决策标签依据').props.value, '另一窗口保存的新依据')
-    ui.change('决策标签依据', '当前窗口的未保存草稿')
-    server.dataset.records[0]._meta.label_basis = '另一窗口第二次保存'; server.sha256 = 'dataset-a-v3'
-    ui.button('刷新样本').props.onClick(); await ui.settle()
-    assert.equal(ui.byLabel('决策标签依据').props.value, '当前窗口的未保存草稿')
-    assert.match(ui.text(), /其他窗口修改.*草稿保留/)
-    ui.button('重新读取本批次').props.onClick(); await ui.settle()
-    assert.equal(ui.byLabel('决策标签依据').props.value, '另一窗口第二次保存')
-    ui.change('决策标签依据', '在新版本上继续修改')
-    ui.button('保存修改，待复核').props.onClick(); await ui.settle()
-    assert.equal(ui.calls.filter(item => item.action === 'update').at(-1).input.expected_sha256, 'dataset-a-v3')
+    await open(ui); const server = ui.documents.get('dataset-a'); server.dataset.records[0].targets.action.basis = '另一窗口的新依据'; server.sha256 = 'dataset-a-v2'; ui.button('刷新样本').props.onClick(); await ui.settle(); assert.equal(ui.byLabel('第 1 题标签依据').props.value, '另一窗口的新依据')
+    ui.change('第 1 题标签依据', '未保存草稿'); server.dataset.records[0].targets.action.basis = '另一窗口第二次保存'; server.sha256 = 'dataset-a-v3'; ui.button('刷新样本').props.onClick(); await ui.settle(); assert.equal(ui.byLabel('第 1 题标签依据').props.value, '未保存草稿'); assert.match(ui.text(), /其他窗口修改.*草稿保留/)
+    ui.button('重新读取本批次').props.onClick(); await ui.settle(); assert.equal(ui.byLabel('第 1 题标签依据').props.value, '另一窗口第二次保存'); ui.change('第 1 题标签依据', '继续编辑'); await ui.save(); assert.equal(ui.calls.filter(item => item.action === 'update').at(-1).input.expected_sha256, 'dataset-a-v3')
   } finally { ui.cleanup() }
 })
 
-test('刷新先读取旧快照后延迟，保存复核新版本后旧响应不能撤销复核或回退摘要', async () => {
-  let hold = false, release
-  const waiting = new Promise(resolve => { release = resolve })
-  const ui = workbench({ handler: async (action, input, original) => {
-    if (action === 'read' && hold) { hold = false; const old = await original(action, input); await waiting; return old }
-    return original(action, input)
-  } })
+test('保存后迟到旧刷新不撤销复核，订阅使用当前摘要', async () => {
+  let hold = false, release; const waiting = new Promise(resolve => { release = resolve })
+  const ui = workbench({ handler: async (action, input, original) => { if (action === 'read' && hold) { hold = false; const old = await original(action, input); await waiting; return old }; return original(action, input) } })
   try {
-    await open(ui); hold = true; ui.button('刷新样本').props.onClick(); await ui.settle()
-    ui.review(); await ui.settle()
-    assert.equal(ui.button('下载已复核训练 JSONL').props.disabled, false)
-    release(); await ui.settle()
-    assert.equal(ui.button('下载已复核训练 JSONL').props.disabled, false, '迟到 v1 不能覆盖已保存的 reviewed v2')
-    ui.change('决策标签依据', '基于新摘要继续编辑'); ui.button('保存修改，待复核').props.onClick(); await ui.settle()
-    assert.equal(ui.calls.filter(item => item.action === 'update').at(-1).input.expected_sha256, 'dataset-a-v1-next')
+    await open(ui); hold = true; ui.button('刷新样本').props.onClick(); await ui.settle(); ui.review(); await ui.save(); release(); await ui.settle(); assert.equal(ui.byLabel('已核对第 1 题输入与监督目标').props.checked, true)
+    ui.change('第 1 题标签依据', '基于新摘要编辑'); ui.notify(); await ui.settle(); assert.ok(!ui.text().includes('其他窗口修改')); await ui.save(); assert.equal(ui.calls.filter(item => item.action === 'update').at(-1).input.expected_sha256, 'dataset-a-v1-next')
   } finally { ui.cleanup() }
 })
 
-test('原订阅闭包在记录切换和保存后检查当前摘要，未变化文件不误报冲突', async () => {
+test('各用途资格完全消费服务端结果，来源警示与留出下载可见', async () => {
+  const ui = workbench({ handler: async (action, input, original) => { const value = await original(action, input); if (action === 'read') { value.eligibility.counts = { candidates: 2, training: 0, development: 1, calibration: 1, test: 1 }; value.warnings = ['来源身份文件已改变'] }; return value } })
+  try {
+    const item = ui.documents.get('dataset-a').dataset.records[0]; item._meta.split = 'train'; item.targets.action.status = 'reviewed'; item.targets.action.decision_time_reviewed = true
+    await open(ui); assert.equal(ui.download('已复核训练').props.disabled, true); assert.match(ui.text(), /来源身份文件已改变/)
+    for (const title of ['已复核开发', '已复核校准', '已复核测试']) { assert.equal(ui.download(title).props.disabled, false); ui.download(title).props.onClick(); await ui.settle() }; assert.deepEqual(ui.calls.filter(item => item.action === 'export').map(item => item.input.kind), ['development', 'calibration', 'test'])
+  } finally { ui.cleanup() }
+})
+
+test('旧格式只读保留原标签与复核，可下载候选及重新抽取', async () => {
   const ui = workbench()
   try {
-    await open(ui); ui.review(); await ui.settle()
-    ui.change('决策标签依据', '当前未保存的依据')
-    ui.notify(); await ui.settle()
-    assert.equal(ui.byLabel('决策标签依据').props.value, '当前未保存的依据')
-    assert.ok(!ui.text().includes('其他窗口修改'), '订阅创建时的旧 document 不得与当前未变化文件误判冲突')
+    const dataset = ui.documents.get('dataset-a').dataset; delete dataset.schema_version; delete dataset.records[0].targets; dataset.records[0].questions = { decision: { ...baseQuestion, label: 'read', src: 'legacy-source' } }; dataset.records[0]._meta.label_status = 'reviewed'
+    await open(ui); assert.match(ui.text(), /旧格式样本，仅供阅读和候选下载/); assert.match(ui.text(), /legacy-source/); assert.equal(ui.byLabel('决策业务流程'), undefined); assert.equal(ui.button('保存本条修改与复核'), undefined); assert.equal(ui.download('已复核训练').props.disabled, true)
+    ui.download('候选').props.onClick(); await ui.settle(); ui.button('按当前合同重新抽取').props.onClick(); assert.equal(ui.reextractions.length, 1); assert.equal(ui.calls.some(item => item.action === 'update'), false)
   } finally { ui.cleanup() }
 })
 
-test('已复核测试样本仍保留候选下载，训练下载不会因 reviewed 状态自动启用', async () => {
+test('查看原始轨迹并返回时保留样本选择、标签草稿', async () => {
   const ui = workbench()
   try {
-    await open(ui)
-    ui.change('决策数据用途', 'test')
-    ui.review(); await ui.settle()
-    assert.equal(ui.documents.get('dataset-a').dataset.records[0]._meta.label_status, 'reviewed')
-    assert.equal(ui.button('下载已复核训练 JSONL').props.disabled, true)
-    assert.ok(ui.button('下载候选 JSONL'))
+    await open(ui); ui.change('第 1 题标签依据', '来源查看前的草稿'); ui.button('定位原始轨迹（保留草稿）').props.onClick(); assert.deepEqual(JSON.parse(JSON.stringify(ui.sources)), [{ path: 'evidence/C-1/trace.jsonl', line: 141 }])
+    ui.setActive(false); await ui.settle(); ui.setActive(true); await ui.settle(); assert.equal(ui.byLabel('第 1 题标签依据').props.value, '来源查看前的草稿'); assert.equal(ui.byLabel('样本批次').props.value, 'dataset-a'); assert.equal(ui.confirms.length, 0); assert.equal(ui.dirty.at(-1), true)
   } finally { ui.cleanup() }
 })
 
-test('复核先显示当前动作和原始时点，勾选计入草稿且切条和修改问题后重新核对', async () => {
-  const ui = workbench()
-  try {
-    await open(ui)
-    assert.match(ui.text(ui.byLabel('样本决策时点')), /第 41 行.*session.v4.jsonl.*get_inspection_result/s)
-    assert.equal(ui.button('确认标签并复核本条').props.disabled, true)
-    ui.button('确认标签并复核本条').props.onClick(); await ui.settle()
-    assert.equal(ui.calls.filter(item => item.action === 'update').length, 0)
-    ui.check(); assert.equal(ui.dirty.at(-1), true)
-    ui.change('决策问题 JSON', JSON.stringify({ ...baseQuestion, label: 'ask' }))
-    assert.equal(ui.byLabel('已核对决策时点与题目一致').props.checked, false)
-    assert.equal(ui.button('确认标签并复核本条').props.disabled, true)
-    ui.check(); ui.change('决策标签依据', '需要重新核对的依据')
-    assert.equal(ui.byLabel('已核对决策时点与题目一致').props.checked, false)
-    ui.review(); await ui.settle()
-    assert.equal(ui.calls.filter(item => item.action === 'update').at(-1).input.decision_time_reviewed, true)
-    assert.equal(ui.byLabel('已核对决策时点与题目一致').props.checked, true)
-    assert.equal(ui.button('下载已复核训练 JSONL').props.disabled, false)
-    ui.nodes().find(node => node.type === 'button' && ui.text(node).includes('第二题 0')).props.onClick(); await ui.settle()
-    assert.equal(ui.byLabel('已核对决策时点与题目一致').props.checked, false)
-    assert.equal(ui.button('确认标签并复核本条').props.disabled, true)
-  } finally { ui.cleanup() }
-})
 
-test('旧 reviewed 缺少时点复核声明时可阅读与候选下载，但训练按钮仍禁用', async () => {
-  const ui = workbench()
-  try {
-    ui.documents.get('dataset-a').dataset.records[0]._meta.label_status = 'reviewed'
-    await open(ui)
-    assert.equal(ui.byLabel('已核对决策时点与题目一致').props.checked, false)
-    assert.equal(ui.button('下载已复核训练 JSONL').props.disabled, true)
-    assert.ok(ui.button('下载候选 JSONL'))
-    ui.review(); await ui.settle()
-    assert.equal(ui.button('下载已复核训练 JSONL').props.disabled, false)
-  } finally { ui.cleanup() }
+test('损坏v2问题或目标保留原始数据与阻塞提示，不补成可编辑监督值', async () => {
+  for (const corrupt of [record => { record.targets = null }, record => { record.targets.action = null }, record => { record.questions.action = null }]) {
+    const ui = workbench()
+    try {
+      const record = ui.documents.get('dataset-a').dataset.records[0]; corrupt(record)
+      const before = JSON.stringify(record)
+      await open(ui)
+      assert.match(ui.text(), /本条结构损坏，仅供阅读和候选下载/)
+      assert.match(ui.text(), /不会补造缺失的问题或目标/)
+      assert.equal(ui.byLabel('第 1 题标签 JSON'), undefined); assert.equal(ui.button('保存本条修改与复核'), undefined)
+      assert.equal(ui.download('候选').props.disabled, false)
+      assert.equal(JSON.stringify(ui.documents.get('dataset-a').dataset.records[0]), before)
+      assert.equal(ui.calls.some(item => item.action === 'update'), false)
+    } finally { ui.cleanup() }
+  }
 })

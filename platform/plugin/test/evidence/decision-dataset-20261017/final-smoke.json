@@ -1,0 +1,34 @@
+{
+  "at": "2026-10-16T16:20:55.367Z",
+  "base": "http://10.0.160.32:3121/hep/",
+  "model_messages_sent": 0,
+  "checks": [
+    "最终 Skill 实际装载路径和正文摘要一致，引用当前 preview 合同",
+    "实际接口拒绝非法跳过原因，合法文字原因完整返回，零候选不创建批次",
+    "最终构建页面可用，真实 AI 保存的多题批次回读仍待复核且不进入训练"
+  ],
+  "harness": {
+    "path": "/home/admin/work/harness-data-decision-samples-20261016/.agents/skills/decision-sample-extraction/SKILL.md",
+    "native_sha256": "71f007b544b04011927a4bc1c4ba6ee07979015e32b5bd089e9b2d30455438a5",
+    "file_sha256": "81914b9505aa4603fe8b32c919194657caed1361bf409265a7b1dba812b63bb2"
+  },
+  "contract": {
+    "required_fields": [
+      "run_id",
+      "path",
+      "source_sha256",
+      "samples"
+    ],
+    "source_path": "一个预览仅针对所选 Run 的同一条 path；所有 samples 的 decision_id 必须来自该 path 的决策分页，不得混入其他文件。",
+    "samples_max": 40,
+    "skipped": {
+      "optional": true,
+      "type": "string[]",
+      "max_items": 100,
+      "max_item_length": 2000,
+      "instructions": "每项必须为非空跳过原因字符串；不接受对象数组或字典，不提供时视为空数组。"
+    }
+  },
+  "dataset_id": "decision-dataset-ca9a84e0-8d65-4636-92d2-9fef85a9a968",
+  "ok": true
+}

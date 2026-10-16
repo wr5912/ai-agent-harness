@@ -1,0 +1,547 @@
+{
+  "at": "2026-10-16T16:22:26.681395+00:00",
+  "program_head": "b8a45b4beb2ce852eb21f5159421e9bf1f6f6096",
+  "program_branch": "main",
+  "program_uncommitted": true,
+  "data_head": "6753070a55e2a885d6e851736f53de281b82377a",
+  "data_branch": "fix/PLATFORM-decision-dataset-harness",
+  "protected_original_files": [
+    {
+      "workspace": "program",
+      "files": 17,
+      "unchanged": true,
+      "changed_paths": []
+    },
+    {
+      "workspace": "data",
+      "files": 229,
+      "unchanged": true,
+      "changed_paths": []
+    }
+  ],
+  "protected_run_files": [
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/analysis.json",
+      "sha256": "832c4e3f07f63367a61c3d57b85dc592613067b3cba3067bdd878104495beff2",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-IDENTITY-001/checks.json",
+      "sha256": "c7568cddddb648011b98d73e23d314177683bfb6a80ecfe1dfe1d5b6dd0ea41b",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-IDENTITY-001/judge-trace.jsonl",
+      "sha256": "de6b172571ea5401ffde3233be2bc1ab2fb1726039add63141949546d78d9d3e",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-IDENTITY-001/judge.json",
+      "sha256": "16b4d7a7f5a65fb592c5bddd4b90b1e40d2fa82f876e28440ae7c464fb6ee3fa",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-IDENTITY-001/response.json",
+      "sha256": "f2b3c6c791976db4260969d7f3893b0e6c7e68cf005c282ec1926e67d802013b",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-IDENTITY-001/tools.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-IDENTITY-001/trace.jsonl",
+      "sha256": "9c0916ec99cfce36f7a151bfde97b919baeffa659a313be5d1f9007e91adde0d",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-ROLE-001/checks.json",
+      "sha256": "4b8048aeeaa22e564c26bd2828011efece9e673d012c775d0dfabed758b704f6",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-ROLE-001/judge-trace.jsonl",
+      "sha256": "ee97acf2e38033fcb2f106fb35c4583ead54e7420ab31e95c14ff53406427bbb",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-ROLE-001/judge.json",
+      "sha256": "6b0059c32d6294cc91d2b18b69b3b8d1a150ca0fa833873af92c111b16631e5f",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-ROLE-001/response.json",
+      "sha256": "aaf53b366e958eee3217df7bcd9215cf61e1f89e8ed633081eebd65209bd18cd",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-ROLE-001/tools.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-ROLE-001/trace.jsonl",
+      "sha256": "a62b41bda11f8c648b5159980aec7f02e337fe90ba86e5805070fc1d2964126c",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-001/checks.json",
+      "sha256": "3fdc177e071e86fcdb8b674705f473c99b1d917d5f8ea4e007d671d4d1cd7595",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-001/judge-trace.jsonl",
+      "sha256": "118cc7278e480d53fa0d2346a1aa146262610681b304e471a8cade7e5b2d1392",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-001/judge.json",
+      "sha256": "db48142821341833297f7e9a880837823fb65d726f08a3b08feb4d18d3a58fe4",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-001/response.json",
+      "sha256": "eb359f41c4030d1d9be0c5124e54e6077dcfd738eef62b01c5f84210122074b1",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-001/tools.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-001/trace.jsonl",
+      "sha256": "b3b6d7b4bf7e07a9ce1357113f056a09c7fb7802e542b67df1bcd656ef1b6fd4",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-002/checks.json",
+      "sha256": "122d67c488059c293050e394533a781a3f506b37373e87f2bf02265fc5c69f28",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-002/judge-trace.jsonl",
+      "sha256": "74dd3b8f700d3528d7f8283d66d231ae967ffe8e7bf41427b35aaa43fb5151ad",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-002/judge.json",
+      "sha256": "5527383eb0dda3406c0037821dce25f3583be32d5878cb3c80ead7c775fed0f0",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-002/response.json",
+      "sha256": "17196cdb7016cdde3fc62b454df7e13812d1c3e53ab05be9ce4dbf9b62a30d42",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-002/tools.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-002/trace.jsonl",
+      "sha256": "f6b517233d9296f41afa83d042b794686ae8aeaef2a34fee99da6fa891d0d48c",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/dsh-image.json",
+      "sha256": "5e2f1f6020f29ed2d04b5f431a19fd0e24fe855b626ac6677c5dd79c69c57cc8",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/inputs.lock.json",
+      "sha256": "c99fcbad3654eaa30482ed2577e6d1fb9cc8c57ec0ba9717df751870bd632ae4",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/report.md",
+      "sha256": "94326a782d957d024d52849788c7d790883d4ae4e1bbf3d5ce2d435ebc1b50a5",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/results.jsonl",
+      "sha256": "04c81edc57088f82dfc16a30d6f60688e84bf963176508c3ce6d1fc46bbf6413",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/run.yaml",
+      "sha256": "8fd1359f9e50492bd118b33b6549af09dcb67756662ee334e6dc6927bb19d91f",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/summary.json",
+      "sha256": "196f3d07f4d93e4777974f32e28e004d750eabf68c168e31fba35d5e6501deda",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/analysis.json",
+      "sha256": "ba826a211299a044da210bddd10c9d265667119783c179ca8053fbb12044758b",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/artifacts/U-ASSET-PAGES-001/inspection-report.md",
+      "sha256": "c739f4ae67048c49187bbb8db84d00c6eb8b01e1d89fe4aaa8c730217e560118",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/artifacts/U-IDENTITY-001/inspection-report.md",
+      "sha256": "dc015e07cbd6be79a663748b6e61991007d829c811f3d2d18d76e3d37528985a",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/artifacts/U-SUMMARY-001/inspection-report.md",
+      "sha256": "ef9ac6c7de1f327c0c8245a8d29f8f5558855080d1a7f5c20a935148c5388511",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/artifacts/index.json",
+      "sha256": "7efbaa47b29e9f94acf421eae23fe8ce4a68069b729ba270b008e60fe1749778",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-ASSET-PAGES-001/case-result.json",
+      "sha256": "0680eee216568bbf5a0876072b11c43cea9fa1d20e085d8c027bc41a297bc9fe",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-ASSET-PAGES-001/checks.json",
+      "sha256": "24a7cecaabdc626b2224f22013daf9de541f9df90c9cdb66e548d3b2ccf23d32",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-ASSET-PAGES-001/judge-trace.jsonl",
+      "sha256": "2c5081fdad10e0cb566a27f9d62a206a6129806b28e4d9f10eaba19c0637b45f",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-ASSET-PAGES-001/judge.json",
+      "sha256": "f18f709263361a3c34e2a0705b97daff1df422b4126e3c1426b67acb9db1c15e",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-ASSET-PAGES-001/response.json",
+      "sha256": "13e38075af4e0eb469d7ea9d1a5373d717a253aeb2bd7c55ffe744db40f4adc7",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-ASSET-PAGES-001/tools.jsonl",
+      "sha256": "48e5080c7635bf6abe16cb6496313671682f1282b2dcdf45931be3e5a4f2724b",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-ASSET-PAGES-001/trace.jsonl",
+      "sha256": "b1d8e1cd99bb7b6e8f756be3755c9643fdfb5bc4dec25d53cb405418be53485c",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-IDENTITY-001/case-result.json",
+      "sha256": "0db8ab0e9a12465d9f05829b6b11e25c38033a9ad832353b2f38d9de8823f263",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-IDENTITY-001/checks.json",
+      "sha256": "87bf820e10312452196dd671579c0b561037608cbbd6bd4a46551e0b8702986f",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-IDENTITY-001/judge-trace.jsonl",
+      "sha256": "6f1dd9bb89f64238f64cb2e2bc383385f65380fd7e7e74f4057def5483649c68",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-IDENTITY-001/judge.json",
+      "sha256": "2b1d97f0638512846957a4c24fabf98987182db8dc982dee28c4938fe8489f4d",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-IDENTITY-001/response.json",
+      "sha256": "5287b6b941ee6f3808289e998709832f9ad02a4bf997a37c0408074a7783e329",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-IDENTITY-001/tools.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-IDENTITY-001/trace.jsonl",
+      "sha256": "731eb7644340e9aa31bc889156c2e00fa087be6cd48596301acd7c022c5d2334",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-SUMMARY-001/case-result.json",
+      "sha256": "2139a155ccd7decad7537691e618e0e4131d0da2ef07a64f858699433e9feeb4",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-SUMMARY-001/checks.json",
+      "sha256": "844d51403103eab2f2cd9950d79ce802379c520907043a1badf16b34107b41c5",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-SUMMARY-001/judge-trace.jsonl",
+      "sha256": "2eda06aa9cd768c7bf628a45785ce65ad42f520f4abf9f44b4c6a3fd0039adcc",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-SUMMARY-001/judge.json",
+      "sha256": "734a1f8b85a3f3443a6fdc514e7b41d509496d5d3736714cff47b3f462137340",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-SUMMARY-001/response.json",
+      "sha256": "d013fec90b4af2027f75f61785866b633a1b67a5a3d98aba5d7c7b3a9471cf41",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-SUMMARY-001/tools.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/U-SUMMARY-001/trace.jsonl",
+      "sha256": "1592a15c382a1ae98e03cbf4c7c73e3be609071db8870172c8e40de7cea74a5d",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/evidence/dsh-image.json",
+      "sha256": "a690a7273684913eda54e65b7021d15b98033fbdf17c499660d34bfe67c329fb",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/execution.json",
+      "sha256": "10450bad1c9567f3c7e5510c7db3684ab00ced5bc73e6478b4fe1b710dd48053",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/inputs.lock.json",
+      "sha256": "cfef158563c801aa410861ab6d9126109472928d01c46c6f9d83df4756258871",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/report.md",
+      "sha256": "993d6ce5f09b9fb8f56b376a2feb307b9be9824c9f7566e5a4325709398d917b",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/results.jsonl",
+      "sha256": "c02689fe5810f4534cdb7cdf4ee09e0652fb3cd32979c99b68447673a9b7be83",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/run.yaml",
+      "sha256": "8ce582e304eb1d7788506c018cae80c2e3de2b5330567ace81a33ce1cdadca23",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-9521d681-a5c0-4d62-a620-ef1b3f0280f1/summary.json",
+      "sha256": "ce21cef9c8cc5451818b393e066cd4043a4e94cde588078ec6f4af483e7026ad",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/analysis.json",
+      "sha256": "6dce3aa801005c422c7f35e55c2c93d41bd99185d199d45dda255debe19a226b",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/artifacts/U-ASSET-PAGES-001/inspection-report.md",
+      "sha256": "d091f183b9ba3ba323b29798efe77ad754b48f1f4b1b478b6476f2c94c093c25",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/artifacts/U-IDENTITY-001/inspection-report.md",
+      "sha256": "29f58ca1148c113aec5a85e51c0f9d82783737c320abf2ca8f6d8ca14aff18ef",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/artifacts/U-SUMMARY-001/inspection-report.md",
+      "sha256": "b85be10a83d84986bb0d5dc1413e24e8d0718fcc488ee87d6b52775a8a36c6b2",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/artifacts/index.json",
+      "sha256": "0aa937dc40b951bd9249e187adea6eff58b93c0cf02b9a2dce75604d1a6b1dcc",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-ASSET-PAGES-001/case-result.json",
+      "sha256": "a7e813f0aaf19f2e568d164d0b55ef7b5312498667fd6fe485d07ab9850a83f6",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-ASSET-PAGES-001/checks.json",
+      "sha256": "0360976d5bfa31ac18b8f73db4c165c03e9e2cdae265adfa420ca8b75fceadde",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-ASSET-PAGES-001/judge-trace.jsonl",
+      "sha256": "054373c6779a2479b75080a47d3adaf08a3dfbc9595548bf400733cd98f221e5",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-ASSET-PAGES-001/judge.json",
+      "sha256": "8f1d3f112ce3e86bf2307ea69a514ea49839101c0bbad481b2323f1bbee1bb58",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-ASSET-PAGES-001/response.json",
+      "sha256": "8de0dafaf6599d1dc74943dbb660912a77f90d49bc1332f132b6dd60a371db8a",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-ASSET-PAGES-001/tools.jsonl",
+      "sha256": "b6a366437a130b5cd612d4302e230830c55c7c35096374b293f248945c0536da",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-ASSET-PAGES-001/trace.jsonl",
+      "sha256": "ccf72fec909c9ffd1343bc4c08cd62477296e0cb4133f1ad0f0d9082423cb539",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-IDENTITY-001/case-result.json",
+      "sha256": "f6f08989e8c377bd14c1f8c73f26267bbd2e228332981fdb53351973d88ff22e",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-IDENTITY-001/checks.json",
+      "sha256": "98fa6a8dcacacd40a271cfd577f76a4760fb3be32b35510e797cc7da18d9ef81",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-IDENTITY-001/judge-trace.jsonl",
+      "sha256": "8e3ad3e3e54d02cf3fd934c8543adf34706c0bc7ec8b1415160a5c1e20e9f260",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-IDENTITY-001/judge.json",
+      "sha256": "fea1814f8a28f689bbd6446becebe30d6f7ef62d47a00536a840ca9ff283be30",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-IDENTITY-001/response.json",
+      "sha256": "8d6acb51181090160b9a1cb5379f07e95b2cf0374ee92863b2ffb721d7dd2cdf",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-IDENTITY-001/tools.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-IDENTITY-001/trace.jsonl",
+      "sha256": "d7088091aabc882723c78dd8f74e6d67bffc03af9e73e1d1367de8799b0a86af",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-SUMMARY-001/case-result.json",
+      "sha256": "5f6cf159b44eb4d27c96db467480bd1df70c325782768f9d1d03897a6ad80a18",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-SUMMARY-001/checks.json",
+      "sha256": "f93c531db136d8f47ac5836f1f4042ed5f385d417e87aae430eb488e79ccb662",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-SUMMARY-001/judge-trace.jsonl",
+      "sha256": "d7ce08718ac9fd7affc18b737c2315e3757982b7ebab330a88857c45a100f741",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-SUMMARY-001/judge.json",
+      "sha256": "80244533ab8085065a6f18a8c1197e5cd25f6de420fc450dd2fc5a2395f4c21d",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-SUMMARY-001/response.json",
+      "sha256": "71d479014c4d9b094e2866ffe32aff9ab8f7066af9af17a5828afaff8502747e",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-SUMMARY-001/tools.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/U-SUMMARY-001/trace.jsonl",
+      "sha256": "cde6d54f82520542c48982b68f53d68f6170d2e30d6ef682e978a52853e54a4c",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/evidence/dsh-image.json",
+      "sha256": "a690a7273684913eda54e65b7021d15b98033fbdf17c499660d34bfe67c329fb",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/execution.json",
+      "sha256": "ae2e1a55811086899350503587bf960b83c25ecba3757a9612b2d24875a20053",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/inputs.lock.json",
+      "sha256": "302232b99f295f5e185551a0e93007276d18ec8c70f20142cc7cf0ca7f980270",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/report.md",
+      "sha256": "c9455cecc6c4e2d497db5c780bcc9adb0d855322fece710eabc7807e8b8f73dd",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/results.jsonl",
+      "sha256": "e5e979cdd70baa004f1f0a6b4bc7aae8530512411881133c13d52b6b1015cf5d",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/run.yaml",
+      "sha256": "c5c6ac4d76fc4224880772d8ae0212b243cc9761f275dd2beae52b2550e6f87a",
+      "matches_formal": true
+    },
+    {
+      "path": "evolution/experiments/EXP-daily-inspection-assistant-005-r0dae2ba1ebb1/runs/run-1822acd1-3780-4554-8ae2-17d910aa5ee8/summary.json",
+      "sha256": "12c85a3ee4c8a83b42a53b42d8eb505ebf6bc9fbcd84c4121ec412ec85d006ec",
+      "matches_formal": true
+    }
+  ],
+  "harness_files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "16913cfce423aaf0fe0f2bfc84712740075d70db3d510a09c99af6ca424eb03e"
+    },
+    {
+      "path": ".agents/skills/decision-sample-extraction/SKILL.md",
+      "sha256": "81914b9505aa4603fe8b32c919194657caed1361bf409265a7b1dba812b63bb2"
+    },
+    {
+      "path": "docs/harness-research/decision-samples.md",
+      "sha256": "613483d41bd4f24547c249c33bc91b4be7383861ce174e4c85da3998d7e63077"
+    }
+  ],
+  "runtime_files": [
+    {
+      "path": "platform/plugin/src/evaluation/datasets.ts",
+      "sha256": "6e51a10c22707d1f2c2ca00393f60f076d7b77733171cb6ac0c4f610e3c61712"
+    },
+    {
+      "path": "platform/plugin/src/evaluation/decision-dataset-contract.ts",
+      "sha256": "b9ab5f8892a37e6859003f78cf0a69dce5fa64bc057b47df360351a0634ff7ec"
+    },
+    {
+      "path": "platform/plugin/src/evaluation/dataset-view.tsx",
+      "sha256": "760a2e6cf1c78580449f9d2ee0bc58c2893ea0d98359f5ca4c65c5ee12c46902"
+    },
+    {
+      "path": "platform/plugin/lib/index.js",
+      "sha256": "cdbe44a5d515f0a6b57fa74de26295888334880bac0ad27485a1de3f8d4d98a3"
+    }
+  ],
+  "runtime": {
+    "url": "http://10.0.160.32:3121/hep/",
+    "pid": 4146858,
+    "log": "/tmp/hep-decision-dataset-20261016/platform-final.log",
+    "stop": "kill -TERM 4146858"
+  }
+}

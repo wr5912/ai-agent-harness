@@ -342,10 +342,10 @@ test('确认首屏仅展示决策摘要、具体交付与重要预算，完整�
   assert.ok(all.includes(plan.goal)); assert.match(all, /U-PRIVATE-BUSINESS-CASE|a{64}/)
   await nodes.find(node => node.type === 'button' && node.props.children === '暂不执行').props.onClick()
   assert.equal(requests[0].method, 'assistant/reject'); assert.equal(requests[0].body.proposal_id, 'p')
-  proposal = { id: 'dataset', domain: 'agents', action: 'datasets/apply', state: 'awaiting_confirmation', preview: { status: 'suggested', count: 1, records: [{ label_basis: '只在完整详情展示的标签依据' }] } }
+  proposal = { id: 'dataset', domain: 'agents', action: 'datasets/apply', state: 'awaiting_confirmation', preview: { status: 'suggested', count: 1, records: [{ workflow: '安全事件处置', questions: { action: {}, needs_review: {} }, targets: { action: { basis: '只在完整详情展示的标签依据' } } }] } }
   nodes = []
   const sample = render(view())
-  assert.match(sample, /保存 1 条样本/); assert.match(sample, /人工复核/); assert.doesNotMatch(sample, /只在完整详情/)
+  assert.match(sample, /保存 1 条样本/); assert.match(sample, /人员逐题复核/); assert.match(sample, /安全事件处置/); assert.match(sample, /2.*道命名决策题/); assert.doesNotMatch(sample, /只在完整详情/)
   proposal = { id: 'mcp', domain: 'mcp', action: 'saveConfiguration', state: 'awaiting_confirmation', preview: { action: 'saveConfiguration', input: { ops: [{ op: 'set', path: ['servers', 'test', 'enabled'], value: false }] } } }
   assert.match(render(view()), /停用连接.*不可调用/)
   const fullFreezeDiff = '冻结差异开始\n' + '+ compiled-esm-confirmation '.repeat(100000) + '\n冻结差异结束'

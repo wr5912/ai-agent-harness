@@ -1,0 +1,212 @@
+{
+  "at": "2026-10-16T15:57:33.273Z",
+  "base": "http://10.0.160.32:3121/hep/",
+  "phase": "normal",
+  "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a",
+  "checks": [],
+  "errors": [],
+  "ok": false,
+  "error": "Error: Model ended without candidate preview\n    at wait (file:///tmp/hep-decision-dataset-20261016/model-acceptance.mjs:23:45)\n    at async file:///tmp/hep-decision-dataset-20261016/model-acceptance.mjs:34:16",
+  "session_id": "session-5dc4fe37-8d4e-4767-9be0-3fd332107c9d",
+  "trace": {
+    "calls": [
+      {
+        "call_id": "call_00_ET_3EuUL5WCnCfPLi2fHDzL5479",
+        "name": "skill",
+        "skill": "decision-sample-extraction"
+      },
+      {
+        "call_id": "call_01_ET_F3xgFs6WX37sR9F5e3JP4309",
+        "name": "platform_agents",
+        "action": "context"
+      },
+      {
+        "call_id": "call_00_olnaCzkXoo8my3rsogVr8255",
+        "name": "platform_agents",
+        "action": "datasets/source",
+        "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a"
+      },
+      {
+        "call_id": "call_00_GKvHBPMamtbfCBG3VA636702",
+        "name": "platform_agents",
+        "action": "datasets/source",
+        "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a",
+        "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-IDENTITY-001/trace.jsonl"
+      },
+      {
+        "call_id": "call_01_xeTvNJaJ86F6j125AyJv9753",
+        "name": "platform_agents",
+        "action": "research/read-reference"
+      },
+      {
+        "call_id": "call_00_lyxFKxZINSRwMpPwQq8a2924",
+        "name": "platform_agents",
+        "action": "datasets/source",
+        "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a",
+        "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-ROLE-001/trace.jsonl"
+      },
+      {
+        "call_id": "call_01_6ZO36dGic2ILTiiQIfBm5202",
+        "name": "platform_agents",
+        "action": "datasets/source",
+        "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a",
+        "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-001/trace.jsonl"
+      },
+      {
+        "call_id": "call_02_sx5lfwHdL2z0G2lw2oan8856",
+        "name": "platform_agents",
+        "action": "datasets/source",
+        "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a",
+        "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-002/trace.jsonl"
+      },
+      {
+        "call_id": "call_00_4dT8G3MOX6g8Bf7fAzEN6666",
+        "name": "platform_agents",
+        "action": "datasets/source",
+        "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a",
+        "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/inputs.lock.json"
+      },
+      {
+        "call_id": "call_01_f01FgkvGJXQE9e5wOsmO9205",
+        "name": "platform_agents",
+        "action": "datasets/source",
+        "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a",
+        "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/run.yaml"
+      },
+      {
+        "call_id": "call_00_ZG9lLNCbJo9n1Nnv7Y5o8951",
+        "name": "platform_agents",
+        "action": "datasets/preview",
+        "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a",
+        "samples": [],
+        "skipped": [
+          {
+            "decision_id": "decision-39771e2797d902688c3a",
+            "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-IDENTITY-001/trace.jsonl",
+            "action_name": "respond",
+            "reason": "服务器标记 eligible=false 且 state 为空，没有可定位的决策前业务材料；该动作是助手自我介绍与职责复述，不属于待作出的业务判断。"
+          },
+          {
+            "decision_id": "decision-5f1684d2f253b2b848ff",
+            "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-ROLE-001/trace.jsonl",
+            "action_name": "respond",
+            "reason": "服务器标记 eligible=false 且 state 为空；内容为能力范围说明与索要巡检输入，同属角色职责复述，没有可评价的可见业务对象。"
+          },
+          {
+            "decision_id": "decision-ed0fce631075d2f75f45",
+            "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-001/trace.jsonl",
+            "action_name": "respond",
+            "reason": "服务器标记 eligible=false 且 state 为空，无法在输入中定位决策前事实；实际动作是对单条模拟资产（TEST-ASSET-01）做固定格式摘要，属复述已给出的数据，且素材为模拟数据而非真实巡检记录。"
+          },
+          {
+            "decision_id": "decision-79b07b1e8c495eea32d9",
+            "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-002/trace.jsonl",
+            "action_name": "respond",
+            "reason": "服务器标记 eligible=false 且 state 为空，无法定位输入事实；内容为同一模拟资产的表格版摘要，没有待判断业务问题；采集记录亦未确认可用完整轨迹。"
+          }
+        ]
+      },
+      {
+        "call_id": "call_00_awg6zPSZE7xSiF7T2eBk5681",
+        "name": "platform_agents",
+        "action": "datasets/preview",
+        "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a",
+        "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-IDENTITY-001/trace.jsonl",
+        "samples": [],
+        "skipped": [
+          {
+            "action_name": "respond",
+            "decision_id": "decision-39771e2797d902688c3a",
+            "reason": "服务器标记 eligible=false 且 state 为空，没有可定位的决策前业务材料；该动作是助手自我介绍与职责复述，不属于待作出的业务判断，也不是对输入的整理结果。"
+          }
+        ]
+      },
+      {
+        "call_id": "call_00_lmqwbQFubyL4Jd0RKFWU5697",
+        "name": "platform_agents",
+        "action": "datasets/preview",
+        "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a",
+        "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-IDENTITY-001/trace.jsonl",
+        "samples": [],
+        "skipped": [
+          {
+            "action_name": "respond",
+            "decision_id": "decision-39771e2797d902688c3a",
+            "reason": "服务器标记 eligible=false 且 state 为空，没有可定位的决策前业务材料；该动作是助手自我介绍与职责复述，不属于待作出的业务判断，也不是对输入的整理结果。"
+          }
+        ]
+      },
+      {
+        "call_id": "call_00_UtZWGaBL5OKWppeoIdeA9176",
+        "name": "platform_agents",
+        "action": "datasets/preview",
+        "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a",
+        "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-ROLE-001/trace.jsonl",
+        "samples": [],
+        "skipped": [
+          {
+            "action_name": "respond",
+            "decision_id": "decision-5f1684d2f253b2b848ff",
+            "reason": "服务器标记 eligible=false 且 state 为空；内容为能力范围说明与索要巡检输入，同属角色职责复述，没有可评价的可见业务对象。"
+          }
+        ]
+      },
+      {
+        "call_id": "call_01_30epGbpbezsjbF1NeHHY0795",
+        "name": "platform_agents",
+        "action": "datasets/preview",
+        "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a",
+        "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-001/trace.jsonl",
+        "samples": [],
+        "skipped": [
+          {
+            "action_name": "respond",
+            "decision_id": "decision-ed0fce631075d2f75f45",
+            "reason": "服务器标记 eligible=false 且 state 为空，无法在输入中定位决策前事实；实际动作是对单条模拟资产（TEST-ASSET-01）做固定格式摘要，属复述已给出的数据，且素材为模拟数据而非真实巡检记录。"
+          }
+        ]
+      },
+      {
+        "call_id": "call_02_Nu3MvnvJWkJAHBpfmOoi5060",
+        "name": "platform_agents",
+        "action": "datasets/preview",
+        "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a",
+        "path": "evolution/experiments/EXP-daily-inspection-assistant-001-r602ec12fd531/runs/run-a994263a-68a8-458b-a619-09f3d2304c0a/evidence/U-SUMMARY-002/trace.jsonl",
+        "samples": [],
+        "skipped": [
+          {
+            "action_name": "respond",
+            "decision_id": "decision-79b07b1e8c495eea32d9",
+            "reason": "服务器标记 eligible=false 且 state 为空，无法定位输入事实；内容为同一模拟资产的表格版摘要，没有待判断业务问题；采集记录亦未确认可用完整轨迹。"
+          }
+        ]
+      },
+      {
+        "call_id": "call_00_kDAzRlpfHi9oWluX7iSV8758",
+        "name": "platform_agents",
+        "action": "datasets/list",
+        "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a"
+      }
+    ],
+    "model_calls": 1,
+    "models": [
+      {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "reasoningEffort": "max"
+      }
+    ],
+    "toolsets": [
+      [
+        "platform_agents",
+        "skill"
+      ]
+    ],
+    "turn_ends": [
+      {
+        "kind": "completed"
+      }
+    ],
+    "final_excerpt": "本次没有生成任何决策样本，也没有可保存的候选记录——四个业务切片都被平台来源门槛拒绝，不是判断结果不同，而是可抽取的决策前材料不存在。\n\n**接口与范围**：`datasets/source` 返回的抽取合同为 `schema_version=2`，格式可用，无需退化为旧单题格式。该 Run 提供 4 条 `target` 业务轨迹（另 4 条为 `judge` 评审轨迹，按规则不构成业务训练材料）。每条业务轨迹只有 1 个决策，且服务器全部标记 `eligible=false`、`state=null`，即没有可供出题的决策前可见材料。\n\n**逐条原因**（原样保留，未写入任何其他文件）：\n\n| 业务切片 | 决策 | 未采用原因 |\n| --- | --- | --- |\n| U-IDENTITY-001 | `decision-39771e2797d902688c3a` | `state` 为空；动作是助手自我介绍与职责复述，不属于待作出的业务判断 |\n| U-ROLE-001 | `decision-5f1684d2f253b2b848ff` | `state` 为空；内容为能力范围说明与索要巡检输入，同属角色职责复述，无可评价的可见对象 |\n| U-SUMMARY-001 | `decision-ed0fce631075d2f75f45` | `state` 为空，输入事实不可定位；动作是对单条模拟资产（TEST-ASSET-01）做固定格式摘要，属复述已给出数据 |\n| U-SUMMARY-002 | `decision-79b07b1e8c495eea32d9` | `state` 为空；同一模拟资产的表格版摘要，无待判断问题 |\n\n**统一阻断点**：四个切片在 `datasets/preview` 均返回 `invalid_dataset：来源不足：采集记录没有确认可用的完整轨迹`。文件清单的 `collection_status` 为 `unknown`，并带有“未明确声明 trace_available”“采集记录没有确认可用的完整轨迹”两类警告。因此连记录跳过原因的候选批次也无法建立，没有生成确认卡，没有保存任何内容，Run 本身未改动。\n\n补充一项实际状态：该 Run 已存在 1 条旧格式数据集（`decision-dataset-a23a2540-cef0-4bca-b28d-a0450eb952a0`，schema_version 1，1 条 `reviewed`），服务端只作为只读候选保留，提示“历史 reviewed 不会自动升级为新版合格样本，请重新抽取”——本次重新抽取正是被上述来源门槛挡住，不是被旧记录阻塞。\n\n**解除条件**：需要一次采集记录确认 `trace_available` 且能提供决策前 `state` 的 Run（真实用户输入 + 可定位的巡检材料）。在此之前，这批轨迹只能作为“该 Agent 当时的自我介绍与模拟数据摘要”的行为记录使用，不能派生命名决策题、推荐标签或行为标签；也不应据此声称已有新版训练数据。若你希望在采集完整的 Run 上继续，告诉我目标 Run，我会重新按 v2 合同出题并预览。"
+  }
+}

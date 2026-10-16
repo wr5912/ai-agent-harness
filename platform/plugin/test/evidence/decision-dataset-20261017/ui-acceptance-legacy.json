@@ -1,0 +1,171 @@
+{
+  "at": "2026-10-16T15:57:49.485Z",
+  "base": "http://10.0.160.32:3121/hep/",
+  "data_root": "/home/admin/work/harness-data-decision-samples-20261016",
+  "scope": "隔离数据工作树与 3121 服务的页面合同验收；不代表行业标签正确、概率已校准或模型训练收益",
+  "checks": [
+    "旧批次只读展示原问题与历史复核，可下载候选、提供重新抽取入口，文件摘要保持"
+  ],
+  "layouts": [
+    {
+      "width": 1440,
+      "label": "legacy",
+      "scroll": 1440,
+      "client": 1440,
+      "body": 1440,
+      "overflowing_controls": []
+    },
+    {
+      "width": 390,
+      "label": "legacy",
+      "scroll": 390,
+      "client": 390,
+      "body": 390,
+      "overflowing_controls": []
+    }
+  ],
+  "downloads": [
+    {
+      "dataset_id": "decision-dataset-814d4b82-0ae3-4b47-8694-16c2c561d7a8",
+      "mode": "candidates",
+      "filename": "decision-dataset-814d4b82-0ae3-4b47-8694-16c2c561d7a8-candidates.jsonl",
+      "count": 2,
+      "question_count": 2,
+      "sha256": "f6e46fb22776c4d2d6d010601afd6d1274b0ed3c15c7a4e934cd2477ba59c3bf"
+    }
+  ],
+  "rpc": [
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/runs/show",
+      "run_id": "run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017"
+    },
+    {
+      "method": "agents/runs/report",
+      "run_id": "run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017"
+    },
+    {
+      "method": "agents/runs/files",
+      "run_id": "run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/datasets/read",
+      "dataset_id": "decision-dataset-814d4b82-0ae3-4b47-8694-16c2c561d7a8"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal"
+    },
+    {
+      "method": "agents/edit/read"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/datasets/export",
+      "dataset_id": "decision-dataset-814d4b82-0ae3-4b47-8694-16c2c561d7a8",
+      "kind": "candidates"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    }
+  ],
+  "errors": [],
+  "failed_requests": [],
+  "legacy": {
+    "dataset_id": "decision-dataset-814d4b82-0ae3-4b47-8694-16c2c561d7a8",
+    "run_id": "run-da0a2cdb-f9e3-41eb-b4f6-c2b23a3dd017",
+    "sha256": "ec12e76a74de7be0b7fe5f7a98deef24757007a8d0b9d7aa8629fab31e9ca638",
+    "immutable": true
+  },
+  "ok": true,
+  "partial": true,
+  "limit": "仅执行 legacy 浏览器验收，新版批次尚待真实 AI 抽取"
+}

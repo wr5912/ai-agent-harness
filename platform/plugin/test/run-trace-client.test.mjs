@@ -10,7 +10,7 @@ const file = 'evolution/experiments/EXP-alpha-001/runs/run-basic/evidence/C-1/tr
 const event = (line, session = 'root.jsonl') => ({ ref: { path: file, line, session_log: session, seq: line, event_id: null, source_sha256: 'source-fixed', line_sha256: 'line-fixed' }, type: 'user/message', role: 'target', status: 'valid', event: { type: 'user/message', data: { content: [{ type: 'text', text: `基础事件 ${line}` }] } } })
 const result = (events = [event(1)], next_cursor = 1) => ({ files: [{ path: file, role: 'target', size: 100, warnings: [] }], path: file, source_sha256: 'source-fixed', events, decisions: [], total_lines: 2, next_cursor, warnings: [] })
 
-function ui(handler) {
+function ui(handler, focus) {
   const states = [], deps = [], cleanups = [], calls = [], evidence = []
   let cursor, effects, changed, tree
   const react = {
@@ -21,7 +21,7 @@ function ui(handler) {
   }
   const module = { exports: {} }
   vm.runInNewContext(compiled.outputFiles[0].text, { module, exports: module.exports, require: name => name === 'react' ? react : require(name) })
-  const props = { runId: 'run-a', send: async (endpoint, payload) => { calls.push({ endpoint, payload }); return handler(endpoint, payload) }, onEvidence: path => evidence.push(path) }
+  const props = { runId: 'run-a', focus, send: async (endpoint, payload) => { calls.push({ endpoint, payload }); return handler(endpoint, payload) }, onEvidence: path => evidence.push(path) }
   function render() { let rounds = 0; do { if (++rounds > 40) throw new Error('渲染未收敛'); cursor = 0; effects = []; changed = false; tree = module.exports.RunTraceView(props); effects.forEach(effect => effect()) } while (changed); return tree }
   async function settle() { for (let at = 0; at < 5; at++) { render(); await new Promise(resolve => setImmediate(resolve)) }; return render() }
   function nodes(value) { if (!arguments.length) value = tree; if (Array.isArray(value)) return value.flatMap(item => nodes(item)); if (!value || typeof value !== 'object') return []; return [value, ...nodes(value.props?.children)] }
@@ -56,5 +56,27 @@ test('切换 Run 后忽略旧请求，失败明确显示而不把已有轨迹误
   assert.ok(view.text().includes('未采集轨迹'))
   assert.equal(view.text().includes('基础事件 1'), false)
   assert.equal(view.nodes().some(node => node.props?.['aria-label'] === 'Session root.jsonl'), false)
+  view.cleanup()
+})
+
+
+test('样本来源定位从指定轨迹行加载并展开，刷新仍保留时点', async () => {
+  const view = ui(async (_endpoint, payload) => result([event(payload.cursor + 1)], null), { path: file, line: 141, source_sha256: 'source-fixed' })
+  await view.settle()
+  assert.equal(view.calls[0].payload.path, file); assert.equal(view.calls[0].payload.cursor, 140); assert.equal(view.calls[0].payload.source_sha256, 'source-fixed')
+  const focused = view.nodes().find(node => node.props?.id === 'harness-trace-focused-source')
+  assert.equal(focused.props.children.props.open, true)
+  assert.match(view.text(), /样本来源定位.*第 141 行/s)
+  view.button('刷新轨迹').props.onClick(); await view.settle(); assert.equal(view.calls.at(-1).payload.cursor, 140); assert.equal(view.calls.at(-1).payload.source_sha256, 'source-fixed')
+  view.cleanup()
+})
+
+
+test('来源摘要不一致时显示真实错误，不把变动轨迹当成原样本证据', async () => {
+  const view = ui(async () => ({ ok: false, error: { message: '轨迹来源摘要已改变' } }), { path: file, line: 141, source_sha256: 'source-old' })
+  await view.settle()
+  assert.equal(view.calls[0].payload.source_sha256, 'source-old'); assert.match(view.text(), /轨迹来源摘要已改变/)
+  assert.equal(view.nodes().some(node => node.props?.id === 'harness-trace-focused-source'), false)
+  view.button('刷新轨迹').props.onClick(); await view.settle(); assert.equal(view.calls.at(-1).payload.source_sha256, 'source-old')
   view.cleanup()
 })

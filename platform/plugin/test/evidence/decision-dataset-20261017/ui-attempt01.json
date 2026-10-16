@@ -1,0 +1,900 @@
+{
+  "at": "2026-10-16T16:09:16.822Z",
+  "base": "http://10.0.160.32:3121/hep/",
+  "data_root": "/home/admin/work/harness-data-decision-samples-20261016",
+  "scope": "隔离数据工作树与 3121 服务的页面合同验收；不代表行业标签正确、概率已校准或模型训练收益",
+  "checks": [
+    "旧批次只读展示原问题与历史复核，可下载候选、提供重新抽取入口，文件摘要保持",
+    "真实 AI 新版候选回读多命名题、题型、业务任务与监督目标，五类下载数量可见且两种宽度无整页横溢",
+    "修改问题后先保存候选，复核撤回并回读；未保存题目不能直接复核",
+    "非法概率无法提交并保留草稿，保存回读保留真实原概率或空值，没有自动补造 one-hot",
+    "独立人员逐题复核保存后生效，其他题不被批量自批，未分配用途不进入训练",
+    "显式训练、开发、校准、测试用途逐次保存并下载回读，导出仅含人员复核题目",
+    "以固定来源摘要定位到真实轨迹行并展开，返回保持批次和未保存标签依据"
+  ],
+  "layouts": [
+    {
+      "width": 1440,
+      "label": "legacy",
+      "scroll": 1440,
+      "client": 1440,
+      "body": 1440,
+      "overflowing_controls": []
+    },
+    {
+      "width": 390,
+      "label": "legacy",
+      "scroll": 390,
+      "client": 390,
+      "body": 390,
+      "overflowing_controls": []
+    },
+    {
+      "width": 1440,
+      "label": "v2",
+      "scroll": 1440,
+      "client": 1440,
+      "body": 1440,
+      "overflowing_controls": []
+    },
+    {
+      "width": 390,
+      "label": "v2",
+      "scroll": 390,
+      "client": 390,
+      "body": 390,
+      "overflowing_controls": []
+    }
+  ],
+  "downloads": [
+    {
+      "dataset_id": "decision-dataset-a23a2540-cef0-4bca-b28d-a0450eb952a0",
+      "mode": "candidates",
+      "filename": "decision-dataset-a23a2540-cef0-4bca-b28d-a0450eb952a0-candidates.jsonl",
+      "count": 1,
+      "question_count": 1,
+      "sha256": "444f16b09f279d86ee00a4e3a868d62dc1c3aeb413ca84473e05dbf0ac7c0583"
+    },
+    {
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c",
+      "mode": "training",
+      "filename": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c-reviewed-training.jsonl",
+      "count": 1,
+      "question_count": 1,
+      "sha256": "dcf5f3fb44009bbb8e590d11dfe30958625f4120e1d30d9929309c3f8cc1ec73"
+    },
+    {
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c",
+      "mode": "development",
+      "filename": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c-reviewed-development.jsonl",
+      "count": 1,
+      "question_count": 1,
+      "sha256": "c4e95ae7224e75e6c80ac57c5b6806569a8b48ee6153f10a41621c39e48e33fe"
+    },
+    {
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c",
+      "mode": "calibration",
+      "filename": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c-reviewed-calibration.jsonl",
+      "count": 1,
+      "question_count": 1,
+      "sha256": "b277a4833a15d5637d0c0e837c00713b8005b1c4775e1af415d30f12b719a7f4"
+    },
+    {
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c",
+      "mode": "test",
+      "filename": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c-reviewed-test.jsonl",
+      "count": 1,
+      "question_count": 1,
+      "sha256": "f0ea13c3be09f7ca246cad7abc1f4ccb15e439bea2329bb8169b1f1b3e29e61d"
+    }
+  ],
+  "rpc": [
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/runs/show",
+      "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a"
+    },
+    {
+      "method": "agents/runs/report",
+      "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a"
+    },
+    {
+      "method": "agents/runs/files",
+      "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal"
+    },
+    {
+      "method": "agents/edit/read"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "agents/datasets/read",
+      "dataset_id": "decision-dataset-a23a2540-cef0-4bca-b28d-a0450eb952a0"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/datasets/export",
+      "dataset_id": "decision-dataset-a23a2540-cef0-4bca-b28d-a0450eb952a0",
+      "kind": "candidates"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/show",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/report",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/files",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/datasets/read",
+      "dataset_id": "decision-dataset-a23a2540-cef0-4bca-b28d-a0450eb952a0"
+    },
+    {
+      "method": "agents/datasets/read",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/datasets/update",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/show",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/report",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/files",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/datasets/update",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/show",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/report",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/files",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/datasets/update",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/show",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/report",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/files",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/datasets/update",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/show",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/report",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/files",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/datasets/export",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c",
+      "kind": "training"
+    },
+    {
+      "method": "agents/datasets/read",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/datasets/update",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/datasets/export",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c",
+      "kind": "development"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/show",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/report",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/files",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/datasets/update",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/show",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/report",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/files",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/datasets/export",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c",
+      "kind": "calibration"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/datasets/read",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "agents/datasets/update",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/show",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/report",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/files",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/datasets/export",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c",
+      "kind": "test"
+    },
+    {
+      "method": "agents/datasets/read",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "agents/datasets/update",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/show",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/report",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/files",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "agents/runs/trace",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/datasets/read",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/datasets/read",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "agents/datasets/read",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    }
+  ],
+  "errors": [],
+  "failed_requests": [],
+  "legacy": {
+    "dataset_id": "decision-dataset-a23a2540-cef0-4bca-b28d-a0450eb952a0",
+    "run_id": "run-a994263a-68a8-458b-a619-09f3d2304c0a",
+    "sha256": "fa85a5cb7793413d321fd34e318fb9d327a8d23b32cfd4d9f99ed1d8ca30a3f8",
+    "immutable": true
+  },
+  "v2": {
+    "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c",
+    "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1",
+    "initial_sha256": "022e44a4c9affca500351d64e5c4aa4a8f9e068627339449b2c2f2fcafa9ccb7",
+    "record_index": 2,
+    "record_id": "decision-c5bdd933097c0925dfca30374eab329a",
+    "workflow": "基础资产台账只读巡检",
+    "task": {
+      "id": "asset_ledger_inspection_result_delivery",
+      "semantics": "recommended_decision"
+    },
+    "question_names": [
+      "delivery_content",
+      "boundary_disclosure"
+    ],
+    "types": [
+      "choice",
+      "noul"
+    ],
+    "probability_question_count": 0
+  },
+  "ok": false,
+  "error": "page.waitForFunction: Timeout 30000ms exceeded.\n    at /tmp/hep-decision-dataset-20261016/ui-acceptance.mjs:143:16"
+}

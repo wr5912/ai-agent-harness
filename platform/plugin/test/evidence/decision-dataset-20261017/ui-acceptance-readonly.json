@@ -1,0 +1,160 @@
+{
+  "at": "2026-10-16T16:06:16.329Z",
+  "base": "http://10.0.160.32:3121/hep/",
+  "data_root": "/home/admin/work/harness-data-decision-samples-20261016",
+  "scope": "隔离数据工作树与 3121 服务的页面合同验收；不代表行业标签正确、概率已校准或模型训练收益",
+  "checks": [
+    "真实 AI 新版候选回读多命名题、题型、业务任务与监督目标，五类下载数量可见且两种宽度无整页横溢"
+  ],
+  "layouts": [
+    {
+      "width": 1440,
+      "label": "v2",
+      "scroll": 1440,
+      "client": 1440,
+      "body": 1440,
+      "overflowing_controls": []
+    },
+    {
+      "width": 390,
+      "label": "v2",
+      "scroll": 390,
+      "client": 390,
+      "body": 390,
+      "overflowing_controls": []
+    }
+  ],
+  "downloads": [],
+  "rpc": [
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "agents/list"
+    },
+    {
+      "method": "instances/list"
+    },
+    {
+      "method": "inventory"
+    },
+    {
+      "method": "home"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/runs/index"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "mcp/list"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/runs/show",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/report",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/runs/files",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "agents/datasets/list",
+      "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "agents/detail"
+    },
+    {
+      "method": "agents/fusion/proposal"
+    },
+    {
+      "method": "agents/features/proposal"
+    },
+    {
+      "method": "agents/edit/read"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "assistant/context"
+    },
+    {
+      "method": "assistant/status"
+    },
+    {
+      "method": "agents/datasets/read",
+      "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c"
+    },
+    {
+      "method": "assistant/status"
+    }
+  ],
+  "errors": [],
+  "failed_requests": [],
+  "v2": {
+    "dataset_id": "decision-dataset-6088b801-7554-4c9f-b1f9-9457f597c53c",
+    "run_id": "run-9521d681-a5c0-4d62-a620-ef1b3f0280f1",
+    "initial_sha256": "022e44a4c9affca500351d64e5c4aa4a8f9e068627339449b2c2f2fcafa9ccb7",
+    "record_index": 2,
+    "record_id": "decision-c5bdd933097c0925dfca30374eab329a",
+    "workflow": "基础资产台账只读巡检",
+    "task": {
+      "id": "asset_ledger_inspection_result_delivery",
+      "semantics": "recommended_decision"
+    },
+    "question_names": [
+      "delivery_content",
+      "boundary_disclosure"
+    ],
+    "types": [
+      "choice",
+      "noul"
+    ],
+    "probability_question_count": 0
+  },
+  "ok": true,
+  "partial": true,
+  "limit": "真实 AI 多题样本只读页面验收，尚未执行复核或用途修改"
+}

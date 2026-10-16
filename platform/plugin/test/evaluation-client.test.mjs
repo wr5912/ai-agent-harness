@@ -403,6 +403,7 @@ test('Run AI 抽取按钮从实际 Run 身份固定上下文并明确调用 skil
     assert.deepEqual(JSON.parse(JSON.stringify(ui.assistants[0].context)), { page: 'evaluation', run_id: runA, agent_id: 'alpha', experiment_id: expA, skill: 'decision-sample-extraction' })
     assert.match(ui.assistants[0].task, /读取并使用 decision-sample-extraction Skill/)
     assert.match(ui.assistants[0].task, /datasets\/source/); assert.match(ui.assistants[0].task, /datasets\/preview/)
+    assert.match(ui.assistants[0].task, /extraction_contract/); assert.match(ui.assistants[0].task, /workflow、task/); assert.match(ui.assistants[0].task, /观察动作或推荐判断/); assert.match(ui.assistants[0].task, /禁止评价输入中不可见的回复/)
     assert.equal(ui.calls.some(item => item.action === 'datasets/preview' || item.action === 'datasets/apply'), false)
   } finally { ui.cleanup() }
 })
@@ -525,5 +526,26 @@ test('取消评测保持正在取消状态，禁止重复取消并在 CLI 收尾
     assert.equal(ui.calls.filter(item => item.action === 'eval/cancel').length, 1)
     state = 'cancelled'; ui.button('刷新状态').props.onClick(); await ui.settle()
     assert.match(ui.text(), /评测任务 · 已取消/); assert.ok(ui.calls.some(item => item.action === 'runs/show' && item.payload.run_id === runA))
+  } finally { ui.cleanup() }
+})
+
+
+test('从样本跳到固定轨迹并返回保留组件身份和草稿保护，重新抽取使用同一Run', async () => {
+  const ui = workbench({ target: { page: 'evaluation', tab: 'runs', run_id: runA } })
+  try {
+    await ui.settle(); ui.button('查看决策样本').props.onClick(); ui.render()
+    const dataset = ui.nodes().find(node => node.type?.name === 'DecisionDatasetView')
+    assert.ok(dataset); dataset.props.onDirty(true); ui.render()
+    dataset.props.onSource({ path: 'evidence/C-1/trace.jsonl', line: 141, source_sha256: 'trace-fixed' }); ui.render()
+    assert.equal(ui.nodes().find(node => node.props?.id === 'evaluation-run-panel-trace').props.hidden, false)
+    const trace = ui.nodes().find(node => node.type?.name === 'RunTraceView')
+    assert.equal(trace.props.focus.line, 141); assert.equal(trace.props.focus.source_sha256, 'trace-fixed')
+    ui.button('返回样本复核（保留草稿）').props.onClick(); ui.render()
+    const returned = ui.nodes().find(node => node.type?.name === 'DecisionDatasetView')
+    assert.equal(returned.type, dataset.type); assert.equal(returned.key, dataset.key)
+    assert.equal(ui.nodes().find(node => node.props?.id === 'evaluation-run-panel-datasets').props.hidden, false)
+    assert.equal(ui.confirmations.length, 0)
+    let prevented = false; for (const protect of ui.beforeUnload) protect({ preventDefault() { prevented = true }, returnValue: undefined }); assert.equal(prevented, true)
+    returned.props.onReextract(); await ui.settle(); assert.equal(ui.assistants.at(-1).context.run_id, runA); assert.match(ui.assistants.at(-1).task, /extraction_contract/)
   } finally { ui.cleanup() }
 })

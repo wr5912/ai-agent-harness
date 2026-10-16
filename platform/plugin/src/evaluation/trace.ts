@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { posix } from 'node:path'
+import { load as loadYaml } from 'js-yaml'
 import { listRunFiles, readRunEvidenceFile, redactRunText, RunFileError } from '../agents/run-files.ts'
 
 type JsonMap = Record<string, any>
@@ -29,6 +30,12 @@ export interface TraceSource {
   role_basis: string[]
   collection_status: 'available' | 'unavailable' | 'unknown'
   warnings: string[]
+}
+export interface TraceSourceBundle {
+  schema_version: 1
+  sha256: string
+  files: { path: string; source_sha256: string | null }[]
+  issues: string[]
 }
 export interface TraceMessage {
   role: string
@@ -87,22 +94,26 @@ export async function listRunTraceSources(root: string, runId: string, signal?: 
   const marker = `/runs/${runId}`
   const base = selected[0]!.path.slice(0, selected[0]!.path.indexOf(marker) + marker.length)
   const inputs = await optionalJson(root, runId, `${base}/inputs.lock.json`, signal)
-  const caseIds = new Set((Array.isArray(inputs?.evaluation_cases) ? inputs.evaluation_cases : []).map((item: any) => item?.case_id).filter((id: any) => typeof id === 'string'))
   return Promise.all(selected.map(async file => {
     const directory = posix.dirname(file.path)
     const checks = await optionalJson(root, runId, `${directory}/checks.json`, signal)
     const judge = file.path.endsWith('/judge-trace.jsonl') ? await optionalJson(root, runId, `${directory}/judge.json`, signal) : null
-    const local = file.path.slice(base.length + 1)
-    let role: TraceRole = 'unknown'
-    const role_basis: string[] = []
-    if (file.path.endsWith('/judge-trace.jsonl') && judge) { role = 'judge'; role_basis.push('judge-trace.jsonl 与同目录 judge.json 评审采集记录') }
-    else if (!file.path.endsWith('/judge-trace.jsonl') && checks?.operation === 'review' && local.startsWith('evidence/analysis/')) { role = 'analysis'; role_basis.push('analysis 目录及 checks.operation=review') }
-    else if (!file.path.endsWith('/judge-trace.jsonl') && /^evidence\/[^/]+\/trace\.jsonl$/.test(local) && caseIds.has(local.split('/')[1])) { role = 'target'; role_basis.push('inputs.lock.json 冻结 Case 对应的原始执行轨迹') }
-    const unavailable = checks?.trace_available === false || file.size === 0
-    const collection_status = unavailable ? 'unavailable' : checks?.trace_available === true ? 'available' : 'unknown'
-    const warnings = [...(role === 'unknown' ? ['缺少足够的轨迹角色依据，不推定为目标智能体。'] : []), ...(unavailable ? ['该轨迹为空或采集记录标明未取得轨迹。'] : []), ...(collection_status === 'unknown' ? ['采集记录未明确声明 trace_available，轨迹完整性未知。'] : [])]
-    return { path: file.path, size: file.size, role, role_basis, collection_status, warnings } as TraceSource
+    return classifySource(file, base, inputs, checks, judge)
   }))
+}
+
+function classifySource(file: { path: string; size: number }, base: string, inputs: JsonMap | null, checks: JsonMap | null, judge: JsonMap | null): TraceSource {
+  const caseIds = new Set((Array.isArray(inputs?.evaluation_cases) ? inputs.evaluation_cases : []).map((item: any) => item?.case_id).filter((id: any) => typeof id === 'string'))
+  const local = file.path.slice(base.length + 1)
+  let role: TraceRole = 'unknown'
+  const role_basis: string[] = []
+  if (file.path.endsWith('/judge-trace.jsonl') && judge) { role = 'judge'; role_basis.push('judge-trace.jsonl 与同目录 judge.json 评审采集记录') }
+  else if (!file.path.endsWith('/judge-trace.jsonl') && checks?.operation === 'review' && local.startsWith('evidence/analysis/')) { role = 'analysis'; role_basis.push('analysis 目录及 checks.operation=review') }
+  else if (!file.path.endsWith('/judge-trace.jsonl') && /^evidence\/[^/]+\/trace\.jsonl$/.test(local) && caseIds.has(local.split('/')[1])) { role = 'target'; role_basis.push('inputs.lock.json 冻结 Case 对应的原始执行轨迹') }
+  const unavailable = checks?.trace_available === false || file.size === 0
+  const collection_status = unavailable ? 'unavailable' : checks?.trace_available === true ? 'available' : 'unknown'
+  const warnings = [...(role === 'unknown' ? ['缺少足够的轨迹角色依据，不推定为目标智能体。'] : []), ...(unavailable ? ['该轨迹为空或采集记录标明未取得轨迹。'] : []), ...(collection_status === 'unknown' ? ['采集记录未明确声明 trace_available，轨迹完整性未知。'] : [])]
+  return { path: file.path, size: file.size, role, role_basis, collection_status, warnings } as TraceSource
 }
 
 /** 保留原 JSONL 行号和原字节摘要；脱敏与解析不会改写源文件。 */
@@ -136,13 +147,39 @@ export async function loadRunTrace(root: string, input: Pick<RunTraceInput, 'run
   const files = await listRunTraceSources(root, input.run_id, signal)
   const source = input.path ? files.find(file => file.path === input.path || file.path.endsWith(`/runs/${input.run_id}/${input.path}`)) : files.find(file => file.role === 'target' && file.collection_status !== 'unavailable') ?? files[0]
   if (!source) throw new RunFileError('not_found', '所选 Run 中没有此 Session 轨迹')
-  const file = await readRunEvidenceFile(root, input.run_id, source.path, signal)
+  const base = source.path.slice(0, source.path.indexOf(`/runs/${input.run_id}`) + `/runs/${input.run_id}`.length)
+  const directory = posix.dirname(source.path)
+  const paths = [source.path, `${base}/run.yaml`, `${base}/run.json`, `${base}/inputs.lock.json`, `${directory}/checks.json`, `${directory}/judge.json`]
+  const captured = new Map<string, Awaited<ReturnType<typeof readRunEvidenceFile>> | null>()
+  for (const path of [...new Set(paths)]) {
+    try { captured.set(path, await readRunEvidenceFile(root, input.run_id, path, signal)) }
+    catch (error) { if (error instanceof RunFileError && error.code === 'not_found' && path !== source.path) captured.set(path, null); else throw error }
+  }
+  const file = captured.get(source.path)!
+  if (!file) throw new RunFileError('not_found', '所选轨迹不存在')
   if (input.source_sha256 && input.source_sha256 !== file.source_sha256) throw new RunFileError('conflict', '轨迹在读取期间发生变化，请重新开始', { path: source.path })
+  const issues: string[] = []
+  function json(path: string) { try { return map(JSON.parse(captured.get(path)?.data.toString('utf8') ?? 'null')) } catch { issues.push(`${path} 无法解析`); return null } }
+  const inputs = json(`${base}/inputs.lock.json`), checks = json(`${directory}/checks.json`), judge = json(`${directory}/judge.json`)
+  const actualSource = classifySource(source, base, inputs, checks, judge)
+  const manifests = [`${base}/run.yaml`, `${base}/run.json`].filter(path => captured.get(path))
+  if (!manifests.length) issues.push('缺少 Run 身份文件')
+  for (const path of manifests) {
+    try {
+      const raw = captured.get(path)!.data.toString('utf8'), value = map(path.endsWith('.yaml') ? loadYaml(raw) : JSON.parse(raw))
+      if (value?.run_id !== input.run_id) issues.push('Run 身份文件的 run_id 与所选 Run 不一致')
+      if (!['completed', 'failed', 'cancelled'].includes(value?.status)) issues.push('Run 尚未封存，不能固定决策来源')
+    } catch { issues.push(`${path} 无法解析`) }
+  }
+  if (actualSource.role !== 'target') issues.push('来源不是已确认的目标智能体 Case 轨迹')
+  if (actualSource.collection_status !== 'available') issues.push('采集记录没有确认可用的完整轨迹')
+  const bundleFiles = [...captured].map(([path, value]) => ({ path, source_sha256: value?.source_sha256 ?? null })).sort((a, b) => a.path.localeCompare(b.path))
+  const source_bundle: TraceSourceBundle = { schema_version: 1, sha256: hash(JSON.stringify(bundleFiles)), files: bundleFiles, issues }
   let text: string
   try { text = new TextDecoder('utf-8', { fatal: true }).decode(file.data) }
   catch { throw new RunFileError('file_not_text', '轨迹必须是有效的 UTF-8 JSONL 文本') }
-  const events = parseTraceText(text, source, file.source_sha256)
-  return { run_id: input.run_id, files, source, path: source.path, warnings: source.warnings, source_sha256: file.source_sha256, events, total_lines: events.length }
+  const events = parseTraceText(text, actualSource, file.source_sha256)
+  return { run_id: input.run_id, files, source: actualSource, path: actualSource.path, warnings: actualSource.warnings, source_sha256: file.source_sha256, source_bundle, events, total_lines: events.length }
 }
 
 function visibleContent(value: any) {

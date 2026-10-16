@@ -266,7 +266,8 @@ function BusinessPreview({ value, meta }: { value: unknown; meta: OperationMeta 
     </>
   } else if (data?.status === 'suggested' && Array.isArray(data.records)) summary = <>
     <p>将 <strong>{data.count ?? data.records.length} 条决策样本</strong>保存到本次运行的“决策样本”。</p>
-    <p>标签仍是 AI 建议；经人工复核后才能用于训练导出。</p>
+    <p>业务范围：{[...new Set(data.records.map((record: any) => record.workflow).filter(Boolean))].join('、') || '当前固定运行中的业务决策'}；共 {data.records.reduce((count: number, record: any) => count + Object.keys(record.questions ?? {}).length, 0)} 道命名决策题。</p>
+    <p>标签仍是 AI 建议，保存后待人员逐题复核，再明确训练或评测用途。</p>
   </>
   else if (meta.action === 'features/apply') {
     const features = data?.features ?? data?.after?.features ?? []
