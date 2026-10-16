@@ -1,0 +1,257 @@
+{
+  "at": "2026-10-16T10:25:10.635Z",
+  "scope": "3100真实页面：3模式×3宽度；另保留已完成原生示例确认/交付几何。没有在本轮启动模型任务。",
+  "source_client": {
+    "program_commit": "96b1328b658382388fc97c2874272eea9ee1d5e2",
+    "fresh_http_client": {
+      "path": "/hep/plugins/",
+      "status": 200,
+      "bytes": 1539169,
+      "sha256": "ae72cfb7e77d7e281b329ae922a8c3dcd41eae2f01f5b641c72e3c3be4ffac8b",
+      "home_domain_revision": true,
+      "background_preserves_selection": true
+    }
+  },
+  "autosize": {
+    "initial": {
+      "height": 39.09375,
+      "scroll": 39,
+      "client": 39,
+      "line": 23.1,
+      "padding": 16
+    },
+    "multiline": {
+      "height": 85,
+      "scroll": 85,
+      "client": 85,
+      "line": 23.1,
+      "padding": 16
+    },
+    "capped": {
+      "height": 240,
+      "scroll": 1125,
+      "client": 240,
+      "line": 23.1,
+      "padding": 16
+    },
+    "cleared": {
+      "height": 39.09375,
+      "scroll": 39,
+      "client": 39,
+      "line": 23.1,
+      "padding": 16
+    }
+  },
+  "viewports": [
+    {
+      "mode": "build",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440,
+      "content": {
+        "x": 0,
+        "y": 72,
+        "width": 1440,
+        "height": 928,
+        "top": 72,
+        "right": 1440,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "build",
+      "width": 900,
+      "scroll": 900,
+      "client": 900,
+      "content": {
+        "x": 0,
+        "y": 121,
+        "width": 900,
+        "height": 879,
+        "top": 121,
+        "right": 900,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "build",
+      "width": 390,
+      "scroll": 390,
+      "client": 390,
+      "content": {
+        "x": 0,
+        "y": 153,
+        "width": 390,
+        "height": 847,
+        "top": 153,
+        "right": 390,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "evaluate",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440,
+      "content": {
+        "x": 0,
+        "y": 72,
+        "width": 1440,
+        "height": 928,
+        "top": 72,
+        "right": 1440,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "evaluate",
+      "width": 900,
+      "scroll": 900,
+      "client": 900,
+      "content": {
+        "x": 0,
+        "y": 121,
+        "width": 900,
+        "height": 879,
+        "top": 121,
+        "right": 900,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "evaluate",
+      "width": 390,
+      "scroll": 390,
+      "client": 390,
+      "content": {
+        "x": 0,
+        "y": 153,
+        "width": 390,
+        "height": 847,
+        "top": 153,
+        "right": 390,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "improve",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440,
+      "content": {
+        "x": 0,
+        "y": 72,
+        "width": 1440,
+        "height": 928,
+        "top": 72,
+        "right": 1440,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "improve",
+      "width": 900,
+      "scroll": 900,
+      "client": 900,
+      "content": {
+        "x": 0,
+        "y": 121,
+        "width": 900,
+        "height": 879,
+        "top": 121,
+        "right": 900,
+        "bottom": 1000,
+        "left": 0
+      }
+    },
+    {
+      "mode": "improve",
+      "width": 390,
+      "scroll": 390,
+      "client": 390,
+      "content": {
+        "x": 0,
+        "y": 153,
+        "width": 390,
+        "height": 847,
+        "top": 153,
+        "right": 390,
+        "bottom": 1000,
+        "left": 0
+      }
+    }
+  ],
+  "example_viewports": [
+    {
+      "name": "home",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440
+    },
+    {
+      "name": "confirmation",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440
+    },
+    {
+      "name": "confirmation-narrow",
+      "width": 390,
+      "scroll": 390,
+      "client": 390
+    },
+    {
+      "name": "delivered",
+      "width": 1440,
+      "scroll": 1440,
+      "client": 1440
+    },
+    {
+      "name": "delivered-narrow",
+      "width": 390,
+      "scroll": 390,
+      "client": 390
+    }
+  ],
+  "pageerrors": [],
+  "loaded_selection_observation": {
+    "duration_ms": 5000,
+    "samples": 50,
+    "selected_version": "EXP-daily-inspection-assistant-002-r9eba480e9d2a",
+    "all_operable": true,
+    "requests": {},
+    "scope": "真实平台页面观察；纯助手事件过滤另由真实updates+HomePage回归验证，未额外提交模型任务"
+  },
+  "concurrent_event_regression": {
+    "scope": "真实HomePage+updates Chromium，RPC外部边界隔离，不是后台模型并行验收",
+    "evidence": {
+      "scope": "真实HomePage+updates在Chromium验证，RPC边界隔离，无模型任务",
+      "errors": [],
+      "checks": [
+        "100次助手事件不重复查询",
+        "同目标真实后台刷新期间版本和评测入口保持可用",
+        "切换目标等待回读，旧目标迟到结果不覆盖新版本"
+      ],
+      "ok": true
+    }
+  },
+  "first_failed_probe": {
+    "at": "2026-10-16T10:14:20.878Z",
+    "ok": false,
+    "reason": "旧首页监听全局revision，在助手和任务更新下版本select持续禁用；96b1328修正按域订阅与同目标后台加载状态。首次失败保留，不改写为通过。",
+    "evidence_original": "/tmp/hep-task-delivery-20261016/home-live-v3-first-probe.json",
+    "screenshot_original": "/tmp/hep-task-delivery-20261016/home-live-v3-first-probe.png"
+  },
+  "limitations": [
+    "真实v3复验时root与B模型任务已终态；5秒稳定观察期间未发生新业务域查询，不声称实测活跃模型并发压力。",
+    "空改进输入仅验证UI可用与默认查询/问询函数合同，未另提交模型任务。",
+    "窄屏确认区可滚动，旧实际确认截图初屏未完整显示预算；本包保留真实旧任务事实，不声称后续确认卡修改已在该任务上复验。"
+  ]
+}

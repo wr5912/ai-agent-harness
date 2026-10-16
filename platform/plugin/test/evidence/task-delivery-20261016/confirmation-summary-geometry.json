@@ -1,0 +1,100 @@
+{
+  "kind": "isolated-render-geometry",
+  "source_session_id": "session-cca8dc75-3d14-4e15-8a30-90af0af371da",
+  "source_proposal_id": "09d77245-efc0-43f0-ae2a-c60a414b309c",
+  "views": [
+    {
+      "width": 1440,
+      "height": 1000,
+      "dock": {
+        "top": 552.34375,
+        "bottom": 874,
+        "height": 321.65625,
+        "scrollHeight": 320,
+        "scrollTop": 0
+      },
+      "budget": {
+        "top": 706.734375,
+        "bottom": 743.765625
+      },
+      "actions": {
+        "top": 793,
+        "bottom": 842
+      },
+      "client": 1440,
+      "budget_visible": true,
+      "actions_visible": true,
+      "details_open": false
+    },
+    {
+      "width": 900,
+      "height": 1000,
+      "dock": {
+        "top": 552.34375,
+        "bottom": 874,
+        "height": 321.65625,
+        "scrollHeight": 320,
+        "scrollTop": 0
+      },
+      "budget": {
+        "top": 706.734375,
+        "bottom": 743.765625
+      },
+      "actions": {
+        "top": 793,
+        "bottom": 842
+      },
+      "client": 900,
+      "budget_visible": true,
+      "actions_visible": true,
+      "details_open": false
+    },
+    {
+      "width": 390,
+      "height": 1000,
+      "dock": {
+        "top": 459.484375,
+        "bottom": 874,
+        "height": 414.515625,
+        "scrollHeight": 413,
+        "scrollTop": 0
+      },
+      "budget": {
+        "top": 649.46875,
+        "bottom": 735.53125
+      },
+      "actions": {
+        "top": 801,
+        "bottom": 848
+      },
+      "client": 390,
+      "budget_visible": true,
+      "actions_visible": true,
+      "details_open": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "dock": {
+        "top": 303.484375,
+        "bottom": 718,
+        "height": 414.515625,
+        "scrollHeight": 413,
+        "scrollTop": 0
+      },
+      "budget": {
+        "top": 493.46875,
+        "bottom": 579.53125
+      },
+      "actions": {
+        "top": 645,
+        "bottom": 692
+      },
+      "client": 390,
+      "budget_visible": true,
+      "actions_visible": true,
+      "details_open": false
+    }
+  ],
+  "ok": true
+}

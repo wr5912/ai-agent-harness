@@ -1,0 +1,16 @@
+{
+  "session_id": "session-1f1df09d-c8b4-47cb-a738-bdb037703207",
+  "model_calls_before_reject": 8,
+  "model_calls_final": 9,
+  "turn_end": {
+    "type": "turn/end",
+    "seq": 101,
+    "time": 1792146458475,
+    "data": {
+      "turn": 1,
+      "reason": {
+        "kind": "completed"
+      }
+    }
+  }
+}

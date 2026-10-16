@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-16T09:53:10.613Z",
+  "ok": true,
+  "errors": [],
+  "entry": "http://127.0.0.1:3113/assistant/",
+  "instance": {
+    "name": "hep-ui-start-acceptance",
+    "port": 3113,
+    "state": "running",
+    "source_id": "experiment:EXP-daily-inspection-assistant-002-r9eba480e9d2a",
+    "image_tag": "ai-agent-harness/dsh:21638c563-9b0b8da69314",
+    "image_id": "sha256:060d338f4d4cfe18097d7c0ae72a4fb22d82c3fe8da11829bba0121686c458f8"
+  },
+  "instance_requests": [
+    "instances/run"
+  ]
+}

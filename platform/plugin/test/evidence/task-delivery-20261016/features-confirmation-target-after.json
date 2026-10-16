@@ -1,0 +1,10 @@
+{
+  "scope": "同一次真实原生特性提案经实际AssistantOperations组件隔离渲染，未追加AI请求或资产写入",
+  "session_id": "session-1f1df09d-c8b4-47cb-a738-bdb037703207",
+  "proposal_id": "16e252e4-05f5-47ad-ba52-bc0dec99d1dd",
+  "source_evidence_sha256": "50293d6b1932efb152088708ca960202a67c97ccc00e7d67eb769ab41e3cc324",
+  "component_sha256": "e24a41ed43601cd5bf5413ad81d3046b185458ecb5190c6c3b97b92640bd530b",
+  "visible": " 平台操作确认与进度 保存版本特性 智能体与评测  把  10  项特性说明 保存到 智能体“inspection-delivery-demo”的版本 001 。  保存说明不会自动将能力标记为已验证；来源与证据会一并保留。  查看完整方案与实际修改   保存特性 暂不执行  ",
+  "details_closed": true,
+  "ok": true
+}

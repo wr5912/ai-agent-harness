@@ -1,0 +1,431 @@
+{
+  "kind": "actual-native-result-replay",
+  "count": 53,
+  "generic": [],
+  "rows": [
+    {
+      "seq": 29,
+      "action": "context",
+      "domain": "task",
+      "title": "读取工作区与任务目标",
+      "outcome": "已读取当前工作区与固定任务目标",
+      "failed": false
+    },
+    {
+      "seq": 36,
+      "action": "tasks/capabilities",
+      "domain": "agents",
+      "title": "查找可复用能力：daily-inspection-assistant",
+      "outcome": "找到 2 个资产来源、0 个 MCP 连接；尚未验证运行效果",
+      "failed": false
+    },
+    {
+      "seq": 38,
+      "action": "detail",
+      "domain": "agents",
+      "title": "读取智能体详情：日常巡检整理助手 · 版本 002",
+      "outcome": "已读取版本 002、6 个测试用例",
+      "failed": false
+    },
+    {
+      "seq": 40,
+      "action": "list",
+      "domain": "agents",
+      "title": "查询智能体",
+      "outcome": "查到 5 个智能体",
+      "failed": false
+    },
+    {
+      "seq": 47,
+      "action": "assets/read-fixed",
+      "domain": "agents",
+      "title": "读取固定版本文件：daily-inspection-assistant · 版本 002",
+      "outcome": "已列出 6 个固定版本文件",
+      "failed": false
+    },
+    {
+      "seq": 49,
+      "action": "runs/index",
+      "domain": "agents",
+      "title": "查询运行记录：daily-inspection-assistant",
+      "outcome": "查到 2 个版本、6 条运行记录",
+      "failed": false
+    },
+    {
+      "seq": 51,
+      "action": "status",
+      "domain": "task",
+      "title": "查询交付任务进度",
+      "outcome": "Error: tool \"platform_task\" returned invalid output: \"value\" must be an object",
+      "failed": true
+    },
+    {
+      "seq": 58,
+      "action": "assets/read-fixed",
+      "domain": "agents",
+      "title": "读取固定版本文件：agent.cordis.yml",
+      "outcome": "已读取固定文件内容",
+      "failed": false
+    },
+    {
+      "seq": 60,
+      "action": "assets/read-fixed",
+      "domain": "agents",
+      "title": "读取固定版本文件：AGENTS.md",
+      "outcome": "已读取固定文件内容",
+      "failed": false
+    },
+    {
+      "seq": 62,
+      "action": "assets/read-fixed",
+      "domain": "agents",
+      "title": "读取固定版本文件：daily-inspection-assistant.patch.yml",
+      "outcome": "已读取固定文件内容",
+      "failed": false
+    },
+    {
+      "seq": 64,
+      "action": "assets/read-fixed",
+      "domain": "agents",
+      "title": "读取固定版本文件：harness.yaml",
+      "outcome": "已读取固定文件内容",
+      "failed": false
+    },
+    {
+      "seq": 71,
+      "action": "features/read-source",
+      "domain": "agents",
+      "title": "读取版本说明：版本 002",
+      "outcome": "已读取内容",
+      "failed": false
+    },
+    {
+      "seq": 73,
+      "action": "features/read-source",
+      "domain": "agents",
+      "title": "读取版本说明：版本 001",
+      "outcome": "已读取内容",
+      "failed": false
+    },
+    {
+      "seq": 75,
+      "action": "cases/read",
+      "domain": "agents",
+      "title": "读取测试用例：daily-inspection-assistant",
+      "outcome": "缺少 experiment_id",
+      "failed": true
+    },
+    {
+      "seq": 77,
+      "action": "runs/show",
+      "domain": "agents",
+      "title": "读取运行详情",
+      "outcome": "已读取 4 项",
+      "failed": false
+    },
+    {
+      "seq": 84,
+      "action": "features/read-source",
+      "domain": "agents",
+      "title": "读取版本说明：版本 002",
+      "outcome": "已读取内容",
+      "failed": false
+    },
+    {
+      "seq": 86,
+      "action": "features/read-source",
+      "domain": "agents",
+      "title": "读取版本说明：版本 002",
+      "outcome": "已读取内容",
+      "failed": false
+    },
+    {
+      "seq": 88,
+      "action": "features/read-source",
+      "domain": "agents",
+      "title": "读取版本说明：版本 001",
+      "outcome": "已读取内容",
+      "failed": false
+    },
+    {
+      "seq": 90,
+      "action": "features/read-source",
+      "domain": "agents",
+      "title": "读取版本说明：版本 001",
+      "outcome": "已读取内容",
+      "failed": false
+    },
+    {
+      "seq": 97,
+      "action": "assets/read-fixed",
+      "domain": "agents",
+      "title": "读取固定版本文件：task-example-tools.mjs",
+      "outcome": "已读取固定文件内容",
+      "failed": false
+    },
+    {
+      "seq": 99,
+      "action": "list",
+      "domain": "instances",
+      "title": "查询实例",
+      "outcome": "查到 5 个实例",
+      "failed": false
+    },
+    {
+      "seq": 106,
+      "action": "edit/read",
+      "domain": "agents",
+      "title": "读取资产文件：evaluation.md",
+      "outcome": "缺少 experiment_id",
+      "failed": true
+    },
+    {
+      "seq": 108,
+      "action": "cases/list",
+      "domain": "agents",
+      "title": "查询测试用例：daily-inspection-assistant · 版本 001",
+      "outcome": "已读取 6 项",
+      "failed": false
+    },
+    {
+      "seq": 115,
+      "action": "cases/read",
+      "domain": "agents",
+      "title": "读取测试用例：daily-inspection-assistant · 版本 002",
+      "outcome": "缺少 case_id",
+      "failed": true
+    },
+    {
+      "seq": 117,
+      "action": "edit/read",
+      "domain": "agents",
+      "title": "读取资产文件：evaluation.md",
+      "outcome": "已读取内容",
+      "failed": false
+    },
+    {
+      "seq": 124,
+      "action": "preview",
+      "domain": "task",
+      "title": "核对交付方案",
+      "outcome": "Error: [\n  {\n    \"code\": \"unrecognized_keys\",\n    \"keys\": [\n      \"instance_port\"\n    ],\n    \"path\": [],\n    \"message\": \"Unrecognized key: \\\"instance_port\\\"\"\n  }\n]",
+      "failed": true
+    },
+    {
+      "seq": 131,
+      "action": "preview",
+      "domain": "task",
+      "title": "核对交付方案",
+      "outcome": "Error: 普通任务总时限最多 30 分钟",
+      "failed": true
+    },
+    {
+      "seq": 138,
+      "action": "preview",
+      "domain": "task",
+      "title": "核对交付方案",
+      "outcome": "方案已校验，执行前将请求整体确认",
+      "failed": false
+    },
+    {
+      "seq": 150,
+      "action": "start",
+      "domain": "task",
+      "title": "启动交付任务",
+      "outcome": "任务执行中",
+      "failed": false
+    },
+    {
+      "seq": 158,
+      "action": "status",
+      "domain": "task",
+      "title": "查询交付任务进度",
+      "outcome": "任务执行中",
+      "failed": false
+    },
+    {
+      "seq": 170,
+      "action": "create",
+      "domain": "agents",
+      "title": "从固定父版派生：daily-inspection-assistant",
+      "outcome": "已创建研究版本，业务效果仍需评测",
+      "failed": false
+    },
+    {
+      "seq": 178,
+      "action": "detail",
+      "domain": "agents",
+      "title": "读取智能体详情：日常巡检整理助手 · 版本 003",
+      "outcome": "已读取版本 003、6 个测试用例",
+      "failed": false
+    },
+    {
+      "seq": 180,
+      "action": "tasks/capabilities",
+      "domain": "agents",
+      "title": "查找可复用能力：daily-inspection-assistant",
+      "outcome": "找到 1 个资产来源、0 个 MCP 连接；尚未验证运行效果",
+      "failed": false
+    },
+    {
+      "seq": 188,
+      "action": "edit/read",
+      "domain": "agents",
+      "title": "读取资产文件：harness.yaml",
+      "outcome": "已读取内容",
+      "failed": false
+    },
+    {
+      "seq": 190,
+      "action": "eval/preview",
+      "domain": "agents",
+      "title": "核对评测范围",
+      "outcome": "已核对评测范围，尚未启动运行",
+      "failed": false
+    },
+    {
+      "seq": 200,
+      "action": "eval/start",
+      "domain": "agents",
+      "title": "启动评测",
+      "outcome": "评测已启动",
+      "failed": false
+    },
+    {
+      "seq": 209,
+      "action": "eval/status",
+      "domain": "agents",
+      "title": "查询评测进度",
+      "outcome": "评测运行中",
+      "failed": false
+    },
+    {
+      "seq": 217,
+      "action": "preview",
+      "domain": "instances",
+      "title": "核对实例操作范围：hep-task-builder-inspection",
+      "outcome": "已核对版本 003、端口 3110；尚未执行实例操作",
+      "failed": false
+    },
+    {
+      "seq": 219,
+      "action": "edit/read",
+      "domain": "agents",
+      "title": "读取资产文件：AGENTS.md",
+      "outcome": "已读取内容",
+      "failed": false
+    },
+    {
+      "seq": 228,
+      "action": "eval/status",
+      "domain": "agents",
+      "title": "查询评测进度",
+      "outcome": "评测运行中",
+      "failed": false
+    },
+    {
+      "seq": 238,
+      "action": "run",
+      "domain": "instances",
+      "title": "创建实例：hep-task-builder-inspection",
+      "outcome": "DSH 当前正在运行，端口 3110；业务效果仍需核验",
+      "failed": false
+    },
+    {
+      "seq": 247,
+      "action": "eval/status",
+      "domain": "agents",
+      "title": "查询评测进度",
+      "outcome": "评测运行中",
+      "failed": false
+    },
+    {
+      "seq": 256,
+      "action": "eval/status",
+      "domain": "agents",
+      "title": "查询评测进度",
+      "outcome": "评测运行中",
+      "failed": false
+    },
+    {
+      "seq": 265,
+      "action": "eval/status",
+      "domain": "agents",
+      "title": "查询评测进度",
+      "outcome": "评测已结束，结果以运行报告为准",
+      "failed": false
+    },
+    {
+      "seq": 276,
+      "action": "runs/report",
+      "domain": "agents",
+      "title": "读取评测报告",
+      "outcome": "已读取内容",
+      "failed": false
+    },
+    {
+      "seq": 278,
+      "action": "runs/read-file",
+      "domain": "agents",
+      "title": "读取运行文件：inspection-report.md",
+      "outcome": "已读取内容",
+      "failed": false
+    },
+    {
+      "seq": 287,
+      "action": "deliver",
+      "domain": "task",
+      "title": "检查交付实例与业务产物",
+      "outcome": "尚未交付：固定 Case 的同一业务 Session 中存在实际业务工具调用及匹配成功回执",
+      "failed": true
+    },
+    {
+      "seq": 295,
+      "action": "preview",
+      "domain": "task",
+      "title": "核对交付方案",
+      "outcome": "方案已校验，执行前将请求整体确认",
+      "failed": false
+    },
+    {
+      "seq": 307,
+      "action": "start",
+      "domain": "task",
+      "title": "启动交付任务",
+      "outcome": "Error: tool call aborted",
+      "failed": true
+    },
+    {
+      "seq": 344,
+      "action": "status",
+      "domain": "task",
+      "title": "查询交付任务进度",
+      "outcome": "任务执行中",
+      "failed": false
+    },
+    {
+      "seq": 352,
+      "action": "start",
+      "domain": "task",
+      "title": "启动交付任务",
+      "outcome": "Error: 当前会话已有未结束任务，请继续当前任务；评测或交付失败不需要重新授权。需要修改时先 begin-repair，未知回执先 checkpoint",
+      "failed": true
+    },
+    {
+      "seq": 362,
+      "action": "begin-repair",
+      "domain": "task",
+      "title": "预留一轮修复",
+      "outcome": "已预留第 1 轮修复",
+      "failed": false
+    },
+    {
+      "seq": 370,
+      "action": "edit/preview",
+      "domain": "agents",
+      "title": "核对资产修改：版本 003",
+      "outcome": "已核对 1 份文件修改；尚未写入",
+      "failed": false
+    }
+  ]
+}

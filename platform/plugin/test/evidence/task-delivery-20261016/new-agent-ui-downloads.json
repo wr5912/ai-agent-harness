@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-16T10:20:26.200Z",
+  "driver_wait_only": true,
+  "session_id": "session-1cdf2a44-bc8d-47e7-b20b-9a13418c1998",
+  "title": "创建基础台账巡检助手",
+  "downloads": [
+    {
+      "label": "下载 inspection-report.md",
+      "filename": "inspection-report.md",
+      "bytes": 679,
+      "sha256": "bd6d38ab4781fa7bdce4c824d9187a4e4c519f723e001eb5e9b497d1dac7e201",
+      "expected_sha256": "bd6d38ab4781fa7bdce4c824d9187a4e4c519f723e001eb5e9b497d1dac7e201"
+    },
+    {
+      "label": "下载 Markdown",
+      "filename": "task-fd7be306-7bcc-465a-9120-9480e6598865-report.md",
+      "bytes": 684,
+      "sha256": "4cff44c3a68ac5988258bbeec51a5a073da6ee53b2f00678200dde4127d5d33d",
+      "expected_sha256": "4cff44c3a68ac5988258bbeec51a5a073da6ee53b2f00678200dde4127d5d33d"
+    },
+    {
+      "label": "下载设备 CSV",
+      "filename": "task-fd7be306-7bcc-465a-9120-9480e6598865-devices.csv",
+      "bytes": 347,
+      "sha256": "00c340cefc3bf5dcae2645cdaaa115aa5364c1c7076f14dcb732bdd986a7eb9d",
+      "expected_sha256": "00c340cefc3bf5dcae2645cdaaa115aa5364c1c7076f14dcb732bdd986a7eb9d"
+    }
+  ],
+  "ok": true
+}

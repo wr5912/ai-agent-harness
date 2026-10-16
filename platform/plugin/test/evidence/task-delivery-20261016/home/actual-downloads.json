@@ -1,0 +1,151 @@
+{
+  "observed_at": "2026-10-16T10:00:18.913Z",
+  "scope": "真实首页默认002→独立版本004→固定业务Case→独立实例新Session→真实UI下载；基础Mock台账，非真实设备健康验收",
+  "data_evidence_commit": "25a4500",
+  "source": "experiment:EXP-daily-inspection-assistant-002-r9eba480e9d2a",
+  "candidate": "EXP-daily-inspection-assistant-004-r965bc66e4614",
+  "run_id": "run-325d6b40-9324-4dee-8b8f-b82e969e69b9",
+  "delivery_session_id": "session-91540855-ec8f-4375-a849-bc746d45c3f7",
+  "instance": {
+    "name": "hep-task-inspection-delivery",
+    "port": 3093,
+    "state": "running",
+    "source_id": "experiment:EXP-daily-inspection-assistant-004-r965bc66e4614"
+  },
+  "downloads": [
+    {
+      "format": "markdown",
+      "bytes": 686,
+      "sha256": "1a0ff0fd68dd2c0ebe72bd58a842339128c117f9cb90bc0885b476e5090f0ffe",
+      "check": {
+        "ok": true,
+        "device_ids": [
+          "asset-0001",
+          "asset-0002",
+          "asset-0003",
+          "asset-0004",
+          "asset-0005"
+        ],
+        "devices": [
+          {
+            "id": "asset-0001",
+            "status": "台账已记录"
+          },
+          {
+            "id": "asset-0002",
+            "status": "台账已记录"
+          },
+          {
+            "id": "asset-0003",
+            "status": "台账已记录"
+          },
+          {
+            "id": "asset-0004",
+            "status": "台账已记录"
+          },
+          {
+            "id": "asset-0005",
+            "status": "台账已记录"
+          }
+        ],
+        "missing": [],
+        "unexpected": [],
+        "duplicates": [],
+        "errors": [],
+        "total": 5,
+        "declared_total": 5
+      }
+    },
+    {
+      "format": "csv",
+      "bytes": 349,
+      "sha256": "688960df65a6dad52531ce1767a68675f50371eeba55e9e12661b10e98397034",
+      "check": {
+        "ok": true,
+        "device_ids": [
+          "asset-0001",
+          "asset-0002",
+          "asset-0003",
+          "asset-0004",
+          "asset-0005"
+        ],
+        "devices": [
+          {
+            "id": "asset-0001",
+            "status": "台账已记录"
+          },
+          {
+            "id": "asset-0002",
+            "status": "台账已记录"
+          },
+          {
+            "id": "asset-0003",
+            "status": "台账已记录"
+          },
+          {
+            "id": "asset-0004",
+            "status": "台账已记录"
+          },
+          {
+            "id": "asset-0005",
+            "status": "台账已记录"
+          }
+        ],
+        "missing": [],
+        "unexpected": [],
+        "duplicates": [],
+        "errors": [],
+        "total": 5
+      }
+    }
+  ],
+  "same_business_tool_receipt_verified": true,
+  "tool_actions": [
+    {
+      "call_id": "call_00_vt3JJYYnzhaKmxkoAMPf9522",
+      "action": "start",
+      "cursor": null
+    },
+    {
+      "call_id": "call_00_FIqCBsSVYYAqNmlepEHV5835",
+      "action": "page",
+      "cursor": 0
+    },
+    {
+      "call_id": "call_00_2SK0nK3AnfaunKho2kzh6304",
+      "action": "page",
+      "cursor": 2
+    },
+    {
+      "call_id": "call_00_ZXx64whEKfoD5whZaLQb4567",
+      "action": "page",
+      "cursor": 4
+    },
+    {
+      "call_id": "call_00_uHoQjKTgUXs3m4eJMYzC9924",
+      "action": "report",
+      "cursor": null
+    }
+  ],
+  "involvement": {
+    "text_inputs": 0,
+    "confirmations": 1,
+    "clicks_including_navigation_open_and_downloads": 7
+  },
+  "elapsed_seconds_to_delivery": 497.62,
+  "repair_rounds": 0,
+  "completed_task_model_calls": 35,
+  "final_session_model_calls": 23,
+  "final_total_observed_model_calls": 36,
+  "currency_cost": null,
+  "cost_scope": "completed_task统计到服务端交付检查完成；final_session统计含之后的管理助手收尾说明。账单费用未知，不由调用次数推算。",
+  "original_evidence": "/home/admin/work/hep-task-delivery-data/evolution/experiments/EXP-daily-inspection-assistant-004-r965bc66e4614/evaluation/evidence/home-example-20261016/acceptance.json",
+  "readable_artifact_paths": [
+    "delivery-probe/report.md",
+    "delivery-probe/devices.csv"
+  ],
+  "limitations": [
+    "基础Mock资产台账，不代表真实设备健康检测。",
+    "仅一次固定Case+一次交付Session；不证明长期稳定性或较002提升。"
+  ]
+}

@@ -1,0 +1,214 @@
+{
+  "at": "2026-10-16T10:27:05.510Z",
+  "ui_requests": 1,
+  "additional_messages": 0,
+  "confirm_writes": 0,
+  "errors": [],
+  "before": {
+    "sha256": "fff3b6c4a26b2f5e3123135f9c3ddec656c1ff9e024f9e1188a4c02bb9be7a13",
+    "files": 65
+  },
+  "session_id": "session-1f1df09d-c8b4-47cb-a738-bdb037703207",
+  "request": {
+    "task": "请使用 agent-maintenance Skill 整理固定目标版本的用途与特性，读取资产和已有证据后通过 features/preview 提交待确认清单。",
+    "context": {
+      "page": "agents",
+      "agent_id": "inspection-delivery-demo",
+      "experiment_id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+      "skill": "agent-maintenance",
+      "workflow": "features"
+    },
+    "session_id": "session-1f1df09d-c8b4-47cb-a738-bdb037703207"
+  },
+  "model_calls": 8,
+  "proposal": {
+    "id": "16e252e4-05f5-47ad-ba52-bc0dec99d1dd",
+    "domain": "agents",
+    "action": "features/apply",
+    "preview": {
+      "preview_id": "8872e536-659d-4d25-bbf5-2c122d43db61",
+      "experiment_id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+      "features": [
+        {
+          "id": "FEAT-READONLY-LEDGER-SCOPE",
+          "title": "只读固定范围台账巡检",
+          "description": "仅执行只读的台账巡检，固定范围为 asset-0001 至 asset-0005 共 5 台（共三页）；不执行设备变更、修复或扫描。",
+          "source_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/hypothesis.md",
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/dsh/workspace/AGENTS.md"
+          ],
+          "evidence_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ASSET-PAGES-001/tools.jsonl"
+          ]
+        },
+        {
+          "id": "FEAT-PAGINATION-COMPLETE-READ",
+          "title": "统一 run_id 完整分页读取",
+          "description": "先以 task_inspection action=start 取得 run_id 并在同一轮内保持；用 action=page 从 cursor=0 开始按 next_cursor 逐页读取，直到返回 null，共三页覆盖 5 台，不漏页。",
+          "source_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/dsh/workspace/AGENTS.md"
+          ],
+          "evidence_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ASSET-PAGES-001/tools.jsonl"
+          ]
+        },
+        {
+          "id": "FEAT-REPORT-DELIVERY",
+          "title": "完整后生成可下载 Markdown/CSV 报告",
+          "description": "集合读取完整后以 action=report 校验并生成逐设备 Markdown 与 CSV 报告，向用户交付实际下载链接与资产数量。",
+          "source_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/hypothesis.md",
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/dsh/workspace/AGENTS.md"
+          ],
+          "evidence_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/artifacts/U-ASSET-PAGES-001/inspection-report.md",
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ASSET-PAGES-001/tools.jsonl"
+          ]
+        },
+        {
+          "id": "FEAT-NO-PARTIAL-CLAIM",
+          "title": "漏页时不得声称完整交付",
+          "description": "读取未完整时不调用 report、不生成报告文件、不给下载链接，并明确说明尚缺的分页与设备编号。",
+          "source_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/dsh/workspace/AGENTS.md"
+          ],
+          "evidence_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ASSET-PARTIAL-001/tools.jsonl",
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/artifacts/U-ASSET-PARTIAL-001/inspection-report.md"
+          ]
+        },
+        {
+          "id": "FEAT-MOCK-BOUNDARY-DISCLOSURE",
+          "title": "模拟数据与能力边界说明",
+          "description": "数据来自基础模拟台账接口（source_kind: basic_mock），明确未连接或检测真实设备，产物只能称台账快照，不提供真实设备健康结论；超出授权范围时停止并集中说明需补充的条件。",
+          "source_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/dsh/workspace/AGENTS.md",
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/hypothesis.md"
+          ],
+          "evidence_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ASSET-PAGES-001/response.json",
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ASSET-PARTIAL-001/response.json"
+          ]
+        },
+        {
+          "id": "FEAT-IDENTITY-AND-SCOPE-REPLY",
+          "title": "身份与职责应答",
+          "description": "以固定 Agent ID inspection-delivery-demo 和“基础台账巡检助手”身份应答，职责口径与工作区 AGENTS.md 一致；未被要求时不通过创建流程验证身份。",
+          "source_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/dsh/presets/inspection-delivery-demo/agent.cordis.yml",
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/dsh/workspace/AGENTS.md"
+          ],
+          "evidence_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-IDENTITY-001/response.json"
+          ]
+        },
+        {
+          "id": "FEAT-INSUFFICIENT-INFO-QUESTIONS",
+          "title": "信息不足时提出具体问题",
+          "description": "缺少必要信息时不声称已执行工具或已产出业务结果，改为提出具体待确认问题（是否立即启动、报告用途与受众、是否指定 source、落盘要求）。",
+          "source_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/hypothesis.md",
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/dsh/workspace/AGENTS.md"
+          ],
+          "evidence_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ROLE-001/response.json",
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ROLE-001/tools.jsonl"
+          ]
+        },
+        {
+          "id": "FEAT-DSH-PRESET-BINDING",
+          "title": "标准 DSH 装载与 Preset 绑定",
+          "description": "以标准 DSH Runtime 装载：注册受控 Preset inspection-delivery-demo（默认 Preset），由 persona 声明身份并引用工作区 AGENTS.md 指令，工作区、Preset、managed 三向只读挂载。",
+          "source_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/harness.yaml",
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/dsh/presets/inspection-delivery-demo/agent.cordis.yml",
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/dsh/managed/inspection-delivery-demo.patch.yml"
+          ],
+          "evidence_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/summary.json"
+          ]
+        },
+        {
+          "id": "FEAT-EXISTING-TOOL-REUSE",
+          "title": "复用日常巡检分页台账只读工具",
+          "description": "通过 managed 补丁复用 kind=inspection 的 task_inspection 工具（start/page/report 三个动作），只绑定该业务工具，不重新实现台账读取能力。",
+          "source_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/dsh/managed/inspection-delivery-demo.patch.yml",
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/evaluation/observations.md"
+          ],
+          "evidence_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ASSET-PAGES-001/tools.jsonl",
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ROLE-001/tools.jsonl"
+          ]
+        },
+        {
+          "id": "FEAT-SUMMARY-MODE-FALLBACK",
+          "title": "纯整理请求保留摘要能力",
+          "description": "用户只要求整理已给定数据时，保留原有摘要能力直接作答，无需调用台账服务；任务授权范围外的动作停止并说明需补充条件。",
+          "source_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/dsh/workspace/AGENTS.md"
+          ],
+          "evidence_refs": [
+            "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ROLE-001/response.json"
+          ]
+        }
+      ],
+      "before": [],
+      "requires_confirmation": true,
+      "assistant_session_id": "session-1f1df09d-c8b4-47cb-a738-bdb037703207"
+    }
+  },
+  "viewports": [
+    {
+      "width": 1440,
+      "text": "把 10 项特性说明保存到版本 001。\n\n保存说明不会自动将能力标记为已验证；来源与证据会一并保留。\n\n查看完整方案与实际修改",
+      "primary_label": "保存特性",
+      "primary_box": {
+        "x": 1003,
+        "y": 606,
+        "width": 78.015625,
+        "height": 37
+      },
+      "reject_box": {
+        "x": 1089.015625,
+        "y": 606,
+        "width": 78.015625,
+        "height": 37
+      },
+      "details_closed": true,
+      "scroll": {
+        "width": 1440,
+        "client": 1440
+      }
+    },
+    {
+      "width": 390,
+      "text": "把 10 项特性说明保存到版本 001。\n\n保存说明不会自动将能力标记为已验证；来源与证据会一并保留。\n\n查看完整方案与实际修改",
+      "primary_label": "保存特性",
+      "primary_box": {
+        "x": 69,
+        "y": 624,
+        "width": 78.015625,
+        "height": 37
+      },
+      "reject_box": {
+        "x": 155.015625,
+        "y": 624,
+        "width": 78.015625,
+        "height": 37
+      },
+      "details_closed": true,
+      "scroll": {
+        "width": 390,
+        "client": 390
+      }
+    }
+  ],
+  "rejected": true,
+  "proposal_state": "cancelled",
+  "after": {
+    "sha256": "fff3b6c4a26b2f5e3123135f9c3ddec656c1ff9e024f9e1188a4c02bb9be7a13",
+    "files": 65
+  },
+  "ok": true
+}

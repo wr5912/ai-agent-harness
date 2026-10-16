@@ -1,0 +1,53 @@
+{
+  "at": "2026-10-16T10:40:40.502Z",
+  "source_evidence_sha256": "1bda0b2a05f8e4e8b2d4d393572a507d4141853a0b244bd65da69c46016d4aa3",
+  "scope": "真实UI回退后的独立只读回读，不再次提交回退",
+  "task_id": "17f83537-0dd7-465d-bf84-7c9d9454f0e0",
+  "files": [
+    {
+      "path": "dsh/managed/daily-inspection-assistant.patch.yml",
+      "sha256": "9f1bc2243176a295af358e6633e9ed311957290abf65a4900132834aa95365f7",
+      "mode": 420,
+      "changed_by_task": true
+    },
+    {
+      "path": "dsh/presets/daily-inspection-assistant/agent.cordis.yml",
+      "sha256": "ff036f1da6cfa539ec120d796ad4ab70aaa4782a99fa6956213680e24500d37c",
+      "mode": 420,
+      "changed_by_task": true
+    },
+    {
+      "path": "dsh/presets/daily-inspection-assistant/preset.yml",
+      "sha256": "506c04216b811d595a055bd1fae2a55c5a3de34a3a459a2ed9f80e1fb8f5f17c",
+      "mode": 436,
+      "changed_by_task": false
+    },
+    {
+      "path": "dsh/workspace/.env",
+      "sha256": "e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+      "mode": 436,
+      "changed_by_task": false
+    },
+    {
+      "path": "dsh/workspace/AGENTS.md",
+      "sha256": "06431f5d6c31b53731e4ad5f66837865dd87e01e33996a3cd8e046f7e0033c90",
+      "mode": 420,
+      "changed_by_task": true
+    },
+    {
+      "path": "harness.yaml",
+      "sha256": "2c0c434066797a7b08c0f98c76c496a73ecc47b643c456b5c4c6e8c4564b0c5d",
+      "mode": 436,
+      "changed_by_task": false
+    }
+  ],
+  "errors": [],
+  "deleted": [
+    "dsh/managed/task-example-tools.mjs"
+  ],
+  "calls": 62,
+  "repair_rounds": 1,
+  "state": "budget_exhausted",
+  "note": "未修改文件保留原工作树权限；本任务修改文件按固定Git模式恢复。原探针对所有文件强制644过严，真实回退只执行一次。",
+  "ok": true
+}
