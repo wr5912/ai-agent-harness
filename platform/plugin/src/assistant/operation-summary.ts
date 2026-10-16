@@ -33,19 +33,19 @@ export function operationSummary(meta: OperationMeta, phase = 'result') {
   let error = meta.error
   for (let n = 0; n < 4 && value && typeof value === 'object'; n++) {
     error ??= value.error?.message ?? (typeof value.error === 'string' ? value.error : undefined)
-    if (value.kind === 'platform-operation' && value.result !== undefined) value = value.result
+    if ((value.kind === 'platform-operation' || typeof value.state === 'string') && value.result !== undefined) value = value.result
     else if (value.ok === true && value.value !== undefined) value = value.value
     else break
   }
   const action = meta.action
-  let title = meta.domain === 'task' ? taskTitles[action] : meta.domain === 'instances' && action === 'list' ? '查询实例' : meta.domain === 'instances' && action === 'run' ? ({ create: '创建实例', start: '启动实例', stop: '停止实例', restart: '重启实例', delete: '删除实例' } as Record<string, string>)[input.operation] : titles[action]
+  let title = meta.domain === 'task' ? taskTitles[action] ?? titles[action] : action === 'list' ? ({ agents: '查询智能体', instances: '查询实例', mcp: '查询 MCP 工具与组合' } as Record<string, string>)[meta.domain] : meta.domain === 'instances' && action === 'run' ? ({ create: '创建实例', start: '启动实例', stop: '停止实例', restart: '重启实例', delete: '删除实例' } as Record<string, string>)[input.operation] : titles[action]
   title ??= action || `平台${meta.domain}操作`
   const file = input.path ?? value?.selected?.path
   const agent = value?.agent?.name ?? value?.agent?.manifest?.name ?? input.agent_id
   const version = /-(\d{3})(?:-r[0-9a-f]{12})?$/.exec(input.experiment_id ?? value?.experiment?.id ?? '')?.[1]
   const target = file ? String(file).split('/').at(-1) : input.name ?? input.toolName ?? (agent ? `${agent}${version ? ` · 版本 ${version}` : ''}` : version ? `版本 ${version}` : undefined)
   if (target) title += `：${target}`
-  if (meta.state === 'failed' || value?.ok === false || value?.isError === true) return { title, outcome: error || '操作失败，请展开查看实际回执', failed: true }
+  if (meta.state === 'failed' || value?.ok === false || value?.isError === true) return { title, outcome: error || value?.checks?.find((check: any) => check.ok === false)?.message || '操作失败，请展开查看实际回执', failed: true }
   if (meta.state === 'unknown') return { title, outcome: error || '结果未知，请先核对实际状态', failed: true }
   if (meta.state === 'cancelled') return { title, outcome: '已取消', failed: false }
   if (meta.state === 'awaiting_confirmation') return { title, outcome: '等待确认', failed: false }

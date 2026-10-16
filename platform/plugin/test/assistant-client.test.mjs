@@ -267,7 +267,8 @@ test('组合确认卡片显示实际冻结版本与工具身份', async () => {
   assert.match(text, /固定发布版本/)
   assert.ok(text.includes(versionId))
   assert.ok(text.includes('composition-fixed') && text.includes('basic_status'))
-  assert.match(text, /确认并执行/)
+  assert.match(text, /执行工具组合/)
+  assert.match(text, /暂不执行/)
 })
 
 test('原生回执消费真实参数与结果，完成提案不重复进dock，只有dock保留确认入口', async () => {
@@ -299,11 +300,53 @@ test('原生回执消费真实参数与结果，完成提案不重复进dock，�
   assert.equal(module.exports.AssistantOperations({ assistant, rpc: props.rpc, sessionId: 's' }), null)
   proposals = [{ ...proposals[0], state: 'awaiting_confirmation', preview: { parent_experiment_id: 'EXP-a-001' } }]
   const dockText = render(module.exports.AssistantOperations({ assistant, rpc: props.rpc, sessionId: 's' }))
-  assert.equal((dockText.match(/确认并执行/g) ?? []).length, 1)
+  assert.equal((dockText.match(/创建研究版本/g) ?? []).length, 1)
   const toolText = render(module.exports.PlatformOperationCard({ ...props, block: { ...block, meta: { ...proposals[0], kind: 'platform-operation', proposal_id: 'p' } } }))
-  assert.doesNotMatch(toolText, /确认并执行/, '同一提案原生轨迹不重复绘制确认按钮')
+  assert.doesNotMatch(toolText, /暂不执行/, '同一提案原生轨迹不重复绘制确认按钮')
   const errorText = render(module.exports.PlatformOperationCard({ ...props, toolName: 'platform_task', block: { ...block, args: { text: () => 'start', value: () => ({}) }, isError: true, content: [{ type: 'text', text: '已有未结束任务' }] } }))
   assert.match(errorText, /启动交付任务.*已有未结束任务/)
+})
+
+test('确认首屏仅展示决策摘要、具体交付与重要预算，完整事实可展开并提供暂不执行', async () => {
+  const compiled = await build({ entryPoints: ['src/assistant/client.tsx'], write: false, bundle: true, platform: 'node', format: 'cjs', external: ['react', 'react/jsx-runtime'] })
+  const plan = { goal: '构建只读巡检助手：完整需求包括五台模拟设备的分页查询与正式报告下载。', agent_id: 'daily-inspection-assistant', source: 'experiment:EXP-daily-inspection-assistant-002-r123456789abc', evaluation_case_ids: ['U-PRIVATE-BUSINESS-CASE'], allowed_actions: [{ domain: 'agents', action: 'create' }], budget: { timeout_minutes: 30, max_repair_rounds: 3, max_model_calls: 60 }, deliverables: ['Markdown 报告和设备 CSV'], artifact_paths: ['artifacts/U-PRIVATE-BUSINESS-CASE/report.md'], instance_name: 'delivery-test' }
+  let proposal = { id: 'p', domain: 'task', action: 'start', state: 'awaiting_confirmation', preview: { plan, agent_name: '日常巡检整理助手', candidate_sha256: 'a'.repeat(64) } }
+  const assistant = { subscribe: () => () => {}, getSnapshot: () => ({ sessionId: 's', status: { proposals: [proposal] } }), refresh: async () => {} }
+  const requests = [], rpc = { async call(_channel, method, body) { requests.push({ method, body }); return { ok: true, value: { state: 'cancelled' } } } }
+  const jsx = (type, props) => ({ type, props }), module = { exports: {} }
+  runInNewContext(compiled.outputFiles[0].text, { module, exports: module.exports, require(name) {
+    if (name === 'react') return { useState: initial => [initial, () => {}], useSyncExternalStore: (_subscribe, snapshot) => snapshot() }
+    if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx }
+    throw new Error(`unexpected import: ${name}`)
+  } })
+  let nodes = []
+  const render = (node, all = false) => {
+    if (node == null || typeof node === 'boolean') return ''
+    if (typeof node !== 'object') return String(node)
+    if (Array.isArray(node)) return node.map(child => render(child, all)).join(' ')
+    if (typeof node.type === 'function') return render(node.type(node.props), all)
+    nodes.push(node)
+    if (node.type === 'details' && !node.props.open && !all) return render([node.props.children].flat().find(child => child?.type === 'summary'), all)
+    return render(node.props.children, all)
+  }
+  const view = () => module.exports.AssistantOperations({ assistant, rpc, sessionId: 's' })
+  const visible = render(view())
+  assert.match(visible, /日常巡检整理助手.*版本 002/)
+  assert.match(visible, /Markdown 报告.*设备 CSV.*可访问的智能体实例/)
+  assert.match(visible, /30.*分钟.*3.*轮.*60.*次/)
+  assert.match(visible, /不能实时硬封顶/)
+  assert.match(visible, /开始构建并验证/)
+  assert.doesNotMatch(visible, /U-PRIVATE-BUSINESS-CASE|daily-inspection-assistant|a{64}/)
+  const all = render(view(), true)
+  assert.ok(all.includes(plan.goal)); assert.match(all, /U-PRIVATE-BUSINESS-CASE|a{64}/)
+  await nodes.find(node => node.type === 'button' && node.props.children === '暂不执行').props.onClick()
+  assert.equal(requests[0].method, 'assistant/reject'); assert.equal(requests[0].body.proposal_id, 'p')
+  proposal = { id: 'dataset', domain: 'agents', action: 'datasets/apply', state: 'awaiting_confirmation', preview: { status: 'suggested', count: 1, records: [{ label_basis: '只在完整详情展示的标签依据' }] } }
+  nodes = []
+  const sample = render(view())
+  assert.match(sample, /保存 1 条样本/); assert.match(sample, /人工复核/); assert.doesNotMatch(sample, /只在完整详情/)
+  proposal = { id: 'mcp', domain: 'mcp', action: 'saveConfiguration', state: 'awaiting_confirmation', preview: { action: 'saveConfiguration', input: { ops: [{ op: 'set', path: ['servers', 'test', 'enabled'], value: false }] } } }
+  assert.match(render(view()), /停用连接.*不可调用/)
 })
 
 

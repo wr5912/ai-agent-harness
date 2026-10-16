@@ -274,7 +274,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     if (plan.evaluation_case_ids.some(caseId => !actualCases.some((item: any) => item.id === caseId || item.case_id === caseId))) throw new Error('任务评测用例不存在；请先依据需求保存业务测试')
     if (plan.allowed_actions.some(item => item.domain === 'agents' && item.action === 'create') && !detail.value.derivation?.parent_ref) throw new Error('派生任务需要可恢复的固定父版，请先固定完整来源')
     if (plan.allowed_actions.some(item => item.domain === 'agents' && item.action === 'edit/apply') && !plan.allowed_actions.some(item => item.domain === 'agents' && item.action === 'create') && detail.value.agent?.manifest?.active_experiment === detail.value.experiment.id) throw new Error('不能在任务中直接修改已启用版本，请在方案中允许从固定父版派生')
-    return { plan: { ...plan, source: plan.source ?? `experiment:${detail.value.experiment.id}` }, evaluation_sha256: detail.value.evaluation.sha256,
+    return { plan: { ...plan, source: plan.source ?? `experiment:${detail.value.experiment.id}` }, agent_name: detail.value.agent?.name ?? detail.value.agent?.manifest?.name ?? plan.agent_id, evaluation_sha256: detail.value.evaluation.sha256,
       candidate_sha256: detail.value.candidate_sha256,
       source_ref: detail.value.derivation?.parent_ref ?? null, note: '确认后在此范围内连续办理；修复最多三轮。模型额度对管理助手逐次拦截，外部评测消耗回读后计入总额，外部执行器是否硬封顶以其回执为准。' }
   }
@@ -691,6 +691,17 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
         return result(true, receipt) as any
       }
       if (endpoint === 'confirm') return result(true, await confirm(id, String(body.proposal_id ?? ''), signal)) as any
+      if (endpoint === 'reject') {
+        const proposal = state.proposals.find(item => item.id === body.proposal_id)
+        if (!proposal || proposal.owner_session_id !== id) throw new Error('提案不存在或不属于当前会话')
+        if (proposal.state !== 'awaiting_confirmation' || busy.has(proposal.id)) throw new Error('操作已开始或已结算，不能作为未执行提案取消')
+        busy.add(proposal.id)
+        try {
+          if (pending.has(proposal.id)) await cancelWaiting(id, proposal)
+          else await record(id, { ...proposal, kind: 'settlement', state: 'cancelled', error: '用户选择暂不执行，未实施此操作。' })
+        } finally { busy.delete(proposal.id) }
+        return result(true, { state: 'cancelled', proposal_id: proposal.id }) as any
+      }
       throw new Error('未知的助手操作')
     } catch (error) { return result(false, error) as any }
   }

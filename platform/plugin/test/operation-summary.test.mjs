@@ -17,4 +17,7 @@ test('失败、未知、实际任务修复及未通过交付都明确说明，�
   assert.equal(operationSummary(meta({ domain: 'task', action: 'begin-repair', result: { state: 'running', repair_rounds: 1 } })).outcome, '已预留第 1 轮修复')
   const failed = operationSummary(meta({ domain: 'task', action: 'deliver', result: { ready: false, checks: [{ ok: false, message: 'CSV 下载不一致' }] } }))
   assert.equal(failed.failed, true); assert.match(failed.outcome, /尚未交付.*CSV/)
+  const wrapped = operationSummary(meta({ domain: 'task', action: 'deliver', state: 'failed', result: { state: 'verification_failed', result: { ok: true, value: { ready: false, checks: [{ ok: false, message: '业务报告缺少设备' }] } } } }))
+  assert.equal(wrapped.outcome, '业务报告缺少设备')
+  assert.equal(operationSummary(meta({ domain: 'mcp', action: 'list', result: { connections: [] } })).title, '查询 MCP 工具与组合')
 })

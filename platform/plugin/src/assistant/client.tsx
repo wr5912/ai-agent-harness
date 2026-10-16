@@ -209,59 +209,73 @@ function unwrap(value: unknown): unknown {
   return value
 }
 
-function Details({ value }: { value: unknown }) {
+function Details({ value, includeIdentifiers = false }: { value: unknown; includeIdentifiers?: boolean }) {
   if (value === null || value === undefined) return <span>未提供</span>
   if (typeof value === 'boolean') return <span>{value ? '是' : '否'}</span>
-  if (Array.isArray(value)) return value.length ? <ul>{value.map((item, index) => <li key={index}><Details value={item}/></li>)}</ul> : <span>无</span>
-  if (typeof value === 'object') return <dl>{Object.entries(value).filter(([key]) => !internalFields.has(key)).map(([key, item]) => <div key={key}><dt>{labels[key] ?? key}</dt><dd>{technicalFields.has(key) ? <details><summary>查看技术详情</summary><Details value={item}/></details> : <Details value={item}/>}</dd></div>)}</dl>
+  if (Array.isArray(value)) return value.length ? <ul>{value.map((item, index) => <li key={index}><Details value={item} includeIdentifiers={includeIdentifiers}/></li>)}</ul> : <span>无</span>
+  if (typeof value === 'object') return <dl>{Object.entries(value).filter(([key]) => includeIdentifiers || !internalFields.has(key)).map(([key, item]) => <div key={key}><dt>{labels[key] ?? key}</dt><dd>{technicalFields.has(key) ? <details><summary>查看技术详情</summary><Details value={item} includeIdentifiers={includeIdentifiers}/></details> : <Details value={item} includeIdentifiers={includeIdentifiers}/>}</dd></div>)}</dl>
   return <span>{String(value)}</span>
 }
 
-function BusinessPreview({ value }: { value: unknown }) {
-  const dataset = unwrap(value) as any
-  if (dataset?.plan?.goal && Array.isArray(dataset.plan.evaluation_case_ids)) {
-    const plan = dataset.plan
-    return <div className="harness-task-preview">
-      <p><strong>{plan.goal}</strong></p>
-      <p>{plan.new_agent ? `新建${plan.new_agent.name}` : `改进${plan.agent_id}`}，交付：{plan.deliverables.join('、')}。</p>
-      <p>初测后最多修复 {plan.budget.max_repair_rounds} 轮，总时限 {plan.budget.timeout_minutes} 分钟，模型调用额度 {plan.budget.max_model_calls} 次。暂停和重启不会重置额度。</p>
-      <p>确认后在本方案范围内连续办理；扩大任务、改验收标准或新增外部操作会单独确认。</p>
-      <details><summary>查看能力、测试和允许操作</summary>
-        {plan.new_agent && <><p>{plan.new_agent.description}</p><ul>{plan.new_agent.evaluation_cases.map((item: any) => <li key={item.id}><strong>{item.title}</strong><p>{item.expected_behavior}</p></li>)}</ul></>}
-        <p>评测：{plan.evaluation_case_ids.join('、')}</p><p>允许操作：{plan.allowed_actions.map((item: any) => actionLabels[item.action] ?? item.action).join('、')}</p>
-        {plan.source && <p>来源：{plan.source}</p>}
-      </details>
-      {dataset.note && <small>{dataset.note}</small>}
-    </div>
-  }
-  if (dataset?.status === 'suggested' && Array.isArray(dataset.records)) return <div>
-    <p>从 Run <strong>{dataset.run_id}</strong> 提取了 {dataset.count} 条待复核候选。确认保存后，在 Run 的“决策样本”中逐条复核。</p>
-    {dataset.records.map((record: any) => <article key={record._meta.id}><strong>{record.questions.decision.instructions}</strong><p>建议标签：{String(record.questions.decision.label)}</p><p>{record._meta.label_basis}</p><details><summary>输入、候选与证据</summary><Details value={record}/></details></article>)}
-    {dataset.skipped?.length > 0 && <details><summary>跳过原因</summary><Details value={dataset.skipped}/></details>}
-  </div>
-  const data = unwrap(value) as {
-    action?: string; input?: { revision?: number; ops?: { op: string; path: (string | number)[]; value?: unknown }[] }
-    agent_id?: string; parent_experiment_id?: string; parent_ref?: string; research_question?: string
-    plan?: {
-      sources?: { experiment_id: string; ref: string; decision: string; reason: string }[]
-      features?: { title: string; description: string; source_refs?: string[] }[]
-      conflicts?: { description: string; resolution: string }[]
-      checks?: { kind: string; case_ids?: string[]; command?: string[]; cwd?: string }[]
-    }
-  } | undefined
-  if (data?.action === 'saveConfiguration' && Array.isArray(data.input?.ops)) return <div>
-    <p>确认保存以下 MCP 配置修改：</p><ul>{data.input.ops.map((operation, index) => <li key={index}><strong>{({ replace: '修改', add: '新增', remove: '删除' } as Record<string, string>)[operation.op] ?? operation.op} {Array.isArray(operation.path) ? operation.path.join('.') : String(operation.path ?? '未指定配置位置')}</strong>{operation.op !== 'remove' && <Details value={operation.value}/>}</li>)}</ul>
-    <small>基于配置版本 {data.input.revision}</small>
-  </div>
-  if (!data?.parent_experiment_id || !data.plan) return <Details value={unwrap(value)}/>
-  return <div className="harness-fusion-confirmation">
-    <p><strong>改进目标：</strong>{data.research_question}</p>
-    <dl><div><dt>智能体</dt><dd>{data.agent_id}</dd></div><div><dt>主父版</dt><dd>{data.parent_experiment_id}<small>{data.parent_ref}</small></dd></div></dl>
-    <h4>来源取舍</h4><ul>{data.plan.sources?.map(source => <li key={source.experiment_id}><strong>{source.decision === 'inherit' ? '继承' : '舍弃'} {source.experiment_id}</strong><p>{source.reason}</p><small>{source.ref}</small></li>)}</ul>
-    <h4>新版本特性</h4><ul>{data.plan.features?.map((feature, index) => <li key={index}><strong>{feature.title}</strong><p>{feature.description}</p>{feature.source_refs?.length ? <small>来源：{feature.source_refs.join('、')}</small> : null}</li>)}</ul>
-    <h4>冲突与取舍</h4>{data.plan.conflicts?.length ? <ul>{data.plan.conflicts.map((conflict, index) => <li key={index}><p>{conflict.description}</p><p>处理：{conflict.resolution}</p></li>)}</ul> : <p>未列出语义冲突。</p>}
-    <h4>验证范围</h4><ul>{data.plan.checks?.map((check, index) => <li key={index}>{({ build: '构建', load: '实际装载', capability: '能力验证' } as Record<string, string>)[check.kind] ?? check.kind}{check.case_ids?.length ? `：${check.case_ids.join('、')}` : ''}{check.command?.length ? <details><summary>查看执行命令</summary><code>{check.command.join(' ')}</code>{check.cwd && <p>工作目录：{check.cwd}</p>}</details> : null}</li>)}</ul>
-  </div>
+function BusinessPreviewDetails({ value }: { value: unknown }) {
+  return <Details value={unwrap(value)} includeIdentifiers/>
+}
+
+function versionLabel(value: unknown) {
+  const text = String(value ?? '')
+  return /-(\d{3})(?:-r[0-9a-f]{12})?$/.exec(text)?.[1] ? `版本 ${/-(\d{3})(?:-r[0-9a-f]{12})?$/.exec(text)![1]}` : text
+}
+function confirmationAction(meta: OperationMeta) {
+  const value = unwrap(meta.preview) as any
+  if (meta.domain === 'task' && meta.action === 'start') return value?.plan?.new_agent || value?.plan?.allowed_actions?.some((item: any) => ['new', 'create', 'edit/apply', 'tasks/assembly-apply'].includes(item.action)) ? '开始构建并验证' : '开始验证并交付'
+  if (meta.action === 'datasets/apply') return `保存 ${value?.count ?? value?.records?.length ?? ''} 条样本`
+  if (meta.domain === 'instances' && meta.action === 'run') return ({ create: '创建实例', start: '启动实例', stop: '停止实例', restart: '重启实例', delete: '删除实例' } as Record<string, string>)[meta.input?.operation ?? value?.operation ?? value?.input?.operation] ?? '执行实例操作'
+  return ({ 'features/apply': '保存特性', saveConfiguration: '保存 MCP 配置', 'fusion/confirm': '创建融合版本', create: '创建研究版本', new: '创建智能体', 'edit/apply': '保存修改', 'eval/start': '开始评测', callPublishedComposition: '执行工具组合', callTool: '调用工具', publishComposition: '发布工具组合', saveCompositionDraft: '保存组合草稿', 'cases/update': '保存测试用例', 'cases/create': '保存测试用例', 'compute-variants/create': '创建算力变体' } as Record<string, string>)[meta.action] ?? actionLabels[meta.action] ?? '执行此操作'
+}
+
+/** 确认的是动作、对象及后果；完整证据与字段保留在可展开详情中。 */
+function BusinessPreview({ value, meta }: { value: unknown; meta: OperationMeta }) {
+  const data = unwrap(value) as any
+  const input = meta.input ?? data?.input ?? {}
+  const plan = data?.plan
+  let summary: any
+  if (plan?.goal && Array.isArray(plan.evaluation_case_ids)) {
+    const parent = plan.source ? versionLabel(plan.source) : undefined
+    const name = data.agent_name ?? plan.agent_id
+    const declarations = [...(plan.artifact_paths ?? []), ...(plan.deliverables ?? [])].join('\n')
+    const products = [...(/markdown|\.md\b/i.test(declarations) ? ['Markdown 报告'] : []), ...(/\bcsv\b/i.test(declarations) ? ['设备 CSV'] : []), ...(plan.instance_name ? ['可访问的智能体实例'] : [])]
+    const lead = String(plan.goal).split(/[。；\n：]/)[0]
+    summary = <>
+      <p><strong>{lead}</strong></p>
+      <p>{plan.new_agent ? `新建“${plan.new_agent.name}”` : plan.allowed_actions.some((item: any) => item.action === 'create') ? `为“${name}”从${parent}派生新版本` : `${plan.allowed_actions.some((item: any) => ['edit/apply', 'tasks/assembly-apply'].includes(item.action)) ? '改进' : '验证'}“${name}”的${parent}`}，执行 {plan.evaluation_case_ids.length} 项测试。</p>
+      <p><strong>交付：</strong>{products.length ? products.join('、') : plan.deliverables.join('、')}。</p>
+      <p><strong>执行上限：</strong>{plan.budget.timeout_minutes} 分钟、初测后最多修复 {plan.budget.max_repair_rounds} 轮、总模型调用额度 {plan.budget.max_model_calls} 次。暂停和重启不重置预算。</p>
+      <small>确认后在本方案内连续创建、装配、评测及办理约定实例操作。助手逐次控制调用额度；外部评测按实际轨迹累计，暂不能实时硬封顶。</small>
+    </>
+  } else if (data?.status === 'suggested' && Array.isArray(data.records)) summary = <>
+    <p>将 <strong>{data.count ?? data.records.length} 条决策样本</strong>保存到本次运行的“决策样本”。</p>
+    <p>标签仍是 AI 建议；经人工复核后才能用于训练导出。</p>
+  </>
+  else if (meta.action === 'features/apply') {
+    const features = data?.features ?? data?.after?.features ?? []
+    const removed = (data?.before?.features ?? []).filter((feature: any) => !features.some((next: any) => next.id === feature.id)).length
+    summary = <><p>把 <strong>{features.length} 项特性说明</strong>保存到{versionLabel(data?.experiment_id ?? input.experiment_id) || '所选版本'}。</p>{removed > 0 && <p><strong>将移除原有的 {removed} 项特性说明。</strong></p>}<p>保存说明不会自动将能力标记为已验证；来源与证据会一并保留。</p></>
+  } else if (meta.action === 'saveConfiguration') {
+    const ops = data?.input?.ops ?? input.ops ?? []
+    const disabled = ops.filter((op: any) => op.path?.at(-1) === 'enabled' && op.value === false).length
+    const removed = ops.filter((op: any) => op.op === 'unset' && op.path?.[0] === 'servers' && op.path.length === 2).length
+    summary = <><p>将 <strong>{ops.length} 项连接设置修改</strong>保存到原生 MCP 配置。</p>{disabled > 0 && <p><strong>其中 {disabled} 项会停用连接，相关工具将不可调用。</strong></p>}{removed > 0 && <p><strong>将移除 {removed} 个连接及其工具入口。</strong></p>}<p>现有凭据沿用原生配置；此操作不验证上游业务效果。</p></>
+  } else if (data?.parent_experiment_id && plan) summary = <>
+    <p>从{versionLabel(data.parent_experiment_id)}为 <strong>{data.agent_id}</strong>创建独立融合版本。</p>
+    <p>采用 {plan.sources?.filter((source: any) => source.decision === 'inherit').length ?? 0} 个来源，纳入 {plan.features?.length ?? 0} 项特性，约定 {plan.checks?.length ?? 0} 项验证。当前版本保留，新版本须完成验证后才可交付。</p>
+  </>
+  else if (meta.action === 'new') summary = <><p>创建智能体 <strong>{data?.name ?? input.name ?? data?.agent_id ?? input.agent_id}</strong>及其首个研究版本。</p><p>先保存角色和资产；可用的业务能力仍需装配与评测。</p></>
+  else if (meta.action === 'edit/apply') summary = <p>向{versionLabel(input.experiment_id ?? data?.experiment_id) || '所选版本'}保存 <strong>{input.edits?.length ?? data?.files?.length ?? data?.edits?.length ?? '约定'} 份文件修改</strong>。具体内容和差异见下方。</p>
+  else if (meta.action === 'eval/start') summary = <><p>对{versionLabel(input.source ?? data?.source) || '所选版本'}执行 <strong>{input.cases?.length ?? data?.cases?.length ?? '约定'} 项测试</strong>，创建新的评测运行记录。</p><p>将调用已配置的模型；结果按实际执行保存。</p></>
+  else if (meta.action === 'callPublishedComposition' || meta.action === 'callTool') summary = <><p>执行 <strong>{data?.title ?? data?.toolName ?? input.toolName ?? data?.compositionId ?? input.compositionId ?? '所选工具'}</strong>，请求已配置的上游接口。</p><p>使用本提案固定的工具、参数及版本；实际业务结果在执行后核对。</p></>
+  else summary = <p>{operationSummary({ ...meta, state: 'awaiting_confirmation' }).title}。执行范围与实际修改保留在下方详情。</p>
+  const warnings = data?.warnings ?? data?.validation?.warnings ?? []
+  return <div className="harness-confirmation-summary">{summary}{Array.isArray(warnings) && warnings.map((warning: any, index: number) => <p key={index} role="note">{typeof warning === 'string' ? warning : warning.message ?? JSON.stringify(warning)}</p>)}<details><summary>查看完整方案与实际修改</summary><BusinessPreviewDetails value={value}/></details></div>
 }
 
 interface OperationProps {
@@ -294,11 +308,11 @@ function OperationCard(props: OperationProps) {
   return <section className="harness-operation-card" aria-label="平台操作回执">
     <header><strong>{summary.title}</strong><span>{domainLabels[meta?.domain ?? ''] ?? '平台操作'}</span></header>
     {!meta || meta.kind !== 'platform-operation' ? <p role="status">{props.phase === 'result' ? '操作已返回，请查看会话说明。' : '正在读取与处理…'}</p> : <>
-      <p className="harness-operation-state" role={summary.failed ? 'alert' : 'status'}>{summary.outcome}</p>
-      {state === 'awaiting_confirmation' && meta.preview !== undefined && <BusinessPreview value={meta.preview}/>}
+      {state !== 'awaiting_confirmation' && <p className="harness-operation-state" role={summary.failed ? 'alert' : 'status'}>{summary.outcome}</p>}
+      {state === 'awaiting_confirmation' && meta.preview !== undefined && <BusinessPreview value={meta.preview} meta={{ ...meta, input: proposal?.input ?? meta.input }}/>}
       {result !== undefined && <details className="harness-operation-result"><summary>查看实际操作回执</summary><Details value={unwrap(result)}/></details>}
       {proposal?.error && <p role="alert">{proposal.error}</p>}
-      {state === 'awaiting_confirmation' && meta.proposal_id && <button className="harness-primary" disabled={busy} onClick={async () => {
+      {state === 'awaiting_confirmation' && meta.proposal_id && <div className="harness-confirmation-actions"><button className="harness-primary" disabled={busy} onClick={async () => {
         setBusy(true); setError(''); setNotice('')
         try {
           const response = await props.rpc.call(CHANNEL, 'assistant/confirm', { session_id: props.sessionId, proposal_id: meta.proposal_id })
@@ -307,7 +321,16 @@ function OperationCard(props: OperationProps) {
           await props.assistant.refresh()
         } catch (failure) { setError(failure instanceof Error ? failure.message : '确认失败，请重试。') }
         finally { setBusy(false) }
-      }}>{busy ? '正在确认…' : '确认并执行'}</button>}
+      }}>{busy ? '正在提交…' : confirmationAction({ ...meta, input: proposal?.input ?? meta.input })}</button>
+      <button type="button" disabled={busy} onClick={async () => {
+        setBusy(true); setError('')
+        try {
+          const response = await props.rpc.call(CHANNEL, 'assistant/reject', { session_id: props.sessionId, proposal_id: meta.proposal_id })
+          if (!response.ok) throw new Error(response.error.message)
+          await props.assistant.refresh()
+        } catch (failure) { setError(failure instanceof Error ? failure.message : '暂缓失败，请重试。') }
+        finally { setBusy(false) }
+      }}>暂不执行</button></div>}
     </>}
     {error && <p role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}

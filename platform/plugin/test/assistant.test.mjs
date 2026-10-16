@@ -903,3 +903,21 @@ test('所有平台工具回执元信息保留真实动作与定位字段，不�
   const preview = f.tools.get('platform_task').output.presentationMeta({ action: 'preview', input: {} }, { plan: { goal: '基本任务' } })
   assert.equal(preview.domain, 'task'); assert.equal(preview.action, 'preview')
 })
+
+test('用户可仅拒绝当前未执行提案，结算原工具但不取消其他提案或执行写入', async t => {
+  const f = fixture(t)
+  const id = (await f.rpc('session', { task: '核对两项实例操作' })).value.session_id
+  const first = f.execute(id, 'instances', 'run', { name: 'first', operation: 'stop' })
+  const proposal = await f.proposal(id)
+  const second = f.execute(id, 'instances', 'run', { name: 'second', operation: 'stop' })
+  while ((await f.status(id)).proposals.length < 2) await setImmediate()
+  assert.equal((await f.rpc('reject', { session_id: id, proposal_id: proposal.id })).ok, true)
+  assert.equal((await first).state, 'cancelled')
+  assert.equal(f.calls.some(call => call.endpoint === 'instances/run'), false)
+  const remaining = (await f.status(id)).proposals.find(item => item.id !== proposal.id)
+  assert.equal(remaining.state, 'awaiting_confirmation')
+  await f.rpc('confirm', { session_id: id, proposal_id: remaining.id })
+  await second
+  assert.equal(f.calls.filter(call => call.endpoint === 'instances/run').length, 1)
+  assert.equal((await f.rpc('reject', { session_id: id, proposal_id: remaining.id })).ok, false)
+})
