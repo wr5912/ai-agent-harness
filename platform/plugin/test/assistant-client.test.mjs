@@ -39,7 +39,7 @@ function fixture(call, selection, rows = {}, config = {}) {
       finally { reference.release() }
     } },
     uiWorkspace: { openSession: id => opened.push(id) },
-  }, { call }, () => '/repo', () => config.legacyRoots ?? [])
+  }, { call: (channel, endpoint, body) => endpoint === 'assistant/configuration' ? Promise.resolve(config.configuration ?? { ok: true, value: { ready: true } }) : call(channel, endpoint, body) }, () => '/repo', () => config.legacyRoots ?? [])
   return { assistant, retained, opened, references, nativeCreates, setSelection(id) { selection = id; selectionListeners.forEach(listener => listener()) } }
 }
 
@@ -384,5 +384,16 @@ test('续接迁移旧会话时保留原 cwd，拒绝把外部会话收编为管�
   assert.deepEqual(f.nativeCreates[0], { sessionId: 'legacy', cwd: '/old-repo' })
   await assert.rejects(() => f.assistant.create('继续任务', { session_id: 'foreign' }), /不属于当前工作区/)
   assert.equal(f.nativeCreates.length, 1)
+  f.assistant.dispose()
+})
+
+
+test('配置缺失在创建原生工作区和会话之前提示，既有会话仍可查看', async () => {
+  const f = fixture(async () => ({ ok: true, value: { proposals: [] } }), 'existing', { existing: { cwd: '/repo' } }, { configuration: { ok: true, value: { ready: false, message: '当前工作区未配置平台管理助手，请连接或克隆已有数据仓库。' } } })
+  await f.assistant.select('existing', false)
+  await assert.rejects(f.assistant.create('新任务'), /未配置平台管理助手/)
+  assert.equal(f.nativeCreates.length, 0)
+  assert.equal(f.assistant.getSnapshot().sessionId, 'existing')
+  assert.match(f.assistant.getSnapshot().error, /连接或克隆/)
   f.assistant.dispose()
 })

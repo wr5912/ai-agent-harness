@@ -257,8 +257,14 @@ function analysisToolAccesses(archive, toolNames) {
       const callId = source?.kind === 'tool' ? source.callId : undefined
       if (typeof callId !== 'string' || !calls.has(callId) || completed.has(callId)
         || event.data?.error !== undefined) throw new Error('analysis-tools-invalid')
-      const result = event.data?.message?.content?.[0]
-      if (result?.type !== 'tool-result' || result.toolCallId !== callId
+      const message = event.data?.message
+      // DSH v4 使用 tool 消息；旧轨迹是 user 消息中的嵌套 tool-result。
+      const nativeResult = message?.role === 'tool'
+      const result = nativeResult ? message : message?.content?.[0]
+      if (!Array.isArray(message?.content) || message.content.length === 0
+        || (nativeResult ? message.content.some(block => block?.type === 'tool-result')
+          : message.role !== 'user' || message.content.length !== 1 || result?.type !== 'tool-result')
+        || result.toolCallId !== callId
         || typeof result.isError !== 'boolean' || result.isError) {
         throw new Error('analysis-tools-invalid')
       }

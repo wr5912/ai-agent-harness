@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
@@ -103,6 +103,55 @@ async function fixture(planOverrides = {}) {
   return { root, path, handler, body, created, left, right, parentCommit, setReadHook: hook => { readHook = hook } }
 }
 async function withFixture(task, planOverrides = {}) { const fx = await fixture(planOverrides); try { await task(fx) } finally { rmSync(fx.root, { recursive: true, force: true }) } }
+
+test('context 在数据技能迁出后仍返回当前代码生成接口合同，读取不改变研究资产', () => withFixture(async fx => {
+  assert.equal(existsSync(join(fx.root, '.agents/skills')), false)
+  const change = readFileSync(join(fx.path(variant), 'change.yaml'))
+  const candidate = readFileSync(join(fx.path(variant), 'candidate/AGENTS.md'))
+  const status = git(fx.root, ['status', '--porcelain'])
+  const context = success(await fx.handler('context', { experiment_id: variant }))
+  const contract = context.generation_contract
+  assert.equal(contract.generation.mode, 'langgraph-aot')
+  assert.equal(contract.generation.default_entry_path, 'dsh/managed/compute-workflow/index.ts')
+  assert.match(contract.generation.fields.source_run_ids, /固定父版.*诊断轨迹/)
+  assert.match(contract.variant_name, /change.yaml.variant_name.*不从 strategy\/research_question 截取/)
+  assert.deepEqual(contract.available_tools, ['skill', 'platform_agents', 'platform_task'])
+  assert.match(contract.operations.task, /platform_task 管理生成任务/)
+  assert.match(contract.operations.build, /expected_candidate_sha256.*expected_preview_sha256/)
+  assert.match(contract.operations.freeze, /freeze_input=.*evaluation_base_sha256.*expected_preview_sha256/)
+  assert.match(contract.operations.evidence, /build_digest.*esm_sha256.*complete=true.*status=completed/)
+  assert.match(contract.operations.delivery, /完成不自动确认 end/)
+  assert.deepEqual(JSON.parse(JSON.stringify(contract)), contract, '接口合同须可无损传给管理助手')
+  assert.deepEqual(readFileSync(join(fx.path(variant), 'change.yaml')), change)
+  assert.deepEqual(readFileSync(join(fx.path(variant), 'candidate/AGENTS.md')), candidate)
+  assert.equal(git(fx.root, ['status', '--porcelain']), status)
+  assert.equal(context.workflow_status.generated, false)
+  assert.equal(context.loaded.verified, false, '返回生成指导不应伪造源码或装载证据')
+}))
+
+test('context 公布的 SDK 导入和节点调用可由真实固定编译器检查，不执行 Candidate', () => withFixture(async fx => {
+  const { sdk, generation } = success(await fx.handler('context', { experiment_id: variant })).generation_contract
+  const entry = join(fx.path(variant), 'candidate', generation.default_entry_path)
+  write(join(fx.root, 'config/sources.json'), JSON.stringify({ sources: { [variant]: { agent_id: 'alpha', candidate_root: `evolution/experiments/${variant}/candidate/dsh` } } }))
+  write(entry, `import {${sdk.exports.join(',')}} from '${sdk.module}';
+import type {${sdk.types.join(',')}} from '${sdk.module}';
+export type PublicTypes = [WorkflowDefinition, WorkflowContext, FixedCompositionBinding];
+export const name='contract-fixture'; export const inject=['tools','llm'];
+const workflow=defineWorkflow({id:'contract-fixture',toolName:'contract_fixture',description:'仅编译合同',inputSchema:{type:'object'},
+  async run(context:WorkflowContext){return runWorkflow(context,[
+    {id:'query',async run(_values,ctx){return ctx.callTool('fixture_query',ctx.input)}},
+    {id:'judge',async run(values,ctx){return ctx.infer({model:'fixture-model'},{messages:[{role:'user',content:JSON.stringify(values)}]})}},
+  ])}});
+export const graphExports=[Annotation,StateGraph,START,END,fixedCompositionToolName];
+export function apply(ctx:any){registerWorkflowTool(ctx,workflow); throw new Error('本测试不得执行Candidate')}
+`)
+  const buildHandler = createComputeBuildHandler(fx.root), digest = candidateDigest(join(fx.path(variant), 'candidate'))
+  const preview = success(await buildHandler('preview', { experiment_id: variant, expected_candidate_sha256: digest, entry_path: generation.default_entry_path }))
+  assert.equal(preview.entry_path, generation.default_entry_path)
+  const built = success(await buildHandler('build', { experiment_id: variant, expected_candidate_sha256: digest, expected_preview_sha256: preview.preview_sha256, entry_path: generation.default_entry_path }))
+  assert.match(built.esm_sha256, /^[a-f0-9]{64}$/)
+  assert.equal(success(await fx.handler('context', { experiment_id: variant })).loaded.verified, false)
+}))
 
 function addOrdinaryGraphEvidence(fx, invalidAssociation = false) {
   for (const side of [fx.left, fx.right]) {

@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import test from 'node:test'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { SessionStore, appendPluginRecord } from '@deepseek-ai/dsh-session'
 import { SessionProjectionRegistry } from '@deepseek-ai/dsh-session-projection'
@@ -13,10 +16,21 @@ const { createUserMessage } = await import(sessionRequire.resolve('@deepseek-ai/
 function fixture(t, overrides = {}) {
   const ctx = new Context()
   new SessionStore(ctx); new SessionProjectionRegistry(ctx); new SystemPrompt(ctx, {})
-  const id = 'session-closing-usage', root = '/task-closing-usage'
+  const id = 'session-closing-usage', root = mkdtempSync(join(tmpdir(), 'task-closing-data-'))
+  writeFileSync(join(root, 'AGENTS.md'), '管理当前数据工作区的任务与预算。')
+  for (const name of ['workspace-management', 'user-facing-output', 'task-builder']) {
+    const directory = join(root, '.agents/skills', name)
+    mkdirSync(directory, { recursive: true })
+    writeFileSync(join(directory, 'SKILL.md'), `---\nname: ${name}\ndescription: 测试管理技能\n---\n使用任务实际预算。`)
+  }
+  const skills = { async get(name, options) {
+    assert.equal(options.cwd, root)
+    const path = join(root, '.agents/skills', name, 'SKILL.md')
+    return existsSync(path) ? { name, path, content: readFileSync(path, 'utf8'), invocation: { modelInvocable: true } } : undefined
+  } }
   const session = ctx.sessions.create(id, { meta: { cwd: root } })
   const services = { controller: { async resolveAgent() { return { agent: { id, session } } } },
-    projections: ctx.sessionProjections, systemPrompt: ctx.systemPrompt,
+    skills, projections: ctx.sessionProjections, systemPrompt: ctx.systemPrompt,
     record: appendPluginRecord, notify() {} }
   const create = () => createAssistant(root, async () => ({ ok: true, value: {} }), services)
   let assistant = create()
@@ -28,7 +42,7 @@ function fixture(t, overrides = {}) {
   record({ kind: 'execution', owner_session_id: id, execution: task })
   record({ kind: 'execution', owner_session_id: id, execution: { ...task, state: 'completed', delivery: { ready: true } } })
   const status = async () => (await assistant.handler('status', { session_id: id }, new AbortController().signal)).value
-  t.after(async () => { await assistant.dispose(); await ctx.fiber.dispose() })
+  t.after(async () => { await assistant.dispose(); await ctx.fiber.dispose(); rmSync(root, { recursive: true, force: true }) })
   return { session, record, status, before: () => assistant.beforeModelCall(id),
     async reload() { await assistant.dispose(); assistant = create() } }
 }

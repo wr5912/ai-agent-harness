@@ -8,6 +8,7 @@ import { readRunEvidenceFile } from './run-files.ts'
 import { extractGraphExecutions, measureModelUsage, normalizeTokenUsage } from '../evaluation/model-usage.ts'
 import type { ModelAttempt } from '../evaluation/model-attempts.ts'
 import { inspectComputeBuild } from './compute-build.ts'
+import { computeGenerationContract } from './compute-generation-contract.ts'
 
 type Map = Record<string, any>
 type Result = { ok: true; value: any } | { ok: false; error: { code: string; message: string } }
@@ -288,7 +289,7 @@ export function createComputeVariantsHandler(assetRoot: string, services: Comput
     const generated = Boolean(generation && existsSync(safe(root, `evolution/experiments/${id}/candidate/${generation.entry_path}`)))
     const comparison = await restoredComparison(id, change, digest, buildState, signal)
     return { experiment_id: id, agent_id: change.agent_id, variant_name: change.variant_name ?? null, parent_ref: `git:${commit ?? ''}`, parent_experiment_id: change.parent_experiment_id ?? null, fixed_parent_ref: change.baseline_ref ?? null, plan: change.compute_variant ?? null,
-      candidate_sha256: digest, generation, build: { ...(buildState.receipt ?? {}), verified: buildState.verified, reasons: buildState.reasons }, freeze,
+      candidate_sha256: digest, generation, generation_contract: computeGenerationContract(), build: { ...(buildState.receipt ?? {}), verified: buildState.verified, reasons: buildState.reasons }, freeze,
       loaded: { verified: loadedRuns.length > 0, run_ids: loadedRuns }, comparison,
       workflow_status: { generated, built: buildState.verified, frozen: freeze.candidate_matches && freeze.plan_matches, loaded: loadedRuns.length > 0,
         compared: comparison !== null },

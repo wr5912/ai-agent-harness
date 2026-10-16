@@ -54,9 +54,10 @@ function fixture() {
     'runtime/adapters/dsh-container/scenario_analysis.py',
     'runtime/adapters/dsh-container/run_record.py',
     'runtime/adapters/dsh-container/mutation-receipt.py',
-    '.agents/skills/research-eval/scripts/evaluation_contract.py',
-    '.agents/skills/research-eval/scripts/validate_experiment.py',
-    '.agents/skills/harness-evolution/scripts/validate_repository.py',
+    'runtime/research/evaluation_contract.py',
+    'runtime/research/validate_experiment.py',
+    'runtime/research/validate_repository.py',
+    'runtime/research/inspect_source.py',
   ]) copyFixtureFile(root, rel)
   for (const name of ['Dockerfile', 'apt-mirror.sh', 'build-image.sh', 'dsh-cli.sh', 'remote-host-settings.patch']) {
     write(join(root, 'runtime/adapters/dsh-container', name), `${name}\n`)
@@ -507,7 +508,7 @@ test('create validation failure restores catalog and removes dangling source', a
     const handler = createAgentsHandler(fx.root)
     const before = readFileSync(join(fx.root, 'runtime/adapters/dsh-container/sources.json'), 'utf8')
     const detail = await rpc(handler, 'detail', { agent_id: 'test-agent' })
-    write(join(fx.root, '.agents/skills/research-eval/scripts/validate_experiment.py'), 'import sys\nraise SystemExit("bad validator")\n')
+    write(join(fx.root, 'runtime/research/validate_experiment.py'), 'import sys\nraise SystemExit("bad validator")\n')
     await assert.rejects(
       () => rpc(handler, 'create', {
         agent_id: 'test-agent',
@@ -564,7 +565,7 @@ test('create keeps files and returns needs_recovery when catalog changed after w
   try {
     const handler = createAgentsHandler(fx.root)
     const detail = await rpc(handler, 'detail', { agent_id: 'test-agent' })
-    write(join(fx.root, '.agents/skills/research-eval/scripts/validate_experiment.py'), [
+    write(join(fx.root, 'runtime/research/validate_experiment.py'), [
       'import json',
       'from pathlib import Path',
       'path = Path("runtime/adapters/dsh-container/sources.json")',
@@ -1105,7 +1106,7 @@ test('用例解析与摘要来自同一次读取，解析期间的外部修改�
   const { root } = fixture()
   t.after(() => rm(root, { recursive: true, force: true }))
   const file = join(root, 'agents/test-agent/evaluation.md')
-  const parser = join(root, '.agents/skills/research-eval/scripts/evaluation_contract.py')
+  const parser = join(root, 'runtime/research/evaluation_contract.py')
   write(parser, 'import time\ntime.sleep(0.25)\n' + readFileSync(parser, 'utf8').replace('from __future__ import annotations\n', ''))
   const handler = createAgentsHandler(root)
   const pending = rpc(handler, 'cases/read', { experiment_id: 'EXP-test-agent-001', case_id: 'U-CASE-001' })
@@ -1233,5 +1234,148 @@ test('详情派生引用绑定所选版本的可恢复提交，未提交版本�
     const changed = await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: 'EXP-test-agent-001' })
     assert.equal(changed.derivation.parent_ref, null)
     assert.match(changed.derivation.note, /未提交改动/)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+
+test('研究资料按固定主题从数据工作区读取，拒绝任意路径、链接与过大资料', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const path = 'docs/harness-research/controlled-improvement.md'
+    write(join(fx.root, path), '# 受控改进\n\n先固定来源，再比较任务效果。\n')
+    const value = await rpc(handler, 'research/read-reference', { topic: 'controlled-improvement' })
+    assert.equal(value.path, path)
+    assert.equal(value.sha256, createHash('sha256').update(readFileSync(join(fx.root, path))).digest('hex'))
+    assert.match(value.content, /固定来源/)
+    await assert.rejects(() => rpc(handler, 'research/read-reference', { topic: '../../AGENTS' }), /invalid_request/)
+    await assert.rejects(() => rpc(handler, 'research/read-reference', { topic: 'decision-samples' }), /not_found/)
+    write(join(fx.root, 'docs/harness-research/compute-variants.md'), 'a'.repeat(128 * 1024 + 1))
+    await assert.rejects(() => rpc(handler, 'research/read-reference', { topic: 'compute-variants' }), /128 KiB/)
+    symlinkSync(join(fx.root, path), join(fx.root, 'docs/harness-research/decision-samples.md'))
+    await assert.rejects(() => rpc(handler, 'research/read-reference', { topic: 'decision-samples' }), /符号链接/)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('研究检查返回真实校验失败，旧来源清点只读且保留 review_required 和 fail', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const validation = await rpc(handler, 'research/validate', { experiment_id: 'EXP-test-agent-001' })
+    assert.equal(validation.valid, false)
+    assert.equal(validation.exit_code, 1)
+    assert.ok(validation.errors.length)
+    const source = 'evolution/history/imports/basic'
+    write(join(fx.root, source, 'README.md'), '# 基础资产\n')
+    const passed = await rpc(handler, 'legacy/inspect', { path: source })
+    assert.equal(passed.status, 'pass')
+    assert.equal(passed.exit_code, 0)
+    write(join(fx.root, source, '.env'), 'BASIC_LABEL=demo\n')
+    const review = await rpc(handler, 'legacy/inspect', { path: source })
+    assert.equal(review.status, 'review_required')
+    assert.equal(review.exit_code, 1)
+    assert.ok(!JSON.stringify(review).includes('BASIC_LABEL'))
+    symlinkSync(join(fx.root, 'agents/test-agent'), join(fx.root, source, 'linked'))
+    const failed = await rpc(handler, 'legacy/inspect', { path: source })
+    assert.equal(failed.status, 'fail')
+    assert.equal(failed.exit_code, 1)
+    assert.equal(readFileSync(join(fx.root, source, 'README.md'), 'utf8'), '# 基础资产\n')
+    for (const path of ['agents/test-agent', '../outside', 'evolution/history/imports', `${source}/linked`]) {
+      await assert.rejects(() => rpc(handler, 'legacy/inspect', { path }), /path_rejected|not_found/)
+    }
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('研究假设与观察进入既有摘要和 dry 编辑流程，change.yaml 仍不可任意编辑', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root), experiment_id = 'EXP-test-agent-001'
+    const detail = await rpc(handler, 'detail', { agent_id: 'test-agent' })
+    assert.match(detail.change_sha256, /^[0-9a-f]{64}$/)
+    for (const path of ['hypothesis.md', 'evaluation/observations.md']) {
+      assert.ok(detail.editable_files.includes(`evolution/experiments/${experiment_id}/${path}`))
+      const before = await rpc(handler, 'edit/read', { experiment_id, path })
+      const content = before.content + '\n追加可核对的观察，未声称真实服务已验收。\n'
+      const edits = [{ path, content, expected_sha256: before.sha256 }]
+      await rpc(handler, 'edit/preview', { experiment_id, edits })
+      await rpc(handler, 'edit/apply', { experiment_id, edits })
+      assert.equal((await rpc(handler, 'edit/read', { experiment_id, path })).content, content)
+      await assert.rejects(() => rpc(handler, 'edit/apply', { experiment_id, edits }), /conflict/)
+    }
+    await assert.rejects(() => rpc(handler, 'edit/read', { experiment_id, path: `evolution/experiments/${experiment_id}/change.yaml` }), /path_rejected/)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('结构化 Decision 校验双摘要、保留元数据，失败恢复两文件且并发确认只成功一次', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root), experiment_id = 'EXP-test-agent-003-r0123456789ab'
+    const base = join(fx.root, 'evolution/experiments', experiment_id)
+    cpSync(join(fx.root, 'evolution/experiments/EXP-test-agent-001'), base, { recursive: true })
+    await rm(join(base, 'runs'), { recursive: true, force: true })
+    const changePath = join(base, 'change.yaml'), decisionPath = join(base, 'decision.md')
+    const originalChange = { schema_version: '1.0', experiment_id, agent_id: 'test-agent', baseline_ref: 'none:first-experiment', status: 'active', retained_extension: { owner: 'user' } }
+    write(changePath, JSON.stringify(originalChange))
+    const hash = file => createHash('sha256').update(readFileSync(file)).digest('hex')
+    const body = () => ({ experiment_id, content: '# Decision\n\n证据不足，保留限制并继续比较。\n', expected_sha256: hash(decisionPath), expected_change_sha256: hash(changePath), status: 'completed', outcome: 'inconclusive' })
+    const beforeDecision = readFileSync(decisionPath, 'utf8'), beforeChange = readFileSync(changePath, 'utf8')
+    await assert.rejects(() => rpc(handler, 'decision/update', { ...body(), expected_change_sha256: 'stale' }), /conflict/)
+    await assert.rejects(() => rpc(handler, 'decision/update', { ...body(), expected_sha256: 'stale' }), /conflict/)
+    await assert.rejects(() => rpc(handler, 'decision/update', { ...body(), status: 'published' }), /invalid_request/)
+    await assert.rejects(() => rpc(handler, 'decision/update', { ...body(), content: '# Decision\n' }), /validation_failed/)
+    assert.equal(readFileSync(decisionPath, 'utf8'), beforeDecision)
+    assert.equal(readFileSync(changePath, 'utf8'), beforeChange)
+    const request = body()
+    const outcomes = await Promise.allSettled([rpc(handler, 'decision/update', request), rpc(handler, 'decision/update', request)])
+    assert.equal(outcomes.filter(value => value.status === 'fulfilled').length, 1, outcomes.map(value => value.reason?.message).join('\n'))
+    assert.equal(outcomes.filter(value => value.status === 'rejected' && /conflict/.test(value.reason.message)).length, 1)
+    const saved = loadYaml(readFileSync(changePath, 'utf8'))
+    assert.deepEqual(saved, { ...originalChange, status: 'completed', outcome: 'inconclusive' })
+    assert.equal((await rpc(handler, 'research/validate', { experiment_id })).valid, true)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('Decision 预览展示状态与结果变化且不修改文件', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root), experiment_id = 'EXP-test-agent-001'
+    const detail = await rpc(handler, 'detail', { agent_id: 'test-agent' })
+    const payload = { experiment_id, content: '# Decision\n\n保留本轮证据不足结论。\n', expected_sha256: detail.decision.sha256, expected_change_sha256: detail.change_sha256, status: 'completed', outcome: 'inconclusive' }
+    for (const invalid of [{ status: ['completed'] }, { outcome: ['adopt'] }]) {
+      await assert.rejects(() => rpc(handler, 'decision/preview', { ...payload, ...invalid }), /invalid_request/)
+    }
+    const result = await rpc(handler, 'decision/preview', payload)
+    assert.deepEqual(result.change.before, { status: 'active', outcome: null })
+    assert.deepEqual(result.change.after, { status: 'completed', outcome: 'inconclusive' })
+    assert.equal(result.change.before_sha256, detail.change_sha256)
+    const after = await rpc(handler, 'detail', { agent_id: 'test-agent' })
+    assert.equal(after.change_sha256, detail.change_sha256)
+    assert.equal(after.decision.sha256, detail.decision.sha256)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('取消 Decision 校验不阻塞事件循环并恢复两文件', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root), experiment_id = 'EXP-test-agent-001'
+    const detail = await rpc(handler, 'detail', { agent_id: 'test-agent' })
+    const changeFile = join(fx.root, 'evolution/experiments', experiment_id, 'change.yaml')
+    const before = readFileSync(changeFile, 'utf8')
+    write(join(fx.root, 'runtime/research/validate_experiment.py'), 'import json,time\ntime.sleep(2)\nprint(json.dumps({"valid":True,"errors":[],"warnings":[]}))\n')
+    const abort = new AbortController()
+    const pending = handler('decision/update', { experiment_id, content: '# Decision\n\n等待校验后保存。\n', expected_sha256: detail.decision.sha256, expected_change_sha256: detail.change_sha256, status: 'completed', outcome: 'inconclusive' }, abort.signal)
+    await new Promise(resolve => setTimeout(resolve, 30))
+    abort.abort()
+    const result = await pending
+    assert.equal(result.ok, false)
+    assert.equal(result.error.code, 'aborted')
+    assert.equal(readFileSync(changeFile, 'utf8'), before)
+    assert.equal(readFileSync(join(fx.root, detail.decision.path), 'utf8'), detail.decision.content)
   } finally { await rm(fx.root, { recursive: true, force: true }) }
 })

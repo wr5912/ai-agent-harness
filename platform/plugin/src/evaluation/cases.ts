@@ -14,7 +14,7 @@ const EXPERIMENT_ID = /^EXP-[a-z0-9]+(?:-[a-z0-9]+)*-\d{3}(?:-r[0-9a-f]{12})?$/
 const AGENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const CASE_ID = /^U-[A-Z0-9]+(?:-[A-Z0-9]+)*$/
 const RUN_ID = /^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
-const CONTRACT = '.agents/skills/research-eval/scripts/evaluation_contract.py'
+const CONTRACT = 'runtime/research/evaluation_contract.py'
 
 /** 运行来源属于当前用例的出处，普通字段编辑不能静默移除。 */
 export function caseSourceReferences(block: string): string[] {

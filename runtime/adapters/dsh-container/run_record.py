@@ -21,7 +21,7 @@ ADAPTER = Path(__file__).resolve().parent
 sys.path.insert(0, str(ADAPTER))
 from workspace_paths import PROGRAM_ROOT, asset_root, workspace_id
 REPO = asset_root()
-EVALUATION_SCRIPTS = PROGRAM_ROOT / ".agents/skills/research-eval/scripts"
+EVALUATION_SCRIPTS = PROGRAM_ROOT / "runtime/research"
 for import_root in (ADAPTER, EVALUATION_SCRIPTS):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))

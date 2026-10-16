@@ -1,3 +1,4 @@
+import { taskBusinessSkill, type NativeSkills } from './business-assets.ts'
 import { workspaceIdentity, workspaceOwnsCwd } from '../workspace.ts'
 
 const allowedNames = new Set(['skill', 'platform_agents'])
@@ -45,9 +46,8 @@ export const createExtractionScope = () => createTaskScope('decision-sample-extr
 export const createComputeVariantScope = () => createTaskScope('compute-variant-research', '算力变体研究', new Set([...allowedNames, 'platform_task']))
 
 export const createFeatureScope = () => createTaskScope('agent-maintenance', '特性整理任务')
-export function createTaskBuilderScope() {
+export function createTaskBuilderScope(root: string, skills: NativeSkills) {
   const names = new Set(['skill', 'platform_task', 'platform_agents', 'platform_instances', 'platform_mcp'])
-  const skills = new Set(['task-builder', 'workspace-management', 'agent-maintenance', 'mcp-composition', 'harness-experiment-fusion'])
   const scopes = new Map<any, (() => void)[]>()
   const release = (agent: any) => { for (const stop of (scopes.get(agent) ?? []).reverse()) stop(); scopes.delete(agent) }
   return {
@@ -59,7 +59,19 @@ export function createTaskBuilderScope() {
       try {
         cleanup.push(tools.restrict({ allow: [...names] }))
         cleanup.push(tools.presentAs('native'))
-        cleanup.push(tools.guard((execution: any) => names.has(execution.name) && (execution.name !== 'skill' || skills.has(execution.arguments?.name)) ? undefined : '任务构建仅通过平台工具办理；不能通过其他工具绕过任务预算或目标范围'))
+        const loaded = new WeakMap<object, string>()
+        cleanup.push(agent.ctx.on('tools/pre-execute', async (execution: any, next: any) => {
+          if (execution.name === 'skill') {
+            try {
+              await taskBusinessSkill(root, skills, execution.arguments?.name, agent, execution.signal)
+              loaded.set(execution, execution.arguments.name)
+            } catch { return { kind: 'deny', reason: '任务构建仅能读取当前数据工作区 .agents/skills 及已声明扩展中实际装载的业务技能' } }
+          }
+          return next()
+        }))
+        cleanup.push(tools.guard((execution: any) => names.has(execution.name)
+          && (execution.name !== 'skill' || loaded.get(execution) === execution.arguments?.name)
+          ? undefined : '任务构建仅通过平台工具和已核对来源的管理技能办理；不能绕过任务预算或目标范围'))
         scopes.set(agent, cleanup)
       } catch (error) { for (const stop of cleanup.reverse()) stop(); throw error }
     }, release,

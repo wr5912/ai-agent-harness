@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -32,6 +33,7 @@ function traceEvents() {
 }
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'decision-datasets-'))
+  write(join(root, '.agents/skills/decision-sample-extraction/SKILL.md'), '---\nname: decision-sample-extraction\n---\n\n从当前轨迹提取候选，保留人工复核。\n')
   const base = id => `evolution/experiments/EXP-alpha-001-r0123456789ab/runs/${id}`
   const path = `${base(runId)}/evidence/U-BASIC-001/trace.jsonl`
   const raw = traceEvents().map(value => JSON.stringify(value)).join('\n') + '\n'
@@ -84,6 +86,19 @@ test('真实保存的轨迹经过 source→preview→apply→read/edit/review→
   assert.equal(record.questions.decision.label, 'inspect'); assert.equal(record._meta.split, 'train')
   assert.match(record._meta.extractor.skill_sha256, /^[0-9a-f]{64}$/)
   assert.equal(record._meta.decision_time_reviewed, true)
+}))
+
+test('抽取记录使用数据侧技能摘要，缺少技能只阻止新预览', () => withFixture(async fx => {
+  const path = '.agents/skills/decision-sample-extraction/SKILL.md'
+  const expected = createHash('sha256').update(readFileSync(join(fx.root, path))).digest('hex')
+  const saved = await apply(fx, await preview(fx, await source(fx)))
+  assert.equal(saved.dataset.extractor.skill_sha256, expected)
+  assert.equal(saved.dataset.extractor.skill_path, path)
+  await rm(join(fx.root, '.agents'), { recursive: true })
+  assert.equal((await fx.handle('datasets/read', { dataset_id: saved.dataset.id })).dataset.extractor.skill_sha256, expected)
+  assert.equal((await fx.handle('datasets/list', {})).datasets.length, 1)
+  assert.ok((await fx.handle('datasets/export', { dataset_id: saved.dataset.id, kind: 'candidates' })).content)
+  await assert.rejects(async () => preview(fx, await source(fx)), /缺少决策样本抽取技能/)
 }))
 
 test('时点未核对不能复核，旧 reviewed 不进入训练；修改后保存待复核清除原确认', () => withFixture(async fx => {

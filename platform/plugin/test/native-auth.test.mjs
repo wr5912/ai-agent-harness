@@ -57,6 +57,8 @@ test('平台登录保护原生 API、三个写入域与 MCP，旧 Token/Cookie �
     ctx.provide('agents', { get: () => undefined })
     ctx.provide('tools', { register() {} })
     ctx.provide('goals', { get: () => undefined })
+    // 空数据工作区仍可验证认证与原生注册；本项不发起管理会话。
+    ctx.provide('skills', { async get() { return undefined } })
   } })
   const origin = `http://127.0.0.1:${root.webServer.port}`
   const base = origin + '/hep'

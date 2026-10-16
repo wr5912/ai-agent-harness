@@ -1,4 +1,6 @@
-export const assistantTheme = `
+import { nativeOverlayTheme } from './native-overlays.ts'
+
+export const assistantTheme = `${nativeOverlayTheme}
 /* 保留管理对话与助手浮窗的既有颜色和控件尺寸，公共页面的新变量只影响其他界面。 */
 body .harness-platform[data-page=conversations],body .harness-platform .harness-assistant,body .harness-platform .harness-assistant-toggle{--hep-link:var(--hep-primary);--hep-link-hover:var(--hep-primary-hover);--hep-hit-target:0px}
 .harness-operation-inline{font-size:13px;line-height:1.6;overflow-wrap:anywhere}

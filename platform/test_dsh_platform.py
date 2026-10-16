@@ -29,12 +29,9 @@ class PlatformLauncherTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.repo = self.root / "repository with spaces"
         shutil.copytree(PLATFORM, self.repo / "platform", ignore=shutil.ignore_patterns("plugin"))
-        for name in ("harness-experiment-fusion", "harness-guided-workflow", "harness-evolution", "research-eval", "legacy-asset-intake"):
-            skill = self.repo / ".agents/skills" / name
-            skill.mkdir(parents=True)
-            (skill / "SKILL.md").write_text("---\nname: " + name + "\ndescription: fixture\n---\n")
         self.plugin = self.repo / "platform" / "plugin"
         self.plugin.mkdir(parents=True)
+        shutil.copytree(PLATFORM / "plugin/assets", self.plugin / "assets")
         self.web = self.repo / "runtime" / "adapters" / "dsh-web"
         self.web.mkdir(parents=True)
         adapter = self.repo / "runtime/adapters/dsh-container"
@@ -155,7 +152,9 @@ if sys.argv[1:] == ["run", "build"]:
         patch = (self.profile / "harness-platform.patch.yml").read_text()
         self.assertIn(json.dumps(str(self.plugin / "lib" / "index.js")), patch)
         self.assertNotIn("{{HARNESS_PLATFORM_PLUGIN}}", patch)
-        self.assertIn(json.dumps(str(self.repo / "platform" / "skills")), patch)
+        self.assertIn(json.dumps(str(self.assets / ".agents/skills")), patch)
+        self.assertNotIn("management-skills", patch)
+        self.assertNotIn(str(self.repo / "platform/skills"), patch)
         self.assertNotIn("{{HARNESS_PLATFORM_SKILLS}}", patch)
         self.assertIn(json.dumps(str(self.web / "lib/platform-webserver.mjs")), patch)
         self.assertNotIn("{{HARNESS_PLATFORM_WEBSERVER}}", patch)
@@ -247,8 +246,10 @@ if sys.argv[1:] == ["run", "build"]:
         self.prepare()
         self.assertEqual((recovered_profile / "cordis.patch.yml").read_text(), original.replace(json.dumps(previous), json.dumps(expected)))
         self.assertEqual((recovered_profile / "node_modules/@ai-agent-harness/harness-platform").resolve(), replacement / "platform/plugin")
-        for name in ("harness-evolution", "research-eval"):
-            self.assertEqual((recovered / ".local/build-cache/management-skills" / name).resolve(), replacement / ".agents/skills" / name)
+        patch = (recovered_profile / "harness-platform.patch.yml").read_text()
+        self.assertIn(str(recovered / ".agents/skills"), patch)
+        self.assertNotIn("management-skills", patch)
+        self.assertFalse((recovered / ".local/build-cache/management-skills").exists())
         self.assertEqual((recovered / ".local/platform-home/sessions/retained-session").read_text(), "unchanged history")
         self.assertEqual((self.profile / "cordis.patch.yml").read_text(), original)
         self.assertEqual(old_bundle.resolve(), self.plugin)

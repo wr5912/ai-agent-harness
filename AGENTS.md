@@ -40,7 +40,7 @@
 - 平台围绕 Harness 资产与版本、评测与改进、DSH 实例及工具接入建设，支持 Harness 改进、资产演化、多 Variant 派生与比较。业务 Harness 资产供容器内 DSH Agent Runtime 装载，平台扩展供系统全局 DSH 装载。
 - 优先复用 DSH 现有能力和插件；只有扩展接口确实不足时，才考虑有记录、可回退的最小框架修改。DSH Runtime 源码不混入本仓库。
 - 不复制 Runtime 内部目录，不把 Session、缓存、附件或整个 `$DSH_HOME` 作为 Harness 资产；需入仓的平台和实例凭据只保存为专用文件，不通过复制 Runtime HOME 回流。
-- 独立数据根（`HARNESS_ASSET_ROOT`，默认 `~/harness-engineering-platform-data`）中的 `agents/` 保存业务 Agent 的研究资料；`.agents/skills/` 保存维护本仓库的 Codex 项目技能，两者不得混用。
+- 独立数据根（`HARNESS_ASSET_ROOT`，默认 `~/harness-engineering-platform-data`）中的 `agents/` 保存业务 Agent 的研究资料，`.agents/skills/` 保存管理助手的业务技能；本程序仓库的 `.agents/skills/` 只保存研发技能。按所属工作区区分，不因目录名相同混用身份。
 - `.codex/` 和根级 `AGENTS.md` 只约束仓库研发协作，不是 DSH Runtime 策略或业务 Harness 资产。
 - 平台使用本地 CLI，以及基于系统全局 DSH-Cordis 的界面，当前提供首页、管理对话、智能体管理、评测中心、实例管理及 MCP 管理，复用现有资产与运行记录，不另建事实副本。平台启动入口、Profile 与插件源码集中在 `platform/`，其中 `platform/plugin/` 是独立 DSH 插件包；接入合同集中维护在[平台设计方案](docs/platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。后续能力按实际使用需求扩展，实际验证状态以项目验收矩阵为准。
 
@@ -78,30 +78,15 @@
 
 ## 程序与数据工作区
 
-本仓库保存平台程序、Runtime 适配器、通用 MCP 管理源码、平台管理助手的内置 Skill、开发技能和平台验收资料。业务 `agents/`、`evolution/`、实际 `config/`、业务 `extensions/` 和运行状态位于独立数据工作区；详细路径、历史恢复、原生 HOME 和备份边界只在[独立数据工作区合同](docs/platform-design/02_系统架构与部署设计.md#独立数据工作区)维护。下文业务资产的相对路径均相对数据根，程序脚本与开发规范相对程序根。
+本仓库保存平台程序、Runtime 适配器、通用 MCP 管理源码、研究工具、平台开发技能和平台验收资料。管理助手的业务原则、表达规范与 Skill，以及业务 `agents/`、`evolution/`、实际 `config/`、业务 `extensions/` 和运行状态位于独立数据工作区。两仓各自使用根级 `AGENTS.md` 和 `.agents/skills/`，分别按研发职责和业务职责维护。详细路径、历史恢复、原生 HOME 和备份边界只在[独立数据工作区合同](docs/platform-design/02_系统架构与部署设计.md#独立数据工作区)维护。下文业务资产的相对路径均相对数据根，程序脚本与开发规范相对程序根。
 
-平台管理助手保持管理身份，通过受信任工作区上下文和平台工具定位资产。它的运行 Harness 随平台维护，不把程序仓库的开发协作规则或业务 Agent 的角色指令作为自己的身份。当前工作目录不能替代程序根、数据根和工作区 ID；Session 的迁移归属不改写历史事件。
+平台管理助手保持管理身份，通过受信任工作区上下文和平台工具定位资产。它的业务 Harness 由数据仓库维护；程序负责加载、接口合同和执行约束。不把程序仓库的开发协作规则或业务 Agent 的角色指令作为管理身份。当前工作目录不能替代程序根、数据根和工作区 ID；Session 的迁移归属不改写历史事件。
 
 ## 研究演进
 
-业务 Harness 研究采用轻量演进主线：
+业务研究方法与管理助手的操作约束由数据工作区的 `AGENTS.md`、`.agents/skills/` 和[研究方法入口](https://github.com/wr5912/harness-engineering-platform-data/blob/main/docs/harness-research/README.md)维护。本仓库开发研究工具时保持 Agent、Experiment、Candidate、Run 与 Decision 的既有身份和文件合同，不能为接口迁移改写业务评判口径或历史结果。
 
-```text
-Baseline 引用 → Experiment（含 candidate 工作树）→ Evaluation → Decision
-                                                        └→ 可选 Research Release
-```
-
-- Baseline 是 `git:<commit>`、`release:<id>` 或 `none:first-experiment` 引用，不复制稳定 Baseline 目录。
-- `candidate/` 是 Experiment 中的待比较工作树，不表示生产候选或发布准入。
-- 每个语义性 Harness 变化建立 Experiment，至少说明为什么改、改了什么、怎样比较、结果与回归、限制和下一步。
-- 平台功能、组合、启动器和通用工具按项目验收路径验证。只有改变被研究业务 Harness 的语义时，才按上述要求建立 Experiment；技术 POC 按当前问题在既有任务或设计记录中保存必要依据。
-- Evaluation 规模由研究假设决定；可以从一个或少量高价值输入开始，不设固定 Case 数、R1/R2/R3 或安全控制映射。
-- Decision 使用 `adopt`、`continue`、`reject` 或 `inconclusive`，失败和证据不足都是合法研究结果。
-- Research Release 是值得保留的、自包含、不可变、可校验的研究版本，不表示生产可用或上线批准。
-- 新主线版本继承仍有效的主线能力及已确认应融合的并行能力；Experiment 编号只标识创建顺序，不表示继承关系。
-- 不同算力需求的等效 Harness 变体从同一智能体完整、可恢复且来源固定的主线版本派生。研究阶段可选固定 Git 提交或 Research Release；有已发布版本时优先选用。确认任务效果等效和资源差异后，它是 `end`（终端）版本，后续主线无需继承其差异；需要新版对应变体时，从新版主线另行派生。未固定父版或尚未证明等效的 Candidate 仍是探索性 Experiment，不能以 `end` 名义排除融合。
-- 不维护 `evolution/baselines/` 或 `agents/<agent-id>/current/`；Git 与 Research Release 已足以恢复和比较版本。
-- 运行记录使用 `run-<UUIDv4>`；完成后不改写原始事实。研究版本主要由 Git 保存，不复制整套源码快照。
+业务 Harness 的语义性变化按数据侧研究流程执行；平台页面、启动器与通用工具按本仓库验收路径验证。维护工具时区分来源解析、静态校验、实际装载和任务效果，不把机器合同通过写成业务采纳。研究脚本集中在 `runtime/research/`，由程序版本管理，不与业务 Skill 形成两份实现。
 
 ## 验收层级
 
@@ -143,7 +128,7 @@ Memory 位于仓库外的 `$CODEX_HOME/memories`，不得复制进仓库、Resea
 2. 按本次任务检索[AI 纠错经验总结](docs/AI纠错经验总结.md)的相关条目，涉及歧义时查[项目术语表](docs/项目术语表.md)；不要求每次通读全部历史记录。
 3. 阅读 `docs/standards/SOURCES.md` 与 `docs/standards/PROJECT-INTERPRETATION.md`，确认来源对平台开发及 Harness 研究的适用范围。
 4. 阅读项目验收矩阵，确定涉及的 `PA-xx`、已有证据和缺口。
-5. 按[分支与开发工作流](#分支与开发工作流)判断任务对象并选择技能；新建、迁移、修改或优化业务 Harness 时先使用 `harness-guided-workflow`，平台及通用工具开发使用 `dsh-platform-development`。
+5. 按[分支与开发工作流](#分支与开发工作流)判断任务对象并选择技能；平台及通用工具开发使用本仓库 `dsh-platform-development`。新建、迁移、修改或优化业务 Harness 时，读取已选数据工作区的 `AGENTS.md` 和 `.agents/skills/harness-guided-workflow/SKILL.md`，按数据侧原则开展任务。
 6. 检查 Git 工作树和现有资产；不得覆盖、回退或混入他人的改动。涉及运行或环境操作时，先核对工作树、目标主机、实例、进程／端口及实际来源，按本次目标区分本地、部署测试与其他环境。
 
 ## 分支与开发工作流
@@ -153,7 +138,7 @@ Memory 位于仓库外的 `$CODEX_HOME/memories`，不得复制进仓库、Resea
 | 对象标识 | 按任务目标判断的范围 | 工作流入口 |
 |---|---|---|
 | `PLATFORM` | 平台页面、研究管理工具、通用 CLI、Runtime 适配器及仓库研发协作配置 | 实现使用 [`dsh-platform-development`](.agents/skills/dsh-platform-development/SKILL.md)；仅编写页面开发任务清单使用 `dsh-platform-task-list` |
-| `AGENT` | 某个业务智能体的 Harness 资产、需求、评估标准及研究结果 | 语义性 Harness 变化使用 [`harness-guided-workflow`](.agents/skills/harness-guided-workflow/SKILL.md)；仅维护文档或整理既有证据不因此新建 Experiment |
+| `AGENT` | 某个业务智能体的 Harness 资产、需求、评估标准及研究结果 | 语义性 Harness 变化使用 数据工作区的 [`harness-guided-workflow`](https://github.com/wr5912/harness-engineering-platform-data/blob/main/.agents/skills/harness-guided-workflow/SKILL.md)；仅维护文档或整理既有证据不因此新建 Experiment |
 
 AI 开发工具在创建分支前必须读取本节，根据**任务名称、任务描述与仓库上下文**选择操作类型、对象标识和主题，而不是只按文件目录、出现的关键词或工具默认分支名推断。业务智能体已知时，`AGENT` 主题包含其 Agent ID。上下文不足先检查目标资产、调用关系和已有实现，仍无法判断主要目标时再澄清。
 

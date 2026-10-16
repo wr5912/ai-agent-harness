@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -15,22 +15,31 @@ import * as plugin from '../lib/index.js'
 
 const require = createRequire(import.meta.url)
 const sdkRequire = createRequire(require.resolve('@deepseek-ai/dsh-api-session-controller'))
-const [{ ToolRuntime }, { createScope }, { createUserMessage }] = await Promise.all([
+const [{ ToolRuntime }, { createScope }, { createUserMessage }, { SkillRegistry }, { FileSystemSkillProvider }] = await Promise.all([
   import(pathToFileURL(sdkRequire.resolve('@deepseek-ai/dsh-tools')).href),
   import(pathToFileURL(sdkRequire.resolve('@deepseek-ai/dsh-scope')).href),
   import(pathToFileURL(sdkRequire.resolve('@deepseek-ai/dsh-llm')).href),
+  import(pathToFileURL(sdkRequire.resolve('@deepseek-ai/dsh-skill')).href),
+  import(pathToFileURL(sdkRequire.resolve('@deepseek-ai/dsh-skill-filesystem')).href),
 ])
 
 test('真实HTTP助手接口在compute与普通任务间排他切换，用户续话及重复组装不重复声明native', async t => {
   const ctx = new Context()
   const assetRoot = mkdtempSync(join(tmpdir(), 'assistant-scope-switch-'))
+  writeFileSync(join(assetRoot, 'AGENTS.md'), '管理当前测试数据工作区。')
+  for (const name of ['workspace-management', 'user-facing-output', 'compute-variant-research', 'task-builder']) {
+    const directory = join(assetRoot, '.agents/skills', name)
+    mkdirSync(directory, { recursive: true })
+    writeFileSync(join(directory, 'SKILL.md'), `---\nname: ${name}\ndescription: 作用域切换测试技能\n---\n仅办理本测试的管理任务。`)
+  }
   const previous = process.env.HARNESS_ASSET_ROOT
   process.env.HARNESS_ASSET_ROOT = assetRoot
   const agents = new Map(), scopes = [], calls = [], prompts = []
-  let loaded
+  let loaded, skillProvider
   t.after(async () => {
     await loaded?.dispose()
     for (const scope of scopes) await scope.dispose()
+    await skillProvider?.dispose()
     await ctx.fiber.dispose()
     rmSync(assetRoot, { recursive: true, force: true })
     if (previous === undefined) delete process.env.HARNESS_ASSET_ROOT
@@ -42,6 +51,10 @@ test('真实HTTP助手接口在compute与普通任务间排他切换，用户续
     new SessionStore(inner)
     new SessionProjectionRegistry(inner)
     new SystemPrompt(inner, {})
+    new SkillRegistry(inner, {})
+    inner.skills.registerProvider(control => skillProvider = new FileSystemSkillProvider(inner, control, {
+      includeDefaultRoots: false, customSkillDirs: [join(assetRoot, '.agents/skills')], watch: false,
+    }))
     new ToolRuntime(inner, { mode: 'native' })
     for (const name of ['skill', 'bash', 'read', 'write', 'spawn_agent']) inner.tools.register({
       name, description: '作用域回归工具', parameters: { type: 'object', additionalProperties: true },
@@ -118,7 +131,9 @@ test('真实HTTP助手接口在compute与普通任务间排他切换，用户续
   await rpc('session', { session_id: id, task: '切换普通构建任务', context: { skill: 'task-builder' } })
   assert.deepEqual(await schemas(), ['platform_agents', 'platform_instances', 'platform_mcp', 'platform_task', 'skill'])
   assert.equal((await execute('skill', { name: 'task-builder' })).isError, false)
-  assert.equal((await execute('skill', { name: 'compute-variant-research' })).isError, true)
+  // 普通构建任务可读取数据工作区的实际业务技能；不存在的技能仍拒绝。
+  assert.equal((await execute('skill', { name: 'compute-variant-research' })).isError, false)
+  assert.equal((await execute('skill', { name: 'missing-business-skill' })).isError, true)
   await rpc('status', { session_id: id })
   await schemas()
 

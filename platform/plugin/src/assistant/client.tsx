@@ -126,6 +126,10 @@ export function createAssistant(ctx: Pick<Context, 'sessions' | 'uiSession' | 'u
     async create(task?: string, taskContext: AssistantContext = context) {
       publish({ busy: true, error: '' })
       try {
+        const configuration = await rpc.call(CHANNEL, 'assistant/configuration', { context: taskContext })
+        if (!configuration.ok) throw new Error(configuration.error.message)
+        const availability = configuration.value as { ready: boolean; message: string }
+        if (!availability.ready) throw new Error(availability.message || '当前工作区未配置平台管理助手，请连接或克隆已有数据仓库。')
         const sessionIdToResume = typeof taskContext.session_id === 'string' ? taskContext.session_id : undefined
         const root = getRoot()
         if (!root) throw new Error('项目工作区尚未就绪，请稍后重试。')
@@ -237,7 +241,7 @@ function confirmationAction(meta: OperationMeta) {
   if (meta.domain === 'task' && meta.action === 'start') return value?.plan?.new_agent || value?.plan?.allowed_actions?.some((item: any) => ['new', 'create', 'edit/apply', 'tasks/assembly-apply'].includes(item.action)) ? '开始构建并验证' : '开始验证并交付'
   if (meta.action === 'datasets/apply') return `保存 ${value?.count ?? value?.records?.length ?? ''} 条样本`
   if (meta.domain === 'instances' && meta.action === 'run') return ({ create: '创建实例', start: '启动实例', stop: '停止实例', restart: '重启实例', delete: '删除实例' } as Record<string, string>)[meta.input?.operation ?? value?.operation ?? value?.input?.operation] ?? '执行实例操作'
-  return ({ 'features/apply': '保存特性', saveConfiguration: '保存 MCP 配置', 'fusion/confirm': '创建融合版本', create: '创建研究版本', new: '创建智能体', 'edit/apply': '保存修改', 'eval/start': '开始评测', callPublishedComposition: '执行工具组合', callTool: '调用工具', publishComposition: '发布工具组合', saveCompositionDraft: '保存组合草稿', 'cases/update': '保存测试用例', 'cases/create': '保存测试用例', 'compute-variants/create': '创建算力变体', 'compute-variants/build': '构建代码变体', 'compute-variants/freeze': '确认冻结本次数据差异' } as Record<string, string>)[meta.action] ?? actionLabels[meta.action] ?? '执行此操作'
+  return ({ 'features/apply': '保存特性', 'decision/update': '保存研究结论', saveConfiguration: '保存 MCP 配置', 'fusion/confirm': '创建融合版本', create: '创建研究版本', new: '创建智能体', 'edit/apply': '保存修改', 'eval/start': '开始评测', callPublishedComposition: '执行工具组合', callTool: '调用工具', publishComposition: '发布工具组合', saveCompositionDraft: '保存组合草稿', 'cases/update': '保存测试用例', 'cases/create': '保存测试用例', 'compute-variants/create': '创建算力变体', 'compute-variants/build': '构建代码变体', 'compute-variants/freeze': '确认冻结本次数据差异' } as Record<string, string>)[meta.action] ?? actionLabels[meta.action] ?? '执行此操作'
 }
 
 /** 确认的是动作、对象及后果；完整证据与字段保留在可展开详情中。 */
@@ -281,6 +285,11 @@ function BusinessPreview({ value, meta }: { value: unknown; meta: OperationMeta 
   else if (meta.action === 'compute-variants/build') summary = <><p>构建当前目标的 TypeScript 工作流，并核对实际产物摘要。</p><p>构建通过后仍需在新 Session 核对装载和业务效果。</p></>
   else if (meta.action === 'new') summary = <><p>创建智能体 <strong>{data?.name ?? input.name ?? data?.agent_id ?? input.agent_id}</strong>及其首个研究版本。</p><p>先保存角色和资产；可用的业务能力仍需装配与评测。</p></>
   else if (meta.action === 'edit/apply') summary = <p>向{targetVersionLabel(input.experiment_id ?? data?.experiment_id, data, input)}保存 <strong>{input.edits?.length ?? data?.files?.length ?? data?.edits?.length ?? '约定'} 份文件修改</strong>。具体内容和差异见下方。</p>
+  else if (meta.action === 'decision/update') {
+    const states: Record<string, string> = { active: '进行中', completed: '已完成', adopt: '采纳', continue: '继续研究', reject: '不采纳', inconclusive: '证据不足' }
+    const change = data?.change
+    summary = <><p>保存{targetVersionLabel(input.experiment_id, data, input)}的研究结论与依据。</p>{change && <p>状态：{states[change.before.status] ?? change.before.status} → <strong>{states[change.after.status] ?? change.after.status}</strong>；结论：{states[change.before.outcome] ?? change.before.outcome ?? '未记录'} → <strong>{states[change.after.outcome] ?? change.after.outcome ?? '未记录'}</strong>。</p>}</>
+  }
   else if (meta.action === 'eval/start') summary = <><p>对{targetVersionLabel(input.source ?? data?.source, data, input)}执行 <strong>{input.cases?.length ?? data?.cases?.length ?? '约定'} 项测试</strong>，创建新的评测运行记录。</p><p>将调用已配置的模型；结果按实际执行保存。</p></>
   else if (meta.action === 'callPublishedComposition' || meta.action === 'callTool') summary = <><p>执行 <strong>{data?.title ?? data?.toolName ?? input.toolName ?? data?.compositionId ?? input.compositionId ?? '所选工具'}</strong>，请求已配置的上游接口。</p><p>使用本提案固定的工具、参数及版本；实际业务结果在执行后核对。</p></>
   else summary = <p>{operationSummary({ ...meta, state: 'awaiting_confirmation' }).title}。执行范围与实际修改保留在下方详情。</p>

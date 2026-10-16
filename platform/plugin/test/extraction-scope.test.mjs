@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
@@ -37,7 +37,19 @@ function fixture(t, { parentPtc = false, computeResearch = false, featureOrganiz
   const agent = { id: 'extraction-agent', session: {} }
   const agentScope = createScope(ctx, agent, parent ? { parent: parentKey } : undefined)
   agent.ctx = agentScope.ctx
-  const scope = taskBuilding ? createTaskBuilderScope() : featureOrganization ? createFeatureScope() : computeResearch ? createComputeVariantScope() : createExtractionScope()
+  const root = mkdtempSync(join(tmpdir(), 'builder-skills-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  for (const name of ['task-builder', 'research-eval', 'harness-evolution', 'harness-guided-workflow', 'legacy-asset-intake']) {
+    mkdirSync(join(root, '.agents/skills', name), { recursive: true })
+    writeFileSync(join(root, '.agents/skills', name, 'SKILL.md'), '业务技能')
+  }
+  writeFileSync(join(root, 'workspace.json'), JSON.stringify({ schemaVersion: 1, id: 'workspace-test', extensions: [{ id: 'business', path: 'extensions/business' }] }))
+  for (const extension of ['business', 'undeclared']) {
+    mkdirSync(join(root, `extensions/${extension}/skills/${extension}-tool`), { recursive: true })
+    writeFileSync(join(root, `extensions/${extension}/skills/${extension}-tool/SKILL.md`), '声明扩展技能')
+  }
+  const skills = { async get(name) { return { name, path: ['business-tool', 'undeclared-tool'].includes(name) ? join(root, `extensions/${name.replace('-tool', '')}/skills/${name}/SKILL.md`) : join(root, '.agents/skills', name, 'SKILL.md'), content: '业务技能' } } }
+  const scope = taskBuilding ? createTaskBuilderScope(root, skills) : featureOrganization ? createFeatureScope() : computeResearch ? createComputeVariantScope() : createExtractionScope()
   const other = { id: 'other-agent', session: {} }
   const otherScope = createScope(ctx, other)
   other.ctx = otherScope.ctx
@@ -169,7 +181,9 @@ test('构建任务使用真实工具作用域阻止shell或子智能体绕过限
   const f = fixture(t, { taskBuilding: true, parentPtc: true })
   f.scope.apply(f.agent)
   assert.deepEqual(await f.schemas(f.agent), ['platform_agents', 'platform_instances', 'platform_mcp', 'platform_task', 'skill'])
-  assert.equal((await f.execute('skill', { name: 'task-builder' })).isError, false)
+  for (const name of ['task-builder', 'research-eval', 'harness-evolution', 'harness-guided-workflow', 'legacy-asset-intake']) assert.equal((await f.execute('skill', { name })).isError, false)
+  assert.equal((await f.execute('skill', { name: 'business-tool' })).isError, false)
+  assert.equal((await f.execute('skill', { name: 'undeclared-tool' })).isError, true)
   assert.equal((await f.execute('skill', { name: 'untrusted-skill' })).isError, true)
   assert.equal((await f.execute('platform_task', { action: 'status' })).isError, false)
   for (const name of ['bash', 'spawn_agent', 'run_in_background', 'run_code']) assert.equal((await f.execute(name)).isError, true)

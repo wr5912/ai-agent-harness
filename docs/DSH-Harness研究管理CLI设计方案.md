@@ -1,12 +1,12 @@
 # DSH Harness 研究管理 CLI 设计方案
 
-> 状态：当前已有本地研究 CLI、只读查询原型和基于全局 DSH 的最小资产首页。本文维护研究 CLI 的用途与边界；平台组合、启动与装载合同统一见[平台设计方案](platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。
+> 状态：当前平台通过全局 DSH 提供智能体、评测、实例与工具管理，底层复用本地研究 CLI。本文维护研究 CLI 的用途与边界；平台组合、启动与装载合同统一见[平台设计方案](platform-design/02_系统架构与部署设计.md#当前最小平台接入合同)。
 
 ## 1. 为什么先做 CLI
 
-本项目服务单个开发者在一个仓库内研究 Harness。当前真正需要的是：选定来源、在宿主开发会话中编辑 Candidate、启动只读 DSH 评测实例、保存 Run、比较观察。它们都是本地、低并发、Git 驱动的操作，用项目技能和几个可组合的 CLI 已经足够。
+平台服务个人开发者，程序与业务研究资产分别维护。当前真正需要的是：选定来源、在宿主开发会话中编辑 Candidate、启动只读 DSH 评测实例、保存 Run、比较观察。它们都是本地、低并发、Git 驱动的操作，用项目技能和几个可组合的 CLI 已经足够。
 
-当前最小只读资产平台提供全局 DSH 中的仓库研究资料入口；创建、修改与评测继续复用这些确定性入口。扩展平台能力仍须针对实际瓶颈，不能因为“以后可能做平台”就引入数据库、账户体系、审批流、任务队列或状态服务。
+平台的创建、修改、评测和实例管理复用这些确定性入口；业务流程由数据仓库的管理 Skill 维护。扩展平台能力仍须针对实际瓶颈，不能因为“以后可能做平台”就引入数据库、账户体系、审批流、任务队列或状态服务。
 
 ## 2. 当前已有入口
 
@@ -21,33 +21,13 @@
 | `validate_repository.py` | 检查仓库、Experiment 和 Research Release 的确定性合同 | 退出码 `0` 不表示假设成立 |
 | `validate_experiment.py` | 检查一个 Experiment 的最小研究记录 | 不要求固定 Case 数或生产门禁 |
 | `plugins/asset-query-cli/` | 只读列出 DSH 资产的原型 | 不是管理平台，也不执行写操作 |
-| `platform/dsh-platform` | 准备并启动全局 DSH 的只读研究资产首页 | 读取原有研究目录；接入合同和验证状态分别见平台设计方案与 `PA-12` |
+| `platform/dsh-platform` | 准备并启动全局 DSH 的 Harness 工程平台 | 读取原有研究目录；接入合同和验证状态分别见平台设计方案与 `PA-12` |
 
 这些入口可以继续各自演进，不急于包成一个总命令。只有重复参数或重复解析已经造成真实维护成本时，才抽取共享模块。
 
-## 3. 最小研究闭环
+## 3. 研究流程与工具合同
 
-```text
-创建或选择 Experiment
-      ↓
-dsh-dev init（仅首次需要）
-      ↓
-宿主开发会话按 harness-guided-workflow 修改 Candidate
-      ↓
-mutation-receipt digest / 可选 freeze
-      ↓
-dsh-dev up --mode eval --dry-run / up
-      ↓
-新的只读容器、新 Session 观察
-      ↓
-dsh-eval 受管运行并封存 Run
-或 run_record 手工记录并封存 Run
-      ↓
-Decision：adopt / continue / reject / inconclusive
-      └──────────────→ 可选 Research Release
-```
-
-Git 是研究源码和版本历史的主要事实源。`runs/` 保存无法只由源码还原的执行观察；仓库外的 DSH_HOME 保存 Session、设置、附件和缓存。这三类内容不能混在一起，也不需要为此增加中心数据库。
+管理助手的研究流程见[数据工作区研究方法](https://github.com/wr5912/harness-engineering-platform-data/blob/main/docs/harness-research/controlled-improvement.md)。本文件维护 CLI 的执行边界。Git 保存资产与版本，Run 保存实际执行观察，原生 HOME 保存会话与设置；三者按实际定位读取。脚本位于程序根，操作目标由 `HARNESS_ASSET_ROOT` 指向数据根，不依赖 shell cwd。
 
 ## 4. 后续 CLI 的选择标准
 
@@ -80,7 +60,7 @@ Git 是研究源码和版本历史的主要事实源。`runs/` 保存无法只�
 
 ## 6. 何时扩展平台能力
 
-最小资产首页已提供只读入口。下列问题在真实使用中重复出现，并且现有工具无法合理解决时，再评估相应扩展：
+当前平台能力与证据以项目验收矩阵为准。下列问题在真实使用中重复出现，并且现有工具无法合理解决时，再评估相应扩展：
 
 - 多名研究者需要同时编辑同一资产并频繁冲突；
 - 大量长时间 Run 需要跨机器排队、恢复和调度；

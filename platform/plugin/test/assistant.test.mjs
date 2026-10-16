@@ -11,11 +11,27 @@ import { SessionProjectionRegistry } from '@deepseek-ai/dsh-session-projection'
 import { SystemPrompt } from '@deepseek-ai/dsh-system-prompt'
 import { build } from 'esbuild'
 import { createAssistant, redactAssistant } from '../src/assistant/index.ts'
+import { managementSkills } from '../src/assistant/business-assets.ts'
 import { assistantMcp } from '../src/assistant/mcp.ts'
 import { applyTaskAssembly } from '../src/tasks/assembly.ts'
 import { candidateDigest, sha256 } from '../src/tasks/files.ts'
 
-function fixture(t, responder, root = '/project') {
+const expressionFixture = '先说明结果、影响和用户需要采取的行动。保留失败与未知事实。'
+function fixture(t, responder, root) {
+  if (!root) { root = mkdtempSync(join(tmpdir(), 'assistant-data-')); t.after(() => rmSync(root, { recursive: true, force: true })) }
+  if (!existsSync(join(root, 'AGENTS.md'))) writeFileSync(join(root, 'AGENTS.md'), '你是 Harness 工程平台管理助手。业务工作由数据工作区原则和技能指导。')
+  for (const name of managementSkills) {
+    const path = join(root, '.agents/skills', name, 'SKILL.md')
+    mkdirSync(dirname(path), { recursive: true })
+    if (!existsSync(path)) writeFileSync(path, `---\nname: ${name}\ndescription: 测试技能\n---\n${name === 'user-facing-output' ? expressionFixture : `测试 ${name} 业务技能`}`)
+  }
+  const skills = { async get(name, options) {
+    assert.equal(options.cwd, root)
+    const path = join(root, '.agents/skills', name, 'SKILL.md')
+    if (!existsSync(path)) return undefined
+    return { name, path, content: readFileSync(path, 'utf8').replace(/^---\n[\s\S]*?\n---\n/, ''), invocation: { modelInvocable: true } }
+  } }
+
   const ctx = new Context()
   new SessionStore(ctx)
   new SessionProjectionRegistry(ctx)
@@ -35,11 +51,12 @@ function fixture(t, responder, root = '/project') {
     async prompt(request) { prompts.push(request); return { accepted: true } },
     cancel() { return { accepted: true } },
   }
-  const services = { controller, projections: ctx.sessionProjections, systemPrompt: ctx.systemPrompt,
+  const services = { controller, skills, projections: ctx.sessionProjections, systemPrompt: ctx.systemPrompt,
     record(session, type, data) { appendPluginRecord(session, type, data) }, notify() {} }
   const platform = async (endpoint, input, signal) => { calls.push({ endpoint, input }); return await responder?.(endpoint, input, signal) ?? { ok: true, value: { ok: true, source: endpoint } } }
   const create = () => { const assistant = createAssistant(root, platform, services); assistant.registerTools({ register: tool => tools.set(tool.name, tool) }); return assistant }
   let assistant = create()
+  ctx.on('system-prompt/assemble', async (_assembly, context, next) => assistant.assemblePrompt(await next(), context))
   t.after(async () => { await assistant.dispose(); await ctx.fiber.dispose() })
   const signal = new AbortController().signal
   const rpc = (action, input, requestSignal = signal) => assistant.handler(action, input, requestSignal)
@@ -55,7 +72,7 @@ function fixture(t, responder, root = '/project') {
   }
   const assembly = id => ctx.systemPrompt.assemble({ agent: { session: sessions.get(id).session } })
   const assemble = async id => (await assembly(id)).sections.filter(item => ['harness-platform/assistant', 'harness-platform/assistant-output'].includes(item.name)).map(item => item.text).filter(Boolean).join('\n')
-  return { ctx, sessions, services, tools, calls, prompts, rpc, status, execute, proposal, assemble, assembly, addSession,
+  return { root, ctx, sessions, services, tools, calls, prompts, rpc, status, execute, proposal, assemble, assembly, addSession,
     beforeModelCall: id => assistant.beforeModelCall(id),
     async reload() { await assistant.dispose(); assistant = create() } }
 }
@@ -147,7 +164,7 @@ test('真实Session持久记模型调用，暂停及冷恢复不重置额度，f
   assert.equal((await f.status(id)).execution.state, 'budget_exhausted')
   assert.equal((await f.status(id)).execution.model_calls, 3)
   assert.equal((await f.status(id)).execution.deadline_at, deadline)
-  f.addSession('task-fork', '/project', f.sessions.get(id).events, id)
+  f.addSession('task-fork', f.root, f.sessions.get(id).events, id)
   assert.equal((await f.status('task-fork')).execution, undefined)
   await assert.rejects(() => f.execute('task-fork', 'task', 'begin-repair'), /没有已确认任务/)
 })
@@ -223,7 +240,7 @@ test('真实 Session 投影隔离上下文、冷恢复固定任务，用户 prom
   const second = (await f.rpc('session', { context: { experiment_id: 'EXP-b-001' } })).value.session_id
   assert.notEqual(first, second)
   assert.equal(f.sessions.get(first).input.workspaceId, undefined)
-  assert.equal(f.sessions.get(first).input.cwd, '/project')
+  assert.equal(f.sessions.get(first).input.cwd, f.root)
   assert.deepEqual(f.prompts[0].content, [{ type: 'text', text: task }])
   await f.rpc('context', { session_id: first, context: { experiment_id: 'EXP-a-002' } })
   await f.reload()
@@ -265,7 +282,7 @@ test('向已有专用会话追加无context指导保留固定skill与目标，�
 })
 
 test('各类平台任务只装载一份共用表达正文，不写入用户消息或会话事实', async t => {
-  const principles = readFileSync(new URL('../../prompts/user-facing-output.md', import.meta.url), 'utf8').trim()
+  const principles = expressionFixture
   assert.ok(principles, '共用表达来源必须有正文')
   const f = fixture(t)
   const suffixOrder = f.services.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX')
@@ -300,12 +317,12 @@ test('各类平台任务只装载一份共用表达正文，不写入用户消�
 })
 
 test('原生 Session 事件冷恢复后仍装载表达正文，普通会话与其他工作区保持隔离', async t => {
-  const principles = readFileSync(new URL('../../prompts/user-facing-output.md', import.meta.url), 'utf8').trim()
+  const principles = expressionFixture
   const original = fixture(t)
   const id = (await original.rpc('session', { task: '抽取决策样本', context: { skill: 'decision-sample-extraction', run_id: 'run-fixed' } })).value.session_id
   const events = [...original.sessions.get(id).events]
-  const restored = fixture(t)
-  restored.addSession(id, '/project', events)
+  const restored = fixture(t, undefined, original.root)
+  restored.addSession(id, original.root, events)
   assert.equal((await restored.assemble(id)).split(principles).length - 1, 1)
   assert.equal((await restored.status(id)).task_context.run_id, 'run-fixed')
   await restored.reload()
@@ -317,27 +334,40 @@ test('原生 Session 事件冷恢复后仍装载表达正文，普通会话与�
   assert.equal(restored.prompts.length, 0, '恢复和系统提示装载不得伪造用户消息')
 })
 
-test('表达原则从显式程序根读取，数据根的同名文件不能替代程序事实源', async t => {
-  const sandbox = mkdtempSync(join(tmpdir(), 'assistant-output-source-'))
-  t.after(() => rmSync(sandbox, { recursive: true, force: true }))
-  const program = join(sandbox, 'program'), assets = join(sandbox, 'data')
-  const principles = '程序来源的独立测试正文。\n第二段保留完整内容。'
-  for (const root of [program, assets]) mkdirSync(join(root, 'platform/prompts'), { recursive: true })
-  writeFileSync(join(program, 'platform/prompts/user-facing-output.md'), principles)
-  writeFileSync(join(assets, 'platform/prompts/user-facing-output.md'), '数据目录中的同名文件不应生效')
-  const previous = process.env.HARNESS_PROGRAM_ROOT
-  process.env.HARNESS_PROGRAM_ROOT = program
-  try {
-    const f = fixture(t, undefined, assets)
-    const id = (await f.rpc('session', { context: { page: 'home' } })).value.session_id
-    assert.equal((await f.assemble(id)).split(principles).length - 1, 1)
-    assert.ok(!(await f.assemble(id)).includes('数据目录中的同名文件不应生效'))
-    await f.reload()
-    assert.equal((await f.assemble(id)).split(principles).length - 1, 1)
-  } finally {
-    if (previous === undefined) delete process.env.HARNESS_PROGRAM_ROOT
-    else process.env.HARNESS_PROGRAM_ROOT = previous
-  }
+test('表达 Skill 与管理规则从当前数据读取，编辑后及冷恢复立即生效，程序副本不替代来源', async t => {
+  const f = fixture(t)
+  const id = (await f.rpc('session', { context: { page: 'home' } })).value.session_id
+  const path = join(f.root, '.agents/skills/user-facing-output/SKILL.md')
+  writeFileSync(path, '---\nname: user-facing-output\ndescription: 表达\n---\n当前数据中的新表达原则')
+  writeFileSync(join(f.root, 'AGENTS.md'), '当前数据中的新管理原则')
+  assert.match(await f.assemble(id), /当前数据中的新表达原则/)
+  assert.match(await f.assemble(id), /当前数据中的新管理原则/)
+  await f.reload()
+  assert.match(await f.assemble(id), /当前数据中的新表达原则/)
+  const before = f.sessions.get(id).events.length
+  rmSync(path)
+  assert.equal((await f.rpc('configuration', {})).value.core_ready, false)
+  assert.equal((await f.rpc('session', { task: '新任务' })).ok, false)
+  await assert.rejects(() => f.beforeModelCall(id), /未配置平台管理助手/)
+  assert.equal((await f.rpc('status', { session_id: id })).ok, true)
+  assert.equal(f.sessions.get(id).events.length, before)
+  assert.equal(f.prompts.length, 0)
+})
+
+test('配置检查区分核心和专项缺失，并拒绝原生注册表同名的程序来源', async t => {
+  const f = fixture(t)
+  rmSync(join(f.root, '.agents/skills/decision-sample-extraction/SKILL.md'))
+  const general = (await f.rpc('configuration', {})).value
+  assert.equal(general.ready, true)
+  assert.equal(general.tasks['decision-sample-extraction'], false)
+  const extraction = (await f.rpc('configuration', { context: { skill: 'decision-sample-extraction' } })).value
+  assert.equal(extraction.ready, false)
+  assert.equal(extraction.core_ready, true)
+  const original = f.services.skills.get
+  f.services.skills.get = async (name, options) => name === 'user-facing-output' ? { name, path: '/old-program/platform/skills/user-facing-output/SKILL.md', content: '旧规则' } : original(name, options)
+  assert.equal((await f.rpc('configuration', {})).value.core_ready, false)
+  assert.equal((await f.rpc('session', { task: '新任务' })).ok, false)
+  assert.equal(f.sessions.size, 0)
 })
 
 test('工具在确认前保持 pending，真实回执返回原调用，重复确认不重复写入或伪造消息', async t => {
@@ -387,7 +417,7 @@ test('fork 可继承上下文，不能继承父会话提案或确认权', async 
     kind: 'proposal', id: 'legacy-parent-proposal', domain: 'instances', action: 'run', input: {}, state: 'awaiting_confirmation',
   })
   const second = (await f.rpc('session', {})).value.session_id
-  f.addSession('forked', '/project', f.sessions.get(parent).events, parent)
+  f.addSession('forked', f.root, f.sessions.get(parent).events, parent)
   assert.ok((await f.assemble('forked')).includes('EXP-parent'))
   assert.deepEqual((await f.status('forked')).proposals, [])
   for (const session_id of ['forked', second]) assert.equal((await f.rpc('confirm', { session_id, proposal_id: 'legacy-parent-proposal' })).ok, false)
@@ -639,7 +669,7 @@ test('独立工作区固化助手身份、迁移旧 Session 归属且不改写�
   assert.deepEqual(f.sessions.get('legacy').events, before)
   const prompt = await f.assemble('legacy')
   assert.ok(prompt.includes('workspace-fixture') && prompt.includes(root))
-  assert.ok(prompt.includes('business-agent') && prompt.includes('workspace-management'))
+  assert.ok(prompt.includes('business-agent') && prompt.includes('业务工作由数据工作区原则和技能指导'))
   const created = await f.rpc('session', { task: '读取业务数据', context: { agent_id: 'business-agent' } })
   assert.equal(f.sessions.get(created.value.session_id).input.cwd, root)
   f.addSession('other', '/old-platform/unrelated')
@@ -1210,4 +1240,55 @@ test('暂停跨过截止后恢复持久记录预算耗尽，不更换原任务�
   assert.deepEqual(after.operations, before.operations)
   assert.equal((await f.rpc('task/resume', { session_id: id })).ok, false)
   assert.equal(f.calls.filter(item => item.endpoint === 'agents/eval/start').length, 1)
+})
+
+
+test('专项研究文档按任务主题放行，拒绝借资料读取扩展动作范围', async t => {
+  const f = fixture(t)
+  const extraction = (await f.rpc('session', { task: '抽取', context: { skill: 'decision-sample-extraction', run_id: 'run-fixed' } })).value.session_id
+  assert.equal((await f.execute(extraction, 'agents', 'research/read-reference', { topic: 'decision-samples' })).state, 'completed')
+  await assert.rejects(() => f.execute(extraction, 'agents', 'research/read-reference', { topic: 'compute-variants' }), /主题不属于/)
+  await assert.rejects(() => f.execute(extraction, 'agents', 'research/validate', { experiment_id: 'EXP-other-001' }), /仅允许/)
+  const compute = (await f.rpc('session', { task: '算力', context: { skill: 'compute-variant-research' } })).value.session_id
+  assert.equal((await f.execute(compute, 'agents', 'research/read-reference', { topic: 'evaluation-and-evidence' })).state, 'completed')
+  await assert.rejects(() => f.execute(compute, 'agents', 'research/read-reference', { topic: 'decision-samples' }), /主题不属于/)
+  const general = (await f.rpc('session', { task: '检查' })).value.session_id
+  assert.equal((await f.execute(general, 'agents', 'research/validate', { experiment_id: 'EXP-selected-001' })).state, 'completed')
+  assert.equal((await f.status(general)).proposals.length, 0)
+})
+
+test('研究结论确认展示结构化变更，并保留双摘要直到实际保存', async t => {
+  const input = { experiment_id: 'EXP-test-agent-001', content: '验证完成后采纳', expected_sha256: 'a'.repeat(64), status: 'completed', outcome: 'adopt', expected_change_sha256: 'b'.repeat(64) }
+  const change = { before: { status: 'active', outcome: 'continue' }, after: { status: 'completed', outcome: 'adopt' } }
+  const f = fixture(t, endpoint => endpoint === 'agents/decision/preview' ? { ok: true, value: { edits: [], change } } : undefined)
+  const id = (await f.rpc('session', { task: '保存结论' })).value.session_id
+  const operation = f.execute(id, 'agents', 'decision/update', input)
+  const proposal = await f.proposal(id)
+  assert.deepEqual(proposal.preview.value.change, change)
+  assert.deepEqual(f.calls[0], { endpoint: 'agents/decision/preview', input })
+  await f.rpc('confirm', { session_id: id, proposal_id: proposal.id })
+  await operation
+  assert.deepEqual(f.calls.at(-1).input, { ...input, confirmed: true })
+})
+
+test('真实原生 assemble 先运行同步 section 再进入异步 waterfall，首次管理请求仍得到完整业务正文', async t => {
+  const f = fixture(t)
+  const id = (await f.rpc('session', { task: '第一次管理任务' })).value.session_id
+  const order = []
+  const unregister = f.services.systemPrompt.section({
+    name: 'test/native-synchronous-provider', order: 640,
+    text: () => { order.push('section'); return '原生同步内容' },
+  })
+  t.after(unregister)
+  const get = f.services.skills.get
+  f.services.skills.get = async (...args) => { order.push('skill'); await setImmediate(); return get(...args) }
+  const assembled = await f.assembly(id)
+  assert.equal(order[0], 'section', '测试必须走原生真实装配顺序，不提前调用业务加载函数')
+  assert.ok(order.includes('skill'))
+  assert.match(assembled.sections.find(item => item.name === 'harness-platform/assistant').text,
+    /业务工作由数据工作区原则和技能指导/)
+  assert.equal(assembled.sections.find(item => item.name === 'harness-platform/assistant-output').text, expressionFixture)
+  assert.equal(assembled.sections.find(item => item.name === 'test/native-synchronous-provider').text, '原生同步内容')
+  rmSync(join(f.root, '.agents/skills/user-facing-output/SKILL.md'))
+  await assert.rejects(() => f.assembly(id), /未配置平台管理助手/)
 })

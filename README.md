@@ -93,10 +93,10 @@ Baseline 用固定 Git 提交、Research Release 或 `none:first-experiment` 引
 |---|---|
 | 平台功能、通用工具与 Runtime 适配 | [`dsh-platform-development`](./.agents/skills/dsh-platform-development/SKILL.md) |
 | 平台页面任务梳理 | [`dsh-platform-task-list`](./.agents/skills/dsh-platform-task-list/SKILL.md) |
-| Harness 创建、迁移、修改与优化 | [`harness-guided-workflow`](./.agents/skills/harness-guided-workflow/SKILL.md) |
-| 并行能力融合 | [`harness-experiment-fusion`](./.agents/skills/harness-experiment-fusion/SKILL.md) |
-| 旧资产只读清点 | [`legacy-asset-intake`](./.agents/skills/legacy-asset-intake/SKILL.md) |
-| Harness 实验与评估 | [`harness-evolution`](./.agents/skills/harness-evolution/SKILL.md)、[`research-eval`](./.agents/skills/research-eval/SKILL.md) |
+| Harness 创建、迁移、修改与优化 | [`harness-guided-workflow`](https://github.com/wr5912/harness-engineering-platform-data/blob/main/.agents/skills/harness-guided-workflow/SKILL.md) |
+| 并行能力融合 | [`harness-experiment-fusion`](https://github.com/wr5912/harness-engineering-platform-data/blob/main/.agents/skills/harness-experiment-fusion/SKILL.md) |
+| 旧资产只读清点 | [`legacy-asset-intake`](https://github.com/wr5912/harness-engineering-platform-data/blob/main/.agents/skills/legacy-asset-intake/SKILL.md) |
+| Harness 实验与评估 | [`harness-evolution`](https://github.com/wr5912/harness-engineering-platform-data/blob/main/.agents/skills/harness-evolution/SKILL.md)、[`research-eval`](https://github.com/wr5912/harness-engineering-platform-data/blob/main/.agents/skills/research-eval/SKILL.md) |
 | 显式盘点目标与实际进展 | [`continuous-dev-progress-vs-project-vision-gap-assessment`](./.agents/skills/continuous-dev-progress-vs-project-vision-gap-assessment/SKILL.md) |
 | 用户明确纠错的追加记录 | [`ai-correction-log`](./.agents/skills/ai-correction-log/SKILL.md) |
 
@@ -106,7 +106,8 @@ Baseline 用固定 Git 提交、Research Release 或 `none:first-experiment` 引
 AGENTS.md                                # 项目定位、协作规则与修改边界
 .agents/skills/                          # 维护本仓库的开发技能
 .codex/                                  # Codex 开发配置，不是业务 Harness
-platform/                                # 平台启动入口、Profile、插件和运行时技能
+platform/                                # 平台启动入口、Profile、插件和管理工具实现
+runtime/research/                        # 研究校验、继承检查和旧资产清点工具
 runtime/adapters/dsh-container/           # DSH 容器装载、评测与来源解析
 plugins/                                 # 通用资产查询与 MCP 管理源码
 docs/                                    # 设计、规范适用解释和验收证据入口
@@ -114,16 +115,16 @@ tests/                                   # 可重复的合同测试
 AI纠错记录/                               # 按天追加的开发纠错记录
 ```
 
-数据工作区保存 `agents/`、`evolution/`、`config/`、业务 `extensions/` 及被 Git 忽略的 `.local/`。目录归属和备份边界见[独立工作区合同](docs/platform-design/02_系统架构与部署设计.md#独立数据工作区)。平台从程序位置解析脚本与内置 Skill，从 `HARNESS_ASSET_ROOT` 解析数据，不能通过启动目录切换数据源。
+数据工作区保存管理助手的 `AGENTS.md`、`.agents/skills/`、研究方法文档，以及 `agents/`、`evolution/`、`config/`、业务 `extensions/` 和被 Git 忽略的 `.local/`。12 项管理、研究和表达 Skill 均由数据仓库维护；程序只提供加载和工具实现。目录归属和备份边界见[独立工作区合同](docs/platform-design/02_系统架构与部署设计.md#独立数据工作区)。平台从自身位置解析脚本，从 `HARNESS_ASSET_ROOT` 解析业务规则和资产，不能通过启动目录切换数据源。
 
 每个 Agent 的业务 Case 只在数据根的 `agents/<agent-id>/evaluation.md` 维护；Run 中的冻结输入是历史事实，不是第二份可编辑 Case。Git 和 Research Release 保存可恢复版本，不维护 `evolution/baselines/` 或 `agents/<agent-id>/current/`。Session、缓存、附件和整个 Runtime HOME 不作为 Harness 资产回流。
 
 ## 验证与文档入口
 
 ```bash
-python3 -m pip install -r .agents/skills/harness-evolution/scripts/requirements.txt
-python3 .agents/skills/harness-evolution/scripts/validate_repository.py ~/harness-engineering-platform-data
-python3 .agents/skills/research-eval/scripts/validate_experiment.py \
+python3 -m pip install -r runtime/research/requirements.txt
+python3 runtime/research/validate_repository.py ~/harness-engineering-platform-data
+python3 runtime/research/validate_experiment.py \
   ~/harness-engineering-platform-data/evolution/experiments/<experiment-id>
 ```
 

@@ -1,4 +1,3 @@
-import { programRoot } from '../workspace.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -100,6 +99,20 @@ function identities(records: Sample[]) {
   return new Set(records.flatMap(record => [record._meta.id, `decision-${contentHash(record.state, record.questions.decision).slice(0, 32)}`]))
 }
 
+function extractionSkill(root: string) {
+  const path = '.agents/skills/decision-sample-extraction/SKILL.md'
+  let file = root
+  for (const part of path.split('/')) {
+    file = join(file, part)
+    if (!existsSync(file)) fail('当前工作区缺少决策样本抽取技能，请先配置管理助手业务资产', 'assistant_assets_missing')
+    if (lstatSync(file).isSymbolicLink()) fail('抽取技能不得通过符号链接读取', 'path_rejected')
+  }
+  if (!lstatSync(file).isFile() || lstatSync(file).size > 128 * 1024) fail('抽取技能文件无效', 'assistant_assets_missing')
+  const content = readFileSync(file, 'utf8')
+  if (!content.trim()) fail('抽取技能内容为空', 'assistant_assets_missing')
+  return { path, content }
+}
+
 export function createDecisionDatasetHandler(root: string) {
   const previews = new Map<string, { dataset: Dataset; owner: string; created: number }>()
   async function slices(body: MapValue, signal?: AbortSignal) {
@@ -122,6 +135,7 @@ export function createDecisionDatasetHandler(root: string) {
       return { run_id: body.run_id, path: loaded.source.path, source_sha256: loaded.source_sha256, total_decisions: decisions.length, cursor, next_cursor: cursor + selected.length < decisions.length ? cursor + selected.length : null, decisions: selected, warnings: loaded.source.warnings }
     }
     if (endpoint === 'datasets/preview') {
+      const skill = extractionSkill(root)
       const { loaded, decisions } = await slices(body, signal)
       if (!Array.isArray(body.samples) || body.samples.length > 40) fail('samples 必须是最多 40 条的数组')
       const skipped = Array.isArray(body.skipped) ? body.skipped.map((reason: unknown) => text(reason, '跳过原因', 2000)).slice(0, 100) : []
@@ -142,9 +156,8 @@ export function createDecisionDatasetHandler(root: string) {
           limitations: slice.limitations, label_status: 'suggested', label_basis: text(draft.label_basis, 'label_basis'), split: 'unassigned', decision_time_reviewed: false,
         } })
       }
-      const skill = readFileSync(join(programRoot(), 'platform/skills/decision-sample-extraction/SKILL.md'), 'utf8')
       const owner = text(body.assistant_session_id, 'assistant_session_id')
-      const dataset: Dataset = { id: `decision-dataset-${randomUUID()}`, run_id: body.run_id, path: loaded.source.path, source_sha256: loaded.source_sha256, created_at: new Date().toISOString(), extractor: { session_id: owner, model: clean(body.assistant_model ?? null), skill: 'decision-sample-extraction', skill_sha256: digest(skill), format: 'kev@85ccf56a0afb952323c621055b02876e8498d60c' }, records, skipped }
+      const dataset: Dataset = { id: `decision-dataset-${randomUUID()}`, run_id: body.run_id, path: loaded.source.path, source_sha256: loaded.source_sha256, created_at: new Date().toISOString(), extractor: { session_id: owner, model: clean(body.assistant_model ?? null), skill: 'decision-sample-extraction', skill_path: skill.path, skill_sha256: digest(skill.content), format: 'kev@85ccf56a0afb952323c621055b02876e8498d60c' }, records, skipped }
       for (const [key, value] of previews) if (Date.now() - value.created > 30 * 60_000) previews.delete(key)
       if (!records.length) return { count: 0, skipped, message: '没有可保存的候选；未创建数据集文件。' }
       const preview_id = randomUUID()

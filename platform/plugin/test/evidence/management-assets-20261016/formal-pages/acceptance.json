@@ -1,0 +1,112 @@
+{
+  "at": "2026-10-16T15:10:55.096Z",
+  "environment": "formal",
+  "base": "http://10.0.160.32:3090/hep/",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "pages": [
+    {
+      "name": "home",
+      "label": "首页",
+      "title": "Harness工程平台",
+      "path": "/hep/",
+      "document_width": 1440,
+      "viewport_width": 1440,
+      "overflow": false,
+      "alerts": [],
+      "content_characters": 1232,
+      "loading": false,
+      "screenshot": "home.png",
+      "visually_checked": true,
+      "screenshot_sha256": "d8cba2914da78cd9e77fc04af6e4b99f4ac53c1d99b1f284b82cf82219d8edf8"
+    },
+    {
+      "name": "agents",
+      "label": "智能体管理",
+      "title": "Harness工程平台",
+      "path": "/hep/",
+      "document_width": 1440,
+      "viewport_width": 1440,
+      "overflow": false,
+      "alerts": [],
+      "content_characters": 2253,
+      "loading": false,
+      "screenshot": "agents.png",
+      "visually_checked": true,
+      "screenshot_sha256": "5b90b3620aca217fa899ac3f05e4df3f9d6273c2f3f71dd63da73e31b8a890e7"
+    },
+    {
+      "name": "evaluation",
+      "label": "评测中心",
+      "title": "Harness工程平台",
+      "path": "/hep/",
+      "document_width": 1440,
+      "viewport_width": 1440,
+      "overflow": false,
+      "alerts": [],
+      "content_characters": 27251,
+      "loading": false,
+      "screenshot": "evaluation.png",
+      "visually_checked": true,
+      "screenshot_sha256": "f1a6ba1894b8d7ccfab398934c1acffe49d006d61360f96d6d716e4ee9f75e5f"
+    },
+    {
+      "name": "instances",
+      "label": "实例管理",
+      "title": "Harness工程平台",
+      "path": "/hep/",
+      "document_width": 1440,
+      "viewport_width": 1440,
+      "overflow": false,
+      "alerts": [],
+      "content_characters": 11642,
+      "loading": false,
+      "screenshot": "instances.png",
+      "visually_checked": true,
+      "screenshot_sha256": "f255878c53564a408cdb9a7ee460603ac71b8c357ea1b280285684dfa03cd053"
+    },
+    {
+      "name": "mcp",
+      "label": "MCP 管理",
+      "title": "Harness工程平台",
+      "path": "/hep/",
+      "document_width": 1440,
+      "viewport_width": 1440,
+      "overflow": false,
+      "alerts": [],
+      "content_characters": 13236,
+      "loading": false,
+      "screenshot": "mcp.png",
+      "visually_checked": true,
+      "screenshot_sha256": "5be0151fa715d5272a19229c304a72ccd27ad9a8348dc35b7142b9514b2a4383"
+    }
+  ],
+  "errors": [],
+  "httpFailures": [],
+  "operation": "navigation-and-read-only",
+  "model_messages_sent": 0,
+  "read_routes": [
+    "/hep/harness-platform/mcp/list",
+    "/hep/harness-platform/inventory",
+    "/hep/harness-platform/home",
+    "/hep/harness-platform/agents/list",
+    "/hep/harness-platform/instances/list",
+    "/hep/harness-platform/agents/fusion/proposal",
+    "/hep/harness-platform/agents/runs/index",
+    "/hep/harness-platform/agents/detail",
+    "/hep/harness-platform/assistant/context",
+    "/hep/harness-platform/assistant/status",
+    "/hep/harness-platform/agents/features/proposal",
+    "/hep/harness-platform/agents/edit/read"
+  ],
+  "ok": true,
+  "visual_observations": [
+    "五页真实内容加载完成，未见遮挡、空白主体或整页横向溢出。",
+    "首页显示6个智能体、38个研究版本、124个Run、3个运行实例。",
+    "实例页显示3个原有运行容器，未进行生命周期操作。",
+    "MCP服务列表与已有配置可读，未保存配置或调用工具。"
+  ],
+  "initial_capture_note": "首次截图抓取过早，加载中截图保留在initial-loading；最终截图等待真实数据与评测行出现后重拍。"
+}
