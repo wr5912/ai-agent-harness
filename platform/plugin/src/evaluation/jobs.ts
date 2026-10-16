@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameS
 import { join, resolve } from 'node:path'
 import { load as loadYaml } from 'js-yaml'
 import { workspaceIdentity, workspaceLocalPath } from '../workspace.ts'
+import { measureModelUsage, type UsageTrace } from './model-usage.ts'
 
 type MapValue = Record<string, any>
 type Job = {
@@ -110,6 +111,7 @@ export function createEvaluationJobs(assetRoot: string, options: Options) {
       for (const name of ['instance_name', 'instance_stopped', 'failure_reason', 'deadline_at']) result[name] = execution[name]
     } catch {}
     const sessions = new Set<string>()
+    const traces: UsageTrace[] = []
     const walk = (folder: string) => {
       if (!existsSync(folder)) return
       for (const entry of readdirSync(folder, { withFileTypes: true })) {
@@ -121,10 +123,14 @@ export function createEvaluationJobs(assetRoot: string, options: Options) {
             if (checks.session_id) sessions.add(checks.session_id)
             if (checks.judge?.session_id) sessions.add(checks.judge.session_id)
           } catch { /* 写入尚未完成的检查文件等待下次查询。 */ }
+        } else if (entry.name === 'trace.jsonl' || entry.name === 'judge-trace.jsonl') {
+          try { traces.push({ path, rows: readFileSync(path, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)) }) }
+          catch { traces.push({ path, rows: [{}] }) }
         }
       }
     }
     walk(join(run, 'evidence'))
+    Object.assign(result, measureModelUsage(traces))
     result.sessions = [...sessions]
     try { result.summary = JSON.parse(readFileSync(join(run, 'summary.json'), 'utf8')) } catch {}
     try { result.artifacts = JSON.parse(readFileSync(join(run, 'artifacts/index.json'), 'utf8')).artifacts } catch {}
@@ -147,7 +153,7 @@ export function createEvaluationJobs(assetRoot: string, options: Options) {
     }
     save(job, false)
     return { ...job, result: { ...job.result, ...actual }, stdout: options.redact(job.stdout), stderr: options.redact(job.stderr), ...actual,
-      log_note: '日志为截断显示；Case、来源和 Session 从 Run 回读；无法从配置请求头核算模型调用次数。' }
+      log_note: '日志为截断显示；Case、来源和 Session 从 Run 回读；模型请求按持久尝试结算核对，轨迹不完整时总数保持未知。' }
   }
   function cancel(id: string) {
     const job = read(id)
