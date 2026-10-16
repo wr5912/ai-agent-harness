@@ -154,7 +154,6 @@ function PlatformPage({ catalog, rpc, mcpForm, assistant, updates, enterConversa
       <div className="harness-account"><span className="harness-avatar">A</span><span>admin</span><span id="harness-settings"/><form method="post" action={new URL('logout', document.baseURI).href}><button type="submit">退出登录</button></form></div>
     </header>
     <div className="harness-body">
-      {page !== 'home' && <aside className="harness-sidebar">{navigation}</aside>}
       <div className="harness-content">
         {page !== 'home' && <div className="harness-breadcrumb">工作空间 / {pages.find(item => item.id === page)?.label}</div>}
         <div hidden={page !== 'home'}><HomePage catalog={catalog} rpc={rpc} updates={updates} navigate={navigate} startConversation={async (_root, prompt) => { await assistant.create(prompt, { page: 'home' }); collapseOnEntry.current = true }} /></div>

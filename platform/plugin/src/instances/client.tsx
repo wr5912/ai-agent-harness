@@ -16,6 +16,7 @@ interface InstanceRow {
   port?: number
   lan_access?: boolean
   home_volume?: string
+  home_directory?: string
   home_preserved?: boolean | null
   container_name?: string
   observed_at?: string
@@ -54,6 +55,9 @@ const labels: Record<Operation, string> = {
   delete: '删除',
 }
 
+const detailTabs = [{ id: 'overview', label: '概览' }, { id: 'embed', label: '网站嵌入' }, { id: 'logs', label: '运行日志' }] as const
+const stateLabels: Record<string, string> = { running: '运行中', stopped: '已停止', absent: '无容器', failed: '异常', unknown: '状态未知' }
+
 export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: PlatformPageProps & { updates?: PlatformUpdates; target?: PlatformNavigation; onNavigate?(target: PlatformNavigation): void; onContext?(context: Record<string, unknown>): void }) {
   const [instances, setInstances] = useState<InstanceRow[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -72,12 +76,15 @@ export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: P
   const [pending, setPending] = useState<{ operation: Operation, items: ActionRequest[] } | null>(null)
   const [receipts, setReceipts] = useState<Receipt[]>([])
   const [actionDialog, setActionDialog] = useState<Operation | null>(null)
+  const [creating, setCreating] = useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
   const [form, setForm] = useState({ name: '', source: '', port: '' })
   const [detail, setDetail] = useState<Detail | null>(null)
+  const [detailTab, setDetailTab] = useState<typeof detailTabs[number]['id']>('overview')
   const [detailNotice, setDetailNotice] = useState('')
   const [refreshError, setRefreshError] = useState('')
   const [logs, setLogs] = useState('')
+  const [logsError, setLogsError] = useState('')
   const [embedUrl, setEmbedUrl] = useState('')
   const [embedMessage, setEmbedMessage] = useState('')
   const embedRequest = useRef(0)
@@ -108,10 +115,14 @@ export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: P
         if (data.instances.some(item => item.name === detailName.current)) void openDetail(detailName.current, true)
         else {
           detailRequest.current++
+          embedRequest.current++
           setDetailLoading(false)
           setDetail(current => current ? { ...current, instance: { ...current.instance, state: 'unknown' } } : current)
           setDetailNotice(`所选实例 ${detailName.current} 的登记已不存在，请重新选择。`)
           setLogs('')
+          setLogsError('')
+          setEmbedUrl('')
+          setEmbedMessage('')
         }
       }
     } catch (err) {
@@ -221,6 +232,10 @@ export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: P
     detailName.current = name
     if (!background) {
       embedRequest.current++
+      setDetail(null)
+      setDetailTab('overview')
+      setLogs('')
+      setLogsError('')
       setEmbedUrl('')
       setEmbedMessage('')
     }
@@ -229,12 +244,13 @@ export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: P
     try {
       const [nextDetail, nextLogs] = await Promise.all([
         call<Detail>('detail', { name }),
-        call<{ logs: string }>('logs', { name, tail: 200 }),
+        call<{ logs: string }>('logs', { name, tail: 200 }).then(value => ({ logs: value.logs, error: '' }), err => ({ logs: '', error: (err as Error).message })),
       ])
       if (request !== detailRequest.current || name !== detailName.current) return
       setDetail(nextDetail)
       setDetailNotice('')
       setLogs(nextLogs.logs)
+      setLogsError(nextLogs.error)
     } catch (err) {
       if (request === detailRequest.current) {
         setDetailNotice((err as Error).message)
@@ -243,6 +259,19 @@ export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: P
     } finally {
       if (request === detailRequest.current) setDetailLoading(false)
     }
+  }
+
+  function closeDetail() {
+    detailRequest.current++
+    embedRequest.current++
+    detailName.current = undefined
+    setDetail(null)
+    setDetailLoading(false)
+    setDetailNotice('')
+    setLogs('')
+    setLogsError('')
+    setEmbedUrl('')
+    setEmbedMessage('')
   }
 
   async function webUrl(name: string) {
@@ -308,50 +337,55 @@ export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: P
 
   return (
     <main style={styles.page} aria-label="实例管理">
-      <header className="harness-page-heading"><div><p>管理智能体的 DSH 容器启停；删除容器及管理登记，保留 HOME 卷与研究记录。</p></div><span>{containerCount} 个容器实例 · {absentCount} 个无容器登记{unknownCount > 0 && ` · ${unknownCount} 个状态未知`}</span></header>
-      <section style={styles.toolbar}>
-        {sourceFilter && <p>关联来源：{sourceFilter} <button type="button" onClick={() => { setSourceFilter(''); onNavigate?.({ page: 'instances' }) }}>查看全部实例</button></p>}
-        <div style={styles.form}>
-          <input aria-label="实例名" placeholder="实例名" value={form.name}
-            onChange={event => updateForm({ ...form, name: event.target.value })} style={styles.input} />
-          <input aria-label="来源" placeholder="experiment:EXP-..." value={form.source}
-            onChange={event => updateForm({ ...form, source: event.target.value })} style={styles.inputWide} />
-          <input aria-label="端口" placeholder="端口" value={form.port}
-            onChange={event => updateForm({ ...form, port: event.target.value })} style={styles.port} />
-          <button type="button" disabled={busy || !form.name || !form.source}
-            onClick={() => prepare('create', [])} style={styles.primary}>创建预览</button>
+      <header className="harness-page-heading" style={styles.pageHeading}>
+        <div><p>管理智能体实例的运行、访问与网站嵌入。</p><div style={styles.summaryStats}>{containerCount} 个容器实例 · {absentCount} 个无容器登记{unknownCount > 0 && ` · ${unknownCount} 个状态未知`}</div></div>
+        <button type="button" className="harness-primary" aria-expanded={creating} aria-controls="instance-create" onClick={() => setCreating(value => !value)}>新建实例</button>
+      </header>
+      {creating && <section id="instance-create" aria-label="新建实例" style={styles.createPanel}>
+        <div style={styles.createHeading}><strong>新建实例</strong><button type="button" onClick={() => setCreating(false)} style={styles.button}>收起</button></div>
+        <p style={styles.createNote}>选择已有版本作为来源。预览配置并确认后，才会创建实例。</p>
+        <div style={styles.createFields}>
+          <label style={styles.field}>实例名<input aria-label="实例名" placeholder="例如 my-agent" value={form.name}
+            onChange={event => updateForm({ ...form, name: event.target.value })} style={styles.fieldInput} /></label>
+          <label style={styles.field}>来源版本<input aria-label="来源" placeholder="experiment:EXP-..." value={form.source}
+            onChange={event => updateForm({ ...form, source: event.target.value })} style={styles.fieldInput} /></label>
+          <label style={styles.field}>访问端口（可选）<input aria-label="端口" placeholder="留空自动分配" value={form.port}
+            onChange={event => updateForm({ ...form, port: event.target.value })} style={styles.fieldInput} /></label>
         </div>
-        <div style={styles.actions}>
-          <select aria-label="状态筛选" value={filter} onChange={event => setFilter(event.target.value)} style={styles.input}>
-            <option value="existing">现有容器</option>
-            <option value="all">全部登记</option>
-            <option value="running">running</option>
-            <option value="stopped">stopped</option>
-            <option value="absent">无容器（仅登记）</option>
-            <option value="failed">failed</option>
-            <option value="unknown">unknown</option>
-          </select>
-          <input aria-label="搜索实例" placeholder="搜索实例或来源" value={query} onChange={event => setQuery(event.target.value)} style={styles.inputWide} />
+        <div style={styles.createActions}><button type="button" className="harness-primary" disabled={busy || !form.name || !form.source}
+          onClick={() => prepare('create', [])}>创建预览</button></div>
+      </section>}
+      <section aria-label="实例筛选" style={styles.filterPanel}>
+        {sourceFilter && <div style={styles.sourceFilter}><span>关联来源：{sourceFilter}</span><button type="button" onClick={() => { setSourceFilter(''); onNavigate?.({ page: 'instances' }) }}>查看全部实例</button></div>}
+        <div style={styles.filterRow}>
+          <label style={styles.filterField}>状态<select aria-label="状态筛选" value={filter} onChange={event => setFilter(event.target.value)} style={styles.fieldInput}>
+            <option value="existing">现有容器</option><option value="all">全部登记</option>
+            <option value="running">运行中</option><option value="stopped">已停止</option>
+            <option value="absent">无容器（仅登记）</option><option value="failed">异常</option><option value="unknown">状态未知</option>
+          </select></label>
+          <label style={styles.searchField}>搜索<input aria-label="搜索实例" placeholder="输入实例名或来源版本" value={query} onChange={event => setQuery(event.target.value)} style={styles.fieldInput} /></label>
           <button type="button" onClick={() => void refresh()} disabled={loading} style={styles.button}>{loading ? '读取中…' : '刷新'}</button>
-          <span>已选择 {selected.size} 个；勾选后可批量操作</span>
-          {missingSelections.length > 0 && <span role="status">{missingSelections.length} 个所选登记已不存在。<button type="button" onClick={() => setSelected(current => new Set([...current].filter(name => !missingSelections.includes(name))))}>清除失效选择</button></span>}
-          {(['start', 'stop', 'restart', 'delete'] as Operation[]).map(operation => (
-            <button key={operation} type="button" disabled={busy || selectedNames.length === 0 || missingSelections.length > 0}
-              onClick={() => prepare(operation, selectedNames)} style={styles.button}>
-              {labels[operation]}
-            </button>
-          ))}
         </div>
+        {selectedNames.length > 0 && <div aria-label="批量操作" style={styles.batchBar}>
+          <strong style={{ fontSize: 13 }}>已选择 {selected.size} 个</strong>
+          {selected.size > visibleSelected && <span style={styles.muted}>其中 {selected.size - visibleSelected} 个不在当前列表</span>}
+          {(['start', 'stop', 'restart', 'delete'] as Operation[]).map(operation => <button key={operation} type="button" disabled={busy || missingSelections.length > 0}
+            onClick={() => prepare(operation, selectedNames)} style={styles.button}>{labels[operation]}</button>)}
+          <button type="button" disabled={busy} onClick={() => setSelected(new Set())} style={styles.button}>取消选择</button>
+          {missingSelections.length > 0 && <span role="status" style={styles.selectionNotice}>{missingSelections.length} 个所选登记已不存在。<button type="button" onClick={() => setSelected(current => new Set([...current].filter(name => !missingSelections.includes(name))))}>清除失效选择</button></span>}
+        </div>}
       </section>
 
       {error && !actionDialog ? <div role="alert" style={styles.error}>{error}</div> : null}
       {refreshError && <div role="alert" style={styles.error}>{refreshError}</div>}
 
-      <div style={styles.tableWrap}>
-        <table style={styles.table}>
+      <section aria-label="实例列表" style={styles.listPanel}>
+        <div style={styles.listHeading}><strong>实例列表</strong><span style={styles.muted}>显示 {visible.length} 项 · 勾选后可批量操作</span></div>
+        <div style={styles.tableWrap}><table style={styles.table}>
+          <colgroup><col style={{ width: 44 }}/><col style={{ width: 200 }}/><col style={{ width: 108 }}/><col/><col style={{ width: 72 }}/><col style={{ width: 160 }}/><col style={{ width: 220 }}/></colgroup>
           <thead>
             <tr>
-              <th style={styles.th}>
+              <th style={styles.listTh}>
                 <input type="checkbox" aria-label="全选当前列表实例" disabled={loading || visible.length === 0}
                   checked={visible.length > 0 && visibleSelected === visible.length}
                   ref={element => { if (element) element.indeterminate = visibleSelected > 0 && visibleSelected < visible.length }}
@@ -364,19 +398,14 @@ export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: P
                     return next
                   })} />
               </th>
-              <th style={styles.th}>实例</th>
-              <th style={styles.th}>状态</th>
-              <th style={styles.th}>来源</th>
-
-              <th style={styles.th}>端口</th>
-              <th style={styles.th}>访问入口</th>
-              <th style={styles.th}>操作</th>
+              <th style={styles.listTh}>实例</th><th style={styles.listTh}>状态</th><th style={styles.listTh}>来源版本</th>
+              <th style={styles.listTh}>端口</th><th style={styles.listTh}>访问入口</th><th style={styles.listTh}>操作</th>
             </tr>
           </thead>
           <tbody>
             {visible.map(item => (
               <tr key={item.name}>
-                <td style={styles.td}>
+                <td style={styles.listTd}>
                   <input type="checkbox" aria-label={`选择实例 ${item.name}`} checked={selected.has(item.name)}
                     onChange={event => setSelected(current => {
                       const next = new Set(current)
@@ -385,20 +414,19 @@ export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: P
                       return next
                     })} />
                 </td>
-                <td style={styles.td}>{item.name}</td>
-                <td style={stateStyle(item.state)}>{item.state === 'absent' ? '无容器（仅登记）' : item.state || 'unknown'}</td>
-                <td style={styles.td}>{item.source_id || '-'}</td>
-
-                <td style={styles.td}>{item.port || '-'}</td>
-                <td style={styles.td}>
+                <td style={{ ...styles.listTd, fontWeight: 600 }}>{item.name}</td>
+                <td style={styles.listTd}><span style={{ ...styles.stateBadge, whiteSpace: 'nowrap', color: stateStyle(item.state).color }}>{stateLabels[item.state ?? 'unknown'] || item.state}</span></td>
+                <td style={{ ...styles.listTd, color: 'var(--dsw-alias-text-secondary, #63748a)' }}>{item.source_id || '未记录'}</td>
+                <td style={styles.listTd}>{item.port || '—'}</td>
+                <td style={styles.listTd}>
                   <button type="button" disabled={item.state !== 'running' || !item.port || opening.has(item.name)}
                     onClick={() => openWeb(item.name)} style={styles.button}
                     title={item.state !== 'running' ? '实例运行后可访问' : item.lan_access ? '在新标签页打开' : '仅宿主机浏览器可访问'}>
                     {opening.has(item.name) ? '正在打开…' : '访问 DSH Web'}
                   </button>
-                  <div>{item.state !== 'running' ? '实例运行后可访问' : !item.port ? '未记录端口' : !item.lan_access ? '仅宿主机' : null}</div>
+                  <div style={{ ...styles.muted, marginTop: 6 }}>{item.state !== 'running' ? '实例运行后可访问' : !item.port ? '未记录端口' : !item.lan_access ? '仅宿主机' : null}</div>
                 </td>
-                <td style={styles.td}><div style={styles.actions}>
+                <td style={styles.listTd}><div style={styles.actions}>
                   <button type="button" onClick={() => openDetail(item.name)} disabled={detailLoading} style={styles.button}>详情</button>
                   {(item.state === 'running' ? ['stop', 'restart'] : item.state === 'stopped' || item.state === 'absent' ? ['start', 'delete'] : item.state === 'failed' ? ['start', 'stop'] : []).map(operation =>
                     <button type="button" key={operation} disabled={busy} onClick={() => prepare(operation as Operation, [item.name])} style={styles.button}>{labels[operation as Operation]}</button>)}
@@ -406,36 +434,80 @@ export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: P
                 </div></td>
               </tr>
             ))}
+            {visible.length === 0 && <tr><td colSpan={7} style={styles.emptyList}>{loading ? '正在读取实例…' : instances.length === 0 ? '暂无实例。点击右上角“新建实例”开始创建。' : '没有符合当前筛选条件的实例。请调整状态或搜索内容。'}</td></tr>}
           </tbody>
-        </table>
-      </div>
+        </table></div>
+      </section>
 
+      {detailLoading && !detail && <p role="status">正在读取实例详情…</p>}
       {detail ? (
-        <section style={styles.panel}>
-          <strong>{detail.instance.name} 详情</strong>
-          {detailNotice && <p role="alert">{detailNotice}</p>}
-          <details style={{ marginTop: 12 }}><summary>将智能体嵌入网站（iframe）</summary>
-            <p>iframe 可以在网页内展示该实例的 DSH Web。先启动实例，再生成使用实际访问地址的嵌入代码。</p>
-            <button type="button" disabled={detail.instance.state !== 'running' || !detail.instance.port} onClick={() => void generateEmbed(detail.instance.name)}>生成 iframe 代码</button>
-            {embedMessage && <p role="status">{embedMessage}</p>}
-            {embedCode && <><pre style={styles.pre}>{embedCode}</pre><button type="button" onClick={() => void copyEmbed()}>复制嵌入代码</button></>}
-            <ul>
-              <li>访问者必须能连接到实例地址；127.0.0.1 仅指访问者自己的电脑。供其他电脑访问时，使用局域网可达的地址。</li>
-              <li>嵌入沿用实例自身的认证设置，需要登录时不会自动传递平台密码或登录状态。跨站 iframe 可能因 SameSite=Strict 或浏览器第三方 Cookie 限制而无法登录，此时使用同站点反向代理或直接打开 DSH Web。</li>
-              <li>HTTPS 网站嵌入 HTTP 实例会被浏览器拦截，需为实例配置可达的 HTTPS 入口。网站自身的 CSP 也必须允许该 iframe 来源。</li>
-            </ul>
-          </details>
-          <div style={styles.detailGrid}>
-            <div>HOME：{String(detail.session_scope.home_volume || '-')} / {String(detail.session_scope.preserved)}</div>
-            <div>Session：{detail.session_scope.note}</div>
-            <div>历史 Run：{detail.runs.map(run => run.id).join('、') || '-'}</div>
-            <div>只读模式：{JSON.stringify(detail.instance.mount_modes || {})}</div>
-          </div>
-          <pre style={styles.pre}>{JSON.stringify({ mounts: detail.instance.mounts || {}, runs: detail.runs }, null, 2)}</pre>
-          <pre style={styles.pre}>{logs || '暂无日志'}</pre>
-          {(detail.instance.state === 'failed' || detail.instance.state === 'unknown')
-            ? <div style={styles.error}>状态异常时保留登记，查看日志后再停止或删除。</div>
-            : null}
+        <section className="harness-instance-detail" aria-label="实例详情" style={styles.panel}>
+          <header style={styles.detailHeader}>
+            <div style={{ minWidth: 0 }}><small style={styles.muted}>实例详情</small><div style={styles.detailTitle}>
+              <h2 style={{ margin: 0, fontSize: 18, overflowWrap: 'anywhere' }}>{detail.instance.name}</h2>
+              <span style={{ ...styles.stateBadge, color: stateStyle(detail.instance.state).color }}>{stateLabels[detail.instance.state ?? 'unknown'] || detail.instance.state}</span>
+            </div></div>
+            <div style={styles.actions}>
+              <button type="button" className="harness-primary" disabled={detail.instance.state !== 'running' || !detail.instance.port || opening.has(detail.instance.name)} onClick={() => void openWeb(detail.instance.name)}>{opening.has(detail.instance.name) ? '正在打开…' : '访问 DSH Web'}</button>
+              <button type="button" style={{ ...styles.button, padding: '0 10px', fontSize: 13 }} disabled={detailLoading} onClick={() => void openDetail(detail.instance.name, true)}>{detailLoading ? '刷新中…' : '刷新详情'}</button>
+              <button type="button" style={{ ...styles.button, padding: '0 10px', fontSize: 13 }} onClick={closeDetail}>关闭详情</button>
+            </div>
+          </header>
+          {detailNotice && <p role="alert" style={styles.detailNotice}>{detailNotice}</p>}
+          {(detail.instance.state === 'failed' || detail.instance.state === 'unknown') && <p role="alert" style={styles.detailNotice}>实例状态异常，请先查看运行日志，再决定是否停止或删除。</p>}
+          <div role="tablist" aria-label="实例详情" style={styles.detailTabs} onKeyDown={event => {
+            const index = detailTabs.findIndex(item => item.id === detailTab)
+            const next = event.key === 'ArrowRight' ? (index + 1) % detailTabs.length : event.key === 'ArrowLeft' ? (index + detailTabs.length - 1) % detailTabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? detailTabs.length - 1 : undefined
+            if (next === undefined) return
+            event.preventDefault()
+            setDetailTab(detailTabs[next].id)
+            document.getElementById(`instance-tab-${detailTabs[next].id}`)?.focus()
+          }}>{detailTabs.map(item => <button key={item.id} id={`instance-tab-${item.id}`} type="button" role="tab" aria-selected={detailTab === item.id} aria-controls={`instance-panel-${item.id}`} tabIndex={detailTab === item.id ? 0 : -1} onClick={() => setDetailTab(item.id)} style={{ ...styles.detailTab, ...(detailTab === item.id ? styles.activeTab : {}) }}>{item.label}</button>)}</div>
+
+          <section id="instance-panel-overview" role="tabpanel" aria-labelledby="instance-tab-overview" hidden={detailTab !== 'overview'} style={styles.detailBody}>
+            <dl style={styles.detailGrid}>
+              {[
+                ['来源版本', detail.instance.source_id || '未记录'],
+                ['智能体', detail.instance.agent_id || '未记录'],
+                ['访问端口', detail.instance.port || '未记录'],
+                ['运行镜像', detail.instance.image_tag || '未记录'],
+                ['HOME 存储', String(detail.instance.home_directory || detail.session_scope.home_volume || detail.instance.home_volume || '未记录')],
+                ['HOME 保留状态', detail.session_scope.preserved === true ? '已保留' : detail.session_scope.preserved === false ? '未保留' : '尚未确认'],
+              ].map(([label, value]) => <div key={label} style={styles.fact}><dt style={styles.muted}>{label}</dt><dd style={styles.factValue}>{value}</dd></div>)}
+            </dl>
+            <div style={styles.sessionNote}><strong>会话与数据</strong><p style={{ margin: '6px 0 0' }}>{detail.session_scope.note || '未记录会话说明。'}</p></div>
+            <details style={styles.detailFold}><summary style={styles.foldTitle}>挂载配置 · {Object.keys(detail.instance.mounts || {}).length} 项</summary>
+              {Object.keys(detail.instance.mounts || {}).length ? <div style={{ overflowX: 'auto', marginTop: 12 }}><table style={styles.mountTable}><thead><tr><th style={styles.th}>用途</th><th style={styles.th}>来源路径</th><th style={styles.th}>权限</th></tr></thead><tbody>{Object.entries(detail.instance.mounts || {}).map(([name, path]) => {
+                const mode = detail.instance.mount_modes?.[name]
+                return <tr key={name}><td style={styles.td}>{name}</td><td style={{ ...styles.td, fontFamily: 'monospace' }}>{path}</td><td style={styles.td}>{mode === 'ro' ? '只读' : mode === 'rw' ? '读写' : mode || '未记录'}</td></tr>
+              })}</tbody></table></div> : <p style={styles.muted}>暂无挂载配置。</p>}
+            </details>
+            <details style={styles.detailFold}><summary style={styles.foldTitle}>来源版本的运行记录 · {detail.runs.length} 条</summary>
+              {detail.runs.length ? <ul style={styles.runList}>{detail.runs.map(run => <li key={run.id} style={styles.runItem}>
+                {onNavigate ? <button type="button" style={styles.runLink} onClick={() => onNavigate({ page: 'evaluation', run_id: run.id, agent_id: detail.instance.agent_id })}>{run.id}</button> : <code>{run.id}</code>}
+                <small style={{ ...styles.muted, overflowWrap: 'anywhere' }}>{run.path}</small>
+              </li>)}</ul> : <p style={styles.muted}>此来源版本暂无运行记录。</p>}
+            </details>
+          </section>
+
+          <section id="instance-panel-embed" role="tabpanel" aria-labelledby="instance-tab-embed" hidden={detailTab !== 'embed'} style={styles.detailBody}>
+            <div style={styles.embedHeading}><div><h3 style={styles.sectionTitle}>将智能体嵌入网站</h3><p style={styles.muted}>生成 iframe 代码，粘贴到网站的 HTML 中即可展示此实例。</p></div>
+              <button type="button" style={styles.button} disabled={detail.instance.state !== 'running' || !detail.instance.port} onClick={() => void generateEmbed(detail.instance.name)}>{embedCode ? '重新生成代码' : '生成 iframe 代码'}</button>
+            </div>
+            {(detail.instance.state !== 'running' || !detail.instance.port) && <p role="status">实例运行且记录访问端口后，才可生成嵌入代码。</p>}
+            {embedCode ? <div style={styles.codeBox}><div style={styles.codeHeading}><span>HTML 嵌入代码</span><button type="button" style={styles.button} onClick={() => void copyEmbed()}>复制嵌入代码</button></div><pre style={styles.embedCode}>{embedCode}</pre></div> : <div style={styles.embedEmpty}>点击“生成 iframe 代码”，获取使用此实例实际访问地址的代码。</div>}
+            {embedMessage && <p role="status" style={styles.muted}>{embedMessage}</p>}
+            <details style={styles.detailFold}><summary style={styles.foldTitle}>使用须知</summary><ul style={styles.embedNotes}>
+              <li>网站访问者需要能连接到实例地址。供其他电脑访问时，使用局域网可达的地址；127.0.0.1 只指访问者自己的电脑。</li>
+              <li>嵌入沿用实例自身的登录设置，不会自动传递平台登录状态。跨站登录受浏览器 Cookie 限制时，可使用同站点反向代理或直接打开 DSH Web。</li>
+              <li>HTTPS 网站需使用 HTTPS 实例入口，网站的 CSP 也需要允许该 iframe 来源。</li>
+            </ul></details>
+          </section>
+
+          <section id="instance-panel-logs" role="tabpanel" aria-labelledby="instance-tab-logs" hidden={detailTab !== 'logs'} style={styles.detailBody}>
+            <h3 style={styles.sectionTitle}>运行日志</h3><p style={styles.muted}>最近 200 行。点击右上角“刷新详情”获取最新日志。</p>
+            {logsError ? <p role="alert" style={styles.error}>日志读取失败：{logsError}</p> : <pre role="log" aria-label="实例运行日志" aria-live="off" tabIndex={0} style={styles.logContent}>{logs || '暂无日志。'}</pre>}
+          </section>
         </section>
       ) : null}
 
@@ -482,17 +554,28 @@ const styles: Record<string, CSSProperties> = {
     height: '100%',
     minHeight: 0,
     overflow: 'auto',
-    padding: 24,
+    padding: '24px clamp(16px, 3vw, 36px)',
     color: 'var(--dsw-alias-text-primary, inherit)',
     background: 'var(--dsw-alias-background, transparent)',
     fontFamily: 'system-ui, sans-serif',
   },
-  toolbar: { display: 'grid', gap: 12, marginBottom: 16 },
-  form: { display: 'flex', gap: 8, flexWrap: 'wrap' },
+  pageHeading: { alignItems: 'center', flexWrap: 'wrap', marginBottom: 20 },
+  summaryStats: { marginTop: 8, fontSize: 13, color: 'var(--dsw-alias-text-secondary, #63748a)' },
+  createPanel: { padding: 20, marginBottom: 16, border, borderRadius: 12, background: 'var(--dsw-alias-background, Canvas)' },
+  createHeading: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  createNote: { margin: '8px 0 16px', fontSize: 13, color: 'var(--dsw-alias-text-secondary, #63748a)' },
+  createFields: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 16 },
+  field: { display: 'grid', gap: 8, minWidth: 0, fontSize: 13 },
+  fieldInput: { minWidth: 0, width: '100%', minHeight: 38, padding: '8px 10px', border, borderRadius: 7, color: 'inherit', background: 'inherit' },
+  createActions: { display: 'flex', justifyContent: 'flex-end', marginTop: 16 },
+  filterPanel: { padding: '16px 20px', marginBottom: 16, border, borderRadius: 12, background: 'var(--dsw-alias-background, Canvas)' },
+  filterRow: { display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12 },
+  filterField: { display: 'grid', gap: 8, minWidth: 'min(100%, 160px)', fontSize: 13 },
+  searchField: { display: 'grid', gap: 8, flex: 1, minWidth: 'min(100%, 220px)', fontSize: 13 },
+  sourceFilter: { display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16, fontSize: 13, overflowWrap: 'anywhere' },
+  batchBar: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 16, paddingTop: 16, borderTop: border },
+  selectionNotice: { fontSize: 13, color: 'var(--dsw-alias-danger-text, #c24140)' },
   actions: { display: 'flex', gap: 8, flexWrap: 'wrap' },
-  input: { minHeight: 34, padding: '0 10px', border, borderRadius: 6, color: 'inherit', background: 'inherit' },
-  inputWide: { minHeight: 34, minWidth: 280, padding: '0 10px', border, borderRadius: 6, color: 'inherit', background: 'inherit' },
-  port: { minHeight: 34, width: 90, padding: '0 10px', border, borderRadius: 6, color: 'inherit', background: 'inherit' },
   button: { minHeight: 34, padding: '0 12px', border, background: 'transparent', color: 'inherit', borderRadius: 6 },
   primary: {
     minHeight: 34,
@@ -502,14 +585,45 @@ const styles: Record<string, CSSProperties> = {
     color: 'var(--dsw-alias-on-primary, Canvas)',
     borderRadius: 6,
   },
-  tableWrap: { maxWidth: '100%', overflowX: 'auto', border },
-  table: { minWidth: 760, width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
+  listPanel: { minWidth: 0, border, borderRadius: 12, overflow: 'hidden', background: 'var(--dsw-alias-background, Canvas)' },
+  listHeading: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '16px 20px', borderBottom: border },
+  tableWrap: { maxWidth: '100%', overflowX: 'auto' },
+  table: { minWidth: 1040, width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
+  listTh: { textAlign: 'left', padding: '12px 16px', borderBottom: border, fontSize: 12, whiteSpace: 'nowrap', fontWeight: 500 },
+  listTd: { padding: '16px', borderBottom: border, fontSize: 13, overflowWrap: 'anywhere', verticalAlign: 'middle' },
+  emptyList: { textAlign: 'center', padding: '48px 20px', fontSize: 13, color: 'var(--dsw-alias-text-secondary, #63748a)' },
   th: { textAlign: 'left', padding: 8, borderBottom: border, fontSize: 13 },
   td: { padding: 8, borderBottom: border, fontSize: 13, overflowWrap: 'anywhere', verticalAlign: 'top' },
   error: { marginBottom: 12, padding: 10, border, color: 'var(--dsw-alias-danger-text, inherit)', borderRadius: 6 },
-  panel: { marginTop: 16, padding: 12, border, borderRadius: 6 },
+  panel: { marginTop: 20, border, borderRadius: 12, minWidth: 0, background: 'var(--dsw-alias-background, Canvas)' },
   dialog: { width: 640, maxWidth: 'calc(100vw - 40px)', maxHeight: '85vh', overflow: 'auto', padding: 24, border, borderRadius: 12, color: '#223550', background: '#fff' },
-  detailGrid: { display: 'grid', gap: 8, marginTop: 10 },
+  detailHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, padding: 20 },
+  detailTitle: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 4 },
+  stateBadge: { borderRadius: 20, padding: '4px 10px', fontSize: 12, fontWeight: 600, background: 'color-mix(in srgb, currentColor 8%, transparent)' },
+  detailNotice: { margin: '0 20px 12px', color: 'var(--dsw-alias-danger-text, inherit)' },
+  detailTabs: { display: 'flex', gap: 24, padding: '0 20px', borderBottom: border, overflowX: 'auto' },
+  detailTab: { border: 0, borderBottom: '2px solid transparent', borderRadius: 0, padding: '12px 0', background: 'transparent', color: 'inherit', whiteSpace: 'nowrap' },
+  activeTab: { borderBottomColor: 'var(--dsw-alias-primary, #2563eb)', color: 'var(--dsw-alias-primary, #2563eb)', fontWeight: 600 },
+  detailBody: { padding: 20, minWidth: 0 },
+  detailGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 12, margin: 0 },
+  fact: { padding: '12px 14px', border, borderRadius: 8, minWidth: 0 },
+  factValue: { margin: '6px 0 0', fontSize: 14, overflowWrap: 'anywhere' },
+  muted: { color: 'var(--dsw-alias-text-secondary, #63748a)', fontSize: 13, lineHeight: 1.65 },
+  sessionNote: { marginTop: 20, fontSize: 13, lineHeight: 1.7, overflowWrap: 'anywhere' },
+  detailFold: { borderTop: border, paddingTop: 14, marginTop: 18 },
+  foldTitle: { cursor: 'pointer', fontSize: 13, fontWeight: 600 },
+  mountTable: { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
+  runList: { listStyle: 'none', padding: 0, margin: '12px 0 0' },
+  runItem: { display: 'grid', gap: 4, padding: '8px 0', overflowWrap: 'anywhere' },
+  runLink: { border: 0, padding: 0, textAlign: 'left', color: 'var(--dsw-alias-primary, #2563eb)', background: 'transparent', overflowWrap: 'anywhere' },
+  embedHeading: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', flexWrap: 'wrap', gap: 12 },
+  sectionTitle: { fontSize: 15, margin: 0 },
+  codeBox: { border, borderRadius: 8, overflow: 'hidden', marginTop: 12 },
+  codeHeading: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '10px 14px', borderBottom: border, fontSize: 13 },
+  embedCode: { margin: 0, padding: 16, maxHeight: 300, overflow: 'auto', fontSize: 12, lineHeight: 1.6 },
+  embedEmpty: { padding: '32px 20px', marginTop: 12, border, borderRadius: 8, textAlign: 'center', fontSize: 13, color: 'var(--dsw-alias-text-secondary, #63748a)' },
+  embedNotes: { paddingLeft: 20, fontSize: 13, lineHeight: 1.8 },
+  logContent: { margin: 0, maxHeight: 420, minHeight: 160, overflow: 'auto', padding: 16, border, borderRadius: 8, fontSize: 12, lineHeight: 1.6 },
   pre: { maxHeight: 260, overflow: 'auto', padding: 10, border, borderRadius: 6, color: 'inherit', background: 'transparent' },
   receiptOk: { padding: 8, color: 'var(--dsw-alias-success-text, inherit)' },
   receiptBad: { padding: 8, color: 'var(--dsw-alias-danger-text, inherit)' },

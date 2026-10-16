@@ -330,7 +330,7 @@ async function detail(assetRoot: string, name: string, signal?: AbortSignal) {
     session_scope: {
       home_volume: instance.home_volume,
       preserved: instance.home_preserved,
-      note: '平台只暴露 HOME 卷关联，不读取会话内容或凭据',
+      note: '会话数据位于实例 HOME；平台不读取会话内容或凭据。',
     },
   }
 }
