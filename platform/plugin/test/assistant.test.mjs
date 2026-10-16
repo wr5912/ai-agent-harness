@@ -746,7 +746,8 @@ test('回退只恢复本任务实际修改文件，固定来源与当前摘要�
   installTaskGoals(f)
   const id = (await f.rpc('session', { task: '改进巡检' })).value.session_id
   await beginTask(f, id)
-  await f.execute(id, 'agents', 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'candidate/dsh/workspace/AGENTS.md', content: edited, expected_sha256: await sha(original) }] })
+  await f.execute(id, 'agents', 'edit/apply', { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'evolution/experiments/EXP-test-agent-001/candidate/dsh/workspace/AGENTS.md', content: edited, expected_sha256: await sha(original) }] })
+  assert.equal((await f.status(id)).execution.operations[0].input.edits[0].path, 'candidate/dsh/workspace/AGENTS.md')
   content = '# 用户并行修改\n'
   await assert.rejects(() => f.execute(id, 'task', 'rollback'), /并行改动/)
   assert.equal(content, '# 用户并行修改\n')
@@ -890,4 +891,15 @@ test('任务不能通过领域delivery入口绕过预算或替换已确认业务
   await beginTask(f, id)
   await assert.rejects(() => f.execute(id, 'agents', 'tasks/delivery', { required_tool_names: [], expected_device_ids: [] }), /platform_task deliver/)
   assert.equal(f.calls.filter(row => row.endpoint === 'agents/tasks/delivery').length, 0)
+})
+
+test('所有平台工具回执元信息保留真实动作与定位字段，不重复附带文件正文', t => {
+  const f = fixture(t)
+  const value = f.tools.get('platform_agents').output.presentationMeta({ action: 'edit/apply', input: { experiment_id: 'EXP-test-agent-001', edits: [{ path: 'candidate/dsh/workspace/AGENTS.md', content: '无需重复传入的正文' }] } }, { kind: 'platform-operation', domain: 'agents', action: 'edit/apply', state: 'completed', result: { ok: true, value: { updated: 1 } } })
+  assert.equal(value.action, 'edit/apply')
+  assert.equal(value.input.experiment_id, 'EXP-test-agent-001')
+  assert.equal(value.input.edits[0].path, 'candidate/dsh/workspace/AGENTS.md')
+  assert.equal(value.input.edits[0].content, undefined)
+  const preview = f.tools.get('platform_task').output.presentationMeta({ action: 'preview', input: {} }, { plan: { goal: '基本任务' } })
+  assert.equal(preview.domain, 'task'); assert.equal(preview.action, 'preview')
 })

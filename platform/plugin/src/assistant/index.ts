@@ -10,7 +10,7 @@ import type { ProjectionDefinition, SessionProjectionRegistry } from '@deepseek-
 import type { SystemPrompt } from '@deepseek-ai/dsh-system-prompt'
 import { z } from 'zod'
 import { COMPOSITION_SERVICE_ID, compositionConfig } from '../mcp/compositions.ts'
-import { assertTaskBudget, parseTaskPlan, taskAllows, type TaskExecution } from './task.ts'
+import { assertTaskBudget, parseTaskPlan, taskAllows, taskCandidatePath, type TaskExecution } from './task.ts'
 
 type MapValue = Record<string, any>
 type Domain = 'agents' | 'instances' | 'mcp' | 'task'
@@ -498,6 +498,7 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
     return locked(id, async () => {
       let task = (await inspect(id)).state.execution
       if (!task) return undefined
+      if (domain === 'agents' && action === 'edit/apply' && Array.isArray(input.edits)) input = { ...input, edits: input.edits.map((edit: any) => ({ ...edit, path: taskCandidatePath(task, edit.path) ?? edit.path })) }
       if (domain === 'agents' && ['cases/update', 'cases/create', 'decision/update'].includes(action)) throw new Error('任务运行期间评判口径已冻结，修改标准或结论需结束当前任务并重新确认')
       if (!taskAllows(task, domain, action, input)) return undefined
       if (!armedTasks.has(id)) throw new Error('任务已暂停或原进程中断，请先在任务卡恢复')
@@ -698,7 +699,14 @@ export function createAssistant(root: string, platform: ConnectionRpcHandler, se
       name: `platform_${domain}`,
       description: domain === 'task' ? '任务型智能体构建与交付。先读 task-builder Skill。preview/start input={plan:{goal,agent_id,source或new_agent,evaluation_case_ids,allowed_actions,budget,deliverables,instance_name,kind}}；start显示一次原生确认。status查询；begin-repair在初次评测失败后预留一轮；deliver input={run_id,artifacts}必须服务端验真，不能自报通过。暂停恢复取消由用户任务卡操作。' : `查询和办理平台${domain}业务。context 返回当前页面及固定任务上下文。需确认的操作会在界面显示提案，工具调用保持等待；用户确认并执行后才返回 state=completed 和 result，此时操作已执行，应回读实际结果，不能再次声称等待确认。cancelled/failed/unknown 按实际回执说明。${domain === 'agents' ? '日常管理与迭代读取 agent-maintenance Skill。new创建智能体，create从固定父版派生Experiment，cases/update修改用例且必须确认。算力变体先读取compute-variant-research，使用compute-variants/context、preview、create、compare；create先校验实际方案并等待确认，end只由用户在变体界面复核确认，助手不得伪造human_confirmed或修改结论字段绕过。assets/read-fixed input={agent_id,experiment_id,ref:"git:<40位commit>",path?}只读固定Candidate，path来自返回列表。features/read-source input={experiment_id,ref?}列出并只读研究说明、观察和Decision；ref是文件相对路径（如hypothesis.md、evaluation/observations.md），不接受git:<commit>，兼容历史Experiment相对引用。版本派生读取detail.derivation.parent_ref，baseline_ref是祖先而不是当前所选版本。features/preview input={experiment_id,features:[{id,title,description,source_refs?,evidence_refs?,change?}]}。fusion/preview input={agent_id,parent_experiment_id,parent_ref:"git:<40位commit>",research_question,plan?:{sources:[{experiment_id,ref,decision:"inherit"|"omit",reason}],features:[{id,title,description}],conflicts:[{description,resolution}],checks:[{id,kind:"build"|"load"|"capability",command?:string[],case_ids?:string[]}]}}。先不传plan盘点，随后提交完整plan等待用户确认。load/capability验证通过fusion/verify {experiment_id,expected_candidate_sha256,check_id,run_id}读取真实封存Run，不接受模型自报成功。' : domain === 'instances' ? 'run input={name,operation:"create"|"start"|"stop"|"restart"|"delete",source?,port?}，来源使用experiment:<ID>。' : 'MCP/API和组合任务先读取mcp-composition Skill，按其真实入参合同调用；只读或dry失败不能升级为实际执行提案。configuration读取原生Settings；saveConfiguration input={ops:[{op:"set"|"unset",path:string[],value?}],revision:number}，只修改非秘密字段，保留已有凭据；test/resources/resourceTemplates/readResource/callTool及sources/*均需serverId，调用工具需toolName与arguments。组合调用后用compositionRun {run_id}和compositionArtifact {run_id,artifactId}回读已启用扩展的结果；seedThreatCompositions仅在list.extension.seed为true时使用并经确认。'}`,
       parameters: { type: 'object', properties: { action: { type: 'string', enum: ['context', ...actions[domain]] }, input: { type: 'object', additionalProperties: true } }, required: ['action', 'input'], additionalProperties: false },
-      output: { schema: { type: 'object', additionalProperties: true }, render: (_args: unknown, value: any) => [{ type: 'text', text: JSON.stringify(value) }], presentationMeta: (_args: unknown, value: any) => value },
+      output: { schema: { type: 'object', additionalProperties: true }, render: (_args: unknown, value: any) => [{ type: 'text', text: JSON.stringify(value) }], presentationMeta: (args: any, value: any) => {
+        const input = args.input ?? {}
+        const identity = Object.fromEntries(['agent_id', 'experiment_id', 'source', 'target_source', 'job_id', 'run_id', 'path', 'cases', 'name', 'operation', 'serverId', 'toolName', 'compositionId'].filter(key => input[key] !== undefined).map(key => [key, input[key]]))
+        if (Array.isArray(input.edits)) identity.edits = input.edits.map((edit: any) => ({ path: edit.path }))
+        return wireValue({ kind: 'platform-operation', domain, action: args.action,
+          state: receiptFailed(value) || value?.state === 'verification_failed' ? 'failed' : 'completed', result: value,
+          ...value?.kind === 'platform-operation' ? value : {}, input: identity })
+      } },
       async execute(args: any, exec: any) {
         const id = String(exec.agent.id)
         const { state } = await inspect(id, exec.signal)
