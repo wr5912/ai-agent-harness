@@ -62,6 +62,15 @@ export function assertTaskBudget(task: TaskExecution, now = Date.now()) {
   if (task.operations.some(item => item.state === 'running' || item.state === 'unknown')) throw new Error('存在未完成或回执未知的操作，请先核对实际状态')
 }
 
+/** 编辑器接受仓库相对路径和 Candidate 相对路径；授权与回退使用同一规范路径。 */
+export function taskCandidatePath(task: TaskExecution, path: unknown): string | undefined {
+  if (typeof path !== 'string' || !task.target_source || path.includes('\\')) return undefined
+  const prefix = `evolution/experiments/${task.target_source.slice(11)}/`
+  const relative = path.startsWith(prefix) ? path.slice(prefix.length) : path
+  if (!relative.startsWith('candidate/') || relative.split('/').some(part => !part || part === '.' || part === '..')) return undefined
+  return relative
+}
+
 /** 授权只覆盖当前目标，来源与用例由服务端重新绑定；不允许靠更换参数扩大任务。 */
 export function taskAllows(task: TaskExecution, domain: string, action: string, input: Record<string, any>): boolean {
   if (!task.plan.allowed_actions.some(item => item.domain === domain && item.action === action)) return false
@@ -71,7 +80,7 @@ export function taskAllows(task: TaskExecution, domain: string, action: string, 
   if (domain === 'agents' && action === 'tasks/assembly-apply') return Boolean(target && input.target_source === target)
   if (domain === 'agents' && action === 'edit/apply') {
     return Boolean(target && `experiment:${input.experiment_id}` === target && Array.isArray(input.edits) && input.edits.length
-      && input.edits.every((edit: any) => typeof edit.path === 'string' && edit.path.startsWith('candidate/') && !edit.path.includes('..')))
+      && input.edits.every((edit: any) => taskCandidatePath(task, edit.path) !== undefined))
   }
   if (domain === 'agents' && action === 'eval/start') return Boolean(target && input.source === target && Array.isArray(input.cases)
     && input.cases.length === task.plan.evaluation_case_ids.length && task.plan.evaluation_case_ids.every(id => input.cases.includes(id)))
