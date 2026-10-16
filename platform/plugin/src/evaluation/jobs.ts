@@ -1,0 +1,210 @@
+import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { load as loadYaml } from 'js-yaml'
+import { workspaceIdentity, workspaceLocalPath } from '../workspace.ts'
+
+type MapValue = Record<string, any>
+type Job = {
+  job_id: string; workspace_id: string; asset_root: string; source: string; cases?: unknown;
+  status: 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled';
+  started_at: string; updated_at: string; stdout: string; stderr: string;
+  pid?: number; process_start?: string; run_id?: string; exit_code?: number | null;
+  error?: string; result?: MapValue | null; deadline_at?: string;
+}
+type Options = {
+  command(payload: MapValue): { executable: string; args: string[] };
+  environment(): NodeJS.ProcessEnv; redact(text: string): string; onChange?: () => void;
+}
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+const RUN = /^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+const FINAL = new Set(['completed', 'failed', 'cancelled'])
+const LOG_LIMIT = 16 * 1024
+
+export class EvaluationJobError extends Error {
+  constructor(readonly code: string, message: string) { super(message) }
+}
+
+function processStart(pid: number): string | undefined {
+  try {
+    // /proc stat 的 comm 可以含空格和括号，starttime 是右括号之后的第 20 项。
+    const value = readFileSync(`/proc/${pid}/stat`, 'utf8')
+    const fields = value.slice(value.lastIndexOf(')') + 2).split(' ')
+    if (fields[0] === 'Z') return undefined
+    return fields[19]
+  } catch { return undefined }
+}
+
+function ownsProcess(job: Job): boolean {
+  if (!job.pid || !job.process_start || processStart(job.pid) !== job.process_start) return false
+  try {
+    return statSync(`/proc/${job.pid}`).uid === process.getuid?.()
+      && realpathSync(`/proc/${job.pid}/cwd`) === realpathSync(job.asset_root)
+      && readFileSync(`/proc/${job.pid}/cmdline`, 'utf8').split('\0').some(arg => arg.endsWith('/dsh-eval'))
+  } catch { return false }
+}
+
+/** Job 只持久保存运行关联；任务事实、Case 进度和 Session 从既有 Run 回读。 */
+export function createEvaluationJobs(assetRoot: string, options: Options) {
+  const root = resolve(assetRoot)
+  const identity = workspaceIdentity(root)
+  const directory = workspaceLocalPath(root, 'evaluation-jobs')
+  const live = new Map<string, { process: ReturnType<typeof spawn>; job: Job; timer?: NodeJS.Timeout }>()
+  const pathFor = (id: string) => {
+    if (!UUID.test(id)) throw new EvaluationJobError('invalid_request', '评测任务 ID 格式无效')
+    return join(directory, `${id}.json`)
+  }
+  function save(job: Job, notify = true) {
+    mkdirSync(directory, { recursive: true })
+    const path = pathFor(job.job_id)
+    writeFileSync(`${path}.tmp`, JSON.stringify(job, null, 2) + '\n', { mode: 0o600 })
+    renameSync(`${path}.tmp`, path)
+    if (notify) options.onChange?.()
+  }
+  function read(id: string): Job {
+    const active = live.get(id)
+    if (active) return active.job
+    const path = pathFor(id)
+    if (!existsSync(path)) throw new EvaluationJobError('not_found', '评测任务不存在')
+    const job = JSON.parse(readFileSync(path, 'utf8')) as Job
+    if (job.asset_root !== root || job.workspace_id !== identity.id || job.job_id !== id)
+      throw new EvaluationJobError('not_found', '评测任务不属于当前工作区')
+    return job
+  }
+  function runDirectory(job: Job): string | undefined {
+    const experiments = join(root, 'evolution/experiments')
+    if (!existsSync(experiments)) return undefined
+    const selected = job.source.startsWith('experiment:') ? [job.source.slice('experiment:'.length)] : readdirSync(experiments)
+    for (const experiment of selected) {
+      if (!/^EXP-[a-z0-9-]+-\d{3}(?:-r[0-9a-f]{12})?$/.test(experiment)) continue
+      const runs = join(experiments, experiment, 'runs')
+      if (!existsSync(runs)) continue
+      for (const name of job.run_id ? [job.run_id] : readdirSync(runs)) {
+        if (!RUN.test(name)) continue
+        const run = join(runs, name)
+        if (job.run_id === name && existsSync(join(run, 'run.yaml'))) return run
+        try {
+          const receipt = JSON.parse(readFileSync(join(run, 'execution.json'), 'utf8'))
+          if (receipt.job_id === job.job_id) { job.run_id = name; return run }
+        } catch { /* 尚未创建或不是当前 Job 的 Run。 */ }
+      }
+    }
+  }
+  function receipt(job: Job): MapValue {
+    const run = runDirectory(job)
+    const result: MapValue = { job_id: job.job_id, source: job.source, cases: job.cases ?? [],
+      actual_model_calls: null, hard_cap_supported: false,
+      model_calls_complete: false, model_calls_basis: '轨迹请求头仅在配置变化时产生，不能据此推算实际模型调用或内部重试次数。' }
+    if (!run) return result
+    const inputs = JSON.parse(readFileSync(join(run, 'inputs.lock.json'), 'utf8'))
+    const manifest = loadYaml(readFileSync(join(run, 'run.yaml'), 'utf8')) as MapValue
+    Object.assign(result, { run_id: job.run_id, run_status: manifest.status,
+      source: inputs.source_id, cases: inputs.evaluation_cases?.map((item: MapValue) => item.case_id),
+      candidate_sha256: inputs.candidate_sha256, evaluation_sha256: inputs.evaluation_sha256,
+      program_origin: inputs.program_origin, evaluation_implementation: inputs.evaluation_implementation,
+      sessions: [], instance_name: null })
+    try {
+      const execution = JSON.parse(readFileSync(join(run, 'execution.json'), 'utf8'))
+      for (const name of ['instance_name', 'instance_stopped', 'failure_reason', 'deadline_at']) result[name] = execution[name]
+    } catch {}
+    const sessions = new Set<string>()
+    const walk = (folder: string) => {
+      if (!existsSync(folder)) return
+      for (const entry of readdirSync(folder, { withFileTypes: true })) {
+        const path = join(folder, entry.name)
+        if (entry.isDirectory()) walk(path)
+        else if (entry.name === 'checks.json') {
+          try {
+            const checks = JSON.parse(readFileSync(path, 'utf8'))
+            if (checks.session_id) sessions.add(checks.session_id)
+            if (checks.judge?.session_id) sessions.add(checks.judge.session_id)
+          } catch { /* 写入尚未完成的检查文件等待下次查询。 */ }
+        }
+      }
+    }
+    walk(join(run, 'evidence'))
+    result.sessions = [...sessions]
+    try { result.summary = JSON.parse(readFileSync(join(run, 'summary.json'), 'utf8')) } catch {}
+    return result
+  }
+  function status(id: string) {
+    const job = read(id)
+    const actual = receipt(job)
+    const alive = live.has(id) || ownsProcess(job)
+    if (!FINAL.has(job.status)) {
+      if (FINAL.has(actual.run_status)) {
+        job.status = actual.run_status === 'completed' && actual.summary
+          && actual.summary.executor !== 'browser'
+          && (actual.summary.effective_verdict ?? actual.summary.overall_verdict) !== 'passed' ? 'failed' : actual.run_status
+      } else if (!alive) {
+        job.status = 'failed'
+        job.error = '评测进程已停止；已有 Run 和部分证据已保留。请核对报告后新建复测，不重复执行未知状态动作。'
+      }
+      if (job.deadline_at && Date.parse(job.deadline_at) <= Date.now() && alive && job.status !== 'cancelling') cancel(id)
+    }
+    save(job, false)
+    return { ...job, result: { ...job.result, ...actual }, stdout: options.redact(job.stdout), stderr: options.redact(job.stderr), ...actual,
+      log_note: '日志为截断显示；Case、来源和 Session 从 Run 回读；无法从配置请求头核算模型调用次数。' }
+  }
+  function cancel(id: string) {
+    const job = read(id)
+    if (FINAL.has(job.status)) return { status: job.status }
+    const active = live.get(id)
+    if (job.status !== 'cancelling') {
+      if (active) active.process.kill('SIGTERM')
+      else if (ownsProcess(job)) process.kill(job.pid!, 'SIGTERM')
+      else throw new EvaluationJobError('process_identity_unknown', '无法确认评测进程归属，已保留证据；未向其他进程发送信号。')
+      job.status = 'cancelling'
+      job.updated_at = new Date().toISOString()
+      save(job)
+    }
+    return { status: job.status }
+  }
+  function start(payload: MapValue) {
+    const budget = payload.task_budget as MapValue | undefined
+    const deadline = budget?.deadline_at
+    if (deadline !== undefined && (typeof deadline !== 'string' || !/(Z|[+-]\d{2}:\d{2})$/.test(deadline)
+      || !Number.isFinite(Date.parse(deadline)) || Date.parse(deadline) <= Date.now()))
+      throw new EvaluationJobError('invalid_request', '任务截止时间无效或已到期')
+    const command = options.command(payload)
+    const id = randomUUID()
+    const now = new Date().toISOString()
+    const job: Job = { job_id: id, workspace_id: identity.id, asset_root: root,
+      source: String(payload.source), cases: payload.cases, status: 'running', started_at: now, updated_at: now,
+      stdout: '', stderr: '', ...(deadline ? { deadline_at: deadline } : {}) }
+    save(job)
+    const proc = spawn(command.executable, command.args, { cwd: root,
+      env: { ...options.environment(), HARNESS_EVAL_JOB_ID: id, ...(deadline ? { HARNESS_EVAL_DEADLINE_AT: deadline } : {}) },
+      stdio: ['ignore', 'pipe', 'pipe'] })
+    const active = { process: proc, job, timer: undefined as NodeJS.Timeout | undefined }
+    live.set(id, active)
+    proc.on('spawn', () => { job.pid = proc.pid; job.process_start = proc.pid ? processStart(proc.pid) : undefined; save(job) })
+    const append = (field: 'stdout' | 'stderr', chunk: unknown) => {
+      job[field] = options.redact((job[field] + String(chunk)).slice(-LOG_LIMIT))
+      const run = job.stderr.match(/(?:^|\n)Research Run: (run-[0-9a-f-]+)(?:\n|$)/)?.[1]
+      if (run && RUN.test(run)) job.run_id = run
+      job.updated_at = new Date().toISOString()
+      save(job)
+    }
+    proc.stdout.setEncoding('utf8').on('data', chunk => append('stdout', chunk))
+    proc.stderr.setEncoding('utf8').on('data', chunk => append('stderr', chunk))
+    proc.on('error', error => { job.status = 'failed'; job.error = options.redact(error.message); save(job) })
+    proc.on('close', code => {
+      clearTimeout(active.timer)
+      job.exit_code = code
+      job.updated_at = new Date().toISOString()
+      try { job.result = JSON.parse(job.stdout) } catch { job.result = null }
+      job.status = job.result?.cancelled === true ? job.result.instance_stopped === true ? 'cancelled' : 'failed' : code === 0 ? 'completed' : 'failed'
+      if (job.result?.cancelled === true && job.result.instance_stopped !== true) job.error = '取消后的实例停止尚未确认，请核对 Run 与实例状态。'
+      live.delete(id)
+      save(job)
+    })
+    if (deadline) {
+      active.timer = setTimeout(() => { if (!FINAL.has(job.status)) cancel(id) }, Math.min(2 ** 31 - 1, Date.parse(deadline) - Date.now()))
+      active.timer.unref()
+    }
+    return { job_id: id, status: job.status, started_at: now, hard_cap_supported: false }
+  }
+  return { start, status, cancel }
+}
