@@ -11,7 +11,6 @@ type Context = {
   runs: { run_id: string; experiment_id: string; status: string; created_at: string }[]
 }
 const labels: Record<ComputeMetric, string> = { model_calls: '已记录模型响应次数', input_tokens: '输入 token（含缓存）', output_tokens: '输出 token', total_tokens: '总 token', elapsed_ms: '主 Session 耗时（毫秒）' }
-const field = { display: 'grid', minWidth: 0, gap: 4 } as const
 const display = (value: number | null | undefined) => value === null || value === undefined ? '未知' : Number.isInteger(value) ? String(value) : value.toFixed(2)
 const toggle = (values: string[], id: string) => values.includes(id) ? values.filter(value => value !== id) : [...values, id]
 
@@ -79,23 +78,23 @@ export function ComputeVariantsPanel({ rpc, agentId, experimentId, versions, onC
       <legend>手动制定比较计划</legend>
       <p className="agent-muted">与 AI 策划使用同一派生流程。填写后先检查预览，再确认创建。</p>
       <div className="harness-fields">
-        <label style={field}>完整父版<select value={parent} onChange={event => setParent(event.target.value)}>{versions.map(version => <option key={version.id} value={version.id}>{version.id}</option>)}</select></label>
-        <label style={field}>可恢复的 Git 父版引用<input value={parentRef} onChange={event => setParentRef(event.target.value)} placeholder="git:<40 位提交>" /></label>
-        <label style={{ ...field, gridColumn: '1 / -1' }}>策略与研究问题<textarea aria-label="策略与研究问题" value={strategy} onChange={event => setStrategy(event.target.value)} placeholder="例如减少重复查询和上下文，完整保留查询结果；说明哪些行为允许变化。" rows={3} /></label>
+        <label className="agent-field">完整父版<select value={parent} onChange={event => setParent(event.target.value)}>{versions.map(version => <option key={version.id} value={version.id}>{version.id}</option>)}</select></label>
+        <label className="agent-field">可恢复的 Git 父版引用<input value={parentRef} onChange={event => setParentRef(event.target.value)} placeholder="git:<40 位提交>" /></label>
+        <label className="agent-field agent-field-wide">策略与研究问题<textarea aria-label="策略与研究问题" value={strategy} onChange={event => setStrategy(event.target.value)} placeholder="例如减少重复查询和上下文，完整保留查询结果；说明哪些行为允许变化。" rows={3} /></label>
       </div>
-      <div style={{ maxHeight: 240, overflow: 'auto' }}><table><thead><tr><th>任务范围</th><th>关键任务</th><th>Case</th></tr></thead><tbody>{context.cases.map(item => <tr key={item.case_id}>
+      <div className="compute-case-table"><table><thead><tr><th>任务范围</th><th>关键任务</th><th>Case</th></tr></thead><tbody>{context.cases.map(item => <tr key={item.case_id}>
         <td><input aria-label={`纳入 ${item.case_id}`} type="checkbox" checked={selectedCases.includes(item.case_id)} onChange={() => { setSelectedCases(values => toggle(values, item.case_id)); setCritical(values => values.filter(value => value !== item.case_id)) }} /></td>
         <td><input aria-label={`关键 ${item.case_id}`} type="checkbox" disabled={!selectedCases.includes(item.case_id)} checked={critical.includes(item.case_id)} onChange={() => setCritical(values => toggle(values, item.case_id))} /></td>
         <td>{item.case_id} · {item.title}</td>
       </tr>)}</tbody></table></div>
       <div className="harness-fields">
-        <label style={field}>每 Case 每侧最少独立 Run<input type="number" min={1} max={100} value={minimum} onChange={event => setMinimum(Number(event.target.value))} /></label>
-        <label style={field}>允许通过率下降（百分点）<input type="number" min={0} max={100} value={drop} onChange={event => setDrop(Number(event.target.value))} /></label>
-        <label style={field}>目标资源指标<select value={metric} onChange={event => setMetric(event.target.value as ComputeMetric)}>{Object.entries(labels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-        <label style={field}>最低资源改善（%）<input type="number" min={0.01} max={100} step={0.01} value={reduction} onChange={event => setReduction(Number(event.target.value))} /></label>
+        <label className="agent-field">每 Case 每侧最少独立 Run<input type="number" min={1} max={100} value={minimum} onChange={event => setMinimum(Number(event.target.value))} /></label>
+        <label className="agent-field">允许通过率下降（百分点）<input type="number" min={0} max={100} value={drop} onChange={event => setDrop(Number(event.target.value))} /></label>
+        <label className="agent-field">目标资源指标<select value={metric} onChange={event => setMetric(event.target.value as ComputeMetric)}>{Object.entries(labels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+        <label className="agent-field">最低资源改善（%）<input type="number" min={0.01} max={100} step={0.01} value={reduction} onChange={event => setReduction(Number(event.target.value))} /></label>
       </div>
       <label><input type="checkbox" checked={modelChange} onChange={event => setModelChange(event.target.checked)} /> 显式允许模型或推理强度变化</label>
-      {modelChange && <div className="harness-fields"><label style={field}>目标模型<input value={model} onChange={event => setModel(event.target.value)} /></label><label style={field}>目标推理强度<input value={reasoning} onChange={event => setReasoning(event.target.value)} /></label></div>}
+      {modelChange && <div className="harness-fields"><label className="agent-field">目标模型<input value={model} onChange={event => setModel(event.target.value)} /></label><label className="agent-field">目标推理强度<input value={reasoning} onChange={event => setReasoning(event.target.value)} /></label></div>}
       <p className="agent-muted">派生会完整继承固定父版。默认 deepseek-flash / off；此计划不会自动修改模型或业务资产。创建后在 Harness 资产中实现策略，将数据仓库中的计划与 Candidate 提交到 Git，再分别评测父版和变体。已有旧 Run 可查看，但不能追认为预先冻结的比较。</p>
       <div className="compute-actions"><button className="compute-primary" disabled={!strategy.trim() || !selectedCases.length || !parentRef.trim()} onClick={() => void action(async () => {
         const request = generation.current
@@ -124,23 +123,23 @@ export function ComputeVariantsPanel({ rpc, agentId, experimentId, versions, onC
       <div className="harness-fields">{(['parent', 'variant'] as const).map(side => {
         const rows = context.runs.filter(run => run.experiment_id === (side === 'parent' ? context.parent_experiment_id : experimentId))
         const selected = side === 'parent' ? parentRuns : variantRuns
-        return <fieldset key={side} disabled={busy} style={{ minWidth: 0 }}><legend>{side === 'parent' ? '父版封存 Run' : '变体封存 Run'}</legend>
-          <div style={{ maxHeight: 220, overflow: 'auto', display: 'grid', gap: 6 }}>{rows.length ? rows.map(run => <label key={run.run_id} style={{ overflowWrap: 'anywhere' }}><input aria-label={`${side} ${run.run_id}`} type="checkbox" checked={selected.includes(run.run_id)} onChange={() => changeRuns(side, run.run_id)} />{run.run_id} · {run.status}<span className="agent-muted"> {run.created_at}</span></label>) : <p className="agent-muted">尚无封存 Run，请从现有评测入口运行。</p>}</div>
+        return <fieldset key={side} disabled={busy} className="compute-run-group"><legend>{side === 'parent' ? '父版封存 Run' : '变体封存 Run'}</legend>
+          <div className="compute-run-list">{rows.length ? rows.map(run => <label key={run.run_id}><input aria-label={`${side} ${run.run_id}`} type="checkbox" checked={selected.includes(run.run_id)} onChange={() => changeRuns(side, run.run_id)} />{run.run_id} · {run.status}<span className="agent-muted"> {run.created_at}</span></label>) : <p className="agent-muted">尚无封存 Run，请从现有评测入口运行。</p>}</div>
         </fieldset>
       })}</div>
       <button disabled={busy || !parentRuns.length || !variantRuns.length} onClick={() => void action(async () => { const request = generation.current; const value = await invoke('compare', comparisonBody); if (request === generation.current) { setComparison(value); setHumanConfirmed(false) } })}>比较实际效果与资源</button>
     </>}
-    {comparison && <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
+    {comparison && <div className="compute-comparison">
       <details><summary>打开所选 Run 的完整报告与工具证据</summary><ul>{[...parentRuns, ...variantRuns].map(runId => <li key={runId}><a href={navigationHash({ page: 'evaluation', tab: 'runs', agent_id: agentId, experiment_id: context?.runs.find(run => run.run_id === runId)?.experiment_id, run_id: runId })} target="_blank" rel="noopener noreferrer">{runId}</a></li>)}</ul></details>
       <p role="status">功能质量：{comparison.quality.passed ? '满足预定观察指标' : '未满足或证据不足'}；资源目标：{comparison.resource_evidence.passed ? '满足' : '未满足或未知'}；可比性：{comparison.comparability.passed ? '记录条件一致' : '存在限制'}。</p>
-      <div style={{ overflowX: 'auto' }}><table><thead><tr><th>Case</th><th>独立 Run 父 / 变体</th><th>通过率父 / 变体</th><th>关键任务</th><th>质量</th></tr></thead><tbody>{comparison.quality.cases.map((row: any) => <tr key={row.case_id}><td>{row.case_id}</td><td>{row.parent_runs} / {row.variant_runs}</td><td>{display(row.parent_pass_rate)}% / {display(row.variant_pass_rate)}%</td><td>{row.critical ? '是' : '否'}</td><td>{row.quality_passed ? '满足' : '未满足'}</td></tr>)}</tbody></table></div>
-      <div style={{ overflowX: 'auto' }}><table><thead><tr><th>资源指标（各 Case 等权平均）</th><th>父版</th><th>变体</th><th>改善率</th></tr></thead><tbody>{Object.entries(labels).map(([key, label]) => { const value = comparison.resources[key]; return <tr key={key}><td>{label}</td><td>{display(value.parent)}</td><td>{display(value.variant)}</td><td>{value.reduction_pct === null ? '未知' : `${display(value.reduction_pct)}%`}</td></tr> })}</tbody></table></div>
+      <div className="compute-table-scroll"><table><thead><tr><th>Case</th><th>独立 Run 父 / 变体</th><th>通过率父 / 变体</th><th>关键任务</th><th>质量</th></tr></thead><tbody>{comparison.quality.cases.map((row: any) => <tr key={row.case_id}><td>{row.case_id}</td><td>{row.parent_runs} / {row.variant_runs}</td><td>{display(row.parent_pass_rate)}% / {display(row.variant_pass_rate)}%</td><td>{row.critical ? '是' : '否'}</td><td>{row.quality_passed ? '满足' : '未满足'}</td></tr>)}</tbody></table></div>
+      <div className="compute-table-scroll"><table><thead><tr><th>资源指标（各 Case 等权平均）</th><th>父版</th><th>变体</th><th>改善率</th></tr></thead><tbody>{Object.entries(labels).map(([key, label]) => { const value = comparison.resources[key]; return <tr key={key}><td>{label}</td><td>{display(value.parent)}</td><td>{display(value.variant)}</td><td>{value.reduction_pct === null ? '未知' : `${display(value.reduction_pct)}%`}</td></tr> })}</tbody></table></div>
       {!!comparison.comparability.limits.length && <details open><summary>阻断可比性的证据缺口</summary><ul>{comparison.comparability.limits.map((limit: string) => <li key={limit}>{limit}</li>)}</ul></details>}
       {!!comparison.resource_evidence.limits.length && <details open><summary>资源记录限制</summary><ul>{comparison.resource_evidence.limits.map((limit: string) => <li key={limit}>{limit}</li>)}</ul></details>}
       <div className="agent-muted">{comparison.notes.map((note: string) => <p key={note}>{note}</p>)}</div>
       <label><input aria-label="已审阅完整效果与工具结果" type="checkbox" checked={humanConfirmed} disabled={busy} onChange={event => setHumanConfirmed(event.target.checked)} />我已在评测中心核对所选 Run 的完整输出、工具结果、任务效果和比较限制。</label>
-      <label style={field}>研究结论及限制<textarea aria-label="变体研究结论" value={reason} onChange={event => setReason(event.target.value)} rows={3} disabled={busy} /></label>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{(['continue', 'inconclusive', 'end'] as const).map(decision => <button key={decision} disabled={busy || !humanConfirmed || !reason.trim() || decision === 'end' && !comparison.eligible_for_end} onClick={() => void action(async () => {
+      <label className="agent-field">研究结论及限制<textarea aria-label="变体研究结论" value={reason} onChange={event => setReason(event.target.value)} rows={3} disabled={busy} /></label>
+      <div className="agent-actions">{(['continue', 'inconclusive', 'end'] as const).map(decision => <button key={decision} disabled={busy || !humanConfirmed || !reason.trim() || decision === 'end' && !comparison.eligible_for_end} onClick={() => void action(async () => {
         const request = generation.current
         const value = await invoke('confirm', { ...comparisonBody, decision, human_confirmed: humanConfirmed, reason, comparison_sha256: comparison.comparison_sha256 })
         if (request !== generation.current) return

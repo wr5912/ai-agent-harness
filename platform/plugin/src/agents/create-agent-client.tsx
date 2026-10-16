@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { CHANNEL, type PlatformPageProps } from '../protocol.ts'
 import type { NewAgentReceipt } from './create-agent.ts'
 
-const field = { display: 'grid', minWidth: 0, gap: 4 } as const
 type Result = { ok: true; value: NewAgentReceipt } | { ok: false; error: { code: string; message: string } }
 
 export function CreateAgentDialog({ rpc, active, onClose, onCreated, onSelect }: PlatformPageProps & {
@@ -26,20 +25,20 @@ export function CreateAgentDialog({ rpc, active, onClose, onCreated, onSelect }:
   }
   return <dialog ref={dialog} className="harness-asset-dialog" aria-labelledby="new-agent-title" onCancel={event => { event.preventDefault(); if (!busy) onClose() }}>
     <h2 id="new-agent-title">新建智能体</h2>
-    {receipt ? <><p role="status">{receipt.note}</p><dl className="harness-fields"><div><dt>智能体</dt><dd>{receipt.name} · {receipt.agent_id}</dd></div><div><dt>首次研究版本</dt><dd>{receipt.experiment_id}</dd></div></dl><div className="agent-actions"><button type="button" onClick={() => onSelect(receipt)}>查看新智能体</button><button type="button" onClick={onClose}>关闭</button></div></> : <>
+    {receipt ? <><div className="agent-dialog-body"><p role="status">{receipt.note}</p><dl className="harness-fields"><div><dt>智能体</dt><dd>{receipt.name} · {receipt.agent_id}</dd></div><div><dt>首次研究版本</dt><dd>{receipt.experiment_id}</dd></div></dl></div><div className="agent-actions agent-dialog-actions"><button type="button" onClick={() => onSelect(receipt)}>查看新智能体</button><button type="button" onClick={onClose}>关闭</button></div></> : <form className="agent-dialog-form" onSubmit={event => { event.preventDefault(); if (step === 'edit' && valid) setStep('review'); else if (step === 'review') void create() }}>
+      <div className="agent-dialog-body">
       <p>填写用途和角色指令后，创建独立的首次研究版本。创建不会启动实例，也不会复制任何已有智能体的会话或凭据。</p>
       <p className="agent-muted">{step === 'edit' ? '第 1 步：定义身份与职责' : '第 2 步：核对将保存的内容'}</p>
-      <form onSubmit={event => { event.preventDefault(); if (step === 'edit' && valid) setStep('review'); else if (step === 'review') void create() }} style={{ display: 'grid', gap: 12 }}>
         {step === 'edit' ? <>
-          <label style={field}>Agent ID<input required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxLength={80} value={agentId} placeholder="例如 daily-assistant" onChange={event => setAgentId(event.target.value)} /></label>
-          <label style={field}>智能体名称<input required maxLength={120} value={name} onChange={event => setName(event.target.value)} /></label>
-          <label style={field}>用途说明<textarea required maxLength={2000} rows={2} value={description} onChange={event => setDescription(event.target.value)} /></label>
-          <label style={field}>角色与工作指令<textarea required maxLength={20000} rows={9} value={role} placeholder="说明要帮助用户完成什么、如何工作、信息不足时怎样补问。不要填写 API Key。" onChange={event => setRole(event.target.value)} /></label>
+          <label className="agent-field">Agent ID<input required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxLength={80} value={agentId} placeholder="例如 daily-assistant" onChange={event => setAgentId(event.target.value)} /></label>
+          <label className="agent-field">智能体名称<input required maxLength={120} value={name} onChange={event => setName(event.target.value)} /></label>
+          <label className="agent-field">用途说明<textarea required maxLength={2000} rows={2} value={description} onChange={event => setDescription(event.target.value)} /></label>
+          <label className="agent-field">角色与工作指令<textarea required maxLength={20000} rows={9} value={role} placeholder="说明要帮助用户完成什么、如何工作、信息不足时怎样补问。不要填写 API Key。" onChange={event => setRole(event.target.value)} /></label>
         </> : <><dl className="harness-fields"><div><dt>Agent ID</dt><dd>{agentId}</dd></div><div><dt>名称</dt><dd>{name}</dd></div><div><dt>用途</dt><dd>{description}</dd></div></dl><h3>角色正文</h3><pre className="harness-asset-content">{role}</pre><p>将使用当前标准 DSH Runtime 来源。角色写入新 Candidate，已有身份装载用例同步替换为该角色的身份和职责检查。</p></>}
-        <div className="agent-actions">{step === 'review' && <button type="button" disabled={busy} onClick={() => { setStep('edit'); setError('') }}>返回修改</button>}<button type="submit" disabled={!valid || busy}>{step === 'edit' ? '预览创建内容' : busy ? '正在创建…' : '确认创建智能体'}</button><button type="button" disabled={busy} onClick={onClose}>取消</button></div>
-      </form>
       {busy && <p role="status">正在创建并校验角色资产，请等待完成。</p>}
       {error && <p role="alert">{error}；填写内容已保留。</p>}
-    </>}
+      </div>
+      <div className="agent-actions agent-dialog-actions">{step === 'review' && <button type="button" disabled={busy} onClick={() => { setStep('edit'); setError('') }}>返回修改</button>}<button type="submit" className="agent-primary" disabled={!valid || busy}>{step === 'edit' ? '预览创建内容' : busy ? '正在创建…' : '确认创建智能体'}</button><button type="button" disabled={busy} onClick={onClose}>取消</button></div>
+    </form>}
   </dialog>
 }

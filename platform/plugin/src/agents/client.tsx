@@ -24,20 +24,10 @@ function Fields({ items }: { items: [string, unknown][] }) {
   return <dl className="harness-fields">{items.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{Array.isArray(value) ? value.join('、') || '无' : typeof value === 'string' || typeof value === 'number' ? value : '未知'}</dd></div>)}</dl>
 }
 
-const panel = {
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-  border: '1px solid var(--dsw-alias-border-l4, #d1d5db)',
-  borderRadius: 8,
-  padding: 16,
-  background: 'var(--dsw-alias-bg-layer-1, transparent)',
-} as const
-
 function researchStatus(status?: string | null) {
   return ({ active: '研究中', completed: '已完成研究', archived: '已归档', adopted: '已采纳', rejected: '已拒绝' } as Record<string, string>)[status ?? ''] ?? status ?? '状态未记录'
 }
 
-const field = { display: 'grid', minWidth: 0, gap: 4 } as const
 const tabs = [
   { id: 'overview', label: '概览' },
   { id: 'assets', label: 'Harness 资产' },
@@ -429,30 +419,30 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
   }
 
   return <main className="harness-agents" aria-label="智能体管理">
-    <div style={{ minWidth: 0, display: 'grid', gap: 16 }}>
+    <div className="agent-page-content">
       <header className="agent-page-heading">
         <div><p>管理研究版本与 Harness 资产，查看能力证据和运行情况。</p></div>
         <div className="agent-actions"><button type="button" onClick={() => setCreateOpen(true)}>新建智能体</button><button type="button" onClick={() => { void refreshList(); void refreshDetail() }}>刷新</button></div>
       </header>
       {error && <p role="alert" className="agent-error">{error}</p>}
       <section className="harness-agent-layout">
-        <aside className="harness-agent-list" style={panel}>
+        <aside className="harness-agent-list">
           <div className="agent-list-heading"><h2>智能体列表</h2><span>{agents.length}</span></div>
           <label className="agent-search"><span>搜索智能体</span><input type="search" placeholder="名称或 Agent ID" value={search} onChange={event => setSearch(event.target.value)} /></label>
           <div className="harness-agent-list-options">
             {visibleAgents.map(agent => <button key={agent.id} type="button" className="agent-list-card" onClick={() => selectVersion(agent.id)} aria-pressed={agent.id === selected}>
               <span className="agent-list-card-title"><strong>{agent.name || agent.manifest?.name || agent.id}</strong><span className="agent-badge">{researchStatus(agent.latest_experiment_status)}</span></span>
               <span className="agent-id">{agent.id}</span>
-              {agent.manifest?.description && <span className="agent-list-description">{agent.manifest.description}</span>}
+              {agent.manifest?.description && <span className="agent-list-description" title={agent.manifest.description}>{agent.manifest.description}</span>}
               <span className="agent-list-meta">{typeof agent.version_count === 'number' ? `${agent.version_count} 个研究版本` : '版本数量未读取'} · {agent.instance_state || '实例未观察'}</span>
             </button>)}
             {agents.length > 0 && !visibleAgents.length && <p className="agent-empty">没有匹配的智能体。</p>}
             {!agents.length && !error && <p className="agent-empty">尚无智能体资产。</p>}
           </div>
         </aside>
-        <section className="harness-agent-detail" style={{ display: 'grid', minWidth: 0, gap: 16 }}>
+        <section className="harness-agent-detail">
           {!detail && selected && !error && <p role="status">正在读取智能体…</p>}
-          {detail && <section className="agent-identity" style={panel}>
+          {detail && <section className="agent-identity">
             <div className="agent-identity-top">
               <div className="agent-identity-title"><span className="agent-avatar" aria-hidden="true">◇</span><div><h2>{detail.agent.name || detail.agent.manifest.name || selectedAgent?.name || selected}</h2><p className="agent-id">Agent ID · {selected}</p></div></div>
               <div className="agent-actions"><button type="button" disabled={!onNavigate} onClick={() => openEvaluation()}>评测此版本</button><button type="button" onClick={() => { setVersionOpen(true); setVersionParent(detail.repo_commit ? `git:${detail.repo_commit}` : ''); resetVersionPreview() }}>新建研究版本</button><button type="button" className="agent-primary" disabled={launchBusy} onClick={() => void launchVersion()}>启动智能体</button></div>
@@ -460,12 +450,12 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
             <div className="agent-version-bar"><label>所选研究版本<select aria-label="版本" value={selectedExperiment || detail.experiment.id} onChange={event => selectVersion(selected, event.target.value)}>{detail.versions.map((version: any) => <option key={version.id} value={version.id}>{version.id}</option>)}</select></label><div><span>登记版本</span><strong>{selectedAgent?.active_experiment || '未登记'}</strong></div></div>
             {detail.creation && <p role="status" className="agent-notice">{detail.creation.status === 'completed' ? '新版本创建成功' : '融合中：等待资产集成与约定验证'}{detail.creation.status !== 'completed' && <button type="button" disabled={!onAssistant} onClick={() => void onAssistant?.('继续完成当前版本的融合。', { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id, skill: 'agent-maintenance', workflow: 'research', session_id: detail.creation.assistant_session_id })}>继续融合</button>}</p>}
           </section>}
-          {versionOpen && detail && <section style={panel} aria-label="新建智能体版本">
+          {versionOpen && detail && <section className="agent-inline-form" aria-label="新建智能体版本">
             <h2>新建 {selected} 版本</h2>
-            <label style={field}>改进目标<textarea value={versionGoal} onChange={event => { setVersionGoal(event.target.value); resetVersionPreview() }} rows={3} /></label>
-            <label style={field}>主父版固定 Git 引用<input value={versionParent} onChange={event => { setVersionParent(event.target.value); resetVersionPreview() }} /></label>
+            <label className="agent-field">改进目标<textarea value={versionGoal} onChange={event => { setVersionGoal(event.target.value); resetVersionPreview() }} rows={3} /></label>
+            <label className="agent-field">主父版固定 Git 引用<input value={versionParent} onChange={event => { setVersionParent(event.target.value); resetVersionPreview() }} /></label>
             <p>当前主父版：{detail.experiment.id}。先核对未继承的并行能力及取舍，确认后再建立新版本。</p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button type="button" disabled={!versionGoal.trim()} onClick={() => void previewVersion()}>盘点继承来源</button><button type="button" onClick={() => { versionPreviewRequest.current++; setVersionOpen(false) }}>关闭</button></div>
+            <div className="agent-actions"><button type="button" disabled={!versionGoal.trim()} onClick={() => void previewVersion()}>盘点继承来源</button><button type="button" onClick={() => { versionPreviewRequest.current++; setVersionOpen(false) }}>关闭</button></div>
             {versionInventory && <><h3>主父版尚未覆盖的来源</h3>{versionInventory.inventory.sources.length ? <ul>{versionInventory.inventory.sources.map((source: any) => <li key={source.experiment_id}><strong>{source.experiment_id}</strong> · {source.status === 'recommended' ? '建议继承' : source.status === 'excluded' ? '默认排除' : '待判断'}<p>{source.reason}</p></li>)}</ul> : <p>没有发现尚未覆盖的并行来源。</p>}
               <button type="button" disabled={!onAssistant} onClick={() => void askVersionPlan()}>请 AI 整理融合方案</button></>}
             {versionProposal && versionProposal.parent_experiment_id === detail.experiment.id && versionProposal.parent_ref === versionParent && versionProposal.research_question === versionGoal && <>
@@ -477,10 +467,10 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
               <button type="button" onClick={() => void confirmVersion()}>确认方案并创建版本</button>
             </>}
           </section>}
-          {launch && <section style={panel} aria-label="启动选中版本"><h2>启动 {launch.experiment_id}</h2>
-            {launch.instances.length > 0 && <label style={field}>实例<select value={launch.selected} disabled={launchBusy} onChange={event => changeLaunch({ ...launch, selected: event.target.value, url: null })}>{launch.instances.map((item: any) => <option key={item.name} value={item.name}>{item.name} · {item.state}</option>)}<option value="">新建实例</option></select></label>}
-            {!launch.selected && <><label style={field}>实例名称<input value={launchName} disabled={launchBusy} onChange={event => { setLaunchName(event.target.value); changeLaunch({ ...launch, url: null }) }} /></label><label style={field}>端口（可留空自动分配）<input inputMode="numeric" value={launchPort} disabled={launchBusy} onChange={event => { setLaunchPort(event.target.value); changeLaunch({ ...launch, url: null }) }} /></label></>}
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}><button type="button" className="agent-primary" disabled={launchBusy} onClick={() => void startInstance()}>{launch.instances.find((item: any) => item.name === launch.selected)?.state === 'running' ? '获取对话入口' : '确认启动'}</button><button type="button" disabled={launchBusy} onClick={() => changeLaunch(null)}>关闭</button></div>
+          {launch && <section className="agent-inline-form" aria-label="启动选中版本"><h2>启动 {launch.experiment_id}</h2>
+            {launch.instances.length > 0 && <label className="agent-field">实例<select value={launch.selected} disabled={launchBusy} onChange={event => changeLaunch({ ...launch, selected: event.target.value, url: null })}>{launch.instances.map((item: any) => <option key={item.name} value={item.name}>{item.name} · {item.state}</option>)}<option value="">新建实例</option></select></label>}
+            {!launch.selected && <><label className="agent-field">实例名称<input value={launchName} disabled={launchBusy} onChange={event => { setLaunchName(event.target.value); changeLaunch({ ...launch, url: null }) }} /></label><label className="agent-field">端口（可留空自动分配）<input inputMode="numeric" value={launchPort} disabled={launchBusy} onChange={event => { setLaunchPort(event.target.value); changeLaunch({ ...launch, url: null }) }} /></label></>}
+            <div className="agent-actions"><button type="button" className="agent-primary" disabled={launchBusy} onClick={() => void startInstance()}>{launch.instances.find((item: any) => item.name === launch.selected)?.state === 'running' ? '获取对话入口' : '确认启动'}</button><button type="button" disabled={launchBusy} onClick={() => changeLaunch(null)}>关闭</button></div>
             {launch.url && <p><a href={launch.url} target="_blank" rel="noreferrer">打开智能体对话</a></p>}
           </section>}
           {launchMessage && <p role="status">{launchMessage}</p>}
@@ -498,7 +488,7 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
               aria-controls={`agent-panel-${item.id}`} aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1}
               onClick={() => selectTab(item.id)}>{item.label}</button>)}
           </div>}
-          {detail && <section role="tabpanel" id="agent-panel-overview" aria-labelledby="agent-tab-overview" hidden={tab !== 'overview'} style={panel}>
+          {detail && <section role="tabpanel" id="agent-panel-overview" aria-labelledby="agent-tab-overview" hidden={tab !== 'overview'}>
             <div className="agent-section-heading"><h2>智能体概览</h2><button type="button" disabled={!onAssistant} onClick={() => void onAssistant?.('请使用 agent-maintenance Skill 整理固定目标版本的用途与特性，读取资产和已有证据后通过 features/preview 提交待确认清单。', { page: 'agents', agent_id: selected, experiment_id: detail.experiment.id, skill: 'agent-maintenance', workflow: 'features' })}>请 AI 整理特性</button></div>
             <p>{detail.agent.manifest.description || detail.experiment.change.research_question || '用途尚未整理。'}</p>
             <div className="agent-stat-grid"><article><span>研究版本</span><strong>{detail.versions.length}</strong></article><article><span>所选版本 Run</span><strong>{versionRuns.length}</strong></article><article><span>所选版本实例</span><strong>{detail.loaded_instance.status === 'observed' ? instances.length : '—'}</strong><small>{detail.loaded_instance.status === 'observed' ? '最近一次实际观察' : '尚未取得实例观察'}</small></article></div>
@@ -510,7 +500,7 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
               ['融合来源', detail.fusion.experiments?.length ? detail.fusion.experiments : detail.fusion.status === 'unknown' ? '未声明融合来源' : detail.fusion.status], ['相关引用', detail.related_references ?? []],
             ]} />
           </section>}
-          {detail && <section role="tabpanel" id="agent-panel-capabilities" aria-labelledby="agent-tab-capabilities" hidden={tab !== 'capabilities'} style={panel}>
+          {detail && <section role="tabpanel" id="agent-panel-capabilities" aria-labelledby="agent-tab-capabilities" hidden={tab !== 'capabilities'}>
             <div className="agent-section-heading"><h2>能力状态</h2><button type="button" disabled={!onNavigate} onClick={() => openEvaluation()}>查看评测证据</button></div>
             <p className="agent-muted">分别查看资产声明、实例装载观察和 Run 证据，按实际证据判断能力。</p>
             <div className="agent-evidence-stages"><article><span className="agent-badge">资产声明</span><h3>{detail.declared.source_contract.status === 'unavailable' ? '来源无法解析' : '已解析来源合同'}</h3><p>{detail.declared.source_contract.source_id || `experiment:${detail.experiment.id}`}</p></article><article><span className="agent-badge">实例装载</span><h3>{detail.loaded_instance.status === 'observed' ? `已观察 ${instances.length} 个实例` : '尚无装载观察'}</h3><p>{detail.loaded_instance.note || detail.loaded_instance.reason || '挂载观察不证明当前 Session 已调用能力。'}</p></article><article><span className="agent-badge">调用证据</span><h3>{versionRuns.length ? `${versionRuns.length} 条 Run 记录` : '尚无 Run'}</h3><p>具体能力与执行结果请在报告及轨迹中复核。</p></article></div>
@@ -521,19 +511,19 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
               ['镜像', detail.declared.source_contract.image?.local_image_tag], ['环境变量名称', detail.declared.catalog_source?.required_env_names],
             ]} /></details>
           </section>}
-          {detail && <section role="tabpanel" id="agent-panel-compute-variants" aria-labelledby="agent-tab-compute-variants" hidden={tab !== 'compute-variants'} style={panel}>
+          {detail && <section role="tabpanel" id="agent-panel-compute-variants" aria-labelledby="agent-tab-compute-variants" hidden={tab !== 'compute-variants'}>
             {tab === 'compute-variants' && <ComputeVariantsPanel key={detail.experiment.id} rpc={rpc} agentId={selected} experimentId={detail.experiment.id} versions={detail.versions} onAssistant={onAssistant}
               onCreated={id => { void refreshList(); selectVersion(selected, id) }} onChanged={() => { void refreshDetail() }} />}
           </section>}
-          {detail && <section role="tabpanel" id="agent-panel-runtime" aria-labelledby="agent-tab-runtime" hidden={tab !== 'runtime'} style={panel}>
+          {detail && <section role="tabpanel" id="agent-panel-runtime" aria-labelledby="agent-tab-runtime" hidden={tab !== 'runtime'}>
             <div className="agent-section-heading"><h2>关联实例</h2><button type="button" disabled={!onNavigate} onClick={() => onNavigate?.({ page: 'instances', agent_id: selected, experiment_id: detail.experiment.id })}>实例管理</button></div>
             {detail.loaded_instance.status !== 'observed' && <p role="status">{detail.loaded_instance.note || detail.loaded_instance.reason || '尚未取得实际实例观察。'}</p>}
             {instances.length ? <div className="harness-table-scroll"><table aria-label="所选版本实例"><thead><tr><th>实例</th><th>观察状态</th><th>端口</th><th>镜像</th></tr></thead><tbody>{instances.map((instance: any) => <tr key={instance.name}><td>{instance.name}</td><td>{instance.state || '未知'}</td><td>{instance.port ?? '未记录'}</td><td>{instance.image_tag || '未记录'}</td></tr>)}</tbody></table></div> : detail.loaded_instance.status === 'observed' && <p className="agent-empty">未观察到所选版本的实例。</p>}
             <div className="agent-section-heading"><h2>近期 Run</h2><button type="button" disabled={!onNavigate} onClick={() => openEvaluation()}>进入评测中心</button></div>
             {versionRuns.length ? <div className="harness-table-scroll"><table aria-label="所选版本 Run"><thead><tr><th>Run</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>{versionRuns.map((run: any) => <tr key={run.id ?? run.run_id}><td>{run.id ?? run.run_id}</td><td>{run.status || '未记录'}</td><td>{run.created_at ? new Date(run.created_at).toLocaleString() : '未记录'}</td><td><button type="button" disabled={!onNavigate} onClick={() => openEvaluation('runs', run.id ?? run.run_id)}>查看报告</button></td></tr>)}</tbody></table></div> : <p className="agent-empty">所选版本暂无 Run 记录。</p>}
           </section>}
-          {detail && <section role="tabpanel" id="agent-panel-assets" aria-labelledby="agent-tab-assets" hidden={tab !== 'assets'} style={panel}>
-            <div className="agent-section-heading"><h2 style={{ fontSize: 16, margin: '0 0 12px' }}>智能体资产</h2><button type="button" onClick={() => setDiffOpen(value => !value)}>{diffOpen ? '收起资产差异' : '查看资产差异'}</button></div>
+          {detail && <section role="tabpanel" id="agent-panel-assets" aria-labelledby="agent-tab-assets" hidden={tab !== 'assets'}>
+            <div className="agent-section-heading"><h2>智能体资产</h2><button type="button" onClick={() => setDiffOpen(value => !value)}>{diffOpen ? '收起资产差异' : '查看资产差异'}</button></div>
             {diffOpen && <AssetDiffPanel key={detail.experiment.id} rpc={rpc} experimentId={detail.experiment.id} versions={detail.versions} baseline={detail.baseline} onClose={() => setDiffOpen(false)} />}
             <div className="harness-asset-layout">
               <nav aria-label="智能体资产目录"><AssetTree nodes={detail.assets ?? []} selected={editPath} onSelect={path => { if (path !== editPath && discardAssetDraft()) selectEditFile(path) }} /></nav>
@@ -548,22 +538,23 @@ export function AgentsPage({ rpc, updates, onContext, onAssistant, target, onNav
             </div>
           </section>}
           <dialog ref={editDialog} className="harness-asset-dialog" aria-labelledby="asset-edit-title" onCancel={event => { event.preventDefault(); closeEditor() }}>
-            <h2 id="asset-edit-title">编辑资产</h2><p>{editPath}</p>
+            <h2 id="asset-edit-title">编辑资产</h2><div className="agent-dialog-body"><p>{editPath}</p>
             <p>应用保存会先进行 dry 校验，再核对文件是否被他人修改。dry 不执行模型、业务工具或 Candidate 代码。</p>
-            <label style={field}>编辑正文
-              <textarea value={editBody} disabled={!editHash || editBusy} onChange={event => { editRequest.current++; setEditBody(event.target.value); setEditPreview(null); setEditMessage('') }} rows={12} style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'monospace' }} />
+            <label className="agent-field">编辑正文
+              <textarea value={editBody} disabled={!editHash || editBusy} onChange={event => { editRequest.current++; setEditBody(event.target.value); setEditPreview(null); setEditMessage('') }} rows={12} className="agent-editor" />
             </label>
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button type="button" onClick={() => { if (discardAssetDraft()) void loadEditFile() }} disabled={editBusy}>重读文件</button>
-              <button type="button" onClick={() => void doPreview()} disabled={!editHash || editBusy}>dry 校验与预览</button>
-              <button type="button" onClick={() => void doApply()} disabled={!editHash || editBusy}>应用保存</button>
-              <button type="button" onClick={closeEditor} disabled={editBusy}>关闭</button>
-            </div>
             {editBusy && <p role="status">正在进行 dry 校验…</p>}
             {editMessage && <p role="status">{editMessage}</p>}
             {editPreview && <><p>校验通过：{editPreview.dry.checks.join('、')} · 评测用例 {editPreview.dry.case_ids.length} 个。</p>
               {editPreview.dry.missing_env_names?.length > 0 && <p>运行前需补齐环境变量：{editPreview.dry.missing_env_names.join('、')}。当前 dry 可继续。</p>}
               <pre className="harness-asset-content">{editPreview.diff}</pre></>}
+            </div>
+            <div className="agent-actions agent-dialog-actions">
+              <button type="button" onClick={() => { if (discardAssetDraft()) void loadEditFile() }} disabled={editBusy}>重读文件</button>
+              <button type="button" onClick={() => void doPreview()} disabled={!editHash || editBusy}>dry 校验与预览</button>
+              <button type="button" onClick={() => void doApply()} disabled={!editHash || editBusy}>应用保存</button>
+              <button type="button" onClick={closeEditor} disabled={editBusy}>关闭</button>
+            </div>
           </dialog>
         </section>
       </section>
