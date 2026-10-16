@@ -20,3 +20,5 @@
 正式平台的取消反馈见 [`formal-features-reject-final.json`](formal-features-reject-final.json)：新管理会话实际选择“暂不执行”，98 个资产文件的内容摘要前后相同，提案已取消，总计 10 次模型调用。实际收尾回复比此前简短，但仍包含技术字段和特性列表，不能据此声称所有管理助手表达已经稳定符合简短反馈原则。共同原则中的取消示例只说明未保存，不承诺未实际提供的概览草稿入口。该示例修订后仅核对装载，未额外重复模型任务。
 
 最终重启后的只读复核见 [`final-ui-after-restart.json`](final-ui-after-restart.json)：正式首页标题、39px 单行初始输入、改进入口空关联可开始及默认折叠均符合要求，未额外发送模型任务。正式 3114、3081、3089 保持运行。
+
+当前首页的文字入口见[后续正式页面观察](../home-text-entry-20261016/acceptance.json)、[桌面评测](../home-text-entry-20261016/evaluate-desktop.png)和[手机改进](../home-text-entry-20261016/improve-mobile.png)：三模式均已删除智能体、版本与运行选择区。上文较早记录中的选择区反映各次验收时的界面，不作为当前入口说明。

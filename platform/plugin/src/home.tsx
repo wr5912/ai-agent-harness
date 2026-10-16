@@ -29,10 +29,8 @@ function HeroArt({ side }: { side: string }) {
 export function HomePage({ catalog, rpc, updates, navigate, startConversation }: PlatformPageProps & { catalog: Catalog; updates: PlatformUpdates; navigate: (page: PageId | PlatformNavigation) => void; startConversation: (root: string, prompt: string, context?: Record<string, unknown>) => Promise<void> }) {
   const state = useSyncExternalStore(catalog.subscribe, catalog.getSnapshot)
   const [revision, setRevision] = useState(0)
-  const [agentRevision, setAgentRevision] = useState(0)
   useEffect(() => updates.subscribe(() => {
     const snapshot = updates.getSnapshot()
-    if (snapshot.domains.some(domain => domain === 'catalog' || domain === 'agents')) setAgentRevision(snapshot.revision)
     if (snapshot.domains.some(domain => domain === 'catalog' || domain === 'agents' || domain === 'instances' || domain === 'mcp')) setRevision(snapshot.revision)
   }), [updates])
   const [runs, setRuns] = useState<RecentRun[]>()
@@ -59,13 +57,6 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
     observer.observe(input)
     return () => observer.disconnect()
   }, [mode, prompt])
-  const [agentOptions, setAgentOptions] = useState<{ id: string; name?: string }[]>([])
-  const [selectedAgent, setSelectedAgent] = useState('')
-  const [selectedVersion, setSelectedVersion] = useState('')
-  const [detail, setDetail] = useState<any>(null)
-  const [selectionLoading, setSelectionLoading] = useState(false)
-  const [selectionError, setSelectionError] = useState('')
-  const [selectedRun, setSelectedRun] = useState('')
   const [exampleOpen, setExampleOpen] = useState(false)
   const [exampleLoading, setExampleLoading] = useState(false)
   const [exampleError, setExampleError] = useState('')
@@ -89,34 +80,9 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
     return () => { active = false }
   }, [rpc, refresh, revision])
   const assets = state.inventory
-  useEffect(() => {
-    if (mode === 'build' || !assets) return
-    let active = true
-    void rpc.call(CHANNEL, 'agents/list', {}).then(result => {
-      if (active && result.ok) setAgentOptions((result.value as any).agents ?? [])
-      else if (active && !result.ok) setSelectionError(result.error.message)
-    }).catch(() => { if (active) setSelectionError('无法读取智能体，请重试或进入智能体管理。') })
-    return () => { active = false }
-  }, [rpc, mode, assets?.root, agentRevision])
-  useEffect(() => {
-    if (mode !== 'evaluate' || !selectedAgent) { setDetail(null); return }
-    let active = true
-    setSelectionLoading(detail?.agent?.id !== selectedAgent || detail?.experiment?.id !== selectedVersion); setSelectionError('')
-    void rpc.call(CHANNEL, 'agents/detail', { agent_id: selectedAgent, ...(selectedVersion ? { experiment_id: selectedVersion } : {}) }).then(result => {
-      if (!active) return
-      if (!result.ok) { setSelectionError(result.error.message); return }
-      const value = result.value as any
-      setDetail(value)
-      if (!selectedVersion && value.selection?.basis === 'active_experiment') setSelectedVersion(value.experiment.id)
-    }).catch(() => { if (active) setSelectionError('无法读取选定版本，请重新选择。') }).finally(() => { if (active) setSelectionLoading(false) })
-    return () => { active = false }
-  }, [rpc, mode, selectedAgent, selectedVersion, agentRevision])
-  const relatedRuns = (runs ?? []).filter(run => ['completed', 'failed', 'cancelled'].includes(run.status ?? ''))
-  const associatedRun = relatedRuns.find(run => run.id === selectedRun)
   const selectedExample = exampleSources.find(source => source.source === exampleSource)
   const runLabel = (run: RecentRun) => run.effective_verdict === 'failed' ? '业务未通过' : run.effective_verdict === 'inconclusive' ? '结果待核实' : ({ completed: '已完成', failed: '运行失败', cancelled: '已取消', running: '运行中', planned: '计划中' } as Record<string, string>)[run.status ?? ''] ?? '状态未记录'
   const versionName = (id: string) => '版本 ' + (/-([0-9]{3})(?:-r[0-9a-f]{12})?$/.exec(id)?.[1] ?? id)
-  const agentName = (id: string) => agentOptions.find(agent => agent.id === id)?.name || id
   async function enterTask(request: ReturnType<typeof homeTaskRequest>) {
     if (!assets) throw new Error('工作区尚未读取完成，请稍后重试。')
     await startConversation(assets.root, request.prompt, request.context)
@@ -126,10 +92,7 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
     if (sending) return
     setEntryError(''); setSending(true)
     try {
-      if (mode === 'evaluate' && (selectionLoading || detail?.agent?.id !== selectedAgent || detail?.experiment?.id !== selectedVersion)) throw new Error('请先选择并读完要评测的版本。')
-      const selected = mode === 'improve' ? associatedRun && { agent_id: associatedRun.agent_id, experiment_id: associatedRun.experiment_id, run_id: associatedRun.id }
-        : { agent_id: selectedAgent, experiment_id: selectedVersion, evaluation_case_ids: detail?.evaluation?.cases?.map((item: any) => item.id) }
-      await enterTask(homeTaskRequest(mode, prompt, selected))
+      await enterTask(homeTaskRequest(mode, prompt))
     } catch (error) { setEntryError(error instanceof Error ? error.message : '无法开始任务，请重试。') }
     finally { setSending(false) }
   }
@@ -176,18 +139,12 @@ export function HomePage({ catalog, rpc, updates, navigate, startConversation }:
       <h1>让AI帮您管理、评测和改进智能体</h1>
       <p>{HOME_SUBTITLE}</p>
       <div className="harness-task-composer">
-        <div className="harness-entry-modes" role="group" aria-label="任务类型">{HOME_MODES.map(item => <button key={item.id} type="button" aria-pressed={mode === item.id} disabled={sending} onClick={() => { setMode(item.id); setEntryError(''); setSelectionError('') }}>{item.label}</button>)}</div>
+        <div className="harness-entry-modes" role="group" aria-label="任务类型">{HOME_MODES.map(item => <button key={item.id} type="button" aria-pressed={mode === item.id} disabled={sending} onClick={() => { setMode(item.id); setEntryError('') }}>{item.label}</button>)}</div>
         <form className="harness-entry" onSubmit={event => { event.preventDefault(); void submitTask() }}>
-          {mode === 'evaluate' && <div className="harness-entry-selection">
-            <label>智能体<select aria-label="要评测的智能体" value={selectedAgent} disabled={sending} onChange={event => { setSelectedAgent(event.target.value); setSelectedVersion(''); setDetail(null) }}><option value="">选择已有智能体</option>{agentOptions.map(agent => <option key={agent.id} value={agent.id}>{agent.name || agent.id}</option>)}</select></label>
-            <label>版本<select aria-label="要评测的版本" value={selectedVersion} disabled={sending || !selectedAgent || selectionLoading} onChange={event => setSelectedVersion(event.target.value)}><option value="">选择要评测的版本</option>{detail?.versions?.map((version: any) => <option key={version.id} value={version.id}>{versionName(version.id)}{detail?.agent?.manifest?.active_experiment === version.id ? ' · 当前启用' : ''}</option>)}</select></label>
-          </div>}
-          <textarea ref={promptRef} rows={1} aria-label="业务任务" placeholder={mode === 'build' ? BUILD_PLACEHOLDER : mode === 'evaluate' ? '可补充你希望重点验证的业务能力；留空将评测所选版本的现有用例。' : '描述希望改进或优化的任务，例如让巡检报告覆盖全部设备，或减少行业简报中的重复信息；也可关联已有运行记录。'} value={prompt} disabled={sending}
+          <textarea ref={promptRef} rows={1} aria-label="业务任务" placeholder={mode === 'build' ? BUILD_PLACEHOLDER : mode === 'evaluate' ? '描述要评测的智能体和业务能力，例如评测巡检助手能否完整统计全部设备。' : '描述希望改进或优化的任务，例如让巡检报告覆盖全部设备，或减少行业简报中的重复信息。'} value={prompt} disabled={sending}
             onChange={event => setDrafts(value => ({ ...value, [mode]: event.target.value }))} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) { event.preventDefault(); void submitTask() } }}/>
-          {mode === 'improve' && <details className="harness-entry-association"><summary>关联运行记录（可选）</summary><label className="harness-entry-run">运行记录<select aria-label="关联的运行记录" value={selectedRun} disabled={sending} onChange={event => setSelectedRun(event.target.value)}><option value="">不关联，按任务描述查找</option>{relatedRuns.map(run => <option key={run.id} value={run.id}>{agentName(run.agent_id)} · {runLabel(run)} · {run.created_at ? new Date(run.created_at).toLocaleString() : run.id}</option>)}</select></label>{runs && relatedRuns.length === 0 && <p>暂无已结束的运行记录，可直接描述希望优化的智能体和目标。</p>}</details>}
-          <div className="harness-entry-footer"><span>{mode === 'build' ? '先理解任务和复用能力，再确认执行范围。' : mode === 'evaluate' ? '使用真实版本和已有测试，运行前确认范围。' : '先查已有资产和记录，确认优化目标；最多修复 3 轮。'}</span><button className="harness-primary" type="submit" disabled={sending || !assets || mode === 'build' && !prompt.trim() || mode === 'evaluate' && (!selectedVersion || selectionLoading)}>{sending ? '正在进入…' : HOME_MODES.find(item => item.id === mode)!.action}</button></div>
+          <div className="harness-entry-footer"><span>{mode === 'build' ? '先理解任务和复用能力，再确认执行范围。' : mode === 'evaluate' ? '先查询智能体和已有测试，确认范围后运行评测。' : '先查已有资产和记录，确认优化目标；最多修复 3 轮。'}</span><button className="harness-primary" type="submit" disabled={sending || !assets || mode === 'build' && !prompt.trim()}>{sending ? '正在进入…' : HOME_MODES.find(item => item.id === mode)!.action}</button></div>
         </form>
-        {selectionError && <p role="alert">{selectionError}</p>}
         {mode === 'evaluate' && assets && !assets.agents.length && <p>还没有业务智能体。<button type="button" onClick={() => setMode('build')}>先构建一个</button></p>}
         {entryError && <p role="alert">{entryError}</p>}
       </div>

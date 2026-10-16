@@ -1,0 +1,150 @@
+{
+  "at": "2026-10-16T11:19:42.784Z",
+  "base": "http://10.0.160.32:3090/hep/",
+  "scope": "真实正式页面的三模式无选择区与描述输入检查；按钮仅trial，不发送模型或执行业务任务",
+  "viewports": [
+    {
+      "width": 1440,
+      "mode": "构建业务智能体",
+      "selection_count": 0,
+      "select_count": 0,
+      "input_height": 39.09375,
+      "start_enabled": true,
+      "dimension": {
+        "scroll": 1440,
+        "client": 1440
+      }
+    },
+    {
+      "width": 1440,
+      "mode": "评测已有智能体",
+      "selection_count": 0,
+      "select_count": 0,
+      "input_height": 39.09375,
+      "start_enabled": true,
+      "dimension": {
+        "scroll": 1440,
+        "client": 1440
+      }
+    },
+    {
+      "width": 1440,
+      "mode": "改进优化任务",
+      "selection_count": 0,
+      "select_count": 0,
+      "input_height": 39.09375,
+      "start_enabled": true,
+      "dimension": {
+        "scroll": 1440,
+        "client": 1440
+      }
+    },
+    {
+      "width": 900,
+      "mode": "构建业务智能体",
+      "selection_count": 0,
+      "select_count": 0,
+      "input_height": 39.09375,
+      "start_enabled": true,
+      "dimension": {
+        "scroll": 900,
+        "client": 900
+      }
+    },
+    {
+      "width": 900,
+      "mode": "评测已有智能体",
+      "selection_count": 0,
+      "select_count": 0,
+      "input_height": 39.09375,
+      "start_enabled": true,
+      "dimension": {
+        "scroll": 900,
+        "client": 900
+      }
+    },
+    {
+      "width": 900,
+      "mode": "改进优化任务",
+      "selection_count": 0,
+      "select_count": 0,
+      "input_height": 39.09375,
+      "start_enabled": true,
+      "dimension": {
+        "scroll": 900,
+        "client": 900
+      }
+    },
+    {
+      "width": 390,
+      "mode": "构建业务智能体",
+      "selection_count": 0,
+      "select_count": 0,
+      "input_height": 39.09375,
+      "start_enabled": true,
+      "dimension": {
+        "scroll": 390,
+        "client": 390
+      }
+    },
+    {
+      "width": 390,
+      "mode": "评测已有智能体",
+      "selection_count": 0,
+      "select_count": 0,
+      "input_height": 39.09375,
+      "start_enabled": true,
+      "dimension": {
+        "scroll": 390,
+        "client": 390
+      }
+    },
+    {
+      "width": 390,
+      "mode": "改进优化任务",
+      "selection_count": 0,
+      "select_count": 0,
+      "input_height": 39.09375,
+      "start_enabled": true,
+      "dimension": {
+        "scroll": 390,
+        "client": 390
+      }
+    }
+  ],
+  "pageerrors": [],
+  "methods": [
+    "agents/runs/index",
+    "agents/runs/index",
+    "agents/runs/index",
+    "agents/runs/index",
+    "agents/runs/index",
+    "agents/runs/index",
+    "mcp/list",
+    "assistant/context",
+    "assistant/status",
+    "agents/detail",
+    "agents/fusion/proposal",
+    "agents/features/proposal",
+    "agents/edit/read",
+    "assistant/status"
+  ],
+  "running_instances": [
+    {
+      "name": "hep-inspection-delivery",
+      "port": 3114,
+      "source": "experiment:EXP-inspection-delivery-demo-001-rf841e4415364"
+    },
+    {
+      "name": "security-operations-expert-eval",
+      "port": 3081,
+      "source": "experiment:EXP-security-operations-expert-019-rc442472a242a"
+    },
+    {
+      "name": "test01-002-64212",
+      "port": 3089,
+      "source": "experiment:EXP-test01-002"
+    }
+  ],
+  "ok": true
+}

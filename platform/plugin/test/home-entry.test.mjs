@@ -70,61 +70,82 @@ test('构建入口保留需求原文并绑定task-builder，空输入和会话�
   try { failed.change('业务任务', '构建报告助手'); await failed.submit(); assert.match(failed.text(), /会话服务暂不可用/); assert.equal(failed.navigations.length, 0) } finally { failed.cleanup() }
 })
 
-test('评测入口实际读取目标和当前启用版本，带现有业务用例进入评测流程', async () => {
-  const ui = home()
-  try {
-    await ui.click('评测已有智能体'); ui.change('要评测的智能体', 'alpha'); await ui.settle(); assert.equal(ui.button('开始评测').props.disabled, false)
-    await ui.submit(); assert.equal(ui.tasks[0].context.workflow, 'evaluation'); assert.equal(ui.tasks[0].context.agent_id, 'alpha'); assert.equal(ui.tasks[0].context.experiment_id, experiment); assert.deepEqual(Array.from(ui.tasks[0].context.evaluation_case_ids), ['U-BUSINESS-001'])
-    assert.equal(ui.calls.some(call => call.method === 'agents/detail' && call.body.agent_id === 'alpha'), true)
-  } finally { ui.cleanup() }
+test('三种首页模式仅凭描述开始，不依赖预先选择智能体、版本或运行记录', async () => {
+  const cases = [
+    { label: '构建业务智能体', action: '开始任务', mode: 'build', skill: 'task-builder', workflow: 'build', prompt: '构建每天生成行业情报简报的智能体。' },
+    { label: '评测已有智能体', action: '开始评测', mode: 'evaluate', skill: 'agent-maintenance', workflow: 'evaluation', prompt: '评测行业简报助手当前启用版本的来源准确性。' },
+    { label: '改进优化任务', action: '开始改进', mode: 'improve', skill: 'task-builder', workflow: 'improvement', prompt: '根据最近一次运行，改进行业简报助手遗漏来源的问题。' },
+  ]
+  for (const entry of cases) {
+    const ui = home({ intercept(method) {
+      if (method === 'agents/list' || method === 'agents/detail') throw new Error('首页无需预读选择器数据')
+    } })
+    try {
+      await ui.click(entry.label)
+      assert.equal(ui.nodes().some(node => node.type === 'select'), false)
+      assert.equal(ui.nodes().some(node => /(?:^|\s)harness-entry-(?:selection|run|association)(?:\s|$)/.test(node.props?.className ?? '')), false)
+      ui.change('业务任务', entry.prompt)
+      assert.equal(ui.button(entry.action).props.disabled, false)
+      await ui.submit()
+      assert.equal(ui.tasks.length, 1); assert.equal(ui.tasks[0].prompt, entry.prompt)
+      assert.equal(ui.tasks[0].root, '/test-assets'); assert.equal(ui.tasks[0].context.page, 'home')
+      assert.equal(ui.tasks[0].context.skill, entry.skill); assert.equal(ui.tasks[0].context.workflow, entry.workflow); assert.equal(ui.tasks[0].context.entry_intent, entry.mode)
+      for (const key of ['agent_id', 'experiment_id', 'source', 'run_id', 'evaluation_case_ids']) assert.equal(ui.tasks[0].context[key], undefined)
+      assert.equal(ui.calls.some(call => call.method === 'agents/list' || call.method === 'agents/detail'), false)
+    } finally { ui.cleanup() }
+  }
 })
 
-test('首页按实际业务域刷新，助手事件不重复读取资产，实例和MCP变化只刷新摘要', async () => {
+test('空白评测和改进先查询现有信息，固定范围确认后再执行，并保留证据和预算约束', async () => {
+  const evaluation = homeTaskRequest('evaluate', '  ')
+  assert.match(evaluation.prompt, /查询当前工作区/); assert.match(evaluation.prompt, /智能体、版本、已有测试用例和运行记录/)
+  assert.match(evaluation.prompt, /集中询问必要信息/); assert.match(evaluation.prompt, /固定来源版本、测试用例和评判口径/)
+  assert.match(evaluation.prompt, /整体确认后开展真实评测/); assert.match(evaluation.prompt, /缺少用例或运行条件/)
+  assert.equal(evaluation.context.workflow, 'evaluation')
+  const improvement = homeTaskRequest('improve', '')
+  assert.match(improvement.prompt, /查询当前工作区/); assert.match(improvement.prompt, /原始证据与评判口径/)
+  assert.match(improvement.prompt, /整体确认/); assert.match(improvement.prompt, /最多 3 轮“分析问题→修改→复测”/); assert.match(improvement.prompt, /达到预算时如实停止/)
+  assert.equal(improvement.context.workflow, 'improvement'); assert.equal(improvement.context.max_repair_rounds, 3)
+  for (const [label, action, request] of [['评测已有智能体', '开始评测', evaluation], ['改进优化任务', '开始改进', improvement]]) {
+    const ui = home({ noRuns: true })
+    try {
+      await ui.click(label); assert.equal(ui.button(action).props.disabled, false); await ui.submit()
+      assert.equal(ui.tasks[0].prompt, request.prompt); assert.deepEqual({ ...ui.tasks[0].context }, request.context)
+    } finally { ui.cleanup() }
+  }
+})
+
+test('首页按实际业务域刷新摘要，助手事件及模式切换不触发选择器数据读取', async () => {
   const ui = home()
   try {
-    await ui.click('评测已有智能体'); ui.change('要评测的智能体', 'alpha'); await ui.settle()
+    await ui.settle()
     const count = method => ui.calls.filter(call => call.method === method).length
-    const initial = ['home', 'agents/list', 'agents/detail'].map(count)
+    const initial = count('home')
+    for (const label of ['评测已有智能体', '改进优化任务', '构建业务智能体']) await ui.click(label)
     for (let index = 0; index < 5; index++) { ui.invalidate(['assistant']); await ui.settle() }
-    assert.deepEqual(['home', 'agents/list', 'agents/detail'].map(count), initial)
-    for (const domain of ['instances', 'mcp']) { ui.invalidate([domain]); await ui.settle() }
-    assert.deepEqual(['home', 'agents/list', 'agents/detail'].map(count), [initial[0] + 2, initial[1], initial[2]])
-    for (const domain of ['agents', 'catalog']) { ui.invalidate([domain]); await ui.settle() }
-    assert.deepEqual(['home', 'agents/list', 'agents/detail'].map(count), [initial[0] + 4, initial[1] + 2, initial[2] + 2])
+    assert.equal(count('home'), initial)
+    for (const domain of ['instances', 'mcp', 'agents', 'catalog']) { ui.invalidate([domain]); await ui.settle() }
+    assert.equal(count('home'), initial + 4)
+    assert.equal(count('agents/list'), 0); assert.equal(count('agents/detail'), 0)
   } finally { ui.cleanup() }
 })
 
-test('同版本后台更新保持可操作，切换版本仍等待真实回读且忽略旧目标迟到响应', async () => {
+test('首页摘要后台请求不阻断评测和改进，也不会给任务注入最近运行的对象', async () => {
   let hold = false
   const pending = []
-  const ui = home({ intercept(method, body) {
-    if (hold && method === 'agents/detail') return new Promise(resolve => pending.push({ body, resolve }))
+  const ui = home({ intercept(method) {
+    if (hold && method === 'home') return new Promise(resolve => pending.push(resolve))
   } })
-  const reply = body => ({ ok: true, value: { agent: { id: body.agent_id }, experiment: { id: body.experiment_id }, versions: [{ id: body.experiment_id }], evaluation: { cases: [{ id: 'U-BUSINESS-001' }] } } })
   try {
-    await ui.click('评测已有智能体'); ui.change('要评测的智能体', 'alpha'); await ui.settle()
-    hold = true; ui.invalidate(['agents']); await ui.settle()
-    assert.equal(pending.length, 1); assert.equal(ui.label('要评测的版本').props.disabled, false); assert.equal(ui.button('开始评测').props.disabled, false)
-    await ui.submit(); assert.equal(ui.tasks[0].context.experiment_id, experiment)
-    const next = 'EXP-alpha-002-r123456abcdef'
-    ui.change('要评测的版本', next); await ui.settle()
-    assert.equal(pending.length, 2); assert.equal(ui.button('开始评测').props.disabled, true)
-    await ui.submit(); assert.equal(ui.tasks.length, 1); assert.match(ui.text(), /请先选择并读完/)
-    pending[0].resolve(reply(pending[0].body)); await ui.settle()
-    assert.equal(ui.label('要评测的版本').props.value, next); assert.equal(ui.button('开始评测').props.disabled, true)
-    pending[1].resolve(reply(pending[1].body)); await ui.settle()
-    assert.equal(ui.button('开始评测').props.disabled, false)
-    await ui.submit(); assert.equal(ui.tasks[1].context.experiment_id, next)
+    await ui.settle(); hold = true; ui.invalidate(['agents']); await ui.settle()
+    assert.equal(pending.length, 1)
+    for (const [label, action] of [['评测已有智能体', '开始评测'], ['改进优化任务', '开始改进']]) {
+      await ui.click(label); assert.equal(ui.button(action).props.disabled, false); await ui.submit()
+      assert.equal(ui.tasks.at(-1).context.agent_id, undefined); assert.equal(ui.tasks.at(-1).context.run_id, undefined)
+    }
+    pending[0]({ ok: true, value: { recent_runs: [], instances: { ok: true, value: { instances: [] } }, mcp: { ok: true, value: { connections: [] } } } }); await ui.settle()
+    assert.equal(ui.tasks.length, 2)
   } finally { ui.cleanup() }
-})
-
-test('改进入口包含completed但业务失败的Run，并固定原始Run与三轮预算', async () => {
-  const ui = home()
-  try {
-    await ui.click('改进优化任务'); ui.change('关联的运行记录', runId); await ui.submit()
-    assert.equal(ui.tasks[0].context.run_id, runId); assert.equal(ui.tasks[0].context.experiment_id, experiment); assert.equal(ui.tasks[0].context.max_repair_rounds, 3); assert.match(ui.tasks[0].prompt, /保留原始证据/)
-  } finally { ui.cleanup() }
-  assert.equal(homeTaskRequest('improve', '').context.workflow, 'improvement')
 })
 
 test('体验示例只选择带实际工具和业务Case的来源，缺依赖时明确引导构建', async () => {
@@ -180,25 +201,19 @@ test('首页输入时保持换行与IME行为，Ctrl+Enter仍提交当前模式�
 })
 
 
-test('改进优化以任务描述为主，无运行记录也可开始，已有通过记录可选关联', async () => {
-  for (const options of [{ noRuns: true }, { runStatus: 'running' }, { runVerdict: 'passed' }]) {
-    const ui = home(options)
-    try {
-      await ui.click('改进优化任务')
-      const association = ui.nodes().find(node => node.type === 'details' && ui.text(node).includes('关联运行记录（可选）'))
-      assert.ok(association); assert.equal(association.props.open, undefined)
-      if (options.runStatus === 'running') assert.equal(ui.nodes().some(node => node.type === 'option' && node.props.value === runId), false)
-      assert.equal(ui.button('开始改进').props.disabled, false)
-      await ui.submit(); assert.match(ui.tasks[0].prompt, /查询当前工作区/); assert.equal(ui.tasks[0].context.run_id, undefined); assert.equal(ui.tasks[0].context.source, undefined)
-      ui.change('业务任务', '优化行业简报，减少重复信息并保留来源。'); await ui.submit()
-      assert.equal(ui.tasks[1].prompt, '优化行业简报，减少重复信息并保留来源。')
-      assert.equal(ui.tasks[1].context.entry_intent, 'improve'); assert.equal(ui.tasks[1].context.agent_id, undefined)
-      await ui.click('构建业务智能体'); ui.change('业务任务', '构建草稿'); await ui.click('改进优化任务')
-      assert.equal(ui.label('业务任务').props.value, '优化行业简报，减少重复信息并保留来源。')
-      if (!options.noRuns && options.runStatus !== 'running') {
-        ui.change('关联的运行记录', runId); await ui.submit()
-        assert.equal(ui.tasks.at(-1).context.run_id, runId); assert.equal(ui.tasks.at(-1).context.source, `experiment:${experiment}`)
-      }
-    } finally { ui.cleanup() }
-  }
+test('三种模式各自保留任务草稿，体验示例的精确来源不带入首页评测', async () => {
+  const ui = home({ example: true })
+  try {
+    for (const [label, prompt] of [['构建业务智能体', '构建草稿'], ['评测已有智能体', '评测草稿'], ['改进优化任务', '改进草稿']]) {
+      await ui.click(label); ui.change('业务任务', prompt)
+    }
+    for (const [label, prompt] of [['构建业务智能体', '构建草稿'], ['评测已有智能体', '评测草稿'], ['改进优化任务', '改进草稿']]) {
+      await ui.click(label); assert.equal(ui.label('业务任务').props.value, prompt)
+    }
+    await ui.click('体验示例'); await ui.click('开始体验')
+    assert.equal(ui.tasks[0].context.experiment_id, 'EXP-daily-inspection-assistant-002-r222222222222')
+    await ui.click('评测已有智能体'); await ui.submit()
+    assert.equal(ui.tasks[1].prompt, '评测草稿')
+    assert.equal(ui.tasks[1].context.agent_id, undefined); assert.equal(ui.tasks[1].context.experiment_id, undefined); assert.equal(ui.tasks[1].context.source, undefined)
+  } finally { ui.cleanup() }
 })
