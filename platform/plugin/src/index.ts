@@ -12,7 +12,7 @@ import { DOMAIN_PREFIXES } from './protocol.ts'
 import { recentRuns } from './dashboard.ts'
 import { workspaceIdentity } from './workspace.ts'
 import { createAgentsHandler } from './agents/index.ts'
-import { createExtractionScope, createComputeVariantScope, isDecisionExtraction, isComputeVariantResearch } from './assistant/extraction-scope.ts'
+import { createExtractionScope, createComputeVariantScope, isDecisionExtraction, isComputeVariantResearch, createFeatureScope, isFeatureOrganization } from './assistant/extraction-scope.ts'
 import { createRunDownloadHandler } from './agents/run-files.ts'
 import { createInstancesHandler } from './instances/index.ts'
 import { applyMcpGateway, createMcpHandler } from './mcp/index.ts'
@@ -136,7 +136,7 @@ export function applyTools(ctx: Context) {
   const wrap = (domain: 'agents' | 'instances' | 'mcp', handler: ConnectionRpcHandler): ConnectionRpcHandler => async (endpoint, payload, signal, peer) => {
     try { return await handler(endpoint, payload, signal, peer) }
     finally {
-      if (!['list', 'detail', 'url', 'logs', 'edit/read', 'cases/list', 'cases/read', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'runs/trace', 'assets/diff', 'assets/read-fixed', 'compute-variants/context', 'compute-variants/preview', 'compute-variants/compare', 'datasets/source', 'datasets/list', 'datasets/read', 'datasets/export', 'cases/create-context', 'cases/from-run', 'cases/create-preview', 'fusion/status', 'fusion/proposal', 'features/proposal'].includes(endpoint)) notify([domain, 'catalog'])
+      if (!['list', 'detail', 'url', 'logs', 'edit/read', 'cases/list', 'cases/read', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'runs/trace', 'assets/diff', 'assets/read-fixed', 'compute-variants/context', 'compute-variants/preview', 'compute-variants/compare', 'datasets/source', 'datasets/list', 'datasets/read', 'datasets/export', 'cases/create-context', 'cases/from-run', 'cases/create-preview', 'fusion/status', 'fusion/proposal', 'features/proposal', 'features/read-source'].includes(endpoint)) notify([domain, 'catalog'])
     }
   }
   const domains = {
@@ -148,12 +148,15 @@ export function applyTools(ctx: Context) {
   const services = ctx as any
   const extractionScope = createExtractionScope()
   const computeVariantScope = createComputeVariantScope()
+  const featureScope = createFeatureScope()
   const taskScope = (agent: any, state: any) => isDecisionExtraction(assetRoot, agent, state) ? extractionScope
-    : isComputeVariantResearch(assetRoot, agent, state) ? computeVariantScope : undefined
+    : isComputeVariantResearch(assetRoot, agent, state) ? computeVariantScope
+      : isFeatureOrganization(assetRoot, agent, state) ? featureScope : undefined
   const assistant = createAssistant(assetRoot, handler, {
     controller: services.sessionController,
     scopeExtraction: agent => extractionScope.apply(agent),
     scopeComputeVariants: agent => computeVariantScope.apply(agent),
+    scopeFeatures: agent => featureScope.apply(agent),
     running: id => services.agents.get(id)?.status === 'running',
     record: async (session, type, value) => { const records = await runtimeModule('@deepseek-ai/dsh-session'); records.appendPluginRecord(session, type, value) },
     projections: services.sessionProjections, systemPrompt: services.systemPrompt,
@@ -165,7 +168,7 @@ export function applyTools(ctx: Context) {
     const state = services.sessionProjections.stateOf(agent.session, 'harnessPlatformAssistant')
     taskScope(agent, state)?.apply(agent)
   }) as any)
-  ctx.on('agent/disposed' as any, (({ agent }: any) => { extractionScope.release(agent); computeVariantScope.release(agent) }) as any)
+  ctx.on('agent/disposed' as any, (({ agent }: any) => { extractionScope.release(agent); computeVariantScope.release(agent); featureScope.release(agent) }) as any)
   ctx.on('system-prompt/assemble' as any, (async (_assembly: any, context: any, next: any) => {
     const assembly = await next()
     const agent = context.agent
@@ -177,6 +180,7 @@ export function applyTools(ctx: Context) {
   }) as any)
   ctx.effect(() => () => extractionScope.dispose())
   ctx.effect(() => () => computeVariantScope.dispose())
+  ctx.effect(() => () => featureScope.dispose())
   ctx.effect(() => () => assistant.dispose())
   ctx.on('session/event' as any, ((session: any) => notify(['assistant'], [session.id])) as any)
   ctx.on('agent/status' as any, ((event: any) => notify(['assistant'], [event.agent.id])) as any)

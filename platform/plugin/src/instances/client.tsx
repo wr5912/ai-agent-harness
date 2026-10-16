@@ -424,7 +424,6 @@ export function InstancesPage({ rpc, updates, onContext, target, onNavigate }: P
               <li>嵌入沿用实例自身的认证设置，需要登录时不会自动传递平台密码或登录状态。跨站 iframe 可能因 SameSite=Strict 或浏览器第三方 Cookie 限制而无法登录，此时使用同站点反向代理或直接打开 DSH Web。</li>
               <li>HTTPS 网站嵌入 HTTP 实例会被浏览器拦截，需为实例配置可达的 HTTPS 入口。网站自身的 CSP 也必须允许该 iframe 来源。</li>
             </ul>
-            <p><a href="https://docs.dify.ai/zh/cloud/use-dify/publish/webapp/embedding-in-websites#iframe-%E5%B5%8C%E5%85%A5" target="_blank" rel="noreferrer">参考 Dify 的 iframe 嵌入说明</a></p>
           </details>
           <div style={styles.detailGrid}>
             <div>HOME：{String(detail.session_scope.home_volume || '-')} / {String(detail.session_scope.preserved)}</div>

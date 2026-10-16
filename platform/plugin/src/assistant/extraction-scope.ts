@@ -7,13 +7,18 @@ export function isDecisionExtraction(root: string, agent: any, state: any) {
 export function isComputeVariantResearch(root: string, agent: any, state: any) {
   return belongsToTask(root, agent, state, 'compute-variant-research')
 }
+export function isFeatureOrganization(root: string, agent: any, state: any) {
+  return belongsToTask(root, agent, state, 'agent-maintenance') && state?.task_context?.workflow === 'features'
+}
 function belongsToTask(root: string, agent: any, state: any, skill: string) {
   return workspaceOwnsCwd(root, agent?.session?.header?.cwd) && (!state?.workspace_id || state.workspace_id === workspaceIdentity(root).id) && state?.task_context?.skill === skill
 }
 export const createExtractionScope = () => createTaskScope('decision-sample-extraction', '决策样本任务')
 export const createComputeVariantScope = () => createTaskScope('compute-variant-research', '算力变体研究')
 
-/** 两个专用任务复用 Runtime 工具作用域；动作与写入确认仍由各自平台接口负责。 */
+export const createFeatureScope = () => createTaskScope('agent-maintenance', '特性整理任务')
+
+/** 专用任务复用 Runtime 工具作用域；动作与写入确认仍由各自平台接口负责。 */
 function createTaskScope(skill: string, label: string) {
   const scopes = new Map<any, (() => void)[]>()
   return {

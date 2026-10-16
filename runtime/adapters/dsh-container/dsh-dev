@@ -700,7 +700,14 @@ def write_instance(name: str, *, mode: str, contract: dict, port: int,
         Path(home_directory).mkdir(exist_ok=True)
         # Docker 会在挂载 profiles/node_modules 子卷前创建缺失的父目录，
         # 属主为 root；提前创建使首次 HOME 初始化仍能以容器用户写入。
-        (Path(home_directory) / "profiles").mkdir(exist_ok=True)
+        try:
+            for relative in ("profiles", "profiles/web"):
+                directory = Path(home_directory) / relative
+                if directory.is_symlink() or directory.exists() and not directory.is_dir():
+                    fail(f"实例 HOME 的受控目录不是普通目录，保留原路径：{directory}")
+                directory.mkdir(exist_ok=True)
+        except PermissionError:
+            fail(f"实例 HOME 无法写入 profiles/web：{home_directory}；请保留原数据并修复目录属主或写权限后重试。")
     template = (ADAPTER / f"{mode}.compose.yaml").read_text(encoding="utf-8")
     rendered = render_compose(
         template,

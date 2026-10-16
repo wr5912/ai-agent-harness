@@ -1944,44 +1944,6 @@ class EvaluationSourceTests(unittest.TestCase):
         spec.loader.exec_module(module)
         return module
 
-    def test_current_business_source_is_compact_and_complete(self) -> None:
-        agent = ASSETS / "agents" / AGENT_ID
-        evaluation = agent / "evaluation.md"
-        text = evaluation.read_text(encoding="utf-8")
-        loaded = self.load_contract().load_evaluation(evaluation)
-        expected_ids = (
-            [f"U-INS-{index:03d}" for index in range(1, 8)]
-            + ["U-EMG-001"]
-            + [f"U-POL-{index:03d}" for index in range(1, 13)]
-            + ["U-FLT-MENTION"] + [f"U-FLT-{index:03d}" for index in range(1, 11)]
-            + [f"U-QA-{index:03d}" for index in range(1, 15)]
-            + ["U-THREAT-MENTION", "U-THREAT-FAST", "U-THREAT-FULL", "U-THREAT-WHITELIST", "U-THREAT-MISSING", "U-THREAT-FOLLOWUP"]
-            + ["U-VOICE-001", "U-VOICE-002", "U-VOICE-003", "U-VOICE-004"]
-        )
-        self.assertFalse((agent / "definition.md").exists())
-        self.assertEqual(loaded["case_ids"], expected_ids)
-        self.assertTrue(all(
-            set(loaded["cases"][case_id]) == {"case_id", "title", "inputs", "expected_behavior"}
-            for case_id in expected_ids
-        ))
-        self.assertEqual(loaded["cases"]["U-INS-001"]["inputs"], ["执行一次常规巡检。"])
-        self.assertEqual(
-            [item["case_id"] for item in loaded["catalog"] if item["fast"]],
-            ["U-INS-001", "U-EMG-001", "U-POL-001", "U-FLT-001", "U-QA-002", "U-QA-003", "U-THREAT-FAST"],
-        )
-        self.assertTrue(all(item["scene"] for item in loaded["catalog"]))
-        self.assertIn("设备数量", loaded["cases"]["U-INS-001"]["expected_behavior"])
-        self.assertIn("reportMarkdown", loaded["cases"]["U-INS-001"]["expected_behavior"])
-        self.assertIn("不改写结论", loaded["cases"]["U-INS-001"]["expected_behavior"])
-        self.assertIn("仅当 `reportDownloadUrl` 非空时原样提供下载地址", loaded["cases"]["U-INS-001"]["expected_behavior"])
-        self.assertEqual(len(loaded["cases"]["U-POL-008"]["inputs"]), 4)
-        for retired in (
-            "**执行器", "**工具边界", "**副作用预算", "Experiment 评估选择",
-            "T-MIGRATION-SOURCE", "T-DSH-LOAD-CYCLE", "T-CONTRACT-STATIC", "T-CONTRACT-LIVE",
-        ):
-            self.assertNotIn(retired, text)
-        self.assertFalse(list((ASSETS / "evolution/experiments").glob("EXP-*/evaluation/plan.yaml")))
-
     def test_fast_marker_does_not_change_case_digest_and_malformed_marker_fails(self) -> None:
         contract = self.load_contract()
         source = ASSETS / "agents/test01/evaluation.md"

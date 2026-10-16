@@ -17,10 +17,10 @@ const [{ Context }, { SystemPrompt }, { ToolRuntime }, { createScope }] = await 
 ])
 const built = mkdtempSync(join(tmpdir(), 'extraction-scope-build-'))
 await build({ entryPoints: [new URL('../src/assistant/extraction-scope.ts', import.meta.url).pathname], outfile: join(built, 'scope.mjs'), bundle: true, platform: 'node', format: 'esm' })
-const { createExtractionScope, createComputeVariantScope, isDecisionExtraction, isComputeVariantResearch } = await import(pathToFileURL(join(built, 'scope.mjs')).href)
+const { createExtractionScope, createComputeVariantScope, isDecisionExtraction, isComputeVariantResearch, createFeatureScope, isFeatureOrganization } = await import(pathToFileURL(join(built, 'scope.mjs')).href)
 test.after(() => rm(built, { recursive: true, force: true }))
 
-function fixture(t, { parentPtc = false, computeResearch = false } = {}) {
+function fixture(t, { parentPtc = false, computeResearch = false, featureOrganization = false } = {}) {
   const ctx = new Context()
   new SystemPrompt(ctx, {})
   new ToolRuntime(ctx, { mode: 'native' })
@@ -37,7 +37,7 @@ function fixture(t, { parentPtc = false, computeResearch = false } = {}) {
   const agent = { id: 'extraction-agent', session: {} }
   const agentScope = createScope(ctx, agent, parent ? { parent: parentKey } : undefined)
   agent.ctx = agentScope.ctx
-  const scope = computeResearch ? createComputeVariantScope() : createExtractionScope()
+  const scope = featureOrganization ? createFeatureScope() : computeResearch ? createComputeVariantScope() : createExtractionScope()
   const other = { id: 'other-agent', session: {} }
   const otherScope = createScope(ctx, other)
   other.ctx = otherScope.ctx
@@ -145,4 +145,21 @@ test('算力研究真实原生作用域阻止 shell、读写及其他技能，�
   assert.deepEqual(f.calls.map(call => call.name), ['skill', 'platform_agents'])
   assert.ok((await f.schemas(f.other)).includes('bash'))
   assert.equal((await f.execute('bash', {}, f.other)).isError, false)
+})
+
+
+test('特性整理工具范围精确绑定 workflow，普通维护会话保持原能力', async t => {
+  const f = fixture(t, { featureOrganization: true })
+  f.agent.session.header = { cwd: '/project' }
+  const state = { task_context: { skill: 'agent-maintenance', workflow: 'features' } }
+  assert.equal(isFeatureOrganization('/project', f.agent, state), true)
+  assert.equal(isFeatureOrganization('/elsewhere', f.agent, state), false)
+  assert.equal(isFeatureOrganization('/project', f.agent, { task_context: { skill: 'agent-maintenance', workflow: 'research' } }), false)
+  f.scope.apply(f.agent)
+  assert.deepEqual(await f.schemas(f.agent), ['platform_agents', 'skill'])
+  for (const name of ['bash', 'read', 'write']) assert.equal((await f.execute(name, { command: '不得执行的测试命令' })).isError, true)
+  assert.equal((await f.execute('skill', { name: 'agent-maintenance' })).isError, false)
+  assert.equal((await f.execute('platform_agents', { action: 'features/read-source' })).isError, false)
+  assert.equal((await f.execute('skill', { name: 'compute-variant-research' })).isError, true)
+  assert.ok((await f.schemas(f.other)).includes('bash'))
 })

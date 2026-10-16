@@ -21,7 +21,7 @@ import {
 import { dirname, extname, join, relative, resolve, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { ConnectionRpcHandler, ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
-import { RunFileError, readRunReport, listRunFiles, previewRunFile } from './run-files.ts'
+import { RunFileError, readRunReport, listRunFiles, previewRunFile, redactRunText } from './run-files.ts'
 import { readRunTrace } from '../evaluation/trace.ts'
 import { createDecisionDatasetHandler } from '../evaluation/datasets.ts'
 import { caseSourceReferences, createCaseManagementHandler, type RunCaseSource } from '../evaluation/cases.ts'
@@ -393,9 +393,51 @@ function featureList(value: unknown): AgentFeature[] {
   })
 }
 
-function featureView(root: string, change: JsonMap) {
+// 历史 change.yaml 使用 Experiment 相对引用；新保存统一为数据根相对引用。
+function featureReference(experimentId: string, ref: string) {
+  if (!ref || ref.includes('://') || ref.includes('\\') || ref.startsWith('/') || ref.split(/[\/#]/).includes('..')) return null
+  if (/^(candidate\/|evaluation\/|runs\/|hypothesis\.md(?:#|$)|decision\.md(?:#|$)|change\.yaml(?:#|$))/.test(ref)) return `evolution/experiments/${experimentId}/${ref}`
+  return /^(evolution\/experiments\/|agents\/)/.test(ref) ? ref : null
+}
+
+function featureView(root: string, experimentId: string, change: JsonMap) {
   const values = Array.isArray(change.features) ? featureList(change.features) : []
-  return values.map(feature => ({ ...feature, evidence: feature.evidence_refs.map(ref => ({ ref, present: !ref.includes('://') && !ref.startsWith('/') && !ref.split('/').includes('..') && existsSync(join(root, ref.split('#')[0]!)) })), verification: feature.evidence_refs.length ? '有证据引用，需按范围复核' : '尚未验证' }))
+  return values.map(feature => ({ ...feature, evidence: feature.evidence_refs.map(ref => {
+    const path = featureReference(experimentId, ref)?.split('#')[0] ?? null
+    let present = false
+    if (path) try { const file = repoPath(root, path); assertNoSymlinkPath(root, file); present = existsSync(file) && lstatSync(file).isFile() } catch { /* 无效历史引用显示缺失，不猜测其他目录。 */ }
+    return { ref, path, present }
+  }), verification: feature.evidence_refs.length ? '有证据引用，需按范围复核' : '尚未验证' }))
+}
+
+function featureSourceOwner(root: string, agentId: string, path: string) {
+  const match = /^evolution\/experiments\/([^/]+)\/(.+)$/.exec(path)
+  if (!match || !(match[2]!.startsWith('evaluation/') || ['hypothesis.md', 'decision.md'].includes(match[2]!)) ||
+      path.split('/').some(part => EXCLUDED_ASSETS.has(part) || part.startsWith('.') || ['credentials', 'secrets'].includes(part.toLowerCase()) || part.endsWith('.llm-api-key'))) return null
+  try { return experimentInfo(root, match[1]!).agent_id === agentId ? match[1]! : null } catch { return null }
+}
+
+function readFeatureSource(root: string, body: JsonMap) {
+  const id = experimentIdField(body)
+  const exp = experimentInfo(root, id)
+  const reference = optionalString(body, 'ref')
+  if (!reference) return ok({ experiment_id: id, files: [...new Set([
+    `evolution/experiments/${id}/hypothesis.md`, `evolution/experiments/${id}/evaluation/observations.md`, `evolution/experiments/${id}/decision.md`,
+    ...featureView(root, id, exp.change).flatMap(feature => feature.evidence.filter(item => item.present && item.path).map(item => item.path!)),
+  ])].filter(path => featureSourceOwner(root, exp.agent_id, path) && existsSync(repoPath(root, path))) })
+  const ref = featureReference(id, reference)
+  const path = ref?.split('#')[0]
+  if (!path) throw new RpcError('path_rejected', '特性证据必须使用 Experiment 或数据根相对路径')
+  const owner = featureSourceOwner(root, exp.agent_id, path)
+  if (!owner) throw new RpcError('path_rejected', '仅可读取同一 Agent 的研究说明、观察和 Decision；Candidate 和 Run 使用各自专用读取工具')
+  const file = repoPath(root, path)
+  assertNoSymlinkPath(root, file)
+  if (!existsSync(file)) throw new RpcError('asset_read_failed', '特性来源文件不存在', { path })
+  const stat = lstatSync(file)
+  if (!stat.isFile()) throw new RpcError('path_rejected', '特性来源必须是文件')
+  const content = readAssetText(file)
+  return ok({ experiment_id: id, source_experiment_id: owner, ref, path, size: stat.size, kind: content === null ? 'unpreviewable' : 'text',
+    ...(content === null ? {} : { content: redactRunText(content), sha256: sha256(readFileSync(file)) }) })
 }
 
 function candidateDigest(root: string, experimentId: string) {
@@ -454,9 +496,9 @@ function creationView(root: string, id: string, change: JsonMap) {
 function featurePreview(root: string, body: JsonMap, previews: Map<string, VersionPreview>) {
   const id = experimentIdField(body)
   experimentInfo(root, id)
-  const features = featureList(body.features)
+  const features = featureList(body.features).map(feature => ({ ...feature, evidence_refs: feature.evidence_refs.map(ref => featureReference(id, ref) ?? ref) }))
   const previewId = randomUUID()
-  const value = { preview_id: previewId, experiment_id: id, features, before: featureView(root, experimentInfo(root, id).change), requires_confirmation: true, assistant_session_id: optionalString(body, 'assistant_session_id') ?? null }
+  const value = { preview_id: previewId, experiment_id: id, features, before: featureView(root, id, experimentInfo(root, id).change), requires_confirmation: true, assistant_session_id: optionalString(body, 'assistant_session_id') ?? null }
   previews.set(previewId, { kind: 'features', snapshot: featureSnapshot(root, id), payload: { experiment_id: id }, value })
   return ok(value)
 }
@@ -484,7 +526,7 @@ function featureApply(root: string, body: JsonMap, previews: Map<string, Version
   const change = readYamlMap(root, changePath(root, experimentId))
   writeYamlMap(changePath(root, experimentId), { ...change, features: preview.value.features })
   previews.delete(id)
-  return ok({ experiment_id: experimentId, features: featureView(root, { ...change, features: preview.value.features }) })
+  return ok({ experiment_id: experimentId, features: featureView(root, experimentId, { ...change, features: preview.value.features }) })
 }
 
 function gitCandidateDigest(root: string, id: string, ref: string): string | null {
@@ -598,7 +640,7 @@ function fusionInventory(root: string, agentId: string, parentId: string, parent
     const decision = change.outcome ?? change.decision
     const excluded = endVerified || decision === 'reject'
     const uncertain = !excluded && (end || decision !== 'adopt' || !currentFixed.get(version.id))
-    return { experiment_id: version.id, baseline_ref: version.baseline_ref, status: excluded ? 'excluded' : uncertain ? 'needs_review' : 'recommended', reason: endVerified ? '已固定父版且用户已确认效果等效及资源差异的 end 版本' : decision === 'reject' ? '研究 Decision 已否决' : end ? 'end 声明缺少完整等效或资源差异确认，需判断' : version.id === parentId ? '当前版本与所选固定父版不同或尚未完成验证，需确认其变化' : uncertain ? '仍在探索、工作树已变化或继承关系未确认，需判断' : '主父版未覆盖的并行能力', features: featureView(root, change) }
+    return { experiment_id: version.id, baseline_ref: version.baseline_ref, status: excluded ? 'excluded' : uncertain ? 'needs_review' : 'recommended', reason: endVerified ? '已固定父版且用户已确认效果等效及资源差异的 end 版本' : decision === 'reject' ? '研究 Decision 已否决' : end ? 'end 声明缺少完整等效或资源差异确认，需判断' : version.id === parentId ? '当前版本与所选固定父版不同或尚未完成验证，需确认其变化' : uncertain ? '仍在探索、工作树已变化或继承关系未确认，需判断' : '主父版未覆盖的并行能力', features: featureView(root, version.id, change) }
   })
   const candidates = rows.filter(row => row.status !== 'excluded')
   const frontier = candidates.filter(row => !candidates.some(other => other.experiment_id !== row.experiment_id && currentClosures.get(other.experiment_id)?.has(row.experiment_id) && !currentClosures.get(row.experiment_id)?.has(other.experiment_id)))
@@ -675,7 +717,7 @@ async function fusionConfirm(root: string, body: JsonMap, previews: Map<string, 
 function fusionStatus(root: string, body: JsonMap) {
   const id = experimentIdField(body)
   const exp = experimentInfo(root, id)
-  return ok({ experiment_id: id, candidate_sha256: candidateDigest(root, id), creation: creationView(root, id, exp.change), features: featureView(root, exp.change) })
+  return ok({ experiment_id: id, candidate_sha256: candidateDigest(root, id), creation: creationView(root, id, exp.change), features: featureView(root, exp.id, exp.change) })
 }
 
 async function fusionVerify(root: string, body: JsonMap, signal?: AbortSignal) {
@@ -775,6 +817,14 @@ async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
   const [evaluation, contract] = await Promise.all([loadEvaluation(root, agentId, signal), sourceContract(root, experimentId, signal)])
   const decision = readText(repoPath(root, `evolution/experiments/${experimentId}/decision.md`))
   const assets = assetTree(root, experimentId)
+  const commit = gitHead(root)
+  let derivation: JsonMap = { parent_experiment_id: experimentId, parent_ref: null, note: '当前提交尚不能恢复所选版本，请先固定完整来源；baseline_ref 是该版本的祖先，不能代替所选版本。' }
+  if (commit) try {
+    validateGitParent(root, agentId, `git:${commit}`, experimentId)
+    const fixedDigest = gitCandidateDigest(root, experimentId, `git:${commit}`)
+    if (fixedDigest && fixedDigest === candidateDigest(root, experimentId)) derivation = { parent_experiment_id: experimentId, parent_ref: `git:${commit}`, note: '所选 Candidate 与固定提交一致，派生前用 assets/read-fixed 核对；baseline_ref/experiment.change.parent_ref 指向该版本的祖先。' }
+    else if (fixedDigest) derivation.note = '所选 Candidate 有未提交改动，请先固定当前 Candidate；不能用 HEAD 的旧资产或祖先提交冒充当前版本。'
+  } catch { /* 新建但尚未提交的版本不能冒用其祖先提交派生。 */ }
   return ok({
     agent: { id: agentId, name: agentDisplayName(root, experimentId) ?? agentId, manifest, path: `agents/${agentId}` },
     experiment: exp,
@@ -789,9 +839,10 @@ async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
     editable_files: editableFiles(assets),
     evaluation: { path: evaluation.path, sha256: evaluation.sha256, cases: evaluation.cases },
     decision: { path: `evolution/experiments/${experimentId}/decision.md`, sha256: sha256(decision), content: decision },
-    features: featureView(root, exp.change),
+    features: featureView(root, exp.id, exp.change),
     creation: creationView(root, experimentId, exp.change),
-    repo_commit: gitHead(root),
+    repo_commit: commit,
+    derivation,
   })
 }
 
@@ -1386,6 +1437,7 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void): C
         case 'new': return await createAgent(root, body, signal)
         case 'assets/diff': return await readAssetDiff(root, body, signal)
         case 'assets/read-fixed': return await readFixedAsset(root, body, signal)
+        case 'features/read-source': return readFeatureSource(root, body)
         case 'features/preview': return featurePreview(root, body, previews)
         case 'features/proposal': return latestProposal(body, previews, 'features')
         case 'features/apply': return featureApply(root, body, previews)

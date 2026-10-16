@@ -3,6 +3,7 @@ import test from 'node:test'
 import { Context } from '@deepseek-ai/cordis'
 import { Session, SESSION_FORMAT_VERSION, appendPluginRecord } from '@deepseek-ai/dsh-session'
 import { SessionProjectionRegistry } from '@deepseek-ai/dsh-session-projection'
+import { SystemPrompt } from '@deepseek-ai/dsh-system-prompt'
 import { prepareConversation } from '../src/conversation.ts'
 import { createAssistant } from '../src/assistant/index.ts'
 
@@ -47,7 +48,7 @@ test('助手写操作等待用户确认，原生记录恢复状态且失败回�
   }, {
     controller: { resolveAgent: async () => ({ agent: { session } }) },
     projections,
-    systemPrompt: { section: () => () => {} },
+    systemPrompt: new SystemPrompt(root, {}),
     record: (target, type, value) => appendPluginRecord(target, type, value),
     notify() {},
   })
@@ -55,7 +56,8 @@ test('助手写操作等待用户确认，原生记录恢复状态且失败回�
   assistant.registerTools({ register: tool => tools.set(tool.name, tool) })
   const controller = new AbortController()
   let finished = false
-  const execution = tools.get('platform_mcp').execute({ action: 'saveCompositionDraft', input: { draft: {} } }, { agent: { id: session.id }, signal: controller.signal })
+  const draft = { toolName: 'basic_read', title: '基础查询', description: '仅基础模拟数据', connectionId: 'mock-basic' }
+  const execution = tools.get('platform_mcp').execute({ action: 'saveCompositionDraft', input: { draft } }, { agent: { id: session.id }, signal: controller.signal })
     .then(value => { finished = true; return value })
   const status = async () => (await assistant.handler('status', { session_id: session.id }, controller.signal)).value
   let state
@@ -73,5 +75,5 @@ test('助手写操作等待用户确认，原生记录恢复状态且失败回�
   assert.equal(response.value.continuation, 'resumed')
   assert.equal((await execution).state, 'failed')
   assert.equal((await status()).proposals[0].state, 'failed')
-  assert.deepEqual(calls, [{ endpoint: 'mcp/saveCompositionDraft', input: { draft: {}, confirmed: true } }])
+  assert.deepEqual(calls, [{ endpoint: 'mcp/saveCompositionDraft', input: { draft, confirmed: true } }])
 })

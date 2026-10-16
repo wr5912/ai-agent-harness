@@ -178,6 +178,23 @@ def extension_output(extension, path_only=False):
 RESEARCH_SKILLS = ("harness-experiment-fusion", "harness-guided-workflow", "harness-evolution", "research-eval", "legacy-asset-intake")
 
 
+def link_program_asset(target, source, relative):
+    """重建已知程序生成链接；保留普通文件、目录与不明来源链接。"""
+    if target.is_symlink():
+        previous = target.resolve()
+        if previous == source:
+            return
+        parts = Path(relative).parts
+        old_program = previous.parents[len(parts) - 1] if len(previous.parts) > len(parts) else None
+        if (tuple(previous.parts[-len(parts):]) != parts or old_program is None
+                or old_program.exists() and not (old_program / "platform/dsh-platform").is_file()):
+            raise PlatformError(f"生成链接来源不明，保留原路径：{target}")
+        target.unlink()
+    elif target.exists():
+        raise PlatformError(f"生成链接位置已被文件或目录占用，保留原路径：{target}")
+    target.symlink_to(source, target_is_directory=True)
+
+
 def prepare_research_skills():
     directory = asset_root() / ".local/build-cache/management-skills"
     directory.mkdir(parents=True, exist_ok=True)
@@ -186,11 +203,7 @@ def prepare_research_skills():
         if not (source / "SKILL.md").is_file():
             raise PlatformError(f"缺少平台复用的研究 Skill：{source}")
         target = directory / name
-        if target.is_symlink() and target.resolve() == source:
-            continue
-        if target.exists() or target.is_symlink():
-            raise PlatformError(f"生成 Skill 位置已占用：{target}")
-        target.symlink_to(source, target_is_directory=True)
+        link_program_asset(target, source, Path(".agents/skills") / name)
 
 
 def check_artifacts():
@@ -283,11 +296,7 @@ def normalized_mcp_patch(profile):
 def link_bundle(profile):
     bundle = profile / "node_modules" / "@ai-agent-harness" / "harness-platform"
     bundle.parent.mkdir(parents=True, exist_ok=True)
-    if bundle.exists() or bundle.is_symlink():
-        if not bundle.is_symlink() or bundle.resolve() != PLUGIN:
-            raise PlatformError(f"平台 bundle 路径已被其他目录占用：{bundle}")
-    else:
-        bundle.symlink_to(PLUGIN, target_is_directory=True)
+    link_program_asset(bundle, PLUGIN, Path("platform/plugin"))
 
 
 def host_value(value):
@@ -340,14 +349,16 @@ def prepare(home):
     check_artifacts()
     profile = home / "profiles" / PROFILE_NAME
     profile.mkdir(parents=True, exist_ok=True)
-    link_bundle(profile)
-    for name, content in rendered.items():
-        (profile / name).write_text(content, encoding="utf-8")
     # 原生用户 Patch 保存 DSH 设置；仓库组合通过独立 overlay 装载。
     user_patch = profile / "cordis.patch.yml"
     if not user_patch.exists():
         user_patch.write_text("[]\n", encoding="utf-8")
+    # 在重建 bundle 链接前核对旧 MCP 身份，旧 HOME 必须指向恢复出的同一程序。
+    # 换链后再核对会丢失该来源关系，导致合法的程序与数据同时迁移被拒绝。
     normalized = normalized_mcp_patch(profile)
+    link_bundle(profile)
+    for name, content in rendered.items():
+        (profile / name).write_text(content, encoding="utf-8")
     if normalized != user_patch.read_bytes().decode("utf-8"):
         temporary = user_patch.with_name(f".cordis.patch.{os.getpid()}.tmp")
         with temporary.open("x", encoding="utf-8") as handle:

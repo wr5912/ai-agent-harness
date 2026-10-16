@@ -828,6 +828,7 @@ class DownCommandTest(unittest.TestCase):
         manifest = json.loads(path.read_text())
         manifest.pop("home_directory", None)
         path.write_text(json.dumps(manifest))
+        (path.parent / "dsh-home/profiles/web").rmdir()
         (path.parent / "dsh-home/profiles").rmdir()
         (path.parent / "dsh-home").rmdir()
 
@@ -929,6 +930,7 @@ class DeleteCommandTest(unittest.TestCase):
         manifest = json.loads(path.read_text())
         manifest.pop("home_directory", None)
         path.write_text(json.dumps(manifest))
+        (path.parent / "dsh-home/profiles/web").rmdir()
         (path.parent / "dsh-home/profiles").rmdir()
         (path.parent / "dsh-home").rmdir()
 
@@ -1904,6 +1906,29 @@ class BindHomeMigrationTests(unittest.TestCase):
             # 子卷挂载之前父目录必须已由调用用户创建，避免 Docker 以 root 创建它。
             self.assertTrue((directory / "profiles").is_dir())
             self.assertEqual((directory / "profiles").stat().st_uid, directory.stat().st_uid)
+            self.assertEqual((directory / "profiles/web").stat().st_uid, directory.stat().st_uid)
+            original_mkdir = Path.mkdir
+            def inaccessible_profile(path, *args, **kwargs):
+                if path == directory / "profiles/web":
+                    raise PermissionError("旧失败 HOME 的目录不可写")
+                return original_mkdir(path, *args, **kwargs)
+            errors = io.StringIO()
+            with mock.patch.object(Path, "mkdir", inaccessible_profile), contextlib.redirect_stderr(errors):
+                with self.assertRaises(SystemExit):
+                    dev.write_instance("probe", mode="verification", contract=contract, port=3081)
+            self.assertIn("保留原数据并修复目录属主或写权限", errors.getvalue())
+            self.assertEqual(json.loads((target / "instance.json").read_text()), manifest)
+            (directory / "profiles/web").rmdir()
+            (directory / "profiles").rmdir()
+            external = Path(temporary) / "external"
+            external.mkdir()
+            (directory / "profiles").symlink_to(external, target_is_directory=True)
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                dev.write_instance("probe", mode="verification", contract=contract, port=3081)
+            self.assertFalse((external / "web").exists())
+            self.assertTrue((directory / "profiles").is_symlink())
+            (directory / "profiles").unlink()
+            dev.write_instance("probe", mode="verification", contract=contract, port=3081)
             session = directory / "session-fixture.json"
             session.write_text('{"fixture":true}')
             compose = (target / "compose.yaml").read_text()

@@ -225,6 +225,74 @@ if sys.argv[1:] == ["run", "build"]:
         self.assertIn("不属于已知平台 bundle", result.stderr)
         self.assertEqual(patch.read_text(), source)
 
+    def test_prepare_restores_data_and_program_elsewhere_preserving_native_settings(self):
+        self.prepare()
+        old_bundle = self.profile / "node_modules/@ai-agent-harness/harness-platform"
+        previous = (old_bundle / "lib/mcp-manager.js").as_uri().replace("%40", "@")
+        original = ("# 保留全部用户配置\n- id: mcp-session-manager\n  name: " + json.dumps(previous)
+                    + "\n  config:\n    servers: [{id: retained, apiKey: fixture-private-value}]\n"
+                    "    groups: [{id: retained-group}]\n- id: agent-default-model\n  config: {reasoningEffort: max}\n")
+        (self.profile / "cordis.patch.yml").write_text(original)
+        session = self.home / "sessions/retained-session"
+        session.parent.mkdir(exist_ok=True)
+        session.write_text("unchanged history")
+        replacement = self.root / "replacement program"
+        recovered = self.root / "recovered data"
+        shutil.copytree(self.repo, replacement, symlinks=True)
+        shutil.copytree(self.assets, recovered, symlinks=True)
+        self.launcher = replacement / "platform/dsh-platform"
+        self.env["HARNESS_ASSET_ROOT"] = str(recovered)
+        recovered_profile = recovered / ".local/platform-home/profiles/harness-platform"
+        expected = (recovered_profile / "node_modules/@ai-agent-harness/harness-platform/lib/mcp-manager.js").as_uri().replace("%40", "@")
+        self.prepare()
+        self.assertEqual((recovered_profile / "cordis.patch.yml").read_text(), original.replace(json.dumps(previous), json.dumps(expected)))
+        self.assertEqual((recovered_profile / "node_modules/@ai-agent-harness/harness-platform").resolve(), replacement / "platform/plugin")
+        for name in ("harness-evolution", "research-eval"):
+            self.assertEqual((recovered / ".local/build-cache/management-skills" / name).resolve(), replacement / ".agents/skills" / name)
+        self.assertEqual((recovered / ".local/platform-home/sessions/retained-session").read_text(), "unchanged history")
+        self.assertEqual((self.profile / "cordis.patch.yml").read_text(), original)
+        self.assertEqual(old_bundle.resolve(), self.plugin)
+        self.prepare()
+        result = self.run_cli("start", "--dry-run", "--port", str(self.free_port()))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["repository"], str(replacement))
+
+    def test_generated_links_restore_after_old_program_removed_but_preserve_unknown_objects(self):
+        namespace = runpy.run_path(str(self.launcher))
+        target = self.root / "generated"
+        source = self.plugin
+        missing = self.root / "removed-program/platform/plugin"
+        target.symlink_to(missing, target_is_directory=True)
+        namespace["link_program_asset"](target, source, Path("platform/plugin"))
+        self.assertEqual(target.resolve(), source)
+        target.unlink()
+        unknown = self.root / "unrelated"
+        unknown.mkdir()
+        target.symlink_to(unknown, target_is_directory=True)
+        with self.assertRaises(namespace["PlatformError"]):
+            namespace["link_program_asset"](target, source, Path("platform/plugin"))
+        self.assertEqual(target.resolve(), unknown)
+        target.unlink()
+        target.mkdir()
+        (target / "keep").write_text("retain")
+        with self.assertRaises(namespace["PlatformError"]):
+            namespace["link_program_asset"](target, source, Path("platform/plugin"))
+        self.assertEqual((target / "keep").read_text(), "retain")
+
+    def test_existing_unrelated_mcp_identity_is_rejected_before_bundle_relink(self):
+        self.prepare()
+        unrelated = self.root / "unrelated home/profiles/harness-platform/node_modules/@ai-agent-harness/harness-platform/lib"
+        unrelated.mkdir(parents=True)
+        (unrelated / "mcp-manager.js").write_text("unrelated")
+        source = "- id: mcp-session-manager\n  name: " + json.dumps((unrelated / "mcp-manager.js").as_uri().replace("%40", "@")) + "\n  config: {servers: []}\n"
+        patch = self.profile / "cordis.patch.yml"
+        patch.write_text(source)
+        result = self.run_cli("prepare")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("另一份程序", result.stderr)
+        self.assertEqual(patch.read_text(), source)
+        self.assertEqual((self.profile / "node_modules/@ai-agent-harness/harness-platform").resolve(), self.plugin)
+
     def test_native_mcp_multiline_yaml_name_preserves_current_patch_bytes(self):
         self.prepare()
         expected = (self.profile / "node_modules/@ai-agent-harness/harness-platform/lib/mcp-manager.js").as_uri().replace("%40", "@")

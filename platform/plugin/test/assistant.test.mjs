@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import assert from 'node:assert/strict'
@@ -49,8 +49,9 @@ function fixture(t, responder, root = '/project') {
     }
     assert.fail('未出现待确认提案')
   }
-  const assemble = async id => (await ctx.systemPrompt.assemble({ agent: { session: sessions.get(id).session } })).sections.find(item => item.name === 'harness-platform/assistant')?.text ?? ''
-  return { ctx, sessions, services, tools, calls, prompts, rpc, status, execute, proposal, assemble, addSession,
+  const assembly = id => ctx.systemPrompt.assemble({ agent: { session: sessions.get(id).session } })
+  const assemble = async id => (await assembly(id)).sections.filter(item => ['harness-platform/assistant', 'harness-platform/assistant-output'].includes(item.name)).map(item => item.text).filter(Boolean).join('\n')
+  return { ctx, sessions, services, tools, calls, prompts, rpc, status, execute, proposal, assemble, assembly, addSession,
     async reload() { await assistant.dispose(); assistant = create() } }
 }
 
@@ -80,6 +81,82 @@ test('真实 Session 投影隔离上下文、冷恢复固定任务，用户 prom
   assert.equal((await f.rpc('status', { session_id: 'foreign' })).ok, false)
 })
 
+test('各类平台任务只装载一份共用表达正文，不写入用户消息或会话事实', async t => {
+  const principles = readFileSync(new URL('../../prompts/user-facing-output.md', import.meta.url), 'utf8').trim()
+  assert.ok(principles, '共用表达来源必须有正文')
+  const f = fixture(t)
+  const suffixOrder = f.services.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_SUFFIX')
+  const before = f.services.systemPrompt.section({ name: 'test/before-persona-suffix', order: suffixOrder - 0.5, text: '部署角色收尾之前' })
+  const after = f.services.systemPrompt.section({ name: 'test/after-persona-suffix', order: suffixOrder + 0.5, text: '部署角色收尾之后' })
+  t.after(() => { before(); after() })
+  const contexts = [
+    { page: 'home' },
+    { page: 'agents', skill: 'agent-maintenance', workflow: 'features', experiment_id: 'EXP-basic-001' },
+    { page: 'agents', skill: 'agent-maintenance', workflow: 'research', experiment_id: 'EXP-basic-001' },
+    { page: 'agents', skill: 'compute-variant-research', workflow: 'compute-variants', experiment_id: 'EXP-basic-001' },
+    { page: 'mcp', skill: 'mcp-composition' },
+    { page: 'evaluation', skill: 'decision-sample-extraction', run_id: 'run-fixed' },
+    { page: 'instances' },
+  ]
+  for (const context of contexts) {
+    const task = `请处理 ${context.workflow ?? context.page}`
+    const id = (await f.rpc('session', { task, context })).value.session_id
+    const assembled = await f.assemble(id)
+    assert.equal(assembled.split(principles).length - 1, 1, `${context.workflow ?? context.page} 应装载唯一正文`)
+    const { sections } = await f.assembly(id)
+    const names = sections.map(item => item.name)
+    const outputIndex = names.indexOf('harness-platform/assistant-output')
+    assert.equal(sections[outputIndex]?.text, principles)
+    assert.ok(names.indexOf('harness-platform/assistant') < names.indexOf('test/before-persona-suffix'))
+    assert.ok(names.indexOf('test/before-persona-suffix') < outputIndex && outputIndex < names.indexOf('test/after-persona-suffix'), '表达正文使用 Runtime 官方部署角色收尾位置')
+    assert.equal(sections.map(item => item.text).join('\n').split(principles).length - 1, 1, '整组系统提示不得重复装载原则')
+    assert.deepEqual(f.prompts.at(-1).content, [{ type: 'text', text: task }])
+    assert.ok(!JSON.stringify(f.sessions.get(id).events).includes(JSON.stringify(principles).slice(1, -1)), '运行记录不复制共用可编辑原则')
+  }
+  assert.equal(f.calls.length, 0, '装载表达原则不发起业务操作')
+})
+
+test('原生 Session 事件冷恢复后仍装载表达正文，普通会话与其他工作区保持隔离', async t => {
+  const principles = readFileSync(new URL('../../prompts/user-facing-output.md', import.meta.url), 'utf8').trim()
+  const original = fixture(t)
+  const id = (await original.rpc('session', { task: '抽取决策样本', context: { skill: 'decision-sample-extraction', run_id: 'run-fixed' } })).value.session_id
+  const events = [...original.sessions.get(id).events]
+  const restored = fixture(t)
+  restored.addSession(id, '/project', events)
+  assert.equal((await restored.assemble(id)).split(principles).length - 1, 1)
+  assert.equal((await restored.status(id)).task_context.run_id, 'run-fixed')
+  await restored.reload()
+  assert.equal((await restored.assemble(id)).split(principles).length - 1, 1, '重新注册不能重复注入')
+  restored.addSession('ordinary')
+  restored.addSession('foreign', '/another-project', events)
+  assert.equal(await restored.assemble('ordinary'), '')
+  assert.equal(await restored.assemble('foreign'), '')
+  assert.equal(restored.prompts.length, 0, '恢复和系统提示装载不得伪造用户消息')
+})
+
+test('表达原则从显式程序根读取，数据根的同名文件不能替代程序事实源', async t => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'assistant-output-source-'))
+  t.after(() => rmSync(sandbox, { recursive: true, force: true }))
+  const program = join(sandbox, 'program'), assets = join(sandbox, 'data')
+  const principles = '程序来源的独立测试正文。\n第二段保留完整内容。'
+  for (const root of [program, assets]) mkdirSync(join(root, 'platform/prompts'), { recursive: true })
+  writeFileSync(join(program, 'platform/prompts/user-facing-output.md'), principles)
+  writeFileSync(join(assets, 'platform/prompts/user-facing-output.md'), '数据目录中的同名文件不应生效')
+  const previous = process.env.HARNESS_PROGRAM_ROOT
+  process.env.HARNESS_PROGRAM_ROOT = program
+  try {
+    const f = fixture(t, undefined, assets)
+    const id = (await f.rpc('session', { context: { page: 'home' } })).value.session_id
+    assert.equal((await f.assemble(id)).split(principles).length - 1, 1)
+    assert.ok(!(await f.assemble(id)).includes('数据目录中的同名文件不应生效'))
+    await f.reload()
+    assert.equal((await f.assemble(id)).split(principles).length - 1, 1)
+  } finally {
+    if (previous === undefined) delete process.env.HARNESS_PROGRAM_ROOT
+    else process.env.HARNESS_PROGRAM_ROOT = previous
+  }
+})
+
 test('工具在确认前保持 pending，真实回执返回原调用，重复确认不重复写入或伪造消息', async t => {
   const f = fixture(t)
   const id = (await f.rpc('session', { task: '停止实例' })).value.session_id
@@ -95,6 +172,9 @@ test('工具在确认前保持 pending，真实回执返回原调用，重复确
   const receipt = await operation
   assert.equal(receipt.kind, 'platform-operation')
   assert.equal(receipt.state, 'completed')
+  assert.equal(receipt.preview, undefined, '已结算工具结果不得携带仍要求确认的旧预览')
+  assert.equal(receipt.input, undefined)
+  assert.ok((await f.status(id)).proposals[0].preview, '原始提案预览仍留在Session供界面核对')
   assert.equal(receipt.result.value.source, 'instances/run')
   await f.rpc('confirm', { session_id: id, proposal_id: proposed.id })
   assert.equal(f.calls.filter(call => call.endpoint === 'instances/run').length, 1)
@@ -426,15 +506,24 @@ test('普通派生、用例更新与业务样例创建可达，写操作仍须�
 })
 
 test('整理特性锁定任务版本，页面导航不改变预览目标', async t => {
-  const f = fixture(t, endpoint => endpoint === 'agents/features/preview' ? { ok: true, value: { preview_id: 'features-fixed' } } : undefined)
+  const f = fixture(t, endpoint => endpoint === 'agents/features/preview' ? { ok: true, value: { preview_id: 'features-fixed', requires_confirmation: true } } : undefined)
   const id = (await f.rpc('session', { task: '整理当前版本特性', context: { skill: 'agent-maintenance', workflow: 'features', experiment_id: 'EXP-basic-001' } })).value.session_id
   await f.rpc('context', { session_id: id, context: { experiment_id: 'EXP-basic-002' } })
   await assert.rejects(() => f.execute(id, 'agents', 'features/preview', { experiment_id: 'EXP-basic-002', features: [] }), /固定任务上下文/)
+  assert.equal((await f.execute(id, 'agents', 'features/read-source', { experiment_id: 'EXP-basic-001', ref: 'evaluation/observations.md' })).state, 'completed')
+  await f.execute(id, 'agents', 'features/read-source', {})
+  assert.equal(f.calls.at(-1).input.experiment_id, 'EXP-basic-001', '缺省目标也绑定原任务，不能漂移到最新编号')
+  await assert.rejects(() => f.execute(id, 'agents', 'edit/preview', { experiment_id: 'EXP-basic-001', edits: [] }), /仅允许读取业务来源/)
+  await assert.rejects(() => f.execute(id, 'instances', 'list'), /仅允许读取业务来源/)
   const operation = f.execute(id, 'agents', 'features/preview', { experiment_id: 'EXP-basic-001', features: [] })
   const proposed = await f.proposal(id)
   assert.equal(proposed.action, 'features/apply')
   await f.rpc('confirm', { session_id: id, proposal_id: proposed.id })
-  assert.equal((await operation).state, 'completed')
+  const settled = await operation
+  assert.equal(settled.state, 'completed')
+  assert.equal(settled.preview, undefined)
+  assert.equal(settled.action, 'features/apply')
+  assert.ok(settled.result.ok)
 })
 
 test('融合继续评测只使用实际目标source和确认Case，混淆字段与扩大范围重新确认', async t => {
@@ -520,4 +609,22 @@ test('助手不伪造变体人员复核，决策抽取会话也不能借新动�
   const extraction = (await f.rpc('session', { task: '抽取决策', context: { skill: 'decision-sample-extraction', run_id: 'run-fixed' } })).value.session_id
   for (const action of ['context', 'preview', 'compare', 'create']) await assert.rejects(() => f.execute(extraction, 'agents', `compute-variants/${action}`, { run_id: 'run-fixed' }), /决策样本任务仅允许/)
   assert.equal(f.calls.length, 0)
+})
+
+
+test('MCP 草稿复用真实结构校验，无效包装在提案前拒绝', async t => {
+  const f = fixture(t)
+  const id = (await f.rpc('session', { task: '新增只读组合', context: { skill: 'mcp-composition' } })).value.session_id
+  const draft = { toolName: 'basic_read', title: '基础查询', description: '仅基础模拟数据', connectionId: 'mock-basic' }
+  await assert.rejects(() => f.execute(id, 'mcp', 'saveCompositionDraft', { revision: 'before', draft: { config: draft, graph: {} } }), /工具名称/)
+  assert.equal((await f.status(id)).proposals.length, 0)
+  const operation = f.execute(id, 'mcp', 'saveCompositionDraft', { revision: 'before', draft })
+  const proposed = await f.proposal(id)
+  assert.deepEqual(proposed.input.draft, draft)
+  assert.equal(f.calls.length, 0, '确认前不得保存')
+  await f.rpc('confirm', { session_id: id, proposal_id: proposed.id })
+  const result = await operation
+  assert.equal(result.state, 'completed')
+  assert.equal(result.preview, undefined)
+  assert.equal(f.calls.filter(call => call.endpoint === 'mcp/saveCompositionDraft').length, 1)
 })

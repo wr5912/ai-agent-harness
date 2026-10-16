@@ -68,7 +68,7 @@ description: 平台管理助手基于完整固定父版和真实轨迹，策划�
 
 ## 比较与研究决定
 
-调用 `compute-variants/compare {experiment_id,parent_run_ids,variant_run_ids}`。分别解释 `quality`、`comparability`、`resource_evidence`、`resources`、`notes`，并给出支持与反对证据。质量低于约定、关键任务退步、两侧都失败、重复不足、来源或输入变化、资源未知、收益未达标，应指出具体阻断与下一步；不得补造 token、重新标注旧 Run 或放宽原计划让比较通过。
+调用 `compute-variants/compare {experiment_id,parent_run_ids,variant_run_ids}`。核对 `quality`、`comparability`、`resource_evidence`、`resources`、`notes` 及支持与反对证据。回复先说明任务效果是否保持、资源是否改善和能否作出结论，用必要数字与关键限制解释，不按接口字段逐项汇报。质量低于约定、关键任务退步、两侧都失败、重复不足、来源或输入变化、资源未知、收益未达标，应指出具体阻断与下一步；不得补造 token、重新标注旧 Run 或放宽原计划让比较通过。
 
 成本下降与功能质量是两组证据。已有观察只能支持冻结任务范围内的结论；`eligible_for_end` 不证明总体任务分布上的统计非劣性，也不证明所有硬件或服务成本更低。诊断结束但证据不足时保持探索状态，建议 `continue` 或 `inconclusive` 并说明缺口。
 

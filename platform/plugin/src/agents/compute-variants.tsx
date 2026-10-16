@@ -10,7 +10,7 @@ type Context = {
   cases: { case_id: string; title: string }[]
   runs: { run_id: string; experiment_id: string; status: string; created_at: string }[]
 }
-const labels: Record<ComputeMetric, string> = { model_calls: '已记录模型响应次数', input_tokens: '输入 token', output_tokens: '输出 token', total_tokens: '总 token', elapsed_ms: '主 Session 耗时（毫秒）' }
+const labels: Record<ComputeMetric, string> = { model_calls: '已记录模型响应次数', input_tokens: '输入 token（含缓存）', output_tokens: '输出 token', total_tokens: '总 token', elapsed_ms: '主 Session 耗时（毫秒）' }
 const field = { display: 'grid', minWidth: 0, gap: 4 } as const
 const display = (value: number | null | undefined) => value === null || value === undefined ? '未知' : Number.isInteger(value) ? String(value) : value.toFixed(2)
 const toggle = (values: string[], id: string) => values.includes(id) ? values.filter(value => value !== id) : [...values, id]

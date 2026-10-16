@@ -30,6 +30,25 @@ export interface ComputePlan {
 const EXP = /^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)-\d{3}(?:-r[0-9a-f]{12})?$/
 const RUN = /^run-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const METRICS: ComputeMetric[] = ['model_calls', 'input_tokens', 'output_tokens', 'total_tokens', 'elapsed_ms']
+// DSH 21638c563 TokenUsage 的输入/缓存桶互不重叠，reasoning 已包含在输出中。
+// 依照 token-meter/turn-usage 的合同，不把缓存命中变化当作上下文变化。
+function tokenUsage(usage: Map | undefined) {
+  const count = (value: unknown) => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+  if (!usage || !count(usage.inputTokens) || !count(usage.outputTokens)) return null
+  const { inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, totalTokens, reasoningTokens } = usage
+  if ([cacheReadTokens, cacheWriteTokens].some(value => value !== undefined && !count(value))
+      || reasoningTokens !== undefined && (!count(reasoningTokens) || reasoningTokens > outputTokens)) return null
+  const knownInput = inputTokens + (cacheReadTokens ?? 0) + (cacheWriteTokens ?? 0)
+  if (!count(knownInput)) return null
+  const completeCache = cacheReadTokens !== undefined && cacheWriteTokens !== undefined
+  if (totalTokens !== undefined) {
+    const input = totalTokens - outputTokens
+    if (!count(totalTokens) || !count(input) || input < knownInput || completeCache && input !== knownInput) return null
+    return { input, output: outputTokens, total: totalTokens }
+  }
+  // 完整分桶可证明输入量；总量仍只展示供应商实际记录的 aggregate。
+  return { input: completeCache ? knownInput : null, output: outputTokens, total: null }
+}
 class VariantError extends Error { constructor(readonly code: string, message: string) { super(message) } }
 const fail = (message: string): never => { throw new VariantError('invalid_request', message) }
 const hash = (value: string | Buffer) => createHash('sha256').update(value).digest('hex')
@@ -106,12 +125,10 @@ export function computeTraceMetrics(rows: Map[], collected: boolean) {
     }
     calls += messages.length
     for (const event of messages) {
-      const usage = event.data?.usage
-      // totalTokens 含供应商报告的缓存量；未记录时不以 input+output 猜测。
-      const valid = (key: string) => typeof usage?.[key] === 'number' && Number.isFinite(usage[key]) && usage[key] >= 0
-      if (valid('inputTokens')) input += usage.inputTokens; else inputKnown = false
-      if (valid('outputTokens')) output += usage.outputTokens; else outputKnown = false
-      if (valid('totalTokens')) total += usage.totalTokens; else totalKnown = false
+      const usage = tokenUsage(event.data?.usage)
+      if (usage?.input !== null && usage?.input !== undefined) input += usage.input; else inputKnown = false
+      if (usage) output += usage.output; else outputKnown = false
+      if (usage?.total !== null && usage?.total !== undefined) total += usage.total; else totalKnown = false
     }
     // 对每个 Case 仅取主 Session 的 turn 耗时；子 Session 并行时间不可再相加。
   }
@@ -129,7 +146,7 @@ export function computeTraceMetrics(rows: Map[], collected: boolean) {
   }
   if (pending.size || !rootEvents.some(event => event.type === 'turn/end')) elapsedKnown = false
   if (!messagesPresent(rows)) { callsKnown = false; inputKnown = false; outputKnown = false; totalKnown = false; missing.push('没有已完成的模型响应') }
-  if (!inputKnown || !outputKnown || !totalKnown) missing.push('至少一个模型调用没有完整供应商 token 用量')
+  if (!inputKnown || !outputKnown || !totalKnown) missing.push('至少一个模型调用的供应商 token 用量缺失或分桶不一致')
   if (!elapsedKnown) missing.push('缺少完整主 Session turn 起止时间')
   return { values: { model_calls: callsKnown ? calls : null, input_tokens: inputKnown ? input : null, output_tokens: outputKnown ? output : null, total_tokens: totalKnown ? total : null, elapsed_ms: elapsedKnown ? elapsed : null }, missing: [...new Set(missing)] }
 }

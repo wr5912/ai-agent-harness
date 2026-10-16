@@ -32,6 +32,31 @@ function trace(calls, tokens = 100) {
   return rows.map(event => ({ session_log: 'root', event }))
 }
 function success(result) { assert.equal(result.ok, true, JSON.stringify(result)); return result.value }
+test('输入资源使用完整 prompt，缓存命中差异不构成上下文优化', () => {
+  const metrics = usage => {
+    const rows = trace(1)
+    rows.find(row => row.event.type === 'assistant/message').event.data.usage = usage
+    return computeTraceMetrics(rows, true).values
+  }
+  // 来自实际两个新 Session 的 DSH 归一分桶；输入总长相同。
+  for (const [inputTokens, cacheReadTokens] of [[240, 2176], [496, 1920]]) {
+    assert.equal(metrics({ inputTokens, cacheReadTokens, outputTokens: 50, totalTokens: 2466 }).input_tokens, 2416)
+  }
+  assert.equal(metrics({ inputTokens: 30, outputTokens: 10, totalTokens: 40 }).input_tokens, 30)
+  assert.equal(metrics({ inputTokens: 20, cacheReadTokens: 5, cacheWriteTokens: 3, outputTokens: 10, reasoningTokens: 7 }).input_tokens, 28)
+  assert.equal(metrics({ inputTokens: 20, outputTokens: 10 }).input_tokens, null)
+  for (const usage of [
+    { inputTokens: 30, outputTokens: 10, totalTokens: 39 },
+    { inputTokens: 20, cacheReadTokens: 5, cacheWriteTokens: 3, outputTokens: 10, totalTokens: 40 },
+    { inputTokens: 20, cacheReadTokens: -1, outputTokens: 10, totalTokens: 30 },
+    { inputTokens: 20.5, outputTokens: 10, totalTokens: 30.5 },
+    { inputTokens: Number.MAX_SAFE_INTEGER, cacheReadTokens: 1, cacheWriteTokens: 0, outputTokens: 0 },
+    { inputTokens: 20, outputTokens: 10, totalTokens: 30, reasoningTokens: 11 },
+  ]) {
+    const value = metrics(usage)
+    assert.equal(value.input_tokens, null); assert.equal(value.total_tokens, null)
+  }
+})
 async function fixture(planOverrides = {}) {
   const root = mkdtempSync(join(tmpdir(), 'compute-variants-'))
   const path = id => join(root, `evolution/experiments/${id}`)

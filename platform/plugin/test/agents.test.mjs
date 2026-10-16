@@ -1019,3 +1019,76 @@ test('运行中 Job 即时返回 stderr 跨数据块输出的 Run ID', async t =
   assert.equal(observed.status, 'running')
   assert.equal((await waitForJob(handler, started.job_id)).result.run_id, runId)
 })
+
+test('特性历史观察引用按所属 Experiment 解析，新保存归一并可通过专用工具读取', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const id = 'EXP-test-agent-001', base = `evolution/experiments/${id}`
+    const file = join(fx.root, base, 'change.yaml')
+    write(file, readFileSync(file, 'utf8') + '\nfeatures:\n- id: observed\n  title: 观察能力\n  description: 仍未确认\n  evidence_refs:\n  - evaluation/observations.md#limits\n')
+    write(join(fx.root, base, 'evaluation/observations.md'), '# 真实观察\n尚未验证业务效果。\n')
+    const original = readFileSync(file, 'utf8')
+    const handler = createAgentsHandler(fx.root)
+    const detail = await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: id })
+    assert.equal(detail.features[0].evidence[0].present, true)
+    assert.equal(detail.features[0].evidence[0].path, `${base}/evaluation/observations.md`)
+    assert.equal(readFileSync(file, 'utf8'), original, '读取兼容不能改写历史资料')
+    const source = await rpc(handler, 'features/read-source', { experiment_id: id, ref: detail.features[0].evidence_refs[0] })
+    assert.equal(source.path, `${base}/evaluation/observations.md`)
+    assert.match(source.content, /尚未验证业务效果/)
+    assert.equal(source.source_experiment_id, id)
+    assert.ok((await rpc(handler, 'features/read-source', { experiment_id: id })).files.includes(source.path))
+    const preview = await rpc(handler, 'features/preview', { experiment_id: id, features: detail.features })
+    assert.equal(preview.features[0].evidence_refs[0], `${base}/evaluation/observations.md#limits`)
+    await rpc(handler, 'features/apply', { preview_id: preview.preview_id, confirmed: true })
+    assert.equal(loadYaml(readFileSync(file, 'utf8')).features[0].evidence_refs[0], `${base}/evaluation/observations.md#limits`)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('特性证据读取拒绝程序路径、凭据、跨 Agent 与符号链接，二进制和大文件不泄露正文', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const id = 'EXP-test-agent-001', folder = join(fx.root, `evolution/experiments/${id}/evaluation`)
+    const handler = createAgentsHandler(fx.root)
+    write(join(folder, 'small.bin'), Buffer.from([0, 1, 2]))
+    write(join(folder, 'large.txt'), 'a'.repeat(1024 * 1024 + 1))
+    write(join(folder, 'models.llm-api-key'), 'test-placeholder')
+    write(join(folder, 'token-costs.json'), JSON.stringify({ token_count: 12, api_key: 'credential-test-placeholder' }))
+    write(join(fx.root, 'evolution/experiments/EXP-other-agent-001/change.yaml'), 'agent_id: other-agent\n')
+    write(join(fx.root, 'evolution/experiments/EXP-other-agent-001/evaluation/observations.md'), 'another agent')
+    symlinkSync(join(fx.root, 'agents/test-agent/evaluation.md'), join(folder, 'linked.md'))
+    for (const ref of ['../../program/file', '/etc/hosts', 'platform/plugin/src/agents/index.ts', 'evaluation/models.llm-api-key', 'evaluation/linked.md', 'evolution/experiments/EXP-other-agent-001/evaluation/observations.md']) {
+      await assert.rejects(() => rpc(handler, 'features/read-source', { experiment_id: id, ref }), /path_rejected/)
+    }
+    for (const ref of ['evaluation/small.bin', 'evaluation/large.txt']) {
+      const result = await rpc(handler, 'features/read-source', { experiment_id: id, ref })
+      assert.equal(result.kind, 'unpreviewable'); assert.equal(result.content, undefined)
+    }
+    const costs = await rpc(handler, 'features/read-source', { experiment_id: id, ref: 'evaluation/token-costs.json' })
+    assert.match(costs.content, /token_count/)
+    assert.ok(!costs.content.includes('credential-test-placeholder'))
+    await assert.rejects(() => rpc(handler, 'features/read-source', { experiment_id: id, ref: 'evaluation/missing.md' }), /asset_read_failed/)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
+
+test('详情派生引用绑定所选版本的可恢复提交，未提交版本不能冒用祖先', async () => {
+  const { createAgentsHandler } = await loadServer()
+  const fx = fixture()
+  try {
+    const handler = createAgentsHandler(fx.root)
+    const current = await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: 'EXP-test-agent-001' })
+    assert.equal(current.derivation.parent_ref, `git:${fx.commit}`)
+    assert.equal(current.derivation.parent_experiment_id, 'EXP-test-agent-001')
+    const created = await rpc(handler, 'create', { agent_id: 'test-agent', parent_experiment_id: 'EXP-test-agent-001', parent_ref: `git:${fx.commit}`, research_question: '临时派生' })
+    const draft = await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: created.experiment_id })
+    assert.equal(draft.baseline.ref, `git:${fx.commit}`)
+    assert.equal(draft.derivation.parent_ref, null)
+    assert.equal(draft.derivation.parent_experiment_id, created.experiment_id)
+    write(join(fx.root, 'evolution/experiments/EXP-test-agent-001/candidate/harness.yaml'), 'name: uncommitted change\n')
+    const changed = await rpc(handler, 'detail', { agent_id: 'test-agent', experiment_id: 'EXP-test-agent-001' })
+    assert.equal(changed.derivation.parent_ref, null)
+    assert.match(changed.derivation.note, /未提交改动/)
+  } finally { await rm(fx.root, { recursive: true, force: true }) }
+})
