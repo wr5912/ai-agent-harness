@@ -1,6 +1,19 @@
 import { z } from 'zod'
 
-export const taskCaseSchema = z.object({ id: z.string().regex(/^[A-Z][A-Z0-9-]*$/), title: z.string().trim().min(1).max(240), inputs: z.string().trim().min(1).max(24000), expected_behavior: z.string().trim().min(1).max(24000), fast: z.boolean().default(false) }).strict()
+export const automaticTaskCaseIds = ['U-IDENTITY-001', 'U-ROLE-001'] as const
+const caseText = z.string().trim().min(1).max(24000)
+  .refine(value => Buffer.byteLength(value, 'utf8') <= 24000, '业务用例正文不能超过 24000 字节')
+  .refine(value => !/\bsk-[A-Za-z0-9_-]{12,}\b|(?:api[_-]?key|password|secret|authorization|cookie|token)["']?\s*[:=]\s*["']?[A-Za-z0-9_-]{12,}/i.test(value), '业务用例正文包含凭据样式，请移除后再提交')
+export const taskCaseSchema = z.object({
+  id: z.string().regex(/^[A-Z][A-Z0-9-]*$/).refine(id => !automaticTaskCaseIds.some(value => value === id), 'U-IDENTITY-001 和 U-ROLE-001 由平台自动创建；业务用例不能重新定义'),
+  title: z.string().trim().min(1).max(240).refine(value => !/\r|\n/.test(value), '业务用例标题必须为单行'),
+  inputs: caseText,
+  expected_behavior: caseText.refine(value => !/^#{1,6}\s/m.test(value), '业务用例预期正文不能包含额外 Markdown 标题'),
+  fast: z.boolean().default(false),
+}).strict()
+/** 确认任务和实际创建共用同一可执行用例合同，避免确认后才发现无法保存。 */
+export const taskBusinessCasesSchema = z.array(taskCaseSchema).min(1).max(30)
+  .refine(cases => new Set(cases.map(item => item.id)).size === cases.length, '业务用例 ID 不得重复')
 export const taskPlanSchema = z.object({
   goal: z.string().trim().min(1).max(12000),
   agent_id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
@@ -18,7 +31,7 @@ export const taskPlanSchema = z.object({
   required_tool_names: z.array(z.string().min(1)).default([]),
   kind: z.enum(['inspection', 'training', 'business']).default('business'),
   inspection: z.object({ expected_device_ids: z.array(z.string().min(1)).min(1) }).strict().optional(),
-  new_agent: z.object({ name: z.string().min(1), description: z.string().min(1), role: z.string().min(1), evaluation_cases: z.array(taskCaseSchema).min(1) }).strict().optional(),
+  new_agent: z.object({ name: z.string().min(1), description: z.string().min(1), role: z.string().min(1), evaluation_cases: taskBusinessCasesSchema }).strict().optional(),
 }).strict()
 export type TaskPlan = z.infer<typeof taskPlanSchema>
 export interface TaskExecution {
@@ -46,7 +59,7 @@ export function parseTaskPlan(value: unknown): TaskPlan {
   const plan = taskPlanSchema.parse(value)
   if (!plan.source && !plan.new_agent) throw new Error('请选择固定目标来源，或在提案中提供待建智能体及业务测试')
   if (plan.source && plan.new_agent) throw new Error('待建智能体不能同时指定已有目标来源')
-  if (plan.new_agent && (new Set(plan.new_agent.evaluation_cases.map(item => item.id)).size !== plan.new_agent.evaluation_cases.length || plan.evaluation_case_ids.some(id => !plan.new_agent!.evaluation_cases.some(item => item.id === id)))) throw new Error('首次业务测试 ID 重复或与约定范围不一致')
+  if (plan.new_agent && plan.evaluation_case_ids.some(id => !automaticTaskCaseIds.some(value => value === id) && !plan.new_agent!.evaluation_cases.some(item => item.id === id))) throw new Error('首次业务测试与约定范围不一致')
   if (plan.kind !== 'training' && plan.budget.timeout_minutes > 30) throw new Error('普通任务总时限最多 30 分钟')
   if (plan.kind === 'inspection' && !plan.inspection?.expected_device_ids.length) throw new Error('巡检任务必须固定预期设备集合，不能在交付时缩小范围')
   if (new Set(plan.evaluation_case_ids).size !== plan.evaluation_case_ids.length) throw new Error('任务评测用例 ID 不得重复')

@@ -16,6 +16,7 @@ description: 根据用户任务复用能力、装配 DSH 智能体，通过固�
 - `goal`、`agent_id`、`kind`（inspection、business、training）、`deliverables`、目标 `instance_name`。
 - 巡检任务必须提供 `inspection:{expected_device_ids:["设备ID"]}` 与 `required_tool_names:["task_inspection"]`（按真实已发现能力填写）；服务端固定设备集合和必须成功调用的业务工具，不能临时缩小范围。可用 `artifact_paths:["artifacts/U-BUSINESS-001/inspection-report.md"]` 固定业务产物路径，不使用评测报告代替。
 - 已有待研究 Candidate 用 `source:"experiment:<ID>"`；新建任务用 `new_agent:{name,description,role,evaluation_cases:[{id,title,inputs,expected_behavior,fast}]}`，不同时提供 source。业务 Case 至少验证真实任务和重要失败边界，不用身份测试代替业务质量。
+- `new_agent.evaluation_cases` 只定义新增业务 Case（最多 30 条、ID 不重复）；`U-IDENTITY-001` 和 `U-ROLE-001` 由平台自动创建，不能在该数组重复定义。需要身份或范围回归时直接将其 ID 加入 `evaluation_case_ids`。标题为单行，预期正文不含额外 Markdown 标题；先通过 preview，再提出整体确认，预检失败时先修方案。
 - 改进已启用智能体时，在允许动作加入 `agents/create`，source 作为固定父版；服务端使用已核对的 `derivation.parent_ref` 派生并以真实回执绑定新目标，保留原启用版本。已有独立探索 Candidate 可以直接作为目标。
 - `evaluation_case_ids` 固定测试及必要回归。创建回执后服务端一次绑定目标并冻结口径；后续修复不得修改 Case 或把失败回答改成标准答案。
 - `allowed_actions:[{domain:"agents",action:"new"},{domain:"agents",action:"tasks/assembly-apply"},{domain:"agents",action:"edit/apply"},{domain:"agents",action:"eval/start"},{domain:"agents",action:"eval/cancel"},{domain:"instances",action:"run"}]`，只列本任务必要动作。

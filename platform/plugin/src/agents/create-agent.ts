@@ -7,7 +7,7 @@ import { dirname, join, resolve } from 'node:path'
 import { dump as dumpYaml, load as loadYaml } from 'js-yaml'
 import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
 import { redactRunText } from './run-files.ts'
-import { taskCaseSchema } from '../assistant/task.ts'
+import { taskBusinessCasesSchema } from '../assistant/task.ts'
 
 const execute = promisify(execFile)
 const CATALOG = 'config/sources.json'
@@ -42,9 +42,9 @@ export async function createAgent(rootPath: string, payload: JsonMap, signal?: A
     const root = resolve(rootPath), agentId = checkedText(payload, 'agent_id', 80)
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(agentId)) throw new CreationError('invalid_request', 'Agent ID 必须是小写 kebab-case')
     const name = checkedText(payload, 'name', 240), description = checkedText(payload, 'description', 4000), role = checkedText(payload, 'role', 60 * 1024)
-    const businessCases = payload.evaluation_cases === undefined ? [] : taskCaseSchema.array().min(1).max(30).parse(payload.evaluation_cases)
-    if (new Set(businessCases.map(item => item.id)).size !== businessCases.length || businessCases.some(item => ['U-IDENTITY-001', 'U-ROLE-001'].includes(item.id) || /\r|\n/.test(item.title) || /^#{1,6}\s/m.test(item.expected_behavior))) throw new CreationError('invalid_request', '业务用例 ID 重复、占用基础用例或正文包含额外标题')
-    for (const item of businessCases) { checkedText({ value: item.inputs }, 'value', 24000); checkedText({ value: item.expected_behavior }, 'value', 24000) }
+    const parsedCases = payload.evaluation_cases === undefined ? undefined : taskBusinessCasesSchema.safeParse(payload.evaluation_cases)
+    if (parsedCases && !parsedCases.success) throw new CreationError('invalid_request', parsedCases.error.issues.map(issue => issue.message).join('；'))
+    const businessCases = parsedCases?.data ?? []
     for (const path of ['agents', 'evolution', 'evolution/experiments']) {
       const stat = lstatSync(join(root, path))
       if (!stat.isDirectory() || stat.isSymbolicLink()) throw new CreationError('path_rejected', '资产目录必须是仓库内的实体目录')

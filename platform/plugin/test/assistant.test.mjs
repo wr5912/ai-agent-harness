@@ -87,6 +87,17 @@ function taskResponder(endpoint, input) {
   if (endpoint === 'agents/tasks/delivery') return { ok: true, value: { ready: false, checks: [{ name: '业务统计', ok: false }] } }
 }
 
+test('尚未确认任务的原生status返回对象，不触发工具输出schema错误或创建任务', async t => {
+  const f = fixture(t)
+  const id = (await f.rpc('session', { task: '先了解当前任务' })).value.session_id
+  const result = await f.execute(id, 'task', 'status')
+  assert.equal(f.tools.get('platform_task').output.schema.type, 'object')
+  assert.equal(typeof result, 'object'); assert.equal(result.state, 'not_started')
+  assert.equal((await f.status(id)).execution, undefined)
+  assert.equal((await f.status(id)).proposals.length, 0)
+  assert.equal(f.calls.length, 0)
+})
+
 test('任务一次确认后仅向固定目标连续执行，初测不计轮次且第四轮修复被拒绝', async t => {
   const f = fixture(t, taskResponder)
   const goals = installTaskGoals(f)
@@ -157,6 +168,47 @@ test('首次创建把已确认业务Case传给真实new入口，回执一次绑�
   assert.equal(f.calls.find(row => row.endpoint === 'agents/new').input.role, '完整统计工具数据')
   assert.equal((await f.status(id)).execution.target_source, 'experiment:EXP-test-agent-001')
   assert.equal((await f.status(id)).execution.evaluation_sha256, 'fixed-evaluation')
+})
+
+test('不可保存的新建Case在preview和start前被拒绝，不产生确认卡或执行任务', async t => {
+  const f = fixture(t)
+  const goals = installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '新建巡检助手并测试完整分页与漏页' })).value.session_id
+  const business = { id: 'U-ASSET-PAGES-001', title: '完整分页', inputs: '读取全部分页', expected_behavior: '覆盖五台模拟设备' }
+  const invalidCases = [
+    [{ ...business, id: 'U-IDENTITY-001' }],
+    [{ ...business, id: 'U-ROLE-001' }],
+    [business, business],
+    [{ ...business, title: '完整分页\n额外标题' }],
+    [{ ...business, expected_behavior: '覆盖全部设备\n# 额外用例' }],
+    Array.from({ length: 31 }, (_, i) => ({ ...business, id: `U-BUSINESS-${i}` })),
+    [{ ...business, inputs: '设备'.repeat(5000) }],
+  ]
+  for (const evaluation_cases of invalidCases) {
+    const plan = taskPlan({ source: undefined, evaluation_case_ids: [evaluation_cases[0].id], new_agent: { name: '巡检助手', description: '统计模拟台账', role: '读取实际工具数据', evaluation_cases } })
+    for (const action of ['preview', 'start']) await assert.rejects(() => f.execute(id, 'task', action, { plan }))
+    assert.equal((await f.rpc('task/start', { session_id: id, input: { plan } })).ok, false)
+  }
+  const state = await f.status(id)
+  assert.equal(state.proposals.length, 0)
+  assert.equal(state.execution, undefined)
+  assert.equal(goals.size, 0)
+  assert.equal(f.calls.length, 0)
+})
+
+test('新建业务Case可选择平台自动身份回归，不重复定义基础Case', async t => {
+  const business = { id: 'U-BUSINESS-001', title: '完整设备', inputs: '读取全部分页', expected_behavior: '覆盖五台模拟设备' }
+  const f = fixture(t, (endpoint, input) => {
+    if (endpoint === 'agents/new') return { ok: true, value: { source_id: 'experiment:EXP-test-agent-001', experiment_id: 'EXP-test-agent-001' } }
+    if (endpoint === 'agents/detail') return { ok: true, value: { experiment: { id: 'EXP-test-agent-001' }, evaluation: { sha256: 'fixed-evaluation', cases: [business, { id: 'U-IDENTITY-001' }, { id: 'U-ROLE-001' }] } } }
+    return taskResponder(endpoint, input)
+  })
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '创建巡检助手，保留身份回归' })).value.session_id
+  await beginTask(f, id, taskPlan({ source: undefined, evaluation_case_ids: [business.id, 'U-IDENTITY-001', 'U-ROLE-001'], new_agent: { name: '巡检助手', description: '统计模拟台账', role: '读取实际工具数据', evaluation_cases: [business] }, allowed_actions: [{ domain: 'agents', action: 'new' }] }))
+  await f.execute(id, 'agents', 'new', { agent_id: 'test-agent' })
+  assert.equal((await f.status(id)).execution.target_source, 'experiment:EXP-test-agent-001')
+  assert.deepEqual(f.calls.find(row => row.endpoint === 'agents/new').input.evaluation_cases, [{ ...business, fast: false }])
 })
 
 test('真实 Session 投影隔离上下文、冷恢复固定任务，用户 prompt 保持原文', async t => {

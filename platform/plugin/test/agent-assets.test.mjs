@@ -186,7 +186,8 @@ const input = { agent_id: 'daily-assistant', name: '日常工作助手', descrip
 test('新建向导复用真实 CLI 并保存角色、标准来源与用例，不启动实例', async () => {
   const root = createFixture()
   try {
-    const value = success(await createAgent(root, input))
+    const business = { id: 'U-BUSINESS-001', title: '整理事项', inputs: '整理用户给定的两件事项', expected_behavior: '只依据给定信息列出两件事项', fast: true }
+    const value = success(await createAgent(root, { ...input, evaluation_cases: [business] }))
     assert.match(value.experiment_id, /^EXP-daily-assistant-001-r[0-9a-f]{12}$/)
     assert.equal(value.started, false)
     const experiment = join(root, 'evolution/experiments', value.experiment_id)
@@ -197,12 +198,33 @@ test('新建向导复用真实 CLI 并保存角色、标准来源与用例，不
     assert.equal(preset.find(item => item.id === 'persona').config.prefix.includes(input.role), false)
     const evaluation = readFileSync(join(root, 'agents/daily-assistant/evaluation.md'), 'utf8')
     assert.match(evaluation, /U-ROLE-001/); assert.match(evaluation, /日常工作助手/)
+    for (const id of ['U-IDENTITY-001', 'U-ROLE-001', business.id]) assert.equal(evaluation.split(`#### ${id} `).length - 1, 1)
+    assert.ok(evaluation.includes(business.expected_behavior))
     const sources = JSON.parse(readFileSync(join(root, 'runtime/adapters/dsh-container/sources.json'), 'utf8'))
     assert.equal(sources.sources[value.experiment_id].agent_id, input.agent_id)
     assert.deepEqual(sources.sources[value.experiment_id].required_env_names, ['DEEPSEEK_API_KEY'])
     assert.equal(readdirSync(root).some(name => name.startsWith('.platform-agent-create-')), false)
     const again = await createAgent(root, { ...input, role: 'different' })
     assert.equal(again.error.code, 'conflict'); assert.equal(readFileSync(join(experiment, 'candidate/dsh/workspace/AGENTS.md'), 'utf8'), role)
+  } finally { rmSync(root, { recursive: true, force: true }) }
+})
+
+test('实际创建入口与任务预检共用Case合同，非法业务Case不落盘', async () => {
+  const root = createFixture()
+  try {
+    const original = readFileSync(join(root, 'runtime/adapters/dsh-container/sources.json'), 'utf8')
+    const business = { id: 'U-ASSET-PAGES-001', title: '完整分页', inputs: '读取全部分页', expected_behavior: '覆盖五台模拟设备' }
+    const invalidCases = [
+      [{ ...business, id: 'U-IDENTITY-001' }], [{ ...business, id: 'U-ROLE-001' }], [business, business],
+      [{ ...business, title: '完整分页\n额外标题' }], [{ ...business, expected_behavior: '完整结果\n# 额外标题' }],
+      Array.from({ length: 31 }, (_, i) => ({ ...business, id: `U-BUSINESS-${i}` })),
+      [{ ...business, inputs: '设备'.repeat(5000) }],
+    ]
+    for (const evaluation_cases of invalidCases) assert.equal((await createAgent(root, { ...input, evaluation_cases })).error.code, 'invalid_request')
+    assert.equal(existsSync(join(root, 'agents', input.agent_id)), false)
+    assert.deepEqual(readdirSync(join(root, 'evolution/experiments')), [])
+    assert.equal(readFileSync(join(root, 'runtime/adapters/dsh-container/sources.json'), 'utf8'), original)
+    assert.equal(readdirSync(root).some(name => name.startsWith('.platform-agent-create-')), false)
   } finally { rmSync(root, { recursive: true, force: true }) }
 })
 
