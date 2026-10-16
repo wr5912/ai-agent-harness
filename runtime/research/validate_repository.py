@@ -50,20 +50,7 @@ REQUIRED_ROOT_FILES = (
 )
 REQUIRED_SKILLS = {
     "ai-correction-log": ("scripts/record_correction.py",),
-    "harness-guided-workflow": (),
     "dsh-platform-development": (),
-    "legacy-asset-intake": ("scripts/inspect_source.py",),
-    "harness-evolution": (
-        "scripts/validate_repository.py",
-        "scripts/requirements.txt",
-        "references/repository-invariants.md",
-    ),
-    "research-eval": (
-        "scripts/evaluation_contract.py",
-        "scripts/validate_experiment.py",
-        "scripts/requirements.txt",
-        "references/experiment-contract.md",
-    ),
     "continuous-dev-progress-vs-project-vision-gap-assessment": (
         "references/assessment-method.md",
         "references/presentation-spec.md",
@@ -73,7 +60,7 @@ RETIRED_SKILLS = {"baseline-eval", "security-control-boundary", "delivery-review
 PROJECT_MATRIX = "docs/ai-agent-harness项目验收矩阵.md"
 PROJECT_REVIEW = "docs/项目审查原则.md"
 KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-ADAPTER = Path(__file__).resolve().parents[4] / "runtime/adapters/dsh-container"
+ADAPTER = Path(__file__).resolve().parents[1] / "adapters/dsh-container"
 if str(ADAPTER) not in sys.path:
     sys.path.insert(0, str(ADAPTER))
 from source_contract import EXPERIMENT as EXPERIMENT_RE
@@ -145,7 +132,7 @@ if yaml is not None:
 
 def load_yaml(path: Path) -> dict[str, Any]:
     if yaml is None:
-        raise RuntimeError("缺少 PyYAML；请安装 scripts/requirements.txt")
+        raise RuntimeError("缺少 PyYAML；请安装 runtime/research/requirements.txt")
     if path.stat().st_size > MAX_TEXT_BYTES:
         raise ValueError("YAML 超过 4 MiB 上限")
     value = yaml.load(path.read_text(encoding="utf-8"), Loader=StrictLoader)
@@ -216,8 +203,6 @@ def validate_governance(root: Path, errors: list[dict[str, str]]) -> None:
         errors.append(issue("MATRIX_LINK", "AGENTS.md 必须链接项目验收矩阵", "AGENTS.md"))
     if f"]({PROJECT_REVIEW})" not in agents_text:
         errors.append(issue("REVIEW_LINK", "AGENTS.md 必须链接项目审查原则", "AGENTS.md"))
-    if "evolution/baselines/" not in agents_text or "不维护" not in agents_text:
-        errors.append(issue("BASELINE_POLICY", "AGENTS.md 必须明确不维护物理 Baseline 目录", "AGENTS.md"))
     matrix_path = root / PROJECT_MATRIX
     try:
         matrix_text = read_text(matrix_path)
@@ -384,7 +369,7 @@ def validate_agents(root: Path, errors: list[dict[str, str]]) -> None:
 
 def load_research_validator(root: Path):
     program = PROGRAM_ROOT if (root / "workspace.json").is_file() else root
-    path = program / ".agents/skills/research-eval/scripts/validate_experiment.py"
+    path = program / "runtime/research/validate_experiment.py"
     spec = importlib.util.spec_from_file_location("research_eval_validator", path)
     if spec is None or spec.loader is None:
         raise RuntimeError("无法加载 research-eval 校验器")

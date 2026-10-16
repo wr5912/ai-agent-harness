@@ -1,0 +1,311 @@
+{
+  "date": "2026-10-16",
+  "environment": "isolated-platform-and-data-worktrees",
+  "assistant": {
+    "checks": [
+      {
+        "name": "general",
+        "turns": [
+          "completed"
+        ],
+        "models": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "max"
+          }
+        ],
+        "data_policy": true,
+        "expression_skill": true,
+        "trusted_root": true,
+        "ok": true
+      },
+      {
+        "name": "features",
+        "turns": [
+          "completed"
+        ],
+        "models": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "max"
+          }
+        ],
+        "data_policy": true,
+        "expression_skill": true,
+        "trusted_root": true,
+        "ok": true
+      },
+      {
+        "name": "compute",
+        "turns": [
+          "completed"
+        ],
+        "models": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "max"
+          }
+        ],
+        "data_policy": true,
+        "expression_skill": true,
+        "trusted_root": true,
+        "ok": true
+      },
+      {
+        "name": "extraction",
+        "turns": [
+          "completed"
+        ],
+        "models": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "max"
+          }
+        ],
+        "data_policy": true,
+        "expression_skill": true,
+        "trusted_root": true,
+        "ok": true
+      },
+      {
+        "name": "builder-extension",
+        "turns": [
+          "completed"
+        ],
+        "models": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "max"
+          }
+        ],
+        "data_policy": true,
+        "expression_skill": true,
+        "trusted_root": true,
+        "ok": true
+      }
+    ],
+    "skill_count": 12,
+    "initial_assembly_failure_preserved": true,
+    "legacy_session": {
+      "turns": [
+        "completed",
+        "completed"
+      ],
+      "history_prefix_unchanged": true,
+      "resumed": true,
+      "ok": true
+    },
+    "history_original_event_count": 37,
+    "missing_skill": {
+      "history_readable": true,
+      "new_session_created": false,
+      "missing": [
+        "user-facing-output"
+      ],
+      "ok": true
+    },
+    "consultation_ui": {
+      "ok": true,
+      "turns": [
+        "completed"
+      ],
+      "page_error_count": 0
+    }
+  },
+  "research": {
+    "experiment_id": "EXP-inspection-delivery-demo-002-rc446d65fe237",
+    "parent_ref": "git:8f1c88ba14227bda685bd374150bf95e91df41e2",
+    "cases": [
+      "U-ASSET-PAGES-001",
+      "U-ASSET-PARTIAL-001"
+    ],
+    "case_file_sha256": "c323513418c54e75a7f9844500895998c2694423fa0dc7fa7df753429734fd32",
+    "business_model": {
+      "provider": "deepseek-official",
+      "model": "deepseek-flash",
+      "reasoning_effort": "off"
+    },
+    "runs": [
+      {
+        "round": "initial",
+        "stage": "baseline",
+        "run_id": "run-35c207e9-c73e-498e-97b1-4b137b312821",
+        "status": "failed",
+        "effective_verdict": "inconclusive",
+        "machine_trials": {
+          "passed": 2,
+          "failed": 0,
+          "inconclusive": 0
+        },
+        "review_status": "failed",
+        "model_calls": 15,
+        "tokens": {
+          "input_tokens": 124791,
+          "output_tokens": 4510,
+          "total_tokens": 129301
+        },
+        "instance_stopped": true,
+        "failure_reason": "证据复核失败（session）：analysis-tools-invalid"
+      },
+      {
+        "round": "initial",
+        "stage": "candidate",
+        "run_id": "run-4b2c4360-8675-40d0-a03e-7bb681dc516e",
+        "status": "failed",
+        "effective_verdict": "inconclusive",
+        "machine_trials": {
+          "passed": 2,
+          "failed": 0,
+          "inconclusive": 0
+        },
+        "review_status": "failed",
+        "model_calls": 13,
+        "tokens": {
+          "input_tokens": 63029,
+          "output_tokens": 4412,
+          "total_tokens": 67441
+        },
+        "instance_stopped": true,
+        "failure_reason": "证据复核失败（session）：analysis-tools-invalid"
+      },
+      {
+        "round": "verified",
+        "stage": "baseline",
+        "run_id": "run-b8f5e113-a224-4236-9f59-eae0e4e23c22",
+        "status": "completed",
+        "effective_verdict": "passed",
+        "machine_trials": {
+          "passed": 2,
+          "failed": 0,
+          "inconclusive": 0
+        },
+        "review_status": "completed",
+        "model_calls": 15,
+        "tokens": {
+          "input_tokens": 135287,
+          "output_tokens": 6762,
+          "total_tokens": 142049
+        },
+        "instance_stopped": true,
+        "failure_reason": null
+      },
+      {
+        "round": "verified",
+        "stage": "candidate",
+        "run_id": "run-6f83ccd8-ef06-42a0-824a-431a0ce0fb2c",
+        "status": "completed",
+        "effective_verdict": "passed",
+        "machine_trials": {
+          "passed": 2,
+          "failed": 0,
+          "inconclusive": 0
+        },
+        "review_status": "completed",
+        "model_calls": 19,
+        "tokens": {
+          "input_tokens": 285080,
+          "output_tokens": 8614,
+          "total_tokens": 293694
+        },
+        "instance_stopped": true,
+        "failure_reason": null
+      }
+    ],
+    "decision": {
+      "status": "completed",
+      "outcome": "inconclusive",
+      "decision_sha256": "70969b136046367958c134861c73cfd25e1de88559a6fd8707708bb3504f91de",
+      "change_sha256": "87fc35ffad28c12e1f9a30736583b90f734baf212573e1beae31f5125dc2ad11",
+      "readback_matched": true,
+      "contract_valid": true
+    },
+    "first_failed_runs_unchanged": true,
+    "first_failed_run_file_count": 66,
+    "comparison": {
+      "comparable": true,
+      "causal_comparable": false,
+      "limits": [
+        "model: 未记录",
+        "left: Git 来源不干净或未记录",
+        "left: 平台程序来源不干净或未记录",
+        "right: Git 来源不干净或未记录",
+        "right: 平台程序来源不干净或未记录"
+      ]
+    },
+    "report_check": {
+      "all_five_assets": true,
+      "simulation_declared": true,
+      "sha256": "f12a500acb3442808caee438505f1b2c10da372ef4edb44c5cbdc7dc7ef6334d"
+    },
+    "downloads": [
+      {
+        "label": "下载报告",
+        "status": 200,
+        "bytes": 12568,
+        "sha256": "7695cf6119465017de9fedf3bef6dc5c31dcdcbe8cd4265ee30e44c0498e4357"
+      },
+      {
+        "label": "下载完整 Run ZIP",
+        "status": 200,
+        "bytes": 400489,
+        "sha256": "da31279532d38f18010dfc34be2e26479dbaea63a37e7c64e6591a5dccbdf4f0"
+      }
+    ],
+    "download_archive": {
+      "files": 39,
+      "matches_tool_export": true,
+      "target_traces": 2,
+      "credentials_present": false
+    },
+    "total_model_calls": 62,
+    "total_tokens": 632485,
+    "cost_amount": null,
+    "limitations": [
+      "真实模型使用deepseek-flash/off；业务数据仅为基础Mock台账，未检测真实设备。",
+      "基线本已通过，动态Mock字段不同，两轮结果不支持稳定改善或因果收益。",
+      "独立证据复核是独立Session，模型仍与业务同路由。",
+      "平台Run ZIP与Markdown下载已核对；业务实例原CSV链接未独立完成HTTP取回验收。"
+    ]
+  },
+  "regression": {
+    "dsh_review_driver": {
+      "passed": 10,
+      "failed": 0,
+      "invalid_receipt_scenarios": 14
+    },
+    "downstream_evidence_validation": {
+      "passed": 4,
+      "failed": 0
+    }
+  },
+  "full_research_evidence": {
+    "local_path": "/home/admin/.local/state/hep-management-assets-20261016-221733/acceptance/research-evidence.tar.gz",
+    "bytes": 1017138,
+    "sha256": "01675d015640b06b33bdfd48a6a7bd07b1f5ec44920113268c0584c21f6e5b9c",
+    "includes_credentials": false,
+    "includes_runtime_home": false
+  },
+  "screenshots": [
+    {
+      "file": "research-candidate-report.png",
+      "sha256": "3bb291f4368bbb853f52343897ed2317cc3a4ea527afafff1d89a9dc6b4e861e"
+    },
+    {
+      "file": "research-candidate-cases.png",
+      "sha256": "d14e6ff5a1d69c8b7e859074d91b785a2a697b39f59f82c8436064e38b0ea433"
+    },
+    {
+      "file": "assistant-conversation.png",
+      "sha256": "2d7160989097cca74b07d163360eb5a0701e9cd1dcf9425c08eda590192c52e8"
+    },
+    {
+      "file": "missing-business-assets.png",
+      "sha256": "11c6ec281d54b74db6181f328003b9d3ae02d484d6d74eb9bd14436f4a218322"
+    }
+  ]
+}

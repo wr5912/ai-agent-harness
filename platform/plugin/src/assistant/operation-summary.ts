@@ -11,6 +11,7 @@ export interface OperationMeta {
 }
 
 const titles: Record<string, string> = {
+  'research/read-reference': '读取研究方法', 'research/validate': '检查研究资产', 'legacy/inspect': '清点导入来源', 'decision/preview': '核对研究结论', 'decision/update': '保存研究结论',
   context: '读取工作区与任务目标', list: '查询智能体', detail: '读取智能体详情',
   'tasks/capabilities': '查找可复用能力', 'assets/read-fixed': '读取固定版本文件', 'assets/diff': '比较版本资产',
   'features/read-source': '读取版本说明', 'features/preview': '整理版本特性方案', 'features/apply': '保存版本特性',
@@ -75,6 +76,11 @@ export function operationSummary(meta: OperationMeta, phase = 'result') {
   else if (action === 'new' || action === 'create') outcome = value?.experiment_id ? '已创建研究版本，业务效果仍需评测' : outcome
   else if (action === 'edit/preview' && Array.isArray(value?.edits)) outcome = `已核对 ${value.edits.length} 份文件修改；尚未写入`
   else if (action === 'edit/apply' && value) outcome = '已保存资产修改'
+  else if (action === 'decision/update' && value) outcome = '已保存研究结论与依据'
+  else if (action === 'decision/preview' && value) outcome = '已核对研究结论及状态变更；尚未写入'
+  else if (action === 'research/read-reference' && value?.content) outcome = '已读取当前数据工作区中的研究方法'
+  else if (action === 'research/validate' && typeof value?.valid === 'boolean') outcome = value.valid ? '研究资产格式检查通过；业务效果需依据实际评测' : '研究资产检查发现问题，请查看实际回执'
+  else if (action === 'legacy/inspect' && value) outcome = '来源清点已返回；未执行导入内容'
   else if (action === 'assets/read-fixed' && value?.files) outcome = value.selected ? '已读取固定文件内容' : `已列出 ${value.files.length} 个固定版本文件`
   else if (action === 'context') outcome = '已读取当前工作区与固定任务目标'
   else if (action === 'runs/index' && Array.isArray(value?.experiments)) outcome = `查到 ${value.experiments.length} 个版本、${value.experiments.reduce((count: number, experiment: any) => count + (Array.isArray(experiment.runs) ? experiment.runs.length : 0), 0)} 条运行记录`

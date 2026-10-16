@@ -108,7 +108,7 @@ export async function createAgent(rootPath: string, payload: JsonMap, signal?: A
       'if status: raise ValueError("Experiment 校验失败: "+json.dumps(result,ensure_ascii=False))',
       'print(json.dumps({"validated":True}))',
     ].join('\n')
-    await execute(process.env.HARNESS_PYTHON || 'python3', ['-c', validate, temporary, created.experiment_id, join(programRoot(), 'runtime/adapters/dsh-container/source.lock.json'), join(programRoot(), '.agents/skills/research-eval/scripts/validate_experiment.py')], { cwd: root, env: { ...process.env, HARNESS_ASSET_ROOT: temporary, HARNESS_PROGRAM_ROOT: programRoot() }, signal, timeout: 30_000, maxBuffer: 1024 * 1024 })
+    await execute(process.env.HARNESS_PYTHON || 'python3', ['-c', validate, temporary, created.experiment_id, join(programRoot(), 'runtime/adapters/dsh-container/source.lock.json'), join(programRoot(), 'runtime/research/validate_experiment.py')], { cwd: root, env: { ...process.env, HARNESS_ASSET_ROOT: temporary, HARNESS_PROGRAM_ROOT: programRoot() }, signal, timeout: 30_000, maxBuffer: 1024 * 1024 })
     cancelled(signal)
     phase = 'publish'
     const current = catalog(root), source = catalog(temporary).sources[created.experiment_id]

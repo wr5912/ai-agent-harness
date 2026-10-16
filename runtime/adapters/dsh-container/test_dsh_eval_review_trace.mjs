@@ -16,28 +16,36 @@ const route = { provider: 'deepseek-official', model: 'fixture-review', maxToken
 const workspace = '/fixture/workspace'
 const firstPrompt = '检查本次执行证据。'
 
-function toolPair(callId, name, sessionId) {
-  return [
-    { type: 'tool/call', data: { callId, name, arguments: JSON.stringify({ path: 'evidence/checks.json' }) } },
+function toolPair(callId, name, sessionId, options = {}) {
+  const rows = [
+    { type: 'tool/call', data: { callId, name, arguments: JSON.stringify(name === 'read'
+      ? { file_path: 'evidence/checks.json' } : { path: 'evidence' }) } },
     { type: 'tool/result', data: {
-      message: { source: { kind: 'tool', callId }, content: [{ type: 'tool-result', toolCallId: callId, isError: false }] },
+      message: { role: 'user', source: { kind: 'tool', callId }, content: [{ type: 'tool-result', toolCallId: callId, isError: false }] },
       meta: { path: 'evidence/checks.json', offset: 1, lines: [{ number: 1, text: sessionId }], totalLines: 1 },
     } },
   ]
+  if (options.nativeTools) rows[1].data.message = {
+    role: 'tool', source: { kind: 'tool', callId }, toolCallId: callId, isError: false,
+    content: [{ type: 'text', text: sessionId }],
+  }
+  options.mutateTool?.(rows, name)
+  return rows
 }
 
 function archive(session, options, snapshot) {
   const events = session.prompts.flatMap((prompt, index) => [
     { type: 'user/message', data: { id: `user-${index}`, source: { kind: 'user' }, content: [{ type: 'text', text: prompt }] } },
     { type: 'request/header', data: { header: { config: options.routeMismatch ? { ...route, model: 'unexpected-model' } : route, tools: ['glob', 'grep', 'read'].map(name => ({ name })) } } },
-    ...toolPair(`${session.id}-read-${index}`, options.invalidTools ? 'shell' : 'read', session.id),
+    ...toolPair(`${session.id}-read-${index}`, options.invalidTools ? 'shell' : 'read', session.id, options),
+    ...(options.nativeTools ? toolPair(`${session.id}-grep-${index}`, 'grep', session.id, options) : []),
     { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: `归因结果 ${index + 1}` }] } } },
     ...(!options.incomplete && !(options.incompleteLast && index === session.prompts.length - 1) ? [{ type: 'turn/end', data: { reason: { kind: 'completed' }, turn: index + 1 } }] : []),
   ])
   if (options.crossTurn) events.push({ type: 'user/message', data: { id: 'unexpected-user', source: { kind: 'user' }, content: [{ type: 'text', text: '不属于本次请求的额外用户输入' }] } })
   const descendants = [
     { type: 'fixture/snapshot', data: { snapshot } },
-    ...toolPair(`${session.id}-child-glob`, 'glob', session.id),
+    ...toolPair(`${session.id}-child-glob`, 'glob', session.id, options),
   ]
   const encode = rows => strToU8(`${rows.map(row => JSON.stringify(row)).join('\n')}\n`)
   return zipSync({ [`${session.id}.jsonl`]: encode(events), 'descendants/review-child.jsonl': encode(descendants) })
@@ -186,6 +194,49 @@ test('归因 route 或工具校验失败仍保存已经取得的原始轨迹及�
   assert.equal(routeFailure.trace.find(row => row.event.type === 'request/header').event.data.header.config.model, 'unexpected-model')
   const toolsFailure = await runtime.evidence('scene-2')
   assert.ok(toolsFailure.tools.some(row => row.event.type === 'tool/call' && row.event.data.name === 'shell'))
+})
+
+test('DSH v4 原生工具回执保留调用关联及 read 行覆盖，支持 read、grep 和 glob', async t => {
+  const runtime = await fixture(t, () => ({ nativeTools: true }))
+  const response = await runtime.run([{ scene_id: 'scene-9', prompt: firstPrompt }])
+  const result = response.results[0]
+  assert.equal(result.error, undefined)
+  assert.deepEqual(result.tool_accesses.map(access => access.name).sort(), ['glob', 'grep', 'read'])
+  assert.deepEqual(result.tool_accesses.find(access => access.name === 'read'), { name: 'read', arguments: { file_path: 'evidence/checks.json' },
+    result: { is_error: false, read: { path: 'evidence/checks.json', offset: 1, line_numbers: [1], total_lines: 1 } } })
+  const saved = await runtime.evidence('scene-9')
+  assert.equal(saved.checks.status, 'completed')
+  assert.ok(saved.tools.filter(row => row.event.type === 'tool/result').every(row => row.event.data.message.role === 'tool'))
+})
+
+test('DSH v4 回执异常关联、错误、歧义嵌套或缺少读取元数据不能成为有效证据', async t => {
+  const mutations = [
+    rows => { rows[1].data.message.toolCallId = 'other-call' },
+    rows => { rows[1].data.message.source.callId = 'other-call' },
+    rows => { rows[1].data.message.isError = true },
+    rows => { delete rows[1].data.message.isError },
+    rows => { rows[1].data.message.isError = 'false' },
+    rows => { rows[1].data.message.role = 'assistant' },
+    rows => { rows[1].data.message.role = 'assistant'; rows[1].data.message.content = [{ type: 'tool-result', toolCallId: rows[0].data.callId, isError: false }] },
+    rows => { delete rows[1].data.message.role; rows[1].data.message.content = [{ type: 'tool-result', toolCallId: rows[0].data.callId, isError: false }] },
+    rows => { rows[1].data.message.content = [] },
+    rows => { rows[1].data.message.content = [{ type: 'tool-result', toolCallId: rows[0].data.callId, isError: false }] },
+    rows => { rows[1].data.error = { message: 'read failed' } },
+    rows => { delete rows[1].data.meta },
+    rows => { rows[1].data.meta.lines[0].number = 2 },
+    rows => { rows.push(structuredClone(rows[1])) },
+  ]
+  const runtime = await fixture(t, prompt => ({ nativeTools: true, mutateTool: (rows, name) => {
+    if (name === 'read') mutations[Number(prompt)](rows)
+  } }))
+  const response = await runtime.run(mutations.map((_, index) => ({ scene_id: `scene-${index + 1}`, prompt: String(index) })))
+  assert.equal(response.results.length, mutations.length)
+  for (const [index, result] of response.results.entries()) {
+    assert.equal(result.error, 'analysis-tools-invalid', `mutation ${index}`)
+    const saved = await runtime.evidence(`scene-${index + 1}`)
+    assert.equal(saved.checks.status, 'error')
+    assert.equal(saved.checks.trace_available, true)
+  }
 })
 
 test('归因等待超时保存最后一个完整取得的 archive 快照', async t => {

@@ -325,9 +325,9 @@ Agent 的当前判分材料只有 `agents/<agent-id>/evaluation.md`，其中每�
 | 启动器 | `runtime/adapters/dsh-container/dsh-dev` |
 | 受管评测 | `runtime/adapters/dsh-container/dsh-eval`、`dsh-eval-{api,browser,common}.mjs`、`run_record.py` |
 | 来源解析 | `runtime/adapters/dsh-container/source_contract.py`、`sources.json` |
-| 评测合同 | `agents/<agent-id>/evaluation.md`、`.agents/skills/research-eval/scripts/evaluation_contract.py` |
+| 评测合同 | `agents/<agent-id>/evaluation.md`、`runtime/research/evaluation_contract.py` |
 | 核验 | `verify-load.sh`、`verify-load.mjs`、`preflight-access.py`、`tree-digest.mjs` |
-| 仓库校验器 | `.agents/skills/harness-evolution/scripts/validate_repository.py` |
+| 仓库校验器 | `runtime/research/validate_repository.py` |
 | 测试 | `runtime/adapters/dsh-container/test_*.py`、`test_*.mjs`、`tests/test_validators.py` |
 
 ### 7.2 真实行为验收

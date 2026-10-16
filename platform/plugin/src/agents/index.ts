@@ -34,6 +34,7 @@ import { discoverTaskCapabilities, type CapabilityOptions } from '../tasks/capab
 import { previewTaskAssembly, applyTaskAssembly, type TaskAssemblyInput } from '../tasks/assembly.ts'
 import { verifyTaskDelivery, type TaskDeliveryInput } from '../tasks/delivery.ts'
 import { createInstancesHandler } from '../instances/index.ts'
+import { inspectLegacy, readResearchReference, validateResearch } from './research.ts'
 
 type JsonMap = Record<string, unknown>
 type SourceCatalog = { schema_version?: string; sources?: Record<string, JsonMap> }
@@ -46,9 +47,9 @@ const SOURCE_CATALOG = 'config/sources.json'
 const LEGACY_SOURCE_CATALOG = 'runtime/adapters/dsh-container/sources.json'
 const DSH_EVAL = 'runtime/adapters/dsh-container/dsh-eval'
 const RUN_RECORD = 'runtime/adapters/dsh-container/run_record.py'
-const VALIDATE_EXPERIMENT = '.agents/skills/research-eval/scripts/validate_experiment.py'
+const VALIDATE_EXPERIMENT = 'runtime/research/validate_experiment.py'
 const SOURCE_CONTRACT = 'runtime/adapters/dsh-container/source_contract.py'
-const EVALUATION_CONTRACT = '.agents/skills/research-eval/scripts/evaluation_contract.py'
+const EVALUATION_CONTRACT = 'runtime/research/evaluation_contract.py'
 const EXCLUDED_ASSETS = new Set(['runs', 'history', 'RuntimeHOME', 'sessions', 'cache', '.git', 'node_modules', '__pycache__'])
 // DSH 的 !!js 只作为 YAML 标量解析，dry 校验不求值。
 const DRAFT_YAML_SCHEMA = DEFAULT_SCHEMA.extend(new Type('tag:yaml.org,2002:js', { kind: 'scalar', construct: value => value }))
@@ -174,9 +175,9 @@ async function parseJsonCommandAsync(root: string, args: string[], message = '�
   catch { throw new RpcError('command_failed', '命令没有返回合法 JSON', { stdout: redact(stdout) }) }
 }
 
-function readYamlMap(root: string, file: string): JsonMap {
+function readYamlMap(root: string, file: string, content?: string): JsonMap {
   try {
-    const value = loadYaml(readFileSync(file, 'utf8')) ?? {}
+    const value = loadYaml(content ?? readFileSync(file, 'utf8')) ?? {}
     if (typeof value !== 'object' || Array.isArray(value)) throw new Error('YAML 顶层必须是 object')
     return value as JsonMap
   } catch {
@@ -246,10 +247,10 @@ function listAgents(root: string, experiments = listExperiments(root)) {
   })
 }
 
-function experimentInfo(root: string, id: string) {
+function experimentInfo(root: string, id: string, changeContent?: string) {
   experimentIdValue(id)
   const base = join(root, 'evolution/experiments', id)
-  const change = readYamlMap(root, join(base, 'change.yaml'))
+  const change = readYamlMap(root, join(base, 'change.yaml'), changeContent)
   const agentId = typeof change.agent_id === 'string' ? change.agent_id : id.replace(EXP_ID, '$1')
   if (!AGENT_ID.test(agentId)) throw new RpcError('invalid_request', 'change.yaml agent_id 格式无效', { experiment_id: id, agent_id: agentId })
   return {
@@ -818,7 +819,8 @@ async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
   const rawExperimentId = explicitExperiment ?? activeExperiment ?? versions[0]?.id
   const experimentId = rawExperimentId ? experimentIdValue(rawExperimentId) : undefined
   if (!experimentId) throw new RpcError('invalid_request', '未指定 experiment_id，manifest 也没有 active_experiment')
-  const exp = experimentInfo(root, experimentId)
+  const changeContent = readFileSync(changePath(root, experimentId), 'utf8')
+  const exp = experimentInfo(root, experimentId, changeContent)
   if (exp.agent_id !== agentId) throw new RpcError('invalid_request', 'Experiment 不属于该 Agent', { agent_id: agentId, experiment_id: experimentId })
   const source = catalog(root)
   const [evaluation, contract] = await Promise.all([loadEvaluation(root, agentId, signal), sourceContract(root, experimentId, signal)])
@@ -838,6 +840,7 @@ async function detail(root: string, payload: JsonMap, signal?: AbortSignal) {
   return ok({
     agent: { id: agentId, name: agentDisplayName(root, experimentId) ?? agentId, manifest, path: `agents/${agentId}` },
     experiment: exp,
+    change_sha256: sha256(changeContent),
     candidate_sha256: readableCandidateDigest,
     selection: { basis: explicitExperiment ? 'explicit' : activeExperiment ? 'active_experiment' : 'latest_experiment', experiment_id: experimentId },
     versions: versions.map(item => ({ id: item.id, status: item.status, baseline_ref: item.baseline_ref })),
@@ -998,7 +1001,8 @@ function assetTree(root: string, experimentId: string): AssetNode[] {
     }
     return lstatSync(file).isFile() ? { name, path: rel, kind: 'file' } : null
   }
-  return [`evolution/experiments/${experimentId}/candidate`, `agents/${exp.agent_id}/evaluation.md`, `evolution/experiments/${experimentId}/decision.md`]
+  return [`evolution/experiments/${experimentId}/candidate`, `agents/${exp.agent_id}/evaluation.md`,
+    ...['hypothesis.md', 'evaluation/observations.md', 'decision.md'].map(path => `evolution/experiments/${experimentId}/${path}`)]
     .map(node).filter((item): item is AssetNode => item !== null)
 }
 
@@ -1018,7 +1022,7 @@ function editablePath(root: string, payload: JsonMap, relPath: string) {
   const agentId = exp.agent_id
   let rel = relPath.replace(/\\/g, '/').replace(/^\/+/, '')
   if (rel === 'evaluation.md') rel = `agents/${agentId}/evaluation.md`
-  if (rel === 'decision.md') rel = `evolution/experiments/${experimentId}/decision.md`
+  if (['decision.md', 'hypothesis.md', 'evaluation/observations.md'].includes(rel)) rel = `evolution/experiments/${experimentId}/${rel}`
   if (rel.startsWith('candidate/')) rel = `evolution/experiments/${experimentId}/${rel}`
   if (!rel.startsWith('evolution/') && !rel.startsWith('agents/')) rel = `evolution/experiments/${experimentId}/candidate/${rel}`
   const parts = rel.split('/')
@@ -1026,7 +1030,7 @@ function editablePath(root: string, payload: JsonMap, relPath: string) {
     throw new RpcError('path_rejected', 'Run、历史、缓存、Session、RuntimeHOME、Git 和 LLM API Key 不可编辑', { path: rel })
   }
   const allowed = rel === `evolution/experiments/${experimentId}/candidate` || rel.startsWith(`evolution/experiments/${experimentId}/candidate/`) ||
-    rel === `evolution/experiments/${experimentId}/decision.md` ||
+    ['decision.md', 'hypothesis.md', 'evaluation/observations.md'].some(path => rel === `evolution/experiments/${experimentId}/${path}`) ||
     rel === `agents/${agentId}/evaluation.md`
   if (!allowed) throw new RpcError('path_rejected', '路径不在可编辑范围内', { path: rel })
   const file = repoPath(root, rel)
@@ -1345,13 +1349,70 @@ async function readRunEvidence(root: string, payload: JsonMap, signal?: AbortSig
   return ok({ path: entry.path, content: redact(buffer.subarray(0, Math.min(size, limit)).toString('utf8'), Infinity), truncated: size > limit })
 }
 
+function decisionChange(root: string, payload: JsonMap) {
+  const id = experimentIdField(payload)
+  if (payload.status !== undefined && (typeof payload.status !== 'string' || !['active', 'completed'].includes(payload.status))) throw new RpcError('invalid_request', 'status 必须是 active 或 completed')
+  if (payload.outcome !== undefined && (typeof payload.outcome !== 'string' || !['adopt', 'continue', 'reject', 'inconclusive'].includes(payload.outcome))) throw new RpcError('invalid_request', 'outcome 必须是 adopt、continue、reject 或 inconclusive')
+  const expectedChange = stringField(payload, 'expected_change_sha256')
+  const file = changePath(root, id)
+  assertNoSymlinkPath(root, file)
+  const before = readFileSync(file, 'utf8')
+  if (sha256(before) !== expectedChange) throw new RpcError('conflict', '研究版本状态已变化，请重新读取后确认')
+  const current = readYamlMap(root, file, before)
+  const updated = { ...current, ...(payload.status === undefined ? {} : { status: payload.status }), ...(payload.outcome === undefined ? {} : { outcome: payload.outcome }) }
+  if (updated.status === 'completed' && !['adopt', 'continue', 'reject', 'inconclusive'].includes(String(updated.outcome))) throw new RpcError('invalid_request', '完成研究时必须同时选择有效 outcome')
+  const after = dumpYaml(updated, { forceQuotes: true, quotingType: '"', lineWidth: -1, noRefs: true })
+  return { file, before, after, current, updated, expectedChange }
+}
+
+async function decisionPreview(root: string, payload: JsonMap, signal?: AbortSignal) {
+  const id = experimentIdField(payload)
+  const change = payload.status === undefined && payload.outcome === undefined ? undefined : decisionChange(root, payload)
+  const result = await previewEdit(root, { experiment_id: id, edits: [{ path: 'decision.md', content: textField(payload, 'content'), expected_sha256: stringField(payload, 'expected_sha256') }] }, signal)
+  if (!result.ok || !change) return result
+  return ok({ ...result.value, change: { path: repoRelative(root, change.file), before: { status: change.current.status, outcome: change.current.outcome ?? null },
+    after: { status: change.updated.status, outcome: change.updated.outcome ?? null }, before_sha256: sha256(change.before), after_sha256: sha256(change.after) } })
+}
+
 async function decisionUpdate(root: string, payload: JsonMap, signal?: AbortSignal) {
-  const result = await applyEdit(root, {
-    experiment_id: experimentIdField(payload),
-    edits: [{ path: 'decision.md', content: textField(payload, 'content'), expected_sha256: stringField(payload, 'expected_sha256') }],
-  }, signal)
-  const written = result.ok ? result.value.written?.[0] : null
-  return ok({ path: written?.path ?? '', sha256: written?.sha256 ?? '' })
+  const id = experimentIdField(payload)
+  const content = textField(payload, 'content')
+  const expected = stringField(payload, 'expected_sha256')
+  // 原有编辑器仅维护说明；结构化结论通过两个摘要共同确认。
+  if (payload.status === undefined && payload.outcome === undefined) {
+    const result = await applyEdit(root, { experiment_id: id,
+      edits: [{ path: 'decision.md', content, expected_sha256: expected }],
+    }, signal)
+    if (!result.ok) return result
+    const written = result.value.written[0]
+    return ok({ path: written.path, sha256: written.sha256 })
+  }
+  const decision = editablePath(root, { experiment_id: id }, 'decision.md')
+  const { file: changeFile, before: beforeChange, after: afterChange, updated } = decisionChange(root, payload)
+  const beforeDecision = editableText(decision.file)
+  if (sha256(beforeDecision) !== expected) throw new RpcError('conflict', '研究结论已变化，请重新读取后确认')
+  if (rejectsLlmApiKey(decision.rel, content)) throw new RpcError('secret_rejected', '拒绝写入 LLM API Key')
+  if (signal?.aborted) throw new RpcError('aborted', '研究结论保存已取消')
+  let wroteDecision = false, wroteChange = false
+  try {
+    atomicWrite(decision.file, content); wroteDecision = true
+    atomicWrite(changeFile, afterChange); wroteChange = true
+    const validation = await validateResearch(root, id, signal)
+    if (validation.valid !== true) throw new RpcError('validation_failed', '研究结论未通过校验，已恢复原内容', { validation })
+    if (sha256(readFileSync(decision.file)) !== sha256(content) || sha256(readFileSync(changeFile)) !== sha256(afterChange)) throw new RpcError('conflict', '保存校验期间文件再次变化')
+    return ok({ path: decision.rel, sha256: sha256(content), change_sha256: sha256(afterChange), status: updated.status, outcome: updated.outcome ?? null, validation })
+  } catch (error) {
+    // 只恢复本操作写入的内容，保留其他进程的并发修改并明确报告待恢复状态。
+    try {
+      assertNoSymlinkPath(root, decision.file); assertNoSymlinkPath(root, changeFile)
+      if ((wroteDecision && sha256(readFileSync(decision.file)) !== sha256(content)) || (wroteChange && sha256(readFileSync(changeFile)) !== sha256(afterChange))) {
+        throw new Error('concurrent-change')
+      }
+      if (wroteDecision) atomicWrite(decision.file, beforeDecision)
+      if (wroteChange) atomicWrite(changeFile, beforeChange)
+    } catch { throw new RpcError('needs_recovery', '结论保存失败且文件又有变化，请核对 decision.md 与 change.yaml', { experiment_id: id }) }
+    throw error
+  }
 }
 
 export function createAgentsHandler(assetRoot: string, onChange?: () => void, capabilityOptions: CapabilityOptions = {}): ConnectionRpcHandler {
@@ -1394,6 +1455,9 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void, ca
         return result.ok ? ok(result.value) : failure(new RpcError(result.error.code, result.error.message))
       }
       switch (endpoint) {
+        case 'research/read-reference': return ok(readResearchReference(root, body.topic))
+        case 'research/validate': return ok(await validateResearch(root, experimentIdField(body), signal))
+        case 'legacy/inspect': return ok(await inspectLegacy(root, body.path, signal))
         case 'tasks/capabilities': return ok(await discoverTaskCapabilities(root, { ...capabilityOptions, signal, agent_id: optionalString(body, 'agent_id'), source: optionalString(body, 'source') }))
         case 'tasks/assembly-preview': return ok(await previewTaskAssembly(root, body as unknown as TaskAssemblyInput))
         case 'tasks/assembly-apply': {
@@ -1443,6 +1507,7 @@ export function createAgentsHandler(assetRoot: string, onChange?: () => void, ca
         case 'runs/read-file': return ok(await previewRunFile(root, stringField(body, 'run_id'), stringField(body, 'path'), signal))
         case 'runs/compare': return await runRecord(root, 'compare', body, signal)
         case 'runs/trace': return ok(await readRunTrace(root, body as any, signal))
+        case 'decision/preview': return await decisionPreview(root, body, signal)
         case 'decision/update': return await decisionUpdate(root, body, signal)
         default: return failure(new RpcError('not_found', '未知的智能体操作', { endpoint }))
       }

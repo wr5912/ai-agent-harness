@@ -15,7 +15,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 
 from evaluation_contract import cases_digest, load_evaluation
 
-ADAPTER = Path(__file__).resolve().parents[4] / "runtime/adapters/dsh-container"
+ADAPTER = Path(__file__).resolve().parents[1] / "adapters/dsh-container"
 if str(ADAPTER) not in sys.path:
     sys.path.insert(0, str(ADAPTER))
 from scenario_analysis import summarize_review, validate_analysis
@@ -49,7 +49,7 @@ def issue(code: str, message: str, path: Path | None = None) -> dict[str, str]:
 
 def load_yaml(path: Path) -> dict:
     if yaml is None:
-        raise RuntimeError("缺少 PyYAML；请先安装 scripts/requirements.txt")
+        raise RuntimeError("缺少 PyYAML；请先安装 runtime/research/requirements.txt")
     value = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ValueError("必须是 YAML object")

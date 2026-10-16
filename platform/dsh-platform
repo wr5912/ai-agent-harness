@@ -115,7 +115,7 @@ def global_dsh(home):
 
 
 def rendered_profile():
-    skill_dirs = [REPO / "platform/skills", asset_root() / ".local/build-cache/management-skills"]
+    skill_dirs = [asset_root() / ".agents/skills"]
     skill_dirs += [asset_root() / item["path"] / "skills" for item in workspace_extensions()
                    if (asset_root() / item["path"] / "skills").is_dir()]
     result = {}
@@ -175,9 +175,6 @@ def extension_output(extension, path_only=False):
         raise PlatformError(f"扩展 {extension['id']} {'定位' if path_only else '构建'}失败；请检查对应构建入口。") from None
 
 
-RESEARCH_SKILLS = ("harness-experiment-fusion", "harness-guided-workflow", "harness-evolution", "research-eval", "legacy-asset-intake")
-
-
 def link_program_asset(target, source, relative):
     """重建已知程序生成链接；保留普通文件、目录与不明来源链接。"""
     if target.is_symlink():
@@ -195,17 +192,6 @@ def link_program_asset(target, source, relative):
     target.symlink_to(source, target_is_directory=True)
 
 
-def prepare_research_skills():
-    directory = asset_root() / ".local/build-cache/management-skills"
-    directory.mkdir(parents=True, exist_ok=True)
-    for name in RESEARCH_SKILLS:
-        source = REPO / ".agents/skills" / name
-        if not (source / "SKILL.md").is_file():
-            raise PlatformError(f"缺少平台复用的研究 Skill：{source}")
-        target = directory / name
-        link_program_asset(target, source, Path(".agents/skills") / name)
-
-
 def check_artifacts():
     for name in ("index.js", "client.js", "mcp-manager.js"):
         path = PLUGIN / "lib" / name
@@ -217,10 +203,6 @@ def check_artifacts():
     for extension in workspace_extensions():
         if not (extension_output(extension, path_only=True) / "plugin.js").is_file():
             raise PlatformError(f"扩展 {extension['id']} 尚未按当前来源构建；请运行 prepare。")
-    for name in RESEARCH_SKILLS:
-        target = asset_root() / ".local/build-cache/management-skills" / name
-        if not target.is_symlink() or target.resolve() != REPO / ".agents/skills" / name:
-            raise PlatformError("平台研究 Skill 未关联当前程序；请运行 prepare。")
 
 
 def check_profile(profile, rendered):
@@ -345,7 +327,6 @@ def prepare(home):
         raise PlatformError("插件依赖安装或构建失败；平台 Profile 未更新。") from exc
     for extension in workspace_extensions():
         extension_output(extension)
-    prepare_research_skills()
     check_artifacts()
     profile = home / "profiles" / PROFILE_NAME
     profile.mkdir(parents=True, exist_ok=True)

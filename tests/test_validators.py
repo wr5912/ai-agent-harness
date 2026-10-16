@@ -22,10 +22,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = Path(os.environ.get("HARNESS_ASSET_ROOT", Path.home() / "harness-engineering-platform-data")).expanduser().resolve()
-INSPECT_SOURCE = ROOT / ".agents/skills/legacy-asset-intake/scripts/inspect_source.py"
-VALIDATE_REPOSITORY = ROOT / ".agents/skills/harness-evolution/scripts/validate_repository.py"
-VALIDATE_EXPERIMENT = ROOT / ".agents/skills/research-eval/scripts/validate_experiment.py"
-EVALUATION_CONTRACT = ROOT / ".agents/skills/research-eval/scripts/evaluation_contract.py"
+INSPECT_SOURCE = ROOT / "runtime/research/inspect_source.py"
+VALIDATE_REPOSITORY = ROOT / "runtime/research/validate_repository.py"
+VALIDATE_EXPERIMENT = ROOT / "runtime/research/validate_experiment.py"
+EVALUATION_CONTRACT = ROOT / "runtime/research/evaluation_contract.py"
 RUN_RECORD = ROOT / "runtime/adapters/dsh-container/run_record.py"
 DSH_EVAL = ROOT / "runtime/adapters/dsh-container/dsh-eval"
 SCENARIO_ANALYSIS = ROOT / "runtime/adapters/dsh-container/scenario_analysis.py"
@@ -225,6 +225,23 @@ class SourceInspectorTests(unittest.TestCase):
 
 
 class RepositoryValidatorTests(unittest.TestCase):
+    def test_program_skill_check_does_not_require_data_business_skills(self) -> None:
+        spec = importlib.util.spec_from_file_location("program_repository_validator", VALIDATE_REPOSITORY)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in module.REQUIRED_SKILLS:
+                shutil.copytree(ROOT / ".agents/skills" / name, root / ".agents/skills" / name)
+            errors = []
+            module.validate_skills(root, errors)
+            self.assertEqual(errors, [])
+            self.assertNotIn("harness-evolution", module.REQUIRED_SKILLS)
+            self.assertNotIn("research-eval", module.REQUIRED_SKILLS)
+            shutil.rmtree(root / ".agents/skills/dsh-platform-development")
+            module.validate_skills(root, errors)
+            self.assertIn("SKILL_REQUIRED", error_codes({"errors": errors}))
+
     def test_data_workspace_validates_without_copied_program_or_standards(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -1552,7 +1569,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
             self.assertEqual(artifact["source_sha256"], hashlib.sha256((run / artifact["source_evidence"]).read_bytes()).hexdigest())
             self.assertEqual(artifact["path"], "artifacts/U-INS-001/inspection-report.md")
             (run / artifact["path"]).write_text("修改后的内容", encoding="utf-8")
-            checked, validation = run_json(repository / ".agents/skills/research-eval/scripts/validate_experiment.py", run.parents[1], cwd=repository)
+            checked, validation = run_json(repository / "runtime/research/validate_experiment.py", run.parents[1], cwd=repository)
             self.assertNotEqual(checked.returncode, 0)
             self.assertIn("RUN_ARTIFACT", error_codes(validation))
 
@@ -1857,7 +1874,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
                 ), encoding="utf-8",
             )
             checked, verdict = run_json(
-                repository / ".agents/skills/research-eval/scripts/validate_experiment.py",
+                repository / "runtime/research/validate_experiment.py",
                 repository / "evolution/experiments/EXP-security-operations-expert-006", cwd=repository,
             )
         self.assertNotEqual(checked.returncode, 0)
@@ -1953,7 +1970,7 @@ print(json.dumps({"schema_version": "1.0", "rows": rows}))
     def test_preflight_failure_does_not_create_run_or_start_instance(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             repository, env, command_log = self.runtime_fixture(Path(temp))
-            validator = repository / ".agents/skills/harness-evolution/scripts/validate_repository.py"
+            validator = repository / "runtime/research/validate_repository.py"
             validator.write_text(
                 'import json\nprint(json.dumps({"valid": False, "errors": [{"code": "test-invalid"}]}))\nraise SystemExit(1)\n',
                 encoding="utf-8",

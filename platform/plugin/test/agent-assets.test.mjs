@@ -175,7 +175,7 @@ function createFixture() {
   const files = ['runtime/adapters/dsh-container/dsh-dev', 'runtime/adapters/dsh-container/source_contract.py', 'runtime/adapters/dsh-container/workspace_paths.py', 'runtime/adapters/dsh-container/scenario_analysis.py',
     'runtime/adapters/dsh-container/source.lock.json', 'runtime/adapters/dsh-container/Dockerfile', 'runtime/adapters/dsh-container/apt-mirror.sh', 'runtime/adapters/dsh-container/build-image.sh', 'runtime/adapters/dsh-container/dsh-cli.sh', 'runtime/adapters/dsh-container/remote-host-settings.patch',
     'runtime/adapters/dsh-container/verification-home-controls/locked-bootstrap.env', 'runtime/adapters/dsh-container/verification-home-controls/web-profile.package.json',
-    '.agents/skills/research-eval/scripts/validate_experiment.py', '.agents/skills/research-eval/scripts/evaluation_contract.py']
+    'runtime/research/validate_experiment.py', 'runtime/research/evaluation_contract.py']
   for (const file of files) { mkdirSync(dirname(join(root, file)), { recursive: true }); copyFileSync(join(repo, file), join(root, file)) }
   for (const folder of ['agents', 'evolution/experiments']) mkdirSync(join(root, folder), { recursive: true })
   write(join(root, 'runtime/adapters/dsh-container/sources.json'), JSON.stringify({ schema_version: '1.1', sources: {} }))
@@ -235,7 +235,7 @@ test('新建失败完整回滚，输入凭据、取消和并发重名不会覆�
     assert.equal((await createAgent(root, { ...input, agent_id: '../outside' })).ok, false)
     assert.equal((await createAgent(root, { ...input, role: ['sk', 'b'.repeat(32)].join('-') })).error.code, 'secret_rejected')
     assert.equal((await createAgent(root, input, AbortSignal.abort())).error.code, 'aborted')
-    const validator = join(root, '.agents/skills/research-eval/scripts/validate_experiment.py')
+    const validator = join(root, 'runtime/research/validate_experiment.py')
     const validScript = readFileSync(validator, 'utf8')
     writeFileSync(validator, 'raise RuntimeError("controlled validation failure")\n')
     assert.equal((await createAgent(root, input)).ok, false)

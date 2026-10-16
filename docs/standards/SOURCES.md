@@ -11,7 +11,7 @@
 | Harness Repo 目录结构设计说明 v1.1 | [`Harness_Repo目录结构设计说明_v1.1.md`](./Harness_Repo目录结构设计说明_v1.1.md) | `47e91605ebff45baf269c7f85218ce69c58ada0a6cd78c8f7d8e5524bea44705` | 2026-10-13 本地术语修订版 |
 | Harness Asset Repository 规范 v1.0 | [`Harness_Asset_Repository规范_v1.0.md`](./Harness_Asset_Repository规范_v1.0.md) | `9a83b79a4b48cac99f8f56e69f9b63e2d9c78bb3db5f75be6f7e4501685fd502` | 2026-10-13 本地术语修订版 |
 
-上述摘要标识输入原版。两个修订前副本均可从 Git 提交 `6560e86291100d9bab89016e2194e64a19654d08` 的同路径恢复，并与原摘要核对。当前本地术语修订版的预期 SHA-256 只在[仓库校验器的 `STANDARD_COPIES`](../../.agents/skills/harness-evolution/scripts/validate_repository.py)维护；校验器仍拒绝摘要漂移，本文不重复维护当前摘要。术语说明不改变原规范的历史架构和生产语义，其当前适用范围由项目解释确定。
+上述摘要标识输入原版。两个修订前副本均可从 Git 提交 `6560e86291100d9bab89016e2194e64a19654d08` 的同路径恢复，并与原摘要核对。当前本地术语修订版的预期 SHA-256 只在[仓库校验器的 `STANDARD_COPIES`](../../runtime/research/validate_repository.py)维护；校验器仍拒绝摘要漂移，本文不重复维护当前摘要。术语说明不改变原规范的历史架构和生产语义，其当前适用范围由项目解释确定。
 
 ## 外部研发规范参考
 

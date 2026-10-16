@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { Session, SESSION_FORMAT_VERSION, appendPluginRecord } from '@deepseek-ai/dsh-session'
 import { SessionProjectionRegistry } from '@deepseek-ai/dsh-session-projection'
@@ -35,24 +38,36 @@ test('首页新任务按原生实际状态收起，不反向展开已折叠的�
 
 test('助手写操作等待用户确认，原生记录恢复状态且失败回执不标记成功', async t => {
   const root = new Context()
+  const assetRoot = mkdtempSync(join(tmpdir(), 'conversation-data-'))
+  writeFileSync(join(assetRoot, 'AGENTS.md'), '管理当前数据工作区的业务资产。')
+  for (const name of ['workspace-management', 'user-facing-output']) {
+    const directory = join(assetRoot, '.agents/skills', name)
+    mkdirSync(directory, { recursive: true })
+    writeFileSync(join(directory, 'SKILL.md'), `---\nname: ${name}\ndescription: 测试管理技能\n---\n仅处理本测试的业务请求。`)
+  }
+  const skills = { async get(name, options) {
+    assert.equal(options.cwd, assetRoot)
+    const path = join(assetRoot, '.agents/skills', name, 'SKILL.md')
+    return existsSync(path) ? { name, path, content: readFileSync(path, 'utf8'), invocation: { modelInvocable: true } } : undefined
+  } }
   let projections
   await root.plugin({ name: 'test-projections', apply(ctx) { projections = new SessionProjectionRegistry(ctx) } })
   const session = Session.create('session-platform-test', undefined, {
-    version: SESSION_FORMAT_VERSION, id: 'session-platform-test', createdAt: 0, isSeeded: false, cwd: '/repo',
+    version: SESSION_FORMAT_VERSION, id: 'session-platform-test', createdAt: 0, isSeeded: false, cwd: assetRoot,
   })
   const calls = []
   const tools = new Map()
-  const assistant = createAssistant('/repo', async (endpoint, input) => {
+  const assistant = createAssistant(assetRoot, async (endpoint, input) => {
     calls.push({ endpoint, input })
     return { ok: false, error: { code: 'fixture_failure', message: '模拟操作失败', details: {} } }
   }, {
     controller: { resolveAgent: async () => ({ agent: { session } }) },
-    projections,
+    projections, skills,
     systemPrompt: new SystemPrompt(root, {}),
     record: (target, type, value) => appendPluginRecord(target, type, value),
     notify() {},
   })
-  t.after(async () => { await assistant.dispose(); await root.fiber.dispose() })
+  t.after(async () => { await assistant.dispose(); await root.fiber.dispose(); rmSync(assetRoot, { recursive: true, force: true }) })
   assistant.registerTools({ register: tool => tools.set(tool.name, tool) })
   const controller = new AbortController()
   let finished = false

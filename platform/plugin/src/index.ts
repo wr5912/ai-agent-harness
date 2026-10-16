@@ -28,7 +28,7 @@ import logo from '../assets/harness-logo.svg'
 const WebApp: typeof NativeWebApp = await runtimeModule('@deepseek-ai/dsh-web-app')
 
 export const name = 'harness-platform'
-export const inject = ['connection', 'webServer', 'credentials', 'platformMcp', 'sessionController', 'settingsController', 'tools', 'agents', 'sessionProjections', 'systemPrompt', 'goals']
+export const inject = ['connection', 'webServer', 'credentials', 'platformMcp', 'sessionController', 'settingsController', 'tools', 'agents', 'sessionProjections', 'systemPrompt', 'goals', 'skills']
 export const Config = WebApp.Config
 export type Config = NativeWebApp.Config
 
@@ -137,7 +137,7 @@ export function applyTools(ctx: Context) {
   const wrap = (domain: 'agents' | 'instances' | 'mcp', handler: ConnectionRpcHandler): ConnectionRpcHandler => async (endpoint, payload, signal, peer) => {
     try { return await handler(endpoint, payload, signal, peer) }
     finally {
-      if (!['list', 'detail', 'url', 'logs', 'edit/read', 'cases/list', 'cases/read', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'runs/trace', 'assets/diff', 'assets/read-fixed', 'compute-variants/context', 'compute-variants/preview', 'compute-variants/compare', 'datasets/source', 'datasets/list', 'datasets/read', 'datasets/export', 'cases/create-context', 'cases/from-run', 'cases/create-preview', 'fusion/status', 'fusion/proposal', 'features/proposal', 'features/read-source'].includes(endpoint)) notify([domain, 'catalog'])
+      if (!['research/read-reference', 'research/validate', 'legacy/inspect', 'decision/preview', 'list', 'detail', 'url', 'logs', 'edit/read', 'cases/list', 'cases/read', 'eval/status', 'runs/index', 'runs/show', 'runs/evidence', 'runs/report', 'runs/files', 'runs/read-file', 'runs/compare', 'runs/trace', 'assets/diff', 'assets/read-fixed', 'compute-variants/context', 'compute-variants/preview', 'compute-variants/compare', 'datasets/source', 'datasets/list', 'datasets/read', 'datasets/export', 'cases/create-context', 'cases/from-run', 'cases/create-preview', 'fusion/status', 'fusion/proposal', 'features/proposal', 'features/read-source'].includes(endpoint)) notify([domain, 'catalog'])
     }
   }
   const domains = {
@@ -150,7 +150,7 @@ export function applyTools(ctx: Context) {
   const extractionScope = createExtractionScope()
   const computeVariantScope = createComputeVariantScope()
   const featureScope = createFeatureScope()
-  const builderScope = createTaskBuilderScope()
+  const builderScope = createTaskBuilderScope(assetRoot, services.skills)
   const taskScope = (agent: any, state: any) => isDecisionExtraction(assetRoot, agent, state) ? extractionScope
     : isComputeVariantResearch(assetRoot, agent, state) ? computeVariantScope
       : isFeatureOrganization(assetRoot, agent, state) ? featureScope : undefined
@@ -163,7 +163,7 @@ export function applyTools(ctx: Context) {
     running: id => services.agents.get(id)?.status === 'running',
     liveAgent: id => services.agents.get(id),
     record: async (session, type, value) => { const records = await runtimeModule('@deepseek-ai/dsh-session'); records.appendPluginRecord(session, type, value) },
-    projections: services.sessionProjections, systemPrompt: services.systemPrompt,
+    projections: services.sessionProjections, systemPrompt: services.systemPrompt, skills: services.skills,
     notify, mcp: manager ? assistantMcp(services.settingsController, manager) : undefined,
     goals: services.goals,
   })
@@ -180,8 +180,8 @@ export function applyTools(ctx: Context) {
   }) as any)
   ctx.on('agent/disposed' as any, (({ agent }: any) => { extractionScope.release(agent); computeVariantScope.release(agent); featureScope.release(agent); builderScope.release(agent) }) as any)
   ctx.on('system-prompt/assemble' as any, (async (_assembly: any, context: any, next: any) => {
-    const assembly = await next()
     const agent = context.agent
+    const assembly = await assistant.assemblePrompt(await next(), context)
     const state = agent && services.sessionProjections.stateOf(agent.session, 'harnessPlatformAssistant')
     if (assistant.isTaskSession(agent)) return { ...assembly, tools: assembly.tools.filter((tool: any) => ['skill', 'platform_task', 'platform_agents', 'platform_instances', 'platform_mcp'].includes(tool.name)) }
     const scope = taskScope(agent, state)
