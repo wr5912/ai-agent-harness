@@ -39,7 +39,7 @@ export async function managementSkill(root: string, skills: NativeSkills, name: 
   if (!skill?.path || realWorkspaceFile(root, skill.path) !== expected || !skill.content?.trim() || skill.name !== name || skill.invocation?.modelInvocable === false) throw new Error(`技能 ${name} 未从当前数据工作区装载`)
   return { ...skill, path: expected, sha256: digest(skill.content) }
 }
-/** 构建任务还可使用 workspace.json 已声明扩展提供的业务技能；核心资产来源保持固定。 */
+/** 平台管理还可使用 workspace.json 已声明扩展提供的业务技能；核心资产来源保持固定。 */
 export async function taskBusinessSkill(root: string, skills: NativeSkills, name: string, scope?: any, signal?: AbortSignal) {
   try { return await managementSkill(root, skills, name, scope, signal) }
   catch (error) { if (managementSkills.includes(name as typeof managementSkills[number])) throw error }

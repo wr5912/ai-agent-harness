@@ -15,6 +15,11 @@ import { managementSkills } from '../src/assistant/business-assets.ts'
 import { assistantMcp } from '../src/assistant/mcp.ts'
 import { applyTaskAssembly } from '../src/tasks/assembly.ts'
 import { candidateDigest, sha256 } from '../src/tasks/files.ts'
+import { assistantActions, assistantActionContract, projectAssistantTools } from '../src/assistant/tool-contracts.ts'
+import { DECISION_EXTRACTION_CONTRACT } from '../src/evaluation/decision-dataset-contract.ts'
+import { completedTaskModelView } from '../src/assistant/task-model-view.ts'
+import { deliveryProjection, readInstanceDeliveryHistory } from '../src/assistant/delivery-history.ts'
+import { workspaceIdentity } from '../src/workspace.ts'
 
 const expressionFixture = '先说明结果、影响和用户需要采取的行动。保留失败与未知事实。'
 function fixture(t, responder, root) {
@@ -260,9 +265,9 @@ test('真实 Session 投影隔离上下文、冷恢复固定任务，用户 prom
 
 test('向已有专用会话追加无context指导保留固定skill与目标，不跟随最新页面', async t => {
   const f = fixture(t), fixed = { skill: 'compute-variant-research', workflow: 'compute-variants', agent_id: 'alpha', experiment_id: 'EXP-alpha-002' }
-  let scoped = 0, released = 0
+  let scoped = 0, managed = 0, released = 0
   f.services.scopeComputeVariants = () => { scoped++ }
-  f.services.scopeTaskBuilder = () => assert.fail('无context指导不应切换专用任务作用域')
+  f.services.scopeTaskBuilder = () => { managed++ }
   f.services.releaseTaskScope = () => { released++ }
   const id = (await f.rpc('session', { task: '生成代码变体', context: fixed })).value.session_id
   await f.rpc('context', { session_id: id, context: { page: 'instances', instance_name: 'latest-page-only' } })
@@ -275,10 +280,11 @@ test('向已有专用会话追加无context指导保留固定skill与目标，�
   assert.ok(scoped > 0)
   await f.reload()
   assert.deepEqual((await f.status(id)).task_context, fixed, '保留的固定上下文必须可冷恢复')
-  const beforeRelease = released
+  const beforeManagement = managed, beforeRelease = released
   assert.equal((await f.rpc('session', { session_id: id, task: '显式切换普通讨论', context: {} })).ok, true)
   assert.deepEqual((await f.status(id)).task_context, {})
-  assert.ok(released > beforeRelease, '显式退出专用任务后，状态入口也应释放旧作用域')
+  assert.ok(managed > beforeManagement, '显式退出专用任务后，状态入口应应用通用管理作用域')
+  assert.equal(released, beforeRelease, '通用管理不能释放为全部原生工具')
 })
 
 test('各类平台任务只装载一份共用表达正文，不写入用户消息或会话事实', async t => {
@@ -291,7 +297,7 @@ test('各类平台任务只装载一份共用表达正文，不写入用户消�
   t.after(() => { before(); after() })
   const contexts = [
     { page: 'home' },
-    { page: 'agents', skill: 'agent-maintenance', workflow: 'features', experiment_id: 'EXP-basic-001' },
+    { page: 'agents', skill: 'agent-maintenance', workflow: 'features', agent_id: 'basic', experiment_id: 'EXP-basic-001' },
     { page: 'agents', skill: 'agent-maintenance', workflow: 'research', experiment_id: 'EXP-basic-001' },
     { page: 'agents', skill: 'compute-variant-research', workflow: 'compute-variants', experiment_id: 'EXP-basic-001' },
     { page: 'mcp', skill: 'mcp-composition' },
@@ -719,8 +725,8 @@ test('普通派生、用例更新与业务样例创建可达，写操作仍须�
 })
 
 test('整理特性锁定任务版本，页面导航不改变预览目标', async t => {
-  const f = fixture(t, endpoint => endpoint === 'agents/features/preview' ? { ok: true, value: { preview_id: 'features-fixed', requires_confirmation: true } } : undefined)
-  const id = (await f.rpc('session', { task: '整理当前版本特性', context: { skill: 'agent-maintenance', workflow: 'features', experiment_id: 'EXP-basic-001' } })).value.session_id
+  const f = fixture(t, endpoint => endpoint === 'agents/features/preview' ? { ok: true, value: { preview_id: 'features-fixed', experiment_id: 'EXP-basic-001', features: [], requires_confirmation: true } } : endpoint === 'agents/detail' ? { ok: true, value: { features: [] } } : undefined)
+  const id = (await f.rpc('session', { task: '整理当前版本特性', context: { skill: 'agent-maintenance', workflow: 'features', agent_id: 'basic', experiment_id: 'EXP-basic-001' } })).value.session_id
   await f.rpc('context', { session_id: id, context: { experiment_id: 'EXP-basic-002' } })
   await assert.rejects(() => f.execute(id, 'agents', 'features/preview', { experiment_id: 'EXP-basic-002', features: [] }), /固定任务上下文/)
   assert.equal((await f.execute(id, 'agents', 'features/read-source', { experiment_id: 'EXP-basic-001', ref: 'evaluation/observations.md' })).state, 'completed')
@@ -728,14 +734,13 @@ test('整理特性锁定任务版本，页面导航不改变预览目标', async
   assert.equal(f.calls.at(-1).input.experiment_id, 'EXP-basic-001', '缺省目标也绑定原任务，不能漂移到最新编号')
   await assert.rejects(() => f.execute(id, 'agents', 'edit/preview', { experiment_id: 'EXP-basic-001', edits: [] }), /仅允许读取业务来源/)
   await assert.rejects(() => f.execute(id, 'instances', 'list'), /仅允许读取业务来源/)
-  const operation = f.execute(id, 'agents', 'features/preview', { experiment_id: 'EXP-basic-001', features: [] })
-  const proposed = await f.proposal(id)
-  assert.equal(proposed.action, 'features/apply')
-  await f.rpc('confirm', { session_id: id, proposal_id: proposed.id })
-  const settled = await operation
+  const settled = await f.execute(id, 'agents', 'features/preview', { experiment_id: 'EXP-basic-001', features: [] })
+  assert.deepEqual((await f.status(id)).proposals, [])
+  assert.equal(f.calls.filter(call => call.endpoint === 'agents/features/apply').length, 1)
   assert.equal(settled.state, 'completed')
   assert.equal(settled.preview, undefined)
   assert.equal(settled.action, 'features/apply')
+  assert.deepEqual(f.calls.find(call => call.endpoint === 'agents/detail').input, { agent_id: 'basic', experiment_id: 'EXP-basic-001' }, 'detail 必须使用固定 Agent 与版本，不随页面改变')
   assert.ok(settled.result.ok)
 })
 
@@ -804,8 +809,8 @@ test('变体改名经普通写入提案确认后调用唯一名称接口，不�
     ? { ok: true, value: { experiment_id: input.experiment_id, variant_name: input.variant_name, change_sha256: 'b'.repeat(64) } } : undefined)
   const id = (await f.rpc('session', { task: '将当前变体命名为资产告警轻量版', context: { skill: 'compute-variant-research', experiment_id: 'EXP-basic-002' } })).value.session_id
   const tool = f.tools.get('platform_agents')
-  assert.match(tool.description, /variant_name是独立、简洁的变体名称/)
-  assert.match(tool.description, /实际生成时保留已确定的variant_name/)
+  assert.equal(assistantActionContract('agents', 'compute-variants/rename').input_schema.properties.variant_name.type, 'string')
+  assert.match(assistantActionContract('agents', 'compute-variants/create').instructions, /名称与策略分别提供/)
   const input = { experiment_id: 'EXP-basic-002', variant_name: '资产告警轻量版', expected_change_sha256: 'a'.repeat(64) }
   const operation = f.execute(id, 'agents', 'compute-variants/rename', input)
   const proposed = await f.proposal(id)
@@ -873,11 +878,19 @@ test('代码变体连续任务固定两侧Case，实际构建后Git冻结仍单�
   })
   installTaskGoals(f)
   const id = (await f.rpc('session', { task: '生成资产告警代码变体', context: { skill: 'compute-variant-research', experiment_id: target, agent_id: 'alpha' } })).value.session_id
+  for (const action of ['cases/update', 'cases/create-context', 'cases/from-run', 'cases/create-preview', 'cases/create']) {
+    assert.equal((await f.execute(id, 'agents', 'describe', { action })).value.action, action, '策划阶段保留受控用例维护')
+  }
+  assert.equal((await f.execute(id, 'agents', 'cases/create-preview', { experiment_id: target })).state, 'completed')
   const plan = taskPlan({ goal: '生成资产告警代码变体', agent_id: 'alpha', source: `experiment:${target}`, kind: 'compute-variant', compute_variant: { parent_experiment_id: parent, parent_ref: parentRef }, evaluation_case_ids: ['U-ASSET-001'],
     allowed_actions: [{ domain: 'agents', action: 'edit/apply' }, { domain: 'agents', action: 'compute-variants/build' }, { domain: 'agents', action: 'eval/start' }] })
   const drift = await f.execute(id, 'task', 'preview', { plan: { ...plan, compute_variant: { parent_experiment_id: parent, parent_ref: 'git:' + 'b'.repeat(40) } } }).then(() => undefined, error => error)
   assert.match(drift.message, /实际冻结父版/)
   await beginTask(f, id, plan)
+  for (const action of ['cases/update', 'cases/create']) {
+    await assert.rejects(() => f.execute(id, 'agents', action, { experiment_id: target }), /评判口径已冻结/)
+  }
+  assert.equal(f.calls.some(call => ['agents/cases/update', 'agents/cases/create'].includes(call.endpoint)), false)
   await f.beforeModelCall(id)
   const beforeGuidance = (await f.status(id)).execution
   const fixedContext = (await f.status(id)).task_context
@@ -1163,7 +1176,7 @@ test('所有平台工具回执元信息保留真实动作与定位字段，不�
   assert.equal(value.input.edits[0].content, undefined)
   const preview = f.tools.get('platform_task').output.presentationMeta({ action: 'preview', input: {} }, { plan: { goal: '基本任务' } })
   assert.equal(preview.domain, 'task'); assert.equal(preview.action, 'preview')
-  assert.match(f.tools.get('platform_agents').description, /content必须是修改后完整文件正文/)
+  assert.match(assistantActionContract('agents', 'edit/apply').input_schema.properties.edits.items.properties.content.description, /修改后完整文件正文/)
 })
 
 test('冻结模型回执省略完整编译diff并保留真实摘要，持久提案和确认RPC保持全文', async t => {
@@ -1291,4 +1304,561 @@ test('真实原生 assemble 先运行同步 section 再进入异步 waterfall，
   assert.equal(assembled.sections.find(item => item.name === 'test/native-synchronous-provider').text, '原生同步内容')
   rmSync(join(f.root, '.agents/skills/user-facing-output/SKILL.md'))
   await assert.rejects(() => f.assembly(id), /未配置平台管理助手/)
+})
+
+test('所有管理业务可以逐动作发现参数；原生下一轮装配使用所选合同且可切换和恢复', async t => {
+  const f = fixture(t)
+  const { createRequire } = await import('node:module')
+  const { pathToFileURL } = await import('node:url')
+  const require = createRequire(import.meta.url)
+  const sdk = createRequire(require.resolve('@deepseek-ai/dsh-api-session-controller'))
+  const { ToolRuntime, assertSupportedJsonSchema, validateJsonSchemaValue } = await import(pathToFileURL(sdk.resolve('@deepseek-ai/dsh-tools')).href)
+  new ToolRuntime(f.ctx, { mode: 'native' })
+  for (const tool of f.tools.values()) f.ctx.tools.register(tool)
+  const id = (await f.rpc('session', { task: '构建、评测和交付智能体' })).value.session_id
+  const initial = (await f.assembly(id)).tools.filter(tool => tool.name.startsWith('platform_'))
+  for (const tool of initial) {
+    assert.deepEqual(tool.parameters.properties.action.enum, ['context', 'describe'], '未读取操作合同前不让模型盲猜参数')
+    assert.equal(validateJsonSchemaValue(tool.parameters, { action: 'describe', input: { action: assistantActions[tool.name.slice(9)][0] } }).length, 0)
+  }
+  for (const [domain, names] of Object.entries(assistantActions)) {
+    for (const action of names) {
+      assert.equal(assistantActionContract(domain, action).action, action)
+      assert.doesNotThrow(() => assertSupportedJsonSchema(projectAssistantTools([{ name: `platform_${domain}` }], { tool_contracts: { [domain]: action } })[0].parameters))
+    }
+  }
+  const described = await f.execute(id, 'task', 'describe', { action: 'preview' })
+  assert.equal(described.value.input_schema.properties.plan.properties.budget.properties.max_repair_rounds.maximum, 3)
+  const task = (await f.assembly(id)).tools.find(tool => tool.name === 'platform_task')
+  assert.deepEqual(task.parameters.properties.action.enum, ['context', 'describe', 'preview'])
+  assert.equal(task.parameters.properties.input.properties.plan.additionalProperties, false)
+  assert.equal(validateJsonSchemaValue(task.parameters, { action: 'preview', input: { plan: { ...taskPlan(), budget: { max_repair_rounds: '3' } } } }).length > 0, true)
+  assert.equal(f.calls.length, 0, 'describe 不伪装公共业务 RPC，也不执行业务')
+  await f.execute(id, 'agents', 'describe', { action: 'edit/apply' })
+  await f.reload()
+  assert.deepEqual((await f.assembly(id)).tools.find(tool => tool.name === 'platform_agents').parameters.properties.action.enum, ['context', 'describe', 'edit/apply'])
+  await f.execute(id, 'agents', 'describe', { action: 'eval/status' })
+  assert.deepEqual((await f.assembly(id)).tools.find(tool => tool.name === 'platform_agents').parameters.properties.action.enum, ['context', 'describe', 'eval/status'])
+  const scoped = (await f.rpc('session', { task: '整理特性', context: { skill: 'agent-maintenance', workflow: 'features', agent_id: 'basic', experiment_id: 'EXP-basic-001' } })).value.session_id
+  await assert.rejects(() => f.execute(scoped, 'agents', 'describe', { action: 'edit/apply' }), /不允许/)
+  const feature = (await f.assembly(scoped)).tools.find(tool => tool.name === 'platform_agents')
+  assert.equal(feature.parameters.properties.action.enum.includes('edit/apply'), false)
+})
+
+test('固定 Run 抽样自动保存并回读，省略 Run 由服务器绑定且不会生成确认提案', async t => {
+  const run_id = 'run-11111111-1111-4111-8111-111111111111'
+  const dataset_id = 'decision-dataset-11111111-1111-4111-8111-111111111111'
+  const records = [{ workflow: '材料核对', targets: { sufficient: { label: false, status: 'suggested', decision_time_reviewed: false } }, _meta: { id: 'sample-fixed' } }]
+  let stored = false
+  const f = fixture(t, endpoint => {
+    if (endpoint === 'agents/datasets/preview') return { ok: true, value: stored ? { count: 0, skipped: ['相同题目已存在'] } : { preview_id: 'fixed', run_id, records, count: 1, file: `evolution/datasets/${dataset_id}.json` } }
+    if (endpoint === 'agents/datasets/apply') { stored = true; return { ok: true, value: { dataset: { id: dataset_id, records } } } }
+    if (endpoint === 'agents/datasets/read') return { ok: true, value: { dataset: { id: dataset_id, records } } }
+  })
+  const id = (await f.rpc('session', { task: '抽取样本', context: { skill: 'decision-sample-extraction', run_id } })).value.session_id
+  assert.match((await f.execute(id, 'agents', 'context')).value.next, /datasets\/source/)
+  const saved = await f.execute(id, 'agents', 'datasets/preview', { samples: [] })
+  assert.equal(saved.state, 'completed')
+  assert.equal(saved.action, 'datasets/apply')
+  assert.equal(saved.result.value.dataset.records[0].targets.sufficient.status, 'suggested')
+  assert.equal(f.calls[0].input.run_id, run_id)
+  assert.equal(f.calls.find(call => call.endpoint === 'agents/datasets/apply').input.assistant_session_id, id)
+  assert.deepEqual((await f.status(id)).proposals, [])
+  assert.equal((await f.status(id)).automatic_save.expected, undefined, '恢复检查仅保存目标和摘要，不复制另一份样本正文')
+  await f.execute(id, 'agents', 'datasets/preview', { samples: [] })
+  assert.equal(f.calls.filter(call => call.endpoint === 'agents/datasets/apply').length, 1)
+  await assert.rejects(() => f.execute(id, 'agents', 'datasets/source', { run_id: 'run-other' }), /固定任务上下文/)
+})
+
+test('自动保存遇到未知回执只核查原目标，冷恢复不重放写入', async t => {
+  const run_id = 'run-11111111-1111-4111-8111-111111111111', dataset_id = 'decision-dataset-22222222-2222-4222-8222-222222222222'
+  const records = [{ _meta: { id: 'sample' }, workflow: '记录整理' }]
+  let readable = false
+  const f = fixture(t, endpoint => {
+    if (endpoint === 'agents/datasets/preview') return { ok: true, value: { preview_id: 'fixed', run_id, records, count: 1, file: `evolution/datasets/${dataset_id}.json` } }
+    if (endpoint === 'agents/datasets/apply') throw Object.assign(new Error('保存响应中断 Bearer confidential-value'), { code: 'ECONNRESET' })
+    if (endpoint === 'agents/datasets/read') return readable ? { ok: true, value: { dataset: { id: dataset_id, run_id, records } } } : { ok: false, error: { message: '暂不能读取' } }
+  })
+  const id = (await f.rpc('session', { task: '抽取样本', context: { skill: 'decision-sample-extraction', run_id } })).value.session_id
+  assert.equal((await f.execute(id, 'agents', 'datasets/preview', { samples: [] })).state, 'unknown')
+  const failure = (await f.status(id)).automatic_save.failure
+  assert.deepEqual(failure, { phase: 'apply', message: '保存响应中断 Bearer [已隐藏]' })
+  await f.reload()
+  assert.equal((await f.execute(id, 'agents', 'datasets/preview', { samples: [] })).state, 'unknown')
+  assert.deepEqual((await f.status(id)).automatic_save.failure, failure, '回读失败不覆盖最初保存失败的证据')
+  readable = true
+  assert.equal((await f.execute(id, 'agents', 'datasets/preview', { samples: [] })).state, 'completed')
+  assert.equal(f.calls.filter(call => call.endpoint === 'agents/datasets/apply').length, 1)
+  assert.equal(f.calls.filter(call => call.endpoint === 'agents/datasets/preview').length, 1)
+  assert.deepEqual((await f.status(id)).proposals, [])
+})
+
+test('自动保存的来源冲突原样返回失败，不宣称已保存或降低校验', async t => {
+  const f = fixture(t, endpoint => {
+    if (endpoint === 'agents/features/preview') return { ok: true, value: { preview_id: 'fixed', experiment_id: 'EXP-basic-001', features: [{ id: 'a', title: '清单', description: '整理台账', source_refs: [], evidence_refs: [] }] } }
+    if (endpoint === 'agents/features/apply') return { ok: false, error: { code: 'conflict', message: '资产或特性已变化' } }
+    if (endpoint === 'agents/detail') return { ok: true, value: { features: [{ id: 'a', title: '清单', description: '整理台账', source_refs: [], evidence_refs: [] }] } }
+  })
+  const id = (await f.rpc('session', { task: '整理特性', context: { skill: 'agent-maintenance', workflow: 'features', agent_id: 'basic', experiment_id: 'EXP-basic-001' } })).value.session_id
+  const value = await f.execute(id, 'agents', 'features/preview', { features: [] })
+  assert.equal(value.state, 'failed')
+  assert.equal(value.result.error.code, 'conflict')
+  assert.equal(f.calls.some(call => call.endpoint === 'agents/detail'), false, '明确冲突不能用内容相同的回读掩盖')
+  assert.deepEqual((await f.status(id)).proposals, [])
+})
+
+test('旧特性unknown回执从原任务补齐Agent身份，只回读不重写且保留失败', async t => {
+  const f = fixture(t, (endpoint, input) => {
+    assert.equal(endpoint, 'agents/detail', '恢复不能重新预览或保存特性')
+    assert.deepEqual(input, { agent_id: 'basic', experiment_id: 'EXP-basic-001' })
+    return { ok: true, value: { features: [] } }
+  })
+  const id = (await f.rpc('session', { task: '整理特性', context: { skill: 'agent-maintenance', workflow: 'features', agent_id: 'basic', experiment_id: 'EXP-basic-001' } })).value.session_id
+  const previous = { kind: 'automatic-save', owner_session_id: id, action: 'features/apply', target: { experiment_id: 'EXP-basic-001' }, expected_sha256: sha256('[]'), state: 'unknown', failure: { phase: 'readback', code: 'invalid_request', message: '缺少 agent_id' } }
+  appendPluginRecord(f.sessions.get(id).session, 'plugin:harness-platform/assistant', previous)
+  await f.rpc('context', { session_id: id, context: { agent_id: 'other', experiment_id: 'EXP-other-002' } })
+  await f.reload()
+  assert.equal((await f.execute(id, 'agents', 'features/preview', { features: [] })).state, 'completed')
+  assert.deepEqual((await f.status(id)).automatic_save.failure, previous.failure)
+  assert.equal(f.calls.length, 1)
+  assert.equal(f.sessions.get(id).events.some(event => event.data?.kind === 'automatic-save' && event.data.state === 'unknown'), true)
+})
+
+test('特性自动保存缺少固定Agent身份时在写入前停止', async t => {
+  const f = fixture(t, endpoint => {
+    assert.equal(endpoint, 'agents/features/preview')
+    return { ok: true, value: { preview_id: 'fixed', experiment_id: 'EXP-basic-001', features: [] } }
+  })
+  const id = (await f.rpc('session', { task: '整理特性', context: { skill: 'agent-maintenance', workflow: 'features', experiment_id: 'EXP-basic-001' } })).value.session_id
+  await assert.rejects(() => f.execute(id, 'agents', 'features/preview', { features: [] }), /缺少固定目标/)
+  assert.equal(f.calls.length, 1)
+  assert.equal((await f.status(id)).automatic_save, undefined)
+})
+
+test('旧特性未知保存冷恢复后自然读取详情可核实，同目标新内容不能结算旧写入', async t => {
+  for (const matches of [true, false]) await t.test(matches ? '原内容一致' : '内容已由后续任务改变', async t => {
+    const original = [{ id: 'basic', title: '基础清单', description: '整理模拟台账', source_refs: [], evidence_refs: [] }]
+    const current = matches ? original : [{ ...original[0], description: '后续任务的新说明' }]
+    const f = fixture(t, (endpoint, input) => {
+      assert.equal(endpoint, 'agents/detail', '自然恢复只使用已请求的详情，不重复预览、保存或取数')
+      assert.deepEqual(input, { agent_id: 'basic', experiment_id: 'EXP-basic-001' })
+      return { ok: true, value: { features: current } }
+    })
+    const id = (await f.rpc('session', { task: '续办特性核对', context: { skill: 'agent-maintenance', workflow: 'features', agent_id: 'basic', experiment_id: 'EXP-basic-001' } })).value.session_id
+    const failure = { phase: 'readback', code: 'invalid_request', message: '缺少 agent_id' }
+    const saved = { kind: 'automatic-save', owner_session_id: id, action: 'features/apply', target: { experiment_id: 'EXP-basic-001' }, expected_sha256: sha256(JSON.stringify(original)), state: 'unknown', failure }
+    appendPluginRecord(f.sessions.get(id).session, 'plugin:harness-platform/assistant', saved)
+    await f.reload()
+    assert.equal((await f.status(id)).automatic_save.state, 'unknown')
+    assert.equal(f.calls.length, 0, 'status 轮询不额外读取业务数据')
+    const result = await f.execute(id, 'agents', 'detail')
+    assert.deepEqual(result.result.value.features, current)
+    assert.equal(result.result.value.automatic_save.state, matches ? 'completed' : 'unknown')
+    assert.equal((await f.status(id)).automatic_save.state, matches ? 'completed' : 'unknown')
+    assert.deepEqual((await f.status(id)).automatic_save.failure, failure)
+    const records = f.sessions.get(id).events.filter(event => event.data?.kind === 'automatic-save')
+    assert.equal(records.length, matches ? 2 : 1, '保留原失败；状态未变不追加重复记录')
+    assert.equal(records[0].data.state, 'unknown')
+    assert.equal(f.calls.length, 1)
+    assert.equal((await f.status(id)).model_calls_observed, 0, '只读核实不产生模型调用或修改预算')
+  })
+})
+
+test('抽样自然读取固定Run目录后只核实原批次，取消时不结算也不重写', async t => {
+  for (const cancelled of [false, true]) await t.test(cancelled ? '回读时取消' : '同批次内容一致', async t => {
+    const run_id = 'run-11111111-1111-4111-8111-111111111111', dataset_id = 'decision-dataset-33333333-3333-4333-8333-333333333333'
+    const records = [{ workflow: '台账核对', _meta: { id: 'basic' } }]
+    const controller = new AbortController()
+    const f = fixture(t, (endpoint, input) => {
+      if (endpoint === 'agents/datasets/list') {
+        assert.equal(input.run_id, run_id)
+        return { ok: true, value: { datasets: [{ id: dataset_id, run_id, count: 1 }] } }
+      }
+      assert.equal(endpoint, 'agents/datasets/read')
+      assert.deepEqual(input, { dataset_id })
+      if (cancelled) controller.abort(new Error('用户取消'))
+      return { ok: true, value: { dataset: { id: dataset_id, records } } }
+    })
+    const id = (await f.rpc('session', { task: '核实已保存样本', context: { skill: 'decision-sample-extraction', run_id } })).value.session_id
+    const saved = { kind: 'automatic-save', owner_session_id: id, action: 'datasets/apply', target: { dataset_id }, expected_sha256: sha256(JSON.stringify(records)), state: 'unknown', failure: { phase: 'apply', message: '响应中断' } }
+    appendPluginRecord(f.sessions.get(id).session, 'plugin:harness-platform/assistant', saved)
+    await f.reload()
+    const operation = f.execute(id, 'agents', 'datasets/list', {}, controller.signal)
+    if (cancelled) await assert.rejects(operation, /用户取消/)
+    else assert.equal((await operation).result.value.automatic_save.state, 'completed')
+    assert.equal((await f.status(id)).automatic_save.state, cancelled ? 'unknown' : 'completed')
+    assert.deepEqual((await f.status(id)).automatic_save.failure, saved.failure)
+    assert.deepEqual(f.calls.map(call => call.endpoint), ['agents/datasets/list', 'agents/datasets/read'])
+  })
+})
+
+test('普通管理读取其他版本不会结算原未知保存，并发同目标回读只追加一次核实', async t => {
+  const f = fixture(t, endpoint => {
+    assert.equal(endpoint, 'agents/detail')
+    return { ok: true, value: { features: [] } }
+  })
+  const id = (await f.rpc('session', { task: '核对版本' })).value.session_id
+  const saved = { kind: 'automatic-save', owner_session_id: id, action: 'features/apply', target: { agent_id: 'basic', experiment_id: 'EXP-basic-001' }, expected_sha256: sha256('[]'), state: 'unknown' }
+  appendPluginRecord(f.sessions.get(id).session, 'plugin:harness-platform/assistant', saved)
+  await f.execute(id, 'agents', 'detail', { agent_id: 'other', experiment_id: 'EXP-other-001' })
+  assert.equal((await f.status(id)).automatic_save.state, 'unknown')
+  await Promise.all([1, 2].map(() => f.execute(id, 'agents', 'detail', { agent_id: 'basic', experiment_id: 'EXP-basic-001' })))
+  assert.equal((await f.status(id)).automatic_save.state, 'completed')
+  assert.equal(f.sessions.get(id).events.filter(event => event.data?.kind === 'automatic-save' && event.data.state === 'completed').length, 1)
+  assert.equal(f.calls.length, 3)
+})
+
+test('模型预算耗尽后暂停和取消保持原终态及证据，冷恢复不重新开放额度', async t => {
+  const f = fixture(t, taskResponder)
+  installTaskGoals(f)
+  const id = (await f.rpc('session', { task: '保留耗尽原因的交付任务' })).value.session_id
+  await beginTask(f, id, taskPlan({ budget: { max_model_calls: 3, max_repair_rounds: 3, timeout_minutes: 30 } }))
+  await f.execute(id, 'agents', 'eval/start', { source: 'experiment:EXP-test-agent-001', cases: ['U-BUSINESS-001'] })
+  for (let count = 0; count < 3; count++) await f.beforeModelCall(id)
+  await assert.rejects(() => f.beforeModelCall(id), /额度已耗尽/)
+  const before = (await f.status(id)).execution
+  assert.equal(before.state, 'budget_exhausted')
+  assert.match(before.reason, /额度已耗尽/)
+  assert.equal(before.model_calls, 3)
+  assert.equal(before.operations[0].state, 'completed')
+  const originalEvents = [...f.sessions.get(id).events]
+  const dispatched = f.calls.length
+  for (const action of ['pause', 'cancel', 'pause']) {
+    assert.equal((await f.rpc('task/' + action, { session_id: id })).ok, true)
+    assert.deepEqual((await f.status(id)).execution, before)
+  }
+  assert.equal(f.calls.length, dispatched, '重复停止不重新取消已结算的评测')
+  assert.deepEqual(f.sessions.get(id).events.slice(0, originalEvents.length), originalEvents)
+  await f.reload()
+  assert.deepEqual((await f.status(id)).execution, before)
+  assert.equal((await f.rpc('task/resume', { session_id: id })).ok, false)
+  await assert.rejects(() => f.beforeModelCall(id), /尚未恢复/)
+  await assert.rejects(() => f.execute(id, 'task', 'start', { plan: taskPlan() }), /已有未结束任务/)
+  assert.deepEqual((await f.status(id)).execution, before)
+})
+
+test('预算耗尽时停止仍取消活动操作，晚到结算保留预算原因与真实回执', async t => {
+  for (const outcome of ['success', 'unknown', 'created-with-missing-cases']) await t.test(outcome, async t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] })
+    let release, fail, operationSignal
+    const creating = outcome === 'created-with-missing-cases'
+    const action = creating ? 'create' : 'tasks/assembly-apply'
+    const f = fixture(t, (endpoint, input, signal) => {
+      if (endpoint === 'agents/' + action) {
+        operationSignal = signal
+        return new Promise((resolve, reject) => { release = resolve; fail = reject })
+      }
+      if (creating && endpoint === 'agents/detail' && input.experiment_id === 'EXP-test-agent-002') {
+        return { ok: true, value: { evaluation: { sha256: 'incomplete-evaluation', cases: [] } } }
+      }
+      return taskResponder(endpoint, input)
+    })
+    installTaskGoals(f)
+    const id = (await f.rpc('session', { task: '截止时保持活动操作证据' })).value.session_id
+    await f.beforeModelCall(id)
+    await beginTask(f, id, taskPlan({ budget: { max_model_calls: 3, max_repair_rounds: 3, timeout_minutes: 1 }, allowed_actions: [{ domain: 'agents', action }] }))
+    const operation = f.execute(id, 'agents', action, creating ? { agent_id: 'test-agent' } : { target_source: 'experiment:EXP-test-agent-001', files: [] })
+      .then(value => ({ value }), error => ({ error }))
+    for (let count = 0; count < 40 && !release; count++) await setImmediate()
+    assert.ok(release, '没有进入真实连续操作派发')
+    t.mock.timers.tick(60_001)
+    for (let count = 0; count < 40 && (await f.status(id)).execution.state !== 'budget_exhausted'; count++) await setImmediate()
+    const before = (await f.status(id)).execution
+    assert.equal(before.state, 'budget_exhausted')
+    assert.match(before.reason, /总时限已耗尽/)
+    assert.equal(operationSignal.aborted, true)
+    assert.equal(before.operations[0].state, 'running')
+    for (const action of ['pause', 'cancel']) {
+      assert.equal((await f.rpc('task/' + action, { session_id: id })).ok, true)
+      assert.deepEqual((await f.status(id)).execution, before)
+    }
+    const receipt = { ok: true, value: { source: creating ? 'experiment:EXP-test-agent-002' : 'experiment:EXP-test-agent-001' } }
+    if (outcome === 'unknown') fail(new Error('取消后连接断开，未取得回执'))
+    else release(receipt)
+    const settled = await operation
+    const after = (await f.status(id)).execution
+    for (const key of ['id', 'state', 'reason', 'started_at', 'deadline_at', 'model_calls', 'assistant_model_calls', 'repair_rounds', 'plan']) assert.deepEqual(after[key], before[key])
+    assert.equal(after.operations.length, 1)
+    assert.equal(after.operations[0].id, before.operations[0].id)
+    if (outcome === 'unknown') {
+      assert.match(settled.error.message, /未取得回执/)
+      assert.equal(after.operations[0].state, 'unknown')
+      assert.equal(after.operations[0].receipt, undefined)
+    } else {
+      assert.equal(settled.value.state, creating ? 'failed' : 'completed')
+      assert.equal(after.operations[0].state, 'completed')
+      assert.deepEqual(after.operations[0].receipt, receipt)
+      if (creating) assert.equal(after.target_source, 'experiment:EXP-test-agent-002')
+    }
+    assert.equal(f.calls.filter(call => call.endpoint === 'agents/' + action).length, 1, '不重放活动操作')
+    assert.equal((await f.rpc('task/cancel', { session_id: id })).ok, true)
+    assert.deepEqual((await f.status(id)).execution, after)
+    assert.equal((await f.rpc('task/resume', { session_id: id })).ok, false)
+  })
+})
+
+test('逐题抽样仅适配模型工具入口，固定Run与原公开source和批量samples保持一致', async t => {
+  const run_id = 'run-11111111-1111-4111-8111-111111111111'
+  const source = { run_id, extraction_contract: DECISION_EXTRACTION_CONTRACT, files: [{ path: 'trace.jsonl' }] }
+  const f = fixture(t, endpoint => endpoint === 'agents/datasets/source' ? { ok: true, value: source } : { ok: true, value: { count: 0, skipped: [] } })
+  const id = (await f.rpc('session', { task: '逐题抽取', context: { skill: 'decision-sample-extraction', run_id } })).value.session_id
+  const projected = (await f.execute(id, 'agents', 'datasets/source')).result.value.extraction_contract
+  assert.equal(projected.model_submission.transport, 'single-question-v1')
+  assert.equal(projected.preview, undefined); assert.equal(projected.sample_fields, undefined)
+  assert.deepEqual(projected.types, DECISION_EXTRACTION_CONTRACT.types)
+  assert.equal(source.extraction_contract.model_submission, undefined, '不能改变公共API原对象')
+  assert.deepEqual(source.extraction_contract.preview.required_fields, ['run_id', 'path', 'source_sha256', 'samples'])
+  const flat = { path: 'trace.jsonl', source_sha256: 'a'.repeat(64), decision_id: 'decision-fixed', action_name: 'respond', workflow: '材料核对', task: { id: 'check-input', semantics: 'recommended_decision' }, question_name: 'enough', question: { type: 'noul', instructions: '当前材料足够吗？' }, target: { label: true, basis: '用户已提供必要材料。' } }
+  await f.execute(id, 'agents', 'datasets/preview', flat)
+  const input = f.calls.at(-1).input
+  assert.equal(input.run_id, run_id); assert.equal(input.assistant_session_id, id)
+  assert.deepEqual(input.samples, [{ decision_id: flat.decision_id, action_name: flat.action_name, workflow: flat.workflow, task: flat.task, questions: { enough: flat.question }, targets: { enough: flat.target } }])
+  for (const field of ['question_name', 'question', 'target']) assert.equal(Object.hasOwn(input, field), false)
+  const legacy = { run_id, path: flat.path, source_sha256: flat.source_sha256, samples: input.samples }
+  await f.execute(id, 'agents', 'datasets/preview', legacy)
+  assert.deepEqual(f.calls.at(-1).input.samples, legacy.samples)
+  await f.execute(id, 'agents', 'datasets/preview', { path: flat.path, source_sha256: flat.source_sha256, skipped: ['材料不足'] })
+  assert.deepEqual(f.calls.at(-1).input.samples, [])
+  const dispatched = f.calls.length
+  await assert.rejects(() => f.execute(id, 'agents', 'datasets/preview', { ...flat, run_id: 'run-other' }), /固定任务上下文/)
+  await assert.rejects(() => f.execute(id, 'agents', 'datasets/preview', { ...flat, samples: [] }), /不能混用/)
+  await assert.rejects(() => f.execute(id, 'agents', 'datasets/preview', '{"question":{'), /请求必须是对象/)
+  assert.equal(f.calls.length, dispatched); assert.deepEqual((await f.status(id)).proposals, [])
+  const general = (await f.rpc('session', { task: '只读查看来源' })).value.session_id
+  assert.deepEqual((await f.execute(general, 'agents', 'datasets/source', { run_id })).result.value.extraction_contract, DECISION_EXTRACTION_CONTRACT)
+})
+
+test('已完成任务的工具与真实系统装配共用精简视图，公共查询和GUI保留全文', async t => {
+  const f = fixture(t)
+  const id = (await f.rpc('session', { task: '核对已交付结果', context: { skill: 'task-builder' } })).value.session_id
+  const original = {
+    id: 'finished-task', owner_session_id: id, state: 'completed', plan: taskPlan(),
+    started_at: '2026-10-17T01:00:00.000Z', deadline_at: '2026-10-17T01:30:00.000Z',
+    model_calls: 48, assistant_model_calls: 29, repair_rounds: 0,
+    evaluation_usage: { evaluation: { observed_model_calls: 13, complete: true }, probe: { observed_model_calls: 6, complete: true } },
+    operations: Array.from({ length: 7 }, (_, index) => ({ id: `op-${index}`, domain: 'instances', action: 'run', state: 'completed',
+      input: { name: `instance-${index}` }, receipt: { ok: true, value: { detail: '完整实际操作回执'.repeat(100) } } })),
+    delivery: { ready: true, run_id: 'run-fixed', instance: { name: 'delivery-instance', state: 'running' }, entry: { url: 'http://localhost:3000/' },
+      artifacts: [{ path: 'artifacts/report.md', sha256: 'a'.repeat(64) }], note: '保留实际边界。',
+      checks: [{ name: 'instance_running', ok: true, message: '实际容器正在运行' }, { name: 'optional_check', ok: false, message: '完整失败原因', details: { observed: 'unknown' } }],
+      probe: { id: 'probe-1', path: 'delivery-probes/probe-1', status: 'completed', case_id: 'U-BUSINESS-001', session_id: 'probe-session',
+        model_usage: { actual_model_calls: 6 }, downloads: [{ format: 'markdown', url: 'http://localhost:3000/report.md' }], report_sha256: 'b'.repeat(64),
+        trace: [{ text: '原始探针轨迹正文' }], receipt: { text: '原始探针回执正文' } } },
+  }
+  const before = structuredClone(original)
+  appendPluginRecord(f.sessions.get(id).session, 'plugin:harness-platform/assistant', { kind: 'execution', owner_session_id: id, execution: original })
+  const tool = f.tools.get('platform_task'), args = { action: 'status', input: {} }
+  const raw = await f.execute(id, 'task', 'status')
+  assert.deepEqual(raw, before, 'execute继续返回完整实际记录')
+  const view = JSON.parse(tool.output.render(args, raw)[0].text)
+  assert.equal(view.operations.length, 5); assert.equal(view.operations[0].id, 'op-2')
+  assert.equal(view.operations[0].domain, 'instances'); assert.equal(view.operations[0].receipt, undefined); assert.equal(view.operations[0].input, undefined)
+  assert.deepEqual(view.delivery.checks[0], { name: 'instance_running', ok: true })
+  assert.deepEqual(view.delivery.checks[1], before.delivery.checks[1], '失败检查及其详情不可省略')
+  assert.equal(view.delivery.probe.trace, undefined); assert.equal(view.delivery.probe.receipt, undefined)
+  for (const key of ['status', 'model_usage', 'downloads', 'report_sha256']) assert.deepEqual(view.delivery.probe[key], before.delivery.probe[key])
+  assert.equal(view.model_calls, 48); assert.equal(view.assistant_model_calls, 29)
+  assert.match(view.model_usage_observation, /截至本次状态读取.*最终累计以任务卡当前计数为准/)
+  const system = await f.assemble(id)
+  const systemView = JSON.parse(system.split('当前任务方案与实际进度：')[1].split('\n本任务读取')[0])
+  assert.deepEqual(systemView, view)
+  assert.deepEqual(tool.output.presentationMeta(args, raw).result, before, 'GUI元数据保留原始全文')
+  assert.deepEqual((await f.rpc('task/status', { session_id: id })).value, before)
+  assert.deepEqual((await f.status(id)).execution, before)
+  assert.deepEqual(original, before, '模型投影不能修改持久对象')
+  await f.reload()
+  assert.deepEqual((await f.status(id)).execution, before, '冷恢复仍读取完整原始记录')
+})
+
+test('未完成任务的模型status全文及原系统摘要不变，算力交付比较信息完整保留', async t => {
+  const f = fixture(t)
+  for (const state of ['running', 'paused', 'unknown', 'budget_exhausted', 'cancelled']) {
+    const id = (await f.rpc('session', { task: '核对任务状态', context: { skill: 'task-builder' } })).value.session_id
+    const task = { id: `task-${state}`, owner_session_id: id, state, plan: taskPlan(), model_calls: 4, repair_rounds: 1,
+      operations: [{ id: 'eval-operation', domain: 'agents', action: 'eval/start', state: 'unknown', input: { source: 'experiment:EXP-test-agent-001' }, receipt: { value: { job_id: 'evaluation-job' } } }] }
+    appendPluginRecord(f.sessions.get(id).session, 'plugin:harness-platform/assistant', { kind: 'execution', owner_session_id: id, execution: task })
+    const raw = await f.execute(id, 'task', 'status')
+    assert.deepEqual(JSON.parse(f.tools.get('platform_task').output.render({ action: 'status' }, raw)[0].text), task)
+    assert.equal(completedTaskModelView(task), task)
+    const system = await f.assemble(id)
+    const systemView = JSON.parse(system.split('当前任务方案与实际进度：')[1].split('\n本任务读取')[0])
+    assert.deepEqual(systemView, { ...task, operations: [{ id: 'eval-operation', action: 'eval/start', state: 'unknown' }] })
+  }
+  const compute = { state: 'completed', operations: [], plan: { kind: 'compute-variant' },
+    delivery: { comparison: { comparability: { passed: true }, quality: { passed: false }, resource: { reduction_pct: 12.5 } }, end_confirmed: false, note: '仍需用户复核' } }
+  assert.deepEqual(completedTaskModelView(compute).delivery, compute.delivery)
+})
+
+test('实例工具从精确原生投影读取交付摘要，不激活历史Agent且公共及GUI回执保持原文', async t => {
+  const publicReceipt = { ok: true, value: { instance: { name: 'delivered-instance', source_id: 'experiment:EXP-test-agent-002', agent_id: 'test-agent', state: 'stopped' }, runs: [{ id: 'run-passed' }] } }
+  const before = structuredClone(publicReceipt)
+  const f = fixture(t, endpoint => endpoint === 'instances/detail' ? publicReceipt : undefined)
+  const previousId = (await f.rpc('session', { task: '构建业务智能体' })).value.session_id
+  const currentId = (await f.rpc('session', { task: '核对实例是否已交付' })).value.session_id
+  const identity = workspaceIdentity(f.root)
+  const task = { id: 'delivered-task', owner_session_id: previousId, state: 'completed', target_source: before.value.instance.source_id,
+    plan: taskPlan({ instance_name: 'delivered-instance', goal: '不得进入wire的完整业务目标' }), operations: [], model_calls: 49, repair_rounds: 0,
+    delivery: { ready: true, run_id: 'run-passed', instance: { name: 'delivered-instance', source: before.value.instance.source_id, state: 'running' },
+      checks: [{ name: 'instance_running', ok: true, message: '当时实例正在运行' }], probe: { id: 'probe-original', status: 'completed', session_id: 'probe-session', trace: ['不得进入wire的业务内容'] },
+      entry: { url: 'http://user:private-password@localhost/?token=private-token' }, artifacts: [{ content: '原始报告正文' }] } }
+  const appendTask = execution => appendPluginRecord(f.sessions.get(previousId).session, 'plugin:harness-platform/assistant', { kind: 'execution', workspace_id: identity.id, owner_session_id: previousId, execution: JSON.parse(JSON.stringify(execution)) })
+  appendTask(task)
+  const observed = () => ({ kind: 'sequenced', ...f.ctx.sessionProjections.snapshot(f.sessions.get(previousId).session) })
+  const wire = observed().values.harnessPlatformAssistant
+  assert.equal(wire.task.delivery.ready, true)
+  assert.equal(wire.task.owner_session_id, previousId)
+  assert.doesNotMatch(JSON.stringify(wire), /完整业务目标|业务内容|报告正文|private-password|private-token|http:/)
+  const reads = [], resolved = [], originalResolve = f.services.controller.resolveAgent
+  f.services.controller.resolveAgent = async id => { resolved.push(id); return originalResolve(id) }
+  f.services.controller.list = async () => ({ items: [{ sessionId: previousId, cwd: f.root, projections: { kind: 'cached', values: {} } }] })
+  f.services.controller.projections = async ({ sessionId }) => { reads.push(sessionId); return observed() }
+  const value = await f.execute(currentId, 'instances', 'detail', { name: 'delivered-instance' })
+  assert.deepEqual(reads, [previousId]); assert.ok(resolved.every(id => id === currentId), '不能通过resolveAgent激活历史会话')
+  assert.equal(value.delivery_history.records.length, 1)
+  assert.equal(value.delivery_history.records[0].asOfSeq, observed().asOfSeq)
+  assert.equal(value.delivery_history.records[0].task.delivery.probe.id, 'probe-original')
+  assert.equal(value.delivery_history.records[0].task.delivery.instance.state, 'running')
+  assert.equal(value.result.value.instance.state, 'stopped', '历史交付状态不能改写实时实例状态')
+  assert.match(value.delivery_history.note, /未找到记录不表示从未交付/)
+  const args = { action: 'detail', input: { name: 'delivered-instance' } }, tool = f.tools.get('platform_instances')
+  assert.equal(JSON.parse(tool.output.render(args, value)[0].text).delivery_history.records.length, 1)
+  const meta = tool.output.presentationMeta(args, value)
+  assert.equal(meta.delivery_history, undefined); assert.deepEqual(meta.result, before)
+  assert.deepEqual(publicReceipt, before)
+  assert.deepEqual(f.calls.map(call => call.endpoint), ['instances/detail'], '只读取既有投影，不重跑交付或创建探针')
+  await f.reload()
+  assert.deepEqual(observed().values.harnessPlatformAssistant, wire, '投影重装后仍从原任务事件恢复摘要')
+  appendTask({ ...task, id: 'new-task', state: 'unknown', delivery: undefined, reason: '新任务执行回执未知' })
+  const latest = await f.execute(currentId, 'instances', 'detail', { name: 'delivered-instance' })
+  assert.equal(latest.delivery_history.records[0].task.id, 'new-task')
+  assert.equal(latest.delivery_history.records[0].task.state, 'unknown')
+  assert.equal(latest.delivery_history.records[0].task.reason, '新任务执行回执未知')
+  assert.equal(latest.delivery_history.records[0].task.delivery, undefined, '仅最新任务，不能沿用被替换的成功状态')
+})
+
+test('交付历史按工作区、owner、实例与来源隔离，缓存及待迁移信息不构成交付证明', async t => {
+  const f = fixture(t), identity = workspaceIdentity(f.root)
+  const instance = { name: 'target-instance', source_id: 'experiment:EXP-test-agent-002', agent_id: 'test-agent' }
+  const summary = id => deliveryProjection({ session_id: id, workspace_id: identity.id, execution: {
+    id: `task-${id}`, owner_session_id: id, state: 'completed', target_source: instance.source_id, plan: taskPlan({ instance_name: instance.name }), operations: [],
+    delivery: { ready: true, instance: { name: instance.name, source: instance.source_id }, checks: [{ name: 'delivery_report', ok: true }] },
+  } })
+  const values = Object.fromEntries(['matching', 'other-workspace', 'other-owner', 'other-source', 'other-name', 'other-delivery-source', 'other-cwd', 'unbound-workspace', 'cached', 'migration', 'failed'].map(id => [id, { kind: 'sequenced', asOfSeq: 10, values: { harnessPlatformAssistant: summary(id) } }]))
+  values['other-workspace'].values.harnessPlatformAssistant.workspace_id = 'workspace-other'
+  values['other-owner'].values.harnessPlatformAssistant.task.owner_session_id = 'original-session'
+  values['other-source'].values.harnessPlatformAssistant.task.target_source = 'experiment:EXP-test-agent-001'
+  values['other-name'].values.harnessPlatformAssistant.task.instance_name = 'different-instance'
+  values['other-delivery-source'].values.harnessPlatformAssistant.task.delivery.instance.source = 'experiment:EXP-test-agent-001'
+  delete values['unbound-workspace'].values.harnessPlatformAssistant.workspace_id
+  values.cached.kind = 'cached'; values.migration.kind = 'migration-required'
+  values.failed.values.harnessPlatformAssistant.task.state = 'unknown'
+  values.failed.values.harnessPlatformAssistant.task.reason = '业务回执未知'
+  values.failed.values.harnessPlatformAssistant.task.delivery = { ready: false, checks: [{ name: 'delivery_report', ok: false, message: '实际下载失败' }] }
+  const reads = [], reader = {
+    async list() { return { items: Object.keys(values).map(sessionId => ({ sessionId, cwd: sessionId === 'other-cwd' ? f.root + '/other' : f.root, projections: { kind: 'cached', values: { harnessPlatformAssistant: summary(sessionId) } } })) } },
+    async projections({ sessionId }) { reads.push(sessionId); return values[sessionId] },
+  }
+  const result = await readInstanceDeliveryHistory(f.root, instance, reader, new AbortController().signal)
+  assert.deepEqual(result.records.map(row => row.session_id), ['matching', 'failed'])
+  assert.equal(result.records[1].task.delivery.ready, false)
+  assert.equal(result.records[1].task.delivery.checks[0].message, '实际下载失败')
+  assert.equal(reads.includes('other-cwd'), false)
+  assert.deepEqual(result.unavailable.map(row => row.session_id), ['cached', 'migration'])
+  const noMatch = await readInstanceDeliveryHistory(f.root, { ...instance, source_id: 'experiment:EXP-test-agent-999' }, reader, new AbortController().signal)
+  assert.deepEqual(noMatch.records, []); assert.match(noMatch.note, /不表示从未交付/)
+  const abort = new AbortController()
+  await assert.rejects(() => readInstanceDeliveryHistory(f.root, instance, { ...reader, async projections() { abort.abort(new Error('用户取消')); throw abort.signal.reason } }, abort.signal), /用户取消/)
+})
+
+test('交付wire在初始化及所有稀疏可选字段下符合原生无损JSON，投影重装保持可传输', async t => {
+  const { createRequire } = await import('node:module')
+  const require = createRequire(import.meta.url)
+  const sdk = createRequire(require.resolve('@deepseek-ai/dsh-api-session-controller'))
+  const { snapshotJsonValue } = await import(sdk.resolve('@deepseek-ai/dsh-util-values'))
+  const sparseTask = { id: 'sparse-task', owner_session_id: 'sparse-session', state: 'unknown', operations: [],
+    plan: { agent_id: 'test-agent', instance_name: undefined }, reason: undefined, target_source: undefined }
+  const cases = [
+    { session_id: 'initial-session', workspace_id: undefined, execution: undefined },
+    { session_id: 'sparse-session', execution: sparseTask },
+    { session_id: 'sparse-session', execution: { ...sparseTask, delivery: { ready: undefined, run_id: undefined,
+      instance: { name: 'test-instance', source: 'experiment:EXP-test-agent-001', state: undefined },
+      checks: [{ name: 'unknown_check', ok: undefined, message: undefined }, { name: 'failed_check', ok: false, message: '保留实际失败' }],
+      probe: { id: 'probe-1', status: 'unknown', case_id: undefined, session_id: undefined } } } },
+    { session_id: 'complete-session', workspace_id: 'workspace-test', execution: { ...sparseTask, state: 'completed', owner_session_id: 'complete-session',
+      delivery: { ready: true, run_id: 'run-1', checks: [{ name: 'passed', ok: true, message: '不会重复传输成功说明' }],
+        probe: { id: 'probe-2', status: 'completed', case_id: 'U-BUSINESS-001', session_id: 'probe-session' } } } },
+  ]
+  for (const source of cases) {
+    const view = deliveryProjection(source)
+    assert.deepEqual(snapshotJsonValue(view), view, '必须通过实际原生无损JSON校验，不能靠stringify静默丢字段')
+  }
+  assert.equal(snapshotJsonValue({ workspace_id: undefined }), undefined, '测试须能复现原生传输拒绝条件')
+  const f = fixture(t)
+  const session = f.addSession('initial-session')
+  const snapshot = () => f.ctx.sessionProjections.snapshot(session)
+  assert.deepEqual(snapshot().values.harnessPlatformAssistant, { session_id: 'initial-session' })
+  assert.notEqual(snapshotJsonValue({ sessionId: session.id, cwd: f.root, projections: { kind: 'sequenced', ...snapshot() } }), undefined)
+  appendPluginRecord(session, 'plugin:harness-platform/assistant', { kind: 'execution', owner_session_id: session.id,
+    execution: { id: 'sparse-task', owner_session_id: session.id, state: 'unknown', plan: { agent_id: 'test-agent' }, operations: [],
+      delivery: { checks: [{ name: 'pending_check' }], probe: { id: 'probe-1', status: 'unknown' } } } })
+  const observed = snapshot()
+  assert.deepEqual(snapshotJsonValue(observed), observed)
+  await f.reload()
+  assert.deepEqual(snapshot(), observed)
+  assert.deepEqual(snapshotJsonValue(snapshot()), observed)
+})
+
+test('显式切换固定目标后，旧自动保存只读核实不能代替新目标预览', async t => {
+  for (const dataset of [false, true]) for (const readable of [false, true]) await t.test(`${dataset ? '跨Run' : '跨Experiment'}：旧回执${readable ? '可核实' : '仍未知'}`, async t => {
+    const oldId = dataset ? 'run-11111111-1111-4111-8111-111111111111' : 'EXP-basic-001'
+    const newId = dataset ? 'run-22222222-2222-4222-8222-222222222222' : 'EXP-basic-002'
+    const datasetId = target => `decision-dataset-${target.slice(4)}`
+    const content = target => dataset ? [{ workflow: target, _meta: { id: `sample-${target}` } }]
+      : [{ id: target, title: '版本特性', description: '基础模拟内容', source_refs: [], evidence_refs: [] }]
+    const context = target => dataset ? { skill: 'decision-sample-extraction', run_id: target }
+      : { skill: 'agent-maintenance', workflow: 'features', agent_id: 'basic', experiment_id: target }
+    const action = dataset ? 'datasets/preview' : 'features/preview', writes = []
+    let oldReadable = false
+    const f = fixture(t, (endpoint, input) => {
+      if (endpoint === `agents/${action}`) {
+        const target = dataset ? input.run_id : input.experiment_id
+        return { ok: true, value: { preview_id: target, ...(dataset
+          ? { run_id: target, records: content(target), count: 1, file: `evolution/datasets/${datasetId(target)}.json` }
+          : { experiment_id: target, features: content(target) }) } }
+      }
+      if (endpoint === `agents/${dataset ? 'datasets/apply' : 'features/apply'}`) {
+        writes.push(input.preview_id)
+        return { ok: true, value: { saved: true } }
+      }
+      assert.equal(endpoint, dataset ? 'agents/datasets/read' : 'agents/detail')
+      const target = dataset ? `run-${input.dataset_id.slice('decision-dataset-'.length)}` : input.experiment_id
+      if (target === oldId && !oldReadable) return { ok: false, error: { message: '旧批次暂不可读取' } }
+      return { ok: true, value: dataset ? { dataset: { id: datasetId(target), run_id: target, records: content(target) } } : { features: content(target) } }
+    })
+    const id = (await f.rpc('session', { task: '整理旧目标', context: context(oldId) })).value.session_id
+    assert.equal((await f.execute(id, 'agents', action, {})).state, 'unknown')
+    const original = structuredClone((await f.status(id)).automatic_save)
+    const originalEvents = structuredClone(f.sessions.get(id).session.snapshotEvents())
+    assert.equal((await f.rpc('session', { session_id: id, task: '明确改为新目标', context: context(newId) })).ok, true)
+    await f.reload()
+    oldReadable = readable
+    const result = await f.execute(id, 'agents', action, {})
+    assert.deepEqual(f.sessions.get(id).session.snapshotEvents().slice(0, originalEvents.length), originalEvents, '原未知写入与失败事件不改写')
+    const saves = f.sessions.get(id).events.filter(event => event.data?.kind === 'automatic-save').map(event => event.data)
+    if (readable) {
+      assert.equal(result.state, 'completed')
+      assert.deepEqual(dataset ? result.result.value.dataset.records : result.result.value.features, content(newId), '本次结果必须来自新目标')
+      assert.deepEqual(writes, [oldId, newId], '只核实旧写入，新目标独立保存一次')
+      assert.ok(saves.some(save => save.state === 'completed' && save.expected_sha256 === original.expected_sha256 && save.failure.message === original.failure.message))
+      assert.notEqual((await f.status(id)).automatic_save.expected_sha256, original.expected_sha256)
+    } else {
+      assert.equal(result.state, 'unknown')
+      assert.match(result.result.error.message, /本次预览尚未执行/)
+      assert.deepEqual(result.result.error.target, original.target)
+      assert.deepEqual(writes, [oldId])
+      assert.equal(f.calls.filter(call => call.endpoint === `agents/${action}`).length, 1, '旧结果未知时不预览或保存新目标')
+      assert.deepEqual((await f.status(id)).automatic_save, original)
+    }
+    assert.deepEqual((await f.status(id)).proposals, [])
+  })
 })

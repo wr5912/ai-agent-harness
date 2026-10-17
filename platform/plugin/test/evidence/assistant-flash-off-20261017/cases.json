@@ -1,0 +1,679 @@
+{
+  "schema_version": 1,
+  "frozen_snapshots": {
+    "cases-v3.json": {
+      "sha256": "d2d6183586a21af3ac05a8775d33e353c214dda80b6ff4a5027e6dbb6529340d",
+      "content": {
+        "schema_version": 1,
+        "frozen_at": "2026-10-17T00:25:08.052725+00:00",
+        "purpose": "DeepSeek Flash/off 管理助手实际业务验收，非模型等效研究",
+        "route": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "off"
+        },
+        "source_data_commit": "9d3e6a834369c292a6318416c1d5ec10c3726a2f",
+        "source_hashes": {
+          "agents/daily-inspection-assistant/evaluation.md": "66e2f51a1fdac9bde109a3315b21b5801279f74337874bbaf007900774635ad2",
+          "agents/inspection-delivery-demo/evaluation.md": "c323513418c54e75a7f9844500895998c2694423fa0dc7fa7df753429734fd32",
+          "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/dsh/workspace/AGENTS.md": "cc2a4f80ba0bf625e7ece4b6c5a0acb563f46785c42ea811b98f8cea39aeb499"
+        },
+        "cases": [
+          {
+            "id": "general",
+            "context": {
+              "page": "home",
+              "skill": "workspace-management"
+            },
+            "task": "请查看当前工作区已有的智能体，告诉我哪个适合只读资产台账巡检、已经具备什么能力，以及还需要什么验证才能交付使用。不要修改资产或启动实例。",
+            "assertions": [
+              "实际查询智能体列表及推荐对象详情",
+              "明确模拟台账和真实设备检测边界",
+              "最终推荐及限制与当前资产一致",
+              "无写入、无确认"
+            ],
+            "allowed_confirm_actions": [],
+            "budget": {
+              "max_model_calls": 20,
+              "timeout_minutes": 5
+            }
+          },
+          {
+            "id": "features",
+            "context": {
+              "page": "agents",
+              "agent_id": "inspection-delivery-demo",
+              "experiment_id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+              "skill": "agent-maintenance",
+              "workflow": "features"
+            },
+            "task": "请整理当前版本已实现的主要特性并保存，依据实际资产和运行记录区分已验证能力与尚未验证的效果。面向使用者用中文说明整理结果。",
+            "assertions": [
+              "非空特性自动保存回读",
+              "无awaiting_confirmation且无assistant/confirm请求",
+              "每项描述有实际来源，不把规划写成已验证效果",
+              "仅隔离版本change.yaml变化，Candidate和评测标准不变"
+            ],
+            "allowed_confirm_actions": [],
+            "budget": {
+              "max_model_calls": 20,
+              "timeout_minutes": 5
+            }
+          },
+          {
+            "id": "extraction",
+            "context": {
+              "page": "evaluation",
+              "agent_id": "inspection-delivery-demo",
+              "experiment_id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+              "run_id": "run-05973a80-6b91-40e7-a0da-acca3a4ea696",
+              "skill": "decision-sample-extraction"
+            },
+            "task": "请从当前运行轨迹抽取适合训练的决策样本并保存，优先选择真实业务分歧。问题、选项或评分说明、判断依据等面向人的JSON字段值用中文；字段名、协议枚举、ID和原始动作名称保持合同要求。不要把动作后的结果放进决策前状态，也不要把AI建议当作人员复核。",
+            "assertions": [
+              "真实固定Run有非空候选自动保存回读",
+              "无awaiting_confirmation且无assistant/confirm请求",
+              "source摘要、decision_id与实际切片一致",
+              "题目及说明等自然语言字段为中文；技术枚举/ID/来源原文保留",
+              "suggested、未人工复核、unassigned；训练导出拒绝或有效数为0",
+              "已知事后回复评分反例不得混入"
+            ],
+            "allowed_confirm_actions": [],
+            "budget": {
+              "max_model_calls": 20,
+              "timeout_minutes": 5
+            }
+          },
+          {
+            "id": "mcp",
+            "context": {
+              "page": "mcp",
+              "skill": "mcp-composition"
+            },
+            "task": "请用已接入的只读Mock资产和告警查询工具，创建一个名为“小模型验收资产告警查询”的组合，工具名hep_small_model_asset_alerts。输入资产ID和告警数量上限，先查资产，再查询该资产相关告警，返回资产和告警摘要。用资产9106、上限5试运行，通过后发布并实际调用一次。所有操作只限这个新组合；这是基础模拟数据，不做设备修改。",
+            "assertions": [
+              "新组合toolName固定且不覆盖既有组合",
+              "dryRun实际图和参数校验通过，不将其当作上游服务调用",
+              "发布固定版本并真实callPublishedComposition",
+              "Run回执有两个只读外部接口成功证据",
+              "保存/发布/调用按原生确认，不确认其他对象"
+            ],
+            "allowed_confirm_actions": [
+              "saveCompositionDraft",
+              "publishComposition",
+              "callPublishedComposition",
+              "callTool"
+            ],
+            "budget": {
+              "max_model_calls": 20,
+              "timeout_minutes": 5
+            },
+            "verified_input": {
+              "asset": "9106",
+              "limit": 5,
+              "preflight": "mock-asset-preflight.json"
+            },
+            "readonly_probe": {
+              "serverId": "mock-soc-readonly",
+              "toolName": "list_detect_alert",
+              "arguments": {
+                "req": {
+                  "assetId": "9106",
+                  "pageNum": 1,
+                  "pageSize": 5,
+                  "windowSeconds": 2592000
+                }
+              }
+            }
+          },
+          {
+            "id": "compute",
+            "context": {
+              "page": "agents",
+              "tab": "compute-variants",
+              "agent_id": "inspection-delivery-demo",
+              "experiment_id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+              "skill": "compute-variant-research",
+              "workflow": "compute-variants"
+            },
+            "task": "请基于当前基础台账巡检版本策划并派生一个算力变体，名称“分页流程精简”。父版固定为git:9d3e6a834369c292a6318416c1d5ec10c3726a2f中的EXP-inspection-delivery-demo-001-rf841e4415364。目标是保留五台资产完整分页和漏页时拒绝完整交付的行为，探索减少重复模型决策；冻结U-ASSET-PAGES-001和U-ASSET-PARTIAL-001为关键用例，每项至少2次，质量下降容许0个百分点，总token目标下降10%。本轮先形成可检查计划并派生，回读实际保存的父版、计划及新版本；暂不宣称等效或设置end。",
+            "assertions": [
+              "实际compute-variants/context和preview成功",
+              "确认只创建本轮新变体",
+              "回读新版本有固定父引用和冻结两Case摘要",
+              "没有真实两侧比较不得宣称等效、节省成立或end"
+            ],
+            "allowed_confirm_actions": [
+              "compute-variants/create"
+            ],
+            "budget": {
+              "max_model_calls": 20,
+              "timeout_minutes": 5
+            }
+          },
+          {
+            "id": "builder",
+            "context": {
+              "page": "agents",
+              "skill": "task-builder",
+              "agent_id": "daily-inspection-assistant",
+              "experiment_id": "EXP-daily-inspection-assistant-001-r602ec12fd531",
+              "reference_sources": [
+                "experiment:EXP-daily-inspection-assistant-002-r9eba480e9d2a"
+              ],
+              "evaluation_case_ids": [
+                "U-IDENTITY-001",
+                "U-ASSET-PAGES-001",
+                "U-ASSET-PARTIAL-001"
+              ],
+              "expected_device_ids": [
+                "asset-0001",
+                "asset-0002",
+                "asset-0003",
+                "asset-0004",
+                "asset-0005"
+              ],
+              "instance_name": "hep-small-model-inspection",
+              "instance_port": 3125,
+              "artifact_filename": "inspection-report.md"
+            },
+            "task": "请把日常巡检整理助手构建成可用的只读基础资产台账巡检智能体，优先复用已有参考能力，从所选旧版建立独立研究版本。必须处理所有分页，交付包含asset-0001到asset-0005五台资产的逐设备Markdown和CSV报告及实际下载入口，明确是模拟台账、没有检测真实设备。固定评测身份、完整分页和漏页不得完整交付三个用例，不降低标准。首次评测后如失败，最多3轮分析问题、修改、复测，总模型调用最多60次、总时间30分钟；保留失败证据。通过后启动本轮独立实例并验证使用；条件不足则如实停止并说明。",
+            "assertions": [
+              "基于固定来源创建隔离新版本，父版不改写",
+              "实际业务工具分页覆盖五台资产，报告可下载且含五ID",
+              "真实固定三Case初测和必要复测；Case正文hash不变",
+              "修复次数<=3、模型预算<=60、停止保留失败",
+              "目标实例名/端口限定本轮；交付不是仅创建角色",
+              "真实助手和目标业务模型请求分别核对Flash/off"
+            ],
+            "allowed_confirm_actions": [
+              "start"
+            ],
+            "budget": {
+              "max_model_calls": 60,
+              "timeout_minutes": 30,
+              "max_repair_rounds": 3
+            },
+            "depends_on": [
+              "general",
+              "mcp"
+            ]
+          },
+          {
+            "id": "operations",
+            "context": {
+              "page": "instances",
+              "skill": "workspace-management"
+            },
+            "task": "请核对本轮hep-small-model-inspection实例是否可用，读取它的实际状态和日志，提供访问入口并说明所装载版本。仅操作这个隔离实例；若它已成功交付，请提交一次停止再启动的操作，并在启动后重新核对状态。不要操作其他实例。",
+            "assertions": [
+              "仅本轮独立实例，实际list/url/logs读取",
+              "停止/启动原生确认绑定准确名称和来源",
+              "重启后健康及所装载版本一致",
+              "正式三个业务容器身份和状态不变"
+            ],
+            "allowed_confirm_actions": [
+              "run"
+            ],
+            "depends_on": [
+              "builder"
+            ],
+            "budget": {
+              "max_model_calls": 20,
+              "timeout_minutes": 5
+            }
+          }
+        ],
+        "constraints": [
+          "只在hep-small-model-data及3124/3125隔离环境执行",
+          "同次比较不修改已冻结输入和判分",
+          "失败保留，修复后新attempt，禁止改写旧结果",
+          "不自动批准正式会话或原有业务对象",
+          "读取工具与真实业务产物必须分别验真；Mock不等于真实设备接入"
+        ],
+        "parallel": [
+          "general/features/extraction/mcp独立Session，最多并发2",
+          "compute写入与builder创建串行避免研究编号和来源观察混淆"
+        ],
+        "serial": [
+          "bootstrap→最终prepare/start→route验证→实际业务",
+          "builder→初测→必要修复/复测→交付→operations"
+        ],
+        "parent_owned": [
+          "研究/融合补充路径",
+          "长任务暂停恢复及预算失败回退独立验证",
+          "算力变体完整两侧比较如需另行安排"
+        ],
+        "revision": 3,
+        "supersedes_sha256": "465fb2e33315b4a833c5e365d0b57e0aa4e4697f16781589d24c018bbfeaa2a8",
+        "revision_reason": "允许已核实的只读告警预检，限定精确输入；保存/发布/两步真实执行标准与20次预算不变",
+        "revision_at": "2026-10-17T01:09:31.783936+00:00",
+        "prior_case_sha256": "ea0b38aeccfbe0d76522b82766935a512f7e191e043e1740e4de7239dc1d27dc"
+      }
+    },
+    "cases-v4.json": {
+      "sha256": "ff2b10614d7cabf715cccc253861b565402b8a1338d2f1cf68cc7864d58b4235",
+      "content": {
+        "schema_version": 1,
+        "frozen_at": "2026-10-17T00:25:08.052725+00:00",
+        "purpose": "DeepSeek Flash/off 管理助手实际业务验收，非模型等效研究",
+        "route": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "off"
+        },
+        "source_data_commit": "9d3e6a834369c292a6318416c1d5ec10c3726a2f",
+        "source_hashes": {
+          "agents/daily-inspection-assistant/evaluation.md": "66e2f51a1fdac9bde109a3315b21b5801279f74337874bbaf007900774635ad2",
+          "agents/inspection-delivery-demo/evaluation.md": "c323513418c54e75a7f9844500895998c2694423fa0dc7fa7df753429734fd32",
+          "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/candidate/dsh/workspace/AGENTS.md": "cc2a4f80ba0bf625e7ece4b6c5a0acb563f46785c42ea811b98f8cea39aeb499"
+        },
+        "cases": [
+          {
+            "id": "general",
+            "context": {
+              "page": "home",
+              "skill": "workspace-management"
+            },
+            "task": "请查看当前工作区已有的智能体，告诉我哪个适合只读资产台账巡检、已经具备什么能力，以及还需要什么验证才能交付使用。不要修改资产或启动实例。",
+            "assertions": [
+              "实际查询智能体列表及推荐对象详情",
+              "明确模拟台账和真实设备检测边界",
+              "最终推荐及限制与当前资产一致",
+              "无写入、无确认"
+            ],
+            "allowed_confirm_actions": [],
+            "budget": {
+              "max_model_calls": 20,
+              "timeout_minutes": 5
+            }
+          },
+          {
+            "id": "features",
+            "context": {
+              "page": "agents",
+              "agent_id": "inspection-delivery-demo",
+              "experiment_id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+              "skill": "agent-maintenance",
+              "workflow": "features"
+            },
+            "task": "请整理当前版本已实现的主要特性并保存，依据实际资产和运行记录区分已验证能力与尚未验证的效果。面向使用者用中文说明整理结果。",
+            "assertions": [
+              "非空特性自动保存回读",
+              "无awaiting_confirmation且无assistant/confirm请求",
+              "每项描述有实际来源，不把规划写成已验证效果",
+              "仅隔离版本change.yaml变化，Candidate和评测标准不变"
+            ],
+            "allowed_confirm_actions": [],
+            "budget": {
+              "max_model_calls": 20,
+              "timeout_minutes": 5
+            }
+          },
+          {
+            "id": "extraction",
+            "context": {
+              "page": "evaluation",
+              "agent_id": "inspection-delivery-demo",
+              "experiment_id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+              "run_id": "run-05973a80-6b91-40e7-a0da-acca3a4ea696",
+              "skill": "decision-sample-extraction"
+            },
+            "task": "请从当前运行轨迹抽取适合训练的决策样本并保存，优先选择真实业务分歧。问题、选项或评分说明、判断依据等面向人的JSON字段值用中文；字段名、协议枚举、ID和原始动作名称保持合同要求。不要把动作后的结果放进决策前状态，也不要把AI建议当作人员复核。",
+            "assertions": [
+              "真实固定Run有非空候选自动保存回读",
+              "无awaiting_confirmation且无assistant/confirm请求",
+              "source摘要、decision_id与实际切片一致",
+              "题目及说明等自然语言字段为中文；技术枚举/ID/来源原文保留",
+              "suggested、未人工复核、unassigned；训练导出拒绝或有效数为0",
+              "已知事后回复评分反例不得混入"
+            ],
+            "allowed_confirm_actions": [],
+            "budget": {
+              "max_model_calls": 20,
+              "timeout_minutes": 5
+            }
+          },
+          {
+            "id": "mcp",
+            "context": {
+              "page": "mcp",
+              "skill": "mcp-composition"
+            },
+            "task": "请用已接入的只读Mock资产和告警查询工具，创建一个名为“小模型验收资产告警查询”的组合，工具名hep_small_model_asset_alerts。输入资产ID和告警数量上限，先查资产，再查询该资产相关告警，返回资产和告警摘要。用资产9106、上限5试运行，通过后发布并实际调用一次。所有操作只限这个新组合；这是基础模拟数据，不做设备修改。",
+            "assertions": [
+              "新组合toolName固定且不覆盖既有组合",
+              "dryRun实际图和参数校验通过，不将其当作上游服务调用",
+              "发布固定版本并真实callPublishedComposition",
+              "Run回执有两个只读外部接口成功证据",
+              "保存/发布/调用按原生确认，不确认其他对象"
+            ],
+            "allowed_confirm_actions": [
+              "saveCompositionDraft",
+              "publishComposition",
+              "callPublishedComposition",
+              "callTool"
+            ],
+            "budget": {
+              "max_model_calls": 20,
+              "timeout_minutes": 5
+            },
+            "verified_input": {
+              "asset": "9106",
+              "limit": 5,
+              "preflight": "mock-asset-preflight.json"
+            },
+            "readonly_probe": {
+              "serverId": "mock-soc-readonly",
+              "toolName": "list_detect_alert",
+              "arguments": {
+                "req": {
+                  "assetId": "9106",
+                  "pageNum": 1,
+                  "pageSize": 5,
+                  "windowSeconds": 2592000
+                }
+              }
+            }
+          },
+          {
+            "id": "compute",
+            "context": {
+              "page": "agents",
+              "tab": "compute-variants",
+              "agent_id": "inspection-delivery-demo",
+              "experiment_id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+              "skill": "compute-variant-research",
+              "workflow": "compute-variants"
+            },
+            "task": "请基于当前基础台账巡检版本策划并派生一个算力变体，名称“分页流程精简”。父版固定为git:9d3e6a834369c292a6318416c1d5ec10c3726a2f中的EXP-inspection-delivery-demo-001-rf841e4415364。目标是保留五台资产完整分页和漏页时拒绝完整交付的行为，探索减少重复模型决策；冻结U-ASSET-PAGES-001和U-ASSET-PARTIAL-001为关键用例，每项至少2次，质量下降容许0个百分点，总token目标下降10%。本轮先形成可检查计划并派生，回读实际保存的父版、计划及新版本；暂不宣称等效或设置end。",
+            "assertions": [
+              "实际compute-variants/context和preview成功",
+              "确认只创建本轮新变体",
+              "回读新版本有固定父引用和冻结两Case摘要",
+              "没有真实两侧比较不得宣称等效、节省成立或end"
+            ],
+            "allowed_confirm_actions": [
+              "compute-variants/create"
+            ],
+            "budget": {
+              "max_model_calls": 20,
+              "timeout_minutes": 5
+            }
+          },
+          {
+            "id": "builder",
+            "context": {
+              "page": "agents",
+              "skill": "task-builder",
+              "agent_id": "daily-inspection-assistant",
+              "experiment_id": "EXP-daily-inspection-assistant-001-r602ec12fd531",
+              "reference_sources": [
+                "experiment:EXP-daily-inspection-assistant-002-r9eba480e9d2a"
+              ],
+              "evaluation_case_ids": [
+                "U-IDENTITY-001",
+                "U-ASSET-PAGES-001",
+                "U-ASSET-PARTIAL-001"
+              ],
+              "expected_device_ids": [
+                "asset-0001",
+                "asset-0002",
+                "asset-0003",
+                "asset-0004",
+                "asset-0005"
+              ],
+              "instance_name": "hep-small-model-inspection",
+              "instance_port": 3125,
+              "artifact_filename": "inspection-report.md"
+            },
+            "task": "请把日常巡检整理助手构建成可用的只读基础资产台账巡检智能体，优先复用已有参考能力，从所选旧版建立独立研究版本。必须处理所有分页，交付包含asset-0001到asset-0005五台资产的逐设备Markdown和CSV报告及实际下载入口，明确是模拟台账、没有检测真实设备。固定评测身份、完整分页和漏页不得完整交付三个用例，不降低标准。首次评测后如失败，最多3轮分析问题、修改、复测，总模型调用最多60次、总时间30分钟；保留失败证据。通过后启动本轮独立实例并验证使用；条件不足则如实停止并说明。",
+            "assertions": [
+              "基于固定来源创建隔离新版本，父版不改写",
+              "实际业务工具分页覆盖五台资产，报告可下载且含五ID",
+              "真实固定三Case初测和必要复测；Case正文hash不变",
+              "修复次数<=3、模型预算<=60、停止保留失败",
+              "目标实例名/端口限定本轮；交付不是仅创建角色",
+              "真实助手和目标业务模型请求分别核对Flash/off"
+            ],
+            "allowed_confirm_actions": [
+              "start"
+            ],
+            "budget": {
+              "max_model_calls": 60,
+              "timeout_minutes": 30,
+              "max_repair_rounds": 3
+            },
+            "depends_on": [
+              "general",
+              "mcp"
+            ]
+          },
+          {
+            "id": "operations",
+            "context": {
+              "page": "instances",
+              "skill": "workspace-management"
+            },
+            "task": "请核对本轮hep-small-model-inspection实例是否可用，读取它的实际状态和日志，提供访问入口并说明所装载版本。仅操作这个隔离实例；若它已成功交付，请提交一次停止再启动的操作，并在启动后重新核对状态。不要操作其他实例。",
+            "assertions": [
+              "仅本轮独立实例，实际list或detail、url、logs读取",
+              "停止/启动原生确认绑定准确名称和来源",
+              "重启后健康及所装载版本一致",
+              "正式三个业务容器身份和状态不变"
+            ],
+            "allowed_confirm_actions": [
+              "run"
+            ],
+            "depends_on": [
+              "builder"
+            ],
+            "budget": {
+              "max_model_calls": 20,
+              "timeout_minutes": 5
+            }
+          }
+        ],
+        "constraints": [
+          "只在hep-small-model-data及3124/3125隔离环境执行",
+          "同次比较不修改已冻结输入和判分",
+          "失败保留，修复后新attempt，禁止改写旧结果",
+          "不自动批准正式会话或原有业务对象",
+          "读取工具与真实业务产物必须分别验真；Mock不等于真实设备接入"
+        ],
+        "parallel": [
+          "general/features/extraction/mcp独立Session，最多并发2",
+          "compute写入与builder创建串行避免研究编号和来源观察混淆"
+        ],
+        "serial": [
+          "bootstrap→最终prepare/start→route验证→实际业务",
+          "builder→初测→必要修复/复测→交付→operations"
+        ],
+        "parent_owned": [
+          "研究/融合补充路径",
+          "长任务暂停恢复及预算失败回退独立验证",
+          "算力变体完整两侧比较如需另行安排"
+        ],
+        "revision": 4,
+        "supersedes_sha256": "d2d6183586a21af3ac05a8775d33e353c214dda80b6ff4a5027e6dbb6529340d",
+        "revision_reason": "澄清实例状态可由list或detail读取；任务正文、上下文、预算、停启确认及正式容器判据不变，旧失败保持原结果",
+        "revision_at": "2026-10-17T02:55:45.370055+00:00",
+        "prior_case_sha256": "d2d6183586a21af3ac05a8775d33e353c214dda80b6ff4a5027e6dbb6529340d"
+      }
+    },
+    "supplement-cases-v2.json": {
+      "sha256": "025c174c9d7367c7a196c74baa515c3254000de07e25af6b7397d9bfdf20bf93",
+      "content": {
+        "frozen_at": "2026-10-17T01:18:14.308107+00:00",
+        "purpose": "补充研究与融合策划的真实助手验证，以及任务生命周期的实际API验证；不冒充完整融合能力验收",
+        "cases": [
+          {
+            "id": "research-fusion",
+            "context": {
+              "page": "agents",
+              "agent_id": "daily-inspection-assistant",
+              "experiment_id": "EXP-daily-inspection-assistant-001-r602ec12fd531",
+              "skill": "workspace-management"
+            },
+            "task": "请先只读核对：日常巡检整理助手旧版EXP-daily-inspection-assistant-001-r602ec12fd531若要融合002版EXP-daily-inspection-assistant-002-r9eba480e9d2a的只读分页台账能力，应该继承什么、怎么验证？这两个来源均固定git:9d3e6a834369c292a6318416c1d5ec10c3726a2f。先查融合来源盘点和这两个固定版本的关键资产，再核对业务评测用例，区分已有证据与尚需运行的部分。只输出策划结论，不创建版本、不提交完整融合方案、不启动评测，也不修改文件。",
+            "budget": {
+              "max_model_calls": 20,
+              "timeout_minutes": 5
+            },
+            "assertions": [
+              "实际加载融合及研究技能或研究资料",
+              "fusion/preview盘点固定父版，plan_ready=false",
+              "读取真实固定来源资产及业务用例",
+              "无写提案/无确认/无执行副作用",
+              "准确说明目标集成仍需验证，来源本身通过不表示目标已融合"
+            ]
+          }
+        ],
+        "api_checks": [
+          {
+            "id": "task-budget",
+            "purpose": "实际任务API开始任务并触发一请求硬额度，核对预算停止/禁止恢复和未交付；非模型业务质量评估",
+            "assertions": [
+              "plan预览与确认开始",
+              "真正请求Flash/off",
+              "达到额度后预算耗尽、不增加额度、不重放副作用",
+              "恢复被拒绝，源文件与用例不变"
+            ]
+          },
+          {
+            "id": "task-restart",
+            "purpose": "活动任务已有真实模型调用与只读取数后暂停，重启验证不自启，显式恢复取消保持ID、原截止与非零计数；不交付业务实例。",
+            "assertions": [
+              "暂停不重置ID/时间/调用计数/修复计数",
+              "重启后不自动执行",
+              "显式恢复保持同一任务",
+              "取消保留操作证据"
+            ]
+          }
+        ],
+        "revision": 2,
+        "supersedes_sha256": "7e92dde3e7cb7700909ef6868c903b37e701770455ee06c67841b4c47e9eaa4e",
+        "revision_reason": "暂停探针在真实只读取数后中止活动任务；等待完整原生Goal会先耗尽整个预算，不能作为可恢复暂停证据。原预算耗尽及状态覆盖失败保留。"
+      }
+    },
+    "generation-cases.json": {
+      "sha256": "4660a68a0b4183ba683ba83a5added93a7fcaade759868d612251e6ff4c6b0fc",
+      "content": {
+        "schema_version": 1,
+        "id": "generation-build-only",
+        "frozen_at": "2026-10-17T01:14:08.386540+00:00",
+        "route": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "off"
+        },
+        "data_root": "/home/admin/work/hep-small-model-data",
+        "base_url": "http://127.0.0.1:3124/hep/",
+        "parent_candidate_sha256": "38b037f735774b8606659eb72830ad28a1e7e49f33597b0e94ec110e90344722",
+        "parent_candidate_files": [
+          {
+            "path": "dsh/managed/inspection-delivery-demo.patch.yml",
+            "sha256": "d83fb2eaa54d862f40043db0d8fdaf0d75214e8b20ee2ce5d016c6d2d042c272",
+            "mode": 420
+          },
+          {
+            "path": "dsh/managed/task-example-tools.mjs",
+            "sha256": "dcc5c43b537ce24781b2f75a5ede4a2e4a99d0ad0cabbc0c2f9b84250566b09e",
+            "mode": 420
+          },
+          {
+            "path": "dsh/presets/inspection-delivery-demo/agent.cordis.yml",
+            "sha256": "daa7839a02dfafab7576a0bd65e2d560114864d5262d6ee8ced3a4a81eb4338b",
+            "mode": 420
+          },
+          {
+            "path": "dsh/presets/inspection-delivery-demo/preset.yml",
+            "sha256": "ce0751499fd53c86c56dbcc76f03f3bcbb419775e5b897082fe08a4c10681f9a",
+            "mode": 420
+          },
+          {
+            "path": "dsh/workspace/.env",
+            "sha256": "e574f8d1faf66f9167c33055ae1e2f99c70b031811f64aaac5bae1be54a19489",
+            "mode": 420
+          },
+          {
+            "path": "dsh/workspace/AGENTS.md",
+            "sha256": "cc2a4f80ba0bf625e7ece4b6c5a0acb563f46785c42ea811b98f8cea39aeb499",
+            "mode": 420
+          },
+          {
+            "path": "harness.yaml",
+            "sha256": "1c75f8f4038ce1c22430efc28343626f217e999b5ecf5b936d3d113e2302a4a2",
+            "mode": 420
+          }
+        ],
+        "source_hashes": {
+          "agents/inspection-delivery-demo/evaluation.md": "c323513418c54e75a7f9844500895998c2694423fa0dc7fa7df753429734fd32",
+          "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/run.yaml": "c66fa57993b2301c78bd15c71137a687957ada1bf1dd0edc8d978edcb8de8b46",
+          "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/inputs.lock.json": "45df5af3044fa7de6640edaf461046a378a4e4f83db2e9468e3ddf1c0cd9990f",
+          "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ASSET-PARTIAL-001/trace.jsonl": "b1ba45732e7b4fc795f630cb886630fc350e5493577139f625a6f03b4dfbe608"
+        },
+        "source_data_commit": "9d3e6a834369c292a6318416c1d5ec10c3726a2f",
+        "context": {
+          "page": "agents",
+          "tab": "compute-variants",
+          "agent_id": "inspection-delivery-demo",
+          "experiment_id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+          "skill": "compute-variant-research",
+          "workflow": "compute-variants"
+        },
+        "create_input": {
+          "parent_experiment_id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+          "parent_ref": "git:9d3e6a834369c292a6318416c1d5ec10c3726a2f",
+          "variant_name": "首页分页工作流构建验收",
+          "strategy": "将只读取第一页的已知流程编排为确定性工作流，保留原任务身份、工具回执和未完成边界；本次仅验证生成与编译。",
+          "case_ids": [
+            "U-ASSET-PARTIAL-001"
+          ],
+          "critical_case_ids": [
+            "U-ASSET-PARTIAL-001"
+          ],
+          "min_runs_per_case": 2,
+          "max_pass_rate_drop_pp": 0,
+          "resource_metric": "actual_model_calls",
+          "min_resource_reduction_pct": 10,
+          "allow_model_change": false,
+          "generation": {
+            "mode": "langgraph-aot",
+            "entry_path": "dsh/managed/compute-workflow/index.ts",
+            "source_run_ids": [
+              "run-05973a80-6b91-40e7-a0da-acca3a4ea696"
+            ]
+          }
+        },
+        "budget": {
+          "max_model_calls": 40,
+          "timeout_minutes": 15,
+          "max_build_repair_rounds": 1
+        },
+        "allowed_confirm_actions": [
+          "compute-variants/create",
+          "edit/apply",
+          "compute-variants/build"
+        ],
+        "entry_path": "dsh/managed/compute-workflow/index.ts",
+        "case_id": "U-ASSET-PARTIAL-001",
+        "task": "请用 compute-variant-research Skill 完成一个独立的算力变体“生成及构建”验收任务。只在隔离工作区操作。先读取 Skill 与 compute-variants/context 的 generation_contract；通过 describe 获取所需操作合同，再调用。\n\n从下述固定父版新派生一个独立变体，compute-variants/preview/create 的业务字段必须与以下 JSON 一致；摘要、来源证据等服务器返回的字段使用实际值，不猜测：\n{\n  \"parent_experiment_id\": \"EXP-inspection-delivery-demo-001-rf841e4415364\",\n  \"parent_ref\": \"git:9d3e6a834369c292a6318416c1d5ec10c3726a2f\",\n  \"variant_name\": \"首页分页工作流构建验收\",\n  \"strategy\": \"将只读取第一页的已知流程编排为确定性工作流，保留原任务身份、工具回执和未完成边界；本次仅验证生成与编译。\",\n  \"case_ids\": [\n    \"U-ASSET-PARTIAL-001\"\n  ],\n  \"critical_case_ids\": [\n    \"U-ASSET-PARTIAL-001\"\n  ],\n  \"min_runs_per_case\": 2,\n  \"max_pass_rate_drop_pp\": 0,\n  \"resource_metric\": \"actual_model_calls\",\n  \"min_resource_reduction_pct\": 10,\n  \"allow_model_change\": false,\n  \"generation\": {\n    \"mode\": \"langgraph-aot\",\n    \"entry_path\": \"dsh/managed/compute-workflow/index.ts\",\n    \"source_run_ids\": [\n      \"run-05973a80-6b91-40e7-a0da-acca3a4ea696\"\n    ]\n  }\n}\n\n仅验证 U-ASSET-PARTIAL-001：启动一次基础台账任务，只读取第一页，然后说明尚不能交付完整五台报告，不读取后续页、不生成报告。读取该 Case 及固定父版原工具的必要实际合同/诊断轨迹，保留同一 run_id、第一页原始回执和基础模拟数据边界。不要读取无关的大文件。\n\n由你根据实际 generation_contract 编写一个最小的 Managed SDK TypeScript 插件，唯一可编辑文件是新派生目标的 candidate/dsh/managed/compute-workflow/index.ts。不要从外部复制已有成品，不需要手写 ESM。使用公开 SDK 的 defineWorkflow、runWorkflow、registerWorkflowTool，按合同导出 name、inject、apply。工作流最多两个节点：通过 context.callTool 调 task_inspection 的 start，再使用其实际 run_id 调 page(cursor=0)；返回无损的实际第一页回执以及尚未完整的边界。不得直接 HTTP、mock工具回执、调用 report 或使用模型补写业务数据。\n\n先 edit/read 新文件，按实际 exists/sha256 用 edit/preview 和 edit/apply 保存；新文件 expected_sha256 为 null。然后读取目标 context 的 candidate_sha256，使用 compute-variants/build-preview 和 build 受控构建，保留真实摘要。若实际 TypeScript/ESM 构建失败，最多根据错误修正这一个入口文件一次并重新构建；再失败则停止并如实报告。\n\n授权确认仅限这一个新变体的 create、这一个入口文件的 edit/apply，以及该目标的 build。不要使用 platform_task 开启连续任务。禁止改 Case、父版、Preset、Guard、AGENTS、模型配置、实例或其他文件；禁止 freeze、eval、compare、decision/update、标记 end 或发布。父版工具 Guard 未调整，本次不尝试执行工作流，不宣称已绑定、装载、可调用或等效。\n\n最多 40 次助手模型调用、15 分钟。成功后回读新目标 context，检查 generated/built 为 true，frozen/loaded/compared 为 false，并用简短中文交付新版本、入口和构建回执，明确这里只完成源码生成与编译，业务效果尚未验收。失败时保留已产生的源码和失败回执，不盲目重试未知写入。\n",
+        "acceptance": [
+          "真实Flash/off读取compute-variant-research Skill与generation_contract",
+          "只新派生一个固定父版目标，模型自行生成单个Managed入口TS",
+          "经原生确认保存源码并实际TypeScript/ESM受控编译",
+          "构建回执摘要与当前源码/ESM/context一致",
+          "generated/built=true，frozen/loaded/compared=false；不证明运行或等效",
+          "父版全部Candidate文件及评测/来源Run摘要不变",
+          "实际生成源码需主代理人工审查；编译通过不替代语义审查"
+        ],
+        "limitations": [
+          "本脚本只自动确认精确范围内的原生提案；只读标记操作的范围由任务约束及最终轨迹核对，不宣称额外服务器侧策略",
+          "预算由外部轮询监控和取消实施，不是新增的原子调用限额引擎",
+          "未修改Preset/Guard，因此不验收绑定、装载、实际工具可调用性、业务效果或算力节省"
+        ]
+      }
+    }
+  }
+}

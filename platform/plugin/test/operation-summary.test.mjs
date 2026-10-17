@@ -59,3 +59,18 @@ test('真实嵌套CLI回执保留实例预览、容器观察及分组运行数�
   assert.match(operationSummary(meta({ domain: 'task', action: 'status', result: { state: 'not_started' } })).outcome, /任务还未开始/)
   assert.match(operationSummary(meta({ domain: 'task', action: 'rollback', result: { state: 'rolled_back', result: { ok: true, value: { restored: [{}, {}], deleted: [{}] } } } })).outcome, /恢复 2 份原文件.*移除 1 份.*预算与记录保留/)
 })
+
+test('参数发现与专项保存回执展示实际动作和数量，未知或失败不能沿用保存成功摘要', () => {
+  const contract = operationSummary(meta({ action: 'describe', result: { ok: true, value: { action: 'edit/read', input_schema: { type: 'object' } } } }))
+  assert.match(contract.title, /读取资产文件/)
+  assert.match(contract.outcome, /参数要求/)
+  for (const [action, value, count] of [
+    ['features/apply', { features: [{}, {}] }, 2],
+    ['datasets/apply', { dataset: { records: [{}, {}, {}] } }, 3],
+  ]) {
+    const result = { kind: 'platform-operation', domain: 'agents', action, state: 'completed', result: { ok: true, value } }
+    assert.match(operationSummary(meta({ action, result })).outcome, new RegExp(`已保存 ${count}`))
+    if (action === 'datasets/apply') assert.match(operationSummary(meta({ action, result })).outcome, /候选.*待复核/)
+    for (const state of ['failed', 'unknown']) assert.doesNotMatch(operationSummary(meta({ action, state, result })).outcome, /已保存/)
+  }
+})

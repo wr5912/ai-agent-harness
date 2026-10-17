@@ -12,7 +12,7 @@ export interface OperationMeta {
 
 const titles: Record<string, string> = {
   'research/read-reference': '读取研究方法', 'research/validate': '检查研究资产', 'legacy/inspect': '清点导入来源', 'decision/preview': '核对研究结论', 'decision/update': '保存研究结论',
-  context: '读取工作区与任务目标', list: '查询智能体', detail: '读取智能体详情',
+  context: '读取工作区与任务目标', describe: '读取操作用法', list: '查询智能体', detail: '读取智能体详情',
   'tasks/capabilities': '查找可复用能力', 'assets/read-fixed': '读取固定版本文件', 'assets/diff': '比较版本资产',
   'features/read-source': '读取版本说明', 'features/preview': '整理版本特性方案', 'features/apply': '保存版本特性',
   'cases/read': '读取测试用例', 'cases/list': '查询测试用例', 'cases/create': '新增测试用例', 'cases/update': '修改测试用例',
@@ -47,6 +47,7 @@ export function operationSummary(meta: OperationMeta, phase = 'result') {
   const instanceOperation = instanceReceipt?.operation ?? input.operation
   let title = meta.domain === 'task' ? taskTitles[action] ?? titles[action] : action === 'list' ? ({ agents: '查询智能体', instances: '查询实例', mcp: '查询 MCP 工具与组合' } as Record<string, string>)[meta.domain] : meta.domain === 'instances' && action === 'run' ? ({ create: '创建实例', start: '启动实例', stop: '停止实例', restart: '重启实例', delete: '删除实例' } as Record<string, string>)[instanceOperation] : meta.domain === 'instances' && action === 'preview' ? '核对实例操作范围' : titles[action]
   title ??= action || `平台${meta.domain}操作`
+  if (action === 'describe' && typeof value?.action === 'string') title += `：${(meta.domain === 'task' ? taskTitles[value.action] : titles[value.action]) ?? value.action}`
   const file = input.path ?? value?.selected?.path
   const agent = value?.agent?.name ?? value?.agent?.manifest?.name ?? input.agent_id
   const version = /-(\d{3})(?:-r[0-9a-f]{12})?$/.exec(input.experiment_id ?? value?.experiment?.id ?? '')?.[1]
@@ -61,6 +62,9 @@ export function operationSummary(meta: OperationMeta, phase = 'result') {
   if (phase !== 'result') return { title, outcome: phase === 'preparing' ? '正在准备参数' : '正在执行', failed: false }
   let outcome = '已收到回执，可展开查看'
   if (action === 'context' && value?.workspace) outcome = '已读取当前工作区与固定任务目标'
+  else if (action === 'describe' && value?.input_schema) outcome = '已取得该操作的参数要求'
+  else if (action === 'features/apply' && Array.isArray(value?.features)) outcome = `已保存 ${value.features.length} 项特性`
+  else if (action === 'datasets/apply' && Array.isArray(value?.dataset?.records)) outcome = `已保存 ${value.dataset.records.length} 条候选样本，标签待复核`
   else if (meta.domain === 'task') outcome = value?.plan?.kind === 'compute-variant' && value?.state === 'completed' ? '生成与比较已核对，end 仍需用户复核' : action === 'begin-repair' && Number.isFinite(value?.repair_rounds) ? `已预留第 ${value.repair_rounds} 轮修复` : action === 'rollback' && Array.isArray(value?.restored) && Array.isArray(value?.deleted) ? `已恢复 ${value.restored.length} 份原文件、移除 ${value.deleted.length} 份本任务新增文件；预算与记录保留` : taskStates[value?.state] ?? (action === 'preview' && value?.plan ? '方案已校验，执行前将请求整体确认' : outcome)
   else if (meta.domain === 'instances' && action === 'preview' && instanceReceipt) {
     const plan = instanceReceipt.plan ?? instanceReceipt

@@ -273,7 +273,7 @@ export function createDecisionDatasetHandler(root: string) {
         for (const [key, value] of previews) if (Date.now() - value.created > 30 * 60_000) previews.delete(key)
         if (!records.length) return { schema_version: 2, count: 0, skipped, message: '没有可保存的候选；未创建数据集文件。' }
         const preview_id = randomUUID(); previews.set(preview_id, { dataset, owner, created: Date.now() })
-        return { schema_version: 2, preview_id, run_id: dataset.run_id, count: records.length, question_count: records.reduce((sum, record) => sum + Object.keys(record.questions).length, 0), status: 'suggested', records, skipped, file: `evolution/datasets/${dataset.id}.json`, message: '确认后保存候选，训练或留出导出仍需逐题人员复核及显式分配用途。' }
+        return { schema_version: 2, preview_id, run_id: dataset.run_id, count: records.length, question_count: records.reduce((sum, record) => sum + Object.keys(record.questions).length, 0), status: 'suggested', records, skipped, file: `evolution/datasets/${dataset.id}.json`, message: '候选已通过预览校验；保存后，训练或留出导出仍需逐题人员复核及显式分配用途。' }
       }
       if (endpoint === 'datasets/apply') {
         const preview = previews.get(body.preview_id)

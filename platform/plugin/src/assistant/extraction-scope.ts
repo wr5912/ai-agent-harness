@@ -1,7 +1,18 @@
 import { taskBusinessSkill, type NativeSkills } from './business-assets.ts'
 import { workspaceIdentity, workspaceOwnsCwd } from '../workspace.ts'
+import { decisionExtractionToolParameters } from '../evaluation/decision-dataset-contract.ts'
 
 const allowedNames = new Set(['skill', 'platform_agents'])
+export const DECISION_EXTRACTION_ACTIONS = ['context', 'research/read-reference', 'datasets/source', 'datasets/preview', 'datasets/list']
+
+/** 仅替换本轮模型看到的抽取接口说明，不改原生工具注册、执行与其他会话。 */
+export function projectDecisionExtractionTools<T extends { name: string }>(tools: readonly T[]): T[] {
+  return tools.map(tool => tool.name === 'platform_agents' ? {
+    ...tool,
+    description: '决策样本抽取接口。先读取固定 Run 的 datasets/source 与 extraction_contract.model_submission，逐页核对来源后，以 datasets/preview 每次提交一题：question_name、question、target 与 decision_id 等字段同级，不手写 samples 数组或 questions/targets 映射。预览通过后平台自动保存并回读；候选仍待人工逐题复核，datasets/list 可核对保存结果。',
+    parameters: decisionExtractionToolParameters(DECISION_EXTRACTION_ACTIONS),
+  } : tool)
+}
 
 type TaskScope = { apply(agent: any): void; release(agent: any): void; dispose(): void }
 
@@ -54,7 +65,7 @@ export function createTaskBuilderScope(root: string, skills: NativeSkills) {
     apply(agent: any) {
       if (scopes.has(agent)) return
       const tools = agent.ctx?.tools
-      if (!tools?.restrict || !tools?.guard || !tools?.presentAs) throw new Error('当前 Runtime 缺少任务构建工具作用域')
+      if (!tools?.restrict || !tools?.guard || !tools?.presentAs) throw new Error('当前 Runtime 缺少平台管理工具作用域')
       const cleanup: (() => void)[] = []
       try {
         cleanup.push(tools.restrict({ allow: [...names] }))
@@ -65,13 +76,13 @@ export function createTaskBuilderScope(root: string, skills: NativeSkills) {
             try {
               await taskBusinessSkill(root, skills, execution.arguments?.name, agent, execution.signal)
               loaded.set(execution, execution.arguments.name)
-            } catch { return { kind: 'deny', reason: '任务构建仅能读取当前数据工作区 .agents/skills 及已声明扩展中实际装载的业务技能' } }
+            } catch { return { kind: 'deny', reason: '平台管理仅能读取当前数据工作区 .agents/skills 及已声明扩展中实际装载的业务技能' } }
           }
           return next()
         }))
         cleanup.push(tools.guard((execution: any) => names.has(execution.name)
           && (execution.name !== 'skill' || loaded.get(execution) === execution.arguments?.name)
-          ? undefined : '任务构建仅通过平台工具和已核对来源的管理技能办理；不能绕过任务预算或目标范围'))
+          ? undefined : '平台管理仅通过平台工具和已核对来源的管理技能办理；不能绕过任务预算或目标范围'))
         scopes.set(agent, cleanup)
       } catch (error) { for (const stop of cleanup.reverse()) stop(); throw error }
     }, release,

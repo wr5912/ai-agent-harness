@@ -1,0 +1,26 @@
+{
+  "checked_at_utc": "2026-10-17T00:11:44.459200+00:00",
+  "session_id": "session-8548d1b1-92d1-4d4c-b641-f5383c9afa62",
+  "original_backup": "/home/admin/.local/state/hep-extraction-json-20261017/session-8548d1b1-92d1-4d4c-b641-f5383c9afa62.original.v4.jsonl.zstd",
+  "current_source": "/home/admin/harness-engineering-platform-data/.local/platform-home/sessions/--home-admin-harness-engineering-platform-data--/session-8548d1b1-92d1-4d4c-b641-f5383c9afa62/session.v4.jsonl.zstd",
+  "through_seq_inclusive": 96,
+  "original_compressed_sha256": "e394f4387632a30439fb171c9ae9113b3ecabb2fa4d63266ad115afc88f4fcd3",
+  "current_compressed_sha256": "a4855a4d0fb7b467e3ff6e01b8f6118f275cd0e17d6756410b419b970616bd2f",
+  "original_compressed_bytes": 171048,
+  "current_compressed_bytes": 230629,
+  "original_prefix_event_count": 98,
+  "current_prefix_event_count": 98,
+  "original_prefix_sha256": "1a6340cc5aea62bb1e00f0c1fedea5d0a1deb9373b9819a229b466e0f692938e",
+  "current_prefix_sha256": "1a6340cc5aea62bb1e00f0c1fedea5d0a1deb9373b9819a229b466e0f692938e",
+  "raw_jsonl_prefix_equal": true,
+  "parsed_events_equal": true,
+  "current_decompressed_starts_with_original": true,
+  "original_last_seq": 96,
+  "current_last_seq": 133,
+  "current_event_count": 135,
+  "preserved_failure_attempt_seqs": [
+    76,
+    93
+  ],
+  "scope": "只读比较原始事件和JSONL字节；未改写原Session、提案或样本数据。"
+}

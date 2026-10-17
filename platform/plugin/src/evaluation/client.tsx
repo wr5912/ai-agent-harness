@@ -272,7 +272,7 @@ export function EvaluationPage({ rpc, updates, onAssistant, onContext, target, o
     if (!runDetail || !onAssistant || extractBusy) return
     const context = { page: 'evaluation', run_id: runId, agent_id: runDetail.manifest.agent_id, experiment_id: runDetail.manifest.experiment_id, skill: 'decision-sample-extraction' }
     setExtractBusy(true); setExtractError('')
-    try { await onAssistant('请读取并使用 decision-sample-extraction Skill，仅从固定任务上下文的 Run 抽取有证据的决策样本。先通过 datasets/source 读取当前 extraction_contract，核对业务目标轨迹和完整决策分页，依据该合同明确 workflow、task、观察动作或推荐判断的监督语义，并为同一可见状态建立有业务含义的命名决策题与逐题建议目标；以 datasets/preview 提交候选供确认保存。禁止评价输入中不可见的回复，禁止把实际动作当作正确答案或把模型建议当作人工真值；不要虚构概率、采样或校准证据。不要修改 Run；材料不足时说明限制，逐条原因保留在候选记录中，允许零条。', context) }
+    try { await onAssistant('请读取并使用 decision-sample-extraction Skill，仅从固定任务上下文的 Run 抽取有证据的决策样本。先通过 datasets/source 读取当前 extraction_contract，核对业务目标轨迹和完整决策分页，依据该合同明确 workflow、task、观察动作或推荐判断的监督语义，并为同一可见状态建立有业务含义的命名决策题与逐题建议目标；以 datasets/preview 提交候选，平台自动保存并回读，无需再次确认；题目、流程名和依据优先使用中文，保留协议枚举、实际动作及来源原值。禁止评价输入中不可见的回复，禁止把实际动作当作正确答案或把模型建议当作人工真值；不要虚构概率、采样或校准证据。不要修改 Run；材料不足时说明限制，逐条原因保留在候选记录中，允许零条。', context) }
     catch (error) { setExtractError((error as Error).message) }
     finally { setExtractBusy(false) }
   }

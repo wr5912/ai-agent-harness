@@ -1,0 +1,71 @@
+{
+  "at": "2026-10-17T00:11:26.530Z",
+  "base": "http://10.0.160.32:3090/hep/",
+  "session_id": "session-8548d1b1-92d1-4d4c-b641-f5383c9afa62",
+  "operation": "navigation-and-read-only",
+  "model_messages_sent": 0,
+  "confirmation_clicked": false,
+  "rejection_clicked": false,
+  "pageErrors": [],
+  "consoleErrors": [
+    "Sidebar Session opening failed: Error: Session reference \"session-d49fab41-acb7-4fff-b2be-a9a26e9925a2\" is released",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "httpFailures": [
+    {
+      "path": "/hep/open-in-app/icon/filemanager",
+      "status": 404
+    }
+  ],
+  "requestFailures": [],
+  "writeRequests": [],
+  "session_title": "进行中\n按合同抽取决策样本\n2分钟",
+  "running": true,
+  "proposals": [
+    {
+      "id": "4f6c4e7a-5b2b-4724-8cf6-6a692932378c",
+      "action": "datasets/apply",
+      "state": "awaiting_confirmation",
+      "count": 3,
+      "question_count": 3
+    }
+  ],
+  "visible_card_count": 1,
+  "confirmation_buttons": [
+    "保存 3 条样本",
+    "暂不执行"
+  ],
+  "geometry": {
+    "width": 1440,
+    "scrollWidth": 1440,
+    "overflow": false
+  },
+  "alerts": [
+    " · source_sha256 为空或过长",
+    " · source_sha256 为空或过长",
+    " · source_sha256 为空或过长"
+  ],
+  "screenshots": [
+    {
+      "name": "pending-preview-desktop.png",
+      "sha256": "f7a72d7dd98caed5e819d483285921a75ff933db419ca9d4b27dc256e18662dc"
+    },
+    {
+      "name": "pending-preview-card.png",
+      "sha256": "bff83707dfe5cc3b11ae3db1a6668719f4eb94a95c2ea31b610ec717283ce1a4"
+    }
+  ],
+  "preview_ready": true,
+  "saved": false,
+  "ok": false,
+  "card_visible_summaries": [
+    "保存待复核决策样本智能体与评测将 3 条决策样本保存到本次运行的“决策样本”。业务范围：基础台账只读巡检分页处理与报告交付；共 3 道命名决策题。标签仍是 AI 建议，保存后待人员逐题复核，再明确训练或评测用途。"
+  ],
+  "visually_checked": true,
+  "preview_acceptance_ok": true,
+  "limitations": [
+    "仅验证候选预览与待确认卡，未确认保存。",
+    "会话保留三次 source_sha256 缺失的拒绝回执。",
+    "导航时观察到一次其他会话引用已释放的 console 错误及文件管理器图标 404；候选确认卡仍正常显示。"
+  ]
+}

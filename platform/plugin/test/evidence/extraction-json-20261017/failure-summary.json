@@ -1,0 +1,62 @@
+{
+  "captured_at_utc": "2026-10-17T00:03:41.640363+00:00",
+  "session_id": "session-8548d1b1-92d1-4d4c-b641-f5383c9afa62",
+  "run_id": "run-05973a80-6b91-40e7-a0da-acca3a4ea696",
+  "agent_id": "inspection-delivery-demo",
+  "experiment_id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+  "skill": "decision-sample-extraction",
+  "model": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "max",
+    "maxTokens": 256000
+  },
+  "failures": [
+    {
+      "event_seq": 76,
+      "turn": 1,
+      "step": 7,
+      "action": "datasets/preview",
+      "argument_chars": 4102,
+      "argument_utf8_bytes": 6344,
+      "argument_sha256": "11fcde14bbbe63ebafa6dfa830009c0bbf6404c0a20301f8fc2a5ec6a4e43d4f",
+      "incremental_equals_final": true,
+      "json_error_offset_zero_based": 3914,
+      "diagnosis": "第5条样本的 questions 后多一个右花括号；离线仅删除 offset 3902 的右花括号即可解析。",
+      "minimal_nonbusiness_fixture": "{\"samples\":[{\"questions\":{\"q\":{}}},\"targets\":{\"q\":{}}}]}",
+      "finish_kind": "error",
+      "error_code": "MALFORMED_RESPONSE",
+      "error_message": "DeepSeek Messages stream: tool input is invalid JSON",
+      "provider_stop_reason": "not_recorded"
+    },
+    {
+      "event_seq": 93,
+      "turn": 2,
+      "step": 2,
+      "action": "datasets/preview",
+      "argument_chars": 2087,
+      "argument_utf8_bytes": 3333,
+      "argument_sha256": "2b5b82a0e19362e77da7a936b579fc59dc65d1a5849bdbb96690725ba130830f",
+      "incremental_equals_final": true,
+      "json_error_offset_zero_based": 2084,
+      "diagnosis": "samples 数组结束前漏一个样本对象的右花括号；离线仅在 offset 2084 插入右花括号即可解析。",
+      "minimal_nonbusiness_fixture": "{\"samples\":[{\"questions\":{\"q\":{}},\"targets\":{\"q\":{}}]}",
+      "finish_kind": "error",
+      "error_code": "MALFORMED_RESPONSE",
+      "error_message": "DeepSeek Messages stream: tool input is invalid JSON",
+      "provider_stop_reason": "not_recorded"
+    }
+  ],
+  "write_state": {
+    "proposal_or_settlement_event_seqs": [],
+    "datasets_apply_event_seqs": [],
+    "saved_dataset_ids_owned_by_session": [],
+    "successful_preview": {
+      "event_seq": 88,
+      "count": 0
+    }
+  },
+  "original_session_sha256": "e394f4387632a30439fb171c9ae9113b3ecabb2fa4d63266ad115afc88f4fcd3",
+  "original_last_seq": 96,
+  "raw_evidence_location": "/home/admin/.local/state/hep-extraction-json-20261017/"
+}

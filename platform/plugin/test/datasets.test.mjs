@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
 import { build } from 'esbuild'
+import { normalizeDecisionModelSubmission } from '../src/evaluation/decision-dataset-contract.ts'
 
 const repo = new URL('../../../', import.meta.url).pathname
 process.env.HARNESS_PROGRAM_ROOT = repo
@@ -492,4 +493,54 @@ test('skipped字典、对象数组、超量或无效原因均明确拒绝，不�
   const proposed = await preview(fx, src)
   assert.deepEqual(proposed.skipped, [])
   assert.deepEqual((await apply(fx, proposed)).dataset.skipped, [])
+}))
+
+test('模型逐题传输复用公开v2来源、三题型和两种监督语义，保存仍待逐题复核', () => withFixture(async fx => {
+  const src = await source(fx)
+  const variants = [
+    { semantics: 'recommended_decision', question: question(), target: target() },
+    { semantics: 'recommended_decision', question: { type: 'noul', instructions: '可见材料是否包含资产标识？' }, target: target({ label: true, probabilities: { true: 0.8, false: 0.2 } }) },
+    { semantics: 'recommended_decision', question: { type: 'score', instructions: '当前查询目标的明确程度？', criteria: ['不明确', '较明确', '明确'] }, target: target({ label: 2, probabilities: { 0: 0.1, 1: 0.2, 2: 0.7 } }) },
+    { semantics: 'observed_action', question: question({ instructions: '该决策实际选择了哪个动作？' }), target: target() },
+  ]
+  for (const variant of variants) {
+    const flat = { run_id: runId, path: src.path, source_sha256: src.source_sha256, decision_id: src.decisions[0].decision_id, action_name: src.decisions[0].observed_action.name,
+      workflow: '基础资产核对', task: { id: 'inspection-read', semantics: variant.semantics }, question_name: 'decision', question: variant.question, target: variant.target }
+    const input = normalizeDecisionModelSubmission(flat)
+    assert.deepEqual(input.samples, [{ decision_id: flat.decision_id, action_name: flat.action_name, workflow: flat.workflow, task: flat.task, questions: { decision: variant.question }, targets: { decision: variant.target } }])
+    assert.equal(Object.hasOwn(input, 'question_name'), false)
+    const proposed = await fx.handle('datasets/preview', { ...input, assistant_session_id: owner, assistant_model: { provider: 'fixture', model: 'basic-model' } })
+    const saved = await apply(fx, proposed), record = saved.dataset.records[0]
+    assert.equal(record.targets.decision.status, 'suggested'); assert.equal(record.targets.decision.decision_time_reviewed, false)
+    assert.equal(record._meta.split, 'unassigned'); assert.equal(saved.eligibility.counts.training, 0)
+    assert.equal(record.task.semantics, variant.semantics)
+    assert.equal(record.targets.decision.provenance.kind, variant.semantics === 'observed_action' ? 'observed_action' : 'model_suggestion')
+    assert.equal(record.targets.decision.label, variant.target.label)
+    assert.equal(record._meta.trace_sha256, src.source_sha256)
+    assert.equal(JSON.stringify(record.state).includes('FUTURE_RESULT_A'), false)
+  }
+  const legacy = { run_id: runId, path: src.path, source_sha256: src.source_sha256, samples: [draft(src, { questions: { route: question({ instructions: '旧批量接口仍可保存新的题目吗？' }) } })] }
+  assert.equal(normalizeDecisionModelSubmission(legacy), legacy)
+  assert.equal((await fx.handle('datasets/preview', { ...legacy, assistant_session_id: owner, assistant_model: { provider: 'fixture', model: 'basic-model' } })).count, 1)
+  const skipped = normalizeDecisionModelSubmission({ run_id: runId, path: src.path, source_sha256: src.source_sha256, skipped: ['其余决策没有足够材料，不抽取。'] })
+  assert.deepEqual(skipped.samples, [])
+  const empty = await fx.handle('datasets/preview', { ...skipped, assistant_session_id: owner, assistant_model: { provider: 'fixture', model: 'basic-model' } })
+  assert.equal(empty.count, 0); assert.equal(empty.preview_id, undefined)
+}))
+
+test('逐题适配不修JSON或放宽来源与标签校验，错误输入不会生成预览或数据集', () => withFixture(async fx => {
+  const src = await source(fx)
+  const flat = { run_id: runId, path: src.path, source_sha256: src.source_sha256, decision_id: src.decisions[0].decision_id, action_name: src.decisions[0].observed_action.name,
+    workflow: '基础资产核对', task: { id: 'inspection-read', semantics: 'recommended_decision' }, question_name: 'route', question: question(), target: target() }
+  assert.throws(() => normalizeDecisionModelSubmission({ ...flat, samples: [] }), /不能混用/)
+  const partial = { ...flat }; delete partial.question_name
+  assert.throws(() => normalizeDecisionModelSubmission(partial), /缺少 question_name/)
+  for (const change of [
+    { source_sha256: '0'.repeat(64) }, { decision_id: 'not-a-real-decision' }, { action_name: 'respond' }, { question_name: '__proto__' },
+    { question: { ...question(), criteria: { a: 1, b: 2 } } },
+    { target: target({ probabilities: { get_asset_status: '0.8', get_inspection_status: '0.2' } }) },
+    { target: target({ status: 'reviewed', decision_time_reviewed: true }) }, { target: target({ provenance: { kind: 'human_annotation' } }) },
+    { task: { id: 'actual-action', semantics: 'observed_action' }, target: target({ label: 'get_inspection_status' }) },
+  ]) await assert.rejects(() => fx.handle('datasets/preview', { ...normalizeDecisionModelSubmission({ ...flat, ...change }), assistant_session_id: owner, assistant_model: { provider: 'fixture', model: 'basic-model' } }))
+  assert.equal((await fx.handle('datasets/list', {})).datasets.length, 0)
 }))

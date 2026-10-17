@@ -1,0 +1,119 @@
+{
+  "runtime": {
+    "pid": 71015,
+    "url": "http://10.0.160.32:3090/hep/",
+    "log": "/home/admin/.local/state/hep-extraction-json-20261017/platform.log",
+    "program_commit": "61ec9e07d4ed1e43e9e8f756f9df111c0a742243",
+    "data_commit": "9d3e6a834369c292a6318416c1d5ec10c3726a2f",
+    "startup": "platform/dsh-platform start --host 10.0.160.32 --port 3090",
+    "plugin_sha256": "9148b1322ec1ad6fb4272fb48c7a79e5133c152e5b0c765eae20d4b538df38a7",
+    "program_branch": "fix/PLATFORM-decision-extraction-json",
+    "program_dirty": true
+  },
+  "platform_tests": {
+    "total": 487,
+    "passed": 487,
+    "failed": 0
+  },
+  "native_recovery_tests": {
+    "total": 7,
+    "passed": 7,
+    "boundary": "本地Messages SSE → 真实DeepSeekAdapter → 真实AgentLoop → 当前恢复Hook与SessionProjection",
+    "cases": [
+      "两类真实括号错误保留原串",
+      "同一步最多两次重新请求",
+      "此前成功工具不重放",
+      "冷恢复计数保留",
+      "用户取消及插件卸载停止",
+      "max_tokens与其他任务错误不接管",
+      "原生恢复优先及异常不吞"
+    ]
+  },
+  "actual_schema": {
+    "actual_model_actions": [
+      "context",
+      "research/read-reference",
+      "datasets/source",
+      "datasets/preview",
+      "datasets/list"
+    ],
+    "actual_sample_fields": [
+      "decision_id",
+      "action_name",
+      "workflow",
+      "task",
+      "questions",
+      "targets"
+    ],
+    "original_attempts": 2,
+    "new_attempts": 0,
+    "confirmed_writes": 0
+  },
+  "live": {
+    "at": "2026-10-17T00:09:40.464Z",
+    "session_id": "session-8548d1b1-92d1-4d4c-b641-f5383c9afa62",
+    "run_id": "run-05973a80-6b91-40e7-a0da-acca3a4ea696",
+    "state": "awaiting_confirmation",
+    "proposal": {
+      "id": "4f6c4e7a-5b2b-4724-8cf6-6a692932378c",
+      "domain": "agents",
+      "action": "datasets/apply",
+      "count": 3,
+      "question_count": 3,
+      "file": "evolution/datasets/decision-dataset-79dfb874-a25a-4a01-b9c3-b1108bf247cf.json",
+      "run_id": "run-05973a80-6b91-40e7-a0da-acca3a4ea696"
+    },
+    "models": [
+      {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "reasoningEffort": "max",
+        "tool_names": [
+          "platform_agents",
+          "skill"
+        ]
+      }
+    ],
+    "new_calls": [
+      {
+        "seq": 114,
+        "name": "platform_agents",
+        "action": "datasets/list"
+      },
+      {
+        "seq": 121,
+        "name": "platform_agents",
+        "action": "datasets/preview"
+      },
+      {
+        "seq": 123,
+        "name": "platform_agents",
+        "action": "datasets/preview"
+      },
+      {
+        "seq": 125,
+        "name": "platform_agents",
+        "action": "datasets/preview"
+      },
+      {
+        "seq": 132,
+        "name": "platform_agents",
+        "action": "datasets/preview"
+      }
+    ],
+    "retries": [],
+    "new_attempt_errors": 0,
+    "original_error_events_retained": 2,
+    "datasets": [],
+    "saved_by_test": false,
+    "ok": true
+  },
+  "live_validation_note": "本轮有三次预览请求漏传来源摘要，被服务端校验拒绝；模型补齐后预览成功。这些是可纠正的业务参数校验结果，没有非法JSON或写入。",
+  "limits": [
+    "真实模型回合本身未触发重试；恢复分支由真实DSH解析器的本地错误流验证。",
+    "3条候选仍待用户确认保存，尚未人员逐题复核，不能作为已审核训练样本。",
+    "错误流的Token与费用没有完整usage，不按零计。"
+  ],
+  "browser_report": "browser-acceptance.json",
+  "prefix_check": "prefix-check.json"
+}

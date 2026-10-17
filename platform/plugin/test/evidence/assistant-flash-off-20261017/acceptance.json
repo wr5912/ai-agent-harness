@@ -1,0 +1,3666 @@
+{
+  "schema_version": 1,
+  "collected_at": "2026-10-17T03:13:32.198999+00:00",
+  "scope": "管理助手工具参数、业务技能及弱推理验证；以基本Mock数据完成业务链",
+  "program_base_commit": "61ec9e07d4ed1e43e9e8f756f9df111c0a742243",
+  "data_base_commit": "9d3e6a834369c292a6318416c1d5ec10c3726a2f",
+  "cases": {
+    "general": {
+      "case_id": "general",
+      "attempt": "3",
+      "started_at": "2026-10-17T00:56:09.295Z",
+      "ended_at": "2026-10-17T00:57:15.523Z",
+      "ok": true,
+      "session_id": "session-eec7b740-e258-464e-8545-ee7c787871f7",
+      "elapsed_seconds": 66.228,
+      "business_ok": true,
+      "evidence_source": "general/attempt-3/result.json",
+      "evidence_sha256": "c6dc75576914dbf52bf94763e41edfc9432ac1903418696721d6be306345b656",
+      "model": {
+        "actual_model_calls": 9,
+        "basis": "native_observer_events",
+        "routes": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off"
+          }
+        ],
+        "tool_calls": 11,
+        "logical_error_count": 2,
+        "failures": [],
+        "observed_message_usage": [
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 28,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 8053,
+              "outputTokens": 99,
+              "cacheReadTokens": 128,
+              "cacheWriteTokens": 0,
+              "totalTokens": 8280
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 39,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 4875,
+              "outputTokens": 65,
+              "cacheReadTokens": 8192,
+              "cacheWriteTokens": 0,
+              "totalTokens": 13132
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 46,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 12415,
+              "outputTokens": 83,
+              "cacheReadTokens": 13056,
+              "cacheWriteTokens": 0,
+              "totalTokens": 25554
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 53,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 9545,
+              "outputTokens": 176,
+              "cacheReadTokens": 25472,
+              "cacheWriteTokens": 0,
+              "totalTokens": 35193
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 62,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 13607,
+              "outputTokens": 159,
+              "cacheReadTokens": 35072,
+              "cacheWriteTokens": 0,
+              "totalTokens": 48838
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 71,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 288,
+              "outputTokens": 194,
+              "cacheReadTokens": 48768,
+              "cacheWriteTokens": 0,
+              "totalTokens": 49250
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 80,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 783,
+              "outputTokens": 122,
+              "cacheReadTokens": 49152,
+              "cacheWriteTokens": 0,
+              "totalTokens": 50057
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 87,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1558,
+              "outputTokens": 819,
+              "cacheReadTokens": 50048,
+              "cacheWriteTokens": 0,
+              "totalTokens": 52425
+            }
+          }
+        ]
+      },
+      "confirmation_count": 0,
+      "user_messages": 1,
+      "independent_review": {
+        "pipeline": "通过，真实Flash/off，9次请求，66.228秒，0确认，仅平台工具与Skill",
+        "semantic_assessment": "partial",
+        "verified": [
+          "推荐inspection-delivery-demo与其已核对版本、Run一致",
+          "准确说明Mock台账、未验证真实设备、自评未人审、无成对比较",
+          "未修改资产或启动实例"
+        ],
+        "limitations": [
+          "仅核对inspection001和daily当前005，没有读取daily历史002；唯一已跑通及按整个Agent排除的表述超出核对范围",
+          "仍较长，不能宣称所有面向用户表达问题均消失",
+          "两次缺少入参被服务器拒绝后恢复；不是零错误的一次成功"
+        ],
+        "ui": "实际会话截图已目检，无横溢出或页面错误；有既知filemanager图标404",
+        "evidence": "result.json、final.png"
+      }
+    },
+    "features_off": {
+      "case_id": "features",
+      "attempt": "2",
+      "started_at": "2026-10-17T00:58:29.397Z",
+      "ended_at": "2026-10-17T00:59:27.969Z",
+      "ok": true,
+      "session_id": "session-a7bdbde9-4148-46f6-adda-e43d2d9340a4",
+      "elapsed_seconds": 58.572,
+      "business_ok": true,
+      "evidence_source": "features/attempt-2/result.json",
+      "evidence_sha256": "93720ff2fb03734b416a3049bdfee1e4bb9fd49e9ccce3ce9c33fb3d0857fc87",
+      "model": {
+        "actual_model_calls": 7,
+        "basis": "native_observer_events",
+        "routes": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off"
+          }
+        ],
+        "tool_calls": 12,
+        "logical_error_count": 0,
+        "failures": [],
+        "observed_message_usage": [
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 27,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 5120,
+              "outputTokens": 99,
+              "cacheReadTokens": 1664,
+              "cacheWriteTokens": 0,
+              "totalTokens": 6883
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 37,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 5195,
+              "outputTokens": 229,
+              "cacheReadTokens": 6656,
+              "cacheWriteTokens": 0,
+              "totalTokens": 12080
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 48,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 9813,
+              "outputTokens": 283,
+              "cacheReadTokens": 12032,
+              "cacheWriteTokens": 0,
+              "totalTokens": 22128
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 59,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 13278,
+              "outputTokens": 241,
+              "cacheReadTokens": 22016,
+              "cacheWriteTokens": 0,
+              "totalTokens": 35535
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 72,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 33170,
+              "outputTokens": 2422,
+              "cacheReadTokens": 3584,
+              "cacheWriteTokens": 0,
+              "totalTokens": 39176
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 81,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 8629,
+              "outputTokens": 733,
+              "cacheReadTokens": 39168,
+              "cacheWriteTokens": 0,
+              "totalTokens": 48530
+            }
+          }
+        ]
+      },
+      "confirmation_count": 0,
+      "user_messages": 1,
+      "independent_review": {
+        "assessment": "pass_with_expression_limit",
+        "saved_features": 6,
+        "confirmed": 0,
+        "source_scope": "inspection-delivery-demo首版及既有固定Run；已实现、模型评测、Run外交付观察和未验证范围分开说明",
+        "checks": [
+          {
+            "id": "F-IDENTITY-001",
+            "title": "受控 Preset 身份与只读模拟台账职责",
+            "references_exist_as_files": true,
+            "reference_count": 5
+          },
+          {
+            "id": "F-TOOL-001",
+            "title": "复用 task_inspection 只读分页台账工具（start/page/report）",
+            "references_exist_as_files": true,
+            "reference_count": 3
+          },
+          {
+            "id": "F-DELIVERY-001",
+            "title": "完整分页巡检与 Markdown/CSV 报告交付（已评测通过）",
+            "references_exist_as_files": true,
+            "reference_count": 4
+          },
+          {
+            "id": "F-BOUNDARY-001",
+            "title": "漏页与未执行时的诚实边界（已评测通过）",
+            "references_exist_as_files": true,
+            "reference_count": 3
+          },
+          {
+            "id": "F-INSTANCE-001",
+            "title": "实例交付与界面下载入口（已交付，非本 Run 自动验证）",
+            "references_exist_as_files": true,
+            "reference_count": 3
+          },
+          {
+            "id": "F-UNVERIFIED-001",
+            "title": "尚未验证的效果与适用边界",
+            "references_exist_as_files": true,
+            "reference_count": 3
+          }
+        ],
+        "remaining_limit": "回复仍较长且包含auto_saved等内部字段；不能把本项通过写成全平台表达已完全符合简洁目标",
+        "ui": "实际会话截图已目检，自动保存卡可见，无确认，无横溢出"
+      }
+    },
+    "extraction_off": {
+      "case_id": "extraction",
+      "attempt": "5",
+      "started_at": "2026-10-17T01:38:17.582Z",
+      "ended_at": "2026-10-17T01:39:19.079Z",
+      "ok": true,
+      "session_id": "session-f1597af5-5d73-4c5e-b8f1-3220b965419c",
+      "elapsed_seconds": 61.496,
+      "business_ok": true,
+      "evidence_source": "extraction/attempt-5/result.json",
+      "evidence_sha256": "26d02581c5f329127033e6bccf88bdaa1b9d0fdc52e9da2322f9aa77be67e4ec",
+      "model": {
+        "actual_model_calls": 12,
+        "basis": "native_observer_events",
+        "routes": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off"
+          }
+        ],
+        "tool_calls": 11,
+        "logical_error_count": 3,
+        "failures": [],
+        "observed_message_usage": [
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 26,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 4430,
+              "outputTokens": 101,
+              "cacheReadTokens": 3584,
+              "cacheWriteTokens": 0,
+              "totalTokens": 8115
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 36,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 5509,
+              "outputTokens": 86,
+              "cacheReadTokens": 8064,
+              "cacheWriteTokens": 0,
+              "totalTokens": 13659
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 43,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1754,
+              "outputTokens": 153,
+              "cacheReadTokens": 13568,
+              "cacheWriteTokens": 0,
+              "totalTokens": 15475
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 50,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 10173,
+              "outputTokens": 158,
+              "cacheReadTokens": 15360,
+              "cacheWriteTokens": 0,
+              "totalTokens": 25691
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 57,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 13354,
+              "outputTokens": 64,
+              "cacheReadTokens": 25600,
+              "cacheWriteTokens": 0,
+              "totalTokens": 39018
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 64,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1824,
+              "outputTokens": 722,
+              "cacheReadTokens": 38912,
+              "cacheWriteTokens": 0,
+              "totalTokens": 41458
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 71,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 192,
+              "outputTokens": 664,
+              "cacheReadTokens": 41344,
+              "cacheWriteTokens": 0,
+              "totalTokens": 42200
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 78,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 166,
+              "outputTokens": 639,
+              "cacheReadTokens": 42112,
+              "cacheWriteTokens": 0,
+              "totalTokens": 42917
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 85,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 243,
+              "outputTokens": 592,
+              "cacheReadTokens": 42752,
+              "cacheWriteTokens": 0,
+              "totalTokens": 43587
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 94,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 13375,
+              "outputTokens": 85,
+              "cacheReadTokens": 43520,
+              "cacheWriteTokens": 0,
+              "totalTokens": 56980
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 101,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 3349,
+              "outputTokens": 245,
+              "cacheReadTokens": 56960,
+              "cacheWriteTokens": 0,
+              "totalTokens": 60554
+            }
+          }
+        ]
+      },
+      "confirmation_count": 0,
+      "user_messages": 1,
+      "independent_review": {
+        "review_kind": "independent-semantic-audit",
+        "review_scope": "只读核对本轮实际保存候选与固定Run原始轨迹；此评审不更新人员审核状态",
+        "source": {
+          "result": "/home/admin/.local/state/hep-small-model-20261017/extraction/attempt-5/result.json",
+          "result_sha256": "26d02581c5f329127033e6bccf88bdaa1b9d0fdc52e9da2322f9aa77be67e4ec",
+          "dataset_id": "decision-dataset-dbf4080f-0d6a-4931-959f-3d1bdb3dffc1",
+          "dataset_path": "/home/admin/work/hep-small-model-data/evolution/datasets/decision-dataset-dbf4080f-0d6a-4931-959f-3d1bdb3dffc1.json",
+          "dataset_sha256": "a40ea6fac0a72281a136d7edd87f127019abd5321e9d280f7930e0a81819d377",
+          "trace_path": "/home/admin/work/hep-small-model-data/evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ASSET-PAGES-001/trace.jsonl",
+          "trace_sha256": "a2565be39f8b15ebbbccff5e8f2455be860bbd910d22f86c8536138b80a79b86",
+          "session_id": "session-f1597af5-5d73-4c5e-b8f1-3220b965419c"
+        },
+        "technical": {
+          "verdict": "pass",
+          "transport": "single-question-v1",
+          "public_schema_version": 2,
+          "saved_datasets": 1,
+          "saved_records": 1,
+          "saved_questions": 1,
+          "model_calls": 12,
+          "malformed_json_errors": 0,
+          "semantic_contract_rejections": 3,
+          "confirmations": 0,
+          "auto_save_and_readback": true,
+          "training_count": 0,
+          "notes": [
+            "前三次提交因observed_action标签/概率规则被拒，修正后才保存；拒绝未被改写为成功。",
+            "结构和传输闭环通过不等于样本训练价值通过。"
+          ]
+        },
+        "content": {
+          "verdict": "partial",
+          "record_reviews": [
+            {
+              "record_id": "decision-5d03ce0a8ffe0caee4ab9629ef957875",
+              "source_decision_id": "decision-26d73e7b218a691b7bad",
+              "question_name": "after_full_paging_next_action",
+              "semantics": "observed_action",
+              "verdict": "observation_valid_low_value",
+              "checks": {
+                "source_integrity": "pass：复制件、原数据、原trace和cutoff摘要一致；source_bundle全部匹配。",
+                "decision_time": "pass：cutoff为原trace第45行；state中8项业务调用与回执均来自此前，未含当前report调用或其结果。",
+                "grounding": "pass：用户要求来自第11行；第19/28/34/40行支持total=5、分页0→2→4→null及五台已读；工具说明支持report功能。未发现跨切片事实或虚构问句。",
+                "observed_action": "pass：原trace第45行真实工具名task_inspection，参数action=report；标签仅保留真实工具名，无概率，basis不冒充最优判断。",
+                "choice_exclusivity": "pass：本题只区分当前动作调用task_inspection或不调用而以回复结束；两个描述互斥。",
+                "language_and_protocol": "pass：新题干、说明、basis为中文；工具名、动作、ID、枚举保持原值。",
+                "business_decision_value": "limited：题干已给出流程还需report，属于确定步骤的行为观察；粗粒度工具标签不能区分report与page/start，未形成值得比较的业务处置分歧。"
+              },
+              "recommendation": "可作为观察动作格式候选保留；按本次要求的业务分歧筛选应跳过或不计高价值样本，不能宣布决策训练质量通过。",
+              "evidence_lines": [
+                11,
+                18,
+                19,
+                27,
+                28,
+                33,
+                34,
+                39,
+                40,
+                45,
+                46
+              ],
+              "unchanged_review_state": {
+                "status": "suggested",
+                "decision_time_reviewed": false,
+                "split": "unassigned"
+              }
+            }
+          ]
+        },
+        "contract_review": {
+          "verdict": "pass",
+          "skill_fields_match_revision7": true,
+          "skills_format_validated": 13,
+          "local_skill_links_checked": 5,
+          "preserved": [
+            "choice/noul/score",
+            "recommended_decision/observed_action",
+            "可选完整概率合同",
+            "公开v2多题批量存储与原请求兼容",
+            "固定来源与决策时点校验",
+            "人员逐题复核和显式用途导出边界"
+          ],
+          "limit": "这是静态合同与本轮单题行为核对，不证明13项业务均完成运行验收。"
+        },
+        "limits": [
+          "context_mode=reconstructed，原数据已声明并非完整模型请求上下文。",
+          "只有1条观察候选，未证明泛化、校准或下游训练收益。",
+          "未修改Skill、原结果、原轨迹、任何候选或审核状态；未重跑模型。"
+        ]
+      }
+    },
+    "mcp_recovered": {
+      "case_id": "mcp",
+      "attempt": "4",
+      "started_at": "2026-10-17T01:25:22.219Z",
+      "ended_at": "2026-10-17T01:26:05.243Z",
+      "ok": true,
+      "session_id": "session-cef60373-b16d-4905-8850-11f607010bfd",
+      "elapsed_seconds": 43.023,
+      "business_ok": true,
+      "resumed_from": "mcp/attempt-3",
+      "prior_model_calls": 11,
+      "evidence_source": "mcp/attempt-4/result.json",
+      "evidence_sha256": "85eec4a0217d7b43ce96ef85afabf59e4acbc95bbfc3ad288d86b20e2680b4d3",
+      "model": {
+        "actual_model_calls": 15,
+        "basis": "native_observer_events",
+        "routes": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off"
+          }
+        ],
+        "tool_calls": 19,
+        "logical_error_count": 4,
+        "failures": [],
+        "observed_message_usage": [
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 27,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 297,
+              "outputTokens": 100,
+              "cacheReadTokens": 7424,
+              "cacheWriteTokens": 0,
+              "totalTokens": 7821
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 37,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 4509,
+              "outputTokens": 117,
+              "cacheReadTokens": 7808,
+              "cacheWriteTokens": 0,
+              "totalTokens": 12434
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 46,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 7268,
+              "outputTokens": 147,
+              "cacheReadTokens": 12416,
+              "cacheWriteTokens": 0,
+              "totalTokens": 19831
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 55,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 250,
+              "outputTokens": 146,
+              "cacheReadTokens": 19712,
+              "cacheWriteTokens": 0,
+              "totalTokens": 20108
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 67,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 16080,
+              "outputTokens": 236,
+              "cacheReadTokens": 4352,
+              "cacheWriteTokens": 0,
+              "totalTokens": 20668
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 77,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 6624,
+              "outputTokens": 202,
+              "cacheReadTokens": 20608,
+              "cacheWriteTokens": 0,
+              "totalTokens": 27434
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 84,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 945,
+              "outputTokens": 158,
+              "cacheReadTokens": 27392,
+              "cacheWriteTokens": 0,
+              "totalTokens": 28495
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 103,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 3680,
+              "outputTokens": 134,
+              "cacheReadTokens": 28416,
+              "cacheWriteTokens": 0,
+              "totalTokens": 32230
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 115,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 34522,
+              "outputTokens": 199,
+              "cacheReadTokens": 4352,
+              "cacheWriteTokens": 0,
+              "totalTokens": 39073
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 126,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 10947,
+              "outputTokens": 108,
+              "cacheReadTokens": 39040,
+              "cacheWriteTokens": 0,
+              "totalTokens": 50095
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 149,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 3654,
+              "outputTokens": 147,
+              "cacheReadTokens": 50048,
+              "cacheWriteTokens": 0,
+              "totalTokens": 53849
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 162,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 49661,
+              "outputTokens": 83,
+              "cacheReadTokens": 4352,
+              "cacheWriteTokens": 0,
+              "totalTokens": 54096
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 170,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 10667,
+              "outputTokens": 110,
+              "cacheReadTokens": 54016,
+              "cacheWriteTokens": 0,
+              "totalTokens": 64793
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 180,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1630,
+              "outputTokens": 486,
+              "cacheReadTokens": 64768,
+              "cacheWriteTokens": 0,
+              "totalTokens": 66884
+            }
+          }
+        ]
+      },
+      "confirmation_count": 1,
+      "user_messages": 1
+    },
+    "compute_plan": {
+      "case_id": "compute",
+      "attempt": "1",
+      "started_at": "2026-10-17T01:26:37.831Z",
+      "ended_at": "2026-10-17T01:27:47.258Z",
+      "ok": true,
+      "session_id": "session-66f21c57-8e78-4340-9eba-63e5cf47e809",
+      "elapsed_seconds": 69.427,
+      "business_ok": true,
+      "evidence_source": "compute/attempt-1/result.json",
+      "evidence_sha256": "9d3c678dc05ae00ffb150001a37f14647298ac8c0e480db94a94703990bf2f5d",
+      "model": {
+        "actual_model_calls": 17,
+        "basis": "native_observer_events",
+        "routes": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off"
+          }
+        ],
+        "tool_calls": 33,
+        "logical_error_count": 6,
+        "failures": [],
+        "observed_message_usage": [
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 26,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 5573,
+              "outputTokens": 100,
+              "cacheReadTokens": 1664,
+              "cacheWriteTokens": 0,
+              "totalTokens": 7337
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 36,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 5721,
+              "outputTokens": 165,
+              "cacheReadTokens": 7296,
+              "cacheWriteTokens": 0,
+              "totalTokens": 13182
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 45,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 2089,
+              "outputTokens": 192,
+              "cacheReadTokens": 13056,
+              "cacheWriteTokens": 0,
+              "totalTokens": 15337
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 54,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 8769,
+              "outputTokens": 397,
+              "cacheReadTokens": 15232,
+              "cacheWriteTokens": 0,
+              "totalTokens": 24398
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 67,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 2601,
+              "outputTokens": 258,
+              "cacheReadTokens": 24320,
+              "cacheWriteTokens": 0,
+              "totalTokens": 27179
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 81,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 27210,
+              "outputTokens": 313,
+              "cacheReadTokens": 3584,
+              "cacheWriteTokens": 0,
+              "totalTokens": 31107
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 90,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 3918,
+              "outputTokens": 865,
+              "cacheReadTokens": 31104,
+              "cacheWriteTokens": 0,
+              "totalTokens": 35887
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 107,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 5597,
+              "outputTokens": 152,
+              "cacheReadTokens": 35840,
+              "cacheWriteTokens": 0,
+              "totalTokens": 41589
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 116,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 2654,
+              "outputTokens": 249,
+              "cacheReadTokens": 41472,
+              "cacheWriteTokens": 0,
+              "totalTokens": 44375
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 125,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 9732,
+              "outputTokens": 146,
+              "cacheReadTokens": 44288,
+              "cacheWriteTokens": 0,
+              "totalTokens": 54166
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 132,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 19192,
+              "outputTokens": 244,
+              "cacheReadTokens": 54144,
+              "cacheWriteTokens": 0,
+              "totalTokens": 73580
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 143,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 70270,
+              "outputTokens": 745,
+              "cacheReadTokens": 3584,
+              "cacheWriteTokens": 0,
+              "totalTokens": 74599
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 150,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 166,
+              "outputTokens": 747,
+              "cacheReadTokens": 74496,
+              "cacheWriteTokens": 0,
+              "totalTokens": 75409
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 157,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1195,
+              "outputTokens": 787,
+              "cacheReadTokens": 75392,
+              "cacheWriteTokens": 0,
+              "totalTokens": 77374
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 167,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1479,
+              "outputTokens": 182,
+              "cacheReadTokens": 77312,
+              "cacheWriteTokens": 0,
+              "totalTokens": 78973
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 176,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 7782,
+              "outputTokens": 780,
+              "cacheReadTokens": 78848,
+              "cacheWriteTokens": 0,
+              "totalTokens": 87410
+            }
+          }
+        ]
+      },
+      "confirmation_count": 1,
+      "user_messages": 1,
+      "variant": {
+        "experiment_id": "EXP-inspection-delivery-demo-002-ra54a0606b0b7",
+        "fixed_parent_ref": "git:9d3e6a834369c292a6318416c1d5ec10c3726a2f",
+        "parent_experiment_id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+        "variant_kind": "exploratory"
+      }
+    },
+    "generation_build_only": {
+      "case_id": "generation-build-only",
+      "attempt": "2",
+      "started_at": "2026-10-17T01:39:54.760Z",
+      "ok": true,
+      "elapsed_seconds": 162.504,
+      "resumed_from": "1",
+      "prior_model_calls": 18,
+      "technical_checks_passed": true,
+      "business_accepted": false,
+      "workflow_status": {
+        "generated": true,
+        "built": true,
+        "frozen": false,
+        "loaded": false,
+        "compared": false
+      },
+      "build_repair_rounds": 0,
+      "frozen_sources_unchanged": true,
+      "evidence_source": "generation/attempt-2/result.json",
+      "evidence_sha256": "9d3591f4e3af6ac6e78f78194d56f0b8e7eafccdaa0a30edc5a9018b9d279d21",
+      "model": {
+        "actual_model_calls": 26,
+        "basis": "native_observer_events",
+        "routes": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off"
+          }
+        ],
+        "tool_calls": 39,
+        "logical_error_count": 0,
+        "failures": [],
+        "observed_message_usage": [
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 25,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 3610,
+              "outputTokens": 107,
+              "cacheReadTokens": 4352,
+              "cacheWriteTokens": 0,
+              "totalTokens": 8069
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 34,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 2192,
+              "outputTokens": 87,
+              "cacheReadTokens": 8064,
+              "cacheWriteTokens": 0,
+              "totalTokens": 10343
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 41,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 511,
+              "outputTokens": 64,
+              "cacheReadTokens": 10240,
+              "cacheWriteTokens": 0,
+              "totalTokens": 10815
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 50,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 7353,
+              "outputTokens": 92,
+              "cacheReadTokens": 3584,
+              "cacheWriteTokens": 0,
+              "totalTokens": 11029
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 57,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1935,
+              "outputTokens": 222,
+              "cacheReadTokens": 11008,
+              "cacheWriteTokens": 0,
+              "totalTokens": 13165
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 75,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 10245,
+              "outputTokens": 181,
+              "cacheReadTokens": 3584,
+              "cacheWriteTokens": 0,
+              "totalTokens": 14010
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 84,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 9843,
+              "outputTokens": 382,
+              "cacheReadTokens": 13952,
+              "cacheWriteTokens": 0,
+              "totalTokens": 24177
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 111,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 21453,
+              "outputTokens": 208,
+              "cacheReadTokens": 3584,
+              "cacheWriteTokens": 0,
+              "totalTokens": 25245
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 120,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 2048,
+              "outputTokens": 142,
+              "cacheReadTokens": 25216,
+              "cacheWriteTokens": 0,
+              "totalTokens": 27406
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 127,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 15165,
+              "outputTokens": 234,
+              "cacheReadTokens": 27392,
+              "cacheWriteTokens": 0,
+              "totalTokens": 42791
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 136,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 4073,
+              "outputTokens": 106,
+              "cacheReadTokens": 42752,
+              "cacheWriteTokens": 0,
+              "totalTokens": 46931
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 143,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1126,
+              "outputTokens": 93,
+              "cacheReadTokens": 46848,
+              "cacheWriteTokens": 0,
+              "totalTokens": 48067
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 150,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 164,
+              "outputTokens": 324,
+              "cacheReadTokens": 48000,
+              "cacheWriteTokens": 0,
+              "totalTokens": 48488
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 157,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 707,
+              "outputTokens": 374,
+              "cacheReadTokens": 48384,
+              "cacheWriteTokens": 0,
+              "totalTokens": 49465
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 167,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 891,
+              "outputTokens": 95,
+              "cacheReadTokens": 49408,
+              "cacheWriteTokens": 0,
+              "totalTokens": 50394
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 174,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 189,
+              "outputTokens": 1126,
+              "cacheReadTokens": 50304,
+              "cacheWriteTokens": 0,
+              "totalTokens": 51619
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 181,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1440,
+              "outputTokens": 1127,
+              "cacheReadTokens": 51584,
+              "cacheWriteTokens": 0,
+              "totalTokens": 54151
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 198,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 194,
+              "outputTokens": 180,
+              "cacheReadTokens": 54144,
+              "cacheWriteTokens": 0,
+              "totalTokens": 54518
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 207,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 2739,
+              "outputTokens": 1129,
+              "cacheReadTokens": 54400,
+              "cacheWriteTokens": 0,
+              "totalTokens": 58268
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 214,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1440,
+              "outputTokens": 1129,
+              "cacheReadTokens": 58240,
+              "cacheWriteTokens": 0,
+              "totalTokens": 60809
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 224,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 249,
+              "outputTokens": 180,
+              "cacheReadTokens": 60800,
+              "cacheWriteTokens": 0,
+              "totalTokens": 61229
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 233,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 3729,
+              "outputTokens": 162,
+              "cacheReadTokens": 61184,
+              "cacheWriteTokens": 0,
+              "totalTokens": 65075
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 240,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 567,
+              "outputTokens": 198,
+              "cacheReadTokens": 65024,
+              "cacheWriteTokens": 0,
+              "totalTokens": 65789
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 250,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 590,
+              "outputTokens": 94,
+              "cacheReadTokens": 65664,
+              "cacheWriteTokens": 0,
+              "totalTokens": 66348
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 257,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 69236,
+              "outputTokens": 440,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0,
+              "totalTokens": 69676
+            }
+          }
+        ]
+      },
+      "confirmation_count": 3,
+      "user_messages": null,
+      "independent_review": {
+        "schema_version": 1,
+        "reviewed_at": "2026-10-17T01:42:46.639Z",
+        "reviewer": "assistant_business_loading",
+        "scope": "生成源码静态审查与既有构建证据核对；没有执行或装载生成制品",
+        "verdict": "passed_for_generation_and_build_only",
+        "experiment_id": "EXP-inspection-delivery-demo-003-rb50c606baf5a",
+        "session_id": "session-d8fdc4bb-ef87-4260-94aa-b7962cea00c3",
+        "session_identity_evidence": [
+          "generation/attempt-1/result.json",
+          "generation/attempt-2/status-latest.json"
+        ],
+        "source": {
+          "path": "dsh/managed/compute-workflow/index.ts",
+          "sha256": "f72b6091a21dae9f1b022cbf0d6303cd92574695585e17e2bc6898d56f01abe2"
+        },
+        "artifacts": {
+          "esm_sha256": "3a76931bd202a4efe7480be8fc66eb56573d4075fa1ae1aa15724f514909d662",
+          "build_digest": "b9dc82abe72607436ee37d0e1943d9d4e1f514abec1c78007003488123575e30",
+          "candidate_sha256": "1a269d88768069b9fab2b54836887b09ecf0a2007300f52039ced6604c92642c",
+          "runner_sha256": "fc5386e97010cebfa427c86b9a51aa3c4e7466a628de1f41c95902b31a956eec",
+          "deps_sha256": "81c30b699a0ee70537bf20903990e30d2de54a7fe1fd8b5b886299fa84637d3f"
+        },
+        "checks": [
+          {
+            "name": "SDK及插件入口",
+            "result": "通过",
+            "evidence": "仅从公开 workflow-runtime 导入 defineWorkflow/runWorkflow/registerWorkflowTool/WorkflowContext；导出 name/inject/apply；inject 包含 tools，apply 注册既定工作流。"
+          },
+          {
+            "name": "两个顺序节点与任务身份",
+            "result": "通过",
+            "evidence": "runWorkflow 使用 start、first_page 两节点；第一节点调用 task_inspection(action=start)，第二节点从第一节点读取非空 run_id，再以同一 run_id 调 page(cursor=0)。"
+          },
+          {
+            "name": "回执与未完成边界",
+            "result": "通过当前固定父版合同的静态核对",
+            "evidence": "第一页 rows、next_cursor、total、source_kind 保留；两次完整 JSON 工具回执保存在 receipt_text。固定父版严格读取五台，第一页返回两台且 next_cursor=2，因此该路径 incomplete=true、remaining_count=3；未执行工作流，以上属于代码与实际接口合同推导。"
+          },
+          {
+            "name": "无报告或越过工具管线",
+            "result": "通过",
+            "evidence": "源码只有 start/page 两个 ctx.callTool 调用，无 report、直接 HTTP、手造业务回执、ctx.tools guard 修改或 infer；SDK callTool 仍经原生 ctx.tools.execute 派发并携带身份与取消信号。"
+          },
+          {
+            "name": "源码与构建身份",
+            "result": "通过",
+            "evidence": "模型 edit/apply 参数的源码摘要匹配已保存TS；TS、ESM、Candidate、runner、依赖与build_digest均已本地重算并与真实构建回执一致。"
+          },
+          {
+            "name": "父版与冻结材料",
+            "result": "通过",
+            "evidence": "父版7文件及其在新目标中的继承内容保持原摘要；新目标只增加约定index.ts/index.mjs；Case文件、诊断Run清单/inputs.lock/选中轨迹与冻结摘要一致。"
+          },
+          {
+            "name": "实际模型及预算连续性",
+            "result": "通过已有轨迹和回执核对",
+            "evidence": "同一Session累计26次DeepSeek Flash/off调用，首轮18次；总耗时162.504秒、构建修正0轮，未重置40次/15分钟预算。首轮验收脚本错误拒绝合法相对路径导致取消，其失败与aborted回合仍保留。"
+          }
+        ],
+        "findings": [],
+        "workflow_status": {
+          "generated": true,
+          "built": true,
+          "frozen": false,
+          "loaded": false,
+          "compared": false
+        },
+        "bound": false,
+        "loaded": false,
+        "business_accepted": false,
+        "equivalence_proven": false,
+        "limitations": [
+          "未运行生成工作流或其 ESM；此次构建不证明实际工具调用成功。",
+          "Preset未引用新工作流，父版Guard仍只允许task_inspection；不能称已绑定、已装载或可调用。",
+          "未冻结新版本、未执行两侧评测或算力比较，仍为exploratory/inconclusive；不能标记end或声称业务等效/算力节省。",
+          "receipt_text保留的是原生JSON值的序列化文本；异常或变更后的工具回执协议不在本次固定父版验收范围。"
+        ],
+        "evidence_hashes": {
+          "generated-source.json": "482a06752fb0aa961cfe7dc532740bd641c9a0f339ed6ce9a00247d4e397af8d",
+          "context-final.json": "9ee4c45e75a3394aed6b1dcb82c9337e3fee03323324026d5d796957748117ce",
+          "result.json": "9d3591f4e3af6ac6e78f78194d56f0b8e7eafccdaa0a30edc5a9018b9d279d21"
+        }
+      }
+    },
+    "research_readonly": {
+      "ok": true,
+      "session_id": "session-190ef288-2521-4ea3-9a41-e5169e07d4a8",
+      "elapsed_seconds": 52.669,
+      "evidence_source": "research/attempt-3/result.json",
+      "evidence_sha256": "ef3304ab8aa7deda145a00df6935c39bf57d187b7da8d1e6ee62431ff2e5fbc6",
+      "model": {
+        "actual_model_calls": 13,
+        "basis": "native_observer_events",
+        "routes": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off"
+          }
+        ],
+        "tool_calls": 29,
+        "logical_error_count": 1,
+        "failures": [],
+        "observed_message_usage": [
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 26,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 4108,
+              "outputTokens": 107,
+              "cacheReadTokens": 3712,
+              "cacheWriteTokens": 0,
+              "totalTokens": 7927
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 37,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 5826,
+              "outputTokens": 164,
+              "cacheReadTokens": 3584,
+              "cacheWriteTokens": 0,
+              "totalTokens": 9574
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 52,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 6162,
+              "outputTokens": 166,
+              "cacheReadTokens": 3584,
+              "cacheWriteTokens": 0,
+              "totalTokens": 9912
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 61,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 8203,
+              "outputTokens": 240,
+              "cacheReadTokens": 9856,
+              "cacheWriteTokens": 0,
+              "totalTokens": 18299
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 70,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1358,
+              "outputTokens": 543,
+              "cacheReadTokens": 18176,
+              "cacheWriteTokens": 0,
+              "totalTokens": 20077
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 83,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 4055,
+              "outputTokens": 354,
+              "cacheReadTokens": 19968,
+              "cacheWriteTokens": 0,
+              "totalTokens": 24377
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 94,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 2338,
+              "outputTokens": 113,
+              "cacheReadTokens": 24320,
+              "cacheWriteTokens": 0,
+              "totalTokens": 26771
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 106,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 23392,
+              "outputTokens": 278,
+              "cacheReadTokens": 3584,
+              "cacheWriteTokens": 0,
+              "totalTokens": 27254
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 117,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1668,
+              "outputTokens": 373,
+              "cacheReadTokens": 27136,
+              "cacheWriteTokens": 0,
+              "totalTokens": 29177
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 130,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 929,
+              "outputTokens": 279,
+              "cacheReadTokens": 29056,
+              "cacheWriteTokens": 0,
+              "totalTokens": 30264
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 139,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 5245,
+              "outputTokens": 236,
+              "cacheReadTokens": 30208,
+              "cacheWriteTokens": 0,
+              "totalTokens": 35689
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 148,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 7213,
+              "outputTokens": 1604,
+              "cacheReadTokens": 35584,
+              "cacheWriteTokens": 0,
+              "totalTokens": 44401
+            }
+          }
+        ]
+      },
+      "confirmation_count": 0,
+      "user_messages": null,
+      "independent_review": {
+        "review_kind": "independent-semantic-audit",
+        "review_scope": "固定来源的只读融合策划；未执行模型，未修改原结果或业务资产",
+        "source": {
+          "result": "/home/admin/.local/state/hep-small-model-20261017/research/attempt-3/result.json",
+          "result_sha256": "ef3304ab8aa7deda145a00df6935c39bf57d187b7da8d1e6ee62431ff2e5fbc6",
+          "native_trace": "/home/admin/work/hep-small-model-data/.local/platform-home/sessions/--home-admin-work-hep-small-model-data--/session-190ef288-2521-4ea3-9a41-e5169e07d4a8/session.v4.jsonl.zstd",
+          "native_trace_sha256": "3237ec6abc3fcf4dc4cd35362117fb716f4a29e065ae38494e23b2867d5303e2",
+          "session_id": "session-190ef288-2521-4ea3-9a41-e5169e07d4a8"
+        },
+        "technical": {
+          "verdict": "pass",
+          "read_only": true,
+          "fixed_sources_respected": true,
+          "model_calls": 13,
+          "tool_calls": 29,
+          "tool_errors": 1,
+          "evidence_sequences": [
+            63,
+            65,
+            72,
+            74,
+            76,
+            78,
+            85,
+            87,
+            132,
+            141
+          ],
+          "note": "固定读取均使用指定001/002@git9d3；来源盘点不带plan；没有写入、创建或评测。一次runs/evidence缺filename，未扩散重试。"
+        },
+        "content": {
+          "verdict": "partial",
+          "resolved": [
+            "未改荐004或用祖先引用替代用户指定来源",
+            "未断言005不可复现或所有版本从未执行PARTIAL",
+            "002被继承覆盖不等于能力无效；005历史成功仅为旁证，未作为融合目标通过证据"
+          ],
+          "findings": [
+            {
+              "id": "failure-cause-overreach",
+              "severity": "medium",
+              "claim": "合并措辞以避免模型以没有查询工具为由拒绝调用，并称其为001历史失败模式。",
+              "evidence_sequences": [
+                74,
+                87,
+                134
+              ],
+              "evidence": "历史Run实际registered_tools没有task_inspection；固定001的patch也没有该插件注册。",
+              "conclusion": "能确定当时缺少业务工具及任务未完成，不能据此归因为提示词导致拒调已提供工具。"
+            },
+            {
+              "id": "fixed-tree-vs-current",
+              "severity": "medium",
+              "claim": "两个来源的Candidate内容与固定提交一致。",
+              "evidence_sequences": [
+                54,
+                56,
+                63,
+                65
+              ],
+              "evidence": "assets/read-fixed只返回固定Git树；其candidate_digest与detail的candidate_sha256口径不同，未执行当前树与固定树一致性比较。",
+              "conclusion": "只能声明已读取指定固定树；该措辞不能用作当前Candidate无漂移的证明。"
+            },
+            {
+              "id": "verbose-user-output",
+              "severity": "low",
+              "evidence_sequences": [
+                148
+              ],
+              "evidence": "最终回复3271字符、5个章节，保留大量内部ID、摘要和工具字段。",
+              "conclusion": "主体建议可读，但仍偏向执行过程汇报；需要更聚焦继承内容、验证步骤和重要缺口。"
+            }
+          ]
+        },
+        "limits": [
+          "这是对本次策划输出的独立内容核对，不是融合实施或业务效果验收。",
+          "未修改原result、Session、Skill或任何候选审核状态。"
+        ]
+      }
+    },
+    "builder_delivery": {
+      "case_id": "builder",
+      "attempt": "2",
+      "started_at": "2026-10-17T01:44:10.762Z",
+      "ended_at": "2026-10-17T01:46:52.129Z",
+      "ok": true,
+      "session_id": "session-0ddd5297-c269-45f7-a329-3c6552abba69",
+      "elapsed_seconds": 161.367,
+      "business_ok": true,
+      "evidence_source": "builder/attempt-2/result.json",
+      "evidence_sha256": "0bcc3305b8ffaf28a7c2065b2512dad6cc6ce0a273d464597e852c61a061f5eb",
+      "model": {
+        "actual_model_calls": 30,
+        "basis": "native_observer_events",
+        "routes": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off"
+          }
+        ],
+        "tool_calls": 43,
+        "logical_error_count": 0,
+        "failures": [],
+        "observed_message_usage": [
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 27,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 4211,
+              "outputTokens": 98,
+              "cacheReadTokens": 3840,
+              "cacheWriteTokens": 0,
+              "totalTokens": 8149
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 37,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 5910,
+              "outputTokens": 124,
+              "cacheReadTokens": 8064,
+              "cacheWriteTokens": 0,
+              "totalTokens": 14098
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 49,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 12384,
+              "outputTokens": 166,
+              "cacheReadTokens": 3840,
+              "cacheWriteTokens": 0,
+              "totalTokens": 16390
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 58,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 8157,
+              "outputTokens": 139,
+              "cacheReadTokens": 16384,
+              "cacheWriteTokens": 0,
+              "totalTokens": 24680
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 70,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 21076,
+              "outputTokens": 199,
+              "cacheReadTokens": 3840,
+              "cacheWriteTokens": 0,
+              "totalTokens": 25115
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 79,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 2055,
+              "outputTokens": 293,
+              "cacheReadTokens": 25088,
+              "cacheWriteTokens": 0,
+              "totalTokens": 27436
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 88,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 2388,
+              "outputTokens": 274,
+              "cacheReadTokens": 27392,
+              "cacheWriteTokens": 0,
+              "totalTokens": 30054
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 97,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 16146,
+              "outputTokens": 223,
+              "cacheReadTokens": 29952,
+              "cacheWriteTokens": 0,
+              "totalTokens": 46321
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 108,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 43184,
+              "outputTokens": 273,
+              "cacheReadTokens": 3840,
+              "cacheWriteTokens": 0,
+              "totalTokens": 47297
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 117,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1704,
+              "outputTokens": 744,
+              "cacheReadTokens": 47232,
+              "cacheWriteTokens": 0,
+              "totalTokens": 49680
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 124,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 179,
+              "outputTokens": 684,
+              "cacheReadTokens": 49536,
+              "cacheWriteTokens": 0,
+              "totalTokens": 50399
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 131,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 258,
+              "outputTokens": 58,
+              "cacheReadTokens": 50176,
+              "cacheWriteTokens": 0,
+              "totalTokens": 50492
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 140,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 46369,
+              "outputTokens": 638,
+              "cacheReadTokens": 4992,
+              "cacheWriteTokens": 0,
+              "totalTokens": 51999
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 147,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 754,
+              "outputTokens": 659,
+              "cacheReadTokens": 51968,
+              "cacheWriteTokens": 0,
+              "totalTokens": 53381
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 160,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 5245,
+              "outputTokens": 208,
+              "cacheReadTokens": 53376,
+              "cacheWriteTokens": 0,
+              "totalTokens": 58829
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 170,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 4966,
+              "outputTokens": 176,
+              "cacheReadTokens": 58752,
+              "cacheWriteTokens": 0,
+              "totalTokens": 63894
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 182,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 67138,
+              "outputTokens": 276,
+              "cacheReadTokens": 4992,
+              "cacheWriteTokens": 0,
+              "totalTokens": 72406
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 194,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 5353,
+              "outputTokens": 73,
+              "cacheReadTokens": 72320,
+              "cacheWriteTokens": 0,
+              "totalTokens": 77746
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 204,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 78593,
+              "outputTokens": 1040,
+              "cacheReadTokens": 3840,
+              "cacheWriteTokens": 0,
+              "totalTokens": 83473
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 212,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 5260,
+              "outputTokens": 1047,
+              "cacheReadTokens": 83200,
+              "cacheWriteTokens": 0,
+              "totalTokens": 89507
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 222,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 5120,
+              "outputTokens": 74,
+              "cacheReadTokens": 89472,
+              "cacheWriteTokens": 0,
+              "totalTokens": 94666
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 232,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 95483,
+              "outputTokens": 151,
+              "cacheReadTokens": 3840,
+              "cacheWriteTokens": 0,
+              "totalTokens": 99474
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 240,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 4893,
+              "outputTokens": 159,
+              "cacheReadTokens": 99456,
+              "cacheWriteTokens": 0,
+              "totalTokens": 104508
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 250,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 4735,
+              "outputTokens": 133,
+              "cacheReadTokens": 104448,
+              "cacheWriteTokens": 0,
+              "totalTokens": 109316
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 265,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 9627,
+              "outputTokens": 214,
+              "cacheReadTokens": 109312,
+              "cacheWriteTokens": 0,
+              "totalTokens": 119153
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 280,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 124870,
+              "outputTokens": 123,
+              "cacheReadTokens": 4480,
+              "cacheWriteTokens": 0,
+              "totalTokens": 129473
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 290,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 6080,
+              "outputTokens": 166,
+              "cacheReadTokens": 129408,
+              "cacheWriteTokens": 0,
+              "totalTokens": 135654
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 302,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 141316,
+              "outputTokens": 135,
+              "cacheReadTokens": 3840,
+              "cacheWriteTokens": 0,
+              "totalTokens": 145291
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 314,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 12657,
+              "outputTokens": 653,
+              "cacheReadTokens": 145280,
+              "cacheWriteTokens": 0,
+              "totalTokens": 158590
+            }
+          }
+        ]
+      },
+      "confirmation_count": 1,
+      "user_messages": 1,
+      "execution": {
+        "id": "f6142e1e-b362-4426-828e-741009eab5e2",
+        "state": "completed",
+        "model_calls": 49,
+        "assistant_model_calls": 30,
+        "repair_rounds": 0,
+        "deadline_at": "2026-10-17T02:15:01.602Z",
+        "target_source": "experiment:EXP-daily-inspection-assistant-006-r2843ec359b07",
+        "reason": null
+      }
+    },
+    "operations": {
+      "case_id": "operations",
+      "attempt": "4",
+      "started_at": "2026-10-17T03:06:50.466Z",
+      "ended_at": "2026-10-17T03:08:13.179Z",
+      "ok": true,
+      "session_id": "session-13392a7c-073f-48c4-b933-f83b3f9e9368",
+      "elapsed_seconds": 82.713,
+      "business_ok": true,
+      "evidence_source": "operations/attempt-4/result.json",
+      "evidence_sha256": "808e755c9cda38f3796705333b79101c2cd23f83063283a7bf183919d1b233e3",
+      "model": {
+        "actual_model_calls": 14,
+        "basis": "native_observer_events",
+        "routes": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off"
+          }
+        ],
+        "tool_calls": 20,
+        "logical_error_count": 1,
+        "failures": [],
+        "observed_message_usage": [
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 27,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 253,
+              "outputTokens": 83,
+              "cacheReadTokens": 7424,
+              "cacheWriteTokens": 0,
+              "totalTokens": 7760
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 37,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 5971,
+              "outputTokens": 143,
+              "cacheReadTokens": 7680,
+              "cacheWriteTokens": 0,
+              "totalTokens": 13794
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 48,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 6563,
+              "outputTokens": 115,
+              "cacheReadTokens": 7424,
+              "cacheWriteTokens": 0,
+              "totalTokens": 14102
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 59,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 8537,
+              "outputTokens": 121,
+              "cacheReadTokens": 7552,
+              "cacheWriteTokens": 0,
+              "totalTokens": 16210
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 70,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 12369,
+              "outputTokens": 112,
+              "cacheReadTokens": 4096,
+              "cacheWriteTokens": 0,
+              "totalTokens": 16577
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 82,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 13172,
+              "outputTokens": 139,
+              "cacheReadTokens": 3584,
+              "cacheWriteTokens": 0,
+              "totalTokens": 16895
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 91,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 7748,
+              "outputTokens": 122,
+              "cacheReadTokens": 16768,
+              "cacheWriteTokens": 0,
+              "totalTokens": 24638
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 102,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 21012,
+              "outputTokens": 94,
+              "cacheReadTokens": 4096,
+              "cacheWriteTokens": 0,
+              "totalTokens": 25202
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 112,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 379,
+              "outputTokens": 57,
+              "cacheReadTokens": 25088,
+              "cacheWriteTokens": 0,
+              "totalTokens": 25524
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 119,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 199,
+              "outputTokens": 100,
+              "cacheReadTokens": 25344,
+              "cacheWriteTokens": 0,
+              "totalTokens": 25643
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 129,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1437,
+              "outputTokens": 124,
+              "cacheReadTokens": 25600,
+              "cacheWriteTokens": 0,
+              "totalTokens": 27161
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 138,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 1962,
+              "outputTokens": 64,
+              "cacheReadTokens": 27136,
+              "cacheWriteTokens": 0,
+              "totalTokens": 29162
+            }
+          },
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 145,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 169,
+              "outputTokens": 624,
+              "cacheReadTokens": 29056,
+              "cacheWriteTokens": 0,
+              "totalTokens": 29849
+            }
+          }
+        ]
+      },
+      "confirmation_count": 2,
+      "user_messages": 1,
+      "independent_review": {
+        "overall": "pass_with_limitations",
+        "business": "pass",
+        "presentation": "partial",
+        "session_id": "session-13392a7c-073f-48c4-b933-f83b3f9e9368",
+        "case_revision": 4,
+        "case_sha256": "ff2b10614d7cabf715cccc253861b565402b8a1338d2f1cf68cc7864d58b4235",
+        "reused_initialized_session": true,
+        "prior_attempt_3": "创建初始化失败，0模型；原结果保留，本轮没有额外用户纠偏提示",
+        "actual_model_calls": 14,
+        "elapsed_seconds": 82.713,
+        "model_route": "deepseek-official/deepseek-flash/off",
+        "native_confirmations": [
+          {
+            "id": "18561737-862f-464b-9f5c-a3afcc20bce3",
+            "operation": "stop",
+            "state": "completed",
+            "source": "experiment:EXP-daily-inspection-assistant-006-r2843ec359b07"
+          },
+          {
+            "id": "f2ffe082-50c5-4448-b0f8-0304491e4ac4",
+            "operation": "start",
+            "state": "completed",
+            "source": "experiment:EXP-daily-inspection-assistant-006-r2843ec359b07"
+          }
+        ],
+        "delivery_history_readback": [
+          {
+            "sequence": 50,
+            "scope": "latest_task_per_session",
+            "session_id": "session-0ddd5297-c269-45f7-a329-3c6552abba69",
+            "workspace_id": "workspace-f9d8041b-c878-4181-870f-49932f055eaa",
+            "task_id": "f6142e1e-b362-4426-828e-741009eab5e2",
+            "state": "completed",
+            "instance_name": "hep-small-model-inspection",
+            "source": "experiment:EXP-daily-inspection-assistant-006-r2843ec359b07",
+            "ready": true,
+            "probe_id": "ae608621-0f72-46bc-9aab-c87987fd1a2f",
+            "asOfSeq": 344
+          },
+          {
+            "sequence": 131,
+            "scope": "latest_task_per_session",
+            "session_id": "session-0ddd5297-c269-45f7-a329-3c6552abba69",
+            "workspace_id": "workspace-f9d8041b-c878-4181-870f-49932f055eaa",
+            "task_id": "f6142e1e-b362-4426-828e-741009eab5e2",
+            "state": "completed",
+            "instance_name": "hep-small-model-inspection",
+            "source": "experiment:EXP-daily-inspection-assistant-006-r2843ec359b07",
+            "ready": true,
+            "probe_id": "ae608621-0f72-46bc-9aab-c87987fd1a2f",
+            "asOfSeq": 344
+          }
+        ],
+        "delivery_history_source": "新启动revision11进程通过原生Session轻量wire读取既有builder最新Task；本轮未激活或续办builder，不是新生成交付",
+        "ready_is_historical": true,
+        "current_state_evidence": "stop/start实际完成回执、重启后详情、独立Docker StartedAt和HTTP；不把旧delivery.ready当实时状态",
+        "skills_actual_load": [
+          {
+            "skill": "workspace-management",
+            "tool_call_sequence": 28
+          }
+        ],
+        "skills_not_loaded": [
+          "agent-maintenance"
+        ],
+        "harness_revision": 11,
+        "scope_limitation": "该轮workspace-management实际加载，未调用agent-maintenance；不能宣称维护Skill整套执行已被验证",
+        "native_tool_errors": [
+          {
+            "sequence": 39,
+            "message": "实例名必须是小写 kebab-case",
+            "kind": "平台业务参数拒绝"
+          },
+          {
+            "sequence": 114,
+            "message": "Error: 未知的领域操作",
+            "kind": "原生工具动作不存在"
+          }
+        ],
+        "tool_error_count": 2,
+        "raw_summary_limitation": "原result.trace.tool_errors只统计结构化平台失败；此处补原生isError文本回执seq114，保留原结果不覆盖",
+        "no_new_or_modified_delivery_probe": true,
+        "formal_three_instances_unchanged": true,
+        "owned_container_id": "822533995ee4b469d0126296e58b2b87ee6cad698130fd15ac9c8c22ef469dc7",
+        "owned_restarted": true,
+        "owned_http_status": 200,
+        "screenshots_reviewed": [
+          "proposal-0.png",
+          "proposal-1.png",
+          "final.png"
+        ],
+        "ui_errors": [],
+        "ui_failed_http": [
+          {
+            "status": 404,
+            "url": "http://127.0.0.1:3124/hep/open-in-app/icon/filemanager"
+          },
+          {
+            "status": 404,
+            "url": "http://127.0.0.1:3124/hep/open-in-app/icon/filemanager"
+          }
+        ],
+        "horizontal_overflow_visual": false,
+        "limitations": [
+          "最终回复核心状态、版本、入口和启停证据准确；技术字段与历史用例细节较多，表达仍偏长",
+          "当前验收是隔离实例生命周期和历史交付读取；重启后没有另跑业务模型，不能据HTTP200宣称重新业务验收",
+          "使用基础Mock，不能推断真实设备接入",
+          "有2次工具误用后自行纠正，不能称零错误或首次成功",
+          "无同输入强模型对照，不证明off等效或成本降低"
+        ]
+      }
+    }
+  },
+  "builder_evaluation_readback": {
+    "at": "2026-10-17T01:47:59.501701+00:00",
+    "run_id": "run-dd8e8872-934b-4325-b382-7a2a0158c641",
+    "fixed_case_count": 3,
+    "headers": [
+      {
+        "file": "evidence/U-ASSET-PAGES-001/judge-trace.jsonl",
+        "sequence": 11,
+        "route": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "off"
+        }
+      },
+      {
+        "file": "evidence/U-ASSET-PAGES-001/trace.jsonl",
+        "sequence": 12,
+        "route": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "off"
+        }
+      },
+      {
+        "file": "evidence/U-ASSET-PAGES-001/trace.jsonl",
+        "sequence": 21,
+        "route": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "off"
+        }
+      },
+      {
+        "file": "evidence/U-ASSET-PARTIAL-001/judge-trace.jsonl",
+        "sequence": 11,
+        "route": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "off"
+        }
+      },
+      {
+        "file": "evidence/U-ASSET-PARTIAL-001/trace.jsonl",
+        "sequence": 12,
+        "route": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "off"
+        }
+      },
+      {
+        "file": "evidence/U-ASSET-PARTIAL-001/trace.jsonl",
+        "sequence": 21,
+        "route": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "off"
+        }
+      },
+      {
+        "file": "evidence/U-IDENTITY-001/judge-trace.jsonl",
+        "sequence": 11,
+        "route": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "off"
+        }
+      },
+      {
+        "file": "evidence/U-IDENTITY-001/trace.jsonl",
+        "sequence": 12,
+        "route": {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "off"
+        }
+      }
+    ],
+    "case_tool_checks": {
+      "U-ASSET-PAGES-001": {
+        "calls": [
+          {
+            "name": "task_inspection",
+            "arguments": {
+              "action": "start"
+            }
+          },
+          {
+            "name": "task_inspection",
+            "arguments": {
+              "action": "page",
+              "run_id": "task-d9d1cf97-bb02-4efe-a524-3d8bf13c7405",
+              "cursor": 0
+            }
+          },
+          {
+            "name": "task_inspection",
+            "arguments": {
+              "action": "page",
+              "cursor": 2,
+              "run_id": "task-d9d1cf97-bb02-4efe-a524-3d8bf13c7405"
+            }
+          },
+          {
+            "name": "task_inspection",
+            "arguments": {
+              "action": "page",
+              "cursor": 4,
+              "run_id": "task-d9d1cf97-bb02-4efe-a524-3d8bf13c7405"
+            }
+          },
+          {
+            "name": "task_inspection",
+            "arguments": {
+              "action": "report",
+              "run_id": "task-d9d1cf97-bb02-4efe-a524-3d8bf13c7405"
+            }
+          }
+        ]
+      },
+      "U-ASSET-PARTIAL-001": {
+        "calls": [
+          {
+            "name": "task_inspection",
+            "arguments": {
+              "action": "start",
+              "source": "固定资产快照"
+            }
+          },
+          {
+            "name": "task_inspection",
+            "arguments": {
+              "action": "page",
+              "run_id": "task-66852eee-6c18-480a-95c5-e1ba6c739e61",
+              "cursor": 0
+            }
+          }
+        ]
+      },
+      "U-IDENTITY-001": {
+        "calls": []
+      }
+    },
+    "parent_git_status": "",
+    "ok": true,
+    "limitations": [
+      "同一路由模型自评仅作辅助；本文件额外检查真实工具轨迹、完整分页与漏页无report。",
+      "首测通过，repair0；没有验证本Case实际触发3轮修复。",
+      "基础Mock台账，不代表真实设备检测或生产业务验收。"
+    ],
+    "assistant_final_inaccuracies": [
+      "称五个固定用例，真实为三个。",
+      "称没有单独启动实例，真实创建并启动owned交付实例。",
+      "陈述48次计数未含最后一轮；权威Task结算49。"
+    ]
+  },
+  "business_artifact_readback": {
+    "at": "2026-10-17T01:47:05.126Z",
+    "new_model_calls": 0,
+    "mode": "读取任务实际交付探针并独立下载产物",
+    "ok": true,
+    "probe": {
+      "id": "ae608621-0f72-46bc-9aab-c87987fd1a2f",
+      "session_id": "session-1b08d945-1d6f-4f83-9a54-cd3bcc602756",
+      "status": "completed",
+      "case_id": "U-ASSET-PAGES-001"
+    },
+    "models": [
+      {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "reasoningEffort": "off"
+      },
+      {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "reasoningEffort": "off"
+      }
+    ],
+    "inspection_calls": [
+      {
+        "name": "task_inspection",
+        "args": {
+          "action": "start"
+        }
+      },
+      {
+        "name": "task_inspection",
+        "args": {
+          "action": "page",
+          "run_id": "task-5ab70def-bd67-410b-af1d-873fd45ed418",
+          "cursor": 0
+        }
+      },
+      {
+        "name": "task_inspection",
+        "args": {
+          "action": "page",
+          "cursor": 2,
+          "run_id": "task-5ab70def-bd67-410b-af1d-873fd45ed418"
+        }
+      },
+      {
+        "name": "task_inspection",
+        "args": {
+          "action": "page",
+          "cursor": 4,
+          "run_id": "task-5ab70def-bd67-410b-af1d-873fd45ed418"
+        }
+      },
+      {
+        "name": "task_inspection",
+        "args": {
+          "action": "report",
+          "run_id": "task-5ab70def-bd67-410b-af1d-873fd45ed418"
+        }
+      }
+    ],
+    "observed_total_model_calls": 49,
+    "observed_probe_usage": {
+      "actual_model_calls": 6,
+      "observed_model_calls": 6,
+      "failed_model_calls": 0,
+      "observed_failed_model_calls": 0,
+      "auxiliary_model_calls": 0,
+      "auxiliary_requests_observed": 0,
+      "model_calls_by_role": {
+        "target": 6,
+        "judge": 0,
+        "analysis": 0
+      },
+      "model_calls_complete": true,
+      "model_calls_basis": "锁定 DSH 的主请求尝试/retry、压缩、辅助标题与关联图模型尝试；Session ID/seq 和图 attempt ID 去重，受控本地路由不计远程模型请求。",
+      "model_calls_unknown_reasons": [],
+      "token_usage": {
+        "input_tokens": 18122,
+        "output_tokens": 906,
+        "total_tokens": 19028
+      },
+      "observed_token_usage": {
+        "input_tokens": 18122,
+        "output_tokens": 906,
+        "total_tokens": 19028
+      },
+      "token_usage_complete": true,
+      "token_usage_note": "当前已采集请求的供应商 Token 用量；未核算实际费用。",
+      "hard_cap_supported": false
+    },
+    "artifacts": [
+      {
+        "file": "report.md",
+        "bytes": 689,
+        "sha256": "5c9ffd33e06edfaea7a813b19632b7d9e25866790eabbcf22c79f66ce7e03517",
+        "device_count": 5,
+        "http_status": 200
+      },
+      {
+        "file": "devices.csv",
+        "bytes": 352,
+        "sha256": "79f82e9064da7be04636b24ced0568abfc60cf082db5c4c9a3e81e1e19984c67",
+        "device_count": 5,
+        "http_status": 200
+      }
+    ],
+    "final": "## 巡检完成\n\n本次只读台账巡检已完成：3 页已按 cursor 0 → 2 → 4 全部读取，`next_cursor` 为 null；报告工具校验已读取集合完整（共 5 台设备），并生成 Markdown 与 CSV。\n\n**运行 ID**：`task-5ab70def-bd67-410b-af1d-873fd45ed418`（来源：基础模拟接口 basic_mock）\n\n**下载入口**（服务端返回的实际地址）：\n- [Markdown 报告](/assistant/api/task-examples/artifact?run_id=task-5ab70def-bd67-410b-af1d-873fd45ed418&file=report.md)\n- [CSV 设备清单](/assistant/api/task-examples/artifact?run_id=task-5ab70def-bd67-410b-af1d-873fd45ed418&file=devices.csv)\n\n### 设备清单（5 台）\n\n| 设备ID | 状态 | 名称 | 类型 | 台账风险分值 |\n| --- | --- | --- | --- | --- |\n| asset-0001 | 台账已记录 | k8s-node-01 | kubernetes | 86 |\n| asset-0002 | 台账已记录 | edr-gateway-02 | server | 82 |\n| asset-0003 | 台账已记录 | waf-edge-03 | firewall | 41 |\n| asset-0004 | 台账已记录 | edr-gateway-04 | firewall | 57 |\n| asset-0005 | 台账已记录 | vpn-05 | server | 80 |\n\n报告完整性校验值：`5c9ffd33e06edfaea7a813b19632b7d9e25866790eabbcf22c79f66ce7e03517`。\n\n### 这不是实际设备健康检测\n\n数据来自基础模拟接口，只反映台账记录，并非真实设备健康检测：我没有连接、扫描或探测任何真实设备，报告中的“状态”仅为“台账已记录”，风险分值也是台账字段值，不代表实时健康状态、漏洞情况或在线状态。完整结论请以实际接入的资产与安全平台检测结果为准。"
+  },
+  "builder_summary_retest": {
+    "result": {
+      "session_id": "session-0ddd5297-c269-45f7-a329-3c6552abba69",
+      "prompt": "请根据当前任务的实际记录给出简短交付说明，提供实例和产物入口，仅查询状态、不重新构建/评测/交付/操作实例",
+      "original_case_result": "builder/attempt-2/result.json",
+      "original_total_model_calls": 49,
+      "max_additional_calls": 5,
+      "timeout_minutes": 2,
+      "confirmations": 0,
+      "new_business_probes": 0,
+      "ok": true,
+      "initial_assistant_model_calls": 30,
+      "task_id": "f6142e1e-b362-4426-828e-741009eab5e2",
+      "original_probe_id": "ae608621-0f72-46bc-9aab-c87987fd1a2f",
+      "additional_model_calls": 2,
+      "observed_cumulative_model_calls": 51,
+      "new_calls": [
+        {
+          "file": "session.v4.jsonl",
+          "call_id": "call_00_xGVwGr3NIBty9WBHIdyi0257",
+          "name": "platform_task",
+          "action": "status",
+          "input": {}
+        },
+        {
+          "file": "session.v4.jsonl",
+          "call_id": "call_01_95tUMjy5VQfPS1Qjmbug0809",
+          "name": "platform_instances",
+          "action": "list",
+          "input": {}
+        }
+      ],
+      "new_turns": [
+        {
+          "file": "session.v4.jsonl",
+          "reason": "completed"
+        }
+      ],
+      "new_usage": [
+        {
+          "file": "session.v4.jsonl",
+          "sequence": 332,
+          "type": "assistant/message",
+          "usage": {
+            "inputTokens": 153823,
+            "outputTokens": 110,
+            "cacheReadTokens": 11520,
+            "cacheWriteTokens": 0,
+            "totalTokens": 165453
+          }
+        },
+        {
+          "file": "session.v4.jsonl",
+          "sequence": 342,
+          "type": "assistant/message",
+          "usage": {
+            "inputTokens": 10549,
+            "outputTokens": 579,
+            "cacheReadTokens": 165376,
+            "cacheWriteTokens": 0,
+            "totalTokens": 176504
+          }
+        }
+      ],
+      "final": "日常巡检助手已完成交付，状态为上一轮结束时处于任务已完成，本轮只做了只读状态核对，没有重新构建、评测或交付，也没有操作实例。\n\n**交付结果**\n\n- 独立研究版本：`EXP-daily-inspection-assistant-006-r2843ec359b07`，它从所选父版 001 派生，并复用参考版 002 的只读台账工具 `task_inspection`。\n- 评测 Run `run-dd8e8872-934b-4325-b382-7a2a0158c641`：U-IDENTITY-001、U-ASSET-PAGES-001、U-ASSET-PARTIAL-001 全部通过；其中 U-ASSET-PARTIAL-001 证明未读全分页时助手会拒绝交付完整结论。修复轮次为 0。\n- 交付记录中的产物为 [inspection-report.md](evolution/experiments/EXP-daily-inspection-assistant-006-r2843ec359b07/runs/run-dd8e8872-934b-4325-b382-7a2a0158c641/artifacts/U-ASSET-PAGES-001/inspection-report.md)，共 5 台设备（asset-0001 至 asset-0005），无缺失、无重复；CSV 已由交付探针实际下载，并逐字节核对一致。\n\n**实例**\n\n`hep-small-model-inspection` 刚才的只读查询显示容器状态为 running，已运行约 1 小时。入口 http://127.0.0.1:3125/assistant/ 。首次打开需在“选择工作区”中选 `/work/harness/workspace`。\n\n**下载入口**\n\n以下是交付探针在该实例上新 Session 实际生成的文件，URL 来自交付记录：\n\n- Markdown：http://127.0.0.1:3125/assistant/api/task-examples/artifact?run_id=task-5ab70def-bd67-410b-af1d-873fd45ed418&file=report.md\n- CSV：http://127.0.0.1:3125/assistant/api/task-examples/artifact?run_id=task-5ab70def-bd67-410b-af1d-873fd45ed418&file=devices.csv\n\n这些是实例内部业务任务的 run_id，与实例 HOME 绑定；如果实例数据卷被重建或换名，需要在新会话重新巡检获取新链接。\n\n**边界**\n\n台账数据来自 `basic_mock` 模拟接口，不表示真实设备健康检测；结论仅覆盖本轮选定的 Case 与已回读产物。",
+      "elapsed_seconds": 9.35,
+      "network": {
+        "errors": [],
+        "failed_http": [
+          {
+            "status": 404,
+            "url": "http://127.0.0.1:3124/hep/open-in-app/icon/filemanager"
+          },
+          {
+            "status": 404,
+            "url": "http://127.0.0.1:3124/hep/api/changes.summary"
+          },
+          {
+            "status": 404,
+            "url": "http://127.0.0.1:3124/hep/open-in-app/icon/filemanager"
+          },
+          {
+            "status": 404,
+            "url": "http://127.0.0.1:3124/hep/api/changes.summary"
+          }
+        ],
+        "confirm_requests": []
+      }
+    },
+    "independent_review": {
+      "review_kind": "independent-semantic-audit",
+      "reviewed_at": "2026-10-17T02:49:04.579987+00:00",
+      "session_id": "session-0ddd5297-c269-45f7-a329-3c6552abba69",
+      "source_files": [
+        {
+          "path": "/home/admin/.local/state/hep-small-model-20261017/builder/summary-after-revision9/result.json",
+          "sha256": "9b03950f951ae623e9cf6bd3d96ba03492b0e4853975d2fd2745d9bc473ea6cc"
+        },
+        {
+          "path": "/home/admin/.local/state/hep-small-model-20261017/builder/summary-after-revision9/before.json",
+          "sha256": "a1662c672d976326b643e38f4ad9f4af2f93a408ca5102022bc77e326dc7266e"
+        },
+        {
+          "path": "/home/admin/.local/state/hep-small-model-20261017/builder/attempt-2/result.json",
+          "sha256": "0bcc3305b8ffaf28a7c2065b2512dad6cc6ce0a273d464597e852c61a061f5eb"
+        },
+        {
+          "path": "/home/admin/.local/state/hep-small-model-20261017/builder/attempt-2/evaluation-readback.json",
+          "sha256": "70c30f3d06988554fdb494a4d3d00e05a292ab418d99bec9f8c3931924ea055b"
+        }
+      ],
+      "native_trace_path": "/home/admin/work/hep-small-model-data/.local/platform-home/sessions/--home-admin-work-hep-small-model-data--/session-0ddd5297-c269-45f7-a329-3c6552abba69/session.v4.jsonl.zstd",
+      "trace_sequences": [
+        326,
+        329,
+        333,
+        334,
+        335,
+        336,
+        340,
+        342,
+        344
+      ],
+      "technical_verdict": "pass",
+      "core_fact_verdict": "pass",
+      "presentation_verdict": "partial",
+      "scope": "原已完成构建任务的第二轮只读总结；不替换首次输出，也不是重做构建或交付验收。",
+      "checks": [
+        {
+          "item": "任务范围",
+          "result": "pass",
+          "evidence": "seq326 仅请求简短说明与只读查询，未提示正确 Case/设备数量；新增调用仅 seq333 task/status、seq335 instances/list，无新执行提案、交付探针或业务操作。"
+        },
+        {
+          "item": "Case 与设备数量",
+          "result": "pass",
+          "evidence": "seq334 plan 固定三条 Case，delivery 产物检查为五台设备、missing/duplicates 为空；seq342 最终分别列出三条 Case 与五台设备，不再称五条 Case。"
+        },
+        {
+          "item": "实例已启动",
+          "result": "pass",
+          "evidence": "seq334 原实例 create 完成回执记载 running，seq336 在 2026-10-17T02:47:00.071850Z 再读同名实例 running；最终明确刚才查询状态及真实入口，不再否认已启动。"
+        },
+        {
+          "item": "下载入口与 Mock 边界",
+          "result": "pass",
+          "evidence": "最终 Markdown/CSV URL 与 seq334 delivery.probe.downloads 一致，CSV 校验陈述来自 delivery_csv_download 成功项；明确 basic_mock 不代表真实设备检测。此轮未重新下载或新开业务 Session。"
+        },
+        {
+          "item": "计数时点",
+          "result": "qualified",
+          "evidence": "seq334 是原完成任务的 49 次模型调用快照，包含 30 次助手、13 次评测、6 次交付探针。本轮另有 seq329、340 两次助手调用，不计入已完成 Task 快照，累计观察为 51。最终没有报次数，未再把旧 48 当最终计数；因此本轮没有验证模型能主动准确解释计数时点。"
+        },
+        {
+          "item": "保持原证据",
+          "result": "pass",
+          "evidence": "原 Task ID、probe ID、completed 状态、四项已完成 operations 保持；本轮无 execution 写事件。原 attempt-2 的输出错误与 partial 说明保留。"
+        }
+      ],
+      "remaining_issues": [
+        {
+          "severity": "low",
+          "issue": "报告引用仍把数据根相对文件路径直接写成 Markdown 链接；该路径并非工具返回的网页 URL。后面同时提供真实下载 URL，主要产物入口可用。",
+          "evidence": "final 的 inspection-report.md 链接目标以 evolution/experiments/ 开头。"
+        },
+        {
+          "severity": "low",
+          "issue": "总结仍偏长，首句重复说明上一轮已完成和本轮只读；不影响本轮主要业务事实，但不完全符合简短交付说明的目标。"
+        }
+      ],
+      "limits": [
+        "只读总结纠正了先前两项核心事实错误，不反向改写首次交付输出。",
+        "原构建首测通过、repair_rounds=0；本轮没有验证三轮修复或新业务验收。",
+        "模型仍为 Flash/off，本轮只证明两次调用能从实际完成记录给出较准确总结。"
+      ]
+    }
+  },
+  "budget": {
+    "one_call_cap": {
+      "ok": true,
+      "session_id": "session-71b84f9a-04c4-4ae7-95ff-ad558e853561",
+      "evidence_source": "supplement-budget.json",
+      "evidence_sha256": "eeafade9d056889f551347e1bf1086f37863fbce2f9afc3110fb717033457057",
+      "model": {
+        "actual_model_calls": null,
+        "basis": null,
+        "routes": [
+          {
+            "provider": "deepseek-official",
+            "model": "deepseek-flash",
+            "reasoningEffort": "off"
+          }
+        ],
+        "tool_calls": 2,
+        "logical_error_count": 0,
+        "failures": [],
+        "observed_message_usage": [
+          {
+            "file": "session.v4.jsonl",
+            "sequence": 27,
+            "type": "assistant/message",
+            "usage": {
+              "inputTokens": 6940,
+              "outputTokens": 96,
+              "cacheReadTokens": 1664,
+              "cacheWriteTokens": 0,
+              "totalTokens": 8700
+            }
+          }
+        ]
+      },
+      "confirmation_count": 1,
+      "user_messages": null,
+      "execution": {
+        "id": "caabae05-7757-4fa8-87fe-50c9cfee8d15",
+        "state": "budget_exhausted",
+        "model_calls": 1,
+        "assistant_model_calls": 1,
+        "repair_rounds": 0,
+        "deadline_at": "2026-10-17T00:47:04.267Z",
+        "target_source": "experiment:EXP-daily-inspection-assistant-001-r602ec12fd531",
+        "reason": "任务模型调用额度已耗尽"
+      }
+    },
+    "terminal_guard": {
+      "ok": true,
+      "session_id": "session-71b84f9a-04c4-4ae7-95ff-ad558e853561",
+      "before": {
+        "id": "caabae05-7757-4fa8-87fe-50c9cfee8d15",
+        "owner_session_id": "session-71b84f9a-04c4-4ae7-95ff-ad558e853561",
+        "plan": {
+          "goal": "本轮为只读任务预算与暂停恢复验收：只查询当前版本detail和cases/list，说明还不能交付的原因；不要修改文件、启动评测、操作实例或调用业务API。",
+          "agent_id": "daily-inspection-assistant",
+          "source": "experiment:EXP-daily-inspection-assistant-001-r602ec12fd531",
+          "evaluation_case_ids": [
+            "U-IDENTITY-001"
+          ],
+          "allowed_actions": [
+            {
+              "domain": "agents",
+              "action": "edit/apply"
+            }
+          ],
+          "budget": {
+            "max_repair_rounds": 0,
+            "max_model_calls": 1,
+            "timeout_minutes": 5
+          },
+          "deliverables": [
+            "本轮只读核查结论，不交付业务实例"
+          ],
+          "required_tool_names": [],
+          "kind": "business"
+        },
+        "state": "budget_exhausted",
+        "started_at": "2026-10-17T00:42:04.267Z",
+        "deadline_at": "2026-10-17T00:47:04.267Z",
+        "repair_rounds": 0,
+        "model_calls": 1,
+        "assistant_model_calls": 1,
+        "source_ref": "git:9d3e6a834369c292a6318416c1d5ec10c3726a2f",
+        "evaluation_sha256": "66e2f51a1fdac9bde109a3315b21b5801279f74337874bbaf007900774635ad2",
+        "target_source": "experiment:EXP-daily-inspection-assistant-001-r602ec12fd531",
+        "goal_id": "goal-2ba54d15-7f4a-4353-b22d-20f58e907e43",
+        "operations": [],
+        "reason": "任务模型调用额度已耗尽"
+      },
+      "results": {
+        "pause": {
+          "state": "budget_exhausted",
+          "reason": "任务模型调用额度已耗尽",
+          "model_calls": 1
+        },
+        "cancel": {
+          "state": "budget_exhausted",
+          "reason": "任务模型调用额度已耗尽",
+          "model_calls": 1
+        }
+      },
+      "resume_rejected": true,
+      "after_model_calls": 1
+    },
+    "pause_resume": {
+      "at": "2026-10-17T01:22:48.095Z",
+      "mode": "recover",
+      "case_file": "supplement-cases-v2.json",
+      "confirmations": 0,
+      "session_id": "session-e6855f2b-886f-484a-ae21-373a8aed1ebc",
+      "restored": {
+        "id": "23eab983-5334-4408-b169-592faf31497b",
+        "owner_session_id": "session-e6855f2b-886f-484a-ae21-373a8aed1ebc",
+        "plan": {
+          "goal": "本轮为只读任务预算与暂停恢复验收：只查询当前版本detail和cases/list，说明还不能交付的原因；不要修改文件、启动评测、操作实例或调用业务API。",
+          "agent_id": "daily-inspection-assistant",
+          "source": "experiment:EXP-daily-inspection-assistant-001-r602ec12fd531",
+          "evaluation_case_ids": [
+            "U-IDENTITY-001"
+          ],
+          "allowed_actions": [
+            {
+              "domain": "agents",
+              "action": "edit/apply"
+            }
+          ],
+          "budget": {
+            "max_repair_rounds": 0,
+            "max_model_calls": 20,
+            "timeout_minutes": 5
+          },
+          "deliverables": [
+            "本轮只读核查结论，不交付业务实例"
+          ],
+          "required_tool_names": [],
+          "kind": "business"
+        },
+        "state": "paused",
+        "started_at": "2026-10-17T01:20:29.237Z",
+        "deadline_at": "2026-10-17T01:25:29.237Z",
+        "repair_rounds": 0,
+        "model_calls": 4,
+        "assistant_model_calls": 4,
+        "source_ref": "git:9d3e6a834369c292a6318416c1d5ec10c3726a2f",
+        "evaluation_sha256": "66e2f51a1fdac9bde109a3315b21b5801279f74337874bbaf007900774635ad2",
+        "target_source": "experiment:EXP-daily-inspection-assistant-001-r602ec12fd531",
+        "goal_id": "goal-4ad20443-1ccc-42a3-a871-a7a7c694a56f",
+        "operations": [],
+        "reason": "用户暂停任务"
+      },
+      "cancelled": {
+        "id": "23eab983-5334-4408-b169-592faf31497b",
+        "owner_session_id": "session-e6855f2b-886f-484a-ae21-373a8aed1ebc",
+        "plan": {
+          "goal": "本轮为只读任务预算与暂停恢复验收：只查询当前版本detail和cases/list，说明还不能交付的原因；不要修改文件、启动评测、操作实例或调用业务API。",
+          "agent_id": "daily-inspection-assistant",
+          "source": "experiment:EXP-daily-inspection-assistant-001-r602ec12fd531",
+          "evaluation_case_ids": [
+            "U-IDENTITY-001"
+          ],
+          "allowed_actions": [
+            {
+              "domain": "agents",
+              "action": "edit/apply"
+            }
+          ],
+          "budget": {
+            "max_repair_rounds": 0,
+            "max_model_calls": 20,
+            "timeout_minutes": 5
+          },
+          "deliverables": [
+            "本轮只读核查结论，不交付业务实例"
+          ],
+          "required_tool_names": [],
+          "kind": "business"
+        },
+        "state": "cancelled",
+        "started_at": "2026-10-17T01:20:29.237Z",
+        "deadline_at": "2026-10-17T01:25:29.237Z",
+        "repair_rounds": 0,
+        "model_calls": 4,
+        "assistant_model_calls": 4,
+        "source_ref": "git:9d3e6a834369c292a6318416c1d5ec10c3726a2f",
+        "evaluation_sha256": "66e2f51a1fdac9bde109a3315b21b5801279f74337874bbaf007900774635ad2",
+        "target_source": "experiment:EXP-daily-inspection-assistant-001-r602ec12fd531",
+        "goal_id": "goal-4ad20443-1ccc-42a3-a871-a7a7c694a56f",
+        "operations": [],
+        "reason": "用户取消任务"
+      },
+      "ok": true
+    }
+  },
+  "formal": {
+    "features": {
+      "at": "2026-10-17T01:50:46.912Z",
+      "ok": true,
+      "session_id": "session-52cfb798-8aeb-4b00-876b-5e0ba02fe796",
+      "trigger": "real-ui-button",
+      "saved_features": 8,
+      "actual_model_calls": 15,
+      "elapsed_seconds": 81.786,
+      "confirm_requests": 0,
+      "json_parse_errors": 0,
+      "candidate_unchanged": true,
+      "save_readback_sha256": "9914e2b70371b1b53e875c013aad188090844da72251068b8777c842271fff6e",
+      "reason": "completed",
+      "reconciled_without_new_model_requests": true,
+      "original_probe_failure": "验收脚本把turn/end.reason对象误按字符串判断；原结果保留，实际模型已完成并保存",
+      "screenshot": "failed.png（原脚本命名，内容为真实完成界面）"
+    },
+    "extraction": {
+      "started_at": "2026-10-17T01:50:08.607Z",
+      "kind": "extraction",
+      "trigger": "real-ui-button",
+      "confirm_requests": 0,
+      "model_budget": 20,
+      "wall_timeout_seconds": 300,
+      "ok": true,
+      "page_errors": [],
+      "http_errors": [
+        {
+          "status": 404,
+          "url": "http://10.0.160.32:3090/hep/open-in-app/icon/filemanager"
+        }
+      ],
+      "workspace_id": "workspace-95db14d2-d53d-4015-8256-ade8612b1b77",
+      "default_model": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "reasoningEffort": "max"
+      },
+      "prior_dataset_ids": [
+        "decision-dataset-79dfb874-a25a-4a01-b9c3-b1108bf247cf",
+        "decision-dataset-978fee8b-bc6e-4e93-a63e-0b8e3d9add49",
+        "decision-dataset-c34ebbac-c291-41e6-9ce3-d8d16700541c"
+      ],
+      "candidate_sha256": "38b037f735774b8606659eb72830ad28a1e7e49f33597b0e94ec110e90344722",
+      "session_id": "session-b85c408a-7d33-438a-861a-0637ef5f3a40",
+      "task_context": {
+        "page": "evaluation",
+        "run_id": "run-05973a80-6b91-40e7-a0da-acca3a4ea696",
+        "agent_id": "inspection-delivery-demo",
+        "experiment_id": "EXP-inspection-delivery-demo-001-rf841e4415364",
+        "skill": "decision-sample-extraction"
+      },
+      "model_routes": [
+        {
+          "provider": "deepseek-official",
+          "model": "deepseek-flash",
+          "reasoningEffort": "max"
+        }
+      ],
+      "actual_model_calls": 13,
+      "elapsed_seconds": 158.21,
+      "errors": [],
+      "json_parse_errors": 0,
+      "calls": [
+        {
+          "seq": 26,
+          "name": "skill",
+          "skill": "decision-sample-extraction"
+        },
+        {
+          "seq": 34,
+          "name": "platform_agents",
+          "action": "datasets/source"
+        },
+        {
+          "seq": 41,
+          "name": "platform_agents",
+          "action": "datasets/source"
+        },
+        {
+          "seq": 48,
+          "name": "platform_agents",
+          "action": "datasets/source"
+        },
+        {
+          "seq": 55,
+          "name": "platform_agents",
+          "action": "datasets/preview"
+        },
+        {
+          "seq": 64,
+          "name": "platform_agents",
+          "action": "datasets/source"
+        },
+        {
+          "seq": 71,
+          "name": "platform_agents",
+          "action": "datasets/preview"
+        },
+        {
+          "seq": 80,
+          "name": "platform_agents",
+          "action": "datasets/source"
+        },
+        {
+          "seq": 87,
+          "name": "platform_agents",
+          "action": "datasets/source"
+        },
+        {
+          "seq": 94,
+          "name": "platform_agents",
+          "action": "datasets/preview"
+        },
+        {
+          "seq": 96,
+          "name": "platform_agents",
+          "action": "datasets/preview"
+        },
+        {
+          "seq": 103,
+          "name": "platform_agents",
+          "action": "datasets/list"
+        }
+      ],
+      "final": "已保存 2 条新候选，来自固定 Run `run-05973a80-6b91-40e7-a0da-acca3a4ea696` 的 target 轨迹；标签仍是 AI 建议，`reviewed=0`、`unassigned`，不会进入训练导出。\n\n| 题名 | 类型与建议标签 | 来源决策 | 业务判断 |\n|---|---|---|---|\n| `asset_risk_score_disposition` | choice / `ledger_clue_for_review` | U-ASSET-PAGES-001（生成报告摘要前） | 把 `risk_score` 89、76 作为需优先人工核查的台账线索，不表述为真实设备健康检测结论 |\n| `complete_report_ready_now` | noul / `false` | U-ASSET-PARTIAL-001（回复前） | 只读到第 1 页 2/5 台且 `next_cursor=2` 时，不能交付完整五台报告 |\n\n两个数据集分别是 `decision-dataset-9738e5e0-12c1-45a2-bdb9-3ef3e3e3675d` 与 `decision-dataset-2165e11e-516f-4e25-874f-1f9116d58d80`，各 1 题。依据来自决策前可见的工具说明（`basic_mock`）、分页回执和用户约束，未附概率，也不声称校准、人工标注或教师聚合；Run 未被修改。\n\n来源核对覆盖 4 个 target 轨迹的全部 13 个决策（PAGES 6、PARTIAL 3、IDENTITY 1、ROLE 3）；PAGES 前 4 个是 `start`/`page` 的机械续读，未作为样本。U-IDENTITY-001（身份复述）与 U-ROLE-001（准备动作和能力澄清问答）没有业务处置分歧，已提交跳过原因；但平台对只有跳过原因、没有题目的预览不创建数据集文件，因此这两条原因仅保留在本次预览回执中，未写入候选记录。\n\n本 Run 现共 5 个数据集、8 条候选，全部未复核且 `unassigned`；另有 3 个较早批次共 6 条候选，本次未修改，其中题名与“完整交付判断”主题相近，复核时可一并取舍。请在本 Run 的“决策样本”中逐题核对输入、时点、题干、监督语义和标签；第 1 条候选说明里有一处重复字（“把高分为作为”），可顺手订正。",
+      "turns": [
+        {
+          "turn": 1,
+          "reason": {
+            "kind": "completed"
+          }
+        }
+      ],
+      "datasets": [
+        {
+          "id": "decision-dataset-2165e11e-516f-4e25-874f-1f9116d58d80",
+          "count": 1,
+          "reviewed": 0,
+          "eligibility": {
+            "candidates": 1,
+            "training": 0,
+            "development": 0,
+            "calibration": 0,
+            "test": 0
+          }
+        },
+        {
+          "id": "decision-dataset-9738e5e0-12c1-45a2-bdb9-3ef3e3e3675d",
+          "count": 1,
+          "reviewed": 0,
+          "eligibility": {
+            "candidates": 1,
+            "training": 0,
+            "development": 0,
+            "calibration": 0,
+            "test": 0
+          }
+        }
+      ],
+      "horizontal_overflow": false,
+      "ended_at": "2026-10-17T01:53:13.929Z"
+    },
+    "extraction_independent_review": {
+      "review_kind": "independent-semantic-audit",
+      "reviewed_at": "2026-10-17T02:43:49.849736+00:00",
+      "result_path": "/home/admin/.local/state/hep-small-model-20261017/formal-ui-extraction/result.json",
+      "result_sha256": "fd63c14f851b47a5d6c03e33a63f2ef13025322501637ae9e41d52b5d6df36b6",
+      "session_id": "session-b85c408a-7d33-438a-861a-0637ef5f3a40",
+      "actual_model": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "reasoningEffort": "max"
+      },
+      "scope": "正式 3090 UI 按钮本轮新增的两题；只读正式数据与原始轨迹，未改变 Skill、候选、审核或划分状态。",
+      "technical_verdict": "pass",
+      "content_verdict": "partial",
+      "summary": {
+        "valid_candidate_pending_human_review": 1,
+        "needs_semantic_review": 1,
+        "human_reviewed": 0,
+        "training_eligible": 0
+      },
+      "source_checks": [
+        {
+          "dataset_id": "decision-dataset-2165e11e-516f-4e25-874f-1f9116d58d80",
+          "dataset_path": "/home/admin/harness-engineering-platform-data/evolution/datasets/decision-dataset-2165e11e-516f-4e25-874f-1f9116d58d80.json",
+          "dataset_sha256": "fca0d7fac9de1720ce0d55d110305ec77e169b96a2c11a50a201bd4a79c3ff1c",
+          "record_id": "decision-61f01928b8cbfb3039a7ca1f4e53834b",
+          "decision_id": "decision-38c64834c478548bd0b4",
+          "trace_path": "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ASSET-PARTIAL-001/trace.jsonl",
+          "cutoff_line": 32,
+          "cutoff_seq": 30,
+          "trace_sha256_matches": true,
+          "cutoff_sha256_matches": true,
+          "source_bundle_files_match": true,
+          "observed_action_matches_raw_source": true,
+          "current_action_absent_from_state": true,
+          "semantics": "recommended_decision",
+          "status": "suggested",
+          "decision_time_reviewed": false,
+          "split": "unassigned"
+        },
+        {
+          "dataset_id": "decision-dataset-9738e5e0-12c1-45a2-bdb9-3ef3e3e3675d",
+          "dataset_path": "/home/admin/harness-engineering-platform-data/evolution/datasets/decision-dataset-9738e5e0-12c1-45a2-bdb9-3ef3e3e3675d.json",
+          "dataset_sha256": "bf167b3b0263ac423acbbdfe24f13157d6fc6fe2f727b2ba847626a7931e8c59",
+          "record_id": "decision-92178223c3d53686d26080f259aad6de",
+          "decision_id": "decision-26d73e7b218a691b7bad",
+          "trace_path": "evolution/experiments/EXP-inspection-delivery-demo-001-rf841e4415364/runs/run-05973a80-6b91-40e7-a0da-acca3a4ea696/evidence/U-ASSET-PAGES-001/trace.jsonl",
+          "cutoff_line": 45,
+          "cutoff_seq": 43,
+          "trace_sha256_matches": true,
+          "cutoff_sha256_matches": true,
+          "source_bundle_files_match": true,
+          "observed_action_matches_raw_source": true,
+          "current_action_absent_from_state": true,
+          "semantics": "recommended_decision",
+          "status": "suggested",
+          "decision_time_reviewed": false,
+          "split": "unassigned"
+        }
+      ],
+      "record_reviews": [
+        {
+          "dataset_id": "decision-dataset-2165e11e-516f-4e25-874f-1f9116d58d80",
+          "question_name": "complete_report_ready_now",
+          "verdict": "valid_candidate_pending_human_review",
+          "decision_time": "只完成 start 与第一页读取、尚未 respond；state 中没有本次回复。",
+          "evidence": [
+            "当前用户明确要求只读第一页并判断能否交付完整五台报告，同时禁止继续读取。",
+            "当前页回执只有两台，total=5、next_cursor=2；可见工具合同要求 report 校验已读取完整集合。"
+          ],
+          "assessment": "false 标签可由当前状态直接判断；两种布尔答案互斥，题目检验完整交付与用户授权边界，有简单业务判断价值。没有将其他切片的健康检测提问补入本题。",
+          "limitations": "这是一道简单候选题，不足以证明泛化、标注一致性或训练收益。"
+        },
+        {
+          "dataset_id": "decision-dataset-9738e5e0-12c1-45a2-bdb9-3ef3e3e3675d",
+          "question_name": "asset_risk_score_disposition",
+          "verdict": "needs_semantic_review",
+          "decision_time": "全部三页读完、尚未调用 report；当前 report 参数仅在 observed_action 中，不在 state。",
+          "evidence": [
+            "当前用户确实要求完整报告并说明是否实际设备健康检测。",
+            "state 中 risk_score 为 89、31、40、39、76，source_kind 为 basic_mock；工具明确禁止称为真实设备健康检测。",
+            "state 未给出风险分尺度、阈值或人工核查优先级规则。"
+          ],
+          "assessment": "不冒充真实健康检测这一判断有直接依据。优先人工核查是可以讨论的建议，但不能仅由数据来源限制推出唯一正确的优先级判断。现有选项未发现明确同时成立，但混合了风险解释、优先级和来源披露三项判断。",
+          "findings": [
+            {
+              "severity": "medium",
+              "field": "questions.asset_risk_score_disposition.criteria.value_only_no_conclusion",
+              "issue": "将中性列值与省略来源说明捆绑，遗漏“列出台账值并注明 Mock、暂不确定核查优先级”的合理方案，削弱候选比较的公平性。",
+              "recommendation": "人员复核时按单一判断维度调整题目或补足合理备选，不把现有建议自动当作金标准。"
+            },
+            {
+              "severity": "medium",
+              "field": "targets.asset_risk_score_disposition.basis",
+              "issue": "依据足以支持 Mock 边界，却不足以单独确定核查优先级；建议的判断依据与不确定性仍需人员确认。",
+              "recommendation": "核查是否有当前决策前可见的优先级规则；没有则将该判断保留为可争议的建议，或聚焦有明确依据的数据来源边界。"
+            },
+            {
+              "severity": "low",
+              "field": "questions.asset_risk_score_disposition.criteria.ledger_clue_for_review",
+              "issue": "“把高分为作为”含重复字，影响自然表达。"
+            }
+          ],
+          "observed_action_note": "实际 report 摘要也提出优先核查，但实际动作不证明其最优；本评审没有将 observed_action 当作推荐标签的独立证据，也未仅因二者相似认定泄漏。"
+        }
+      ],
+      "language_and_protocol": "新题干、选项、依据主要为中文；noul、choice、recommended_decision、action 名、ID、risk_score 等协议与原始证据保留原文。除一处重复字外，未发现中文翻译改变协议语义。",
+      "review_boundary": "两条 target 仍为 suggested、decision_time_reviewed=false，split=unassigned；此独立审查不是平台人工审核动作，没有赋予训练导出资格。",
+      "limits": [
+        "本轮正式默认为 Flash/max，不属于 Flash/off 验收。",
+        "state 标记为 reconstructed；已核对本题直接涉及的用户输入、业务调用与回执、当前动作和来源摘要，未声称逐 token 恢复模型完整隐藏上下文。",
+        "自动保存与回读、0 JSON 错误、0 确认只证明本轮技术闭环；不能据此声称所有候选已达到训练质量。"
+      ]
+    },
+    "service": {
+      "at": "2026-10-17T03:12:51.788618+00:00",
+      "pid": 534105,
+      "url": "http://10.0.160.32:3090/hep/",
+      "program": "/home/admin/work/ai-agent-harness",
+      "data": "/home/admin/harness-engineering-platform-data",
+      "log": "/home/admin/.local/state/hep-small-model-20261017/formal-platform-revision12.log",
+      "plugin_sha256": "5c60202777b5ed4272862df064c37ff3b771a983a58076f9df9640f4cba2f0f7",
+      "harness_revision": 12,
+      "preserved_historical_unconfirmed_records": 3,
+      "source_branch": "fix/PLATFORM-decision-extraction-json",
+      "stop": "kill -TERM 534105"
+    },
+    "final_readback": {
+      "at": "2026-10-17T03:12:57.274Z",
+      "ok": true,
+      "model_requests_added": 0,
+      "configuration_writes": 0,
+      "workspace_id": "workspace-95db14d2-d53d-4015-8256-ade8612b1b77",
+      "default_model": {
+        "provider": "deepseek-official",
+        "model": "deepseek-flash",
+        "reasoningEffort": "max"
+      },
+      "loaded_assets": [
+        {
+          "name": "AGENTS.md",
+          "path": "/home/admin/harness-engineering-platform-data/AGENTS.md",
+          "sha256": "ba4b1f6c6807af0d690ac206aeaf18b9ef878698b0474f4b136ede7b68fad4a5"
+        },
+        {
+          "name": "workspace-management",
+          "path": "/home/admin/harness-engineering-platform-data/.agents/skills/workspace-management/SKILL.md",
+          "sha256": "1191c7d75b0d906f23e6c76bd21a140b02b9e9ec647ee2a74be8222fb5a44a3b"
+        },
+        {
+          "name": "task-builder",
+          "path": "/home/admin/harness-engineering-platform-data/.agents/skills/task-builder/SKILL.md",
+          "sha256": "2e91037946b375fa017822de5865ca5304d023c8c6094c04aebd527bb9621407"
+        },
+        {
+          "name": "agent-maintenance",
+          "path": "/home/admin/harness-engineering-platform-data/.agents/skills/agent-maintenance/SKILL.md",
+          "sha256": "a8b07d02ee53032f83eb5e8956d1b3047ad6a12b009c253f4fa44e89177222de"
+        },
+        {
+          "name": "mcp-composition",
+          "path": "/home/admin/harness-engineering-platform-data/.agents/skills/mcp-composition/SKILL.md",
+          "sha256": "e157e3fa58a1484cbff2e6fc02717dba671d17a86cc7b3f451f91a3ad6ca7da8"
+        },
+        {
+          "name": "compute-variant-research",
+          "path": "/home/admin/harness-engineering-platform-data/.agents/skills/compute-variant-research/SKILL.md",
+          "sha256": "f550aa8938dcc6046c892e969f258bc82bc4c0c1b5a6a1bd715ee0b61c0e06c4"
+        },
+        {
+          "name": "decision-sample-extraction",
+          "path": "/home/admin/harness-engineering-platform-data/.agents/skills/decision-sample-extraction/SKILL.md",
+          "sha256": "d63a33c6f415dda8073363857856e73b8f38187a9a36e4eca0b99fba3e20cba0"
+        },
+        {
+          "name": "harness-guided-workflow",
+          "path": "/home/admin/harness-engineering-platform-data/.agents/skills/harness-guided-workflow/SKILL.md",
+          "sha256": "c1e9614da84ab053183fe6f00f80db94c606d4ce1dc7497d505e5df2094214e1"
+        },
+        {
+          "name": "harness-evolution",
+          "path": "/home/admin/harness-engineering-platform-data/.agents/skills/harness-evolution/SKILL.md",
+          "sha256": "3ac134a4231f94d522dbdceaf4a432d0cbac7e08b41419b1132e8a34d92e6e6a"
+        },
+        {
+          "name": "harness-experiment-fusion",
+          "path": "/home/admin/harness-engineering-platform-data/.agents/skills/harness-experiment-fusion/SKILL.md",
+          "sha256": "75def1bae61b5926fe4f95a50f5902b2d2649d78f13c6ae1f8e6ccf1b683abc7"
+        },
+        {
+          "name": "research-eval",
+          "path": "/home/admin/harness-engineering-platform-data/.agents/skills/research-eval/SKILL.md",
+          "sha256": "aea60caf58cb195b6bfccc034c29f3865b020fd408744a176a9d2acb139b9601"
+        },
+        {
+          "name": "legacy-asset-intake",
+          "path": "/home/admin/harness-engineering-platform-data/.agents/skills/legacy-asset-intake/SKILL.md",
+          "sha256": "e325b12f47ed8fc678caf6ad26d8a689b7da76464b50d7297031d751fad4ff2f"
+        },
+        {
+          "name": "user-facing-output",
+          "path": "/home/admin/harness-engineering-platform-data/.agents/skills/user-facing-output/SKILL.md",
+          "sha256": "6b10248c59c29ceda28c0471ff9067b032930734f9bec08012e2f34f97d1d4d9"
+        }
+      ],
+      "saved_sessions_preserved": true,
+      "native_delivery_wire": {
+        "kind": "sequenced",
+        "asOfSeq": 164,
+        "session_id": "session-52cfb798-8aeb-4b00-876b-5e0ba02fe796"
+      },
+      "prior_sessions_preserved": 67,
+      "running": [],
+      "historical_pending_preserved": [
+        {
+          "session_id": "session-704520db-7e44-424f-b834-97151b7730b8",
+          "count": 1
+        },
+        {
+          "session_id": "session-b17ee8b4-6dd2-49a7-9ae4-386e173e5489",
+          "count": 1
+        },
+        {
+          "session_id": "session-fee543c2-e75f-4f9d-ae38-9bbfdc99c643",
+          "count": 1
+        }
+      ],
+      "initialization_probe_session": "session-645fdadb-6006-451d-a18d-c8d8ce98d468",
+      "initialization_probe": {
+        "ok": true,
+        "model_calls": 0,
+        "user_messages": 0
+      },
+      "service": {
+        "at": "2026-10-17T03:12:51.788618+00:00",
+        "pid": 534105,
+        "url": "http://10.0.160.32:3090/hep/",
+        "program": "/home/admin/work/ai-agent-harness",
+        "data": "/home/admin/harness-engineering-platform-data",
+        "log": "/home/admin/.local/state/hep-small-model-20261017/formal-platform-revision12.log",
+        "plugin_sha256": "5c60202777b5ed4272862df064c37ff3b771a983a58076f9df9640f4cba2f0f7",
+        "harness_revision": 12,
+        "preserved_historical_unconfirmed_records": 3,
+        "source_branch": "fix/PLATFORM-decision-extraction-json",
+        "stop": "kill -TERM 534105"
+      }
+    }
+  },
+  "source_and_tests": {
+    "at": "2026-10-17T03:12:28.646094+00:00",
+    "program_base_commit": "61ec9e07d4ed1e43e9e8f756f9df111c0a742243",
+    "data_base_commit": "9d3e6a834369c292a6318416c1d5ec10c3726a2f",
+    "uncommitted": true,
+    "program_source_sha256": {
+      "platform/plugin/src/agents/client.tsx": "c70312edc7c21d03f64f72425f3e8d01f1d3244af7be7b07d57c963d5d801245",
+      "platform/plugin/src/assistant/business-assets.ts": "8a5b66e84d1b83430f8bc14d8704aefa1bf527365ead08bbc924d1058bda16d6",
+      "platform/plugin/src/assistant/delivery-history.ts": "e1448648fccae50f303110dc8d020981dd0f0fe886abed4482f12d4d6a0b3eb4",
+      "platform/plugin/src/assistant/extraction-scope.ts": "76897f58327f5fe493221e92486248dec03ba8720475de8b149019860d3051ca",
+      "platform/plugin/src/assistant/index.ts": "b597a38273dc4ab3a61f84856c8da9e7668d022160255f624cadbdc9edbf7094",
+      "platform/plugin/src/assistant/operation-summary.ts": "97def13bace661eb6894b6e5aa79a3a0857dd7cf9af1f332b60c5399b28406c5",
+      "platform/plugin/src/assistant/task-model-view.ts": "2574f6b02ab08c3c76f5430154a76b71beee1adf2859505a2c8fc3f7ae3dc4f6",
+      "platform/plugin/src/assistant/tool-contracts.ts": "3fc75e00e4469746f7f2d35a35e4d9fec22918d76dfc9d544f235cea3c4009d4",
+      "platform/plugin/src/assistant/tool-input-recovery.ts": "c4f7a0648323f2e2f9983882f2fb9e9b6f6ac322d15f886dbe702f698cc96209",
+      "platform/plugin/src/evaluation/client.tsx": "a42955d23020c543aed075a7406554df8ed6f11abfdec954cc8a572b4632f295",
+      "platform/plugin/src/evaluation/datasets.ts": "18c84571e92719c11e5377868d558117daa429b444cb0235c9332c4972f37294",
+      "platform/plugin/src/evaluation/decision-dataset-contract.ts": "93c9565f0d62d11152f38a0ffa7a861a0bf6bbd2351d06bf88c712ceb947d226",
+      "platform/plugin/src/index.ts": "1845722a25f4db2a2a45f43a0acdb8d0d6eee0ec132dbd8da6f23c4b5a289d9f"
+    },
+    "data_owned_harness_sha256": {
+      "AGENTS.md": "b196ad7236f58594e6430153dab64c2311d497c750340dd756f81912d8985da5",
+      ".agents/skills/agent-maintenance/SKILL.md": "a93cf630f08911aa5b73fa8da886b8000d83feccaf1fbe65bf352597b44dc1f6",
+      ".agents/skills/compute-variant-research/SKILL.md": "2cd9e61babd9fefcce533607c263e9fbde840f6f6f351b54585bc8c0990601a0",
+      ".agents/skills/decision-sample-extraction/SKILL.md": "e0d7b8983673268aa8a8f3d8ae326d78383473d89a61e82b2144e9e27e6a134f",
+      ".agents/skills/harness-evolution/SKILL.md": "3249fc5bf44f3884a1dc840d0e6f14069fcf83c1ed02822097c48e72dc9650a9",
+      ".agents/skills/harness-evolution/references/repository-invariants.md": "7507ebb4df97bb18098505a04b15e6c1a9ec0aa4e51c920f35a3ee7d8b33625b",
+      ".agents/skills/harness-experiment-fusion/SKILL.md": "7066e19aa02118440f36dad780f2d80bcac07e72cde00e8f0a058f3742c898c4",
+      ".agents/skills/harness-guided-workflow/SKILL.md": "caf1dd85cb710fe26af377635e973ef6799f277a7115df10f683984065864fa2",
+      ".agents/skills/legacy-asset-intake/SKILL.md": "d428079699df851e85ae1d37aef3da21d40788844212e651107ab1f1582661bb",
+      ".agents/skills/mcp-composition/SKILL.md": "cb17a20e1b9ab0ca7f91d705af9e123293885cf10e2e3e893bd1ad33c67eae7e",
+      ".agents/skills/research-eval/SKILL.md": "0be0c3542ff13112654fcc05072ac98156fb6138c2583663b8373601470f27d8",
+      ".agents/skills/task-builder/SKILL.md": "b9a24bbab3fb17ba556d473f9d028c25541380b659c481f0d155fa98d92a2d8b",
+      ".agents/skills/user-facing-output/SKILL.md": "5ca4374b9066247397fa96e1297290f9aa6bd67a6318df58c88097c8353e4205",
+      ".agents/skills/workspace-management/SKILL.md": "09ea567cb086c6c88498258f3d58ec50d83aa5e3501ca11ca3e4d54d6db30258",
+      "docs/harness-research/compute-variants.md": "5013d8159cc38eacbd3292636c46b982d514516552194dc9bde59379502a7bfc",
+      "extensions/security-operations/skills/security-operations-composition/SKILL.md": "26f53d86acd27fd84d76a7d885690cd69f11f1511d28b6e581105dd524404a73"
+    },
+    "production_bundle_sha256": "135366029f2fbb267b90866667ae7e76ed338ddf3e8c551b518b569658b1776c",
+    "compiled_plugin_sha256": "5c60202777b5ed4272862df064c37ff3b771a983a58076f9df9640f4cba2f0f7",
+    "validation": {
+      "build": {
+        "ok": true,
+        "source": "revision12-build.log",
+        "sha256": "565a25818d2a19993db67889629604040e98b39740396ccc987e9cc65eeef6ad"
+      },
+      "full_tests": {
+        "tests": 521,
+        "passed": 521,
+        "failed": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "duration_ms": 57180.595154,
+        "source": "plugin-tests-revision12.log",
+        "sha256": "90a6a924047d293bb8dfe5ec6d9a65992eb715939f5728615361c9d48d2c3103"
+      }
+    }
+  },
+  "change_guard": {
+    "ok": true,
+    "at": "2026-10-17T03:12:52.667719+00:00",
+    "data_preexisting_files_preserved": 232,
+    "program_source_matching_files": 13,
+    "data_harness_matching_files": 16,
+    "credential_pattern_files": [],
+    "heads_unchanged": {
+      "program": true,
+      "data": true
+    }
+  },
+  "operations_independent_review": {
+    "overall": "pass_with_limitations",
+    "business": "pass",
+    "presentation": "partial",
+    "session_id": "session-13392a7c-073f-48c4-b933-f83b3f9e9368",
+    "case_revision": 4,
+    "case_sha256": "ff2b10614d7cabf715cccc253861b565402b8a1338d2f1cf68cc7864d58b4235",
+    "reused_initialized_session": true,
+    "prior_attempt_3": "创建初始化失败，0模型；原结果保留，本轮没有额外用户纠偏提示",
+    "actual_model_calls": 14,
+    "elapsed_seconds": 82.713,
+    "model_route": "deepseek-official/deepseek-flash/off",
+    "native_confirmations": [
+      {
+        "id": "18561737-862f-464b-9f5c-a3afcc20bce3",
+        "operation": "stop",
+        "state": "completed",
+        "source": "experiment:EXP-daily-inspection-assistant-006-r2843ec359b07"
+      },
+      {
+        "id": "f2ffe082-50c5-4448-b0f8-0304491e4ac4",
+        "operation": "start",
+        "state": "completed",
+        "source": "experiment:EXP-daily-inspection-assistant-006-r2843ec359b07"
+      }
+    ],
+    "delivery_history_readback": [
+      {
+        "sequence": 50,
+        "scope": "latest_task_per_session",
+        "session_id": "session-0ddd5297-c269-45f7-a329-3c6552abba69",
+        "workspace_id": "workspace-f9d8041b-c878-4181-870f-49932f055eaa",
+        "task_id": "f6142e1e-b362-4426-828e-741009eab5e2",
+        "state": "completed",
+        "instance_name": "hep-small-model-inspection",
+        "source": "experiment:EXP-daily-inspection-assistant-006-r2843ec359b07",
+        "ready": true,
+        "probe_id": "ae608621-0f72-46bc-9aab-c87987fd1a2f",
+        "asOfSeq": 344
+      },
+      {
+        "sequence": 131,
+        "scope": "latest_task_per_session",
+        "session_id": "session-0ddd5297-c269-45f7-a329-3c6552abba69",
+        "workspace_id": "workspace-f9d8041b-c878-4181-870f-49932f055eaa",
+        "task_id": "f6142e1e-b362-4426-828e-741009eab5e2",
+        "state": "completed",
+        "instance_name": "hep-small-model-inspection",
+        "source": "experiment:EXP-daily-inspection-assistant-006-r2843ec359b07",
+        "ready": true,
+        "probe_id": "ae608621-0f72-46bc-9aab-c87987fd1a2f",
+        "asOfSeq": 344
+      }
+    ],
+    "delivery_history_source": "新启动revision11进程通过原生Session轻量wire读取既有builder最新Task；本轮未激活或续办builder，不是新生成交付",
+    "ready_is_historical": true,
+    "current_state_evidence": "stop/start实际完成回执、重启后详情、独立Docker StartedAt和HTTP；不把旧delivery.ready当实时状态",
+    "skills_actual_load": [
+      {
+        "skill": "workspace-management",
+        "tool_call_sequence": 28
+      }
+    ],
+    "skills_not_loaded": [
+      "agent-maintenance"
+    ],
+    "harness_revision": 11,
+    "scope_limitation": "该轮workspace-management实际加载，未调用agent-maintenance；不能宣称维护Skill整套执行已被验证",
+    "native_tool_errors": [
+      {
+        "sequence": 39,
+        "message": "实例名必须是小写 kebab-case",
+        "kind": "平台业务参数拒绝"
+      },
+      {
+        "sequence": 114,
+        "message": "Error: 未知的领域操作",
+        "kind": "原生工具动作不存在"
+      }
+    ],
+    "tool_error_count": 2,
+    "raw_summary_limitation": "原result.trace.tool_errors只统计结构化平台失败；此处补原生isError文本回执seq114，保留原结果不覆盖",
+    "no_new_or_modified_delivery_probe": true,
+    "formal_three_instances_unchanged": true,
+    "owned_container_id": "822533995ee4b469d0126296e58b2b87ee6cad698130fd15ac9c8c22ef469dc7",
+    "owned_restarted": true,
+    "owned_http_status": 200,
+    "screenshots_reviewed": [
+      "proposal-0.png",
+      "proposal-1.png",
+      "final.png"
+    ],
+    "ui_errors": [],
+    "ui_failed_http": [
+      {
+        "status": 404,
+        "url": "http://127.0.0.1:3124/hep/open-in-app/icon/filemanager"
+      },
+      {
+        "status": 404,
+        "url": "http://127.0.0.1:3124/hep/open-in-app/icon/filemanager"
+      }
+    ],
+    "horizontal_overflow_visual": false,
+    "limitations": [
+      "最终回复核心状态、版本、入口和启停证据准确；技术字段与历史用例细节较多，表达仍偏长",
+      "当前验收是隔离实例生命周期和历史交付读取；重启后没有另跑业务模型，不能据HTTP200宣称重新业务验收",
+      "使用基础Mock，不能推断真实设备接入",
+      "有2次工具误用后自行纠正，不能称零错误或首次成功",
+      "无同输入强模型对照，不证明off等效或成本降低"
+    ]
+  },
+  "operations_semantic_review": {
+    "review_kind": "independent-semantic-audit",
+    "reviewed_at": "2026-10-17T03:11:36.309238+00:00",
+    "session_id": "session-13392a7c-073f-48c4-b933-f83b3f9e9368",
+    "source_files": [
+      {
+        "path": "/home/admin/.local/state/hep-small-model-20261017/operations/attempt-4/result.json",
+        "sha256": "808e755c9cda38f3796705333b79101c2cd23f83063283a7bf183919d1b233e3"
+      },
+      {
+        "path": "/home/admin/.local/state/hep-small-model-20261017/operations/attempt-4/independent-review.json",
+        "sha256": "5278baec1a43dd8deb61bf533ba083709fd37f9386f46bc98b90c6baa9632d9d"
+      },
+      {
+        "path": "/home/admin/.local/state/hep-small-model-20261017/operations/attempt-4/final.png",
+        "sha256": "dcf6e70d0627b209a272be19516da9eee06b77b13fffe4770ecee74eedffc381"
+      }
+    ],
+    "native_trace_path": "/home/admin/work/hep-small-model-data/.local/platform-home/sessions/--home-admin-work-hep-small-model-data--/session-13392a7c-073f-48c4-b933-f83b3f9e9368/session.v4.jsonl.zstd",
+    "native_sequences": [
+      12,
+      28,
+      39,
+      50,
+      61,
+      84,
+      86,
+      104,
+      106,
+      107,
+      114,
+      121,
+      123,
+      124,
+      131,
+      133,
+      140
+    ],
+    "business_verdict": "pass",
+    "core_fact_verdict": "pass",
+    "presentation_verdict": "partial",
+    "checks": [
+      {
+        "item": "条件取证",
+        "result": "pass",
+        "evidence": "seq50 模型可见回执的顶层 delivery_history 按相同 workspace、实例名和 source 关联原 builder Task f6142e1e-b362-4426-828e-741009eab5e2，历史 state=completed、delivery.ready=true；seq131 回读同一 Task/probe/asOfSeq，未把 Run passed 或人工未复核另立为启停门槛。"
+      },
+      {
+        "item": "原生提案与顺序",
+        "result": "pass",
+        "evidence": "停止提案 seq104→完成 seq106/107；随后启动提案 seq121→完成 seq123/124。只有同名目标实例的两项变更，没有调用 tasks/delivery 或另建业务探针。"
+      },
+      {
+        "item": "重启后实际状态",
+        "result": "pass",
+        "evidence": "seq131 独立详情返回新容器 822533995ee4、running、Up 10 seconds，source/image 与原目标一致；seq133 logs/stderr 为空，seq140 返回真实入口。最终状态来自本轮观察，未用历史 delivery.ready 代替。"
+      },
+      {
+        "item": "实际验证范围",
+        "result": "pass",
+        "evidence": "seq86 当前 Run 有3条通过 Case，另3条 uncovered_case_ids；最终准确区分未覆盖项，并说明本轮未重新取得业务交互证据。C 的 HTTP/Docker 独立核对支持实例重启，本评审未重新运行 HTTP 或业务模型。"
+      },
+      {
+        "item": "界面表达",
+        "result": "partial",
+        "evidence": "final.png 首句清楚说明停启完成，访问入口可辨认，未见横向溢出；后文堆叠长来源 ID、镜像、挂载、模式和历史 Case 细节，用户仍需阅读较多技术内容。"
+      }
+    ],
+    "remaining_limits": [
+      "实际仅加载 workspace-management，未加载 agent-maintenance；此成功不能用来声称维护 Skill 全套指令已在模型中执行验证。",
+      "seq39 detail 参数错误与 seq114 不存在的 request_approval 动作均保留，模型随后自纠正；本轮不是零工具错误，也不能追认之前失败为通过。",
+      "原 result.trace.tool_errors 仅列结构化错误；independent-review.json 补充原生 isError，二者口径差异已有明确说明。",
+      "实际请求使用 deepseek-flash/off；无同输入强模型对照，不证明效果等效或成本降低。",
+      "最终称 listener_verified 来自“创建回执”，实际本轮是 start 回执；字段值正确，只是动作称谓不够精确，未影响成功判定。",
+      "最终日志和监听信息只支持本轮读取及装载状态，不证明真实外部设备业务；本次没有重跑业务验收。"
+    ],
+    "source_preservation": "未修改 Case、Skill、程序、原 result、independent-review、截图或运行记录；仅新增本评审。"
+  },
+  "local_small_model_preflight": {
+    "at": "2026-10-17T01:55:53.205Z",
+    "purpose": "real-small-model-endpoint-read-only-preflight",
+    "ok": false,
+    "model_requests": 0,
+    "error": "The operation was aborted due to timeout"
+  },
+  "limitations": [
+    "off不是小参数模型的等效证明；未连通本地模型，未完成真实小参数模型验收",
+    "无同输入强模型固定对照，调用完成或Token记录不能证明节约费用或效果等效",
+    "抽样保存的协议有效与业务标签质量分别核对；全部保持未复核和未分配",
+    "MCP首次完整墙钟时限未通过，原Session恢复后跑通不改写为首次成功",
+    "生成构建切片未绑定、冻结、装载、执行或证明等效",
+    "巡检初测通过且修复轮为0，本次不证明真实多轮自动修复",
+    "研究只读融合内容仍有部分归因与表达不足",
+    "原始失败、原Session及完整日志保留在本机state目录，不复制凭据和运行HOME"
+  ]
+}

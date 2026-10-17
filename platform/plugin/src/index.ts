@@ -12,7 +12,8 @@ import { DOMAIN_PREFIXES } from './protocol.ts'
 import { recentRuns } from './dashboard.ts'
 import { workspaceIdentity } from './workspace.ts'
 import { createAgentsHandler } from './agents/index.ts'
-import { createExtractionScope, createComputeVariantScope, isDecisionExtraction, isComputeVariantResearch, createFeatureScope, isFeatureOrganization, createTaskBuilderScope, createExclusiveTaskScopes } from './assistant/extraction-scope.ts'
+import { createExtractionScope, createComputeVariantScope, isDecisionExtraction, isComputeVariantResearch, createFeatureScope, isFeatureOrganization, createTaskBuilderScope, createExclusiveTaskScopes, projectDecisionExtractionTools } from './assistant/extraction-scope.ts'
+import { createToolInputRecovery } from './assistant/tool-input-recovery.ts'
 import { createRunDownloadHandler } from './agents/run-files.ts'
 import { createInstancesHandler } from './instances/index.ts'
 import { applyMcpGateway, createMcpHandler } from './mcp/index.ts'
@@ -181,8 +182,8 @@ export function applyTools(ctx: Context) {
   const extractionScope = createExtractionScope()
   const computeVariantScope = createComputeVariantScope()
   const featureScope = createFeatureScope()
-  const builderScope = createTaskBuilderScope(assetRoot, services.skills)
-  const taskScopes = createExclusiveTaskScopes([extractionScope, computeVariantScope, featureScope, builderScope])
+  const managementScope = createTaskBuilderScope(assetRoot, services.skills)
+  const taskScopes = createExclusiveTaskScopes([extractionScope, computeVariantScope, featureScope, managementScope])
   const taskScope = (agent: any, state: any) => isDecisionExtraction(assetRoot, agent, state) ? extractionScope
     : isComputeVariantResearch(assetRoot, agent, state) ? computeVariantScope
       : isFeatureOrganization(assetRoot, agent, state) ? featureScope : undefined
@@ -191,7 +192,7 @@ export function applyTools(ctx: Context) {
     scopeExtraction: agent => taskScopes.apply(agent, extractionScope),
     scopeComputeVariants: agent => taskScopes.apply(agent, computeVariantScope),
     scopeFeatures: agent => taskScopes.apply(agent, featureScope),
-    scopeTaskBuilder: agent => taskScopes.apply(agent, builderScope),
+    scopeTaskBuilder: agent => taskScopes.apply(agent, managementScope),
     releaseTaskScope: agent => taskScopes.release(agent),
     running: id => services.agents.get(id)?.status === 'running',
     liveAgent: id => services.agents.get(id),
@@ -202,29 +203,33 @@ export function applyTools(ctx: Context) {
   })
   domains.assistant = assistant.handler
   assistant.registerTools(services.tools)
+  const extractionRecoveryLifetime = new AbortController()
+  ctx.on('agent/request-error' as any, createToolInputRecovery(assetRoot, services.sessionProjections, extractionRecoveryLifetime.signal) as any)
   ctx.on('llm/stream' as any, (async function* (request: any, next: any) {
     if (request.sessionId) await assistant.beforeModelCall(String(request.sessionId))
     yield* next()
   }) as any)
   ctx.on('agent/created' as any, (({ agent }: any) => {
     const state = services.sessionProjections.stateOf(agent.session, 'harnessPlatformAssistant')
-    taskScopes.apply(agent, taskScope(agent, state) ?? (assistant.isTaskSession(agent) ? builderScope : undefined))
+    taskScopes.apply(agent, taskScope(agent, state) ?? (assistant.isManagementSession(agent) ? managementScope : undefined))
   }) as any)
   ctx.on('agent/disposed' as any, (({ agent }: any) => taskScopes.release(agent)) as any)
   ctx.on('system-prompt/assemble' as any, (async (_assembly: any, context: any, next: any) => {
     const agent = context.agent
     const state = agent && services.sessionProjections.stateOf(agent.session, 'harnessPlatformAssistant')
     const scope = taskScope(agent, state)
-    const builder = !scope && assistant.isTaskSession(agent)
-    if (agent) taskScopes.apply(agent, scope ?? (builder ? builderScope : undefined))
+    const management = !scope && assistant.isManagementSession(agent)
+    if (agent) taskScopes.apply(agent, scope ?? (management ? managementScope : undefined))
     const assembly = await assistant.assemblePrompt(await next(), context)
-    if (builder) return { ...assembly, tools: assembly.tools.filter((tool: any) => ['skill', 'platform_task', 'platform_agents', 'platform_instances', 'platform_mcp'].includes(tool.name)) }
+    if (management) return { ...assembly, tools: assembly.tools.filter((tool: any) => ['skill', 'platform_task', 'platform_agents', 'platform_instances', 'platform_mcp'].includes(tool.name)) }
     if (!scope) return assembly
     const names = isComputeVariantResearch(assetRoot, agent, state) ? ['skill', 'platform_agents', 'platform_task'] : ['skill', 'platform_agents']
-    return { ...assembly, tools: assembly.tools.filter((tool: any) => names.includes(tool.name)) }
+    const tools = assembly.tools.filter((tool: any) => names.includes(tool.name))
+    return { ...assembly, tools: isDecisionExtraction(assetRoot, agent, state) ? projectDecisionExtractionTools(tools) : tools }
   }) as any)
   ctx.effect(() => () => taskScopes.dispose())
   ctx.effect(() => () => assistant.dispose())
+  ctx.effect(() => () => extractionRecoveryLifetime.abort())
   ctx.on('session/event' as any, ((session: any) => notify(['assistant'], [session.id])) as any)
   ctx.on('agent/status' as any, ((event: any) => notify(['assistant'], [event.agent.id])) as any)
   ctx.on('settings/document-updated' as any, (() => notify(['mcp', 'catalog'])) as any)

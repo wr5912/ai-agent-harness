@@ -23,7 +23,7 @@ const [{ ToolRuntime }, { createScope }, { createUserMessage }, { SkillRegistry 
   import(pathToFileURL(sdkRequire.resolve('@deepseek-ai/dsh-skill-filesystem')).href),
 ])
 
-test('真实HTTP助手接口在compute与普通任务间排他切换，用户续话及重复组装不重复声明native', async t => {
+test('真实HTTP管理会话统一限制原生读写，专用切换与可信Skill可用，普通DSH会话不受影响', async t => {
   const ctx = new Context()
   const assetRoot = mkdtempSync(join(tmpdir(), 'assistant-scope-switch-'))
   writeFileSync(join(assetRoot, 'AGENTS.md'), '管理当前测试数据工作区。')
@@ -32,6 +32,10 @@ test('真实HTTP助手接口在compute与普通任务间排他切换，用户续
     mkdirSync(directory, { recursive: true })
     writeFileSync(join(directory, 'SKILL.md'), `---\nname: ${name}\ndescription: 作用域切换测试技能\n---\n仅办理本测试的管理任务。`)
   }
+  const extensionSkills = join(assetRoot, 'extensions/basic/skills')
+  mkdirSync(join(extensionSkills, 'basic-data'), { recursive: true })
+  writeFileSync(join(extensionSkills, 'basic-data/SKILL.md'), '---\nname: basic-data\ndescription: 声明扩展业务技能\n---\n读取基础模拟数据。')
+  writeFileSync(join(assetRoot, 'workspace.json'), JSON.stringify({ schemaVersion: 1, id: 'workspace-scope-switch', extensions: [{ id: 'basic', path: 'extensions/basic' }] }))
   const previous = process.env.HARNESS_ASSET_ROOT
   process.env.HARNESS_ASSET_ROOT = assetRoot
   const agents = new Map(), scopes = [], calls = [], prompts = []
@@ -53,13 +57,13 @@ test('真实HTTP助手接口在compute与普通任务间排他切换，用户续
     new SystemPrompt(inner, {})
     new SkillRegistry(inner, {})
     inner.skills.registerProvider(control => skillProvider = new FileSystemSkillProvider(inner, control, {
-      includeDefaultRoots: false, customSkillDirs: [join(assetRoot, '.agents/skills')], watch: false,
+      includeDefaultRoots: false, customSkillDirs: [join(assetRoot, '.agents/skills'), extensionSkills], watch: false,
     }))
     new ToolRuntime(inner, { mode: 'native' })
     for (const name of ['skill', 'bash', 'read', 'write', 'spawn_agent']) inner.tools.register({
       name, description: '作用域回归工具', parameters: { type: 'object', additionalProperties: true },
       output: { schema: { type: 'object' }, render: () => [{ type: 'text', text: '{}' }] },
-      execute(args) { calls.push({ name, args }); return {} },
+      execute(args, execution) { calls.push({ name, args, agentId: execution.agent.id }); return {} },
     })
     inner.provide('platformMcp', { servers: { get: () => [] }, groups: { get: () => [] } })
     inner.provide('settingsController', {})
@@ -105,7 +109,7 @@ test('真实HTTP助手接口在compute与普通任务间排他切换，用户续
   const id = created.session_id, agent = agents.get(id)
   const schemas = async () => (await ctx.systemPrompt.assemble({ scope: agent, agent })).tools.map(tool => tool.name).sort()
   let sequence = 0
-  const execute = (name, args = {}) => ctx.tools.execute({ name, arguments: args, callId: `scope-call-${++sequence}`, agent, signal: new AbortController().signal })
+  const execute = (name, args = {}, target = agent) => ctx.tools.execute({ name, arguments: args, callId: `scope-call-${++sequence}`, agent: target, signal: new AbortController().signal })
   const assertCompute = async () => {
     assert.deepEqual(await schemas(), ['platform_agents', 'platform_task', 'skill'])
     assert.equal((await execute('skill', { name: 'compute-variant-research' })).isError, false)
@@ -123,8 +127,15 @@ test('真实HTTP助手接口在compute与普通任务间排他切换，用户续
 
   await rpc('session', { session_id: id, task: '明确结束专用任务', context: {} })
   await rpc('status', { session_id: id })
-  assert.ok(ctx.tools.get('bash', agent), '显式普通会话在status入口立即释放旧scope')
-  assert.ok((await schemas()).includes('bash'))
+  assert.equal(ctx.tools.get('bash', agent), undefined, '退出专用任务后仍属于平台管理会话')
+  assert.deepEqual(await schemas(), ['platform_agents', 'platform_instances', 'platform_mcp', 'platform_task', 'skill'])
+  for (const name of ['bash', 'read', 'write', 'spawn_agent']) assert.equal((await execute(name)).isError, true)
+  assert.equal((await execute('skill', { name: 'workspace-management' })).isError, false)
+  assert.equal((await execute('skill', { name: 'basic-data' })).isError, false, '通用管理允许实际装载的已声明扩展技能')
+  assert.equal((await execute('skill', { name: 'missing-business-skill' })).isError, true)
+  const ordinary = agents.get((await ctx.sessionController.create()).sessionId)
+  assert.ok((await ctx.systemPrompt.assemble({ scope: ordinary, agent: ordinary })).tools.some(tool => tool.name === 'read'))
+  for (const name of ['bash', 'read', 'write']) assert.equal((await execute(name, {}, ordinary)).isError, false, '未激活管理身份的原生Session保持原能力')
   await rpc('session', { session_id: id, task: '再次进入算力任务', context: { skill: 'compute-variant-research' } })
   await assertCompute()
 
@@ -141,13 +152,13 @@ test('真实HTTP助手接口在compute与普通任务间排他切换，用户续
   await assertCompute()
   // 兼容现场已存在的空task_context记录：剩余execution应切换到普通任务，不能遗留compute声明。
   appendPluginRecord(agent.session, 'plugin:harness-platform/assistant', { kind: 'execution', owner_session_id: id,
-    execution: { id: 'previous-task', state: 'cancelled', model_calls: 0, plan: { kind: 'business', budget: { max_model_calls: 60 } } } })
+    execution: { id: 'previous-task', state: 'cancelled', model_calls: 0, operations: [], plan: { kind: 'business', budget: { max_model_calls: 60 } } } })
   appendPluginRecord(agent.session, 'plugin:harness-platform/assistant', { kind: 'task', task: '历史空上下文', context: {} })
   await rpc('status', { session_id: id })
   assert.deepEqual(await schemas(), ['platform_agents', 'platform_instances', 'platform_mcp', 'platform_task', 'skill'])
   await rpc('session', { session_id: id, task: '重新选择算力任务', context: { skill: 'compute-variant-research' } })
   await assertCompute()
-  assert.equal(calls.some(call => ['bash', 'read', 'write', 'spawn_agent'].includes(call.name)), false)
+  assert.equal(calls.some(call => call.agentId === id && ['bash', 'read', 'write', 'spawn_agent'].includes(call.name)), false)
   assert.equal(prompts.length, 7)
   ctx.emit('agent/disposed', { agent })
   assert.ok(ctx.tools.get('bash', agent), 'agent disposed释放所有平台限制')
